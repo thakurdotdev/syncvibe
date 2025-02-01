@@ -1,0 +1,82 @@
+.music-wave {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.music-wave .lucide-music {
+  animation: wave 1s ease-in-out infinite;
+}
+
+.music-wave .lucide-music:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.music-wave .lucide-music:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes wave {
+
+  0%,
+  100% {
+    transform: scaleY(0.5);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes wave {
+
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.animate-wave {
+  animation: wave 1.2s ease-in-out infinite;
+}
+
+.scale-102 {
+  --tw-scale-x: 1.02;
+  --tw-scale-y: 1.02;
+  transform: scale(var(--tw-scale-x), var(--tw-scale-y));
+}
+
+/* Add smooth transitions */
+.transition-transform {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+.rotate-animation {
+  animation: rotate-disk 6s linear infinite;
+}
+
+@keyframes rotate-disk {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}

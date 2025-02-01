@@ -1,0 +1,24 @@
+User-agent: *
+# Block authenticated routes
+Disallow: /profile
+Disallow: /user/
+Disallow: /my/posts
+Disallow: /feed
+Disallow: /post/
+Disallow: /passkey-login
+Disallow: /verify
+Disallow: /chat
+Disallow: /stories/
+Disallow: /music/
+Disallow: /post/search
+Disallow: /post/update/
+
+# Allow public pages
+Allow: /
+Allow: /login
+Allow: /register
+Allow: /privacy-policy
+Allow: /terms-of-services
+
+# Sitemap location
+Sitemap: https://syncvibe.xyz/sitemap.xml
