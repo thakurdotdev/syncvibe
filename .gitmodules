@@ -1,0 +1,6 @@
+[submodule "facegram-api"]
+	path = facegram-api
+	url = ./facegram-api
+[submodule "facegram"]
+	path = facegram
+	url = ./facegram
