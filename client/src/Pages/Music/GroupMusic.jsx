@@ -6,12 +6,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSocket } from "@/Context/ChatContext";
 import { useProfile } from "@/Context/Context";
 import axios from "axios";
@@ -19,7 +20,6 @@ import _ from "lodash";
 import {
   AudioLines,
   CopyIcon,
-  LogOut,
   Pause,
   Play,
   Plus,
@@ -27,9 +27,13 @@ import {
   SkipBack,
   SkipForward,
   Volume2,
+  Users,
+  Music,
+  Loader2,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 const formatTime = (seconds) => {
   if (!seconds) return "0:00";
@@ -58,6 +62,8 @@ const GroupMusic = () => {
   const [serverTimeOffset, setServerTimeOffset] = useState(0);
   const [lastSync, setLastSync] = useState(0);
   const [groupId, setGroupId] = useState("");
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
 
   const audioRef = useRef(null);
 
@@ -101,10 +107,8 @@ const GroupMusic = () => {
     const currentAudioTime = audioRef.current?.currentTime || 0;
 
     try {
-      // Add buffer time to account for network latency and processing time
-      const scheduledTime = Date.now() + serverTimeOffset + 300; // increased buffer to 300ms
+      const scheduledTime = Date.now() + serverTimeOffset + 300;
 
-      // Emit the playback change to server
       socket.emit("music-playback", {
         groupId: currentGroup?.id,
         isPlaying: newIsPlaying,
@@ -112,11 +116,9 @@ const GroupMusic = () => {
         scheduledTime,
       });
 
-      // Calculate the delay accounting for serverTimeOffset
       const now = Date.now() + serverTimeOffset;
       const delay = Math.max(0, scheduledTime - now);
 
-      // Use an async function to properly handle the play promise
       const executePlayback = async () => {
         if (newIsPlaying) {
           try {
@@ -130,7 +132,6 @@ const GroupMusic = () => {
         setIsPlaying(newIsPlaying);
       };
 
-      // Schedule the playback
       setTimeout(executePlayback, delay);
     } catch (error) {
       console.error("Playback control error:", error);
@@ -178,6 +179,8 @@ const GroupMusic = () => {
       });
 
       setIsSearchOpen(false);
+      setSearchQuery("");
+      setSearchResults([]);
     } catch (error) {
       toast.error("Failed to load song");
     } finally {
@@ -193,7 +196,7 @@ const GroupMusic = () => {
       }
 
       try {
-        setIsLoading(true);
+        setIsSearchLoading(true);
         const response = await axios.get(
           `${import.meta.env.VITE_SONG_URL}/search/songs?q=${query}`,
         );
@@ -201,7 +204,7 @@ const GroupMusic = () => {
       } catch (error) {
         toast.error("Search failed. Please try again.");
       } finally {
-        setIsLoading(false);
+        setIsSearchLoading(false);
       }
     }, 500),
     [],
@@ -227,6 +230,7 @@ const GroupMusic = () => {
     });
     setNewGroupName("");
     toast.success("Group created successfully");
+    setIsGroupModalOpen(false);
   };
 
   const joinGroup = () => {
@@ -238,6 +242,7 @@ const GroupMusic = () => {
       userName: user.name,
       profilePic: user.profilepic,
     });
+    setIsGroupModalOpen(false);
   };
 
   const leaveGroup = () => {
@@ -389,11 +394,11 @@ const GroupMusic = () => {
       setCurrentGroup(group);
       setGroupMembers(members);
 
-      if (playbackState.currentSong) {
-        console.log(playbackState.currentSong, "playbackState.currentSong");
+      if (playbackState.currentTrack) {
+        console.log(playbackState.currentTrack, "playbackState.currentSong");
 
-        setCurrentSong(playbackState.currentSong);
-        loadAudio(playbackState.currentSong.download_url[3].link);
+        setCurrentSong(playbackState.currentTrack);
+        loadAudio(playbackState.currentTrack.download_url[3].link);
       }
 
       if (playbackState.isPlaying) {
@@ -418,11 +423,19 @@ const GroupMusic = () => {
       });
     });
 
-    socket.on("member-left", (userId) => {
-      setGroupMembers((prev) =>
-        prev.filter((member) => member.userId !== userId),
-      );
-      toast.info("A member left the group");
+    socket.on("member-left", ({ userId }) => {
+      if (userId) {
+        const findUser = groupMembers.find(
+          (member) => member.userId === userId,
+        );
+
+        if (findUser) {
+          setGroupMembers((prev) =>
+            prev.filter((member) => member.userId !== userId),
+          );
+          toast.info(`${findUser.userName} left the group`);
+        }
+      }
     });
 
     socket.on("group-disbanded", () => {
@@ -450,7 +463,7 @@ const GroupMusic = () => {
       socket.off("group-disbanded");
       socket.off("new-message");
     };
-  }, [socket]);
+  }, [socket, isPlaying]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(currentGroup?.id);
@@ -458,293 +471,434 @@ const GroupMusic = () => {
   };
 
   return (
-    <div className="mx-auto p-2">
-      <Card className="bg-gradient-to-br from-background/95 to-background/50 backdrop-blur-xl border-none shadow-2xl">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl font-bold flex items-center justify-center gap-4">
-              Group Music Player
+    <div className="mx-auto">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Card className="bg-gradient-to-br from-background/95 to-background/50 backdrop-blur-xl border-none shadow-2xl overflow-hidden">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <CardTitle className="text-md md:text-3xl font-bold flex items-center justify-center gap-4">
+                <Music className="h-8 w-8 text-primary" />
+                Group Music Player
+              </CardTitle>
               {currentGroup && (
-                <div className="flex gap-2 bg-slate-800 px-3 rounded-full items-center">
-                  <p className="text-sm flex items-center">
-                    {currentGroup?.id}
-                  </p>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex items-center gap-2 rounded-full transition-all"
+                >
                   <Button
-                    onClick={handleCopy}
-                    className="flex items-center rounded-full"
-                    variant="ghost"
-                    size="icon"
+                    onClick={() => setIsSearchOpen(true)}
+                    className="rounded-full px-6 py-2"
                   >
-                    <CopyIcon className="h-4 w-4" />
+                    <Search className="mr-2 h-4 w-4" />
+                    Search for a song
+                  </Button>
+                </motion.div>
+              )}
+              {currentGroup && (
+                <div className="flex gap-4">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex items-center gap-2 bg-primary/10 px-4 rounded-full transition-all hover:bg-primary/20"
+                  >
+                    <p className="text-sm font-medium">
+                      Group ID: {currentGroup?.id}
+                    </p>
+                    <Button
+                      onClick={handleCopy}
+                      className="rounded-full transition-transform hover:scale-110"
+                      variant="ghost"
+                      size="icon"
+                    >
+                      <CopyIcon className="h-4 w-4" />
+                    </Button>
+                  </motion.div>
+                  <Button
+                    onClick={leaveGroup}
+                    className="rounded-full px-6 py-2"
+                    variant="destructive"
+                    color="danger"
+                  >
+                    Leave Group
                   </Button>
                 </div>
               )}
-            </CardTitle>
-            <div className="flex gap-2">
-              {currentGroup ? (
-                <>
-                  <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="icon" variant="ghost">
-                        <Search className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl">
-                      <DialogHeader>
-                        <DialogTitle>Search Music</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 pt-4">
-                        <Input
-                          placeholder="Search songs..."
-                          value={searchQuery}
-                          onChange={handleSearchChange}
-                        />
-                        <ScrollArea className="h-[500px]">
-                          {searchResults?.map((song) => (
-                            <div
-                              key={song.id}
-                              className="flex items-center gap-4 p-3 hover:bg-accent rounded-lg cursor-pointer transition-colors"
-                              onClick={() => selectSong(song)}
-                            >
-                              <img
-                                src={song.image[1].link}
-                                alt={song.name}
-                                className="w-12 h-12 rounded-lg"
-                              />
-                              <div>
-                                <p className="font-medium line-clamp-1">
-                                  {song.name}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {song.artist_map.primary_artists[0].name}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </ScrollArea>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="text-destructive"
-                    onClick={leaveGroup}
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                </>
-              ) : (
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button size="icon" variant="ghost">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Create New Music Group</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-4">
-                      <Input
-                        placeholder="Group Name"
-                        value={newGroupName}
-                        onChange={(e) => setNewGroupName(e.target.value)}
-                      />
-                      <Button onClick={createGroup} className="w-full">
-                        Create Group
-                      </Button>
-                    </div>
-                    <p className="text-muted-foreground text-center pt-4">
-                      Or, join an existing group
+            </div>
+          </CardHeader>
+          <CardContent>
+            <AnimatePresence mode="wait">
+              {!currentGroup ? (
+                <motion.div
+                  key="welcome"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.5 }}
+                  className="space-y-8 py-12"
+                >
+                  <div className="text-center space-y-4">
+                    <h2 className="text-2xl font-bold">
+                      Welcome to Group Music Player
+                    </h2>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      Create a new group or join an existing one to start
+                      listening to music together with your friends.
                     </p>
-                    <div className="space-y-4 pt-4">
-                      <Input
-                        placeholder="Group ID"
-                        value={groupId}
-                        onChange={(e) => setGroupId(e.target.value)}
-                      />
-                      <Button onClick={joinGroup} className="w-full">
-                        Join Group
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {!currentGroup ? (
-            <div className="space-y-4">
-              <p className="text-lg font-medium">
-                Create or join a group to start listening to music together
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-8">
-              {/* Current playback section */}
-              <div className="bg-gradient-to-br from-accent/30 to-accent/10 rounded-xl p-8">
-                {currentSong ? (
-                  <div className="space-y-6">
-                    {/* Song info and controls */}
-                    <div className="flex items-center gap-8">
-                      <img
-                        src={currentSong.image[1].link}
-                        alt={currentSong.name}
-                        className="w-32 h-32 rounded-2xl shadow-2xl transition-transform hover:scale-105"
-                      />
-                      <div className="space-y-2">
-                        <h4 className="text-2xl font-bold">
-                          {currentSong.name}
-                        </h4>
+                  </div>
+                  <div className="flex justify-center">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setIsGroupModalOpen(true)}
+                      className="text-lg px-8 py-6 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+                    >
+                      <Plus className="mr-2 h-5 w-5 inline-block" /> Create or
+                      Join a Group
+                    </motion.button>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="group-content"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.5 }}
+                  className="space-y-4"
+                >
+                  {/* Current playback section */}
+                  <div className="bg-gradient-to-br from-accent/30 to-accent/10 rounded-xl p-8 shadow-lg transition-all hover:shadow-xl">
+                    {currentSong ? (
+                      <div className="space-y-6">
+                        {/* Song info and controls */}
+                        <div className="flex flex-col md:flex-row items-center gap-8">
+                          <motion.img
+                            src={
+                              currentSong.image[1].link || "/placeholder.svg"
+                            }
+                            alt={currentSong.name}
+                            className="w-48 h-48 rounded-2xl shadow-2xl"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.5 }}
+                          />
+                          <div className="space-y-4 text-center md:text-left">
+                            <motion.h4
+                              className="text-3xl font-bold"
+                              initial={{ opacity: 0, y: -20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.2, duration: 0.5 }}
+                            >
+                              {currentSong.name}
+                            </motion.h4>
+                            <motion.p
+                              className="text-xl text-muted-foreground"
+                              initial={{ opacity: 0, y: -20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.3, duration: 0.5 }}
+                            >
+                              {currentSong.artist_map.primary_artists[0].name}
+                            </motion.p>
+                            {/* Playback controls */}
+                            <motion.div
+                              className="flex justify-center items-center gap-6"
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.4, duration: 0.5 }}
+                            >
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="rounded-full h-12 w-12 hover:scale-110 transition-all hover:bg-primary/20"
+                              >
+                                <SkipBack className="h-5 w-5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                className="rounded-full h-16 w-16 bg-primary hover:bg-primary/90 hover:scale-110 transition-all shadow-lg hover:shadow-xl"
+                                onClick={handlePlayPause}
+                              >
+                                {isPlaying ? (
+                                  <Pause className="h-8 w-8" />
+                                ) : (
+                                  <Play className="h-8 w-8 ml-1" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="rounded-full h-12 w-12 hover:scale-110 transition-all hover:bg-primary/20"
+                              >
+                                <SkipForward className="h-5 w-5" />
+                              </Button>
+                            </motion.div>
+                          </div>
+                        </div>
+
+                        {/* Playback progress */}
+                        <motion.div
+                          className="space-y-2"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.5, duration: 0.5 }}
+                        >
+                          <Progress
+                            value={(currentTime / duration) * 100}
+                            className="h-2"
+                          />
+                          <div className="flex justify-between text-sm text-muted-foreground">
+                            <span>{formatTime(currentTime)}</span>
+                            <span>{formatTime(duration)}</span>
+                          </div>
+                        </motion.div>
+
+                        {/* Volume control */}
+                        <motion.div
+                          className="flex items-center gap-2 justify-center bg-background/50 rounded-full px-4 py-2 max-w-xs mx-auto"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.6, duration: 0.5 }}
+                        >
+                          <Volume2 className="h-4 w-4 text-primary" />
+                          <Slider
+                            value={[volume]}
+                            max={1}
+                            step={0.01}
+                            onValueChange={handleVolumeChange}
+                            className="w-full"
+                          />
+                        </motion.div>
+                      </div>
+                    ) : (
+                      <motion.div
+                        className="text-center py-12"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                      >
+                        <AudioLines className="h-24 w-24 mx-auto mb-6 text-primary/50 animate-pulse" />
+                        <p className="text-2xl font-medium mb-2">
+                          No song playing
+                        </p>
                         <p className="text-muted-foreground">
-                          {currentSong.artist_map.primary_artists[0].name}
+                          Search and select a song to start the party
+                        </p>
+                        <Button
+                          onClick={() => setIsSearchOpen(true)}
+                          className="mt-6 rounded-full px-6 py-2"
+                          variant="outline"
+                        >
+                          <Search className="mr-2 h-4 w-4" /> Search for a song
+                        </Button>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Chat and Members section */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <Card className="lg:col-span-2 transition-all hover:shadow-lg">
+                      <CardHeader>
+                        <CardTitle className="text-xl flex items-center gap-2">
+                          <Users className="h-5 w-5 text-primary" />
+                          Group Chat
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[300px] mb-4 p-4">
+                          <motion.div className="space-y-4">
+                            <AnimatePresence>
+                              {messages.map((msg, i) => (
+                                <motion.div
+                                  key={i}
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -20 }}
+                                  transition={{ duration: 0.3 }}
+                                  className={`flex gap-2 ${
+                                    msg.senderId === user.userid
+                                      ? "justify-end"
+                                      : "justify-start"
+                                  }`}
+                                >
+                                  <div
+                                    className={`rounded-lg px-4 py-2 max-w-[80%] ${
+                                      msg.senderId === user.userid
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-muted"
+                                    }`}
+                                  >
+                                    <p className="text-sm font-medium mb-1">
+                                      {msg.userName}
+                                    </p>
+                                    <p>{msg.message}</p>
+                                  </div>
+                                </motion.div>
+                              ))}
+                            </AnimatePresence>
+                          </motion.div>
+                        </ScrollArea>
+                        <div className="flex gap-2">
+                          <Input
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            placeholder="Type a message..."
+                            onKeyPress={(e) =>
+                              e.key === "Enter" && handleSendMessage()
+                            }
+                            className="rounded-full"
+                          />
+                          <Button
+                            onClick={handleSendMessage}
+                            className="rounded-full"
+                          >
+                            Send
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="transition-all hover:shadow-lg">
+                      <CardHeader>
+                        <CardTitle className="text-xl flex items-center gap-2">
+                          <Users className="h-5 w-5 text-primary" />
+                          Group Members
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[300px]">
+                          <motion.div className="space-y-2">
+                            <AnimatePresence>
+                              {groupMembers.map((member) => (
+                                <motion.div
+                                  key={member.userId}
+                                  initial={{ opacity: 0, x: -20 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  exit={{ opacity: 0, x: 20 }}
+                                  transition={{ duration: 0.3 }}
+                                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 transition-all hover:translate-x-1"
+                                >
+                                  <Avatar className="h-10 w-10">
+                                    <AvatarImage src={member.profilePic} />
+                                    <AvatarFallback>
+                                      {member.userName?.charAt(0)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-sm font-medium">
+                                    {member.userName}
+                                  </span>
+                                </motion.div>
+                              ))}
+                            </AnimatePresence>
+                          </motion.div>
+                        </ScrollArea>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Create/Join Group Modal */}
+      <Dialog open={isGroupModalOpen} onOpenChange={setIsGroupModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-center mb-4">
+              Create or Join a Group
+            </DialogTitle>
+          </DialogHeader>
+          <Tabs defaultValue="create" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="create">Create Group</TabsTrigger>
+              <TabsTrigger value="join">Join Group</TabsTrigger>
+            </TabsList>
+            <TabsContent value="create" className="space-y-4 mt-4">
+              <Input
+                placeholder="Enter group name"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                className="rounded-full"
+              />
+              <Button onClick={createGroup} className="w-full rounded-full">
+                Create Group
+              </Button>
+            </TabsContent>
+            <TabsContent value="join" className="space-y-4 mt-4">
+              <Input
+                placeholder="Enter group ID"
+                value={groupId}
+                onChange={(e) => setGroupId(e.target.value)}
+                className="rounded-full"
+              />
+              <Button onClick={joinGroup} className="w-full rounded-full">
+                Join Group
+              </Button>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Search Modal */}
+      <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Search Music</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <Input
+              placeholder="Search songs..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="rounded-full"
+            />
+            <ScrollArea className="h-[400px]">
+              {isSearchLoading ? (
+                <div className="flex justify-center items-center h-full">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <AnimatePresence>
+                  {searchResults?.map((song) => (
+                    <motion.div
+                      key={song.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3 }}
+                      className="flex items-center gap-4 p-3 hover:bg-accent rounded-lg cursor-pointer transition-colors"
+                      onClick={() => selectSong(song)}
+                    >
+                      <img
+                        src={song.image[1].link || "/placeholder.svg"}
+                        alt={song.name}
+                        className="w-12 h-12 rounded-lg"
+                      />
+                      <div>
+                        <p className="font-medium line-clamp-1">{song.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {song.artist_map.primary_artists[0].name}
                         </p>
                       </div>
-                    </div>
-
-                    {/* Playback progress */}
-                    <div className="space-y-2">
-                      <Progress
-                        value={(currentTime / duration) * 100}
-                        className="h-2"
-                      />
-                      <div className="flex justify-between text-sm text-muted-foreground">
-                        <span>{formatTime(currentTime)}</span>
-                        <span>{formatTime(duration)}</span>
-                      </div>
-                    </div>
-
-                    {/* Playback controls */}
-                    <div className="flex justify-center items-center gap-6">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="rounded-full h-12 w-12 hover:scale-110 transition-transform"
-                      >
-                        <SkipBack className="h-5 w-5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        className="rounded-full h-16 w-16 bg-primary hover:bg-primary/90 hover:scale-110 transition-transform"
-                        onClick={handlePlayPause}
-                      >
-                        {isPlaying ? (
-                          <Pause className="h-8 w-8" />
-                        ) : (
-                          <Play className="h-8 w-8 ml-1" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="rounded-full h-12 w-12 hover:scale-110 transition-transform"
-                      >
-                        <SkipForward className="h-5 w-5" />
-                      </Button>
-                    </div>
-
-                    {/* Volume control */}
-                    <div className="flex items-center gap-2 justify-center">
-                      <Volume2 className="h-4 w-4" />
-                      <Slider
-                        value={[volume]}
-                        max={1}
-                        step={0.01}
-                        onValueChange={handleVolumeChange}
-                        className="w-32"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <AudioLines className="h-16 w-16 mx-auto mb-4 text-primary/50 animate-pulse" />
-                    <p className="text-lg font-medium">No song playing</p>
-                    <p className="text-sm text-muted-foreground">
-                      Search and select a song to start the party
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Group Chat</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="h-[200px] mb-4">
-                      <div className="space-y-4">
-                        {messages.map((msg, i) => (
-                          <div
-                            key={i}
-                            className={`flex gap-2 ${
-                              msg.senderId === user.userid ? "justify-end" : ""
-                            }`}
-                          >
-                            <div
-                              className={`rounded-lg px-4 py-2 max-w-[80%] ${
-                                msg.senderId === user.userid
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted"
-                              }`}
-                            >
-                              <p className="text-sm font-medium">
-                                {msg.userName}
-                              </p>
-                              <p>{msg.message}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                    <div className="flex gap-2">
-                      <Input
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Type a message..."
-                        onKeyPress={(e) =>
-                          e.key === "Enter" && handleSendMessage()
-                        }
-                      />
-                      <Button onClick={handleSendMessage}>Send</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Group Members</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="h-[200px]">
-                      <div className="space-y-2">
-                        {groupMembers.map((member) => (
-                          <div
-                            key={member.userId}
-                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 transition-colors"
-                          >
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={member.profilePic} />
-                              <AvatarFallback>
-                                {member.userName?.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-medium">
-                              {member.userName}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              )}
+            </ScrollArea>
+          </div>
+          <DialogClose asChild>
+            <Button className="w-full rounded-full mt-4">Close</Button>
+          </DialogClose>
+        </DialogContent>
+      </Dialog>
 
       <audio ref={audioRef} />
     </div>
