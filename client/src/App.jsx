@@ -12,6 +12,7 @@ import {
   PublicRoutes,
   publicRoutes,
 } from "./Routes";
+import { GroupMusicProvider } from "./Context/GroupMusicContext";
 
 function App() {
   return (
@@ -21,29 +22,31 @@ function App() {
           <ContextProvider>
             <PlayerProvider>
               <ChatProvider>
-                <Toaster position="bottom-right" />
+                <GroupMusicProvider>
+                  <Toaster position="bottom-right" />
 
-                <Routes>
-                  <Route element={<ProtectedRoutes />}>
-                    {privateRoutes.map((route) => (
-                      <Route
-                        key={route.path}
-                        path={route.path}
-                        element={route.element}
-                      />
-                    ))}
-                  </Route>
+                  <Routes>
+                    <Route element={<ProtectedRoutes />}>
+                      {privateRoutes.map((route) => (
+                        <Route
+                          key={route.path}
+                          path={route.path}
+                          element={route.element}
+                        />
+                      ))}
+                    </Route>
 
-                  <Route element={<PublicRoutes />}>
-                    {publicRoutes.map((route) => (
-                      <Route
-                        key={route.path}
-                        path={route.path}
-                        element={route.element}
-                      />
-                    ))}
-                  </Route>
-                </Routes>
+                    <Route element={<PublicRoutes />}>
+                      {publicRoutes.map((route) => (
+                        <Route
+                          key={route.path}
+                          path={route.path}
+                          element={route.element}
+                        />
+                      ))}
+                    </Route>
+                  </Routes>
+                </GroupMusicProvider>
               </ChatProvider>
             </PlayerProvider>
           </ContextProvider>
