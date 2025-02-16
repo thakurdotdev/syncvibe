@@ -1,27 +1,33 @@
-import { useState, useContext, useEffect, useRef, useCallback } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
-  PhoneOff,
-  Video,
-  VideoOff,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  ArrowLeftRight,
+  Maximize2,
   Mic,
   MicOff,
-  Timer,
-  Maximize2,
   Minimize2,
+  PhoneOff,
+  Timer,
+  Video,
+  VideoOff,
   Wifi,
   WifiOff,
 } from "lucide-react";
-import { ChatContext } from "../../Context/ChatContext";
-import { Context } from "../../Context/Context";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSocket } from "../../Context/ChatContext";
+import { useProfile } from "../../Context/Context";
 
 const VideoCallUI = () => {
   const { connectionState, localStream, remoteStream, endCall, currentCall } =
-    useContext(ChatContext);
-  const { user } = useContext(Context);
+    useSocket();
+  const { user } = useProfile();
 
   const [callState, setCallState] = useState({
     isVideoEnabled: true,
@@ -31,14 +37,14 @@ const VideoCallUI = () => {
     hasRemoteVideo: false,
     isRemoteVideoPlaying: false,
     remoteVideoError: null,
+    showRemoteAsPrimary: true,
   });
 
-  // Refs
   const refs = {
     startTime: useRef(Date.now()),
     timer: useRef(null),
-    mainVideo: useRef(null),
-    pipVideo: useRef(null),
+    localVideo: useRef(null),
+    remoteVideo: useRef(null),
     fullscreenContainer: useRef(null),
   };
 
@@ -47,7 +53,7 @@ const VideoCallUI = () => {
       connected: {
         icon: <Wifi className="w-4 h-4" />,
         text: "Connected",
-        variant: "success",
+        variant: "outline",
       },
       connecting: {
         icon: <Wifi className="w-4 h-4 animate-pulse" />,
@@ -61,7 +67,7 @@ const VideoCallUI = () => {
       },
       failed: {
         icon: <WifiOff className="w-4 h-4" />,
-        text: "Connection Lost",
+        text: "Connection Failed",
         variant: "destructive",
       },
     };
@@ -75,21 +81,30 @@ const VideoCallUI = () => {
     );
   }, [connectionState]);
 
-  // Set up initial streams
   useEffect(() => {
-    if (!refs.mainVideo.current || !localStream) return;
+    const onUnloadBefore = (e) => {
+      e.preventDefault();
+      e.returnValue = "If you leave, the call will end.";
+    };
 
-    refs.mainVideo.current.srcObject = localStream;
-    refs.mainVideo.current.play().catch(console.error);
+    window.addEventListener("beforeunload", onUnloadBefore);
+    return () => window.removeEventListener("beforeunload", onUnloadBefore);
+  }, []);
+
+  // Set up video streams
+  useEffect(() => {
+    if (!refs.localVideo.current || !localStream) return;
+    refs.localVideo.current.srcObject = localStream;
+    refs.localVideo.current.play().catch(console.error);
   }, [localStream]);
 
   useEffect(() => {
     const setupRemoteStream = async () => {
-      if (!remoteStream || !refs.pipVideo.current) return;
+      if (!remoteStream || !refs.remoteVideo.current) return;
 
       try {
-        refs.pipVideo.current.srcObject = remoteStream;
-        await refs.pipVideo.current.play();
+        refs.remoteVideo.current.srcObject = remoteStream;
+        await refs.remoteVideo.current.play();
 
         setCallState((prev) => ({
           ...prev,
@@ -112,9 +127,8 @@ const VideoCallUI = () => {
     };
 
     setupRemoteStream();
-
     return () => {
-      if (refs.pipVideo.current) refs.pipVideo.current.srcObject = null;
+      if (refs.remoteVideo.current) refs.remoteVideo.current.srcObject = null;
     };
   }, [remoteStream]);
 
@@ -148,7 +162,6 @@ const VideoCallUI = () => {
     return () => refs.timer.current && cancelAnimationFrame(refs.timer.current);
   }, [remoteStream]);
 
-  // Action handlers
   const toggleVideo = useCallback(() => {
     if (!localStream) return;
     const enabled = !callState.isVideoEnabled;
@@ -185,103 +198,195 @@ const VideoCallUI = () => {
     endCall();
   }, [endCall]);
 
+  const swapVideos = useCallback(() => {
+    setCallState((prev) => ({
+      ...prev,
+      showRemoteAsPrimary: !prev.showRemoteAsPrimary,
+    }));
+
+    // Swap video streams between elements
+    const tempSrcObject = refs.localVideo.current.srcObject;
+    refs.localVideo.current.srcObject = refs.remoteVideo.current.srcObject;
+    refs.remoteVideo.current.srcObject = tempSrcObject;
+
+    // Update muted state
+    refs.localVideo.current.muted = !refs.localVideo.current.muted;
+    refs.remoteVideo.current.muted = !refs.remoteVideo.current.muted;
+  }, []);
+
+  const renderParticipantInfo = (participant, isPrimary = false) => (
+    <div
+      className={`absolute ${
+        isPrimary ? "bottom-4 left-4 hidden md:block" : "bottom-2 left-2"
+      }`}
+    >
+      <div
+        className={`flex items-center gap-2 bg-background/95 backdrop-blur-md ${
+          isPrimary ? "p-3" : "px-3 py-1.5"
+        } rounded-full shadow-lg`}
+      >
+        <Avatar className={isPrimary ? "h-8 w-8" : "h-6 w-6"}>
+          <AvatarImage src={participant?.profilepic} alt={participant?.name} />
+          <AvatarFallback>{participant?.name?.[0]}</AvatarFallback>
+        </Avatar>
+        <span
+          className={`text-foreground ${
+            isPrimary ? "text-base" : "text-sm"
+          } font-medium`}
+        >
+          {participant?.name}
+        </span>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 bg-background/90 backdrop-blur-lg flex items-center justify-center z-50">
+    <div className="fixed inset-0 flex items-center justify-center z-50 overflow-hidden">
       <Card
         ref={refs.fullscreenContainer}
-        className="relative w-full h-[100svh] bg-gradient-to-b from-background to-background/90"
+        className="relative w-full h-[100vh] overflow-hidden select-none"
       >
-        {/* Main video */}
-        <div className="relative w-full h-full overflow-hidden rounded-lg">
-          <video
-            ref={refs.mainVideo}
-            className="w-full h-full object-cover"
-            autoPlay
-            playsInline
-            muted
-          />
-          <div className="absolute bottom-4 left-4">
-            <div className="flex items-center gap-3 bg-background/80 backdrop-blur-md p-3 rounded-full">
-              <Avatar>
-                <AvatarImage src={user?.profilepic} alt={user?.name} />
-                <AvatarFallback>{user?.name?.[0]}</AvatarFallback>
-              </Avatar>
-              <span className="text-foreground font-medium">{user?.name}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* PiP video */}
-        {remoteStream && (
-          <div className="absolute top-4 right-4 w-64 h-36 rounded-lg overflow-hidden ring-2 ring-border">
+        <div className="relative w-full h-full flex">
+          {/* Primary Video */}
+          <div className="relative w-full h-full overflow-hidden rounded-lg">
             <video
-              ref={refs.pipVideo}
+              ref={refs.remoteVideo}
               className="w-full h-full object-cover"
               autoPlay
               playsInline
+              muted={!callState.showRemoteAsPrimary}
             />
-            <div className="absolute bottom-2 left-2">
-              <div className="flex items-center gap-2 bg-background/80 backdrop-blur-md px-3 py-1.5 rounded-full">
-                <Avatar className="w-6 h-6">
-                  <AvatarImage
-                    src={currentCall?.profilepic}
-                    alt={currentCall?.name}
-                  />
-                  <AvatarFallback>{currentCall?.name?.[0]}</AvatarFallback>
-                </Avatar>
-                <span className="text-foreground text-sm">
-                  {currentCall?.name}
-                </span>
-              </div>
-            </div>
+            {renderParticipantInfo(
+              callState.showRemoteAsPrimary ? currentCall : user,
+              true,
+            )}
           </div>
-        )}
 
-        {/* Controls */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
-          <div className="flex items-center gap-4 bg-background/80 backdrop-blur-md p-4 rounded-full">
-            <Button
-              variant={callState.isVideoEnabled ? "secondary" : "destructive"}
-              size="icon"
-              onClick={toggleVideo}
-            >
-              {callState.isVideoEnabled ? <Video /> : <VideoOff />}
-            </Button>
-
-            <Button
-              variant={callState.isAudioEnabled ? "secondary" : "destructive"}
-              size="icon"
-              onClick={toggleAudio}
-            >
-              {callState.isAudioEnabled ? <Mic /> : <MicOff />}
-            </Button>
-
-            <Button variant="destructive" size="icon" onClick={handleEndCall}>
-              <PhoneOff />
-            </Button>
+          {/* Secondary Video */}
+          <div className="absolute top-4 right-4 w-72 h-40 rounded-lg overflow-hidden ring-2 ring-border shadow-lg transition-all hover:scale-105">
+            <video
+              ref={refs.localVideo}
+              className="w-full h-full object-cover"
+              autoPlay
+              playsInline
+              muted={callState.showRemoteAsPrimary}
+            />
+            {renderParticipantInfo(
+              callState.showRemoteAsPrimary ? user : currentCall,
+              false,
+            )}
           </div>
         </div>
 
-        {/* Status bar */}
-        <div className="absolute top-4 left-4 flex items-center gap-4">
-          <Badge variant="secondary" className="gap-2">
+        {/* Status Bar */}
+        <div className="absolute top-4 left-4 flex items-center gap-3 bg-background/95 backdrop-blur-md p-2 rounded-full shadow-lg">
+          <Badge variant="outline" className="gap-2 px-3 py-1.5">
             <Timer className="w-4 h-4" />
             {callState.duration}
           </Badge>
 
-          <Badge variant={getConnectionStatus().variant} className="gap-2">
+          <Badge
+            variant={getConnectionStatus().variant}
+            className="gap-2 px-3 py-1.5 hidden md:flex"
+          >
             {getConnectionStatus().icon}
             {getConnectionStatus().text}
           </Badge>
+        </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleFullscreen}
-            className="ml-2"
-          >
-            {callState.isFullscreen ? <Minimize2 /> : <Maximize2 />}
-          </Button>
+        {/* Controls */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 max-w-full">
+          <div className="flex items-center gap-6 bg-background/95 backdrop-blur-md px-6 py-3 rounded-full shadow-lg">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={callState.isVideoEnabled ? "outline" : "destructive"}
+                  size="icon"
+                  className="h-12 w-12 rounded-full"
+                  onClick={toggleVideo}
+                >
+                  {callState.isVideoEnabled ? (
+                    <Video className="h-5 w-5" />
+                  ) : (
+                    <VideoOff className="h-5 w-5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {callState.isVideoEnabled
+                  ? "Turn off camera"
+                  : "Turn on camera"}
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={callState.isAudioEnabled ? "outline" : "destructive"}
+                  size="icon"
+                  className="h-12 w-12 rounded-full"
+                  onClick={toggleAudio}
+                >
+                  {callState.isAudioEnabled ? (
+                    <Mic className="h-5 w-5" />
+                  ) : (
+                    <MicOff className="h-5 w-5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {callState.isAudioEnabled
+                  ? "Mute microphone"
+                  : "Unmute microphone"}
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={swapVideos}
+                  className="hover:bg-accent rounded-full"
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Swap video positions</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={toggleFullscreen}
+                  className="hover:bg-accent rounded-full"
+                >
+                  {callState.isFullscreen ? <Minimize2 /> : <Maximize2 />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {callState.isFullscreen
+                  ? "Exit fullscreen"
+                  : "Enter fullscreen"}
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="h-12 w-12 rounded-full"
+                  onClick={handleEndCall}
+                >
+                  <PhoneOff className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>End call</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </Card>
     </div>

@@ -197,11 +197,11 @@ const GroupMusic = () => {
                   {/* Current playback section */}
                   <div className="bg-gradient-to-br from-accent/30 to-accent/10 rounded-xl p-8 shadow-lg transition-all hover:shadow-xl">
                     {currentSong ? (
-                      <div className="flex gap-8">
+                      <div className="flex flex-col md:flex-row gap-8">
                         <img
-                          src={currentSong.image[1].link}
+                          src={currentSong.image[2].link}
                           alt={currentSong.name}
-                          className="h-48 w-48 rounded-lg object-cover"
+                          className="h-48 w-full md:w-48 rounded-lg object-cover"
                         />
                         <div className="flex-1 space-y-6">
                           <div>

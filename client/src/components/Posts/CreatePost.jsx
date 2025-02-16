@@ -146,7 +146,7 @@ const CreatePost = ({ openModal, setPosts }) => {
 
     setLoading(true);
     try {
-      const { data } = await axios.post(
+      const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/create`,
         formData,
         {
@@ -155,13 +155,11 @@ const CreatePost = ({ openModal, setPosts }) => {
         },
       );
 
-      // setPosts((prev) => [
-      //   { ...data.post, likesCount: 0, commentsCount: 0 },
-      //   ...prev,
-      // ]);
-      setOpen(false);
-      resetState();
-      toast.success("Post created successfully");
+      if (response.status === 200) {
+        setOpen(false);
+        resetState();
+        toast.success("Post created successfully");
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to create post");
     } finally {
@@ -185,8 +183,8 @@ const CreatePost = ({ openModal, setPosts }) => {
           className="h-10 flex items-center gap-2 rounded-full"
           title="Create Post"
         >
-          <PlusIcon className="w-10 h-10 " />
-          <span className="">Create</span>
+          <PlusIcon />
+          <span className="hidden md:block">Create</span>
         </Button>
       </DialogTrigger>
 

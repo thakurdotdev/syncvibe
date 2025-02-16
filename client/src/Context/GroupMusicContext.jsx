@@ -33,8 +33,14 @@ export function GroupMusicProvider({ children }) {
   const [lastSync, setLastSync] = useState(0);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const syncIntervalRef = useRef(null);
+  const lastPlaybackUpdateRef = useRef(null);
 
   const audioRef = useRef(null);
+
+  const getServerTime = useCallback(() => {
+    return Date.now() + serverTimeOffset;
+  }, [serverTimeOffset]);
 
   const formatTime = (seconds) => {
     if (!seconds) return "0:00";
@@ -43,48 +49,31 @@ export function GroupMusicProvider({ children }) {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const updateMediaSession = useCallback(
-    (song) => {
-      if (!("mediaSession" in navigator)) return;
+  const updateMediaSession = useCallback((song) => {
+    if (!("mediaSession" in navigator)) return;
 
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: song.name,
-        artist: song?.artist_map?.artists
-          ?.slice(0, 3)
-          ?.map((artist) => artist.name)
-          .join(", "),
-        album: song?.album,
-        artwork: song.image?.[2]?.link
-          ? [{ src: song.image[2].link, sizes: "500x500", type: "image/jpeg" }]
-          : [],
-      });
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: song.name,
+      artist: song?.artist_map?.artists
+        ?.slice(0, 3)
+        ?.map((artist) => artist.name)
+        .join(", "),
+      album: song?.album,
+      artwork: song.image?.[2]?.link
+        ? [{ src: song.image[2].link, sizes: "500x500", type: "image/jpeg" }]
+        : [],
+    });
 
-      navigator.mediaSession.setActionHandler("play", () => {
-        audioRef.current?.play().catch(console.error);
-        setIsPlaying(true);
-        socket.emit("music-playback", {
-          groupId: currentGroup?.id,
-          isPlaying: true,
-          currentTime: audioRef.current?.currentTime || 0,
-          scheduledTime: Date.now() + serverTimeOffset + 100,
-        });
-      });
+    navigator.mediaSession.setActionHandler("play", () => {
+      handlePlayPause(true);
+    });
 
-      navigator.mediaSession.setActionHandler("pause", () => {
-        audioRef.current?.pause();
-        setIsPlaying(false);
-        socket.emit("music-playback", {
-          groupId: currentGroup?.id,
-          isPlaying: false,
-          currentTime: audioRef.current?.currentTime || 0,
-          scheduledTime: Date.now() + serverTimeOffset + 100,
-        });
-      });
+    navigator.mediaSession.setActionHandler("pause", () => {
+      handlePlayPause(false);
+    });
 
-      document.title = `${song.name} - SyncVibe`;
-    },
-    [audioRef],
-  );
+    document.title = `${song.name} - SyncVibe`;
+  }, []);
 
   useEffect(() => {
     if (currentSong) {
@@ -97,9 +86,10 @@ export function GroupMusicProvider({ children }) {
       setIsLoading(true);
       if (audioRef.current) {
         audioRef.current.src = url;
-        audioRef.current.load();
+        await audioRef.current.load();
 
         audioRef.current.onloadedmetadata = () => {
+          setCurrentTime(0);
           setDuration(audioRef.current.duration);
           setIsLoading(false);
         };
@@ -114,7 +104,7 @@ export function GroupMusicProvider({ children }) {
             groupId: currentGroup?.id,
             isPlaying: false,
             currentTime: 0,
-            scheduledTime: Date.now() + serverTimeOffset + 100,
+            scheduledTime: getServerTime() + 100,
           });
         };
 
@@ -127,12 +117,13 @@ export function GroupMusicProvider({ children }) {
     }
   };
 
-  const handlePlayPause = async () => {
-    const newIsPlaying = !isPlaying;
+  const handlePlayPause = async (forceState) => {
+    const newIsPlaying =
+      typeof forceState === "boolean" ? forceState : !isPlaying;
     const currentAudioTime = audioRef.current?.currentTime || 0;
 
     try {
-      const scheduledTime = Date.now() + serverTimeOffset + 300;
+      const scheduledTime = getServerTime() + 300;
 
       socket.emit("music-playback", {
         groupId: currentGroup?.id,
@@ -140,9 +131,6 @@ export function GroupMusicProvider({ children }) {
         currentTime: currentAudioTime,
         scheduledTime,
       });
-
-      const now = Date.now() + serverTimeOffset;
-      const delay = Math.max(0, scheduledTime - now);
 
       const executePlayback = async () => {
         if (newIsPlaying) {
@@ -157,6 +145,7 @@ export function GroupMusicProvider({ children }) {
         setIsPlaying(newIsPlaying);
       };
 
+      const delay = Math.max(0, scheduledTime - getServerTime());
       setTimeout(executePlayback, delay);
     } catch (error) {
       console.error("Playback control error:", error);
@@ -167,15 +156,16 @@ export function GroupMusicProvider({ children }) {
     if (!audioRef.current) return;
 
     const newTime = value[0];
-    audioRef.current.currentTime = newTime;
+    const scheduledTime = getServerTime() + 300;
 
-    const scheduledTime = Date.now() + serverTimeOffset + 100;
     socket.emit("music-seek", {
       groupId: currentGroup?.id,
       currentTime: newTime,
       scheduledTime,
       isPlaying,
     });
+
+    audioRef.current.currentTime = newTime;
   };
 
   const handleVolumeChange = (value) => {
@@ -203,7 +193,7 @@ export function GroupMusicProvider({ children }) {
         groupId: currentGroup?.id,
         song,
         currentTime: 0,
-        scheduledTime: Date.now() + serverTimeOffset + 100,
+        scheduledTime: Date.now() + serverTimeOffset + 300,
       });
 
       setIsSearchOpen(false);
@@ -302,9 +292,7 @@ export function GroupMusicProvider({ children }) {
     if (socket) {
       const syncWithServer = () => {
         const startTime = Date.now();
-        socket.emit("time-sync-request", {
-          clientTime: startTime,
-        });
+        socket.emit("time-sync-request", { clientTime: startTime });
       };
 
       socket.on("time-sync-response", (data) => {
@@ -315,11 +303,14 @@ export function GroupMusicProvider({ children }) {
         setLastSync(endTime);
       });
 
+      // Sync every 10 seconds
       syncWithServer();
-      const syncInterval = setInterval(syncWithServer, 30000);
+      syncIntervalRef.current = setInterval(syncWithServer, 5000);
 
       return () => {
-        clearInterval(syncInterval);
+        if (syncIntervalRef.current) {
+          clearInterval(syncIntervalRef.current);
+        }
       };
     }
   }, [socket]);
@@ -328,13 +319,14 @@ export function GroupMusicProvider({ children }) {
     if (!socket) return;
 
     socket.on("playback-update", (data) => {
-      const serverNow = Date.now() + serverTimeOffset;
+      const serverNow = getServerTime();
+      lastPlaybackUpdateRef.current = serverNow;
       const {
         isPlaying: newIsPlaying,
         currentTime: newTime,
         scheduledTime,
       } = data;
-      const timeUntilPlay = scheduledTime - serverNow;
+      const timeUntilPlay = Math.max(0, scheduledTime - serverNow);
 
       if (audioRef.current) {
         audioRef.current.currentTime = newTime;
@@ -343,7 +335,7 @@ export function GroupMusicProvider({ children }) {
           setTimeout(() => {
             audioRef.current.play();
             setIsPlaying(true);
-          }, Math.max(0, timeUntilPlay));
+          }, timeUntilPlay);
         } else {
           audioRef.current.pause();
           setIsPlaying(false);

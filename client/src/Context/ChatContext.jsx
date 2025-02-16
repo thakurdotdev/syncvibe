@@ -1,17 +1,17 @@
-import React, {
+import axios from "axios";
+import {
   createContext,
-  useState,
-  useEffect,
   useCallback,
   useContext,
+  useEffect,
   useRef,
+  useState,
 } from "react";
-import { io } from "socket.io-client";
-import axios from "axios";
-import { Context } from "./Context";
 import { useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
+import { Context } from "./Context";
 
-const getMediaConstraints = () => {
+const getMediaConstraints = (facingMode) => {
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const networkQuality = navigator.connection?.effectiveType || "4g";
 
@@ -19,7 +19,7 @@ const getMediaConstraints = () => {
     const baseSettings = {
       width: { ideal: 640 },
       height: { ideal: 480 },
-      frameRate: { ideal: 20 },
+      frameRate: { ideal: 30 },
     };
 
     switch (networkQuality) {
@@ -50,7 +50,7 @@ const getMediaConstraints = () => {
   return {
     video: {
       ...getQualitySettings(),
-      facingMode: "user",
+      facingMode: facingMode || "user",
     },
     audio: {
       echoCancellation: true,
@@ -62,7 +62,6 @@ const getMediaConstraints = () => {
   };
 };
 
-// 2. REPLACE the existing ICE_SERVERS configuration with this one
 const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -87,13 +86,8 @@ const ICE_SERVERS = {
   sdpSemantics: "unified-plan",
 };
 
-// 3. ADD these new constants at the top of your file
 const RECONNECTION_DELAY = 2000;
 const MAX_RECONNECTION_ATTEMPTS = 5;
-const CONNECTION_TIMEOUT = 30000;
-
-const CONNECTION_STATE_CHECK_INTERVAL = 3000;
-const RECONNECTION_ATTEMPTS = 3;
 
 export const ChatContext = createContext();
 
@@ -101,9 +95,8 @@ export const useSocket = () => useContext(ChatContext);
 
 export const ChatProvider = ({ children }) => {
   const { user } = useContext(Context);
-
   const navigate = useNavigate();
-  // Add connection state tracking
+
   const [connectionState, setConnectionState] = useState("new");
   const [reconnectionAttempts, setReconnectionAttempts] = useState(0);
   const connectionCheckInterval = useRef(null);
@@ -118,6 +111,7 @@ export const ChatProvider = ({ children }) => {
   const [currentCall, setCurrentCall] = useState(null);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
+  const [facingMode, setFacingMode] = useState("user");
 
   const peerConnection = useRef(null);
   const localStreamRef = useRef(null);
@@ -347,7 +341,7 @@ export const ChatProvider = ({ children }) => {
       try {
         cleanupMediaStreams();
 
-        const constraints = getMediaConstraints();
+        const constraints = getMediaConstraints(facingMode);
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
         // Verify stream has both audio and video tracks
@@ -398,15 +392,13 @@ export const ChatProvider = ({ children }) => {
     [socket, user, initializePeerConnection, cleanupMediaStreams],
   );
 
-  // Answer call function
   const answerCall = useCallback(async () => {
     try {
       cleanupMediaStreams();
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
+      const constraints = getMediaConstraints(facingMode);
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
       localStreamRef.current = stream;
       setLocalStream(stream);
@@ -459,7 +451,6 @@ export const ChatProvider = ({ children }) => {
     setIncomingCall(null);
   }, [socket, incomingCall]);
 
-  // End call function
   const endCall = useCallback(() => {
     if (socket?.connected && remotePeerIdRef.current) {
       socket.emit("end-call", {
@@ -469,7 +460,6 @@ export const ChatProvider = ({ children }) => {
     cleanupMediaStreams();
   }, [socket, cleanupMediaStreams]);
 
-  // Get all existing chats
   const getAllExistingChats = useCallback(async () => {
     if (!user?.userid) return;
 
@@ -494,7 +484,6 @@ export const ChatProvider = ({ children }) => {
     }
   }, [user?.userid]);
 
-  // Update current chat status
   const updateCurrentChatStatus = useCallback((userId, isOnline) => {
     setCurrentChat((prevChat) => {
       if (prevChat?.otherUser?.userid === userId) {
@@ -540,7 +529,6 @@ export const ChatProvider = ({ children }) => {
     [users],
   );
 
-  // Setup socket connection
   const setupSocket = useCallback(() => {
     if (!user?.userid || socket?.connected) return;
 
@@ -707,7 +695,6 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Setup initial effects
   useEffect(() => {
     if (user?.userid) {
       getAllExistingChats();

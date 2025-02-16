@@ -37,6 +37,7 @@ import {
 } from "@dnd-kit/core";
 import { PlayIcon } from "lucide-react";
 import { AudioWave } from "./Cards";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const BUTTON_SIZE = 48;
 
@@ -89,14 +90,15 @@ const BottomPlayer = () => {
   const { handlePlayPauseSong, handleNextSong, handlePrevSong } = usePlayer();
   const { currentSong, isPlaying } = usePlayerState();
 
+  const isMobile = useIsMobile();
   const [isMinimized, setIsMinimized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [position, setPosition] = useState({
-    x: window.innerWidth - 100,
-    y: window.innerHeight - 150,
+    x: isMobile ? window.innerWidth - 100 : 23,
+    y: isMobile ? window.innerHeight - 150 : 752,
   });
   const [isDragging, setIsDragging] = useState(false);
 
@@ -211,7 +213,7 @@ const BottomPlayer = () => {
     <>
       <Card
         className={cn(
-          "fixed bottom-0 left-0 w-full bg-background/95 backdrop-blur-md border-t z-50 transition-all duration-500",
+          "fixed bottom-0 left-0 w-full bg-background/80 backdrop-blur-md border-t z-50 transition-all duration-500",
           isMinimized
             ? "translate-y-full opacity-0"
             : "translate-y-0 opacity-100",
