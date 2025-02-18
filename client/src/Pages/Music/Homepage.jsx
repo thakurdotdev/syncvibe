@@ -23,13 +23,16 @@ const useIntersectionObserver = (options = {}, skipObserver = false) => {
   useEffect(() => {
     if (skipObserver) return;
 
-    const observer = new IntersectionObserver(([entry]) => {
-      setIsIntersecting(entry.isIntersecting);
-    }, {
-      threshold: 0.1,
-      rootMargin: '100px',
-      ...options
-    });
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsIntersecting(entry.isIntersecting);
+      },
+      {
+        threshold: 0.1,
+        rootMargin: "100px",
+        ...options,
+      },
+    );
 
     const currentTarget = targetRef.current;
     if (currentTarget) {
@@ -47,37 +50,44 @@ const useIntersectionObserver = (options = {}, skipObserver = false) => {
 };
 
 // Optimized components with memoization
-const LazySection = React.memo(({ 
-  title, 
-  children, 
-  className, 
-  priority = false,
-  placeholderHeight = "h-48" 
-}) => {
-  const [ref, isVisible] = useIntersectionObserver({}, priority);
-  const [shouldRender, setShouldRender] = useState(priority);
+const LazySection = React.memo(
+  ({
+    title,
+    children,
+    className,
+    priority = false,
+    placeholderHeight = "h-48",
+  }) => {
+    const [ref, isVisible] = useIntersectionObserver({}, priority);
+    const [shouldRender, setShouldRender] = useState(priority);
 
-  useEffect(() => {
-    if (isVisible && !shouldRender) {
-      setShouldRender(true);
-    }
-  }, [isVisible, shouldRender]);
+    useEffect(() => {
+      if (isVisible && !shouldRender) {
+        setShouldRender(true);
+      }
+    }, [isVisible, shouldRender]);
 
-  return (
-    <section ref={ref} className={cn("space-y-6", className)}>
-      <div className="flex items-center justify-between px-4 md:px-0">
-        <h2 className="text-2xl font-semibold tracking-tight hover:text-primary transition-colors">
-          {title}
-        </h2>
-      </div>
-      {shouldRender ? (
-        children
-      ) : (
-        <div className={cn("animate-pulse bg-muted/50 rounded-lg", placeholderHeight)} />
-      )}
-    </section>
-  );
-});
+    return (
+      <section ref={ref} className={cn("space-y-6", className)}>
+        <div className="flex items-center justify-between px-4 md:px-0">
+          <h2 className="text-2xl font-semibold tracking-tight hover:text-primary transition-colors">
+            {title}
+          </h2>
+        </div>
+        {shouldRender ? (
+          children
+        ) : (
+          <div
+            className={cn(
+              "animate-pulse bg-muted/50 rounded-lg",
+              placeholderHeight,
+            )}
+          />
+        )}
+      </section>
+    );
+  },
+);
 
 const ScrollableSection = React.memo(({ children }) => (
   <ScrollArea className="w-full whitespace-nowrap">
@@ -125,9 +135,9 @@ const HomePage = () => {
         `${import.meta.env.VITE_SONG_URL}/modules?lang=hindi&mini=true`,
         {
           headers: {
-            'Cache-Control': 'max-age=3600'
-          }
-        }
+            "Cache-Control": "max-age=3600",
+          },
+        },
       );
 
       if (response.status === 200) {
@@ -156,9 +166,9 @@ const HomePage = () => {
         {
           withCredentials: true,
           headers: {
-            'Cache-Control': 'max-age=3600'
-          }
-        }
+            "Cache-Control": "max-age=3600",
+          },
+        },
       );
 
       if (response.status === 200) {
@@ -182,21 +192,25 @@ const HomePage = () => {
 
   return (
     <div className="relative space-y-8 pb-20">
-      {isMobile && (
+      {/* {isMobile && (
         <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b w-full">
           <div className="flex items-center h-16 px-4 w-full">
             <MusicCommand className="w-full" />
           </div>
         </div>
-      )}
+      )} */}
 
       <div className="px-4 md:px-6 space-y-8">
         {recommendations.length > 0 && (
-          <LazySection title="For You" className="pt-6" priority={true}>
+          <LazySection
+            title="Mostly You Listen"
+            className="pt-6"
+            priority={true}
+          >
             <CardGrid>
               {recommendations.map((song) => (
-                <SongCard 
-                  key={song.songId} 
+                <SongCard
+                  key={song.songId}
                   song={song.songData}
                   className="transform transition-transform hover:scale-105"
                 />
@@ -208,8 +222,8 @@ const HomePage = () => {
         <LazySection title="Trending Now" className="pt-6" priority={true}>
           <CardGrid>
             {homePageData.trending.slice(0, 12).map((song) => (
-              <SongCard 
-                key={song.id} 
+              <SongCard
+                key={song.id}
                 song={song}
                 className="transform transition-transform hover:scale-105"
               />
@@ -220,8 +234,8 @@ const HomePage = () => {
         <LazySection title="Top Playlists">
           <ScrollableSection>
             {homePageData.playlists.map((playlist) => (
-              <PlaylistCard 
-                key={playlist.id} 
+              <PlaylistCard
+                key={playlist.id}
                 playlist={playlist}
                 className="min-w-[200px] transform transition-transform hover:scale-105"
               />
@@ -232,8 +246,8 @@ const HomePage = () => {
         <LazySection title="Top Charts">
           <ScrollableSection>
             {homePageData.charts.map((playlist) => (
-              <PlaylistCard 
-                key={playlist.id} 
+              <PlaylistCard
+                key={playlist.id}
                 playlist={playlist}
                 className="min-w-[200px] transform transition-transform hover:scale-105"
               />
@@ -244,8 +258,8 @@ const HomePage = () => {
         <LazySection title="Top Artists">
           <ScrollableSection>
             {homePageData.artists.map((artist) => (
-              <ArtistCard 
-                key={artist.id} 
+              <ArtistCard
+                key={artist.id}
                 artist={artist}
                 className="min-w-[150px] transform transition-transform hover:scale-105"
               />
@@ -256,8 +270,8 @@ const HomePage = () => {
         <LazySection title="Top Albums">
           <ScrollableSection>
             {homePageData.albums.map((album) => (
-              <AlbumCard 
-                key={album.id} 
+              <AlbumCard
+                key={album.id}
                 album={album}
                 className="min-w-[200px] transform transition-transform hover:scale-105"
               />

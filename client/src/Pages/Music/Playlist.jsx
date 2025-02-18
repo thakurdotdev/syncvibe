@@ -38,8 +38,15 @@ const Playlist = () => {
 
   const handlePlayAll = () => {
     if (playlistData?.songs?.length) {
-      console.log(playlistData);
-      addToPlaylist(playlistData.songs);
+      addToPlaylist(
+        playlistData.songs.map((song) => {
+          return {
+            ...song,
+            isPlaylist: true,
+            playlistId: playlistData.id,
+          };
+        }),
+      );
       playSong(playlistData.songs[0]);
     }
   };
@@ -49,7 +56,13 @@ const Playlist = () => {
       const shuffledSongs = [...playlistData.songs].sort(
         () => Math.random() - 0.5,
       );
-      addToPlaylist(shuffledSongs);
+      addToPlaylist(
+        shuffledSongs.map((song) => ({
+          ...song,
+          isPlaylist: true,
+          playlistId: playlistData.id,
+        })),
+      );
       playSong(shuffledSongs[0]);
     }
   };

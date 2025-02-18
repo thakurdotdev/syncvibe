@@ -10,7 +10,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePlayer, usePlayerState } from "@/Context/PlayerContext";
+import {
+  usePlayer,
+  usePlayerState,
+  usePlaylist,
+} from "@/Context/PlayerContext";
 import axios from "axios";
 import he from "he";
 import { ListMusic, Maximize2, Minimize2, X } from "lucide-react";
@@ -87,8 +91,10 @@ const DraggableButton = memo(
 );
 
 const BottomPlayer = () => {
-  const { handlePlayPauseSong, handleNextSong, handlePrevSong } = usePlayer();
+  const { handlePlayPauseSong, handleNextSong, handlePrevSong, addToPlaylist } =
+    usePlayer();
   const { currentSong, isPlaying } = usePlayerState();
+  const { playlist } = usePlaylist();
 
   const isMobile = useIsMobile();
   const [isMinimized, setIsMinimized] = useState(false);
@@ -195,6 +201,9 @@ const BottomPlayer = () => {
       );
       if (response.data?.data) {
         setRecommendations(response.data.data);
+        if (playlist.length < 2 && response.data.data.length > 0) {
+          addToPlaylist(response.data.data[0]);
+        }
       }
     } catch (error) {
       console.error("Error fetching recommendations:", error);
@@ -270,7 +279,7 @@ const BottomPlayer = () => {
                 </SheetTrigger>
                 <SheetContent
                   side="bottom"
-                  className="h-full w-full p-0 overflow-y-auto"
+                  className="h-full w-full p-0 overflow-y-hidden"
                 >
                   <SheetHeader className="border-b p-4">
                     <SheetTitle className="text-lg font-semibold">
@@ -283,12 +292,12 @@ const BottomPlayer = () => {
                     </SheetClose>
                   </SheetHeader>
 
-                  <div className="flex flex-col items-center justify-start mt-3 sm:-mt-12 pb-8">
+                  <div className="flex flex-col items-center justify-start -mt-12 pb-8">
                     <Tabs
                       defaultValue="current"
                       className="w-full max-w-[500px]"
                     >
-                      <div className="flex justify-center mb-6">
+                      <div className="flex justify-center mb-3">
                         <TabsList>
                           <TabsTrigger value="current">Now Playing</TabsTrigger>
                           <TabsTrigger value="queue">Queue</TabsTrigger>
@@ -299,7 +308,7 @@ const BottomPlayer = () => {
                       </div>
 
                       <TabsContent value="current">
-                        <div className="h-full flex flex-col items-center justify-center p-8 max-w-2xl mx-auto gap-8">
+                        <div className="h-full flex flex-col items-center justify-center p-5 max-w-2xl mx-auto gap-8">
                           <div className="w-full max-w-md aspect-square">
                             <Avatar className="w-full h-full rounded-lg shadow-lg">
                               <AvatarImage
@@ -329,7 +338,7 @@ const BottomPlayer = () => {
                               <MusicControls size="large" />
 
                               <div className="flex items-center gap-4">
-                                <VolumeControl />
+                                <VolumeControl showVolume={true} />
                                 <Button
                                   variant="outline"
                                   onClick={() => setIsModalOpen(true)}

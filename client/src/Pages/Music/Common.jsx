@@ -141,7 +141,7 @@ export const MusicControls = memo(({ size = "default" }) => {
   );
 });
 
-export const VolumeControl = memo(() => {
+export const VolumeControl = memo(({ showVolume = false }) => {
   const { handleVolumeChange } = usePlayer();
   const { volume } = usePlayerState();
   const [isMuted, setIsMuted] = useState(false);
@@ -152,8 +152,9 @@ export const VolumeControl = memo(() => {
       return newMuted;
     });
   }, [handleVolumeChange]);
+  if (!showVolume) return null;
   return (
-    <div className="hidden md:flex items-center gap-2">
+    <div className="flex items-center gap-2">
       <Button
         variant="ghost"
         size="icon"

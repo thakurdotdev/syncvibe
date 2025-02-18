@@ -228,8 +228,33 @@ export function PlayerProvider({ children }) {
       },
 
       addToPlaylist: (songs) => {
-        const newPlaylist = Array.isArray(songs) ? songs : [songs];
-        playlistDispatch({ type: "SET_PLAYLIST", payload: newPlaylist });
+        const newSongs = Array.isArray(songs) ? songs : [songs];
+        playlistDispatch({
+          type: "SET_PLAYLIST",
+          payload: newSongs,
+        });
+      },
+
+      addToQueue: (songs) => {
+        const currentPlaylist = playlistState.playlist || [];
+        const newSongs = Array.isArray(songs) ? songs : [songs];
+
+        // Create a Set of existing IDs
+        const existingIds = new Set(currentPlaylist.map((song) => song.id));
+
+        // Filter out duplicates
+        const uniqueNewSongs = newSongs.filter(
+          (song) => !existingIds.has(song.id),
+        );
+
+        // Only update if we have new songs to add
+        if (uniqueNewSongs.length > 0) {
+          const updatedPlaylist = [...currentPlaylist, ...uniqueNewSongs];
+          playlistDispatch({
+            type: "SET_PLAYLIST",
+            payload: updatedPlaylist,
+          });
+        }
       },
 
       handleNextSong: () => {
@@ -242,6 +267,10 @@ export function PlayerProvider({ children }) {
           const nextIndex = (currentIndex + 1) % playlistState.playlist.length;
           const nextSong = playlistState.playlist[nextIndex];
           controls.playSong(nextSong);
+        } else {
+          controls.playSong(playlistState.playlist[0]);
+          const newPlaylist = playlistState.playlist.slice(1);
+          playlistDispatch({ type: "SET_PLAYLIST", payload: newPlaylist });
         }
       },
 

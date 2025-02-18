@@ -1,4 +1,8 @@
-import { usePlayer, usePlayerState } from "@/Context/PlayerContext";
+import {
+  usePlayer,
+  usePlayerState,
+  usePlaylist,
+} from "@/Context/PlayerContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +41,19 @@ import { useNavigate } from "react-router-dom";
 import AddToPlaylist from "./AddToPlaylist";
 import { ensureHttpsForDownloadUrls } from "./Common";
 import "./music.css";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { EllipsisVerticalIcon } from "lucide-react";
+import { toast } from "sonner";
 
 // Constants
 const CARD_IMAGE_DIMENSIONS = "w-36 h-36 aspect-square mx-auto";
@@ -146,8 +163,11 @@ export const ArtistCard = memo(({ artist }) => {
 // Song Card Component
 export const SongCard = memo(({ song }) => {
   const navigate = useNavigate();
-  const { playSong, handlePlayPauseSong } = usePlayer();
+  const { playSong, handlePlayPauseSong, addToPlaylist, addToQueue } =
+    usePlayer();
   const { currentSong, isPlaying } = usePlayerState();
+  const isMobile = useIsMobile();
+  const { playlist } = usePlaylist();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -191,10 +211,25 @@ export const SongCard = memo(({ song }) => {
     }
   };
 
-  const handleAddToQueue = useCallback((e) => {
+  const handleAddToQueue = useCallback(
+    (e) => {
+      e.stopPropagation();
+      if (!isCurrentSong) {
+        addToQueue(song);
+        toast.success(`Added ${name} to queue`);
+      }
+    },
+    [song, name, isCurrentSong, addToQueue],
+  );
+
+  const handleRemoveFromQueue = useCallback((e) => {
     e.stopPropagation();
-    // Queue logic implementation
+    const updatedQueue = playlist.filter((item) => item.id !== song.id);
+    addToPlaylist(updatedQueue);
+    toast.success(`Removed ${name} from queue`);
   }, []);
+
+  const isInQueue = playlist.some((item) => item.id === song.id);
 
   return (
     <TooltipProvider>
@@ -209,18 +244,20 @@ export const SongCard = memo(({ song }) => {
             )}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            onClick={
-              song.type === "song"
-                ? handlePlayClick
-                : () =>
-                    navigate(`/music/${song.type}/${song.id}`, {
-                      state: song.id,
-                    })
-            }
           >
             <CardContent className="p-4">
               <div className="flex items-center gap-4">
-                <div className="relative min-w-[3.5rem] h-14">
+                <div
+                  className="relative min-w-[3.5rem] h-14"
+                  onClick={
+                    song.type === "song"
+                      ? handlePlayClick
+                      : () =>
+                          navigate(`/music/${song.type}/${song.id}`, {
+                            state: song.id,
+                          })
+                  }
+                >
                   <div className="relative">
                     <Avatar className={"rounded-none"}>
                       <AvatarImage
@@ -258,7 +295,17 @@ export const SongCard = memo(({ song }) => {
                   )}
                 </div>
 
-                <div className="flex-grow min-w-0 space-y-1">
+                <div
+                  className="flex-grow min-w-0 space-y-1"
+                  onClick={
+                    song.type === "song"
+                      ? handlePlayClick
+                      : () =>
+                          navigate(`/music/${song.type}/${song.id}`, {
+                            state: song.id,
+                          })
+                  }
+                >
                   <div className="flex items-center gap-2">
                     <p className="font-medium line-clamp-1 group-hover:text-primary">
                       {name}
@@ -274,8 +321,8 @@ export const SongCard = memo(({ song }) => {
                   </p>
                 </div>
 
-                {song.type === "song" && isHovered && (
-                  <div className="absolute right-0 top-0 bottom-0 flex items-center gap-2 bg-gradient-to-l from-background/80 via-background/80 pl-4">
+                {/* {song.type === "song" && isHovered && !isMobile && (
+                  <div className="absolute right-0 top-0 bottom-0 flex items-center gap-2 bg-gradient-to-l from-background/100 via-background/100 pl-4">
                     <Button
                       size="icon"
                       variant="ghost"
@@ -295,7 +342,72 @@ export const SongCard = memo(({ song }) => {
                     >
                       <Plus className="w-4 h-4" />
                     </Button>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="h-8 w-8 hover:scale-110"
+                          type="button"
+                        >
+                          <EllipsisVerticalIcon />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={handlePlayClick}
+                          className="capitalize"
+                        >
+                          Play
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={handleAddToQueue}
+                          className="capitalize"
+                        >
+                          Add to Queue
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => setIsModalOpen(true)}
+                          className="capitalize"
+                        >
+                          Add to Playlist
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
+                )} */}
+                {song.type === "song" && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="ml-auto">
+                        <EllipsisVerticalIcon />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={handlePlayClick}
+                        className="capitalize"
+                      >
+                        Play
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={
+                          isInQueue ? handleRemoveFromQueue : handleAddToQueue
+                        }
+                        className="capitalize"
+                      >
+                        {isInQueue ? "Remove from Queue" : "Add to Queue"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => setIsModalOpen(true)}
+                        className="capitalize"
+                      >
+                        Add to Playlist
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
               </div>
             </CardContent>
