@@ -15,13 +15,32 @@ import LazyImage from "../LazyImage";
 import { Button } from "../ui/button";
 import { FlipWords } from "../ui/flip-words";
 import { HoverBorderGradient } from "../ui/hover-border-gradient";
+import { useProfile } from "@/Context/Context";
+import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 const FeatureCard = lazy(() => import("./FeatureCard"));
 const FAQ = lazy(() => import("./FAQ"));
 const Newsletter = lazy(() => import("./Newsletter"));
 
 const Home = () => {
+  const { user, loading } = useProfile();
+  const navigate = useNavigate();
   const words = ["Vibe", "Moments", "Music", "Life"];
+
+  useEffect(() => {
+    if (user?.userid) {
+      navigate("/feed");
+    }
+  }, [user?.userid]);
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin mx-auto" />
+      </div>
+    );
+  }
 
   return (
     <div className="relative ">

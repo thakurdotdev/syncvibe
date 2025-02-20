@@ -28,7 +28,7 @@ import {
   ProgressBarMusic,
   VolumeControl,
 } from "./Common";
-import PlaylistInBottom, { CurrentQueue } from "./PlaylistInBottom";
+import { CurrentQueue, PlaylistInBottom } from "./PlaylistInBottom";
 import SleepTimerModal from "./SleepTimer";
 
 import {

@@ -3,6 +3,7 @@ import {
   usePlayerState,
   usePlaylist,
 } from "@/Context/PlayerContext";
+import LazyImage from "@/components/LazyImage";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,42 +19,37 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import axios from "axios";
 import he from "he";
 import {
+  EllipsisVerticalIcon,
   ListMusic,
   Loader2,
-  Music2,
+  Music2Icon,
   Pencil,
   Play,
-  Plus,
   Trash2,
-  User2,
 } from "lucide-react";
 import { memo, useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import AddToPlaylist from "./AddToPlaylist";
 import { ensureHttpsForDownloadUrls } from "./Common";
 import "./music.css";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { EllipsisVerticalIcon } from "lucide-react";
-import { toast } from "sonner";
 
 // Constants
 const CARD_IMAGE_DIMENSIONS = "w-36 h-36 aspect-square mx-auto";
@@ -125,24 +121,16 @@ export const ArtistCard = memo(({ artist }) => {
             onClick={handleClick}
           >
             <CardContent className="p-4 space-y-4">
-              <Avatar
+              <LazyImage
+                src={imageUrl}
+                alt={artist.name}
+                height={128}
+                width={128}
                 className={cn(
-                  "w-32 h-32 rounded-full",
-                  "ring-2 ring-offset-2 ring-offset-background ring-primary/10",
-                  "group-hover:ring-primary/30",
+                  "rounded-full ring-2 ring-offset-2 ring-offset-background ring-primary/10 group-hover:ring-primary/30 object-cover group-hover:scale-105",
                   HOVER_TRANSITION,
                 )}
-              >
-                <AvatarImage
-                  src={imageUrl}
-                  alt={artist.name}
-                  className="object-cover group-hover:scale-105"
-                />
-                <AvatarFallback>
-                  <User2 className="w-12 h-12 text-muted-foreground" />
-                </AvatarFallback>
-              </Avatar>
-
+              />
               <div className="text-center space-y-1">
                 <p className="font-semibold line-clamp-1 group-hover:text-primary">
                   {artist.name}
@@ -259,21 +247,21 @@ export const SongCard = memo(({ song }) => {
                   }
                 >
                   <div className="relative">
-                    <Avatar className={"rounded-none"}>
-                      <AvatarImage
-                        src={
-                          Array.isArray(song.image)
-                            ? song.image?.[1].link
-                            : song.image
-                        }
-                        alt={name}
-                        className={"object-cover w-14 h-14"}
-                        loading="lazy"
-                      />
-                      <AvatarFallback>
-                        <User2 className="w-12 h-12 text-muted-foreground" />
-                      </AvatarFallback>
-                    </Avatar>
+                    <LazyImage
+                      src={
+                        Array.isArray(song.image)
+                          ? song.image?.[1].link
+                          : song.image
+                      }
+                      alt={name}
+                      height={50}
+                      width={50}
+                      className={cn(
+                        "w-14 h-14 rounded-lg",
+                        "group-hover:scale-105",
+                        HOVER_TRANSITION,
+                      )}
+                    />
                   </div>
 
                   {song.type === "song" && (
@@ -321,88 +309,54 @@ export const SongCard = memo(({ song }) => {
                   </p>
                 </div>
 
-                {/* {song.type === "song" && isHovered && !isMobile && (
-                  <div className="absolute right-0 top-0 bottom-0 flex items-center gap-2 bg-gradient-to-l from-background/100 via-background/100 pl-4">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 hover:scale-110"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsModalOpen(true);
-                      }}
-                    >
-                      <ListMusic className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 hover:scale-110"
-                      onClick={handleAddToQueue}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-8 w-8 hover:scale-110"
-                          type="button"
-                        >
-                          <EllipsisVerticalIcon />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={handlePlayClick}
-                          className="capitalize"
-                        >
-                          Play
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={handleAddToQueue}
-                          className="capitalize"
-                        >
-                          Add to Queue
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => setIsModalOpen(true)}
-                          className="capitalize"
-                        >
-                          Add to Playlist
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                )} */}
                 {song.type === "song" && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="ml-auto">
+                      <Button variant="link" className="ml-auto">
                         <EllipsisVerticalIcon />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={handlePlayClick}
-                        className="capitalize"
-                      >
-                        Play
-                      </DropdownMenuItem>
+                    <DropdownMenuContent align="end" className="w-56">
+                      {song?.album_id && (
+                        <DropdownMenuItem
+                          onClick={() =>
+                            navigate(`/music/album/${song.album_id}`, {
+                              state: song.album_id,
+                            })
+                          }
+                          className="capitalize cursor-pointer line-clamp-1"
+                        >
+                          More from {song.album}
+                        </DropdownMenuItem>
+                      )}
+                      {song?.artist_map?.primary_artists?.[0] && (
+                        <DropdownMenuItem
+                          onClick={() =>
+                            navigate(
+                              `/music/artist/${song.artist_map.primary_artists[0].id}`,
+                              {
+                                state: song.artist_map.primary_artists[0].id,
+                              },
+                            )
+                          }
+                          className="capitalize cursor-pointer line-clamp-1"
+                        >
+                          More from {song.artist_map.primary_artists[0].name}
+                        </DropdownMenuItem>
+                      )}
+
                       <DropdownMenuItem
                         onClick={
                           isInQueue ? handleRemoveFromQueue : handleAddToQueue
                         }
-                        className="capitalize"
+                        className="capitalize cursor-pointer"
                       >
                         {isInQueue ? "Remove from Queue" : "Add to Queue"}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => setIsModalOpen(true)}
-                        className="capitalize"
+                        className="capitalize cursor-pointer"
                       >
                         Add to Playlist
                       </DropdownMenuItem>
@@ -466,31 +420,43 @@ export const AlbumCard = memo(({ album }) => {
           >
             <CardContent className="p-4 space-y-4">
               <div className="relative">
-                <OptimizedImage
-                  src={album.image[2].link || album.image[2].url}
+                <LazyImage
+                  src={album.image?.[2]?.link || album.image?.[2]?.url}
                   alt={name}
+                  height={144}
+                  width={144}
                   className={cn(
-                    CARD_IMAGE_DIMENSIONS,
-                    "rounded-lg group-hover:scale-105",
+                    "rounded-lg",
+                    "group-hover:scale-105",
+                    HOVER_TRANSITION,
                   )}
                 />
                 <div
                   className={cn(
-                    "absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-lg",
-                    "flex items-center justify-center opacity-0 group-hover:opacity-100",
+                    "absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent",
+                    "rounded-lg flex items-center justify-center",
+                    "opacity-0 group-hover:opacity-100",
                     HOVER_TRANSITION,
                   )}
                 >
-                  <Music2 className="w-10 h-10 text-white transform translate-y-4 group-hover:translate-y-0" />
+                  <Music2Icon
+                    className={cn(
+                      "w-10 h-10 text-white transform",
+                      "translate-y-4 group-hover:translate-y-0",
+                      HOVER_TRANSITION,
+                    )}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <p className="font-semibold line-clamp-1 group-hover:text-primary">
                   {name}
                 </p>
-                <Badge variant="secondary" className="capitalize text-xs">
-                  {album.language}
-                </Badge>
+                {album.language && (
+                  <Badge variant="secondary" className="capitalize text-xs">
+                    {album.language}
+                  </Badge>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -538,21 +504,17 @@ export const PlaylistCard = memo(({ playlist }) => {
           >
             <CardContent className="p-4 space-y-4">
               <div className="relative mx-auto">
-                <Avatar className={cn("w-full h-36 rounded-lg")}>
-                  <AvatarImage
-                    src={imageUrl}
-                    alt={playlist.name}
-                    className={cn(
-                      "rounded-lg object-cover",
-                      "group-hover:scale-105",
-                      HOVER_TRANSITION,
-                    )}
-                    loading="lazy"
-                  />
-                  <AvatarFallback>
-                    <ListMusic className="w-10 h-10 text-muted-foreground" />
-                  </AvatarFallback>
-                </Avatar>
+                <LazyImage
+                  src={imageUrl}
+                  alt={playlist.name}
+                  height={144}
+                  width={144}
+                  className={cn(
+                    "rounded-lg object-cover",
+                    "group-hover:scale-105",
+                    HOVER_TRANSITION,
+                  )}
+                />
                 <div
                   className={cn(
                     "absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent",

@@ -15,13 +15,14 @@ import { useState } from "react";
 const LanguagePreference = () => {
   const validLangs = [
     "hindi",
-    "english",
+    "maithili",
     "bhojpuri",
+    "english",
+    "gujarati",
     "punjabi",
     "tamil",
     "telugu",
     "marathi",
-    "gujarati",
     "bengali",
     "kannada",
     "malayalam",
@@ -60,21 +61,10 @@ const LanguagePreference = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+    <div className="h-[calc(100vh-60px)] bg-background flex flex-col items-center justify-center">
       <div className="w-full max-w-5xl space-y-8">
         {/* Header Section */}
         <div className="text-center space-y-4">
-          <div className="relative w-20 h-20 mx-auto">
-            <div className="absolute inset-0 bg-primary/10 rounded-full animate-pulse" />
-            <div className="relative w-20 h-20 rounded-full overflow-hidden border-4 border-primary">
-              <img
-                src="https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/r_max/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp"
-                alt="SyncVibe Logo"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
             <h1 className="text-4xl font-bold tracking-tight">
               Welcome to SyncVibe Music
@@ -113,7 +103,7 @@ const LanguagePreference = () => {
             </h2>
           </div>
 
-          <ScrollArea className="h-[400px] pr-4">
+          <ScrollArea className="h-[450px] pr-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {validLangs.map((lang) => (
                 <TooltipProvider key={lang}>

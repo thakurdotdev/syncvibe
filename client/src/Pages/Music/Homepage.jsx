@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import {
   AlbumCard,
@@ -11,9 +10,8 @@ import {
 } from "@/Pages/Music/Cards";
 import axios from "axios";
 import { Loader2, Music2 } from "lucide-react";
-import React, { useCallback, useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { LoadingState } from "./Common";
-import MusicCommand from "./MusicCommand";
 
 // Custom hook for intersection observer
 const useIntersectionObserver = (options = {}, skipObserver = false) => {
@@ -119,7 +117,6 @@ const CardGrid = React.memo(({ children }) => (
 ));
 
 const HomePage = () => {
-  const isMobile = useIsMobile();
   const [homePageData, setHomePageData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -192,14 +189,6 @@ const HomePage = () => {
 
   return (
     <div className="relative space-y-8 pb-20">
-      {/* {isMobile && (
-        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b w-full">
-          <div className="flex items-center h-16 px-4 w-full">
-            <MusicCommand className="w-full" />
-          </div>
-        </div>
-      )} */}
-
       <div className="px-4 md:px-6 space-y-8">
         {recommendations.length > 0 && (
           <LazySection
