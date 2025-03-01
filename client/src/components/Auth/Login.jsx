@@ -1,10 +1,9 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import axios from "axios";
 import * as yup from "yup";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Context } from "../../Context/Context";
 import { Eye, EyeOff } from "lucide-react";
 import LoadingScreen from "../Loader";
 import googleIcon from "/google.png?url";
@@ -29,6 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { KeyRound } from "lucide-react";
+import { useProfile } from "@/Context/Context";
 
 const validationSchema = yup.object().shape({
   email: yup.string().required("Email is required").email("Email is Invalid"),
@@ -39,12 +39,7 @@ const validationSchema = yup.object().shape({
 });
 
 const Login = () => {
-  const {
-    user,
-    setUser,
-    loading: loadingPro,
-    getProfile,
-  } = useContext(Context);
+  const { user, setUser, loading: loadingPro, getProfile } = useProfile();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [userData, setUserData] = useState({});

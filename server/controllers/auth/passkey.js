@@ -12,6 +12,7 @@ const { configDotenv } = require("dotenv");
 const sequelize = require("../../utils/sequelize");
 const { parseUserAgent } = require("../../utils/helpers");
 const LoginLog = require("../../models/auth/loginLogModel");
+const { JWTExpiryDate, CookieExpiryDate } = require("../../constant");
 
 configDotenv();
 
@@ -27,8 +28,8 @@ const CONFIG = {
       ? process.env.CLIENT_URL
       : "https://client.thakur.dev",
   CHALLENGE_TIMEOUT: 60000,
-  TOKEN_EXPIRY: "7d",
-  COOKIE_EXPIRY: 604800000, // 7 days in milliseconds
+  TOKEN_EXPIRY: JWTExpiryDate,
+  COOKIE_EXPIRY: CookieExpiryDate, // 7 days in milliseconds
 };
 
 // Custom error class for better error handling

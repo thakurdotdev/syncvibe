@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../../models/auth/userModel");
 const LoginLog = require("../../models/auth/loginLogModel");
 const { parseUserAgent } = require("../../utils/helpers");
+const { JWTExpiryDate, CookieExpiryDate } = require("../../constant");
 
 const validationSchema = Yup.object().shape({
   email: Yup.string()
@@ -57,7 +58,7 @@ const loginUser = async (req, res) => {
         verified: user.verified,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" },
+      { expiresIn: JWTExpiryDate },
     );
 
     res
@@ -70,9 +71,9 @@ const loginUser = async (req, res) => {
         secure: true,
         httpOnly: true,
         sameSite: "none",
-        expires: new Date(Date.now() + 604800000),
+        expires: CookieExpiryDate,
       })
-      .json({ message: "Success" });
+      .json({ message: "Success", token: token });
 
     process.env.NODE_ENV === "production" &&
       (async () => {
@@ -225,6 +226,7 @@ const guestLogin = async (req, res) => {
       })
       .json({
         message: "Guest login successful",
+        token: token,
       });
 
     // Log the guest login (optional)

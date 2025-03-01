@@ -32,6 +32,7 @@ const {
   getPasskeys,
   deletePasskey,
 } = require("../controllers/auth/passkey");
+const { CookieExpiryDate } = require("../constant");
 
 const userRouter = express.Router();
 
@@ -57,7 +58,7 @@ userRouter.route("/auth/google/callback").get(
         secure: true,
         httpOnly: true,
         sameSite: "none",
-        expires: new Date(Date.now() + 604800000),
+        expires: CookieExpiryDate,
       });
       res.redirect(`${process.env.CLIENT_URL}/feed`);
     }

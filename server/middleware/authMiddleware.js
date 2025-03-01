@@ -3,7 +3,14 @@ const User = require("../models/auth/userModel");
 
 const authMiddleware = async (req, res, next) => {
   try {
-    const token = req.cookies.token;
+    // Check for token in cookies (web) or Authorization header (mobile)
+    let token = req.cookies.token;
+
+    // Check Authorization header if no cookie token
+    const authHeader = req.headers.authorization;
+    if (!token && authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    }
 
     if (!token) {
       return res.status(401).json({ error: "Unauthorized: Missing token" });

@@ -2,7 +2,7 @@ const passport = require("passport");
 const { Strategy: GoogleStrategy } = require("passport-google-oauth20");
 const { configDotenv } = require("dotenv");
 const jwt = require("jsonwebtoken");
-const { UserLoginType } = require("../constant");
+const { UserLoginType, JWTExpiryDate } = require("../constant");
 const User = require("../models/auth/userModel");
 
 configDotenv();
@@ -37,7 +37,7 @@ passport.use(
               verified: existingUser.dataValues.verified,
             },
             process.env.JWT_SECRET,
-            { expiresIn: "1d" },
+            { expiresIn: JWTExpiryDate },
           );
           return next(null, token);
         } else {
@@ -63,7 +63,7 @@ passport.use(
               verified: user.verified,
             },
             process.env.JWT_SECRET,
-            { expiresIn: "1d" },
+            { expiresIn: JWTExpiryDate },
           );
           return next(null, token);
         }
