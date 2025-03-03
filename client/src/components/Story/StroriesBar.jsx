@@ -8,6 +8,7 @@ import StoryViewer from "./StoryViewer";
 import axios from "axios";
 import { getProfileCloudinaryUrl } from "@/Utils/Cloudinary";
 import { Card } from "../ui/card";
+import { Loader2Icon } from "lucide-react";
 
 const StoriesBar = () => {
   const { user } = useContext(Context);
@@ -45,19 +46,8 @@ const StoriesBar = () => {
 
   if (loading) {
     return (
-      <Card className="bg-white dark:bg-gray-900 rounded-lg p-4 mt-3">
-        <div className="animate-pulse flex gap-4">
-          {[...Array(6)].map((_, index) => (
-            <div key={index} className="flex flex-col items-center gap-1">
-              <div className="rounded-full p-1 bg-gray-300">
-                <Avatar className="w-14 h-14 border-2 border-white">
-                  <AvatarFallback />
-                </Avatar>
-              </div>
-              <span className="text-xs truncate w-16 text-center">Loading</span>
-            </div>
-          ))}
-        </div>
+      <Card className="flex items-center justify-center p-4 mt-3 h-28">
+        <Loader2Icon className="w-8 h-8 animate-spin" />
       </Card>
     );
   }

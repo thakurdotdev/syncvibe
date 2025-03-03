@@ -14,6 +14,7 @@ import { useContext } from "react";
 import { Context } from "./Context/Context";
 import { ChatContext } from "./Context/ChatContext";
 import GroupMusic from "./Pages/Music/GroupMusic";
+import MobileBottomBar from "./components/MobileBottomBar";
 
 const Header = lazy(() => import("./components/LandingPage/Header"));
 const Footer = lazy(() => import("./components/LandingPage/Footer"));
@@ -130,6 +131,7 @@ export const ProtectedRoutes = () => {
         </div>
       </main>
       <BottomPlayer />
+      {isMobile && <MobileBottomBar />}
       <IncomingCallNotification
         incomingCall={incomingCall}
         answerCall={answerCall}

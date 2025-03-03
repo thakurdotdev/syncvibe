@@ -8,6 +8,7 @@ import GoToTop from "../GoToTop";
 import { Loader2 } from "lucide-react";
 import { Card } from "../ui/card";
 import { PostSkeleton } from "../PostSkeleton";
+import { Loader2Icon } from "lucide-react";
 
 const Dashboard = () => {
   const [posts, setPosts] = useState([]);
@@ -45,8 +46,11 @@ const Dashboard = () => {
     <div className="flex flex-col gap-4 my-5 mx-auto w-[95%] sm:w-[75%] md:w-[60%] lg:w-[30%]">
       <StoriesBar />
       <>
-        {loading &&
-          [...Array(5)].map((_, index) => <PostSkeleton key={index} />)}
+        {loading && (
+          <div className="flex items-center justify-center p-4 h-[70vh]">
+            <Loader2Icon className="w-10 h-10 text-gray-500 animate-spin" />
+          </div>
+        )}
         <InfiniteScroll
           dataLength={posts.length}
           next={fetchPosts}

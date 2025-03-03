@@ -27,8 +27,6 @@ const SleepTimerModal = () => {
   const [selectedTime, setSelectedTime] = useState(30);
   const [selectedSongs, setSelectedSongs] = useState(5);
 
-  console.log("timeRemaining", timeRemaining);
-
   const handleSetTimer = () => {
     if (timerType === "time") {
       setSleepTimer(selectedTime);
@@ -50,6 +48,8 @@ const SleepTimerModal = () => {
           variant={isActive ? "secondary" : "ghost"}
           size="icon"
           className="hover:scale-105 relative"
+          type="button"
+          onClick={(e) => e.stopPropagation()}
         >
           <Clock size={18} />
           {isActive && (

@@ -3,11 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -17,8 +15,8 @@ import {
 } from "@/Context/PlayerContext";
 import axios from "axios";
 import he from "he";
-import { ListMusic, Maximize2, Minimize2, X } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { ListMusic, Minimize2 } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import AddToPlaylist from "./AddToPlaylist";
@@ -31,6 +29,7 @@ import {
 import { CurrentQueue, PlaylistInBottom } from "./PlaylistInBottom";
 import SleepTimerModal from "./SleepTimer";
 
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DndContext,
   PointerSensor,
@@ -39,11 +38,11 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { PlayIcon } from "lucide-react";
+import { ChevronDownIcon, PlayIcon } from "lucide-react";
 import { AudioWave } from "./Cards";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 const BUTTON_SIZE = 48;
+const TAB_VALUES = ["current", "queue", "recommendations"];
 
 const DraggableButton = memo(
   ({
@@ -101,6 +100,12 @@ const BottomPlayer = () => {
   const [loading, setLoading] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  // State for tab swiping
+  const [activeTab, setActiveTab] = useState("current");
+  const touchStartX = useRef(null);
+  const contentRef = useRef(null);
 
   const [position, setPosition] = useState({
     x: isMobile ? window.innerWidth - 100 : 23,
@@ -134,6 +139,35 @@ const BottomPlayer = () => {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Handler for swipe gestures to change tabs
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX.current - touchEndX;
+
+    // Only switch tabs if the swipe is significant enough (> 50px)
+    if (Math.abs(diff) > 50) {
+      const currentIndex = TAB_VALUES.indexOf(activeTab);
+
+      if (diff > 0) {
+        // Swipe left, go to next tab
+        const nextIndex = Math.min(currentIndex + 1, TAB_VALUES.length - 1);
+        setActiveTab(TAB_VALUES[nextIndex]);
+      } else {
+        // Swipe right, go to previous tab
+        const prevIndex = Math.max(currentIndex - 1, 0);
+        setActiveTab(TAB_VALUES[prevIndex]);
+      }
+    }
+
+    touchStartX.current = null;
+  };
 
   const handleDragStart = () => {
     setIsDragging(true);
@@ -226,6 +260,7 @@ const BottomPlayer = () => {
           isMinimized
             ? "translate-y-full opacity-0"
             : "translate-y-0 opacity-100",
+          isMobile && "bottom-12",
         )}
       >
         <CardContent className="p-0">
@@ -236,7 +271,14 @@ const BottomPlayer = () => {
 
           <div className="flex items-center justify-between p-4 pt-5">
             {/* Song Info */}
-            <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div
+              className="flex items-center gap-4 flex-1 min-w-0"
+              as="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsSheetOpen(true);
+              }}
+            >
               <Avatar className="h-14 w-14 rounded-md">
                 <AvatarImage src={songImage} alt={currentSong.name} />
                 <AvatarFallback>MU</AvatarFallback>
@@ -252,31 +294,42 @@ const BottomPlayer = () => {
             </div>
 
             {/* Controls */}
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsModalOpen(true)}
+                className={cn(
+                  "h-12 w-12 rounded-full shadow-lg",
+                  "transition-all duration-500 hover:scale-105",
+                  isMinimized
+                    ? "opacity-0 pointer-events-none -translate-y-10"
+                    : "opacity-100 translate-y-0",
+                )}
+                onClick={() => setIsMinimized(true)}
+              >
+                <Minimize2 size={20} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsModalOpen(true);
+                }}
                 className="hidden sm:flex hover:scale-105"
               >
                 <ListMusic size={18} />
               </Button>
 
               <VolumeControl />
-              <SleepTimerModal />
+              {!isMobile && <SleepTimerModal />}
 
               <MusicControls />
 
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 hover:scale-105"
-                  >
-                    <Maximize2 size={18} />
-                  </Button>
-                </SheetTrigger>
+              <Sheet
+                open={isSheetOpen}
+                onOpenChange={() => setIsSheetOpen(!isSheetOpen)}
+              >
                 <SheetContent
                   side="bottom"
                   className="h-full w-full p-0 overflow-y-hidden"
@@ -285,16 +338,31 @@ const BottomPlayer = () => {
                     <SheetTitle className="text-lg font-semibold">
                       Now Playing
                     </SheetTitle>
-                    <SheetClose className="absolute right-4 top-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <X className="h-4 w-4" />
+                    <div className="absolute right-4 top-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsSheetOpen(false);
+                        }}
+                      >
+                        <ChevronDownIcon className="h-8 w-8" />
                       </Button>
-                    </SheetClose>
+                    </div>
                   </SheetHeader>
 
-                  <div className="flex flex-col items-center justify-start -mt-12 pb-8">
+                  <div
+                    className="flex flex-col items-center justify-start -mt-12 pb-8"
+                    ref={contentRef}
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                  >
                     <Tabs
-                      defaultValue="current"
+                      value={activeTab}
+                      onValueChange={setActiveTab}
                       className="w-full max-w-[500px]"
                     >
                       <div className="flex justify-center mb-3">
@@ -307,73 +375,112 @@ const BottomPlayer = () => {
                         </TabsList>
                       </div>
 
-                      <TabsContent value="current">
-                        <div className="h-full flex flex-col items-center justify-center p-5 max-w-2xl mx-auto gap-8">
-                          <div className="w-full max-w-md aspect-square">
-                            <Avatar className="w-full h-full rounded-lg shadow-lg">
-                              <AvatarImage
-                                src={songImage}
-                                alt={currentSong.name}
-                                className="object-cover"
-                              />
-                              <AvatarFallback className="text-4xl">
-                                MU
-                              </AvatarFallback>
-                            </Avatar>
-                          </div>
-
-                          <div className="w-full max-w-md space-y-6">
-                            <div className="text-center">
-                              <SheetTitle className="text-2xl mb-2">
-                                {he.decode(currentSong.name)}
-                              </SheetTitle>
-                              <p className="text-muted-foreground">
-                                {he.decode(artistName)}
-                              </p>
+                      <div className="relative overflow-hidden">
+                        <TabsContent
+                          value="current"
+                          className={cn(
+                            "transition-opacity duration-300",
+                            activeTab === "current"
+                              ? "opacity-100"
+                              : "opacity-0 absolute inset-0 pointer-events-none",
+                          )}
+                        >
+                          <div className="h-full flex flex-col items-center justify-center p-5 max-w-2xl mx-auto gap-8">
+                            <div className="w-full max-w-md aspect-square">
+                              <Avatar className="w-full h-full rounded-lg shadow-lg">
+                                <AvatarImage
+                                  src={songImage}
+                                  alt={currentSong.name}
+                                  className="object-cover"
+                                />
+                                <AvatarFallback className="text-4xl">
+                                  MU
+                                </AvatarFallback>
+                              </Avatar>
                             </div>
 
-                            <ProgressBarMusic isTimeVisible={true} />
+                            <div className="w-full max-w-md space-y-6">
+                              <div className="text-center">
+                                <SheetTitle className="text-2xl mb-2">
+                                  {he.decode(currentSong.name)}
+                                </SheetTitle>
+                                <p className="text-muted-foreground">
+                                  {he.decode(artistName)}
+                                </p>
+                              </div>
 
-                            <div className="flex flex-col items-center gap-6">
-                              <MusicControls size="large" />
+                              <ProgressBarMusic isTimeVisible={true} />
 
-                              <div className="flex items-center gap-4">
-                                <VolumeControl showVolume={true} />
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setIsModalOpen(true)}
-                                  className="hover:scale-105"
-                                >
-                                  <ListMusic size={20} className="mr-2" />
-                                  Add to Playlist
-                                </Button>
+                              <div className="flex flex-col items-center gap-6">
+                                <MusicControls size="large" />
+
+                                <div className="flex items-center gap-4">
+                                  <VolumeControl showVolume={true} />
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => setIsModalOpen(true)}
+                                    className="hover:scale-105"
+                                  >
+                                    <ListMusic size={20} className="mr-2" />
+                                    Add to Playlist
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </TabsContent>
+                        </TabsContent>
 
-                      <TabsContent value="queue">
-                        <CurrentQueue />
-                      </TabsContent>
+                        <TabsContent
+                          value="queue"
+                          className={cn(
+                            "transition-opacity duration-300",
+                            activeTab === "queue"
+                              ? "opacity-100"
+                              : "opacity-0 absolute inset-0 pointer-events-none",
+                          )}
+                        >
+                          <CurrentQueue />
+                        </TabsContent>
 
-                      <TabsContent value="recommendations">
-                        {loading ? (
-                          <LoadingState
-                            height={"80vh"}
-                            message={"Cooking up some recommendations"}
-                          />
-                        ) : recommendations.length === 0 ? (
-                          <div className="flex h-[80vh] items-center justify-center">
-                            <p className="text-muted-foreground">
-                              No recommendations available
-                            </p>
-                          </div>
-                        ) : (
-                          <PlaylistInBottom songs={recommendations} />
-                        )}
-                      </TabsContent>
+                        <TabsContent
+                          value="recommendations"
+                          className={cn(
+                            "transition-opacity duration-300",
+                            activeTab === "recommendations"
+                              ? "opacity-100"
+                              : "opacity-0 absolute inset-0 pointer-events-none",
+                          )}
+                        >
+                          {loading ? (
+                            <LoadingState
+                              height={"80vh"}
+                              message={"Cooking up some recommendations"}
+                            />
+                          ) : recommendations.length === 0 ? (
+                            <div className="flex h-[80vh] items-center justify-center">
+                              <p className="text-muted-foreground">
+                                No recommendations available
+                              </p>
+                            </div>
+                          ) : (
+                            <PlaylistInBottom songs={recommendations} />
+                          )}
+                        </TabsContent>
+                      </div>
                     </Tabs>
+
+                    {/* Swipe indicator */}
+                    <div className="flex justify-center mt-6 space-x-2">
+                      {TAB_VALUES.map((tabValue) => (
+                        <div
+                          key={tabValue}
+                          className={cn(
+                            "h-2 w-2 rounded-full transition-colors",
+                            activeTab === tabValue ? "bg-primary" : "bg-muted",
+                          )}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </SheetContent>
               </Sheet>
@@ -399,20 +506,6 @@ const BottomPlayer = () => {
           />
         </DndContext>
       )}
-
-      <Button
-        size="icon"
-        className={cn(
-          "fixed bottom-20 right-8 h-12 w-12 rounded-full shadow-lg",
-          "transition-all duration-500 hover:scale-105",
-          isMinimized
-            ? "opacity-0 pointer-events-none -translate-y-10"
-            : "opacity-100 translate-y-0",
-        )}
-        onClick={() => setIsMinimized(true)}
-      >
-        <Minimize2 size={20} />
-      </Button>
 
       {/* Add to Playlist Dialog */}
       <AddToPlaylist

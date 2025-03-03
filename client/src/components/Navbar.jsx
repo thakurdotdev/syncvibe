@@ -3,8 +3,10 @@ import CreatePost from "./Posts/CreatePost";
 import ProfileDropdownMenu from "./ProfileDropdownMenu";
 import { Card } from "./ui/card";
 import { SidebarTrigger } from "./ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Navbar = () => {
+  const isMobile = useIsMobile();
   return (
     <Card className="fixed top-0 w-full z-10 rounded-none backdrop-blur-sm bg-opacity-20 h-14">
       <div className="mx-auto px-4">
@@ -15,7 +17,7 @@ const Navbar = () => {
             <MusicCommand />
           </div>
           <div className="flex items-center gap-3">
-            <CreatePost />
+            {!isMobile && <CreatePost />}
             <ProfileDropdownMenu fromSidebar={false} />
           </div>
         </div>

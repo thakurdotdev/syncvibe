@@ -324,7 +324,7 @@ export const SongCard = memo(({ song }) => {
                               state: song.album_id,
                             })
                           }
-                          className="capitalize cursor-pointer line-clamp-1"
+                          className="capitalize cursor-pointer line-clamp-1 truncate"
                         >
                           More from {song.album}
                         </DropdownMenuItem>
@@ -339,7 +339,7 @@ export const SongCard = memo(({ song }) => {
                               },
                             )
                           }
-                          className="capitalize cursor-pointer line-clamp-1"
+                          className="capitalize cursor-pointer line-clamp-1 truncate"
                         >
                           More from {song.artist_map.primary_artists[0].name}
                         </DropdownMenuItem>
@@ -363,6 +363,282 @@ export const SongCard = memo(({ song }) => {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+        </TooltipTrigger>
+        <TooltipContent>
+          {error ? (
+            <p className="text-destructive">Error: {error}</p>
+          ) : (
+            <p>
+              {isCurrentSong ? "Now Playing" : "Play"} {name}
+            </p>
+          )}
+        </TooltipContent>
+      </Tooltip>
+
+      {isModalOpen && (
+        <AddToPlaylist
+          dialogOpen={isModalOpen}
+          setDialogOpen={setIsModalOpen}
+          song={song}
+        />
+      )}
+    </TooltipProvider>
+  );
+});
+
+export const NewSongCard = memo(({ song }) => {
+  const navigate = useNavigate();
+  const { playSong, handlePlayPauseSong, addToPlaylist, addToQueue } =
+    usePlayer();
+  const { currentSong, isPlaying } = usePlayerState();
+  const { playlist } = usePlaylist();
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  if (!song?.id || !song?.image?.[2]) return null;
+
+  const isCurrentSong = currentSong?.id === song.id;
+  const name = he.decode(song.name || song.title || "");
+  const artistName =
+    song?.artist_map?.artists
+      ?.slice(0, 3)
+      ?.map((artist) => artist.name)
+      .join(", ") || song?.name;
+  const isInQueue = playlist.some((item) => item.id === song.id);
+
+  const handlePlayClick = async () => {
+    try {
+      if (isCurrentSong) {
+        handlePlayPauseSong();
+        return;
+      }
+
+      if (song?.download_url) {
+        const updatedSong = ensureHttpsForDownloadUrls(song);
+        playSong(updatedSong);
+        return;
+      }
+
+      setLoading(true);
+      const response = await axios.get(
+        `${import.meta.env.VITE_SONG_URL}/song?id=${song.id}`,
+      );
+
+      if (response.data?.data?.songs[0]) {
+        const songData = ensureHttpsForDownloadUrls(
+          response.data.data.songs[0],
+        );
+        playSong(songData);
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error("Error fetching song:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddToQueue = useCallback(
+    (e) => {
+      e.stopPropagation();
+      if (!isCurrentSong) {
+        addToQueue(song);
+        toast.success(`Added ${name} to queue`);
+      }
+    },
+    [song, name, isCurrentSong, addToQueue],
+  );
+
+  const handleRemoveFromQueue = useCallback(
+    (e) => {
+      e.stopPropagation();
+      const updatedQueue = playlist.filter((item) => item.id !== song.id);
+      addToPlaylist(updatedQueue);
+      toast.success(`Removed ${name} from queue`);
+    },
+    [song, name, playlist, addToPlaylist],
+  );
+
+  const handleNavigate = useCallback(() => {
+    if (song.type !== "song") {
+      navigate(`/music/${song.type}/${song.id}`, { state: song.id });
+    }
+  }, [song, navigate]);
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Card
+            className={cn(
+              CARD_BASE_CLASSES,
+              CARD_HOVER_CLASSES,
+              "w-[180px]",
+              isCurrentSong && "bg-primary/5 border-primary/30",
+              HOVER_TRANSITION,
+            )}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onClick={song.type === "song" ? handlePlayClick : handleNavigate}
+          >
+            <CardContent className="p-4 space-y-4">
+              <div className="relative">
+                <LazyImage
+                  src={
+                    Array.isArray(song.image)
+                      ? song.image?.[2]?.link
+                      : song.image
+                  }
+                  alt={name}
+                  height={144}
+                  width={144}
+                  className={cn(
+                    "rounded-lg w-full aspect-square object-cover",
+                    "group-hover:scale-105",
+                    HOVER_TRANSITION,
+                  )}
+                />
+                <div
+                  className={cn(
+                    "absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent",
+                    "rounded-lg flex items-center justify-center",
+                    !isCurrentSong && !isHovered ? "opacity-0" : "opacity-100",
+                    HOVER_TRANSITION,
+                  )}
+                >
+                  {loading ? (
+                    <Loader2 className="w-10 h-10 animate-spin text-white" />
+                  ) : isCurrentSong && isPlaying ? (
+                    <div className="transform scale-150">
+                      <AudioWave />
+                    </div>
+                  ) : (
+                    <Play
+                      className={cn(
+                        "w-10 h-10 text-white transform",
+                        "translate-y-4 group-hover:translate-y-0",
+                        HOVER_TRANSITION,
+                      )}
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <p className="md:font-semibold text-sm line-clamp-1 group-hover:text-primary">
+                    {name}
+                  </p>
+                  {isCurrentSong && (
+                    <Badge variant="secondary" className="h-5">
+                      Playing
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground line-clamp-1 truncate">
+                  {artistName}
+                </p>
+
+                <div className="flex justify-between items-center mt-2">
+                  {song.language ? (
+                    <Badge variant="outline" className="text-xs capitalize">
+                      {song.language}
+                    </Badge>
+                  ) : song?.album ? (
+                    <Badge
+                      variant="outline"
+                      className="text-xs capitalize truncate line-clamp-1 mr-3"
+                    >
+                      {song.album}
+                    </Badge>
+                  ) : song?.type === "album" ? (
+                    <Badge
+                      variant="outline"
+                      className="text-xs capitalize truncate line-clamp-1 mr-3"
+                    >
+                      Album
+                    </Badge>
+                  ) : song?.type === "playlist" ? (
+                    <Badge
+                      variant="outline"
+                      className="text-xs capitalize truncate line-clamp-1 mr-3"
+                    >
+                      Playlist
+                    </Badge>
+                  ) : null}
+                  {song.type === "song" && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <EllipsisVerticalIcon className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        {song?.album_id && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/music/album/${song.album_id}`, {
+                                state: song.album_id,
+                              });
+                            }}
+                            className="capitalize cursor-pointer line-clamp-1 truncate"
+                          >
+                            More from {song.album}
+                          </DropdownMenuItem>
+                        )}
+                        {song?.artist_map?.primary_artists?.[0] && (
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(
+                                `/music/artist/${song.artist_map.primary_artists[0].id}`,
+                                {
+                                  state: song.artist_map.primary_artists[0].id,
+                                },
+                              );
+                            }}
+                            className="capitalize cursor-pointer line-clamp-1"
+                          >
+                            More from {song.artist_map.primary_artists[0].name}
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            isInQueue
+                              ? handleRemoveFromQueue(e)
+                              : handleAddToQueue(e);
+                          }}
+                          className="capitalize cursor-pointer"
+                        >
+                          {isInQueue ? "Remove from Queue" : "Add to Queue"}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsModalOpen(true);
+                          }}
+                          className="capitalize cursor-pointer"
+                        >
+                          Add to Playlist
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

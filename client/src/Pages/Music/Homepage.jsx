@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import {
   AlbumCard,
   ArtistCard,
+  NewSongCard,
   PlaylistCard,
   SongCard,
 } from "@/Pages/Music/Cards";
@@ -66,9 +67,9 @@ const LazySection = React.memo(
     }, [isVisible, shouldRender]);
 
     return (
-      <section ref={ref} className={cn("space-y-6", className)}>
+      <section ref={ref} className={cn("space-y-2", className)}>
         <div className="flex items-center justify-between px-4 md:px-0">
-          <h2 className="text-2xl font-semibold tracking-tight hover:text-primary transition-colors">
+          <h2 className="text-lg md:text-2xl font-semibold tracking-tight hover:text-primary transition-colors">
             {title}
           </h2>
         </div>
@@ -139,12 +140,14 @@ const HomePage = () => {
 
       if (response.status === 200) {
         const topAllData = response.data?.data;
+
         setHomePageData({
           trending: topAllData.trending?.data || [],
           playlists: topAllData.playlists?.data || [],
           albums: topAllData?.albums.data || [],
           charts: topAllData?.charts.data || [],
           artists: topAllData?.artist_recos?.data || [],
+          bhakti: topAllData?.promo8?.data || [],
         });
       }
     } catch (error) {
@@ -178,10 +181,13 @@ const HomePage = () => {
     }
   }, []);
 
-  // Optimized data loading with Promise.all
   useEffect(() => {
-    Promise.all([fetchData(), getRecommendations()]);
-  }, [fetchData, getRecommendations]);
+    getRecommendations();
+  }, [getRecommendations]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} onRetry={fetchData} />;
@@ -189,35 +195,41 @@ const HomePage = () => {
 
   return (
     <div className="relative space-y-8 pb-20">
-      <div className="px-4 md:px-6 space-y-8">
-        {recommendations.length > 0 && (
-          <LazySection
-            title="Mostly You Listen"
-            className="pt-6"
-            priority={true}
-          >
-            <CardGrid>
-              {recommendations.map((song) => (
-                <SongCard
-                  key={song.songId}
-                  song={song.songData}
-                  className="transform transition-transform hover:scale-105"
-                />
-              ))}
-            </CardGrid>
-          </LazySection>
+      <div className="px-4 md:px-6 space-y-4">
+        {reccLoading ? (
+          <div className="pt-6 h-[200px] flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin" />
+          </div>
+        ) : (
+          recommendations.length > 0 && (
+            <LazySection
+              title="Mostly You Listen"
+              className="pt-6"
+              priority={true}
+            >
+              <ScrollableSection>
+                {recommendations.map((song) => (
+                  <NewSongCard
+                    key={song.songId}
+                    song={song.songData}
+                    className="transform transition-transform hover:scale-105"
+                  />
+                ))}
+              </ScrollableSection>
+            </LazySection>
+          )
         )}
 
-        <LazySection title="Trending Now" className="pt-6" priority={true}>
-          <CardGrid>
-            {homePageData.trending.slice(0, 12).map((song) => (
-              <SongCard
+        <LazySection title="Trending Now" priority={true}>
+          <ScrollableSection>
+            {homePageData.trending.map((song) => (
+              <NewSongCard
                 key={song.id}
                 song={song}
                 className="transform transition-transform hover:scale-105"
               />
             ))}
-          </CardGrid>
+          </ScrollableSection>
         </LazySection>
 
         <LazySection title="Top Playlists">
@@ -263,6 +275,18 @@ const HomePage = () => {
                 key={album.id}
                 album={album}
                 className="min-w-[200px] transform transition-transform hover:scale-105"
+              />
+            ))}
+          </ScrollableSection>
+        </LazySection>
+
+        <LazySection title="Bhakti Songs">
+          <ScrollableSection>
+            {homePageData.bhakti.map((song) => (
+              <NewSongCard
+                key={song.id}
+                song={song}
+                className="transform transition-transform hover:scale-105"
               />
             ))}
           </ScrollableSection>
