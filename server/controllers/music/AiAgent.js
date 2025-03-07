@@ -4,7 +4,7 @@ class MusicAIAgent {
   constructor(apiKey) {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({
-      model: "gemini-pro",
+      model: "gemini-1.5-flash",
       systemInstructions:
         "You are a music recommendation system focusing on user engagement patterns and preferences.",
     });

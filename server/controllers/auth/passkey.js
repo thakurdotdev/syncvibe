@@ -65,7 +65,7 @@ const setCookie = (res, token) => {
     secure: true,
     httpOnly: true,
     sameSite: "none",
-    expires: new Date(Date.now() + CONFIG.COOKIE_EXPIRY),
+    expires: CONFIG.COOKIE_EXPIRY,
   });
 };
 
