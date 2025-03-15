@@ -33,6 +33,9 @@ const {
   deletePasskey,
 } = require("../controllers/auth/passkey");
 const { CookieExpiryDate } = require("../constant");
+const jwt = require("jsonwebtoken");
+const { JWTExpiryDate } = require("../constant");
+const { UserLoginType } = require("../constant");
 
 const userRouter = express.Router();
 
@@ -64,6 +67,69 @@ userRouter.route("/auth/google/callback").get(
     }
   },
 );
+
+userRouter.route("/auth/google/mobile").post(async (req, res) => {
+  try {
+    const { token, user } = req.body;
+
+    if (!user.email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const existingUser = await User.findOne({
+      where: {
+        email: user.email,
+      },
+      raw: true,
+    });
+
+    let userRecord;
+
+    if (existingUser) {
+      userRecord = existingUser;
+    } else {
+      userRecord = await User.create(
+        {
+          name: user.name,
+          username: user.email.split("@")[0],
+          email: user.email,
+          password: user.id,
+          profilepic: user.picture,
+          verified: true,
+          logintype: UserLoginType.GOOGLE,
+        },
+        {
+          raw: true,
+        },
+      );
+    }
+
+    const jwtToken = jwt.sign(
+      {
+        userid: userRecord.userid,
+        role: "user",
+        email: userRecord.email,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: JWTExpiryDate },
+    );
+
+    return res.status(200).json({
+      success: true,
+      token: jwtToken,
+    });
+  } catch (error) {
+    console.error("Mobile Google auth error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Authentication failed",
+      error: error.message,
+    });
+  }
+});
 
 userRouter.route("/sendotp/user").post(sendEmailOtp);
 
