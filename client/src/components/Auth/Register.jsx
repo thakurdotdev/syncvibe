@@ -149,6 +149,8 @@ const RegisterForm = memo(({ onSubmit, loading }) => {
 RegisterForm.displayName = "RegisterForm";
 
 const Register = () => {
+  document.title = "Register - SyncVibe";
+  window.scrollTo(0, 0);
   const { getProfile } = useContext(Context);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -256,14 +258,14 @@ const Register = () => {
               Login with Google
             </Button>
 
-            <Button
+            {/* <Button
               variant="outline"
               onClick={handleLoginGuest}
               className="w-full"
               disabled={loading}
             >
               Continue as Guest
-            </Button>
+            </Button> */}
           </CardFooter>
         </Card>
       </div>

@@ -114,12 +114,19 @@ userRouter.route("/auth/google/mobile").post(async (req, res) => {
         email: userRecord.email,
       },
       process.env.JWT_SECRET,
-      { expiresIn: JWTExpiryDate },
+      { expiresIn: "1Y" },
     );
 
     return res.status(200).json({
       success: true,
       token: jwtToken,
+      user: {
+        userid: userRecord.userid,
+        name: userRecord.name,
+        email: userRecord.email,
+        username: userRecord.username,
+        profilepic: userRecord.profilepic,
+      },
     });
   } catch (error) {
     console.error("Mobile Google auth error:", error);

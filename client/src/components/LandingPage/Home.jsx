@@ -1,3 +1,4 @@
+import { useProfile } from "@/Context/Context";
 import {
   ChevronsDown,
   Loader2,
@@ -8,22 +9,20 @@ import {
   Video,
   Zap,
 } from "lucide-react";
-import { lazy, Suspense } from "react";
-import { Link } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import "../../App.css";
 import LazyImage from "../LazyImage";
 import { Button } from "../ui/button";
 import { FlipWords } from "../ui/flip-words";
 import { HoverBorderGradient } from "../ui/hover-border-gradient";
-import { useProfile } from "@/Context/Context";
-import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 
 const FeatureCard = lazy(() => import("./FeatureCard"));
 const FAQ = lazy(() => import("./FAQ"));
 const Newsletter = lazy(() => import("./Newsletter"));
 
 const Home = () => {
+  window.scrollTo(0, 0);
   const { user, loading } = useProfile();
   const navigate = useNavigate();
   const words = ["Vibe", "Moments", "Music", "Life"];

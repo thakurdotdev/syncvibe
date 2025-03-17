@@ -1,6 +1,7 @@
-import React from "react";
-
 const PrivacyPolicy = () => {
+  document.title = "Privacy Policy - SyncVibe";
+  window.scrollTo(0, 0);
+
   return (
     <div className="py-10">
       <div className="max-w-4xl mx-auto px-6 py-14 lg:px-8 shadow-lg rounded-lg">

@@ -39,6 +39,8 @@ const validationSchema = yup.object().shape({
 });
 
 const Login = () => {
+  document.title = "SyncVibe - Login";
+  window.scrollTo(0, 0);
   const { user, setUser, loading: loadingPro, getProfile } = useProfile();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -236,13 +238,13 @@ const Login = () => {
               <KeyRound className="w-4 h-4 mr-2" />
               Login with Passkey
             </Button>
-            <Button
+            {/* <Button
               variant="outline"
               onClick={handleLoginGuest}
               className="w-full"
             >
               Continue as Guest
-            </Button>
+            </Button> */}
           </CardFooter>
         </Card>
       </div>
