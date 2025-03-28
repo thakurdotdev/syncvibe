@@ -1,10 +1,17 @@
 import React from "react";
 import { Home, Music, ListMusic, Send } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useSocket } from "@/Context/ChatContext";
 
 const MobileBottomBar = () => {
+  const { currentChat } = useSocket();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Hide the bottom bar on chat routes
+  if (location.pathname === "/chat" && currentChat) {
+    return null;
+  }
 
   const menuItems = [
     { name: "Home", icon: Home, path: "/feed" },

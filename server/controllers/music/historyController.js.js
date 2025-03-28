@@ -2,7 +2,6 @@ const HistorySong = require("../../models/music/HistorySong");
 const { Op } = require("sequelize");
 const MusicAIAgent = require("./AiAgent");
 const sequelize = require("../../utils/sequelize");
-const { Op } = require("sequelize");
 
 const aiAgent = new MusicAIAgent(process.env.GEMINI_API_KEY);
 
