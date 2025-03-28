@@ -131,11 +131,6 @@ const HomePage = () => {
       setError(null);
       const response = await axios.get(
         `${import.meta.env.VITE_SONG_URL}/modules?lang=hindi&mini=true`,
-        {
-          headers: {
-            "Cache-Control": "max-age=3600",
-          },
-        },
       );
 
       if (response.status === 200) {
@@ -165,9 +160,6 @@ const HomePage = () => {
         `${import.meta.env.VITE_API_URL}/api/music/recommendations`,
         {
           withCredentials: true,
-          headers: {
-            "Cache-Control": "max-age=3600",
-          },
         },
       );
 

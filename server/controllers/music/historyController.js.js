@@ -2,6 +2,7 @@ const HistorySong = require("../../models/music/HistorySong");
 const { Op } = require("sequelize");
 const MusicAIAgent = require("./AiAgent");
 const sequelize = require("../../utils/sequelize");
+const { Op } = require("sequelize");
 
 const aiAgent = new MusicAIAgent(process.env.GEMINI_API_KEY);
 
@@ -323,8 +324,50 @@ const calculateRecommendationScore = (analysis, song) => {
   return Math.min(score, 1).toFixed(2);
 };
 
+const getHistorySongs = async (req, res) => {
+  try {
+    const userId = req.user.userid;
+    const { page = 1, limit = 10, searchQuery } = req.query;
+
+    const whereClause = { userId };
+
+    if (searchQuery) {
+      whereClause.songName = {
+        [Op.like]: `%${searchQuery}%`,
+      };
+    }
+
+    const offset = (page - 1) * limit;
+
+    const historySongs = await HistorySong.findAndCountAll({
+      where: whereClause,
+      limit,
+      offset,
+      order: [["lastPlayedAt", "DESC"]],
+      attributes: ["songId", "songData"],
+      raw: true,
+    });
+
+    const updatedSongs = historySongs.rows.map((song) => song.songData);
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        songs: updatedSongs,
+        count: historySongs.count,
+        currentPage: page,
+        totalPages: Math.ceil(historySongs.count / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error in getHistorySongs:", error);
+    res.status(500).json({ error: "Failed to get history songs" });
+  }
+};
+
 module.exports = {
   addToHistory,
   getPersonalizedRecommendations,
   updateLikeStatus,
+  getHistorySongs,
 };

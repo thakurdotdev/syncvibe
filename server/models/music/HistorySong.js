@@ -1,8 +1,9 @@
-const { DataTypes } = require("sequelize");
+const { DataTypes, Model } = require("sequelize");
 const sequelize = require("../../utils/sequelize");
 
-const HistorySong = sequelize.define(
-  "HistorySong",
+class HistorySong extends Model {}
+
+HistorySong.init(
   {
     id: {
       type: DataTypes.INTEGER,
@@ -98,8 +99,10 @@ const HistorySong = sequelize.define(
     },
   },
   {
+    sequelize,
     timestamps: false,
     tableName: "history_songs",
+    modelName: "HistorySong",
     indexes: [
       {
         fields: ["userId", "songId"],

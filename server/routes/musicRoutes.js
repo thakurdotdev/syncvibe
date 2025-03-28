@@ -12,10 +12,9 @@ const express = require("express");
 const authMiddleware = require("../middleware/authMiddleware");
 const {
   addToHistory,
-  getRecentlyPlayed,
-  getMostPlayed,
   getPersonalizedRecommendations,
   updateLikeStatus,
+  getHistorySongs,
 } = require("../controllers/music/historyController.js");
 
 const musicRoutes = express.Router();
@@ -45,5 +44,7 @@ musicRoutes.get(
   getPersonalizedRecommendations,
 );
 musicRoutes.post("/history/like", authMiddleware, updateLikeStatus);
+
+musicRoutes.get("/music/latestHistory", authMiddleware, getHistorySongs);
 
 module.exports = musicRoutes;
