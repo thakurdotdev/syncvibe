@@ -72,6 +72,18 @@ User.init(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    expoPushToken: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+    },
+    lastLogin: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    lastLogout: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   },
   {
     sequelize,

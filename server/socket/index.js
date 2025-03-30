@@ -1,3 +1,29 @@
+const { Expo } = require("expo-server-sdk");
+const { getPushToken } = require("../controllers/auth/loginUser");
+
+const expo = new Expo();
+
+async function sendPushNotification(recipientId, message) {
+  if (!recipientId) return;
+
+  const recipientToken = await getPushToken(recipientId);
+  if (!recipientToken) return;
+
+  const notification = {
+    to: recipientToken,
+    sound: "default",
+    title: `New message from ${message.senderName}`,
+    body: message.content || "Sent an attachment",
+    data: { chatid: message.chatid },
+  };
+
+  try {
+    await expo.sendPushNotificationsAsync([notification]);
+  } catch (error) {
+    console.error("Error sending push notification:", error);
+  }
+}
+
 const socketManager = (io) => {
   // Track user connections and call states
   const userSockets = new Map();
@@ -77,6 +103,14 @@ const socketManager = (io) => {
         const recipientId = participants.find(
           (participant) => participant !== senderid,
         );
+        const recipientSocket = userSockets.get(recipientId);
+        const isRecipientOnline =
+          recipientSocket && onlineUsers.has(recipientId);
+
+        if (!isRecipientOnline) {
+          sendPushNotification(recipientId, messageData);
+          return;
+        }
         socket.to(recipientId).emit("message-received", messageData);
       } catch (error) {
         handleCallError(socket, error, "MESSAGE_FAILED");
@@ -407,4 +441,6 @@ const socketManager = (io) => {
   });
 };
 
-module.exports = socketManager;
+module.exports = {
+  socketManager,
+};

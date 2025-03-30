@@ -253,10 +253,28 @@ const guestLogin = async (req, res) => {
   }
 };
 
+const getPushToken = async (userid) => {
+  try {
+    if (!userid) {
+      return null;
+    }
+    const user = await User.findOne({
+      where: { userid: userid },
+      attributes: ["expoPushToken"],
+      raw: true,
+    });
+
+    return user ? user.expoPushToken : null;
+  } catch (error) {
+    return error.message;
+  }
+};
+
 module.exports = {
   loginUser,
   getLoginLogs,
   changePassword,
   forgotPassword,
   guestLogin,
+  getPushToken,
 };

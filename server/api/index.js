@@ -15,7 +15,7 @@ const timeout = require("connect-timeout");
 const hpp = require("hpp");
 
 const sequelize = require("../utils/sequelize");
-const socketManager = require("../socket/index");
+const { socketManager } = require("../socket/index");
 const userRouter = require("../routes/userRoutes");
 const postRouter = require("../routes/postRoutes");
 const chatRoutes = require("../routes/chatRoutes");

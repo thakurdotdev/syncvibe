@@ -138,6 +138,36 @@ userRouter.route("/auth/google/mobile").post(async (req, res) => {
   }
 });
 
+userRouter.route("/mobile/pushToken").post(authMiddleware, (req, res) => {
+  try {
+    const { expoPushToken } = req.body;
+    const userid = req.user.userid;
+
+    if (!expoPushToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Expo push token is required",
+      });
+    }
+
+    const result = User.update({ expoPushToken }, { where: { userid } });
+
+    if (result) {
+      return res.status(200).json({
+        success: true,
+        message: "Push token updated successfully",
+      });
+    }
+  } catch (error) {
+    console.error("Error updating push token:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update push token",
+      error: error.message,
+    });
+  }
+});
+
 userRouter.route("/sendotp/user").post(sendEmailOtp);
 
 userRouter.route("/verify/user").post(verifyUser);
