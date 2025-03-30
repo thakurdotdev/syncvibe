@@ -121,7 +121,10 @@ const HomePage = () => {
   const [homePageData, setHomePageData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [recommendations, setRecommendations] = useState([]);
+  const [recommendations, setRecommendations] = useState({
+    songs: [],
+    recentlyPlayed: [],
+  });
   const [reccLoading, setReccLoading] = useState(true);
 
   // Optimized data fetching with caching
@@ -164,7 +167,12 @@ const HomePage = () => {
       );
 
       if (response.status === 200) {
-        setRecommendations(response.data.songs);
+        const { songs, recentlyPlayed } = response.data.data;
+
+        setRecommendations({
+          songs: songs || [],
+          recentlyPlayed: recentlyPlayed || [],
+        });
       }
     } catch (error) {
       console.error("Error fetching recommendations:", error);
@@ -193,17 +201,41 @@ const HomePage = () => {
             <Loader2 className="w-8 h-8 animate-spin" />
           </div>
         ) : (
-          recommendations.length > 0 && (
+          recommendations.recentlyPlayed.length > 0 && (
+            <LazySection
+              title="Recetly Played"
+              className="pt-6"
+              priority={true}
+            >
+              <ScrollableSection>
+                {recommendations.recentlyPlayed.map((song) => (
+                  <NewSongCard
+                    key={song.id}
+                    song={song}
+                    className="transform transition-transform hover:scale-105"
+                  />
+                ))}
+              </ScrollableSection>
+            </LazySection>
+          )
+        )}
+
+        {reccLoading ? (
+          <div className="pt-6 h-[200px] flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin" />
+          </div>
+        ) : (
+          recommendations.songs.length > 0 && (
             <LazySection
               title="Mostly You Listen"
               className="pt-6"
               priority={true}
             >
               <ScrollableSection>
-                {recommendations.map((song) => (
+                {recommendations.songs.map((song) => (
                   <NewSongCard
-                    key={song.songId}
-                    song={song.songData}
+                    key={song.id}
+                    song={song}
                     className="transform transition-transform hover:scale-105"
                   />
                 ))}
@@ -272,17 +304,19 @@ const HomePage = () => {
           </ScrollableSection>
         </LazySection>
 
-        <LazySection title="Bhakti Songs">
-          <ScrollableSection>
-            {homePageData.bhakti.map((song) => (
-              <NewSongCard
-                key={song.id}
-                song={song}
-                className="transform transition-transform hover:scale-105"
-              />
-            ))}
-          </ScrollableSection>
-        </LazySection>
+        {homePageData.bhakti.length > 0 && (
+          <LazySection title="Random">
+            <ScrollableSection>
+              {homePageData.bhakti.map((song) => (
+                <NewSongCard
+                  key={song.id}
+                  song={song}
+                  className="transform transition-transform hover:scale-105"
+                />
+              ))}
+            </ScrollableSection>
+          </LazySection>
+        )}
       </div>
     </div>
   );
