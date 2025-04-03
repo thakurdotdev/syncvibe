@@ -5,7 +5,7 @@ import {
   Download,
   Loader2,
   MessageCircle,
-  Mobile,
+  Smartphone,
   Music2,
   Share2,
   Users,
@@ -73,7 +73,7 @@ const Home = () => {
 
 const AppBanner = ({ onClose }) => (
   <div className="bg-gradient-to-r from-purple-600 to-pink-600 py-3 px-4 text-white flex items-center justify-center relative">
-    <Mobile className="w-4 h-4 mr-2" />
+    <Smartphone className="w-4 h-4 mr-2" />
     <p className="text-sm font-medium">
       SyncVibe is now available for Android! <a href="#download" className="underline font-bold">Download the APK</a>
     </p>
