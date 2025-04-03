@@ -16,7 +16,7 @@ import { useProfile } from "@/Context/Context";
 import { useGroupMusic } from "@/Context/GroupMusicContext";
 import { AnimatePresence, motion } from "framer-motion";
 import { LogOut } from "lucide-react";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, QrCodeIcon } from "lucide-react";
 import { SendIcon } from "lucide-react";
 import {
   AudioLines,
@@ -71,6 +71,7 @@ const GroupMusic = () => {
   const [newGroupName, setNewGroupName] = useState("");
   const [newMessage, setNewMessage] = useState("");
   const [groupId, setGroupId] = useState("");
+  const [isQrCodeOpen, setQrCodeOpen] = useState(false);
 
   const handleSearchChange = (e) => {
     const query = e.target.value;
@@ -138,6 +139,15 @@ const GroupMusic = () => {
                       size="icon"
                     >
                       <CopyIcon className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      onClick={() => setQrCodeOpen(true)}
+                      className="rounded-full"
+                      variant="ghost"
+                      size="icon"
+                      title="Show QR Code"
+                    >
+                      <QrCodeIcon className="h-4 w-4" />
                     </Button>
                   </motion.div>
                   <Button
@@ -403,7 +413,6 @@ const GroupMusic = () => {
           </CardContent>
         </Card>
       </motion.div>
-
       {isGroupModalOpen && (
         <Dialog open={isGroupModalOpen} onOpenChange={setIsGroupModalOpen}>
           <DialogContent className="sm:max-w-[425px]">
@@ -449,7 +458,6 @@ const GroupMusic = () => {
           </DialogContent>
         </Dialog>
       )}
-
       {isSearchOpen && (
         <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
           <DialogContent className="bg-zinc-900 border-zinc-800 max-w-xl">
@@ -492,6 +500,39 @@ const GroupMusic = () => {
                   </div>
                 )}
               </ScrollArea>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {currentGroup && currentGroup.qrCode && (
+        <Dialog open={isQrCodeOpen} onOpenChange={setQrCodeOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-center">
+                Group QR Code
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center space-y-4 p-4">
+              <div className="bg-white p-4 rounded-lg">
+                <img
+                  src={`data:image/png;base64,${currentGroup.qrCode}`}
+                  alt="Group QR Code"
+                  className="w-64 h-64"
+                />
+              </div>
+              <p className="text-sm text-center text-muted-foreground">
+                Scan this QR code to join the group
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleCopy}
+                  variant="default"
+                  className="rounded-full w-full"
+                >
+                  Copy Group ID
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

@@ -36,6 +36,7 @@
     "passport-google-oauth20": "^2.0.0",
     "pg": "^8.14.1",
     "pg-hstore": "^2.3.4",
+    "qrcode": "^1.5.4",
     "resend": "^4.2.0",
     "sequelize": "^6.37.7",
     "socket.io": "^4.8.1",

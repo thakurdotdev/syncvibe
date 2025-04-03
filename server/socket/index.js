@@ -1,5 +1,6 @@
 const { Expo } = require("expo-server-sdk");
 const { getPushToken } = require("../controllers/auth/loginUser");
+const QRCode = require("qrcode");
 
 const expo = new Expo();
 
@@ -280,8 +281,9 @@ const socketManager = (io) => {
       socket.emit("music-groups", Array.from(musicGroups.values()));
     });
 
-    socket.on("create-music-group", (data) => {
-      const groupId = Math.floor(100000 + Math.random() * 900000).toString();
+    socket.on("create-music-group", async (data) => {
+      let groupId = Math.floor(100000 + Math.random() * 900000).toString();
+      groupId = "syncvibe_" + groupId; // Prefix with 'syncvibe_'
       const newGroup = {
         id: groupId,
         name: data.name,
@@ -301,9 +303,30 @@ const socketManager = (io) => {
         },
       };
 
-      musicGroups.set(groupId, newGroup);
-      socket.join(`music-group-${groupId}`);
-      io.to(userId).emit("group-created", newGroup);
+      try {
+        const qrCodeBuffer = await QRCode.toBuffer(groupId, {
+          errorCorrectionLevel: "H",
+          scale: 10,
+          color: {
+            dark: "#000000",
+            light: "#FFFFFF",
+          },
+        });
+
+        musicGroups.set(groupId, {
+          ...newGroup,
+          qrCode: qrCodeBuffer.toString("base64"),
+        });
+        socket.join(`music-group-${groupId}`);
+
+        io.to(data.createdBy).emit("group-created", {
+          ...newGroup,
+          qrCode: qrCodeBuffer.toString("base64"),
+        });
+      } catch (err) {
+        console.error("QR Code Generation Failed:", err);
+        socket.emit("error", { message: "QR Code generation failed" });
+      }
     });
 
     socket.on("join-music-group", (data) => {
