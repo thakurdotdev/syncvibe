@@ -17,7 +17,8 @@ const FAQ = () => (
         />
         <FAQItem
           question="Can I use SyncVibe on my mobile device?"
-          answer="No, SyncVibe is currently available only on Web. However, we are working on a mobile app and will release it soon."
+          answer="Yes SyncVibe is fully responsive and works seamlessly on mobile devices. You can access it through your mobile browser or download the 
+          mobile app."
         />
         <FAQItem
           question="How do I create a private playlist?"

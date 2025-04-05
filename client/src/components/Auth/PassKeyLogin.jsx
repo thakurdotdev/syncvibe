@@ -120,12 +120,21 @@ export const PasskeyLogin = () => {
   };
 
   return (
-    <div className="flex items-center justify-center max-h-svh h-svh overflow-hidden">
+    <div className="flex items-center justify-center max-h-svh h-svh overflow-hidden relative">
       <DotPattern
         className={cn(
           "[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]",
         )}
       />
+      <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-purple-600/30 filter blur-[100px] animate-pulse"></div>
+      <div
+        className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-pink-600/20 filter blur-[120px] animate-pulse"
+        style={{ animationDelay: "2s" }}
+      ></div>
+      <div
+        className="absolute top-1/3 right-1/4 w-64 h-64 rounded-full bg-blue-600/20 filter blur-[80px] animate-pulse"
+        style={{ animationDelay: "1s" }}
+      ></div>
       <Card className="w-full max-w-md mx-auto z-10">
         <CardHeader className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
