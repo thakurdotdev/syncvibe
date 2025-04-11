@@ -434,6 +434,22 @@ const socketManager = (io) => {
       io.to(`music-group-${groupId}`).emit("new-message", data);
     });
 
+    // Handle messages marked as read
+    socket.on("messages-read", (data) => {
+      try {
+        const { messageIds, chatid, readerId, senderId } = data;
+
+        // Notify the message sender that their messages have been read
+        socket.to(senderId).emit("messages-read-status", {
+          messageIds,
+          chatid,
+          readerId,
+        });
+      } catch (error) {
+        handleCallError(socket, error, "MESSAGE_READ_STATUS_FAILED");
+      }
+    });
+
     // Disconnect handling
     socket.on("disconnect", () => {
       if (userId) {

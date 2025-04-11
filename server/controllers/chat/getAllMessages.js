@@ -22,4 +22,36 @@ const getAllMessages = async (req, res) => {
   }
 };
 
-module.exports = getAllMessages;
+const readMessage = async (req, res) => {
+  try {
+    const { messageIds } = req.body;
+    const { userid } = req.user;
+
+    if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "Valid array of message IDs is required" });
+    }
+
+    await ChatMessage.update(
+      { isread: true },
+      {
+        where: {
+          messageid: messageIds,
+          isdeleted: false,
+        },
+      },
+    );
+
+    return res.status(200).json({
+      message: "success",
+      updatedCount: messageIds.length,
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ error: "An error occurred while reading the messages." });
+  }
+};
+
+module.exports = { getAllMessages, readMessage };
