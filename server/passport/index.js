@@ -7,6 +7,28 @@ const User = require("../models/auth/userModel");
 
 configDotenv();
 
+/**
+ * Generate JWT token for authenticated user
+ * @param {Object} user - User data
+ * @returns {String} JWT token
+ */
+const generateToken = (user) => {
+  return jwt.sign(
+    {
+      userid: user.userid,
+      role: "user",
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      profilepic: user.profilepic,
+      bio: user.bio,
+      verified: user.verified,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: JWTExpiryDate },
+  );
+};
+
 passport.use(
   new GoogleStrategy(
     {
@@ -16,59 +38,43 @@ passport.use(
       session: false,
       scope: ["profile", "email"],
     },
-    async (_, __, profile, next) => {
+    async (accessToken, refreshToken, profile, done) => {
       try {
+        // Extract user data from profile
+        const { email, name, sub: googleId, picture } = profile._json;
+
+        if (!email) {
+          return done(new Error("Email not provided by Google"));
+        }
+
+        // Find existing user or create new one
         const existingUser = await User.findOne({
-          where: {
-            email: profile._json.email,
-          },
+          where: { email },
+          raw: true,
         });
 
         if (existingUser) {
-          const token = jwt.sign(
-            {
-              userid: existingUser.dataValues.userid,
-              role: "user",
-              name: existingUser.dataValues.name,
-              username: existingUser.dataValues.username,
-              email: existingUser.dataValues.email,
-              profilepic: existingUser.dataValues.profilepic,
-              bio: existingUser.dataValues.bio,
-              verified: existingUser.dataValues.verified,
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: JWTExpiryDate },
-          );
-          return next(null, token);
-        } else {
-          const user = await User.create({
-            name: profile._json.name,
-            username: profile._json.email.split("@")[0],
-            email: profile._json.email,
-            password: profile._json.sub,
-            profilepic: profile._json.picture,
-            verified: true,
-            logintype: UserLoginType.GOOGLE,
-          });
-
-          const token = jwt.sign(
-            {
-              userid: user.userid,
-              role: "user",
-              name: user.name,
-              username: user.username,
-              email: user.email,
-              profilepic: user.profilepic,
-              bio: user.bio,
-              verified: user.verified,
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: JWTExpiryDate },
-          );
-          return next(null, token);
+          // User exists, generate token
+          const token = generateToken(existingUser);
+          return done(null, token);
         }
+
+        // Create new user
+        const newUser = await User.create({
+          name,
+          username: email.split("@")[0],
+          email,
+          password: googleId,
+          profilepic: picture,
+          verified: true,
+          logintype: UserLoginType.GOOGLE,
+        });
+
+        const token = generateToken(newUser);
+        return done(null, token);
       } catch (error) {
-        return next(error);
+        console.error("Google authentication error:", error);
+        return done(error);
       }
     },
   ),

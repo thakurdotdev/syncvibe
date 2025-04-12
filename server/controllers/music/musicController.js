@@ -141,6 +141,7 @@ const getPlaylists = async (req, res) => {
       return res.status(400).json({ message: "Invalid user" });
     }
 
+    // Optimized query with specific attributes and better join strategy
     const playlists = await Playlist.findAll({
       where: { userId },
       attributes: [
@@ -155,21 +156,36 @@ const getPlaylists = async (req, res) => {
           model: PlaylistSong,
           as: "songs",
           attributes: [],
+          required: false, // LEFT JOIN instead of INNER JOIN
         },
         {
           model: PlaylistSong,
           as: "latestSong",
           attributes: ["songData"],
+          required: false, // LEFT JOIN to ensure playlists with no songs still return
           order: [["createdat", "DESC"]],
           limit: 1,
+          separate: true, // Use a separate query for better performance
         },
       ],
       group: ["Playlist.id"],
+      order: [["createdat", "DESC"]], // Most recent playlists first
     });
 
+    // Process results efficiently using map
     const updatedPlaylists = playlists.map((playlist) => {
       const latestSong = playlist.latestSong && playlist.latestSong[0];
-      const image = latestSong ? JSON.parse(latestSong.songData).image : null;
+      let image = null;
+
+      // Try-catch for JSON parsing to prevent crashes
+      if (latestSong) {
+        try {
+          const songData = JSON.parse(latestSong.songData);
+          image = songData.image;
+        } catch (e) {
+          console.error("Error parsing song data:", e);
+        }
+      }
 
       return {
         id: playlist.id,
@@ -186,6 +202,7 @@ const getPlaylists = async (req, res) => {
       data: updatedPlaylists,
     });
   } catch (error) {
+    console.error("Error fetching playlists:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -195,26 +212,38 @@ const getPlaylistSongs = async (req, res) => {
     const { id: playlistId } = req.query;
     const userId = req.user.userid;
 
-    const playlist = await Playlist.findOne({
-      where: { id: playlistId, userId },
-      raw: true,
-    });
+    // Combined query to reduce database roundtrips
+    const [playlist, songs] = await Promise.all([
+      Playlist.findOne({
+        where: { id: playlistId, userId },
+        attributes: ["id", "name", "description", "createdat", "userId"],
+        raw: true,
+      }),
+      PlaylistSong.findAll({
+        where: { playlistId },
+        order: [["createdat", "DESC"]],
+        raw: true,
+      }),
+    ]);
 
     if (!playlist) {
       return res.status(404).json({ message: "Playlist not found" });
     }
 
-    const songs = await PlaylistSong.findAll({
-      where: { playlistId },
-      order: [["createdat", "DESC"]],
-      raw: true,
-    });
-
+    // Use map with JSON.parse wrapped in try-catch for safety
     const updatedSongs = songs.map((song) => {
-      return {
-        ...song,
-        songData: JSON.parse(song.songData),
-      };
+      try {
+        return {
+          ...song,
+          songData: JSON.parse(song.songData),
+        };
+      } catch (e) {
+        console.error("Error parsing song data:", e);
+        return {
+          ...song,
+          songData: { error: "Invalid song data" },
+        };
+      }
     });
 
     const playlistImage =
@@ -229,6 +258,7 @@ const getPlaylistSongs = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Error fetching playlist songs:", error);
     res.status(500).json({ error: error.message });
   }
 };
