@@ -32,53 +32,18 @@ const {
   getPasskeys,
   deletePasskey,
 } = require("../controllers/auth/passkey");
-const { CookieExpiryDate, UserLoginType } = require("../constant");
+const { CookieExpiryDate } = require("../constant");
 const jwt = require("jsonwebtoken");
+const { JWTExpiryDate } = require("../constant");
+const { UserLoginType } = require("../constant");
 
 const userRouter = express.Router();
 
-/**
- * Generate JWT token for user authentication
- * @param {Object} user - User data object
- * @returns {String} JWT token
- */
-const generateUserToken = (user) => {
-  return jwt.sign(
-    {
-      userid: user.userid,
-      role: "user",
-      email: user.email,
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: "1Y" },
-  );
-};
-
-/**
- * Set authentication cookie
- * @param {Object} res - Express response object
- * @param {String} token - JWT token to set in cookie
- */
-const setAuthCookie = (res, token) => {
-  res.cookie("token", token, {
-    domain:
-      process.env.NODE_ENV === "production" ? ".syncvibe.xyz" : ".thakur.dev",
-    secure: true,
-    httpOnly: true,
-    sameSite: "none",
-    expires: CookieExpiryDate,
-  });
-};
-
-// Registration route
 userRouter.route("/register").post(registerUser);
 
-// Google OAuth routes for web
-userRouter.route("/auth/google").get(
-  passport.authenticate("google", {
-    scope: ["profile", "email"],
-  }),
-);
+userRouter
+  .route("/auth/google")
+  .get(passport.authenticate("google", { scope: ["profile", "email"] }));
 
 userRouter.route("/auth/google/callback").get(
   passport.authenticate("google", {
@@ -87,32 +52,41 @@ userRouter.route("/auth/google/callback").get(
   }),
   (req, res) => {
     if (req.user) {
-      setAuthCookie(res, req.user);
+      const token = req.user;
+      res.cookie("token", token, {
+        domain:
+          process.env.NODE_ENV === "production"
+            ? ".syncvibe.xyz"
+            : ".thakur.dev",
+        secure: true,
+        httpOnly: true,
+        sameSite: "none",
+        expires: CookieExpiryDate,
+      });
       res.redirect(`${process.env.CLIENT_URL}/feed`);
     }
   },
 );
 
-// Google OAuth route for mobile
 userRouter.route("/auth/google/mobile").post(async (req, res) => {
   try {
-    const { user } = req.body;
+    const { token, user } = req.body;
 
-    if (!user || !user.email) {
+    if (!user.email) {
       return res.status(400).json({
         success: false,
         message: "Email is required",
       });
     }
 
-    // Find or create user
-    let userRecord;
     const existingUser = await User.findOne({
       where: {
         email: user.email,
       },
       raw: true,
     });
+
+    let userRecord;
 
     if (existingUser) {
       userRecord = existingUser;
@@ -133,7 +107,15 @@ userRouter.route("/auth/google/mobile").post(async (req, res) => {
       );
     }
 
-    const jwtToken = generateUserToken(userRecord);
+    const jwtToken = jwt.sign(
+      {
+        userid: userRecord.userid,
+        role: "user",
+        email: userRecord.email,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1Y" },
+    );
 
     return res.status(200).json({
       success: true,
@@ -156,8 +138,7 @@ userRouter.route("/auth/google/mobile").post(async (req, res) => {
   }
 });
 
-// Mobile push token route
-userRouter.route("/mobile/pushToken").post(authMiddleware, async (req, res) => {
+userRouter.route("/mobile/pushToken").post(authMiddleware, (req, res) => {
   try {
     const { expoPushToken } = req.body;
     const userid = req.user.userid;
@@ -169,12 +150,14 @@ userRouter.route("/mobile/pushToken").post(authMiddleware, async (req, res) => {
       });
     }
 
-    await User.update({ expoPushToken }, { where: { userid } });
+    const result = User.update({ expoPushToken }, { where: { userid } });
 
-    return res.status(200).json({
-      success: true,
-      message: "Push token updated successfully",
-    });
+    if (result) {
+      return res.status(200).json({
+        success: true,
+        message: "Push token updated successfully",
+      });
+    }
   } catch (error) {
     console.error("Error updating push token:", error);
     return res.status(500).json({
