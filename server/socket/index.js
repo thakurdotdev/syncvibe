@@ -4,19 +4,32 @@ const QRCode = require("qrcode");
 
 const expo = new Expo();
 
-async function sendPushNotification(recipientId, message) {
+async function sendPushNotification(recipientId, message, type = "message") {
   if (!recipientId) return;
 
   const recipientToken = await getPushToken(recipientId);
   if (!recipientToken) return;
 
-  const notification = {
-    to: recipientToken,
-    sound: "default",
-    title: `New message from ${message.senderName}`,
-    body: message.content || "Sent an attachment",
-    data: { chatid: message.chatid },
-  };
+  let notification;
+
+  if (type === "message") {
+    notification = {
+      to: recipientToken,
+      sound: "default",
+      title: `New message from ${message.senderName}`,
+      body: message.content || "Sent an attachment",
+      data: { chatid: message.chatid },
+    };
+  } else if (type === "call") {
+    notification = {
+      to: recipientToken,
+      sound: "default",
+      title: `Incoming call from ${message.name}`,
+      body: "Tap to open the app",
+      data: { callFrom: message.from, callType: "video" },
+      priority: "high",
+    };
+  }
 
   try {
     await expo.sendPushNotificationsAsync([notification]);
@@ -180,6 +193,11 @@ const socketManager = (io) => {
           profilepic,
           offer,
         });
+
+        // Send push notification if recipient is offline
+        if (!onlineUsers.has(to)) {
+          sendPushNotification(to, { name, from }, "call");
+        }
       } catch (error) {
         handleCallError(socket, error, "CALL_INITIATION_FAILED");
       }
