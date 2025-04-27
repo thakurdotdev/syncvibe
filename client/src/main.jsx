@@ -6,9 +6,12 @@ import "./index.css";
 // Conditionally add the Umami script based on NODE_ENV
 if (process.env.NODE_ENV === "live") {
   const script = document.createElement("script");
-  script.src = "https://slyn-analytics.vercel.app/api/script.js";
+  script.src = "https://app.slyn.tech/api/script.js";
   script.defer = true;
-  script.setAttribute("data-api-key", "7e37728a-2c1c-4189-a558-55431d572fb4");
+  script.setAttribute(
+    "data-api-key",
+    "sh_86af9f4f-5e12-4a0a-8768-7438e72c3233",
+  );
   document.head.appendChild(script);
 }
 
