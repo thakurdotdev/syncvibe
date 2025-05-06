@@ -15,6 +15,7 @@ const {
   getPersonalizedRecommendations,
   updateLikeStatus,
   getHistorySongs,
+  batchAddToHistory,
 } = require("../controllers/music/historyController.js");
 
 const musicRoutes = express.Router();
@@ -38,6 +39,9 @@ musicRoutes.get("/playlist/get", authMiddleware, getPlaylists);
 musicRoutes.get("/playlist/details", authMiddleware, getPlaylistSongs);
 
 musicRoutes.post("/history/add", authMiddleware, addToHistory);
+
+musicRoutes.post("/history/batch", authMiddleware, batchAddToHistory);
+
 musicRoutes.get(
   "/music/recommendations",
   authMiddleware,

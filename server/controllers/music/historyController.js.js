@@ -2,8 +2,6 @@ const HistorySong = require("../../models/music/HistorySong");
 const { Op } = require("sequelize");
 const sequelize = require("../../utils/sequelize");
 
-// Cache configuration
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 const recommendationCache = new Map();
 
 const addToHistory = async (req, res) => {
@@ -42,8 +40,6 @@ const addToHistory = async (req, res) => {
       await updateExistingSong(historySong, playedTime, completionRate);
     }
 
-    clearUserCache(userId);
-
     // Calculate recommendation score algorithmically
     updateRecommendationScore(userId, songData.id).catch(console.error);
 
@@ -51,6 +47,89 @@ const addToHistory = async (req, res) => {
   } catch (error) {
     console.error("Error in addToHistory:", error);
     res.status(500).json({ error: "Failed to update history" });
+  }
+};
+
+const batchAddToHistory = async (req, res) => {
+  try {
+    const { updates } = req.body;
+    const userId = req.user.userid;
+
+    if (!updates || !Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ error: "Invalid updates data" });
+    }
+
+    const results = [];
+
+    // Process each update in the batch
+    for (const update of updates) {
+      const { songId, position, songData, duration, timestamp } = update;
+
+      if (!songId || !songData) {
+        results.push({
+          songId: songId || "unknown",
+          status: "failed",
+          error: "Invalid song data",
+        });
+        continue;
+      }
+
+      try {
+        const artistNames = extractArtistNames(songData);
+        const completionRate = calculateCompletionRate(
+          position,
+          duration || songData.duration,
+        );
+
+        const [historySong, created] = await HistorySong.findOrCreate({
+          where: { userId, songId },
+          defaults: {
+            userId,
+            songId,
+            songName: songData.name || songData.title || "Unknown",
+            artistNames,
+            songLanguage: songData.language || "Unknown",
+            songData,
+            duration: duration || songData.duration,
+            playedTime: position,
+            timeOfDay: new Date(timestamp || Date.now()).getHours(),
+            deviceType: getDeviceType(req.headers["user-agent"]),
+            completionRate,
+            playCount: 1,
+            lastPlayed: new Date(timestamp || Date.now()),
+          },
+        });
+
+        if (!created) {
+          await updateExistingSong(historySong, position, completionRate);
+        }
+
+        // Calculate recommendation score algorithmically
+        updateRecommendationScore(userId, songId).catch(console.error);
+
+        results.push({
+          songId,
+          status: "success",
+        });
+      } catch (error) {
+        console.error(`Error processing song ${songId}:`, error);
+        results.push({
+          songId,
+          status: "failed",
+          error: "Database error",
+        });
+      }
+    }
+
+    res.json({
+      message: "Batch history updated successfully",
+      results,
+      processed: results.length,
+      successful: results.filter((r) => r.status === "success").length,
+    });
+  } catch (error) {
+    console.error("Error in batchAddToHistory:", error);
+    res.status(500).json({ error: "Failed to update history batch" });
   }
 };
 
@@ -179,11 +258,6 @@ const calculateWeightedRecommendations = async (userId, limit) => {
   });
 };
 
-const clearUserCache = (userId) => {
-  const cacheKey = `recommendations:${userId}`;
-  recommendationCache.delete(cacheKey);
-};
-
 const updateLikeStatus = async (req, res) => {
   try {
     const userId = req.user.userid;
@@ -198,9 +272,6 @@ const updateLikeStatus = async (req, res) => {
     }
 
     await historySong.update({ likeStatus: liked });
-
-    // Clear cache to reflect updated like status in recommendations
-    clearUserCache(userId);
 
     res.json({ message: "Like status updated successfully" });
   } catch (error) {
@@ -380,6 +451,7 @@ const getHistorySongs = async (req, res) => {
 
 module.exports = {
   addToHistory,
+  batchAddToHistory,
   getPersonalizedRecommendations,
   updateLikeStatus,
   getHistorySongs,
