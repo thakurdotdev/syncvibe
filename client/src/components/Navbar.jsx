@@ -17,7 +17,7 @@ const Navbar = () => {
             <MusicCommand />
           </div>
           <div className="flex items-center gap-3">
-            {!isMobile && <CreatePost />}
+            {<CreatePost />}
             <ProfileDropdownMenu fromSidebar={false} />
           </div>
         </div>

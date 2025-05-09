@@ -180,7 +180,7 @@ const CreatePost = ({ openModal, setPosts }) => {
       <DialogTrigger asChild>
         <Button
           variant="secondary"
-          className="h-10 flex items-center gap-2 rounded-full"
+          className="h-10 max-md:w-10 flex items-center gap-2 rounded-full"
           title="Create Post"
         >
           <PlusIcon />
