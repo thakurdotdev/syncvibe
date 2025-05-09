@@ -95,7 +95,7 @@ const batchAddToHistory = async (req, res) => {
             timeOfDay: new Date(timestamp || Date.now()).getHours(),
             deviceType: getDeviceType(req.headers["user-agent"]),
             completionRate,
-            playCount: 1,
+            playedCount: 1,
             lastPlayed: new Date(timestamp || Date.now()),
           },
         });
