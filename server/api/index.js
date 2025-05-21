@@ -142,10 +142,11 @@ app.use(passport.initialize());
 require("../passport/index");
 
 const corsOptions = {
-  origin:
-    process.env.NODE_ENV === "production"
-      ? [process.env.CLIENT_URL || "https://syncvibe.xyz"]
-      : ["http://localhost:5173", "https://client.thakur.dev"],
+  origin: [
+    "https://syncvibe.xyz",
+    "http://localhost:5173",
+    "https://dev.thakur.dev",
+  ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],

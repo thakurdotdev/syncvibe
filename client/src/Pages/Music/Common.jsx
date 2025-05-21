@@ -269,15 +269,43 @@ export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
 });
 
 export const ensureHttpsForDownloadUrls = (song) => {
-  if (!song.download_url) return song;
-  const updatedDownloadUrls = song.download_url.map((item) => ({
-    ...item,
-    link: item.link.startsWith("http://")
-      ? item.link.replace("http://", "https://")
-      : item.link,
-  }));
+  if (!song || typeof song !== "object") return song;
+
+  // Handle download_url edge cases
+  const updatedDownloadUrls = Array.isArray(song.download_url)
+    ? song.download_url.map((item) => {
+        if (!item || typeof item !== "object") return item;
+        return {
+          ...item,
+          link:
+            item.link && typeof item.link === "string"
+              ? item.link.startsWith("http://")
+                ? item.link.replace("http://", "https://")
+                : item.link
+              : item.link,
+        };
+      })
+    : song.download_url;
+
+  // Handle image edge cases
+  const updatedArtworkUrls = Array.isArray(song.image)
+    ? song.image.map((item) => {
+        if (!item || typeof item !== "object") return item;
+        return {
+          ...item,
+          link:
+            item.link && typeof item.link === "string"
+              ? item.link.startsWith("http://")
+                ? item.link.replace("http://", "https://")
+                : item.link
+              : item.link,
+        };
+      })
+    : song.image;
+
   return {
     ...song,
     download_url: updatedDownloadUrls,
+    image: updatedArtworkUrls,
   };
 };

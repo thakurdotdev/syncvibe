@@ -11,6 +11,7 @@ import { useProfile } from "@/Context/Context";
 import axios from "axios";
 import _ from "lodash";
 import { toast } from "sonner";
+import { ensureHttpsForDownloadUrls } from "@/Pages/Music/Common";
 
 export const GroupMusicContext = createContext(null);
 
@@ -178,20 +179,21 @@ export function GroupMusicProvider({ children }) {
 
   const selectSong = async (song) => {
     try {
+      const securedSong = ensureHttpsForDownloadUrls(song);
       setIsLoading(true);
-      setCurrentSong(song);
+      setCurrentSong(securedSong);
       setIsPlaying(false);
       setDuration(0);
       setCurrentTime(0);
 
-      const url = song.download_url.find(
+      const url = selectSong.download_url.find(
         (url) => url.quality === "320kbps",
       ).link;
       await loadAudio(url);
 
       socket.emit("music-change", {
         groupId: currentGroup?.id,
-        song,
+        song: securedSong,
         currentTime: 0,
         scheduledTime: Date.now() + serverTimeOffset + 300,
       });

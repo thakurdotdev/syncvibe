@@ -9,6 +9,7 @@ import {
   useCallback,
 } from "react";
 import { Context } from "./Context";
+import { ensureHttpsForDownloadUrls } from "@/Pages/Music/Common";
 
 // Separate contexts for different concerns
 const PlayerControlsContext = createContext();
@@ -181,9 +182,10 @@ export function PlayerProvider({ children }) {
       playSong: (song) => {
         if (!song?.id) return;
         playbackDispatch({ type: "SET_LOADING", payload: true });
-        const newAudio = new Audio(getAudioUrl(song));
+        const secureAudio = ensureHttpsForDownloadUrls(song);
+        const newAudio = new Audio(getAudioUrl(secureAudio));
         newAudio.load();
-        playbackDispatch({ type: "SET_CURRENT_SONG", payload: song });
+        playbackDispatch({ type: "SET_CURRENT_SONG", payload: secureAudio });
         playbackDispatch({ type: "SET_LOADING", payload: false });
       },
 

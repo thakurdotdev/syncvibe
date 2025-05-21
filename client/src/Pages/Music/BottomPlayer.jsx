@@ -468,19 +468,6 @@ const BottomPlayer = () => {
                         </TabsContent>
                       </div>
                     </Tabs>
-
-                    {/* Swipe indicator */}
-                    <div className="flex justify-center mt-6 space-x-2">
-                      {TAB_VALUES.map((tabValue) => (
-                        <div
-                          key={tabValue}
-                          className={cn(
-                            "h-2 w-2 rounded-full transition-colors",
-                            activeTab === tabValue ? "bg-primary" : "bg-muted",
-                          )}
-                        />
-                      ))}
-                    </div>
                   </div>
                 </SheetContent>
               </Sheet>

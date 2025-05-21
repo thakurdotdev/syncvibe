@@ -43,7 +43,7 @@ const addToHistory = async (req, res) => {
     // Calculate recommendation score algorithmically
     updateRecommendationScore(userId, songData.id).catch(console.error);
 
-    res.json({ message: "History updated successfully", historySong });
+    res.json({ message: "History updated successfully" });
   } catch (error) {
     console.error("Error in addToHistory:", error);
     res.status(500).json({ error: "Failed to update history" });

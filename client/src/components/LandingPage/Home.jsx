@@ -10,18 +10,17 @@ import {
   Star,
   Users,
   Video,
+  VideoIcon,
   Zap,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "../../App.css";
 import LazyImage from "../LazyImage";
+import Android from "../magicui/android";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { FlipWords } from "../ui/flip-words";
-import { VideoIcon } from "lucide-react";
-import Iphone15Pro from "../magicui/iphone-15-pro";
-import Android from "../magicui/android";
 
 const FeatureCard = lazy(() => import("./FeatureCard"));
 const FAQ = lazy(() => import("./FAQ"));
