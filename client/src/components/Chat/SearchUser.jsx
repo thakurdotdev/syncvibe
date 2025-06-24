@@ -110,7 +110,7 @@ const SearchUser = ({
           isSearchResult ? createChat(user.userid) : setCurrentChat(user);
           setActiveTab(user.otherUser?.userid);
         }}
-        className={`flex items-center p-3 rounded-md hover:bg-accent/50 hover:shadow-lg cursor-pointer ${
+        className={`flex items-center p-2 rounded-md hover:bg-accent/50 hover:shadow-lg border-0 cursor-pointer ${
           activeTab === user.otherUser?.userid
             ? "bg-gray-100 dark:bg-gray-800"
             : ""

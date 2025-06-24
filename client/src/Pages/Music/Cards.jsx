@@ -52,8 +52,7 @@ import { ensureHttpsForDownloadUrls } from "./Common";
 import "./music.css";
 
 // Constants
-const CARD_IMAGE_DIMENSIONS = "w-36 h-36 aspect-square mx-auto";
-const HOVER_TRANSITION = "transition-all duration-200 ease-out";
+const HOVER_TRANSITION = "transition-all duration-0 ease-out";
 const CARD_BASE_CLASSES =
   "group relative overflow-hidden backdrop-blur-sm border border-transparent cursor-pointer";
 const CARD_HOVER_CLASSES =
@@ -229,14 +228,15 @@ export const SongCard = memo(({ song }) => {
               CARD_HOVER_CLASSES,
               isCurrentSong && "bg-primary/5 border-primary/30",
               HOVER_TRANSITION,
+              "p-0",
             )}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
-            <CardContent className="p-4">
+            <CardContent className="p-1">
               <div className="flex items-center gap-4">
                 <div
-                  className="relative min-w-[3.5rem] h-14"
+                  className="relative min-w-[3rem] h-14"
                   onClick={
                     song.type === "song"
                       ? handlePlayClick
@@ -479,15 +479,16 @@ export const NewSongCard = memo(({ song }) => {
             className={cn(
               CARD_BASE_CLASSES,
               CARD_HOVER_CLASSES,
-              "w-[180px]",
+              "w-[150px]",
               isCurrentSong && "bg-primary/5 border-primary/30",
               HOVER_TRANSITION,
+              "p-0",
             )}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             onClick={song.type === "song" ? handlePlayClick : handleNavigate}
           >
-            <CardContent className="p-4 space-y-4">
+            <CardContent className="space-y-4 p-1">
               <div className="relative">
                 <LazyImage
                   src={
@@ -496,10 +497,8 @@ export const NewSongCard = memo(({ song }) => {
                       : song.image
                   }
                   alt={name}
-                  height={144}
-                  width={144}
                   className={cn(
-                    "rounded-lg w-full aspect-square object-cover",
+                    "rounded-lg w-full",
                     "group-hover:scale-105",
                     HOVER_TRANSITION,
                   )}
@@ -689,12 +688,12 @@ export const AlbumCard = memo(({ album }) => {
             className={cn(
               CARD_BASE_CLASSES,
               CARD_HOVER_CLASSES,
-              "w-[180px]",
+              "w-[150px]",
               HOVER_TRANSITION,
             )}
             onClick={handleClick}
           >
-            <CardContent className="p-4 space-y-4">
+            <CardContent className="p-1 space-y-4">
               <div className="relative">
                 <LazyImage
                   src={album.image?.[2]?.link || album.image?.[2]?.url}
@@ -773,12 +772,12 @@ export const PlaylistCard = memo(({ playlist }) => {
             className={cn(
               CARD_BASE_CLASSES,
               CARD_HOVER_CLASSES,
-              "w-[180px]",
+              "w-[150px]",
               HOVER_TRANSITION,
             )}
             onClick={handleClick}
           >
-            <CardContent className="p-4 space-y-4">
+            <CardContent className="p-1 space-y-4">
               <div className="relative mx-auto">
                 <LazyImage
                   src={imageUrl}

@@ -1,13 +1,6 @@
-import { ChevronRight } from "lucide-react";
 import { Home, Music, NotebookPen, Search, Send, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 
-import ProfileDropdownMenu from "./ProfileDropdownMenu";
 import {
   Sidebar,
   SidebarContent,
@@ -17,15 +10,11 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { TrendingUp } from "lucide-react";
-import { ListMusic } from "lucide-react";
+import { ListMusic, Users } from "lucide-react";
 import LazyImage from "./LazyImage";
-import { Users } from "lucide-react";
+import ProfileDropdownMenu from "./ProfileDropdownMenu";
 
 export function AppSidebar() {
   const { isMobile, setOpenMobile } = useSidebar();
@@ -48,7 +37,7 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar>
+    <Sidebar className="border-r border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <SidebarHeader>
         <div className="flex items-center mx-auto gap-3">
           <LazyImage
@@ -61,76 +50,49 @@ export function AppSidebar() {
           <span className="text-xl">SyncVibe</span>
         </div>
       </SidebarHeader>
-      <SidebarContent className="mt-[50px]">
+
+      <SidebarContent className="px-2 py-6">
         <SidebarGroup>
-          <SidebarMenu>
-            {menuItems.map((item) =>
-              item.items ? (
-                <Collapsible
-                  key={item.name}
-                  asChild
-                  defaultOpen={location.pathname.startsWith(item.path)}
-                  className="group/collapsible"
+          <SidebarMenu className="space-y-1">
+            {menuItems.map((item, index) => (
+              <SidebarMenuItem key={item.name}>
+                <SidebarMenuButton
+                  size="md"
+                  onClick={() => {
+                    navigate(item.path);
+                    if (isMobile) {
+                      setOpenMobile(false);
+                    }
+                  }}
+                  isActive={location.pathname === item.path}
+                  className="group relative hover:bg-accent/50 px-3"
                 >
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton
-                        size="lg"
-                        isActive={location.pathname.startsWith(item.path)}
-                        tooltip={item.name}
-                      >
-                        <item.icon />
-                        <span>{item.name}</span>
-                        <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-3">
-                      <SidebarMenuSub>
-                        {item.items.map((subItem) => (
-                          <SidebarMenuSubItem key={subItem.name}>
-                            <SidebarMenuSubButton
-                              className="cursor-pointer mb-3"
-                              size="lg"
-                              onClick={() => {
-                                navigate(subItem.path);
-                                if (isMobile) {
-                                  setOpenMobile(false);
-                                }
-                              }}
-                              isActive={location.pathname === subItem.path}
-                            >
-                              <subItem.icon />
-                              <span>{subItem.name}</span>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-              ) : (
-                <SidebarMenuItem key={item.name} className="mb-2">
-                  <SidebarMenuButton
-                    size="lg"
-                    onClick={() => {
-                      navigate(item.path);
-                      if (isMobile) {
-                        setOpenMobile(false);
-                      }
-                    }}
-                    isActive={location.pathname === item.path}
-                  >
-                    <item.icon />
-                    <span>{item.name}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ),
-            )}
+                  <div className="flex items-center gap-3 w-full">
+                    <div className="relative">
+                      <item.icon className="h-5 w-5" />
+                      {location.pathname === item.path && (
+                        <>
+                          <div className="absolute -inset-1 bg-primary/20 rounded-lg blur-sm -z-10" />
+                          <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-full" />
+                        </>
+                      )}
+                    </div>
+                    <span className="font-medium">{item.name}</span>
+                  </div>
+                  {location.pathname === item.path && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-xl" />
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <ProfileDropdownMenu />
+
+      <SidebarFooter className="border-t border-border/40 pt-4 pb-4">
+        <div className="px-3">
+          <ProfileDropdownMenu />
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

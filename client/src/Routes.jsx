@@ -131,7 +131,6 @@ export const ProtectedRoutes = () => {
         </div>
       </main>
       <BottomPlayer />
-      {isMobile && <MobileBottomBar />}
       <IncomingCallNotification
         incomingCall={incomingCall}
         answerCall={answerCall}
