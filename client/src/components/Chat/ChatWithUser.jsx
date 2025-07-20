@@ -10,7 +10,6 @@ import {
   ArrowLeft,
   Check,
   Copy,
-  Edit,
   ImageIcon,
   Loader2,
   MoreHorizontal,
@@ -24,9 +23,9 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
-  useMemo,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -55,7 +54,6 @@ import {
 } from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { ScrollArea } from "../ui/scroll-area";
-import { Skeleton } from "../ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
@@ -65,7 +63,6 @@ import {
 import ImageGallery from "./ImageGallery";
 import VideoCallButton from "./StartVideoCall";
 
-// ---- Utility Functions ----
 const formatTime = (date) => {
   return new Date(date).toLocaleTimeString([], {
     hour: "2-digit",
@@ -104,8 +101,6 @@ const groupMessagesByDate = (messages) => {
     return groups;
   }, {});
 };
-
-// ---- Sub-Components ----
 
 const ChatHeader = ({
   currentChat,
@@ -192,11 +187,14 @@ const MessageActions = ({
   handleCopy,
   deleteMessage,
 }) => {
+  // Check if message has only image/file without text content
+  const isMediaOnly = message.fileurl && !message.content?.trim();
+
   return (
     <div
-      className={`absolute ${
-        isOwnMessage ? "-left-12" : "-right-12"
-      } top-0 opacity-0 group-hover:opacity-100 transition-opacity`}
+      className={`absolute ${isOwnMessage ? "-left-12" : "-right-12"} ${
+        isMediaOnly ? "top-2" : "top-0"
+      } opacity-0 group-hover:opacity-100 transition-opacity`}
     >
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -267,6 +265,9 @@ const MessageBubble = ({
   setSelectedImageIndex,
   setShowGallery,
 }) => {
+  // Check if message has only image/file without text content
+  const isMediaOnly = message.fileurl && !message.content?.trim();
+
   return (
     <div
       className={`flex ${
@@ -279,10 +280,14 @@ const MessageBubble = ({
         }`}
       >
         <div
-          className={`relative p-3 rounded-2xl ${
-            isOwnMessage
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted dark:bg-muted/70 text-foreground"
+          className={`relative ${
+            isMediaOnly
+              ? ""
+              : `p-3 rounded-2xl ${
+                  isOwnMessage
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted dark:bg-muted/70 text-foreground"
+                }`
           }`}
         >
           <MessageActions
@@ -293,7 +298,11 @@ const MessageBubble = ({
           />
 
           {message.fileurl && (
-            <div className="mb-2 rounded-lg overflow-hidden">
+            <div
+              className={`${
+                isMediaOnly ? "" : "mb-2"
+              } rounded-lg overflow-hidden`}
+            >
               <img
                 src={getOptimizedImageUrl(message.fileurl, { thumbnail: true })}
                 alt="Attachment"
@@ -347,7 +356,6 @@ const MessageList = ({
   currentChat,
   messageEndRef,
 }) => {
-  // Memoize the grouped messages to avoid recalculating on every render
   const groupedMessages = useMemo(() => {
     const grouped = groupMessagesByDate(messages);
     return Object.entries(grouped).sort(
@@ -416,22 +424,82 @@ const MessageList = ({
 };
 
 const MessageInput = ({
-  message,
-  handleTyping,
-  handleSendMessage,
+  onSendMessage,
   filePreview,
   removeImage,
-  showEmojiPicker,
-  setShowEmojiPicker,
-  setMessage,
+  onTyping,
+  currentChat,
+  loggedInUserId,
+  onFileSelect,
 }) => {
   const isMobile = useIsMobile();
+  const [message, setMessage] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const typingTimeoutRef = useRef(null);
 
   const fileInputRef = useRef(null);
 
   const handleAttachClick = () => {
     fileInputRef.current?.click();
   };
+
+  // Handle typing events with proper socket emission
+  const handleTyping = useCallback(
+    (e) => {
+      setMessage(e.target.value);
+
+      if (!onTyping || !currentChat?.otherUser?.userid) return;
+
+      clearTimeout(typingTimeoutRef.current);
+
+      // Emit typing start
+      onTyping({
+        userId: loggedInUserId,
+        recipientId: currentChat.otherUser.userid,
+        isTyping: true,
+      });
+
+      typingTimeoutRef.current = setTimeout(() => {
+        onTyping({
+          userId: loggedInUserId,
+          recipientId: currentChat.otherUser.userid,
+          isTyping: false,
+        });
+      }, 3000);
+    },
+    [onTyping, loggedInUserId, currentChat?.otherUser?.userid],
+  );
+
+  const handleSendMessage = useCallback(() => {
+    if (!message.trim() && !filePreview) return;
+
+    clearTimeout(typingTimeoutRef.current);
+    if (onTyping && currentChat?.otherUser?.userid) {
+      onTyping({
+        userId: loggedInUserId,
+        recipientId: currentChat.otherUser.userid,
+        isTyping: false,
+      });
+    }
+
+    onSendMessage(message.trim());
+
+    setMessage("");
+    setShowEmojiPicker(false);
+  }, [
+    message,
+    filePreview,
+    onSendMessage,
+    onTyping,
+    loggedInUserId,
+    currentChat?.otherUser?.userid,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(typingTimeoutRef.current);
+    };
+  }, []);
 
   return (
     <Card className="mt-auto w-full p-3 border-t shadow-sm rounded-none">
@@ -498,9 +566,8 @@ const MessageInput = ({
           id="fileInput"
           onChange={(e) => {
             const selectedFile = e.target.files?.[0];
-            if (selectedFile) {
-              setFile(selectedFile);
-              setFilePreview(URL.createObjectURL(selectedFile));
+            if (selectedFile && onFileSelect) {
+              onFileSelect(selectedFile);
             }
           }}
         />
@@ -543,7 +610,6 @@ const MessageInput = ({
   );
 };
 
-// Message icon for empty state
 const MessageIcon = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -561,8 +627,6 @@ const MessageIcon = (props) => (
   </svg>
 );
 
-// ---- Main Component ----
-
 const ChatWithUser = ({
   setCurrentChat,
   currentChat,
@@ -576,17 +640,14 @@ const ChatWithUser = ({
     useContext(ChatContext);
 
   // State
-  const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [showGallery, setShowGallery] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   // Refs
-  const typingTimeoutRef = useRef(null);
   const messageEndRef = useRef(null);
 
   // Get all images in the chat for the gallery
@@ -656,103 +717,92 @@ const ChatWithUser = ({
   }, [socket, currentChat?.chatid]);
 
   // Send message handler
-  const handleSendMessage = useCallback(async () => {
-    if ((!message.trim() && !file) || !currentChat?.chatid) return;
+  const handleSendMessage = useCallback(
+    async (messageContent) => {
+      if ((!messageContent?.trim() && !file) || !currentChat?.chatid) return;
 
-    try {
-      // Optimistic update
-      const optimisticMessage = {
-        senderid: loggedInUserId,
-        content: message.trim(),
-        createdat: new Date().toISOString(),
-        messageid: `temp-${Date.now()}`,
-        participants: currentChat.participants,
-        chatid: currentChat.chatid,
-        fileurl: file ? URL.createObjectURL(file) : null,
-        senderName: user?.name,
-      };
-
-      setMessages((prev) => [...prev, optimisticMessage]);
-
-      // Update last message in chat list
-      setUsers((prevUsers) =>
-        prevUsers.map((chat) =>
-          chat.chatid === currentChat.chatid
-            ? { ...chat, lastmessage: message.trim() || "Sent an image" }
-            : chat,
-        ),
-      );
-
-      // Reset input states
-      setMessage("");
-      setShowEmojiPicker(false);
-
-      // Send text message immediately via socket
-      if (!file) {
-        socket.emit("new-message", optimisticMessage);
-      }
-
-      // Prepare and send API request
-      const formData = new FormData();
-      formData.append("chatid", currentChat.chatid);
-      formData.append("senderid", loggedInUserId);
-      formData.append("content", message.trim());
-
-      if (file) {
-        formData.append("file", file);
-        setFile(null);
-        setFilePreview(null);
-      }
-
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/send/message`,
-        formData,
-        {
-          withCredentials: true,
-          headers: { "Content-Type": "multipart/form-data" },
-        },
-      );
-
-      // If file was sent, update with server response and emit socket event
-      if (file && response.data.message) {
-        const serverMessage = {
-          ...response.data.message,
+      try {
+        // Optimistic update
+        const optimisticMessage = {
+          senderid: loggedInUserId,
+          content: messageContent.trim(),
+          createdat: new Date().toISOString(),
+          messageid: `temp-${Date.now()}`,
           participants: currentChat.participants,
+          chatid: currentChat.chatid,
+          fileurl: file ? URL.createObjectURL(file) : null,
+          senderName: user?.name,
         };
 
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.messageid === optimisticMessage.messageid ? serverMessage : msg,
+        setMessages((prev) => [...prev, optimisticMessage]);
+
+        // Update last message in chat list
+        setUsers((prevUsers) =>
+          prevUsers.map((chat) =>
+            chat.chatid === currentChat.chatid
+              ? {
+                  ...chat,
+                  lastmessage: messageContent.trim() || "Sent an image",
+                }
+              : chat,
           ),
         );
 
-        socket.emit("new-message", serverMessage);
+        // Send text message immediately via socket
+        if (!file) {
+          socket.emit("new-message", optimisticMessage);
+        }
+
+        // Prepare and send API request
+        const formData = new FormData();
+        formData.append("chatid", currentChat.chatid);
+        formData.append("senderid", loggedInUserId);
+        formData.append("content", messageContent.trim());
+
+        if (file) {
+          formData.append("file", file);
+          setFile(null);
+          setFilePreview(null);
+        }
+
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL}/api/send/message`,
+          formData,
+          {
+            withCredentials: true,
+            headers: { "Content-Type": "multipart/form-data" },
+          },
+        );
+
+        // If file was sent, update with server response and emit socket event
+        if (file && response.data.message) {
+          const serverMessage = {
+            ...response.data.message,
+            participants: currentChat.participants,
+          };
+
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.messageid === optimisticMessage.messageid
+                ? serverMessage
+                : msg,
+            ),
+          );
+
+          socket.emit("new-message", serverMessage);
+        }
+      } catch (error) {
+        console.error("Error sending message:", error);
+        toast.error("Failed to send message");
+
+        // Remove optimistic message on failure
+        setMessages((prev) =>
+          prev.filter((msg) => !msg.messageid.toString().startsWith("temp-")),
+        );
       }
-
-      // Reset typing indicator
-      socket.emit("typing", {
-        userId: loggedInUserId,
-        recipientId: currentChat.otherUser.userid,
-        isTyping: false,
-      });
-    } catch (error) {
-      console.error("Error sending message:", error);
-      toast.error("Failed to send message");
-
-      // Remove optimistic message on failure
-      setMessages((prev) =>
-        prev.filter((msg) => !msg.messageid.toString().startsWith("temp-")),
-      );
-    }
-  }, [
-    message,
-    file,
-    loggedInUserId,
-    currentChat,
-    user?.name,
-    socket,
-    setUsers,
-  ]);
+    },
+    [file, loggedInUserId, currentChat, user?.name, socket, setUsers],
+  );
 
   // Delete message handler
   const deleteMessage = useCallback(
@@ -783,30 +833,14 @@ const ChatWithUser = ({
     [socket, currentChat?.chatid, currentChat?.otherUser?.userid],
   );
 
-  // Typing indicator handler
-  const handleTyping = useCallback(
-    (e) => {
-      setMessage(e.target.value);
-
-      if (!socket || !currentChat?.otherUser?.userid) return;
-
-      clearTimeout(typingTimeoutRef.current);
-
-      socket.emit("typing", {
-        userId: loggedInUserId,
-        recipientId: currentChat.otherUser.userid,
-        isTyping: true,
-      });
-
-      typingTimeoutRef.current = setTimeout(() => {
-        socket.emit("typing", {
-          userId: loggedInUserId,
-          recipientId: currentChat.otherUser.userid,
-          isTyping: false,
-        });
-      }, 3000);
+  // Typing indicator handler for socket emission
+  const handleTypingEvent = useCallback(
+    (typingData) => {
+      if (socket) {
+        socket.emit("typing", typingData);
+      }
     },
-    [loggedInUserId, socket, currentChat?.otherUser?.userid],
+    [socket],
   );
 
   // Mark messages as read
@@ -862,7 +896,7 @@ const ChatWithUser = ({
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     const scrollToBottom = () => {
-      messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      messageEndRef.current?.scrollIntoView({ behavior: "instant" });
     };
 
     scrollToBottom();
@@ -898,6 +932,12 @@ const ChatWithUser = ({
     setFile(null);
     setFilePreview(null);
   };
+
+  // Handle file selection
+  const handleFileSelect = useCallback((selectedFile) => {
+    setFile(selectedFile);
+    setFilePreview(URL.createObjectURL(selectedFile));
+  }, []);
 
   // If no current chat is selected
   if (!currentChat) {
@@ -945,14 +985,13 @@ const ChatWithUser = ({
         />
 
         <MessageInput
-          message={message}
-          handleTyping={handleTyping}
-          handleSendMessage={handleSendMessage}
+          onSendMessage={handleSendMessage}
           filePreview={filePreview}
           removeImage={removeImage}
-          showEmojiPicker={showEmojiPicker}
-          setShowEmojiPicker={setShowEmojiPicker}
-          setMessage={setMessage}
+          onTyping={handleTypingEvent}
+          currentChat={currentChat}
+          loggedInUserId={loggedInUserId}
+          onFileSelect={handleFileSelect}
         />
       </div>
 

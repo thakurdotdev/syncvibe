@@ -236,7 +236,7 @@ const BottomPlayer = () => {
       if (response.data?.data) {
         setRecommendations(response.data.data);
         if (playlist.length < 2 && response.data.data.length > 0) {
-          addToPlaylist(response.data.data[0]);
+          addToPlaylist(response.data.data);
         }
       }
     } catch (error) {
