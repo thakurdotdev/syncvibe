@@ -7,86 +7,24 @@ import {
   ArtistCard,
   NewSongCard,
   PlaylistCard,
-  SongCard,
 } from "@/Pages/Music/Cards";
 import axios from "axios";
 import { Loader2, Music2 } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { LoadingState } from "./Common";
 
-// Custom hook for intersection observer
-const useIntersectionObserver = (options = {}, skipObserver = false) => {
-  const [isIntersecting, setIsIntersecting] = useState(skipObserver);
-  const targetRef = useRef(null);
-
-  useEffect(() => {
-    if (skipObserver) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsIntersecting(entry.isIntersecting);
-      },
-      {
-        threshold: 0.1,
-        rootMargin: "100px",
-        ...options,
-      },
-    );
-
-    const currentTarget = targetRef.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
-    };
-  }, [options, skipObserver]);
-
-  return [targetRef, isIntersecting];
-};
-
-// Optimized components with memoization
-const LazySection = React.memo(
-  ({
-    title,
-    children,
-    className,
-    priority = false,
-    placeholderHeight = "h-48",
-  }) => {
-    const [ref, isVisible] = useIntersectionObserver({}, priority);
-    const [shouldRender, setShouldRender] = useState(priority);
-
-    useEffect(() => {
-      if (isVisible && !shouldRender) {
-        setShouldRender(true);
-      }
-    }, [isVisible, shouldRender]);
-
-    return (
-      <section ref={ref} className={cn("space-y-2", className)}>
-        <div className="flex items-center justify-between px-4 md:px-0">
-          <h2 className="text-lg md:text-2xl font-semibold tracking-tight hover:text-primary transition-colors">
-            {title}
-          </h2>
-        </div>
-        {shouldRender ? (
-          children
-        ) : (
-          <div
-            className={cn(
-              "animate-pulse bg-muted/50 rounded-lg",
-              placeholderHeight,
-            )}
-          />
-        )}
-      </section>
-    );
-  },
-);
+const LazySection = React.memo(({ title, children, className }) => {
+  return (
+    <section className={cn("space-y-2", className)}>
+      <div className="flex items-center justify-between px-4 md:px-0">
+        <h2 className="text-lg md:text-2xl font-semibold tracking-tight hover:text-primary transition-colors">
+          {title}
+        </h2>
+      </div>
+      {children}
+    </section>
+  );
+});
 
 const ScrollableSection = React.memo(({ children }) => (
   <ScrollArea className="w-full whitespace-nowrap">
@@ -111,12 +49,6 @@ const ErrorState = React.memo(({ error, onRetry }) => (
   </Card>
 ));
 
-const CardGrid = React.memo(({ children }) => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-    {children}
-  </div>
-));
-
 const HomePage = () => {
   const [homePageData, setHomePageData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -127,7 +59,6 @@ const HomePage = () => {
   });
   const [reccLoading, setReccLoading] = useState(true);
 
-  // Optimized data fetching with caching
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -280,17 +211,19 @@ const HomePage = () => {
           </ScrollableSection>
         </LazySection>
 
-        <LazySection title="Top Artists">
-          <ScrollableSection>
-            {homePageData.artists.map((artist) => (
-              <ArtistCard
-                key={artist.id}
-                artist={artist}
-                className="min-w-[150px] transform transition-transform hover:scale-105"
-              />
-            ))}
-          </ScrollableSection>
-        </LazySection>
+        {homePageData.artists.length > 0 && (
+          <LazySection title="Top Artists">
+            <ScrollableSection>
+              {homePageData.artists.map((artist) => (
+                <ArtistCard
+                  key={artist.id}
+                  artist={artist}
+                  className="min-w-[150px] transform transition-transform hover:scale-105"
+                />
+              ))}
+            </ScrollableSection>
+          </LazySection>
+        )}
 
         <LazySection title="Top Albums">
           <ScrollableSection>

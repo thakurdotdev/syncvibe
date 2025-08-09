@@ -6,7 +6,6 @@ import { useLocation } from "react-router-dom";
 import { useSidebar } from "./components/ui/sidebar";
 import Navbar from "./components/Navbar";
 import { AppSidebar } from "./components/AppSidebar";
-import BottomPlayer from "./Pages/Music/BottomPlayer";
 import IncomingCallNotification from "./components/Chat/IncomingCall";
 import VideoCallUI from "./components/Chat/VideoCall";
 import { Outlet } from "react-router-dom";
@@ -14,7 +13,7 @@ import { useContext } from "react";
 import { Context } from "./Context/Context";
 import { ChatContext } from "./Context/ChatContext";
 import GroupMusic from "./Pages/Music/GroupMusic";
-import MobileBottomBar from "./components/MobileBottomBar";
+import BottomPlayer from "./Pages/Music/BottomPlayer";
 
 const Header = lazy(() => import("./components/LandingPage/Header"));
 const Footer = lazy(() => import("./components/LandingPage/Footer"));

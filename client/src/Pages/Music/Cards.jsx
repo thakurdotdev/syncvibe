@@ -31,7 +31,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import axios from "axios";
 import he from "he";
@@ -48,10 +47,9 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import AddToPlaylist from "./AddToPlaylist";
-import { ensureHttpsForDownloadUrls } from "./Common";
+import { addToHistory, ensureHttpsForDownloadUrls } from "./Common";
 import "./music.css";
 
-// Constants
 const HOVER_TRANSITION = "transition-all duration-0 ease-out";
 const CARD_BASE_CLASSES =
   "group relative overflow-hidden backdrop-blur-sm border border-transparent cursor-pointer";
@@ -74,24 +72,6 @@ export const AudioWave = memo(() => (
   </div>
 ));
 
-// Optimized Image Component
-const OptimizedImage = ({ src, alt, className }) => (
-  <div className="relative">
-    <Avatar className={cn("w-full h-32 rounded-none")}>
-      <AvatarImage
-        src={src}
-        alt={alt}
-        className={cn("object-cover", className)}
-        loading="lazy"
-      />
-      <AvatarFallback>
-        <img src={src} className="w-full h-full text-muted-foreground" />
-      </AvatarFallback>
-    </Avatar>
-  </div>
-);
-
-// Artist Card Component
 export const ArtistCard = memo(({ artist }) => {
   const navigate = useNavigate();
   if (!artist?.name || !artist?.image) return null;
@@ -147,13 +127,11 @@ export const ArtistCard = memo(({ artist }) => {
   );
 });
 
-// Song Card Component
 export const SongCard = memo(({ song }) => {
   const navigate = useNavigate();
   const { playSong, handlePlayPauseSong, addToPlaylist, addToQueue } =
     usePlayer();
   const { currentSong, isPlaying } = usePlayerState();
-  const isMobile = useIsMobile();
   const { playlist } = usePlaylist();
 
   const [loading, setLoading] = useState(false);
@@ -180,6 +158,7 @@ export const SongCard = memo(({ song }) => {
       if (song?.download_url) {
         const updatedSong = ensureHttpsForDownloadUrls(song);
         playSong(ensureHttpsForDownloadUrls(updatedSong));
+        addToHistory(updatedSong, 10);
         return;
       }
       setLoading(true);
@@ -189,6 +168,7 @@ export const SongCard = memo(({ song }) => {
       if (response.data?.data?.songs[0]) {
         const song = ensureHttpsForDownloadUrls(response.data.data.songs[0]);
         playSong(song);
+        addToHistory(song, 10);
       }
     } catch (err) {
       setError(err.message);
@@ -422,6 +402,7 @@ export const NewSongCard = memo(({ song }) => {
       if (song?.download_url) {
         const updatedSong = ensureHttpsForDownloadUrls(song);
         playSong(updatedSong);
+        addToHistory(updatedSong, 10);
         return;
       }
 
@@ -435,6 +416,7 @@ export const NewSongCard = memo(({ song }) => {
           response.data.data.songs[0],
         );
         playSong(songData);
+        addToHistory(songData, 10);
       }
     } catch (err) {
       setError(err.message);
@@ -664,7 +646,6 @@ export const NewSongCard = memo(({ song }) => {
   );
 });
 
-// Album Card Component - Similar optimizations applied
 export const AlbumCard = memo(({ album }) => {
   const navigate = useNavigate();
   const name = useMemo(
@@ -742,7 +723,6 @@ export const AlbumCard = memo(({ album }) => {
   );
 });
 
-// Playlist Card Component
 export const PlaylistCard = memo(({ playlist }) => {
   const navigate = useNavigate();
 
@@ -824,7 +804,6 @@ export const PlaylistCard = memo(({ playlist }) => {
   );
 });
 
-// Action Button Component for UserPlaylistCard
 const ActionButton = ({
   icon: Icon,
   label,
@@ -854,7 +833,6 @@ const ActionButton = ({
   </TooltipProvider>
 );
 
-// Delete Confirmation Dialog Component
 const DeleteConfirmDialog = ({ isOpen, onClose, onConfirm, playlistName }) => (
   <AlertDialog open={isOpen} onOpenChange={onClose}>
     <AlertDialogContent>
@@ -878,7 +856,6 @@ const DeleteConfirmDialog = ({ isOpen, onClose, onConfirm, playlistName }) => (
   </AlertDialog>
 );
 
-// User Playlist Card Component
 export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);

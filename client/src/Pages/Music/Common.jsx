@@ -176,73 +176,8 @@ export const VolumeControl = memo(({ showVolume = false }) => {
 });
 
 export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
-  const { currentSong } = usePlayerState() || {};
   const { currentTime, duration } = usePlayerTime() || {};
   const { handleTimeSeek } = usePlayer() || {};
-
-  const trackingRef = useRef({
-    first10Seconds: { tracked: false, isApiCalling: false },
-    percentage50: { tracked: false, isApiCalling: false },
-    percentage80: { tracked: false, isApiCalling: false },
-  });
-
-  const addToHistoryMemoized = useCallback(
-    async (songData, playedTime, trackingType) => {
-      const tracking = trackingRef.current[trackingType];
-
-      if (tracking.tracked || tracking.isApiCalling) return;
-
-      try {
-        tracking.isApiCalling = true;
-        const response = await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/history/add`,
-          { songData, playedTime, trackingType },
-          { withCredentials: true },
-        );
-
-        if (response.status === 200) {
-          tracking.tracked = true;
-        }
-      } catch (error) {
-        console.error("Error adding song to history:", error);
-      } finally {
-        tracking.isApiCalling = false;
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    if (!currentTime || !duration || !currentSong) return;
-
-    const time = Math.floor(Number(currentTime));
-    const totalDuration = Math.floor(Number(duration));
-    const percentagePlayed = (time / totalDuration) * 100;
-
-    if (
-      time >= 10 &&
-      time < 20 &&
-      !trackingRef.current.first10Seconds.tracked
-    ) {
-      addToHistoryMemoized(currentSong, time, "first10Seconds");
-    }
-
-    if (
-      percentagePlayed >= 49 &&
-      percentagePlayed < 51 &&
-      !trackingRef.current.percentage50.tracked
-    ) {
-      addToHistoryMemoized(currentSong, time, "percentage50");
-    }
-
-    if (
-      percentagePlayed >= 79 &&
-      percentagePlayed < 81 &&
-      !trackingRef.current.percentage80.tracked
-    ) {
-      addToHistoryMemoized(currentSong, time, "percentage80");
-    }
-  }, [currentTime, duration, currentSong, addToHistoryMemoized]);
 
   return (
     <div className="space-y-2">
@@ -252,7 +187,7 @@ export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
         max={duration}
         step={0.1}
         onValueChange={([value]) => handleTimeSeek(value)}
-        className="h-1 cursor-pointer"
+        className="h-1 cursor-pointer rounded-l-none"
       />
       {isTimeVisible && (
         <div className="flex justify-between">
@@ -308,4 +243,23 @@ export const ensureHttpsForDownloadUrls = (song) => {
     download_url: updatedDownloadUrls,
     image: updatedArtworkUrls,
   };
+};
+
+export const addToHistory = async (songData, playedTime, trackingType) => {
+  try {
+    const response = await axios.post(
+      `${import.meta.env.VITE_API_URL}/api/history/add`,
+      { songData, playedTime, trackingType },
+      { withCredentials: true },
+    );
+
+    if (response.status === 200) {
+      console.log(
+        `Successfully tracked ${trackingType} for song:`,
+        songData.name,
+      );
+    }
+  } catch (error) {
+    console.error(`Error adding song to history (${trackingType}):`, error);
+  }
 };
