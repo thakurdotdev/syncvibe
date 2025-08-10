@@ -1,11 +1,11 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -100,13 +100,13 @@ const AddToPlaylist = ({ dialogOpen, setDialogOpen, song }) => {
 
   return (
     <>
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md w-full">
-          <DialogHeader className="space-y-4">
-            <DialogTitle className="flex items-center gap-2 text-xl">
+      <Drawer open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DrawerContent className="max-h-[90vh]">
+          <DrawerHeader className="space-y-4">
+            <DrawerTitle className="flex items-center gap-2 text-xl">
               <ListMusic className="w-5 h-5" />
               Add to Playlist
-            </DialogTitle>
+            </DrawerTitle>
 
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -127,9 +127,9 @@ const AddToPlaylist = ({ dialogOpen, setDialogOpen, song }) => {
                 </Button>
               )}
             </div>
-          </DialogHeader>
+          </DrawerHeader>
 
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 px-4 pb-6">
             <Button
               variant="outline"
               className="w-full flex items-center gap-2 h-10 text-base hover:bg-primary hover:text-primary-foreground transition-all duration-200"
@@ -213,15 +213,15 @@ const AddToPlaylist = ({ dialogOpen, setDialogOpen, song }) => {
               )}
             </ScrollArea>
           </div>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
 
-      <Dialog open={newPlaylistDialog} onOpenChange={setNewPlaylistDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-xl">Create New Playlist</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleCreatePlaylist} className="space-y-4">
+      <Drawer open={newPlaylistDialog} onOpenChange={setNewPlaylistDialog}>
+        <DrawerContent className="max-h-[60vh]">
+          <DrawerHeader>
+            <DrawerTitle className="text-xl">Create New Playlist</DrawerTitle>
+          </DrawerHeader>
+          <form onSubmit={handleCreatePlaylist} className="space-y-4 px-4 pb-6">
             <div className="space-y-2">
               <Label htmlFor="playlistName">Playlist Name</Label>
               <Input
@@ -260,8 +260,8 @@ const AddToPlaylist = ({ dialogOpen, setDialogOpen, song }) => {
               </Button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
     </>
   );
 };

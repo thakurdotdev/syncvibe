@@ -1,29 +1,110 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlaylist } from "@/Context/PlayerContext";
 import he from "he";
-import { ChevronDownIcon, Disc3, ListMusic, Music } from "lucide-react";
-import { memo, useEffect, useState } from "react";
+import {
+  ChevronDownIcon,
+  Download,
+  ListMusic,
+  MoreHorizontal,
+  Music,
+  Share2,
+} from "lucide-react";
+import { memo, useState } from "react";
+import { toast } from "sonner";
 
 import NowPlayingTab from "./NowPlayingTab";
 import QueueTab from "./QueueTab";
+import { useMemo } from "react";
 
 const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
   const [activeTab, setActiveTab] = useState("current");
   const { playlist } = usePlaylist();
 
-  useEffect(() => {
-    if (isOpen) {
-      setActiveTab("current");
+  const artistName = useMemo(
+    () =>
+      currentSong?.artist_map?.artists
+        ?.slice(0, 3)
+        ?.map((artist) => artist.name)
+        .join(", ") || "",
+    [currentSong],
+  );
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: he.decode(currentSong.name),
+        text: `Listen to ${he.decode(currentSong.name)} by ${he.decode(
+          artistName,
+        )}`,
+        url: window.location.href,
+      });
+    } else {
+      // Fallback for browsers that don't support Web Share API
+      navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied to clipboard");
     }
-  }, [isOpen]);
+  };
+
+  const handleDownload = async () => {
+    const songLink = currentSong?.download_url?.[4]?.link;
+
+    if (!songLink) {
+      toast.error("Download link not available");
+      return;
+    }
+
+    try {
+      toast.loading("Preparing download...");
+
+      // Fetch the audio file
+      const response = await fetch(songLink);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Get the file as a blob
+      const blob = await response.blob();
+
+      // Create object URL
+      const url = window.URL.createObjectURL(blob);
+
+      // Create download link
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${he.decode(currentSong.name)} - ${he.decode(
+        artistName,
+      )}.mp3`;
+
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up the object URL
+      window.URL.revokeObjectURL(url);
+
+      toast.dismiss();
+      toast.success("Download completed");
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast.dismiss();
+
+      // Fallback: open in new tab if download fails
+      toast.error("Direct download failed. Opening in new tab...");
+      window.open(songLink, "_blank");
+    }
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -39,14 +120,8 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
             className="h-full flex flex-col w-full"
           >
             {/* Header */}
-            <SheetHeader className="p-4 pb-0 border-b border-white/10 space-y-4 bg-gradient-to-r from-white/[0.05] to-transparent">
+            <SheetHeader className="px-3 pb-0 border-b border-white/10 bg-gradient-to-r from-white/[0.05] to-transparent">
               <div className="flex items-center justify-between">
-                <SheetTitle className="flex items-center gap-2 max-w-[70%] truncate text-foreground/90">
-                  <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 backdrop-blur-sm">
-                    <Disc3 className="w-4 h-4 shrink-0 text-primary" />
-                  </div>
-                  {he.decode(currentSong?.name || "Now Playing")}
-                </SheetTitle>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -55,6 +130,45 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                 >
                   <ChevronDownIcon className="h-5 w-5" />
                 </Button>
+                {/* Action Menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 shrink-0 hover:bg-white/10 backdrop-blur-sm transition-all duration-200 border border-transparent hover:border-white/10"
+                    >
+                      <MoreHorizontal className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-56 bg-background/95 backdrop-blur-xl border-white/10 shadow-2xl"
+                  >
+                    <DropdownMenuItem
+                      onClick={onOpenModal}
+                      className="cursor-pointer"
+                    >
+                      <ListMusic className="mr-2 h-4 w-4" />
+                      Add to Playlist
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleShare}
+                      className="cursor-pointer"
+                    >
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Share Song
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleDownload}
+                      className="cursor-pointer"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {/* Tabs Navigation */}
