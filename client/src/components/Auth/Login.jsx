@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/form";
 import { KeyRound } from "lucide-react";
 import { useProfile } from "@/Context/Context";
+import { Loader2Icon } from "lucide-react";
 
 const validationSchema = yup.object().shape({
   email: yup.string().required("Email is required").email("Email is Invalid"),
@@ -138,7 +139,6 @@ const Login = () => {
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
 
   return (
-    <LoadingScreen isLoading={loading}>
       <div className="flex flex-col justify-center items-center max-md:p-5 h-svh overflow-hidden relative">
         <DotPattern
           className={cn(
@@ -212,6 +212,7 @@ const Login = () => {
                 />
 
                 <Button type="submit" className="w-full" disabled={loading}>
+                  {loading && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
                   {loading ? "Logging in..." : "Login"}
                 </Button>
               </form>
@@ -230,11 +231,10 @@ const Login = () => {
             <Button
               variant="outline"
               onClick={() => {
-                window.location.href = `${
-                  import.meta.env.VITE_API_URL
-                }/api/auth/google`;
+                window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google?client=${window.location.origin}`;
               }}
               className="w-full"
+              disabled={loading}
             >
               <img src={googleIcon} alt="Google" className="w-4 h-4 mr-2" />
               Login with Google
@@ -243,21 +243,14 @@ const Login = () => {
               variant="outline"
               onClick={() => navigate("/passkey-login")}
               className="w-full mt-2"
+              disabled={loading}
             >
               <KeyRound className="w-4 h-4 mr-2" />
               Login with Passkey
             </Button>
-            {/* <Button
-              variant="outline"
-              onClick={handleLoginGuest}
-              className="w-full"
-            >
-              Continue as Guest
-            </Button> */}
           </CardFooter>
         </Card>
       </div>
-    </LoadingScreen>
   );
 };
 

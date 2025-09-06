@@ -53,17 +53,17 @@ userRouter.route("/auth/google/callback").get(
   (req, res) => {
     if (req.user) {
       const token = req.user;
+      const redirectUrl = req.query.state || process.env.CLIENT_URL; // use state to redirect back
+
       res.cookie("token", token, {
-        domain:
-          process.env.NODE_ENV === "production"
-            ? ".syncvibe.xyz"
-            : ".thakur.dev",
+        domain: new URL(redirectUrl).hostname, // set cookie domain dynamically
         secure: true,
         httpOnly: true,
         sameSite: "none",
         expires: CookieExpiryDate,
       });
-      res.redirect(`${process.env.CLIENT_URL}/feed`);
+
+      res.redirect(`${redirectUrl}/feed`);
     }
   },
 );
