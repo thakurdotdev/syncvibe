@@ -41,29 +41,71 @@ const userRouter = express.Router();
 
 userRouter.route("/register").post(registerUser);
 
-userRouter
-  .route("/auth/google")
-  .get(passport.authenticate("google", { scope: ["profile", "email"] }));
+function isValidUrl(u) {
+  try {
+    const parsed = new URL(u);
+    return ["http:", "https:"].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
 
-userRouter.route("/auth/google/callback").get((req, res, next) => {
+function pickClientUrl(req) {
+  const fromQuery = req.query.client || req.query.state;
+  if (fromQuery && isValidUrl(fromQuery)) return fromQuery;
+
+  const fromHeader = req.get("origin") || req.get("referer");
+  if (fromHeader && isValidUrl(fromHeader)) return fromHeader;
+
+  return process.env.CLIENT_URL;
+}
+
+function baseDomain(hostname) {
+  if (!hostname) return null;
+  const parts = hostname.split(".");
+  if (parts.length >= 2) return parts.slice(-2).join(".");
+  return hostname;
+}
+
+// start auth
+userRouter.get("/auth/google", (req, res, next) => {
+  const clientUrl = pickClientUrl(req);
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+    state: clientUrl,
+  })(req, res, next);
+});
+
+// callback
+userRouter.get("/auth/google/callback", (req, res, next) => {
   passport.authenticate("google", { session: false }, (err, user) => {
+    const clientUrl = pickClientUrl(req);
+
     if (err || !user) {
-      // if login fails, redirect to the client that started it (from state)
-      const clientUrl = req.query.state || process.env.CLIENT_URL;
       return res.redirect(`${clientUrl}/login`);
     }
 
-    const { token, clientUrl } = user;
+    const { token } = user;
 
-    res.cookie("token", token, {
-      domain: new URL(clientUrl).hostname, // dynamic cookie domain
+    const host = req.hostname || req.headers.host;
+    const bd = baseDomain(host);
+    const cookieOpts = {
       secure: true,
       httpOnly: true,
       sameSite: "none",
       expires: CookieExpiryDate,
-    });
+    };
+    if (bd) cookieOpts.domain = `.${bd}`;
 
-    return res.redirect(`${clientUrl}/feed`);
+    res.cookie("token", token, cookieOpts);
+    const redirectMap = {
+      "syncvibe.xyz": "/feed",
+      "tune.thakur.dev": "/",
+    };
+
+    const hostname = new URL(clientUrl).hostname;
+    const path = redirectMap[hostname] || "/";
+    return res.redirect(`${clientUrl}${path}`);
   })(req, res, next);
 });
 
