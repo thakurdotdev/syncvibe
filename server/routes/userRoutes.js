@@ -45,28 +45,27 @@ userRouter
   .route("/auth/google")
   .get(passport.authenticate("google", { scope: ["profile", "email"] }));
 
-userRouter.route("/auth/google/callback").get(
-  passport.authenticate("google", {
-    session: false,
-    failureRedirect: `${process.env.CLIENT_URL}/login`,
-  }),
-  (req, res) => {
-    if (req.user) {
-      const token = req.user;
-      const redirectUrl = req.query.state || process.env.CLIENT_URL; // use state to redirect back
-
-      res.cookie("token", token, {
-        domain: new URL(redirectUrl).hostname, // set cookie domain dynamically
-        secure: true,
-        httpOnly: true,
-        sameSite: "none",
-        expires: CookieExpiryDate,
-      });
-
-      res.redirect(`${redirectUrl}/feed`);
+userRouter.route("/auth/google/callback").get((req, res, next) => {
+  passport.authenticate("google", { session: false }, (err, user) => {
+    if (err || !user) {
+      // if login fails, redirect to the client that started it (from state)
+      const clientUrl = req.query.state || process.env.CLIENT_URL;
+      return res.redirect(`${clientUrl}/login`);
     }
-  },
-);
+
+    const { token, clientUrl } = user;
+
+    res.cookie("token", token, {
+      domain: new URL(clientUrl).hostname, // dynamic cookie domain
+      secure: true,
+      httpOnly: true,
+      sameSite: "none",
+      expires: CookieExpiryDate,
+    });
+
+    return res.redirect(`${clientUrl}/feed`);
+  })(req, res, next);
+});
 
 userRouter.route("/auth/google/mobile").post(async (req, res) => {
   try {

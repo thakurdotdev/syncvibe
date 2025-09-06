@@ -7,6 +7,21 @@ const User = require("../models/auth/userModel");
 
 configDotenv();
 
+function generateToken(user) {
+  const payload = {
+    userid: user.userid,
+    role: "user",
+    name: user.name,
+    username: user.username,
+    email: user.email,
+    profilepic: user.profilepic,
+    bio: user.bio,
+    verified: user.verified,
+  };
+
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: JWTExpiryDate });
+}
+
 passport.use(
   new GoogleStrategy(
     {
@@ -14,59 +29,38 @@ passport.use(
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: process.env.GOOGLE_CALLBACK_URL,
       session: false,
-      scope: ["profile", "email"],
+      passReqToCallback: true, // so we can read `req.query.state`
     },
-    async (_, __, profile, next) => {
+    async (req, _, __, profile, next) => {
       try {
-        const existingUser = await User.findOne({
-          where: {
-            email: profile._json.email,
-          },
+        const clientUrl = req.query.state;
+
+        // look up user (raw: true gives plain object, no dataValues)
+        let user = await User.findOne({
+          where: { email: profile._json.email },
+          raw: true,
         });
 
-        if (existingUser) {
-          const token = jwt.sign(
+        if (!user) {
+          user = await User.create(
             {
-              userid: existingUser.dataValues.userid,
-              role: "user",
-              name: existingUser.dataValues.name,
-              username: existingUser.dataValues.username,
-              email: existingUser.dataValues.email,
-              profilepic: existingUser.dataValues.profilepic,
-              bio: existingUser.dataValues.bio,
-              verified: existingUser.dataValues.verified,
+              name: profile._json.name,
+              username: profile._json.email.split("@")[0],
+              email: profile._json.email,
+              password: profile._json.sub, // might want to rethink this for security
+              profilepic: profile._json.picture,
+              verified: true,
+              logintype: UserLoginType.GOOGLE,
             },
-            process.env.JWT_SECRET,
-            { expiresIn: JWTExpiryDate },
+            { raw: true },
           );
-          return next(null, token);
-        } else {
-          const user = await User.create({
-            name: profile._json.name,
-            username: profile._json.email.split("@")[0],
-            email: profile._json.email,
-            password: profile._json.sub,
-            profilepic: profile._json.picture,
-            verified: true,
-            logintype: UserLoginType.GOOGLE,
-          });
 
-          const token = jwt.sign(
-            {
-              userid: user.userid,
-              role: "user",
-              name: user.name,
-              username: user.username,
-              email: user.email,
-              profilepic: user.profilepic,
-              bio: user.bio,
-              verified: user.verified,
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: JWTExpiryDate },
-          );
-          return next(null, token);
+          // Sequelize `create` doesn’t respect `raw: true`, so fetch plain object
+          user = user.get({ plain: true });
         }
+
+        const token = generateToken(user);
+        return next(null, { token, clientUrl });
       } catch (error) {
         return next(error);
       }
@@ -74,10 +68,5 @@ passport.use(
   ),
 );
 
-passport.serializeUser((user, done) => {
-  done(null, user);
-});
-
-passport.deserializeUser((user, done) => {
-  done(null, user);
-});
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((user, done) => done(null, user));
