@@ -1,6 +1,6 @@
-const HistorySong = require("../../models/music/HistorySong");
-const { Op } = require("sequelize");
-const sequelize = require("../../utils/sequelize");
+const HistorySong = require('../../models/music/HistorySong');
+const { Op } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
 
 const recommendationCache = new Map();
 
@@ -10,28 +10,25 @@ const addToHistory = async (req, res) => {
     const userId = req.user.userid;
 
     if (!songData?.id) {
-      return res.status(400).json({ error: "Invalid song data" });
+      return res.status(400).json({ error: 'Invalid song data' });
     }
 
     const artistNames = extractArtistNames(songData);
-    const completionRate = calculateCompletionRate(
-      playedTime,
-      songData.duration,
-    );
+    const completionRate = calculateCompletionRate(playedTime, songData.duration);
 
     const [historySong, created] = await HistorySong.findOrCreate({
       where: { userId, songId: songData.id },
       defaults: {
         userId,
         songId: songData.id,
-        songName: songData.name || songData.title || "Unknown",
+        songName: songData.name || songData.title || 'Unknown',
         artistNames,
-        songLanguage: songData.language || "Unknown",
+        songLanguage: songData.language || 'Unknown',
         songData,
         duration: songData.duration,
         playedTime,
         timeOfDay: new Date().getHours(),
-        deviceType: getDeviceType(req.headers["user-agent"]),
+        deviceType: getDeviceType(req.headers['user-agent']),
         completionRate,
       },
     });
@@ -43,10 +40,10 @@ const addToHistory = async (req, res) => {
     // Calculate recommendation score algorithmically
     updateRecommendationScore(userId, songData.id).catch(console.error);
 
-    res.json({ message: "History updated successfully" });
+    res.json({ message: 'History updated successfully' });
   } catch (error) {
-    console.error("Error in addToHistory:", error);
-    res.status(500).json({ error: "Failed to update history" });
+    console.error('Error in addToHistory:', error);
+    res.status(500).json({ error: 'Failed to update history' });
   }
 };
 
@@ -56,7 +53,7 @@ const batchAddToHistory = async (req, res) => {
     const userId = req.user.userid;
 
     if (!updates || !Array.isArray(updates) || updates.length === 0) {
-      return res.status(400).json({ error: "Invalid updates data" });
+      return res.status(400).json({ error: 'Invalid updates data' });
     }
 
     const results = [];
@@ -67,33 +64,30 @@ const batchAddToHistory = async (req, res) => {
 
       if (!songId || !songData) {
         results.push({
-          songId: songId || "unknown",
-          status: "failed",
-          error: "Invalid song data",
+          songId: songId || 'unknown',
+          status: 'failed',
+          error: 'Invalid song data',
         });
         continue;
       }
 
       try {
         const artistNames = extractArtistNames(songData);
-        const completionRate = calculateCompletionRate(
-          position,
-          duration || songData.duration,
-        );
+        const completionRate = calculateCompletionRate(position, duration || songData.duration);
 
         const [historySong, created] = await HistorySong.findOrCreate({
           where: { userId, songId },
           defaults: {
             userId,
             songId,
-            songName: songData.name || songData.title || "Unknown",
+            songName: songData.name || songData.title || 'Unknown',
             artistNames,
-            songLanguage: songData.language || "Unknown",
+            songLanguage: songData.language || 'Unknown',
             songData,
             duration: duration || songData.duration,
             playedTime: position,
             timeOfDay: new Date(timestamp || Date.now()).getHours(),
-            deviceType: getDeviceType(req.headers["user-agent"]),
+            deviceType: getDeviceType(req.headers['user-agent']),
             completionRate,
             playedCount: 1,
             lastPlayed: new Date(timestamp || Date.now()),
@@ -109,27 +103,27 @@ const batchAddToHistory = async (req, res) => {
 
         results.push({
           songId,
-          status: "success",
+          status: 'success',
         });
       } catch (error) {
         console.error(`Error processing song ${songId}:`, error);
         results.push({
           songId,
-          status: "failed",
-          error: "Database error",
+          status: 'failed',
+          error: 'Database error',
         });
       }
     }
 
     res.json({
-      message: "Batch history updated successfully",
+      message: 'Batch history updated successfully',
       results,
       processed: results.length,
-      successful: results.filter((r) => r.status === "success").length,
+      successful: results.filter((r) => r.status === 'success').length,
     });
   } catch (error) {
-    console.error("Error in batchAddToHistory:", error);
-    res.status(500).json({ error: "Failed to update history batch" });
+    console.error('Error in batchAddToHistory:', error);
+    res.status(500).json({ error: 'Failed to update history batch' });
   }
 };
 
@@ -138,25 +132,20 @@ const getPersonalizedRecommendations = async (req, res) => {
     const userId = req.user.userid;
     const { limit = 12 } = req.query;
 
-    const weightedRecommendations = await calculateWeightedRecommendations(
-      userId,
-      limit,
-    );
+    const weightedRecommendations = await calculateWeightedRecommendations(userId, limit);
 
     const recentlyPlayed = await HistorySong.findAll({
       where: {
         userId,
       },
-      order: [["lastPlayedAt", "DESC"]],
+      order: [['lastPlayedAt', 'DESC']],
       limit: 15,
-      attributes: ["songId", "songData"],
+      attributes: ['songId', 'songData'],
       raw: true,
     });
 
     const recentSongs = recentlyPlayed.map((item) => item.songData);
-    const recommendationSongs = weightedRecommendations.map(
-      (item) => item.songData,
-    );
+    const recommendationSongs = weightedRecommendations.map((item) => item.songData);
 
     const response = {
       songs: recommendationSongs,
@@ -168,22 +157,19 @@ const getPersonalizedRecommendations = async (req, res) => {
       data: response,
     });
   } catch (error) {
-    console.error("Error in getPersonalizedRecommendations:", error);
-    res.status(500).json({ error: "Failed to get recommendations" });
+    console.error('Error in getPersonalizedRecommendations:', error);
+    res.status(500).json({ error: 'Failed to get recommendations' });
   }
 };
 
 // Helper functions
 const extractArtistNames = (songData) => {
-  const artists =
-    songData?.artist_map?.artists ||
-    songData?.artist_map?.primary_artists ||
-    [];
+  const artists = songData?.artist_map?.artists || songData?.artist_map?.primary_artists || [];
   return (
     artists
       .slice(0, 3)
       .map((artist) => artist.name)
-      .join(", ") || "Unknown"
+      .join(', ') || 'Unknown'
   );
 };
 
@@ -192,13 +178,12 @@ const calculateCompletionRate = (playedTime, duration) => {
 };
 
 const getDeviceType = (userAgent) => {
-  return userAgent?.includes("Mobile") ? "mobile" : "desktop";
+  return userAgent?.includes('Mobile') ? 'mobile' : 'desktop';
 };
 
 const updateExistingSong = async (historySong, playedTime, completionRate) => {
   await historySong.update({
-    playedCount:
-      playedTime < 20 ? historySong.playedCount + 1 : historySong.playedCount,
+    playedCount: playedTime < 20 ? historySong.playedCount + 1 : historySong.playedCount,
     playedTime,
     lastPlayedAt: new Date(),
     completionRate,
@@ -221,9 +206,7 @@ const calculateWeightedRecommendations = async (userId, limit) => {
           HistorySong.sequelize.literal(`
             ("HistorySong"."playedCount" * ${weights.playCount} + 
             CASE 
-              WHEN "HistorySong"."lastPlayedAt" >= NOW() - INTERVAL '2 days' THEN ${
-                weights.recency
-              }
+              WHEN "HistorySong"."lastPlayedAt" >= NOW() - INTERVAL '2 days' THEN ${weights.recency}
               WHEN "HistorySong"."lastPlayedAt" >= NOW() - INTERVAL '7 days' THEN ${
                 weights.recency * 0.8
               }
@@ -238,7 +221,7 @@ const calculateWeightedRecommendations = async (userId, limit) => {
               ELSE 0
             END)
           `),
-          "weightedScore",
+          'weightedScore',
         ],
       ],
     },
@@ -253,7 +236,7 @@ const calculateWeightedRecommendations = async (userId, limit) => {
         [Op.gte]: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), // Last 90 days
       },
     },
-    order: [[HistorySong.sequelize.literal('"weightedScore"'), "DESC"]],
+    order: [[HistorySong.sequelize.literal('"weightedScore"'), 'DESC']],
     limit: parseInt(limit),
   });
 };
@@ -268,15 +251,15 @@ const updateLikeStatus = async (req, res) => {
     });
 
     if (!historySong) {
-      return res.status(404).json({ error: "Song not found in history" });
+      return res.status(404).json({ error: 'Song not found in history' });
     }
 
     await historySong.update({ likeStatus: liked });
 
-    res.json({ message: "Like status updated successfully" });
+    res.json({ message: 'Like status updated successfully' });
   } catch (error) {
-    console.error("Error in updateLikeStatus:", error);
-    res.status(500).json({ error: "Failed to update like status" });
+    console.error('Error in updateLikeStatus:', error);
+    res.status(500).json({ error: 'Failed to update like status' });
   }
 };
 
@@ -301,13 +284,10 @@ const updateRecommendationScore = async (userId, songId) => {
 
     // Only update if score is different from default
     if (score !== 0.5) {
-      await HistorySong.update(
-        { aiRecommendationScore: score },
-        { where: { userId, songId } },
-      );
+      await HistorySong.update({ aiRecommendationScore: score }, { where: { userId, songId } });
     }
   } catch (error) {
-    console.error("Error updating recommendation score:", error);
+    console.error('Error updating recommendation score:', error);
   }
 };
 
@@ -315,27 +295,24 @@ const updateRecommendationScore = async (userId, songId) => {
 const getUserListeningStats = async (userId) => {
   // Get frequency of languages
   const languageStats = await HistorySong.findAll({
-    attributes: [
-      "songLanguage",
-      [sequelize.fn("COUNT", sequelize.col("songId")), "count"],
-    ],
+    attributes: ['songLanguage', [sequelize.fn('COUNT', sequelize.col('songId')), 'count']],
     where: {
       userId,
       lastPlayedAt: {
         [Op.gte]: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
       }, // Last 60 days
     },
-    group: ["songLanguage"],
-    order: [[sequelize.literal("count"), "DESC"]],
+    group: ['songLanguage'],
+    order: [[sequelize.literal('count'), 'DESC']],
     raw: true,
   });
 
   // Get top artists
   const artistStats = await HistorySong.findAll({
     attributes: [
-      "artistNames",
-      [sequelize.fn("SUM", sequelize.col("playedCount")), "totalPlays"],
-      [sequelize.fn("COUNT", sequelize.col("songId")), "songCount"],
+      'artistNames',
+      [sequelize.fn('SUM', sequelize.col('playedCount')), 'totalPlays'],
+      [sequelize.fn('COUNT', sequelize.col('songId')), 'songCount'],
     ],
     where: {
       userId,
@@ -343,16 +320,14 @@ const getUserListeningStats = async (userId) => {
         [Op.gte]: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
       }, // Last 60 days
     },
-    group: ["artistNames"],
-    order: [[sequelize.literal("totalPlays"), "DESC"]],
+    group: ['artistNames'],
+    order: [[sequelize.literal('totalPlays'), 'DESC']],
     limit: 10,
     raw: true,
   });
 
   return {
-    preferredLanguages: languageStats
-      .slice(0, 3)
-      .map((item) => item.songLanguage),
+    preferredLanguages: languageStats.slice(0, 3).map((item) => item.songLanguage),
     preferredArtists: artistStats.slice(0, 5).map((item) => item.artistNames),
   };
 };
@@ -366,7 +341,7 @@ const calculateAlgorithmicScore = (song, userStats) => {
   }
 
   // Artist preference - check if any artist from the song matches user's preferred artists
-  const songArtists = song.artistNames.split(",").map((a) => a.trim());
+  const songArtists = song.artistNames.split(',').map((a) => a.trim());
   for (const artist of songArtists) {
     if (userStats.preferredArtists.some((a) => a.includes(artist))) {
       score += 0.2;
@@ -380,10 +355,7 @@ const calculateAlgorithmicScore = (song, userStats) => {
   }
 
   // Recent plays are more relevant
-  if (
-    new Date(song.lastPlayedAt) >=
-    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-  ) {
+  if (new Date(song.lastPlayedAt) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)) {
     score += 0.1;
   }
 
@@ -407,8 +379,8 @@ const getHistorySongs = async (req, res) => {
       page = 1,
       limit = 10,
       searchQuery,
-      sortBy = "lastPlayedAt",
-      sortOrder = "DESC",
+      sortBy = 'lastPlayedAt',
+      sortOrder = 'DESC',
     } = req.query;
 
     const whereClause = { userId };
@@ -428,14 +400,14 @@ const getHistorySongs = async (req, res) => {
       limit: parseInt(limit),
       offset,
       order,
-      attributes: ["songId", "songData"],
+      attributes: ['songId', 'songData'],
       raw: true,
     });
 
     const updatedSongs = historySongs.rows.map((song) => song.songData);
 
     res.status(200).json({
-      status: "success",
+      status: 'success',
       data: {
         songs: updatedSongs,
         count: historySongs.count,
@@ -444,8 +416,8 @@ const getHistorySongs = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error in getHistorySongs:", error);
-    res.status(500).json({ error: "Failed to get history songs" });
+    console.error('Error in getHistorySongs:', error);
+    res.status(500).json({ error: 'Failed to get history songs' });
   }
 };
 

@@ -1,5 +1,5 @@
-const { DataTypes, Model } = require("sequelize");
-const sequelize = require("../../utils/sequelize");
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
 
 class Story extends Model {}
 
@@ -15,7 +15,7 @@ Story.init(
       allowNull: false,
     },
     content: {
-      type: DataTypes.TEXT("long"),
+      type: DataTypes.TEXT('long'),
       allowNull: true,
     },
     mediaUrl: {
@@ -23,7 +23,7 @@ Story.init(
       allowNull: true,
     },
     mediaType: {
-      type: DataTypes.ENUM("image", "video"),
+      type: DataTypes.ENUM('image', 'video'),
       allowNull: true,
     },
     views: {
@@ -43,16 +43,16 @@ Story.init(
   },
   {
     sequelize,
-    modelName: "Story",
+    modelName: 'Story',
     timestamps: false,
-    tableName: "stories",
+    tableName: 'stories',
     indexes: [
       {
-        fields: ["createdby", "postedtime"],
-        using: "BTREE",
+        fields: ['createdby', 'postedtime'],
+        using: 'BTREE',
       },
     ],
-  },
+  }
 );
 
 // Story.sync({ alter: true }).then(() => console.log("Story table created"));

@@ -1,19 +1,12 @@
-import axios from "axios";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { useNavigate } from "react-router-dom";
-import { io } from "socket.io-client";
-import { Context } from "./Context";
+import axios from 'axios';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
+import { Context } from './Context';
 
 const getMediaConstraints = (facingMode) => {
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const networkQuality = navigator.connection?.effectiveType || "4g";
+  const networkQuality = navigator.connection?.effectiveType || '4g';
 
   const getQualitySettings = () => {
     const baseSettings = {
@@ -23,14 +16,14 @@ const getMediaConstraints = (facingMode) => {
     };
 
     switch (networkQuality) {
-      case "slow-2g":
-      case "2g":
+      case 'slow-2g':
+      case '2g':
         return {
           width: { min: 320, ideal: 320, max: 480 },
           height: { min: 240, ideal: 240, max: 360 },
           frameRate: { min: 8, ideal: 10, max: 15 },
         };
-      case "3g":
+      case '3g':
         return {
           width: { min: 480, ideal: 640, max: 720 },
           height: { min: 360, ideal: 480, max: 540 },
@@ -50,7 +43,7 @@ const getMediaConstraints = (facingMode) => {
   return {
     video: {
       ...getQualitySettings(),
-      facingMode: facingMode || "user",
+      facingMode: facingMode || 'user',
     },
     audio: {
       echoCancellation: true,
@@ -64,26 +57,26 @@ const getMediaConstraints = (facingMode) => {
 
 const ICE_SERVERS = {
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" },
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
     {
       urls: [
-        "turn:global.relay.metered.ca:80",
-        "turn:global.relay.metered.ca:443",
-        "turn:global.relay.metered.ca:443?transport=tcp",
+        'turn:global.relay.metered.ca:80',
+        'turn:global.relay.metered.ca:443',
+        'turn:global.relay.metered.ca:443?transport=tcp',
       ],
       username: import.meta.env.VITE_IC_USERNAME,
       credential: import.meta.env.VITE_IC_CREDENTIAL,
     },
   ],
   iceCandidatePoolSize: 10,
-  iceTransportPolicy: "all",
-  bundlePolicy: "max-bundle",
-  rtcpMuxPolicy: "require",
-  sdpSemantics: "unified-plan",
+  iceTransportPolicy: 'all',
+  bundlePolicy: 'max-bundle',
+  rtcpMuxPolicy: 'require',
+  sdpSemantics: 'unified-plan',
 };
 
 const RECONNECTION_DELAY = 2000;
@@ -97,7 +90,7 @@ export const ChatProvider = ({ children }) => {
   const { user } = useContext(Context);
   const navigate = useNavigate();
 
-  const [connectionState, setConnectionState] = useState("new");
+  const [connectionState, setConnectionState] = useState('new');
   const [reconnectionAttempts, setReconnectionAttempts] = useState(0);
   const connectionCheckInterval = useRef(null);
 
@@ -111,14 +104,14 @@ export const ChatProvider = ({ children }) => {
   const [currentCall, setCurrentCall] = useState(null);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
-  const [facingMode, setFacingMode] = useState("user");
+  const [facingMode, setFacingMode] = useState('user');
 
   const peerConnection = useRef(null);
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
   const remotePeerIdRef = useRef(null);
 
-  const [connectionQuality, setConnectionQuality] = useState("good");
+  const [connectionQuality, setConnectionQuality] = useState('good');
   const connectionTimeout = useRef(null);
   const statsInterval = useRef(null);
 
@@ -132,7 +125,7 @@ export const ChatProvider = ({ children }) => {
         let totalPackets = 0;
 
         stats.forEach((stat) => {
-          if (stat.type === "inbound-rtp") {
+          if (stat.type === 'inbound-rtp') {
             totalPacketsLost += stat.packetsLost || 0;
             totalPackets += stat.packetsReceived || 0;
           }
@@ -141,16 +134,16 @@ export const ChatProvider = ({ children }) => {
         const lossRate = totalPackets > 0 ? totalPacketsLost / totalPackets : 0;
 
         if (lossRate > 0.1) {
-          setConnectionQuality("poor");
-          adjustMediaQuality(pc, "low");
+          setConnectionQuality('poor');
+          adjustMediaQuality(pc, 'low');
         } else if (lossRate > 0.05) {
-          setConnectionQuality("fair");
-          adjustMediaQuality(pc, "medium");
+          setConnectionQuality('fair');
+          adjustMediaQuality(pc, 'medium');
         } else {
-          setConnectionQuality("good");
+          setConnectionQuality('good');
         }
       } catch (error) {
-        console.warn("Error monitoring connection quality:", error);
+        console.warn('Error monitoring connection quality:', error);
       }
     };
 
@@ -161,7 +154,7 @@ export const ChatProvider = ({ children }) => {
   const adjustMediaQuality = async (pc, quality) => {
     if (!pc) return;
 
-    const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+    const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
     if (!sender) return;
 
     try {
@@ -169,15 +162,15 @@ export const ChatProvider = ({ children }) => {
       if (!params.encodings) params.encodings = [{}];
 
       switch (quality) {
-        case "low":
+        case 'low':
           params.encodings[0].maxBitrate = 150000;
           params.encodings[0].maxFramerate = 15;
           break;
-        case "medium":
+        case 'medium':
           params.encodings[0].maxBitrate = 500000;
           params.encodings[0].maxFramerate = 20;
           break;
-        case "high":
+        case 'high':
           params.encodings[0].maxBitrate = 2500000;
           params.encodings[0].maxFramerate = 30;
           break;
@@ -185,7 +178,7 @@ export const ChatProvider = ({ children }) => {
 
       await sender.setParameters(params);
     } catch (error) {
-      console.warn("Failed to adjust media quality:", error);
+      console.warn('Failed to adjust media quality:', error);
     }
   };
 
@@ -198,7 +191,7 @@ export const ChatProvider = ({ children }) => {
       });
       await peerConnection.current.setLocalDescription(offer);
 
-      socket?.emit("call-user", {
+      socket?.emit('call-user', {
         offer,
         to: remotePeerIdRef.current,
         from: user.userid,
@@ -207,21 +200,19 @@ export const ChatProvider = ({ children }) => {
         isRestart: true,
       });
     } catch (error) {
-      console.error("Error restarting ICE connection:", error);
+      console.error('Error restarting ICE connection:', error);
     }
   };
 
   const handleConnectionFailure = () => {
     if (reconnectionAttempts < MAX_RECONNECTION_ATTEMPTS) {
       setTimeout(() => {
-        console.log(
-          `Attempting reconnection... Attempt ${reconnectionAttempts + 1}`,
-        );
+        console.log(`Attempting reconnection... Attempt ${reconnectionAttempts + 1}`);
         restartIceConnection();
         setReconnectionAttempts((prev) => prev + 1);
       }, RECONNECTION_DELAY);
     } else {
-      console.log("Max reconnection attempts reached");
+      console.log('Max reconnection attempts reached');
       endCall();
     }
   };
@@ -260,7 +251,7 @@ export const ChatProvider = ({ children }) => {
     setIncomingCall(null);
     setCurrentCall(null);
     setReconnectionAttempts(0);
-    setConnectionState("new");
+    setConnectionState('new');
   }, []);
 
   const initializePeerConnection = useCallback(
@@ -273,7 +264,7 @@ export const ChatProvider = ({ children }) => {
       remotePeerIdRef.current = remotePeerId;
 
       peer.ontrack = (event) => {
-        console.log("Received remote track:", event.track.kind);
+        console.log('Received remote track:', event.track.kind);
 
         if (event.streams && event.streams[0]) {
           clearTimeout(connectionTimeout.current);
@@ -281,15 +272,13 @@ export const ChatProvider = ({ children }) => {
           setRemoteStream(event.streams[0]);
 
           // Monitor track status
-          event.track.onmute = () =>
-            console.log("Remote track muted:", event.track.kind);
-          event.track.onunmute = () =>
-            console.log("Remote track unmuted:", event.track.kind);
+          event.track.onmute = () => console.log('Remote track muted:', event.track.kind);
+          event.track.onunmute = () => console.log('Remote track unmuted:', event.track.kind);
           event.track.onended = () => {
-            console.log("Remote track ended:", event.track.kind);
+            console.log('Remote track ended:', event.track.kind);
             peer.getTransceivers().forEach((transceiver) => {
               if (transceiver.receiver.track.kind === event.track.kind) {
-                transceiver.direction = "recvonly";
+                transceiver.direction = 'recvonly';
               }
             });
           };
@@ -298,7 +287,7 @@ export const ChatProvider = ({ children }) => {
 
       peer.onicecandidate = (event) => {
         if (event.candidate) {
-          socket?.emit("ice-candidate", {
+          socket?.emit('ice-candidate', {
             candidate: event.candidate,
             to: remotePeerIdRef.current,
           });
@@ -306,13 +295,13 @@ export const ChatProvider = ({ children }) => {
       };
 
       peer.oniceconnectionstatechange = () => {
-        console.log("ICE Connection State:", peer.iceConnectionState);
+        console.log('ICE Connection State:', peer.iceConnectionState);
 
-        if (peer.iceConnectionState === "failed") {
+        if (peer.iceConnectionState === 'failed') {
           restartIceConnection();
-        } else if (peer.iceConnectionState === "disconnected") {
+        } else if (peer.iceConnectionState === 'disconnected') {
           setTimeout(() => {
-            if (peer.iceConnectionState === "disconnected") {
+            if (peer.iceConnectionState === 'disconnected') {
               restartIceConnection();
             }
           }, 2000);
@@ -320,12 +309,12 @@ export const ChatProvider = ({ children }) => {
       };
 
       peer.onconnectionstatechange = () => {
-        console.log("Connection State:", peer.connectionState);
+        console.log('Connection State:', peer.connectionState);
         setConnectionState(peer.connectionState);
 
-        if (peer.connectionState === "connected") {
+        if (peer.connectionState === 'connected') {
           monitorConnectionQuality(peer);
-        } else if (peer.connectionState === "failed") {
+        } else if (peer.connectionState === 'failed') {
           handleConnectionFailure();
         }
       };
@@ -333,7 +322,7 @@ export const ChatProvider = ({ children }) => {
       peerConnection.current = peer;
       return peer;
     },
-    [socket, user, monitorConnectionQuality],
+    [socket, user, monitorConnectionQuality]
   );
 
   const startCall = useCallback(
@@ -345,11 +334,8 @@ export const ChatProvider = ({ children }) => {
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
         // Verify stream has both audio and video tracks
-        if (
-          !stream.getVideoTracks().length ||
-          !stream.getAudioTracks().length
-        ) {
-          throw new Error("Failed to get complete media stream");
+        if (!stream.getVideoTracks().length || !stream.getAudioTracks().length) {
+          throw new Error('Failed to get complete media stream');
         }
 
         localStreamRef.current = stream;
@@ -361,9 +347,7 @@ export const ChatProvider = ({ children }) => {
         stream.getTracks().forEach((track) => {
           const sender = peer.addTrack(track, stream);
           if (!sender) {
-            console.warn(
-              `Failed to add ${track.kind} track to peer connection`,
-            );
+            console.warn(`Failed to add ${track.kind} track to peer connection`);
           }
         });
 
@@ -374,7 +358,7 @@ export const ChatProvider = ({ children }) => {
 
         await peer.setLocalDescription(new RTCSessionDescription(offer));
 
-        socket?.emit("call-user", {
+        socket?.emit('call-user', {
           offer,
           to: recipientId,
           from: user.userid,
@@ -385,11 +369,11 @@ export const ChatProvider = ({ children }) => {
         setIsInCall(true);
         setCurrentCall({ userid: recipientId });
       } catch (error) {
-        console.error("Error starting call:", error);
+        console.error('Error starting call:', error);
         cleanupMediaStreams();
       }
     },
-    [socket, user, initializePeerConnection, cleanupMediaStreams],
+    [socket, user, initializePeerConnection, cleanupMediaStreams]
   );
 
   const answerCall = useCallback(async () => {
@@ -409,14 +393,12 @@ export const ChatProvider = ({ children }) => {
         peer.addTrack(track, stream);
       });
 
-      await peer.setRemoteDescription(
-        new RTCSessionDescription(incomingCall.offer),
-      );
+      await peer.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
 
       const answer = await peer.createAnswer();
       await peer.setLocalDescription(new RTCSessionDescription(answer));
 
-      socket?.emit("call-accepted", {
+      socket?.emit('call-accepted', {
         answer,
         to: incomingCall.from,
         name: user.name,
@@ -431,20 +413,14 @@ export const ChatProvider = ({ children }) => {
       });
       setIncomingCall(null);
     } catch (error) {
-      console.error("Error answering call:", error);
+      console.error('Error answering call:', error);
       cleanupMediaStreams();
     }
-  }, [
-    socket,
-    incomingCall,
-    user,
-    initializePeerConnection,
-    cleanupMediaStreams,
-  ]);
+  }, [socket, incomingCall, user, initializePeerConnection, cleanupMediaStreams]);
 
   const rejectCall = useCallback(() => {
     if (socket?.connected && incomingCall?.from) {
-      socket.emit("call-rejected", {
+      socket.emit('call-rejected', {
         to: incomingCall.from,
       });
     }
@@ -453,7 +429,7 @@ export const ChatProvider = ({ children }) => {
 
   const endCall = useCallback(() => {
     if (socket?.connected && remotePeerIdRef.current) {
-      socket.emit("end-call", {
+      socket.emit('end-call', {
         to: remotePeerIdRef.current, // Use stored remote peer ID
       });
     }
@@ -465,10 +441,9 @@ export const ChatProvider = ({ children }) => {
 
     try {
       setLoading(true);
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/get/chatlist`,
-        { withCredentials: true },
-      );
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/get/chatlist`, {
+        withCredentials: true,
+      });
 
       if (response.status === 200) {
         const updatedChatList = response.data.chatList.map((chat) => ({
@@ -478,7 +453,7 @@ export const ChatProvider = ({ children }) => {
         setUsers(updatedChatList);
       }
     } catch (error) {
-      console.error("Error fetching chats:", error);
+      console.error('Error fetching chats:', error);
     } finally {
       setLoading(false);
     }
@@ -494,20 +469,17 @@ export const ChatProvider = ({ children }) => {
   }, []);
 
   const showNotification = (message) => {
-    if (!("Notification" in window)) {
-      console.log("This browser does not support desktop notification");
-    } else if (Notification.permission === "granted") {
-      const notification = new Notification(
-        `${message?.senderName} sent you a message`,
-        {
-          body: message?.content ? message.content : "Sent an attachment",
-          icon: "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp",
-        },
-      );
+    if (!('Notification' in window)) {
+      console.log('This browser does not support desktop notification');
+    } else if (Notification.permission === 'granted') {
+      const notification = new Notification(`${message?.senderName} sent you a message`, {
+        body: message?.content ? message.content : 'Sent an attachment',
+        icon: 'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp',
+      });
 
       notification.onclick = () => {
         window.focus();
-        navigate("/chat", { state: { chatData: message } });
+        navigate('/chat', { state: { chatData: message } });
       };
     }
   };
@@ -518,15 +490,13 @@ export const ChatProvider = ({ children }) => {
 
       setUsers((prevUsers) =>
         prevUsers.map((user) =>
-          user.otherUser.userid === senderid
-            ? { ...user, lastmessage: messageData.content }
-            : user,
-        ),
+          user.otherUser.userid === senderid ? { ...user, lastmessage: messageData.content } : user
+        )
       );
 
       showNotification(messageData);
     },
-    [users],
+    [users]
   );
 
   const setupSocket = useCallback(() => {
@@ -542,9 +512,9 @@ export const ChatProvider = ({ children }) => {
 
     // Socket event handlers
     const handleConnect = () => {
-      newSocket.emit("setup", { userid: user.userid, name: user.name });
-      newSocket.emit("user_online", user.userid);
-      newSocket.emit("get_initial_online_users");
+      newSocket.emit('setup', { userid: user.userid, name: user.name });
+      newSocket.emit('user_online', user.userid);
+      newSocket.emit('get_initial_online_users');
     };
 
     const handleTypingStatus = ({ userId, isTyping }) => {
@@ -555,25 +525,20 @@ export const ChatProvider = ({ children }) => {
       const updateTypingStatus = (status) => {
         setUsers((prevUsers) =>
           prevUsers.map((user) =>
-            user.otherUser.userid === userId
-              ? { ...user, isTyping: status }
-              : user,
-          ),
+            user.otherUser.userid === userId ? { ...user, isTyping: status } : user
+          )
         );
         setCurrentChat((prevChat) =>
           prevChat && prevChat?.otherUser?.userid === userId
             ? { ...prevChat, isTyping: status }
-            : prevChat,
+            : prevChat
         );
       };
 
       updateTypingStatus(isTyping);
 
       if (isTyping) {
-        typingTimeouts[userId] = setTimeout(
-          () => updateTypingStatus(false),
-          3000,
-        );
+        typingTimeouts[userId] = setTimeout(() => updateTypingStatus(false), 3000);
       }
     };
 
@@ -585,77 +550,65 @@ export const ChatProvider = ({ children }) => {
       try {
         if (
           peerConnection.current &&
-          peerConnection.current.signalingState === "have-local-offer"
+          peerConnection.current.signalingState === 'have-local-offer'
         ) {
-          await peerConnection.current.setRemoteDescription(
-            new RTCSessionDescription(answer),
-          );
+          await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
           setCurrentCall({ userid: from, name, profilepic });
         }
       } catch (error) {
-        console.error("Error handling call acceptance:", error);
+        console.error('Error handling call acceptance:', error);
         endCall();
       }
     };
 
     // Attach event listeners
-    newSocket.on("connect", handleConnect);
-    newSocket.on("typing_status", handleTypingStatus);
-    newSocket.on("user_online", (userId) => {
+    newSocket.on('connect', handleConnect);
+    newSocket.on('typing_status', handleTypingStatus);
+    newSocket.on('user_online', (userId) => {
       setOnlineStatuses((prev) => ({ ...prev, [userId]: true }));
       updateCurrentChatStatus(userId, true);
     });
-    newSocket.on("user_offline", (userId) => {
+    newSocket.on('user_offline', (userId) => {
       setOnlineStatuses((prev) => ({ ...prev, [userId]: false }));
       updateCurrentChatStatus(userId, false);
     });
-    newSocket.on("initial_online_users", (onlineUserIds) => {
-      setOnlineStatuses(
-        onlineUserIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}),
-      );
+    newSocket.on('initial_online_users', (onlineUserIds) => {
+      setOnlineStatuses(onlineUserIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}));
     });
 
     const handleCallEnded = () => {
-      console.log("Call ended by remote peer");
+      console.log('Call ended by remote peer');
       cleanupMediaStreams();
     };
 
-    newSocket.on("call-ended", handleCallEnded);
+    newSocket.on('call-ended', handleCallEnded);
 
     // Enhanced ice candidate handling
-    newSocket.on("ice-candidate", async ({ candidate }) => {
+    newSocket.on('ice-candidate', async ({ candidate }) => {
       try {
-        if (
-          peerConnection.current &&
-          peerConnection.current.remoteDescription
-        ) {
-          await peerConnection.current.addIceCandidate(
-            new RTCIceCandidate(candidate),
-          );
+        if (peerConnection.current && peerConnection.current.remoteDescription) {
+          await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
         }
       } catch (error) {
-        console.error("Error adding ice candidate:", error);
+        console.error('Error adding ice candidate:', error);
       }
     });
 
-    newSocket.on("call-rejected", () => {
+    newSocket.on('call-rejected', () => {
       setCurrentCall(null);
       setIncomingCall(null);
       cleanupMediaStreams();
     });
 
-    if ("Notification" in window) {
-      if (
-        Notification.permission !== "granted" &&
-        Notification.permission !== "denied"
-      ) {
+    if ('Notification' in window) {
+      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
         Notification.requestPermission();
       }
     }
 
-    newSocket.on("message-received", handleMessageReceived);
-    newSocket.on("incoming-call", handleIncomingCall);
-    newSocket.on("call-accepted", handleCallAccepted);
+    newSocket.on('message-received', handleMessageReceived);
+    newSocket.on('incoming-call', handleIncomingCall);
+    newSocket.on('call-accepted', handleCallAccepted);
 
     setSocket(newSocket);
 
@@ -678,18 +631,18 @@ export const ChatProvider = ({ children }) => {
     setOnlineStatuses({});
     setCurrentChat(null);
     if (socket) {
-      socket.emit("user_offline", user.userid);
-      socket.off("connect");
-      socket.off("typing_status");
-      socket.off("user_online");
-      socket.off("user_offline");
-      socket.off("initial_online_users");
-      socket.off("message-received");
-      socket.off("incoming-call");
-      socket.off("call-accepted");
-      socket.off("ice-candidate");
-      socket.off("call-ended");
-      socket.off("call-rejected");
+      socket.emit('user_offline', user.userid);
+      socket.off('connect');
+      socket.off('typing_status');
+      socket.off('user_online');
+      socket.off('user_offline');
+      socket.off('initial_online_users');
+      socket.off('message-received');
+      socket.off('incoming-call');
+      socket.off('call-accepted');
+      socket.off('ice-candidate');
+      socket.off('call-ended');
+      socket.off('call-rejected');
       socket.disconnect();
       setSocket(null);
     }
@@ -727,7 +680,5 @@ export const ChatProvider = ({ children }) => {
     cleanUpSocket,
   };
 
-  return (
-    <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>
-  );
+  return <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>;
 };

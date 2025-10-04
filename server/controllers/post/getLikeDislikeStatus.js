@@ -1,4 +1,4 @@
-const  LikeDislike  = require("../../models/post/likeDislikeModel");
+const LikeDislike = require('../../models/post/likeDislikeModel');
 
 const getLikeDislikeSataus = async (req, res) => {
   const { postid } = req.params;
@@ -6,7 +6,7 @@ const getLikeDislikeSataus = async (req, res) => {
 
   try {
     if (!postid || !userid) {
-      return res.status(400).json({ error: "Missing postid or userid in request body." });
+      return res.status(400).json({ error: 'Missing postid or userid in request body.' });
     }
 
     const existingLikeDislike = await LikeDislike.findOne({
@@ -18,10 +18,9 @@ const getLikeDislikeSataus = async (req, res) => {
     }
 
     return res.status(200).json({ liked: false });
-    
   } catch (error) {
-    console.error("Error liking/disliking post:", error);
-    return res.status(500).json({ error: "An error occurred while liking/disliking the post." });
+    console.error('Error liking/disliking post:', error);
+    return res.status(500).json({ error: 'An error occurred while liking/disliking the post.' });
   }
 };
 

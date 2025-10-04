@@ -1,15 +1,15 @@
-const Post = require("../../models/post/postModel");
-const Cloudinary = require("cloudinary").v2;
-const User = require("../../models/auth/userModel");
-const getDataUri = require("../../utils/dataUri");
+const Post = require('../../models/post/postModel');
+const Cloudinary = require('cloudinary').v2;
+const User = require('../../models/auth/userModel');
+const getDataUri = require('../../utils/dataUri');
 
 // Validation helper function
 const validatePostContent = (title, hasImages) => {
   if (!title && !hasImages) {
     throw {
       status: 400,
-      message: "Either title or images are required for creating a post",
-      code: "VALIDATION_ERROR",
+      message: 'Either title or images are required for creating a post',
+      code: 'VALIDATION_ERROR',
     };
   }
 };
@@ -22,10 +22,7 @@ const processImages = async (images) => {
     // Process all images in parallel with optimized settings
     const uploadPromises = images.map((image) => {
       const dataUri = getDataUri(image);
-      return Cloudinary.uploader.upload(
-        dataUri.content,
-        cloudinaryUploadConfig,
-      );
+      return Cloudinary.uploader.upload(dataUri.content, cloudinaryUploadConfig);
     });
 
     const cloudinaryResponses = await Promise.all(uploadPromises);
@@ -37,17 +34,17 @@ const processImages = async (images) => {
   } catch (error) {
     throw {
       status: 500,
-      message: "Error uploading images",
-      code: "UPLOAD_ERROR",
+      message: 'Error uploading images',
+      code: 'UPLOAD_ERROR',
     };
   }
 };
 
 // Cloudinary upload configuration
 const cloudinaryUploadConfig = {
-  folder: "posts",
-  quality: "auto:good",
-  fetch_format: "auto",
+  folder: 'posts',
+  quality: 'auto:good',
+  fetch_format: 'auto',
 };
 
 const createPost = async (req, res) => {
@@ -77,13 +74,13 @@ const createPost = async (req, res) => {
     };
 
     return res.status(200).json({
-      message: "success",
+      message: 'success',
       post: responsePost,
     });
   } catch (error) {
-    console.error("Post creation error:", error);
+    console.error('Post creation error:', error);
     return res.status(error.status || 500).json({
-      message: error.message || "Internal server error",
+      message: error.message || 'Internal server error',
       code: error.code,
     });
   }

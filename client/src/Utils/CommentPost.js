@@ -1,5 +1,5 @@
-import axios from "axios";
-import { toast } from "sonner";
+import axios from 'axios';
+import { toast } from 'sonner';
 
 const CommentPost = async (e, { postid, comment, onSuccess }) => {
   e.preventDefault();
@@ -12,22 +12,19 @@ const CommentPost = async (e, { postid, comment, onSuccess }) => {
       },
       {
         withCredentials: true,
-      },
+      }
     );
 
     if (response.status === 200) {
-      toast.success("Comment Added");
-      setCommentText("");
+      toast.success('Comment Added');
+      setCommentText('');
       if (onSuccess) {
         onSuccess();
       }
     }
   } catch (error) {
-    console.error("Error Commenting post:", error);
-    toast.error(
-      error.response.data.error ||
-        "An error occurred while commenting the post.",
-    );
+    console.error('Error Commenting post:', error);
+    toast.error(error.response.data.error || 'An error occurred while commenting the post.');
   }
 };
 

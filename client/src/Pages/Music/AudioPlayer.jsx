@@ -1,5 +1,5 @@
-import { useAudioStore } from "@/zustand/useAudioStore";
-import { useEffect, useRef } from "react";
+import { useAudioStore } from '@/zustand/useAudioStore';
+import { useEffect, useRef } from 'react';
 
 const AudioPlayer = () => {
   const audioRef = useRef(null);
@@ -16,7 +16,7 @@ const AudioPlayer = () => {
     handleNextSong,
   } = useAudioStore();
 
-  console.log("AudioPlayer");
+  console.log('AudioPlayer');
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -27,16 +27,16 @@ const AudioPlayer = () => {
     const handleVolumeChange = () => setVolume(audio.volume);
     const handleEnded = () => handleNextSong();
 
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("durationchange", handleDurationChange);
-    audio.addEventListener("volumechange", handleVolumeChange);
-    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('durationchange', handleDurationChange);
+    audio.addEventListener('volumechange', handleVolumeChange);
+    audio.addEventListener('ended', handleEnded);
 
     return () => {
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("durationchange", handleDurationChange);
-      audio.removeEventListener("volumechange", handleVolumeChange);
-      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('durationchange', handleDurationChange);
+      audio.removeEventListener('volumechange', handleVolumeChange);
+      audio.removeEventListener('ended', handleEnded);
     };
   }, [setCurrentTime, setDuration, setVolume, handleNextSong]);
 
@@ -44,15 +44,12 @@ const AudioPlayer = () => {
     const audio = audioRef.current;
     if (!audio || !currentSong) return;
 
-    audio.src =
-      currentSong.download_url?.[4]?.link ||
-      currentSong.download_url?.[3]?.link ||
-      "";
+    audio.src = currentSong.download_url?.[4]?.link || currentSong.download_url?.[3]?.link || '';
     audio.currentTime = 0;
 
     if (isPlaying) {
       audio.play().catch((err) => {
-        console.error("Playback error:", err);
+        console.error('Playback error:', err);
         setIsPlaying(false);
       });
     } else {

@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios from 'axios';
 import {
   createContext,
   useContext,
@@ -7,9 +7,9 @@ import {
   useReducer,
   useRef,
   useCallback,
-} from "react";
-import { Context } from "./Context";
-import { ensureHttpsForDownloadUrls } from "@/Pages/Music/Common";
+} from 'react';
+import { Context } from './Context';
+import { ensureHttpsForDownloadUrls } from '@/Pages/Music/Common';
 
 // Separate contexts for different concerns
 const PlayerControlsContext = createContext();
@@ -21,9 +21,9 @@ const SleepTimerContext = createContext();
 // Time-related state reducer
 const timeReducer = (state, action) => {
   switch (action.type) {
-    case "UPDATE_TIME":
+    case 'UPDATE_TIME':
       return { ...state, currentTime: action.payload };
-    case "SET_DURATION":
+    case 'SET_DURATION':
       return { ...state, duration: action.payload };
     default:
       return state;
@@ -33,15 +33,15 @@ const timeReducer = (state, action) => {
 // Playback state reducer
 const playbackReducer = (state, action) => {
   switch (action.type) {
-    case "SET_CURRENT_SONG":
+    case 'SET_CURRENT_SONG':
       return { ...state, currentSong: action.payload };
-    case "STOP_SONG":
+    case 'STOP_SONG':
       return { ...state, currentSong: null, isPlaying: false };
-    case "SET_PLAYING":
+    case 'SET_PLAYING':
       return { ...state, isPlaying: action.payload };
-    case "SET_VOLUME":
+    case 'SET_VOLUME':
       return { ...state, volume: Math.min(Math.max(action.payload, 0), 1) };
-    case "SET_LOADING":
+    case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
     default:
       return state;
@@ -51,12 +51,12 @@ const playbackReducer = (state, action) => {
 // Playlist state reducer
 const playlistReducer = (state, action) => {
   switch (action.type) {
-    case "SET_PLAYLIST":
+    case 'SET_PLAYLIST':
       return {
         ...state,
         playlist: action.payload,
       };
-    case "SET_USER_PLAYLIST":
+    case 'SET_USER_PLAYLIST':
       return { ...state, userPlaylist: action.payload };
     default:
       return state;
@@ -65,24 +65,24 @@ const playlistReducer = (state, action) => {
 
 const sleepTimerReducer = (state, action) => {
   switch (action.type) {
-    case "SET_TIMER":
+    case 'SET_TIMER':
       return {
         ...state,
         timeRemaining: action.payload.time,
         songsRemaining: action.payload.songs,
         isActive: true,
       };
-    case "UPDATE_TIME":
+    case 'UPDATE_TIME':
       return {
         ...state,
         timeRemaining: Math.max(0, state.timeRemaining - 1),
       };
-    case "UPDATE_SONGS":
+    case 'UPDATE_SONGS':
       return {
         ...state,
         songsRemaining: Math.max(0, state.songsRemaining - 1),
       };
-    case "CLEAR_TIMER":
+    case 'CLEAR_TIMER':
       return {
         timeRemaining: 0,
         songsRemaining: 0,
@@ -132,14 +132,14 @@ export function PlayerProvider({ children }) {
   });
 
   const getAudioUrl = useCallback((song) => {
-    return song?.download_url?.[4]?.link || song?.download_url?.[3]?.link || "";
+    return song?.download_url?.[4]?.link || song?.download_url?.[3]?.link || '';
   }, []);
 
   const preloadNextTrack = useCallback(() => {
     if (!playlistState.playlist.length || !playbackState.currentSong) return;
 
     const currentIndex = playlistState.playlist.findIndex(
-      (song) => song.id === playbackState.currentSong.id,
+      (song) => song.id === playbackState.currentSong.id
     );
     const nextIndex = (currentIndex + 1) % playlistState.playlist.length;
     const nextSong = playlistState.playlist[nextIndex];
@@ -153,50 +153,44 @@ export function PlayerProvider({ children }) {
   const timeValue = useMemo(
     () => ({
       ...timeState,
-      updateTime: (time) =>
-        timeDispatch({ type: "UPDATE_TIME", payload: time }),
-      setDuration: (duration) =>
-        timeDispatch({ type: "SET_DURATION", payload: duration }),
+      updateTime: (time) => timeDispatch({ type: 'UPDATE_TIME', payload: time }),
+      setDuration: (duration) => timeDispatch({ type: 'SET_DURATION', payload: duration }),
     }),
-    [timeState],
+    [timeState]
   );
 
   const playbackValue = useMemo(
     () => ({
       ...playbackState,
-      setCurrentSong: (song) =>
-        playbackDispatch({ type: "SET_CURRENT_SONG", payload: song }),
-      setPlaying: (isPlaying) =>
-        playbackDispatch({ type: "SET_PLAYING", payload: isPlaying }),
-      setVolume: (volume) =>
-        playbackDispatch({ type: "SET_VOLUME", payload: volume }),
-      setLoading: (loading) =>
-        playbackDispatch({ type: "SET_LOADING", payload: loading }),
-      stopSong: () => playbackDispatch({ type: "STOP_SONG" }),
+      setCurrentSong: (song) => playbackDispatch({ type: 'SET_CURRENT_SONG', payload: song }),
+      setPlaying: (isPlaying) => playbackDispatch({ type: 'SET_PLAYING', payload: isPlaying }),
+      setVolume: (volume) => playbackDispatch({ type: 'SET_VOLUME', payload: volume }),
+      setLoading: (loading) => playbackDispatch({ type: 'SET_LOADING', payload: loading }),
+      stopSong: () => playbackDispatch({ type: 'STOP_SONG' }),
     }),
-    [playbackState],
+    [playbackState]
   );
 
   const controls = useMemo(
     () => ({
       playSong: (song) => {
         if (!song?.id) return;
-        playbackDispatch({ type: "SET_LOADING", payload: true });
+        playbackDispatch({ type: 'SET_LOADING', payload: true });
         const secureAudio = ensureHttpsForDownloadUrls(song);
         const newAudio = new Audio(getAudioUrl(secureAudio));
         newAudio.load();
-        playbackDispatch({ type: "SET_CURRENT_SONG", payload: secureAudio });
-        playbackDispatch({ type: "SET_LOADING", payload: false });
+        playbackDispatch({ type: 'SET_CURRENT_SONG', payload: secureAudio });
+        playbackDispatch({ type: 'SET_LOADING', payload: false });
       },
 
       stopSong: () => {
-        playbackDispatch({ type: "STOP_SONG" });
+        playbackDispatch({ type: 'STOP_SONG' });
         if (audioRef.current) {
           audioRef.current.pause();
           audioRef.current.currentTime = 0;
-          audioRef.current.src = "";
+          audioRef.current.src = '';
         }
-        document.title = "SyncVibe";
+        document.title = 'SyncVibe';
       },
 
       handlePlayPauseSong: () => {
@@ -209,7 +203,7 @@ export function PlayerProvider({ children }) {
           audio.play().catch(console.error);
         }
         playbackDispatch({
-          type: "SET_PLAYING",
+          type: 'SET_PLAYING',
           payload: !playbackState.isPlaying,
         });
       },
@@ -217,7 +211,7 @@ export function PlayerProvider({ children }) {
       handleTimeSeek: (time) => {
         if (audioRef.current) {
           audioRef.current.currentTime = time;
-          timeDispatch({ type: "UPDATE_TIME", payload: time });
+          timeDispatch({ type: 'UPDATE_TIME', payload: time });
         }
       },
 
@@ -225,14 +219,14 @@ export function PlayerProvider({ children }) {
         const newVolume = Math.min(Math.max(value, 0), 1);
         if (audioRef.current) {
           audioRef.current.volume = newVolume;
-          playbackDispatch({ type: "SET_VOLUME", payload: newVolume });
+          playbackDispatch({ type: 'SET_VOLUME', payload: newVolume });
         }
       },
 
       addToPlaylist: (songs) => {
         const newSongs = Array.isArray(songs) ? songs : [songs];
         playlistDispatch({
-          type: "SET_PLAYLIST",
+          type: 'SET_PLAYLIST',
           payload: newSongs,
         });
       },
@@ -245,25 +239,22 @@ export function PlayerProvider({ children }) {
         const existingIds = new Set(currentPlaylist.map((song) => song.id));
 
         // Filter out duplicates
-        const uniqueNewSongs = newSongs.filter(
-          (song) => !existingIds.has(song.id),
-        );
+        const uniqueNewSongs = newSongs.filter((song) => !existingIds.has(song.id));
 
         // Only update if we have new songs to add
         if (uniqueNewSongs.length > 0) {
           const updatedPlaylist = [...currentPlaylist, ...uniqueNewSongs];
           playlistDispatch({
-            type: "SET_PLAYLIST",
+            type: 'SET_PLAYLIST',
             payload: updatedPlaylist,
           });
         }
       },
 
       handleNextSong: () => {
-        if (!playlistState.playlist.length || !playbackState.currentSong)
-          return;
+        if (!playlistState.playlist.length || !playbackState.currentSong) return;
         const currentIndex = playlistState.playlist.findIndex(
-          (song) => song.id === playbackState.currentSong.id,
+          (song) => song.id === playbackState.currentSong.id
         );
         if (currentIndex !== -1) {
           const nextIndex = (currentIndex + 1) % playlistState.playlist.length;
@@ -272,31 +263,24 @@ export function PlayerProvider({ children }) {
         } else {
           controls.playSong(playlistState.playlist[0]);
           const newPlaylist = playlistState.playlist.slice(1);
-          playlistDispatch({ type: "SET_PLAYLIST", payload: newPlaylist });
+          playlistDispatch({ type: 'SET_PLAYLIST', payload: newPlaylist });
         }
       },
 
       handlePrevSong: () => {
-        if (!playlistState.playlist.length || !playbackState.currentSong)
-          return;
+        if (!playlistState.playlist.length || !playbackState.currentSong) return;
         const currentIndex = playlistState.playlist.findIndex(
-          (song) => song.id === playbackState.currentSong.id,
+          (song) => song.id === playbackState.currentSong.id
         );
         if (currentIndex !== -1) {
           const prevIndex =
-            (currentIndex - 1 + playlistState.playlist.length) %
-            playlistState.playlist.length;
+            (currentIndex - 1 + playlistState.playlist.length) % playlistState.playlist.length;
           const prevSong = playlistState.playlist[prevIndex];
           controls.playSong(prevSong);
         }
       },
     }),
-    [
-      playbackState.isPlaying,
-      playlistState.playlist,
-      playbackState.currentSong,
-      getAudioUrl,
-    ],
+    [playbackState.isPlaying, playlistState.playlist, playbackState.currentSong, getAudioUrl]
   );
 
   const sleepTimerValue = useMemo(
@@ -310,16 +294,16 @@ export function PlayerProvider({ children }) {
 
         if (minutes > 0) {
           sleepTimerDispatch({
-            type: "SET_TIMER",
+            type: 'SET_TIMER',
             payload: { time: minutes * 60, songs: 0 },
           });
 
           timerIntervalRef.current = setInterval(() => {
-            sleepTimerDispatch({ type: "UPDATE_TIME" });
+            sleepTimerDispatch({ type: 'UPDATE_TIME' });
           }, 1000);
         } else if (songs > 0) {
           sleepTimerDispatch({
-            type: "SET_TIMER",
+            type: 'SET_TIMER',
             payload: { time: 0, songs },
           });
         }
@@ -328,20 +312,17 @@ export function PlayerProvider({ children }) {
         if (timerIntervalRef.current) {
           clearInterval(timerIntervalRef.current);
         }
-        sleepTimerDispatch({ type: "CLEAR_TIMER" });
+        sleepTimerDispatch({ type: 'CLEAR_TIMER' });
       },
     }),
-    [sleepTimerState],
+    [sleepTimerState]
   );
 
   useEffect(() => {
     if (sleepTimerState.isActive) {
-      if (
-        sleepTimerState.timeRemaining === 0 &&
-        sleepTimerState.songsRemaining === 0
-      ) {
+      if (sleepTimerState.timeRemaining === 0 && sleepTimerState.songsRemaining === 0) {
         controls.stopSong();
-        sleepTimerDispatch({ type: "CLEAR_TIMER" });
+        sleepTimerDispatch({ type: 'CLEAR_TIMER' });
         if (timerIntervalRef.current) {
           clearInterval(timerIntervalRef.current);
         }
@@ -351,48 +332,42 @@ export function PlayerProvider({ children }) {
 
   useEffect(() => {
     if (sleepTimerState.isActive && sleepTimerState.songsRemaining > 0) {
-      sleepTimerDispatch({ type: "UPDATE_SONGS" });
+      sleepTimerDispatch({ type: 'UPDATE_SONGS' });
     }
   }, [playbackState.currentSong]);
 
   const updateMediaSession = useCallback(
     (song) => {
-      if (!("mediaSession" in navigator)) return;
+      if (!('mediaSession' in navigator)) return;
 
       navigator.mediaSession.metadata = new MediaMetadata({
         title: song.name,
         artist: song?.artist_map?.artists
           ?.slice(0, 3)
           ?.map((artist) => artist.name)
-          .join(", "),
+          .join(', '),
         album: song?.album,
         artwork: song.image?.[2]?.link
-          ? [{ src: song.image[2].link, sizes: "500x500", type: "image/jpeg" }]
+          ? [{ src: song.image[2].link, sizes: '500x500', type: 'image/jpeg' }]
           : [],
       });
 
-      navigator.mediaSession.setActionHandler("play", () => {
+      navigator.mediaSession.setActionHandler('play', () => {
         audioRef.current?.play().catch(console.error);
-        playbackDispatch({ type: "SET_PLAYING", payload: true });
+        playbackDispatch({ type: 'SET_PLAYING', payload: true });
       });
 
-      navigator.mediaSession.setActionHandler("pause", () => {
+      navigator.mediaSession.setActionHandler('pause', () => {
         audioRef.current?.pause();
-        playbackDispatch({ type: "SET_PLAYING", payload: false });
+        playbackDispatch({ type: 'SET_PLAYING', payload: false });
       });
 
-      navigator.mediaSession.setActionHandler(
-        "previoustrack",
-        controls.handlePrevSong,
-      );
-      navigator.mediaSession.setActionHandler(
-        "nexttrack",
-        controls.handleNextSong,
-      );
+      navigator.mediaSession.setActionHandler('previoustrack', controls.handlePrevSong);
+      navigator.mediaSession.setActionHandler('nexttrack', controls.handleNextSong);
 
       document.title = `${song.name} - SyncVibe`;
     },
-    [controls],
+    [controls]
   );
 
   useEffect(() => {
@@ -402,13 +377,13 @@ export function PlayerProvider({ children }) {
     const handleTimeUpdate = () => {
       const now = Date.now();
       if (now - lastUpdateTime.current > 1000) {
-        timeDispatch({ type: "UPDATE_TIME", payload: audio.currentTime });
+        timeDispatch({ type: 'UPDATE_TIME', payload: audio.currentTime });
         lastUpdateTime.current = now;
       }
     };
 
     const handleLoadedMetadata = () => {
-      timeDispatch({ type: "SET_DURATION", payload: audio.duration });
+      timeDispatch({ type: 'SET_DURATION', payload: audio.duration });
       audio.volume = playbackState.volume;
     };
 
@@ -416,14 +391,14 @@ export function PlayerProvider({ children }) {
       controls.handleNextSong();
     };
 
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
 
     return () => {
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
     };
   }, [controls, playbackState.volume]);
 
@@ -446,13 +421,13 @@ export function PlayerProvider({ children }) {
 
         if (!playbackState.isLoading) {
           await audio.play();
-          playbackDispatch({ type: "SET_PLAYING", payload: true });
+          playbackDispatch({ type: 'SET_PLAYING', payload: true });
         }
 
         preloadNextTrack();
       } catch (err) {
-        console.error("Playback error:", err);
-        playbackDispatch({ type: "SET_PLAYING", payload: false });
+        console.error('Playback error:', err);
+        playbackDispatch({ type: 'SET_PLAYING', payload: false });
       }
     };
 
@@ -467,15 +442,14 @@ export function PlayerProvider({ children }) {
 
   const getPlaylists = useCallback(async () => {
     try {
-      const { data } = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/playlist/get`,
-        { withCredentials: true },
-      );
+      const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/playlist/get`, {
+        withCredentials: true,
+      });
       if (data?.data) {
-        playlistDispatch({ type: "SET_USER_PLAYLIST", payload: data.data });
+        playlistDispatch({ type: 'SET_USER_PLAYLIST', payload: data.data });
       }
     } catch (error) {
-      console.error("Failed to fetch playlists:", error);
+      console.error('Failed to fetch playlists:', error);
     }
   }, []);
 
@@ -488,12 +462,11 @@ export function PlayerProvider({ children }) {
     () => ({
       ...playlistState,
       getPlaylists,
-      setPlaylist: (playlist) =>
-        playlistDispatch({ type: "SET_PLAYLIST", payload: playlist }),
+      setPlaylist: (playlist) => playlistDispatch({ type: 'SET_PLAYLIST', payload: playlist }),
       setUserPlaylist: (playlist) =>
-        playlistDispatch({ type: "SET_USER_PLAYLIST", payload: playlist }),
+        playlistDispatch({ type: 'SET_USER_PLAYLIST', payload: playlist }),
     }),
-    [playlistState],
+    [playlistState]
   );
 
   return (
@@ -503,12 +476,8 @@ export function PlayerProvider({ children }) {
           <PlaylistContext.Provider value={playlistValue}>
             <SleepTimerContext.Provider value={sleepTimerValue}>
               {children}
-              <audio ref={audioRef} preload="auto" />
-              <audio
-                ref={nextAudioRef}
-                preload="auto"
-                style={{ display: "none" }}
-              />
+              <audio ref={audioRef} preload='auto' />
+              <audio ref={nextAudioRef} preload='auto' style={{ display: 'none' }} />
             </SleepTimerContext.Provider>
           </PlaylistContext.Provider>
         </PlayerTimeContext.Provider>

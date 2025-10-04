@@ -1,8 +1,8 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../../utils/sequelize");
+const { DataTypes } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
 
 const LikeDislike = sequelize.define(
-  "LikeDislike",
+  'LikeDislike',
   {
     id: {
       type: DataTypes.INTEGER,
@@ -25,9 +25,9 @@ const LikeDislike = sequelize.define(
   },
   {
     timestamps: true,
-    tableName: "likedislikes",
-    createdAt: "createdat",
-    updatedAt: "updatedat",
+    tableName: 'likedislikes',
+    createdAt: 'createdat',
+    updatedAt: 'updatedat',
   }
 );
 

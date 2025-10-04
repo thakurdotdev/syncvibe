@@ -1,7 +1,7 @@
-const { DataTypes, Model } = require("sequelize");
-const sequelize = require("../../utils/sequelize");
-const LikeDislike = require("./likeDislikeModel");
-const Comment = require("./commentModel");
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
+const LikeDislike = require('./likeDislikeModel');
+const Comment = require('./commentModel');
 
 class Post extends Model {}
 
@@ -37,21 +37,21 @@ Post.init(
   },
   {
     sequelize,
-    modelName: "Post",
+    modelName: 'Post',
     timestamps: false,
-    tableName: "posts",
+    tableName: 'posts',
     indexes: [
       {
-        fields: ["createdby", "postedtime"],
-        using: "BTREE",
+        fields: ['createdby', 'postedtime'],
+        using: 'BTREE',
       },
     ],
-  },
+  }
 );
 
 // Define association with LikeDislike model
-Post.hasMany(LikeDislike, { foreignKey: "postid", as: "likes" });
-Post.hasMany(Comment, { foreignKey: "postid", as: "comments" });
+Post.hasMany(LikeDislike, { foreignKey: 'postid', as: 'likes' });
+Post.hasMany(Comment, { foreignKey: 'postid', as: 'comments' });
 
 // Post.sync({ alter: true }).then(() => console.log("Post table created"));
 

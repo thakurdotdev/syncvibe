@@ -1,6 +1,6 @@
-import { create } from "zustand";
-import { subscribeWithSelector } from "zustand/middleware";
-import axios from "axios";
+import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
+import axios from 'axios';
 
 export const useAudioStore = create(
   subscribeWithSelector((set, get) => ({
@@ -25,17 +25,14 @@ export const useAudioStore = create(
 
     stopSong: () => {
       set({ currentSong: null, isPlaying: false });
-      document.title = "SyncVibe";
+      document.title = 'SyncVibe';
     },
 
-    handlePlayPauseSong: () =>
-      set((state) => ({ isPlaying: !state.isPlaying })),
+    handlePlayPauseSong: () => set((state) => ({ isPlaying: !state.isPlaying })),
 
     handleNextSong: () => {
       const { currentSong, playlist } = get();
-      const currentIndex = playlist.findIndex(
-        (song) => song.id === currentSong?.id,
-      );
+      const currentIndex = playlist.findIndex((song) => song.id === currentSong?.id);
       if (currentIndex !== -1) {
         const nextIndex = (currentIndex + 1) % playlist.length;
         get().playSong(playlist[nextIndex]);
@@ -44,12 +41,9 @@ export const useAudioStore = create(
 
     handlePrevSong: () => {
       const { currentSong, playlist } = get();
-      const currentIndex = playlist.findIndex(
-        (song) => song.id === currentSong?.id,
-      );
+      const currentIndex = playlist.findIndex((song) => song.id === currentSong?.id);
       if (currentIndex !== -1) {
-        const prevIndex =
-          (currentIndex - 1 + playlist.length) % playlist.length;
+        const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
         get().playSong(playlist[prevIndex]);
       }
     },
@@ -57,27 +51,23 @@ export const useAudioStore = create(
     setPlaylist: (playlist) => set({ playlist }),
     addToPlaylist: (songs) =>
       set((state) => ({
-        playlist: [
-          ...state.playlist,
-          ...(Array.isArray(songs) ? songs : [songs]),
-        ],
+        playlist: [...state.playlist, ...(Array.isArray(songs) ? songs : [songs])],
       })),
 
     setUserPlaylists: (playlists) => set({ userPlaylists: playlists }),
     fetchUserPlaylists: async () => {
       try {
-        const { data } = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/playlist/get`,
-          { withCredentials: true },
-        );
+        const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/playlist/get`, {
+          withCredentials: true,
+        });
         if (data?.data) {
           set({ userPlaylists: data.data });
         }
       } catch (error) {
-        console.error("Failed to fetch playlists:", error);
+        console.error('Failed to fetch playlists:', error);
       }
     },
-  })),
+  }))
 );
 
 // Derived state

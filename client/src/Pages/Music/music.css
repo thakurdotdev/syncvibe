@@ -16,7 +16,6 @@
 }
 
 @keyframes wave {
-
   0%,
   100% {
     transform: scaleY(0.5);
@@ -39,7 +38,6 @@
 }
 
 @keyframes wave {
-
   0%,
   100% {
     transform: scaleY(0.3);

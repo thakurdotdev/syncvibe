@@ -1,13 +1,13 @@
-const Post = require("../../models/post/postModel");
-const Comment = require("../../models/post/commentModel");
-const LikeDislike = require("../../models/post/likeDislikeModel");
+const Post = require('../../models/post/postModel');
+const Comment = require('../../models/post/commentModel');
+const LikeDislike = require('../../models/post/likeDislikeModel');
 
 const deletePost = async (req, res) => {
   const createdby = req.user.userid;
   const postid = req.params.postid;
 
-  if (req.user.role === "guest") {
-    return res.status(403).json({ message: "Guest users cannot delete posts" });
+  if (req.user.role === 'guest') {
+    return res.status(403).json({ message: 'Guest users cannot delete posts' });
   }
 
   try {
@@ -17,11 +17,11 @@ const deletePost = async (req, res) => {
     });
 
     if (!post) {
-      return res.status(404).json({ message: "Post not found" });
+      return res.status(404).json({ message: 'Post not found' });
     }
 
     if (post.createdby !== createdby) {
-      return res.status(403).json({ message: "Access denied" });
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     // Delete the post
@@ -33,7 +33,7 @@ const deletePost = async (req, res) => {
     // Delete associated comments
     await Comment.destroy({ where: { postid } });
 
-    res.status(200).json({ message: "success" });
+    res.status(200).json({ message: 'success' });
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }

@@ -1,6 +1,6 @@
-const User = require("../../models/auth/userModel");
-const Chat = require("../../models/chat/chatModel");
-const { Op } = require("sequelize");
+const User = require('../../models/auth/userModel');
+const Chat = require('../../models/chat/chatModel');
+const { Op } = require('sequelize');
 
 const createChat = async (req, res) => {
   try {
@@ -10,7 +10,7 @@ const createChat = async (req, res) => {
     // Validate the request
     if (!recieverid) {
       return res.status(400).json({
-        message: "Receiver ID is required for creating a one-to-one chat.",
+        message: 'Receiver ID is required for creating a one-to-one chat.',
       });
     }
 
@@ -38,7 +38,7 @@ const createChat = async (req, res) => {
       });
 
       return res.status(200).json({
-        message: "Chat already exists between the specified users.",
+        message: 'Chat already exists between the specified users.',
         chat: {
           ...existingChat.dataValues,
           otherUser: {
@@ -67,13 +67,13 @@ const createChat = async (req, res) => {
     };
 
     return res.status(200).json({
-      message: "Chat created successfully.",
+      message: 'Chat created successfully.',
       chat,
     });
   } catch (error) {
     console.error(error);
     return res.status(500).json({
-      message: "An error occurred while creating the chat.",
+      message: 'An error occurred while creating the chat.',
     });
   }
 };

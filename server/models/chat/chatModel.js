@@ -1,8 +1,8 @@
-const { DataTypes, Op } = require("sequelize");
-const sequelize = require("../../utils/sequelize");
+const { DataTypes, Op } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
 
 const Chat = sequelize.define(
-  "Chat",
+  'Chat',
   {
     chatid: {
       type: DataTypes.INTEGER,
@@ -30,11 +30,11 @@ const Chat = sequelize.define(
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-    }
+    },
   },
   {
     timestamps: false,
-    tableName: "chats",
+    tableName: 'chats',
     indexes: [
       {
         fields: ['chatid'],
@@ -60,8 +60,7 @@ const Chat = sequelize.define(
 
 // Chat.sync({ alter: true });
 
-
-Chat.findByParticipant = function(userId) {
+Chat.findByParticipant = function (userId) {
   return this.findAll({
     where: {
       participants: {

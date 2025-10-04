@@ -1,5 +1,5 @@
-const Post = require("../../models/post/postModel");
-const sequelize = require("../../utils/sequelize");
+const Post = require('../../models/post/postModel');
+const sequelize = require('../../utils/sequelize');
 
 const getAllPosts = async (req, res) => {
   try {
@@ -37,14 +37,14 @@ const getAllPosts = async (req, res) => {
         {
           replacements: { limit, offset, userid },
           type: sequelize.QueryTypes.SELECT,
-        },
+        }
       ),
     ]);
 
     res.status(200).json({ totalPosts, posts });
   } catch (err) {
     console.log(err);
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 };
 

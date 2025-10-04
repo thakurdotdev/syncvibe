@@ -3,30 +3,25 @@ const {
   verifyRegistrationResponse,
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
-} = require("@simplewebauthn/server");
-const { isoBase64URL } = require("@simplewebauthn/server/helpers");
-const User = require("../../models/auth/userModel");
-const { Authenticator } = require("../../models/auth/passKeyModal");
-const jwt = require("jsonwebtoken");
-const { configDotenv } = require("dotenv");
-const sequelize = require("../../utils/sequelize");
-const { parseUserAgent } = require("../../utils/helpers");
-const LoginLog = require("../../models/auth/loginLogModel");
-const { JWTExpiryDate, CookieExpiryDate } = require("../../constant");
+} = require('@simplewebauthn/server');
+const { isoBase64URL } = require('@simplewebauthn/server/helpers');
+const User = require('../../models/auth/userModel');
+const { Authenticator } = require('../../models/auth/passKeyModal');
+const jwt = require('jsonwebtoken');
+const { configDotenv } = require('dotenv');
+const sequelize = require('../../utils/sequelize');
+const { parseUserAgent } = require('../../utils/helpers');
+const LoginLog = require('../../models/auth/loginLogModel');
+const { JWTExpiryDate, CookieExpiryDate } = require('../../constant');
 
 configDotenv();
 
 // Constants for better maintainability and performance
 const CONFIG = {
-  rpName: "SyncVibe",
-  rpID:
-    process.env.NODE_ENV === "production"
-      ? "syncvibe.xyz"
-      : "client.thakur.dev",
+  rpName: 'SyncVibe',
+  rpID: process.env.NODE_ENV === 'production' ? 'syncvibe.xyz' : 'client.thakur.dev',
   origin:
-    process.env.NODE_ENV === "production"
-      ? process.env.CLIENT_URL
-      : "https://client.thakur.dev",
+    process.env.NODE_ENV === 'production' ? process.env.CLIENT_URL : 'https://client.thakur.dev',
   CHALLENGE_TIMEOUT: 60000,
   TOKEN_EXPIRY: JWTExpiryDate,
   COOKIE_EXPIRY: CookieExpiryDate, // 7 days in milliseconds
@@ -45,7 +40,7 @@ const generateToken = (user) => {
   return jwt.sign(
     {
       userid: user.userid,
-      role: user.email === "guest@syncvibe.xyz" ? "guest" : "user",
+      role: user.email === 'guest@syncvibe.xyz' ? 'guest' : 'user',
       name: user.name,
       username: user.username,
       email: user.email,
@@ -54,17 +49,16 @@ const generateToken = (user) => {
       verified: user.verified,
     },
     process.env.JWT_SECRET,
-    { expiresIn: CONFIG.TOKEN_EXPIRY },
+    { expiresIn: CONFIG.TOKEN_EXPIRY }
   );
 };
 
 const setCookie = (res, token) => {
-  res.cookie("token", token, {
-    domain:
-      process.env.NODE_ENV === "production" ? ".syncvibe.xyz" : ".thakur.dev",
+  res.cookie('token', token, {
+    domain: process.env.NODE_ENV === 'production' ? '.syncvibe.xyz' : '.thakur.dev',
     secure: true,
     httpOnly: true,
-    sameSite: "none",
+    sameSite: 'none',
     expires: CONFIG.COOKIE_EXPIRY,
   });
 };
@@ -75,7 +69,7 @@ const registerPasskey = async (req, res) => {
     const user = await User.findByPk(userid);
 
     if (!user || user.isDeleted) {
-      throw new PassKeyError("User not found", 400);
+      throw new PassKeyError('User not found', 400);
     }
 
     const options = await generateRegistrationOptions({
@@ -84,18 +78,18 @@ const registerPasskey = async (req, res) => {
       userDisplayName: user.name,
       userName: user.email,
       timeout: CONFIG.CHALLENGE_TIMEOUT,
-      attestationType: "direct",
+      attestationType: 'direct',
       authenticatorSelection: {
-        residentKey: "required",
-        userVerification: "required",
-        authenticatorAttachment: "",
+        residentKey: 'required',
+        userVerification: 'required',
+        authenticatorAttachment: '',
         requireResidentKey: true,
       },
       supportedAlgorithmIDs: [-7, -257],
     });
 
     if (!options.challenge) {
-      throw new PassKeyError("Challenge not generated");
+      throw new PassKeyError('Challenge not generated');
     }
 
     // Add expiry time to challenge
@@ -104,14 +98,14 @@ const registerPasskey = async (req, res) => {
         passKeyChallenge: options.challenge,
         challengeExpiry: new Date(Date.now() + CONFIG.CHALLENGE_TIMEOUT),
       },
-      { where: { userid } },
+      { where: { userid } }
     );
 
     res.json(options);
   } catch (error) {
-    console.error("Registration options error:", error);
+    console.error('Registration options error:', error);
     res.status(error.statusCode || 500).json({
-      message: error.message || "Failed to generate registration options",
+      message: error.message || 'Failed to generate registration options',
     });
   }
 };
@@ -122,11 +116,11 @@ const verifyRegister = async (req, res) => {
     const { attestationResponse, nickname } = req.body;
 
     const user = await User.findByPk(userid, {
-      attributes: ["passKeyChallenge", "challengeExpiry"],
+      attributes: ['passKeyChallenge', 'challengeExpiry'],
     });
 
     if (!user || new Date() > new Date(user.challengeExpiry)) {
-      throw new PassKeyError("Challenge expired or invalid", 400);
+      throw new PassKeyError('Challenge expired or invalid', 400);
     }
 
     const verification = await verifyRegistrationResponse({
@@ -138,7 +132,7 @@ const verifyRegister = async (req, res) => {
     });
 
     if (!verification.verified) {
-      throw new PassKeyError("Verification failed", 400);
+      throw new PassKeyError('Verification failed', 400);
     }
 
     const { registrationInfo } = verification;
@@ -149,9 +143,7 @@ const verifyRegister = async (req, res) => {
         {
           userid,
           credentialID: registrationInfo.credential.id,
-          credentialPublicKey: isoBase64URL.fromBuffer(
-            registrationInfo.credential.publicKey,
-          ),
+          credentialPublicKey: isoBase64URL.fromBuffer(registrationInfo.credential.publicKey),
           counter: registrationInfo.counter || 0,
           credentialDeviceType: registrationInfo.credentialDeviceType,
           credentialBackedUp: registrationInfo.credentialBackedUp,
@@ -161,7 +153,7 @@ const verifyRegister = async (req, res) => {
           nickname: nickname || null,
           lastUsed: new Date(),
         },
-        { transaction: t },
+        { transaction: t }
       );
 
       await User.update(
@@ -170,15 +162,15 @@ const verifyRegister = async (req, res) => {
           passKeyChallenge: null,
           challengeExpiry: null,
         },
-        { where: { userid }, transaction: t },
+        { where: { userid }, transaction: t }
       );
     });
 
-    res.json({ message: "Passkey registered successfully", verified: true });
+    res.json({ message: 'Passkey registered successfully', verified: true });
   } catch (error) {
-    console.error("Registration verification error:", error);
+    console.error('Registration verification error:', error);
     res.status(error.statusCode || 500).json({
-      message: error.message || "Failed to verify registration",
+      message: error.message || 'Failed to verify registration',
     });
   }
 };
@@ -193,20 +185,20 @@ const authenticatePasskey = async (req, res) => {
         isDeleted: false,
         passkeyEnabled: true,
       },
-      attributes: ["userid", "email"], // Only select needed fields
+      attributes: ['userid', 'email'], // Only select needed fields
     });
 
     if (!user) {
-      throw new PassKeyError("User not found or passkey not enabled", 400);
+      throw new PassKeyError('User not found or passkey not enabled', 400);
     }
 
     const authenticators = await Authenticator.findAll({
       where: { userid: user.userid },
-      attributes: ["credentialID", "transports"],
+      attributes: ['credentialID', 'transports'],
     });
 
     if (!authenticators.length) {
-      throw new PassKeyError("No passkeys registered for this user", 400);
+      throw new PassKeyError('No passkeys registered for this user', 400);
     }
 
     const options = await generateAuthenticationOptions({
@@ -214,10 +206,10 @@ const authenticatePasskey = async (req, res) => {
       timeout: CONFIG.CHALLENGE_TIMEOUT,
       allowCredentials: authenticators.map((auth) => ({
         id: auth.credentialID,
-        type: "public-key",
+        type: 'public-key',
         transports: auth.transports ? JSON.parse(auth.transports) : undefined,
       })),
-      userVerification: "required",
+      userVerification: 'required',
     });
 
     await User.update(
@@ -225,14 +217,14 @@ const authenticatePasskey = async (req, res) => {
         passKeyChallenge: options.challenge,
         challengeExpiry: new Date(Date.now() + CONFIG.CHALLENGE_TIMEOUT),
       },
-      { where: { userid: user.userid } },
+      { where: { userid: user.userid } }
     );
 
     res.json(options);
   } catch (error) {
-    console.error("Authentication options error:", error);
+    console.error('Authentication options error:', error);
     res.status(error.statusCode || 500).json({
-      message: error.message || "Failed to generate authentication options",
+      message: error.message || 'Failed to generate authentication options',
     });
   }
 };
@@ -244,18 +236,18 @@ const verifyAuthentication = async (req, res) => {
     const user = await User.findOne({
       where: { email },
       attributes: [
-        "userid",
-        "name",
-        "username",
-        "email",
-        "profilepic",
-        "passKeyChallenge",
-        "challengeExpiry",
+        'userid',
+        'name',
+        'username',
+        'email',
+        'profilepic',
+        'passKeyChallenge',
+        'challengeExpiry',
       ],
     });
 
     if (!user || new Date() > new Date(user.challengeExpiry)) {
-      throw new PassKeyError("User not found or challenge expired", 400);
+      throw new PassKeyError('User not found or challenge expired', 400);
     }
 
     const authenticator = await Authenticator.findOne({
@@ -266,7 +258,7 @@ const verifyAuthentication = async (req, res) => {
     });
 
     if (!authenticator) {
-      throw new PassKeyError("Passkey not found", 400);
+      throw new PassKeyError('Passkey not found', 400);
     }
 
     const verification = await verifyAuthenticationResponse({
@@ -283,7 +275,7 @@ const verifyAuthentication = async (req, res) => {
     });
 
     if (!verification.verified) {
-      throw new PassKeyError("Verification failed", 400);
+      throw new PassKeyError('Verification failed', 400);
     }
 
     // Update authenticator and user in parallel
@@ -303,40 +295,36 @@ const verifyAuthentication = async (req, res) => {
     setCookie(res, token);
 
     res.json({
-      message: "Authentication successful",
+      message: 'Authentication successful',
       verified: true,
       token,
     });
 
-    process.env.NODE_ENV === "production" &&
+    process.env.NODE_ENV === 'production' &&
       (async () => {
         try {
           const ipAddress = userData?.ip;
           const location = userData
-            ? userData?.city +
-              ", " +
-              userData?.region +
-              ", " +
-              userData?.country
+            ? userData?.city + ', ' + userData?.region + ', ' + userData?.country
             : null;
           const [browserName, osName] = parseUserAgent(req);
 
           await LoginLog.create({
-            ipaddress: ipAddress || req.header("x-forwarded-for"),
-            browser: browserName || "Unknown",
-            os: osName || "Unknown",
-            location: location || "Unknown",
-            loginType: "Using Passkey",
+            ipaddress: ipAddress || req.header('x-forwarded-for'),
+            browser: browserName || 'Unknown',
+            os: osName || 'Unknown',
+            location: location || 'Unknown',
+            loginType: 'Using Passkey',
             userid: user.userid,
           });
         } catch (error) {
-          console.error("Login log error:", error);
+          console.error('Login log error:', error);
         }
       })();
   } catch (error) {
-    console.error("Authentication verification error:", error);
+    console.error('Authentication verification error:', error);
     res.status(error.statusCode || 500).json({
-      message: error.message || "Failed to verify authentication",
+      message: error.message || 'Failed to verify authentication',
     });
   }
 };
@@ -348,22 +336,22 @@ const getPasskeys = async (req, res) => {
     const passkeys = await Authenticator.findAll({
       where: { userid },
       attributes: [
-        "authenticatorid",
-        "credentialID",
-        "credentialDeviceType",
-        "credentialBackedUp",
-        "nickname",
-        "lastUsed",
-        "createdat",
+        'authenticatorid',
+        'credentialID',
+        'credentialDeviceType',
+        'credentialBackedUp',
+        'nickname',
+        'lastUsed',
+        'createdat',
       ],
-      order: [["lastUsed", "DESC"]],
+      order: [['lastUsed', 'DESC']],
     });
 
     res.json(passkeys);
   } catch (error) {
-    console.error("Get passkeys error:", error);
+    console.error('Get passkeys error:', error);
     res.status(error.statusCode || 500).json({
-      message: error.message || "Failed to fetch passkeys",
+      message: error.message || 'Failed to fetch passkeys',
     });
   }
 };
@@ -373,10 +361,8 @@ const deletePasskey = async (req, res) => {
     const { userid } = req.user;
     const { authenticatorid } = req.params;
 
-    if (req.user.role === "guest") {
-      return res
-        .status(403)
-        .json({ message: "Guest users cannot delete passkeys" });
+    if (req.user.role === 'guest') {
+      return res.status(403).json({ message: 'Guest users cannot delete passkeys' });
     }
 
     // Use transaction for atomic operations
@@ -387,7 +373,7 @@ const deletePasskey = async (req, res) => {
       });
 
       if (!result) {
-        throw new PassKeyError("Passkey not found", 404);
+        throw new PassKeyError('Passkey not found', 404);
       }
 
       const remainingPasskeys = await Authenticator.count({
@@ -396,18 +382,15 @@ const deletePasskey = async (req, res) => {
       });
 
       if (remainingPasskeys === 0) {
-        await User.update(
-          { passkeyEnabled: false },
-          { where: { userid }, transaction: t },
-        );
+        await User.update({ passkeyEnabled: false }, { where: { userid }, transaction: t });
       }
     });
 
-    res.json({ message: "Passkey deleted successfully" });
+    res.json({ message: 'Passkey deleted successfully' });
   } catch (error) {
-    console.error("Delete passkey error:", error);
+    console.error('Delete passkey error:', error);
     res.status(error.statusCode || 500).json({
-      message: error.message || "Failed to delete passkey",
+      message: error.message || 'Failed to delete passkey',
     });
   }
 };

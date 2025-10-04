@@ -1,12 +1,12 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 class MusicAIAgent {
   constructor(apiKey) {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: 'gemini-1.5-flash',
       systemInstructions:
-        "You are a music recommendation system focusing on user engagement patterns and preferences.",
+        'You are a music recommendation system focusing on user engagement patterns and preferences.',
     });
     this.cache = new Map();
     this.CACHE_TTL = 30 * 60 * 1000; // 30 minutes
@@ -32,7 +32,7 @@ class MusicAIAgent {
 
       return analysis;
     } catch (error) {
-      console.error("Error in analyzeListeningPatterns:", error);
+      console.error('Error in analyzeListeningPatterns:', error);
       return this.getDefaultListeningAnalysis();
     }
   }
@@ -52,9 +52,7 @@ class MusicAIAgent {
         return {
           ...acc,
           languages: [...new Set([...acc.languages, song.songLanguage])],
-          artists: [
-            ...new Set([...acc.artists, ...song.artistNames.split(", ")]),
-          ],
+          artists: [...new Set([...acc.artists, ...song.artistNames.split(', ')])],
           timePatterns: {
             ...acc.timePatterns,
             [this._getTimeSlot(song.timeOfDay)]:
@@ -70,15 +68,15 @@ class MusicAIAgent {
         timePatterns: {},
         completionRates: [],
         moods: [],
-      },
+      }
     );
   }
 
   _getTimeSlot(hour) {
-    if (hour >= 5 && hour < 12) return "morning";
-    if (hour >= 12 && hour < 17) return "afternoon";
-    if (hour >= 17 && hour < 22) return "evening";
-    return "night";
+    if (hour >= 5 && hour < 12) return 'morning';
+    if (hour >= 12 && hour < 17) return 'afternoon';
+    if (hour >= 17 && hour < 22) return 'evening';
+    return 'night';
   }
 
   _generateAnalysisPrompt(aggregatedData) {
@@ -107,21 +105,21 @@ class MusicAIAgent {
 
   _parseAndValidateResponse(response) {
     try {
-      const parsed = JSON.parse(response.replace(/```json|```/g, "").trim());
+      const parsed = JSON.parse(response.replace(/```json|```/g, '').trim());
       return this._validateAnalysis(parsed);
     } catch (error) {
-      console.error("Error parsing AI response:", error);
+      console.error('Error parsing AI response:', error);
       return this.getDefaultListeningAnalysis();
     }
   }
 
   _validateAnalysis(analysis) {
     const requiredFields = [
-      "preferredLanguages",
-      "preferredArtists",
-      "timePatterns",
-      "completionInsights",
-      "moodRecommendations",
+      'preferredLanguages',
+      'preferredArtists',
+      'timePatterns',
+      'completionInsights',
+      'moodRecommendations',
     ];
 
     const isValid = requiredFields.every((field) => field in analysis);
@@ -133,7 +131,7 @@ class MusicAIAgent {
       preferredLanguages: [],
       preferredArtists: [],
       timePatterns: {},
-      completionInsights: "Unable to analyze patterns",
+      completionInsights: 'Unable to analyze patterns',
       moodRecommendations: [],
       deviceSpecificTrends: {},
     };

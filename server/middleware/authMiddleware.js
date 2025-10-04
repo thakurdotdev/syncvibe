@@ -1,19 +1,22 @@
-const jwt = require("jsonwebtoken");
-const User = require("../models/auth/userModel");
+const jwt = require('jsonwebtoken');
+const User = require('../models/auth/userModel');
 
 // Simple in-memory cache with TTL
 const userCache = new Map();
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes in milliseconds
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes in milliseconds
 
 // Clean up expired cache entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of userCache.entries()) {
-    if (now > value.expiresAt) {
-      userCache.delete(key);
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, value] of userCache.entries()) {
+      if (now > value.expiresAt) {
+        userCache.delete(key);
+      }
     }
-  }
-}, 5 * 60 * 1000);
+  },
+  5 * 60 * 1000
+);
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -22,12 +25,12 @@ const authMiddleware = async (req, res, next) => {
 
     // Check Authorization header if no cookie token
     const authHeader = req.headers.authorization;
-    if (!token && authHeader && authHeader.startsWith("Bearer ")) {
-      token = authHeader.split(" ")[1];
+    if (!token && authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
     }
 
     if (!token) {
-      return res.status(401).json({ error: "Unauthorized: Missing token" });
+      return res.status(401).json({ error: 'Unauthorized: Missing token' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -37,7 +40,7 @@ const authMiddleware = async (req, res, next) => {
     // Check if user is in cache and not expired
     if (userCache.has(cacheKey) && userCache.get(cacheKey).expiresAt > now) {
       req.user = userCache.get(cacheKey).user;
-      req.user.role = decoded.role || "user";
+      req.user.role = decoded.role || 'user';
       return next();
     }
 
@@ -48,7 +51,7 @@ const authMiddleware = async (req, res, next) => {
     });
 
     if (!existingUser) {
-      return res.status(401).json({ error: "Unauthorized: User not found" });
+      return res.status(401).json({ error: 'Unauthorized: User not found' });
     }
 
     // Update cache with user data
@@ -58,13 +61,11 @@ const authMiddleware = async (req, res, next) => {
     });
 
     req.user = existingUser;
-    req.user.role = decoded.role || "user";
+    req.user.role = decoded.role || 'user';
     next();
   } catch (error) {
-    console.error("Error verifying token:", error);
-    return res
-      .status(401)
-      .json({ error: "Unauthorized: Error verifying token" });
+    console.error('Error verifying token:', error);
+    return res.status(401).json({ error: 'Unauthorized: Error verifying token' });
   }
 };
 

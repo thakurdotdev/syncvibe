@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { VideoIcon } from "lucide-react";
+import { useState } from 'react';
+import { VideoIcon } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,8 +10,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 
 const VideoCallButton = ({ startCall, currentChat, incomingCall }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,10 +27,10 @@ const VideoCallButton = ({ startCall, currentChat, incomingCall }) => {
     <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
       <AlertDialogTrigger asChild>
         <Button
-          variant="ghost"
-          size="icon"
-          className="rounded-full h-12 w-12"
-          title="Start Video Call"
+          variant='ghost'
+          size='icon'
+          className='rounded-full h-12 w-12'
+          title='Start Video Call'
         >
           <VideoIcon />
         </Button>
@@ -39,16 +39,13 @@ const VideoCallButton = ({ startCall, currentChat, incomingCall }) => {
         <AlertDialogHeader>
           <AlertDialogTitle>Start Video Call</AlertDialogTitle>
           <AlertDialogDescription>
-            Would you like to start a video call with{" "}
-            {currentChat?.otherUser?.name}? Make sure your camera/microphone
-            permissions are enabled.
+            Would you like to start a video call with {currentChat?.otherUser?.name}? Make sure your
+            camera/microphone permissions are enabled.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleStartCall}>
-            Start Call
-          </AlertDialogAction>
+          <AlertDialogAction onClick={handleStartCall}>Start Call</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

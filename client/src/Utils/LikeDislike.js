@@ -1,5 +1,5 @@
-import axios from "axios";
-import { toast } from "sonner";
+import axios from 'axios';
+import { toast } from 'sonner';
 
 const handleLikeDislike = async ({ postid }) => {
   try {
@@ -7,7 +7,7 @@ const handleLikeDislike = async ({ postid }) => {
       `${import.meta.env.VITE_API_URL}/api/post/likedislike/${postid}`,
       {
         withCredentials: true,
-      },
+      }
     );
     if (response.status == 200) {
       return response.data;
@@ -23,7 +23,7 @@ const getLikeDislikeStatus = async ({ postid }) => {
       `${import.meta.env.VITE_API_URL}/api/post/like/status/${postid}`,
       {
         withCredentials: true,
-      },
+      }
     );
     if (response.status == 200) {
       return response.data.liked;

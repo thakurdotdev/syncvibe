@@ -1,7 +1,7 @@
-const { Sequelize } = require("sequelize");
-const Playlist = require("../../models/music/playlist");
-const PlaylistSong = require("../../models/music/playlistSong");
-const sequelize = require("../../utils/sequelize");
+const { Sequelize } = require('sequelize');
+const Playlist = require('../../models/music/playlist');
+const PlaylistSong = require('../../models/music/playlistSong');
+const sequelize = require('../../utils/sequelize');
 
 const createPlaylist = async (req, res) => {
   try {
@@ -13,7 +13,7 @@ const createPlaylist = async (req, res) => {
       userId,
     });
     res.status(200).json({
-      message: "Playlist created",
+      message: 'Playlist created',
       data: playlist,
     });
   } catch (error) {
@@ -30,17 +30,17 @@ const updatePlaylist = async (req, res) => {
     });
 
     if (!playlist) {
-      return res.status(404).json({ message: "Playlist not found" });
+      return res.status(404).json({ message: 'Playlist not found' });
     }
 
     await Playlist.update(
       { name, description },
       {
         where: { id },
-      },
+      }
     );
 
-    res.status(200).json({ message: "Playlist updated" });
+    res.status(200).json({ message: 'Playlist updated' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -57,7 +57,7 @@ const deletePlaylist = async (req, res) => {
     });
 
     if (!playlist) {
-      return res.status(404).json({ error: "Playlist not found" });
+      return res.status(404).json({ error: 'Playlist not found' });
     }
 
     // Use a transaction to ensure atomicity of the operations
@@ -75,7 +75,7 @@ const deletePlaylist = async (req, res) => {
       });
     });
 
-    res.status(200).json({ message: "Playlist deleted" });
+    res.status(200).json({ message: 'Playlist deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -90,7 +90,7 @@ const addSongToPlaylist = async (req, res) => {
     });
 
     if (!playlist) {
-      return res.status(404).json({ error: "Playlist not found" });
+      return res.status(404).json({ error: 'Playlist not found' });
     }
 
     const alreadyAdded = await PlaylistSong.findOne({
@@ -99,13 +99,13 @@ const addSongToPlaylist = async (req, res) => {
 
     if (alreadyAdded) {
       return res.status(400).json({
-        message: "Song already added to playlist",
+        message: 'Song already added to playlist',
       });
     }
 
     await PlaylistSong.create({ playlistId, songId, songData });
 
-    res.status(201).json({ message: "Song added to playlist" });
+    res.status(201).json({ message: 'Song added to playlist' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -120,14 +120,14 @@ const removeSongFromPlaylist = async (req, res) => {
     });
 
     if (!playlist) {
-      return res.status(404).json({ error: "Playlist not found" });
+      return res.status(404).json({ error: 'Playlist not found' });
     }
 
     await PlaylistSong.destroy({
       where: { playlistId, songId },
     });
 
-    res.status(200).json({ message: "Song removed from playlist" });
+    res.status(200).json({ message: 'Song removed from playlist' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -138,33 +138,33 @@ const getPlaylists = async (req, res) => {
     const userId = req.user.userid;
 
     if (!userId) {
-      return res.status(400).json({ message: "Invalid user" });
+      return res.status(400).json({ message: 'Invalid user' });
     }
 
     const playlists = await Playlist.findAll({
       where: { userId },
       attributes: [
-        "id",
-        "name",
-        "description",
-        "createdat",
-        [Sequelize.fn("COUNT", Sequelize.col("songs.id")), "songCount"],
+        'id',
+        'name',
+        'description',
+        'createdat',
+        [Sequelize.fn('COUNT', Sequelize.col('songs.id')), 'songCount'],
       ],
       include: [
         {
           model: PlaylistSong,
-          as: "songs",
+          as: 'songs',
           attributes: [],
         },
         {
           model: PlaylistSong,
-          as: "latestSong",
-          attributes: ["songData"],
-          order: [["createdat", "DESC"]],
+          as: 'latestSong',
+          attributes: ['songData'],
+          order: [['createdat', 'DESC']],
           limit: 1,
         },
       ],
-      group: ["Playlist.id"],
+      group: ['Playlist.id'],
     });
 
     const updatedPlaylists = playlists.map((playlist) => {
@@ -176,13 +176,13 @@ const getPlaylists = async (req, res) => {
         name: playlist.name,
         description: playlist.description,
         createdat: playlist.createdat,
-        songCount: playlist.get("songCount"),
+        songCount: playlist.get('songCount'),
         image,
       };
     });
 
     res.status(200).json({
-      message: "Playlists fetched",
+      message: 'Playlists fetched',
       data: updatedPlaylists,
     });
   } catch (error) {
@@ -201,12 +201,12 @@ const getPlaylistSongs = async (req, res) => {
     });
 
     if (!playlist) {
-      return res.status(404).json({ message: "Playlist not found" });
+      return res.status(404).json({ message: 'Playlist not found' });
     }
 
     const songs = await PlaylistSong.findAll({
       where: { playlistId },
-      order: [["createdat", "DESC"]],
+      order: [['createdat', 'DESC']],
       raw: true,
     });
 
@@ -217,11 +217,10 @@ const getPlaylistSongs = async (req, res) => {
       };
     });
 
-    const playlistImage =
-      updatedSongs.length > 0 ? updatedSongs[0].songData.image : null;
+    const playlistImage = updatedSongs.length > 0 ? updatedSongs[0].songData.image : null;
 
     res.status(200).json({
-      message: "Playlist songs fetched",
+      message: 'Playlist songs fetched',
       data: {
         ...playlist,
         image: playlistImage,

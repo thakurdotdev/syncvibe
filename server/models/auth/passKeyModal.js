@@ -1,6 +1,6 @@
 // models/authenticator/authenticatorModel.js
-const { DataTypes, Model } = require("sequelize");
-const sequelize = require("../../utils/sequelize");
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
 
 class Authenticator extends Model {}
 
@@ -15,8 +15,8 @@ Authenticator.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: "users",
-        key: "userid",
+        model: 'users',
+        key: 'userid',
       },
     },
     credentialID: {
@@ -57,12 +57,12 @@ Authenticator.init(
   },
   {
     sequelize,
-    modelName: "Authenticator",
-    tableName: "authenticators",
+    modelName: 'Authenticator',
+    tableName: 'authenticators',
     timestamps: true,
-    createdAt: "createdat",
-    updatedAt: "updatedat",
-  },
+    createdAt: 'createdat',
+    updatedAt: 'updatedat',
+  }
 );
 
 module.exports = {

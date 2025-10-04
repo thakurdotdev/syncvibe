@@ -1,20 +1,17 @@
-const Follower = require("../../models/auth/followerModel");
-const User = require("../../models/auth/userModel");
-const ChatMessage = require("../../models/chat/chatMessageModel");
-const Chat = require("../../models/chat/chatModel");
-const Comment = require("../../models/post/commentModel");
-const LikeDislike = require("../../models/post/likeDislikeModel");
-const Post = require("../../models/post/postModel");
-const { Op } = require("sequelize");
-const Story = require("../../models/Story/StoryModal");
-const crypto = require("crypto");
-const OTP = require("../../models/auth/otpModel");
-const {
-  otpForDeleteMailSender,
-  accountDeletedMailSender,
-} = require("../../utils/resend");
-const sequelize = require("../../utils/sequelize");
-const Playlist = require("../../models/music/playlist");
+const Follower = require('../../models/auth/followerModel');
+const User = require('../../models/auth/userModel');
+const ChatMessage = require('../../models/chat/chatMessageModel');
+const Chat = require('../../models/chat/chatModel');
+const Comment = require('../../models/post/commentModel');
+const LikeDislike = require('../../models/post/likeDislikeModel');
+const Post = require('../../models/post/postModel');
+const { Op } = require('sequelize');
+const Story = require('../../models/Story/StoryModal');
+const crypto = require('crypto');
+const OTP = require('../../models/auth/otpModel');
+const { otpForDeleteMailSender, accountDeletedMailSender } = require('../../utils/resend');
+const sequelize = require('../../utils/sequelize');
+const Playlist = require('../../models/music/playlist');
 
 const generateSixDigitOTP = () => {
   return crypto.randomInt(100000, 999999);
@@ -23,14 +20,14 @@ const generateSixDigitOTP = () => {
 const getOtpForAccountDelete = async (req, res) => {
   const { userid } = req.user;
 
-  if (req.user.role === "guest") {
-    return res.status(403).json({ message: "Guset account cannot be deleted" });
+  if (req.user.role === 'guest') {
+    return res.status(403).json({ message: 'Guset account cannot be deleted' });
   }
 
   try {
     const user = await User.findByPk(userid);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     const otp = generateSixDigitOTP();
@@ -39,13 +36,13 @@ const getOtpForAccountDelete = async (req, res) => {
     const sendOtp = await otpForDeleteMailSender(user.email, otp);
 
     if (!sendOtp) {
-      return res.status(500).json({ message: "Error sending OTP" });
+      return res.status(500).json({ message: 'Error sending OTP' });
     }
 
-    return res.status(200).json({ message: "Success" });
+    return res.status(200).json({ message: 'Success' });
   } catch (error) {
-    console.error("Error getting OTP for delete:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error('Error getting OTP for delete:', error);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
 
@@ -54,8 +51,8 @@ const deleteUser = async (req, res) => {
   const { otp } = req.body;
 
   // Uncomment if guest user deletion is restricted
-  if (req.user.role === "guest") {
-    return res.status(403).json({ message: "Guest account cannot be deleted" });
+  if (req.user.role === 'guest') {
+    return res.status(403).json({ message: 'Guest account cannot be deleted' });
   }
 
   const transaction = await sequelize.transaction();
@@ -63,7 +60,7 @@ const deleteUser = async (req, res) => {
   try {
     const user = await User.findByPk(userid);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     console.log(user.email, otp);
@@ -71,12 +68,12 @@ const deleteUser = async (req, res) => {
     const otpEntry = await OTP.findOne({ where: { email: user.email, otp } });
 
     if (!otpEntry) {
-      return res.status(400).json({ message: "Invalid OTP" });
+      return res.status(400).json({ message: 'Invalid OTP' });
     }
 
     const timeDifference = new Date() - otpEntry.createdat;
     if (timeDifference > 600000) {
-      return res.status(400).json({ message: "OTP expired" });
+      return res.status(400).json({ message: 'OTP expired' });
     }
 
     // Perform deletions within the transaction
@@ -107,13 +104,13 @@ const deleteUser = async (req, res) => {
 
     await accountDeletedMailSender(user.email);
 
-    return res.status(200).json({ message: "Success" });
+    return res.status(200).json({ message: 'Success' });
   } catch (error) {
     if (transaction) {
       await transaction.rollback();
     }
-    console.error("Error deleting user:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error('Error deleting user:', error);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
 

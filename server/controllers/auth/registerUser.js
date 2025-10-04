@@ -1,36 +1,36 @@
-const bcrypt = require("bcrypt");
-const Yup = require("yup");
-const crypto = require("crypto");
-const { Op } = require("sequelize");
-const User = require("../../models/auth/userModel");
-const OTP = require("../../models/auth/otpModel");
-const { resendOtp } = require("../../utils/resend");
-const { SALT_ROUNDS, OTP_EXPIRY_MINUTES } = require("../../config/constants");
+const bcrypt = require('bcrypt');
+const Yup = require('yup');
+const crypto = require('crypto');
+const { Op } = require('sequelize');
+const User = require('../../models/auth/userModel');
+const OTP = require('../../models/auth/otpModel');
+const { resendOtp } = require('../../utils/resend');
+const { SALT_ROUNDS, OTP_EXPIRY_MINUTES } = require('../../config/constants');
 
 // Validation schema with strong password requirements
 const validationSchema = Yup.object().shape({
   name: Yup.string()
     .trim()
-    .required("Name is required")
-    .min(2, "Name must be at least 2 characters")
-    .max(50, "Name must not exceed 50 characters")
-    .matches(/^[a-zA-Z\s]+$/, "Name can only contain letters and spaces"),
+    .required('Name is required')
+    .min(2, 'Name must be at least 2 characters')
+    .max(50, 'Name must not exceed 50 characters')
+    .matches(/^[a-zA-Z\s]+$/, 'Name can only contain letters and spaces'),
 
   email: Yup.string()
-    .email("Invalid email address")
-    .required("Email is required")
-    .max(255, "Email must not exceed 255 characters")
+    .email('Invalid email address')
+    .required('Email is required')
+    .max(255, 'Email must not exceed 255 characters')
     .lowercase(),
 
   password: Yup.string()
-    .required("Password is required")
-    .min(8, "Password must be at least 8 characters")
+    .required('Password is required')
+    .min(8, 'Password must be at least 8 characters')
     .matches(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+      'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'
     ),
 
-  bio: Yup.string().max(500, "Bio must not exceed 500 characters").nullable(),
+  bio: Yup.string().max(500, 'Bio must not exceed 500 characters').nullable(),
 });
 
 // Secure OTP generation
@@ -47,15 +47,14 @@ const generateSecureOTP = () => {
 const generateUniqueUsername = async (name, retryCount = 0) => {
   const baseUsername = name
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, "")
+    .replace(/[^a-z0-9]/g, '')
     .slice(0, 20);
 
-  const username =
-    retryCount === 0 ? baseUsername : `${baseUsername}${retryCount}`;
+  const username = retryCount === 0 ? baseUsername : `${baseUsername}${retryCount}`;
 
   const existingUser = await User.findOne({
     where: { username },
-    attributes: ["userid"],
+    attributes: ['userid'],
   });
 
   if (existingUser) {
@@ -81,16 +80,16 @@ const registerUser = async (req, res) => {
     // Check existing user with optimized query
     const existingUser = await User.findOne({
       where: { email },
-      attributes: ["userid", "email"],
+      attributes: ['userid', 'email'],
       transaction,
     });
 
     if (existingUser) {
       await transaction.rollback();
       return res.status(409).json({
-        status: "error",
-        code: "EMAIL_EXISTS",
-        message: "An account with this email already exists",
+        status: 'error',
+        code: 'EMAIL_EXISTS',
+        message: 'An account with this email already exists',
       });
     }
 
@@ -107,9 +106,9 @@ const registerUser = async (req, res) => {
         username,
         email: email.toLowerCase(),
         password: hashedPassword,
-        status: "pending",
+        status: 'pending',
       },
-      { transaction },
+      { transaction }
     );
 
     // Generate and store OTP
@@ -121,7 +120,7 @@ const registerUser = async (req, res) => {
         otp,
         expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60000),
       },
-      { transaction },
+      { transaction }
     );
 
     // Send OTP email
@@ -130,8 +129,8 @@ const registerUser = async (req, res) => {
     await transaction.commit();
 
     return res.status(201).json({
-      status: "success",
-      message: "Registration successful. Please verify your email.",
+      status: 'success',
+      message: 'Registration successful. Please verify your email.',
       data: {
         email: user.email,
         requiresVerification: true,
@@ -142,8 +141,8 @@ const registerUser = async (req, res) => {
 
     if (error instanceof Yup.ValidationError) {
       return res.status(400).json({
-        status: "error",
-        code: "VALIDATION_ERROR",
+        status: 'error',
+        code: 'VALIDATION_ERROR',
         errors: error.inner.map((err) => ({
           field: err.path,
           message: err.message,
@@ -154,9 +153,9 @@ const registerUser = async (req, res) => {
     console.log(error);
 
     return res.status(500).json({
-      status: "error",
-      code: "SERVER_ERROR",
-      message: "An unexpected error occurred. Please try again later.",
+      status: 'error',
+      code: 'SERVER_ERROR',
+      message: 'An unexpected error occurred. Please try again later.',
     });
   }
 };
@@ -165,8 +164,8 @@ const registerUser = async (req, res) => {
 const errorHandler = (err, req, res, next) => {
   if (err instanceof Yup.ValidationError) {
     return res.status(400).json({
-      status: "error",
-      code: "VALIDATION_ERROR",
+      status: 'error',
+      code: 'VALIDATION_ERROR',
       errors: err.inner.map((error) => ({
         field: error.path,
         message: error.message,
@@ -175,9 +174,9 @@ const errorHandler = (err, req, res, next) => {
   }
 
   return res.status(500).json({
-    status: "error",
-    code: "SERVER_ERROR",
-    message: "An unexpected error occurred. Please try again later.",
+    status: 'error',
+    code: 'SERVER_ERROR',
+    message: 'An unexpected error occurred. Please try again later.',
   });
 };
 

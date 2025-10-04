@@ -1,11 +1,11 @@
-import React, { useContext, useEffect, useState } from "react";
-import ChatWithUser from "./ChatWithUser";
-import SearchUser from "./SearchUser";
-import { ChatContext } from "../../Context/ChatContext";
-import { Context } from "../../Context/Context";
-import { useLocation, useNavigate } from "react-router-dom";
-import DotPattern from "../ui/dot-pattern";
-import { cn } from "@/lib/utils";
+import React, { useContext, useEffect, useState } from 'react';
+import ChatWithUser from './ChatWithUser';
+import SearchUser from './SearchUser';
+import { ChatContext } from '../../Context/ChatContext';
+import { Context } from '../../Context/Context';
+import { useLocation, useNavigate } from 'react-router-dom';
+import DotPattern from '../ui/dot-pattern';
+import { cn } from '@/lib/utils';
 
 const Chat = () => {
   const { user } = useContext(Context);
@@ -29,11 +29,9 @@ const Chat = () => {
 
   useEffect(() => {
     if (notificationChatData) {
-      const findChat = users.find(
-        (user) => user?.chatid === notificationChatData?.chatid,
-      );
+      const findChat = users.find((user) => user?.chatid === notificationChatData?.chatid);
       setCurrentChat(findChat);
-      navigate("/chat", { replace: true });
+      navigate('/chat', { replace: true });
     }
   }, [notificationChatData, users, navigate]);
 
@@ -41,8 +39,8 @@ const Chat = () => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const usersWithStatus = users.map((user) => ({
@@ -52,7 +50,7 @@ const Chat = () => {
 
   if (isMobile) {
     return (
-      <div className="relative">
+      <div className='relative'>
         {currentChat ? (
           <ChatWithUser
             setCurrentChat={setCurrentChat}
@@ -74,8 +72,8 @@ const Chat = () => {
   }
 
   return (
-    <div className="flex mx-auto">
-      <div className="w-[30%]">
+    <div className='flex mx-auto'>
+      <div className='w-[30%]'>
         <SearchUser
           setUsers={setUsers}
           users={usersWithStatus}
@@ -86,7 +84,7 @@ const Chat = () => {
           socket={socket}
         />
       </div>
-      <div className="w-[70%]">
+      <div className='w-[70%]'>
         <ChatWithUser
           setCurrentChat={setCurrentChat}
           currentChat={currentChat}

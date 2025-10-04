@@ -1,10 +1,10 @@
-const nodemailer = require("nodemailer");
+const nodemailer = require('nodemailer');
 
 // Function to send OTP to the user's email
 
 const otpMailSender = async (email, otp, callback) => {
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    service: 'gmail',
     auth: {
       user: process.env.GMAIL_ID,
       pass: process.env.GMAIL_PASSWORD,
@@ -88,10 +88,10 @@ const otpMailSender = async (email, otp, callback) => {
 
   transporter.sendMail(mailOptions, (error) => {
     if (error) {
-      console.error("Error sending email:", error);
+      console.error('Error sending email:', error);
       callback(error);
     } else {
-      console.log("Email sent");
+      console.log('Email sent');
       callback(null);
     }
   });

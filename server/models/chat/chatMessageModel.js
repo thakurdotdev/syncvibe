@@ -1,12 +1,12 @@
-const { DataTypes, Model } = require("sequelize");
-const sequelize = require("../../utils/sequelize");
-const Chat = require("./chatModel");
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
+const Chat = require('./chatModel');
 
 class ChatMessage extends Model {
   static async findLatestByChatId(chatId) {
     return this.findOne({
       where: { chatid: chatId },
-      order: [["createdat", "DESC"]],
+      order: [['createdat', 'DESC']],
     });
   }
 }
@@ -22,8 +22,8 @@ ChatMessage.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: "chats",
-        key: "chatid",
+        model: 'chats',
+        key: 'chatid',
       },
     },
     senderid: {
@@ -61,31 +61,31 @@ ChatMessage.init(
   },
   {
     sequelize,
-    modelName: "ChatMessage",
+    modelName: 'ChatMessage',
     timestamps: false,
-    tableName: "chatmessage",
+    tableName: 'chatmessage',
     indexes: [
       {
-        fields: ["chatid"],
+        fields: ['chatid'],
       },
       {
-        fields: ["createdat"],
+        fields: ['createdat'],
       },
       {
-        fields: ["chatid", "createdat"],
+        fields: ['chatid', 'createdat'],
       },
     ],
-  },
+  }
 );
 
 ChatMessage.belongsTo(Chat, {
-  foreignKey: "chatid",
-  as: "Chat",
+  foreignKey: 'chatid',
+  as: 'Chat',
 });
 
 Chat.hasMany(ChatMessage, {
-  foreignKey: "chatid",
-  as: "Messages",
+  foreignKey: 'chatid',
+  as: 'Messages',
 });
 
 // ChatMessage.sync({ alter: true });

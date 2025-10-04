@@ -1,7 +1,7 @@
-import { usePlaylist } from "@/Context/PlayerContext";
-import { memo } from "react";
-import { AutoSizer, List } from "react-virtualized";
-import { SongCard } from "../Cards";
+import { usePlaylist } from '@/Context/PlayerContext';
+import { memo } from 'react';
+import { AutoSizer, List } from 'react-virtualized';
+import { SongCard } from '../Cards';
 
 const QueueTab = memo(() => {
   const { playlist } = usePlaylist();
@@ -15,14 +15,14 @@ const QueueTab = memo(() => {
 
   if (!playlist?.length) {
     return (
-      <div className="flex justify-center items-center h-[80vh]">
-        <p className="text-lg text-gray-500">No songs in queue</p>
+      <div className='flex justify-center items-center h-[80vh]'>
+        <p className='text-lg text-gray-500'>No songs in queue</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-[90vh]">
+    <div className='w-full h-[90vh]'>
       <AutoSizer>
         {({ height, width }) => (
           <List
@@ -31,7 +31,7 @@ const QueueTab = memo(() => {
             rowCount={playlist.length}
             rowHeight={rowHeight}
             rowRenderer={renderRow}
-            className="w-full max-w-3xl mx-auto p-4"
+            className='w-full max-w-3xl mx-auto p-4'
             overscanRowCount={5}
           />
         )}
@@ -40,5 +40,5 @@ const QueueTab = memo(() => {
   );
 });
 
-QueueTab.displayName = "QueueTab";
+QueueTab.displayName = 'QueueTab';
 export default QueueTab;

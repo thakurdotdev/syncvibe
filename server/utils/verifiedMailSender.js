@@ -1,8 +1,8 @@
-const nodemailer = require("nodemailer");
+const nodemailer = require('nodemailer');
 
 const verifiedMailSender = async (email, firstName, callback) => {
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    service: 'gmail',
     auth: {
       user: process.env.GMAIL_ID,
       pass: process.env.GMAIL_PASSWORD,
@@ -90,7 +90,7 @@ const verifiedMailSender = async (email, firstName, callback) => {
 `;
 
   const mailOptions = {
-    from: "SyncVibe",
+    from: 'SyncVibe',
     to: email,
     subject: `Account Verified on SyncVibe`,
     html: emailContent,
@@ -98,10 +98,10 @@ const verifiedMailSender = async (email, firstName, callback) => {
 
   transporter.sendMail(mailOptions, (error) => {
     if (error) {
-      console.error("Error sending email:", error);
+      console.error('Error sending email:', error);
       callback(error);
     } else {
-      console.log("Email sent");
+      console.log('Email sent');
       callback(null);
     }
   });

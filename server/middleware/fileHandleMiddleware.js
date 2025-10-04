@@ -1,4 +1,4 @@
-const multer = require("multer");
+const multer = require('multer');
 const storage = multer.memoryStorage();
 
 const fileHandleMiddleware = multer({
@@ -18,7 +18,7 @@ function checkFileType(file, cb) {
   };
 
   // Get the file type (image or video)
-  const fileType = file.mimetype.startsWith("video/") ? "video" : "image";
+  const fileType = file.mimetype.startsWith('video/') ? 'video' : 'image';
 
   // Get the appropriate regex for the file type
   const filetypes = allowedTypes[fileType];
@@ -28,13 +28,11 @@ function checkFileType(file, cb) {
   const mimetype = filetypes.test(file.mimetype);
 
   // Validate file size based on type
-  const maxSize = fileType === "video" ? 30 * 1024 * 1024 : 5 * 1024 * 1024;
+  const maxSize = fileType === 'video' ? 30 * 1024 * 1024 : 5 * 1024 * 1024;
 
   if (file.size > maxSize) {
     return cb(
-      `Error: File too large. Maximum size for ${fileType}s is ${
-        maxSize / (1024 * 1024)
-      }MB`,
+      `Error: File too large. Maximum size for ${fileType}s is ${maxSize / (1024 * 1024)}MB`
     );
   }
 
@@ -43,11 +41,7 @@ function checkFileType(file, cb) {
     file.mediaType = fileType;
     return cb(null, true);
   } else {
-    cb(
-      `Error: Only ${Object.keys(allowedTypes).join(
-        " and ",
-      )} files are allowed!`,
-    );
+    cb(`Error: Only ${Object.keys(allowedTypes).join(' and ')} files are allowed!`);
   }
 }
 

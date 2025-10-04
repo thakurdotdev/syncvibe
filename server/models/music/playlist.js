@@ -1,9 +1,9 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../../utils/sequelize");
-const PlaylistSong = require("./playlistSong");
+const { DataTypes } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
+const PlaylistSong = require('./playlistSong');
 
 const Playlist = sequelize.define(
-  "Playlist",
+  'Playlist',
   {
     id: {
       type: DataTypes.INTEGER,
@@ -30,23 +30,23 @@ const Playlist = sequelize.define(
   },
   {
     timestamps: false,
-    tableName: "playlists",
-  },
+    tableName: 'playlists',
+  }
 );
 
 // Define associations
 Playlist.hasMany(PlaylistSong, {
-  foreignKey: "playlistId",
-  as: "latestSong", // Alias used for the relationship
+  foreignKey: 'playlistId',
+  as: 'latestSong', // Alias used for the relationship
 });
 
 Playlist.hasMany(PlaylistSong, {
-  foreignKey: "playlistId",
-  as: "songs", // Alias used for the relationship
+  foreignKey: 'playlistId',
+  as: 'songs', // Alias used for the relationship
 });
 
 PlaylistSong.belongsTo(Playlist, {
-  foreignKey: "playlistId",
+  foreignKey: 'playlistId',
 });
 
 // PlaylistSong.sync({ alter: true }).then(() => {

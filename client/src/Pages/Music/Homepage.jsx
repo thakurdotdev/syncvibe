@@ -1,23 +1,18 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
-import {
-  AlbumCard,
-  ArtistCard,
-  NewSongCard,
-  PlaylistCard,
-} from "@/Pages/Music/Cards";
-import axios from "axios";
-import { Loader2, Music2 } from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
-import { LoadingState } from "./Common";
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+import { AlbumCard, ArtistCard, NewSongCard, PlaylistCard } from '@/Pages/Music/Cards';
+import axios from 'axios';
+import { Loader2, Music2 } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { LoadingState } from './Common';
 
 const LazySection = React.memo(({ title, children, className }) => {
   return (
-    <section className={cn("space-y-2", className)}>
-      <div className="flex items-center justify-between px-4 md:px-0">
-        <h2 className="text-lg md:text-2xl font-semibold tracking-tight hover:text-primary transition-colors">
+    <section className={cn('space-y-2', className)}>
+      <div className='flex items-center justify-between px-4 md:px-0'>
+        <h2 className='text-lg md:text-2xl font-semibold tracking-tight hover:text-primary transition-colors'>
           {title}
         </h2>
       </div>
@@ -27,23 +22,19 @@ const LazySection = React.memo(({ title, children, className }) => {
 });
 
 const ScrollableSection = React.memo(({ children }) => (
-  <ScrollArea className="w-full whitespace-nowrap">
-    <div className="flex space-x-4 pb-4">{children}</div>
-    <ScrollBar orientation="horizontal" />
+  <ScrollArea className='w-full whitespace-nowrap'>
+    <div className='flex space-x-4 pb-4'>{children}</div>
+    <ScrollBar orientation='horizontal' />
   </ScrollArea>
 ));
 
 const ErrorState = React.memo(({ error, onRetry }) => (
-  <Card className="flex flex-col items-center justify-center min-h-[50vh] p-8 bg-background/50 backdrop-blur-sm">
-    <Music2 className="w-16 h-16 text-muted-foreground mb-4" />
-    <p className="text-lg text-destructive text-center font-medium mb-2">
-      {error}
-    </p>
-    <p className="text-sm text-muted-foreground mb-6">
-      Please check your connection and try again
-    </p>
-    <Button onClick={onRetry} variant="default" className="gap-2">
-      <Loader2 className="w-4 h-4 animate-spin" />
+  <Card className='flex flex-col items-center justify-center min-h-[50vh] p-8 bg-background/50 backdrop-blur-sm'>
+    <Music2 className='w-16 h-16 text-muted-foreground mb-4' />
+    <p className='text-lg text-destructive text-center font-medium mb-2'>{error}</p>
+    <p className='text-sm text-muted-foreground mb-6'>Please check your connection and try again</p>
+    <Button onClick={onRetry} variant='default' className='gap-2'>
+      <Loader2 className='w-4 h-4 animate-spin' />
       Try Again
     </Button>
   </Card>
@@ -64,7 +55,7 @@ const HomePage = () => {
       setLoading(true);
       setError(null);
       const response = await axios.get(
-        `${import.meta.env.VITE_SONG_URL}/modules?lang=hindi&mini=true`,
+        `${import.meta.env.VITE_SONG_URL}/modules?lang=hindi&mini=true`
       );
 
       if (response.status === 200) {
@@ -80,8 +71,8 @@ const HomePage = () => {
         });
       }
     } catch (error) {
-      setError("Failed to load content. Please try again later.");
-      console.error("Error fetching homepage data:", error);
+      setError('Failed to load content. Please try again later.');
+      console.error('Error fetching homepage data:', error);
     } finally {
       setLoading(false);
     }
@@ -94,7 +85,7 @@ const HomePage = () => {
         `${import.meta.env.VITE_API_URL}/api/music/recommendations`,
         {
           withCredentials: true,
-        },
+        }
       );
 
       if (response.status === 200) {
@@ -106,7 +97,7 @@ const HomePage = () => {
         });
       }
     } catch (error) {
-      console.error("Error fetching recommendations:", error);
+      console.error('Error fetching recommendations:', error);
     } finally {
       setReccLoading(false);
     }
@@ -125,25 +116,21 @@ const HomePage = () => {
   if (!homePageData) return null;
 
   return (
-    <div className="relative space-y-8 pb-20">
-      <div className="px-4 md:px-6 space-y-4">
+    <div className='relative space-y-8 pb-20'>
+      <div className='px-4 md:px-6 space-y-4'>
         {reccLoading ? (
-          <div className="pt-6 h-[200px] flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin" />
+          <div className='pt-6 h-[200px] flex items-center justify-center'>
+            <Loader2 className='w-8 h-8 animate-spin' />
           </div>
         ) : (
           recommendations.recentlyPlayed.length > 0 && (
-            <LazySection
-              title="Recetly Played"
-              className="pt-6"
-              priority={true}
-            >
+            <LazySection title='Recetly Played' className='pt-6' priority={true}>
               <ScrollableSection>
                 {recommendations.recentlyPlayed.map((song) => (
                   <NewSongCard
                     key={song.id}
                     song={song}
-                    className="transform transition-transform hover:scale-105"
+                    className='transform transition-transform hover:scale-105'
                   />
                 ))}
               </ScrollableSection>
@@ -152,22 +139,18 @@ const HomePage = () => {
         )}
 
         {reccLoading ? (
-          <div className="pt-6 h-[200px] flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin" />
+          <div className='pt-6 h-[200px] flex items-center justify-center'>
+            <Loader2 className='w-8 h-8 animate-spin' />
           </div>
         ) : (
           recommendations.songs.length > 0 && (
-            <LazySection
-              title="Mostly You Listen"
-              className="pt-6"
-              priority={true}
-            >
+            <LazySection title='Mostly You Listen' className='pt-6' priority={true}>
               <ScrollableSection>
                 {recommendations.songs.map((song) => (
                   <NewSongCard
                     key={song.id}
                     song={song}
-                    className="transform transition-transform hover:scale-105"
+                    className='transform transition-transform hover:scale-105'
                   />
                 ))}
               </ScrollableSection>
@@ -175,76 +158,76 @@ const HomePage = () => {
           )
         )}
 
-        <LazySection title="Trending Now" priority={true}>
+        <LazySection title='Trending Now' priority={true}>
           <ScrollableSection>
             {homePageData.trending.map((song) => (
               <NewSongCard
                 key={song.id}
                 song={song}
-                className="transform transition-transform hover:scale-105"
+                className='transform transition-transform hover:scale-105'
               />
             ))}
           </ScrollableSection>
         </LazySection>
 
-        <LazySection title="Top Playlists">
+        <LazySection title='Top Playlists'>
           <ScrollableSection>
             {homePageData.playlists.map((playlist) => (
               <PlaylistCard
                 key={playlist.id}
                 playlist={playlist}
-                className="min-w-[200px] transform transition-transform hover:scale-105"
+                className='min-w-[200px] transform transition-transform hover:scale-105'
               />
             ))}
           </ScrollableSection>
         </LazySection>
 
-        <LazySection title="Top Charts">
+        <LazySection title='Top Charts'>
           <ScrollableSection>
             {homePageData.charts.map((playlist) => (
               <PlaylistCard
                 key={playlist.id}
                 playlist={playlist}
-                className="min-w-[200px] transform transition-transform hover:scale-105"
+                className='min-w-[200px] transform transition-transform hover:scale-105'
               />
             ))}
           </ScrollableSection>
         </LazySection>
 
         {homePageData.artists.length > 0 && (
-          <LazySection title="Top Artists">
+          <LazySection title='Top Artists'>
             <ScrollableSection>
               {homePageData.artists.map((artist) => (
                 <ArtistCard
                   key={artist.id}
                   artist={artist}
-                  className="min-w-[150px] transform transition-transform hover:scale-105"
+                  className='min-w-[150px] transform transition-transform hover:scale-105'
                 />
               ))}
             </ScrollableSection>
           </LazySection>
         )}
 
-        <LazySection title="Top Albums">
+        <LazySection title='Top Albums'>
           <ScrollableSection>
             {homePageData.albums.map((album) => (
               <AlbumCard
                 key={album.id}
                 album={album}
-                className="min-w-[200px] transform transition-transform hover:scale-105"
+                className='min-w-[200px] transform transition-transform hover:scale-105'
               />
             ))}
           </ScrollableSection>
         </LazySection>
 
         {homePageData.bhakti.length > 0 && (
-          <LazySection title="Random">
+          <LazySection title='Random'>
             <ScrollableSection>
               {homePageData.bhakti.map((song) => (
                 <NewSongCard
                   key={song.id}
                   song={song}
-                  className="transform transition-transform hover:scale-105"
+                  className='transform transition-transform hover:scale-105'
                 />
               ))}
             </ScrollableSection>

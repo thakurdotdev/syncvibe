@@ -1,7 +1,7 @@
-import { createContext, useEffect, useState } from "react";
-import axios from "axios";
-import { useContext } from "react";
-import { useMemo } from "react";
+import { createContext, useEffect, useState } from 'react';
+import axios from 'axios';
+import { useContext } from 'react';
+import { useMemo } from 'react';
 
 export const Context = createContext();
 
@@ -18,7 +18,7 @@ export const ContextProvider = ({ children }) => {
   }, [user]);
 
   useEffect(() => {
-    const dataFromStorage = localStorage.getItem("musicConfig");
+    const dataFromStorage = localStorage.getItem('musicConfig');
     if (dataFromStorage) {
       setMusicConfig(JSON.parse(dataFromStorage));
     }
@@ -26,17 +26,14 @@ export const ContextProvider = ({ children }) => {
 
   const getProfile = async () => {
     try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/profile`,
-        {
-          withCredentials: true,
-        },
-      );
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/profile`, {
+        withCredentials: true,
+      });
       if (response.status === 200) {
         setUser(response.data.user);
       }
     } catch (error) {
-      console.error("Error fetching profile:", error.message);
+      console.error('Error fetching profile:', error.message);
     } finally {
       setLoading(false);
     }
@@ -51,7 +48,7 @@ export const ContextProvider = ({ children }) => {
       musicConfig,
       setMusicConfig,
     }),
-    [user, loading, musicConfig],
+    [user, loading, musicConfig]
   );
 
   return <Context.Provider value={memoizedValue}>{children}</Context.Provider>;

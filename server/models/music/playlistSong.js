@@ -1,8 +1,8 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../../utils/sequelize");
+const { DataTypes } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
 
 const PlaylistSong = sequelize.define(
-  "Playlist",
+  'Playlist',
   {
     id: {
       type: DataTypes.INTEGER,
@@ -13,8 +13,8 @@ const PlaylistSong = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: "playlists",
-        key: "id",
+        model: 'playlists',
+        key: 'id',
       },
     },
     songId: {
@@ -33,8 +33,8 @@ const PlaylistSong = sequelize.define(
   },
   {
     timestamps: false,
-    tableName: "playlist_songs",
-  },
+    tableName: 'playlist_songs',
+  }
 );
 
 // PlaylistSong.sync({ alter: true }).then(() => {

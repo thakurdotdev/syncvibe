@@ -1,13 +1,13 @@
-const passport = require("passport");
-const { Strategy: GoogleStrategy } = require("passport-google-oauth20");
-const jwt = require("jsonwebtoken");
-const { UserLoginType, JWTExpiryDate } = require("../constant");
-const User = require("../models/auth/userModel");
+const passport = require('passport');
+const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
+const jwt = require('jsonwebtoken');
+const { UserLoginType, JWTExpiryDate } = require('../constant');
+const User = require('../models/auth/userModel');
 
 function generateToken(user) {
   const payload = {
     userid: user.userid,
-    role: "user",
+    role: 'user',
     name: user.name,
     username: user.username,
     email: user.email,
@@ -39,7 +39,7 @@ passport.use(
         if (!user) {
           const newUser = await User.create({
             name: profile._json.name,
-            username: profile._json.email.split("@")[0],
+            username: profile._json.email.split('@')[0],
             email: profile._json.email,
             password: profile._json.sub,
             profilepic: profile._json.picture,
@@ -54,8 +54,8 @@ passport.use(
       } catch (err) {
         return next(err);
       }
-    },
-  ),
+    }
+  )
 );
 
 passport.serializeUser((user, done) => done(null, user));

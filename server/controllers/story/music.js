@@ -1,4 +1,4 @@
-const Music = require("../../models/Story/music");
+const Music = require('../../models/Story/music');
 
 const getLatestMusic = async (req, res) => {
   try {
@@ -17,7 +17,7 @@ const getLatestMusic = async (req, res) => {
       where: where,
       limit: limit,
       offset: offset,
-      order: [["postedtime", "DESC"]],
+      order: [['postedtime', 'DESC']],
     });
 
     res.status(200).json(music);

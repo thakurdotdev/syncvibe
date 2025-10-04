@@ -1,17 +1,10 @@
-import {
-  createContext,
-  useContext,
-  useCallback,
-  useRef,
-  useEffect,
-  useState,
-} from "react";
-import { useSocket } from "@/Context/ChatContext";
-import { useProfile } from "@/Context/Context";
-import axios from "axios";
-import _ from "lodash";
-import { toast } from "sonner";
-import { ensureHttpsForDownloadUrls } from "@/Pages/Music/Common";
+import { createContext, useContext, useCallback, useRef, useEffect, useState } from 'react';
+import { useSocket } from '@/Context/ChatContext';
+import { useProfile } from '@/Context/Context';
+import axios from 'axios';
+import _ from 'lodash';
+import { toast } from 'sonner';
+import { ensureHttpsForDownloadUrls } from '@/Pages/Music/Common';
 
 export const GroupMusicContext = createContext(null);
 
@@ -24,7 +17,7 @@ export function GroupMusicProvider({ children }) {
   const [duration, setDuration] = useState(0);
   const [groupMembers, setGroupMembers] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [currentSong, setCurrentSong] = useState(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [volume, setVolume] = useState(0.7);
@@ -44,32 +37,32 @@ export function GroupMusicProvider({ children }) {
   }, [serverTimeOffset]);
 
   const formatTime = (seconds) => {
-    if (!seconds) return "0:00";
+    if (!seconds) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const updateMediaSession = useCallback((song) => {
-    if (!("mediaSession" in navigator)) return;
+    if (!('mediaSession' in navigator)) return;
 
     navigator.mediaSession.metadata = new MediaMetadata({
       title: song.name,
       artist: song?.artist_map?.artists
         ?.slice(0, 3)
         ?.map((artist) => artist.name)
-        .join(", "),
+        .join(', '),
       album: song?.album,
       artwork: song.image?.[2]?.link
-        ? [{ src: song.image[2].link, sizes: "500x500", type: "image/jpeg" }]
+        ? [{ src: song.image[2].link, sizes: '500x500', type: 'image/jpeg' }]
         : [],
     });
 
-    navigator.mediaSession.setActionHandler("play", () => {
+    navigator.mediaSession.setActionHandler('play', () => {
       handlePlayPause(true);
     });
 
-    navigator.mediaSession.setActionHandler("pause", () => {
+    navigator.mediaSession.setActionHandler('pause', () => {
       handlePlayPause(false);
     });
 
@@ -101,7 +94,7 @@ export function GroupMusicProvider({ children }) {
 
         audioRef.current.onended = () => {
           setIsPlaying(false);
-          socket.emit("music-playback", {
+          socket.emit('music-playback', {
             groupId: currentGroup?.id,
             isPlaying: false,
             currentTime: 0,
@@ -112,21 +105,20 @@ export function GroupMusicProvider({ children }) {
         audioRef.current.volume = volume;
       }
     } catch (error) {
-      console.error("Error loading audio:", error);
-      toast.error("Failed to load audio");
+      console.error('Error loading audio:', error);
+      toast.error('Failed to load audio');
       setIsLoading(false);
     }
   };
 
   const handlePlayPause = async (forceState) => {
-    const newIsPlaying =
-      typeof forceState === "boolean" ? forceState : !isPlaying;
+    const newIsPlaying = typeof forceState === 'boolean' ? forceState : !isPlaying;
     const currentAudioTime = audioRef.current?.currentTime || 0;
 
     try {
       const scheduledTime = getServerTime() + 300;
 
-      socket.emit("music-playback", {
+      socket.emit('music-playback', {
         groupId: currentGroup?.id,
         isPlaying: newIsPlaying,
         currentTime: currentAudioTime,
@@ -138,7 +130,7 @@ export function GroupMusicProvider({ children }) {
           try {
             await audioRef.current.play();
           } catch (err) {
-            console.error("Error playing audio:", err);
+            console.error('Error playing audio:', err);
           }
         } else {
           audioRef.current.pause();
@@ -149,7 +141,7 @@ export function GroupMusicProvider({ children }) {
       const delay = Math.max(0, scheduledTime - getServerTime());
       setTimeout(executePlayback, delay);
     } catch (error) {
-      console.error("Playback control error:", error);
+      console.error('Playback control error:', error);
     }
   };
 
@@ -159,7 +151,7 @@ export function GroupMusicProvider({ children }) {
     const newTime = value[0];
     const scheduledTime = getServerTime() + 300;
 
-    socket.emit("music-seek", {
+    socket.emit('music-seek', {
       groupId: currentGroup?.id,
       currentTime: newTime,
       scheduledTime,
@@ -186,12 +178,10 @@ export function GroupMusicProvider({ children }) {
       setDuration(0);
       setCurrentTime(0);
 
-      const url = selectSong.download_url.find(
-        (url) => url.quality === "320kbps",
-      ).link;
+      const url = selectSong.download_url.find((url) => url.quality === '320kbps').link;
       await loadAudio(url);
 
-      socket.emit("music-change", {
+      socket.emit('music-change', {
         groupId: currentGroup?.id,
         song: securedSong,
         currentTime: 0,
@@ -199,10 +189,10 @@ export function GroupMusicProvider({ children }) {
       });
 
       setIsSearchOpen(false);
-      setSearchQuery("");
+      setSearchQuery('');
       setSearchResults([]);
     } catch (error) {
-      toast.error("Failed to load song");
+      toast.error('Failed to load song');
     } finally {
       setIsLoading(false);
     }
@@ -218,25 +208,25 @@ export function GroupMusicProvider({ children }) {
       try {
         setIsSearchLoading(true);
         const response = await axios.get(
-          `${import.meta.env.VITE_SONG_URL}/search/songs?q=${query}`,
+          `${import.meta.env.VITE_SONG_URL}/search/songs?q=${query}`
         );
         setSearchResults(response.data?.data?.results || []);
       } catch (error) {
-        toast.error("Search failed. Please try again.");
+        toast.error('Search failed. Please try again.');
       } finally {
         setIsSearchLoading(false);
       }
     }, 500),
-    [],
+    []
   );
 
   const createGroup = (groupName) => {
     if (!groupName.trim()) {
-      toast.error("Please enter a group name");
+      toast.error('Please enter a group name');
       return;
     }
 
-    socket.emit("create-music-group", {
+    socket.emit('create-music-group', {
       name: groupName,
       createdBy: user.userid,
       userName: user.name,
@@ -248,7 +238,7 @@ export function GroupMusicProvider({ children }) {
   const joinGroup = (groupId) => {
     if (!groupId.trim()) return;
 
-    socket.emit("join-music-group", {
+    socket.emit('join-music-group', {
       groupId,
       userId: user.userid,
       userName: user.name,
@@ -260,7 +250,7 @@ export function GroupMusicProvider({ children }) {
   const leaveGroup = () => {
     if (!currentGroup) return;
 
-    socket.emit("leave-group", {
+    socket.emit('leave-group', {
       groupId: currentGroup.id,
       userId: user.userid,
     });
@@ -281,7 +271,7 @@ export function GroupMusicProvider({ children }) {
   const sendMessage = (message) => {
     if (!message.trim()) return;
 
-    socket.emit("chat-message", {
+    socket.emit('chat-message', {
       groupId: currentGroup?.id,
       senderId: user.userid,
       profilePic: user.profilepic,
@@ -294,10 +284,10 @@ export function GroupMusicProvider({ children }) {
     if (socket) {
       const syncWithServer = () => {
         const startTime = Date.now();
-        socket.emit("time-sync-request", { clientTime: startTime });
+        socket.emit('time-sync-request', { clientTime: startTime });
       };
 
-      socket.on("time-sync-response", (data) => {
+      socket.on('time-sync-response', (data) => {
         const endTime = Date.now();
         const roundTripTime = endTime - data.clientTime;
         const serverTime = data.serverTime + roundTripTime / 2;
@@ -320,14 +310,10 @@ export function GroupMusicProvider({ children }) {
   useEffect(() => {
     if (!socket) return;
 
-    socket.on("playback-update", (data) => {
+    socket.on('playback-update', (data) => {
       const serverNow = getServerTime();
       lastPlaybackUpdateRef.current = serverNow;
-      const {
-        isPlaying: newIsPlaying,
-        currentTime: newTime,
-        scheduledTime,
-      } = data;
+      const { isPlaying: newIsPlaying, currentTime: newTime, scheduledTime } = data;
       const timeUntilPlay = Math.max(0, scheduledTime - serverNow);
 
       if (audioRef.current) {
@@ -348,27 +334,28 @@ export function GroupMusicProvider({ children }) {
       setLastSync(serverNow);
     });
 
-    socket.on("music-update", async ({ song, currentTime, scheduledTime }) => {
+    socket.on('music-update', async ({ song, currentTime, scheduledTime }) => {
       setCurrentSong(song);
-      const url = song.download_url.find(
-        (url) => url.quality === "320kbps",
-      ).link;
+      const url = song.download_url.find((url) => url.quality === '320kbps').link;
 
       await loadAudio(url);
 
       const timeUntilPlay = scheduledTime - (Date.now() + serverTimeOffset);
 
-      setTimeout(() => {
-        if (audioRef.current) {
-          audioRef.current.currentTime = currentTime;
-          if (isPlaying) {
-            audioRef.current.play();
+      setTimeout(
+        () => {
+          if (audioRef.current) {
+            audioRef.current.currentTime = currentTime;
+            if (isPlaying) {
+              audioRef.current.play();
+            }
           }
-        }
-      }, Math.max(0, timeUntilPlay));
+        },
+        Math.max(0, timeUntilPlay)
+      );
     });
 
-    socket.on("group-created", (group) => {
+    socket.on('group-created', (group) => {
       setCurrentGroup(group);
       setGroupMembers([
         {
@@ -380,7 +367,7 @@ export function GroupMusicProvider({ children }) {
       ]);
     });
 
-    socket.on("group-joined", (data) => {
+    socket.on('group-joined', (data) => {
       const { group, members, playbackState } = data;
       setCurrentGroup(group);
       setGroupMembers(members);
@@ -403,43 +390,41 @@ export function GroupMusicProvider({ children }) {
       }
     });
 
-    socket.on("member-joined", (member) => {
+    socket.on('member-joined', (member) => {
       setGroupMembers((prev) => {
         if (prev.find((m) => m.userId === member.userId)) return prev;
         return [...prev, member];
       });
     });
 
-    socket.on("member-left", ({ userId }) => {
+    socket.on('member-left', ({ userId }) => {
       if (userId) {
-        setGroupMembers((prev) =>
-          prev.filter((member) => member.userId !== userId),
-        );
+        setGroupMembers((prev) => prev.filter((member) => member.userId !== userId));
       }
     });
 
-    socket.on("group-disbanded", () => {
+    socket.on('group-disbanded', () => {
       setCurrentGroup(null);
       setCurrentSong(null);
       setIsPlaying(false);
       setMessages([]);
       setGroupMembers([]);
-      toast.info("Group disbanded");
+      toast.info('Group disbanded');
     });
 
-    socket.on("new-message", (message) => {
+    socket.on('new-message', (message) => {
       setMessages((prev) => [...prev, message]);
     });
 
     return () => {
-      socket.off("playback-update");
-      socket.off("music-update");
-      socket.off("group-created");
-      socket.off("group-joined");
-      socket.off("member-joined");
-      socket.off("member-left");
-      socket.off("group-disbanded");
-      socket.off("new-message");
+      socket.off('playback-update');
+      socket.off('music-update');
+      socket.off('group-created');
+      socket.off('group-joined');
+      socket.off('member-joined');
+      socket.off('member-left');
+      socket.off('group-disbanded');
+      socket.off('new-message');
     };
   }, [socket, isPlaying, serverTimeOffset, user, loadAudio]);
 
@@ -503,7 +488,7 @@ export function GroupMusicProvider({ children }) {
 export const useGroupMusic = () => {
   const context = useContext(GroupMusicContext);
   if (!context) {
-    throw new Error("useMusic must be used within a MusicProvider");
+    throw new Error('useMusic must be used within a MusicProvider');
   }
   return context;
 };

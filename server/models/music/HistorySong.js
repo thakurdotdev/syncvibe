@@ -1,5 +1,5 @@
-const { DataTypes, Model } = require("sequelize");
-const sequelize = require("../../utils/sequelize");
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
 
 class HistorySong extends Model {}
 
@@ -14,8 +14,8 @@ HistorySong.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: "users",
-        key: "userid",
+        model: 'users',
+        key: 'userid',
       },
     },
     songId: {
@@ -101,15 +101,15 @@ HistorySong.init(
   {
     sequelize,
     timestamps: false,
-    tableName: "history_songs",
-    modelName: "HistorySong",
+    tableName: 'history_songs',
+    modelName: 'HistorySong',
     indexes: [
       {
-        fields: ["userId", "songId"],
+        fields: ['userId', 'songId'],
         unique: true,
       },
     ],
-  },
+  }
 );
 
 // HistorySong.sync({ alter: true }).then(() => {

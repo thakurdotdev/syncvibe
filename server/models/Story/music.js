@@ -1,5 +1,5 @@
-const { DataTypes, Model } = require("sequelize");
-const sequelize = require("../../utils/sequelize");
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
 
 class Music extends Model {}
 
@@ -34,16 +34,16 @@ Music.init(
   },
   {
     sequelize,
-    modelName: "Music",
+    modelName: 'Music',
     timestamps: false,
-    tableName: "musics",
+    tableName: 'musics',
     indexes: [
       {
-        fields: ["postedtime", "id"],
-        using: "BTREE",
+        fields: ['postedtime', 'id'],
+        using: 'BTREE',
       },
     ],
-  },
+  }
 );
 
 // Music.sync({ alter: true }).then(() => console.log("Story table created"));
