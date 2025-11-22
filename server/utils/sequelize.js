@@ -1,3 +1,7 @@
+// Force IPv4 first (critical for Render)
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 const { configDotenv } = require('dotenv');
 const Sequelize = require('sequelize');
 
@@ -5,45 +9,44 @@ configDotenv();
 
 // Connection pool configuration
 const poolConfig = {
-  max: 20, // Maximum number of connection instances
-  min: 5, // Minimum number of connection instances
-  idle: 10000, // Maximum time (ms) that a connection can be idle before being released
-  acquire: 30000, // Maximum time (ms) that pool will try to get connection before throwing error
-  evict: 30000, // How frequently to check for idle connections to be removed
+  max: 20,
+  min: 5,
+  idle: 10000,
+  acquire: 30000,
+  evict: 30000,
 };
 
-const sequelize = new Sequelize(
-  process.env.PGDATABASE,
-  process.env.PGUSER,
-  process.env.PGPASSWORD,
-  {
-    host: process.env.PGHOST,
-    port: process.env.PGPORT,
-    dialect: 'postgres',
-    dialectOptions: {
-      ssl: {
-        rejectUnauthorized: true,
-      },
-    },
-    pool: poolConfig,
-    logging: false,
-    retry: {
-      max: 3, // Maximum retry attempts
-      match: [
-        /ConnectionError/,
-        /SequelizeConnectionError/,
-        /SequelizeConnectionRefusedError/,
-        /SequelizeHostNotFoundError/,
-        /SequelizeHostNotReachableError/,
-        /SequelizeInvalidConnectionError/,
-        /SequelizeConnectionTimedOutError/,
-        /TimeoutError/,
-      ],
-    },
-  }
-);
+// IMPORTANT: For Supabase pooler, use DATABASE_URL instead of separate params
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+  dialect: 'postgres',
+  protocol: 'postgres',
+  logging: false,
 
-// Improved connection and error handling
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false, // ← FIX self-signed cert error
+    },
+  },
+
+  pool: poolConfig,
+
+  retry: {
+    max: 3,
+    match: [
+      /ConnectionError/,
+      /SequelizeConnectionError/,
+      /SequelizeConnectionRefusedError/,
+      /SequelizeHostNotFoundError/,
+      /SequelizeHostNotReachableError/,
+      /SequelizeInvalidConnectionError/,
+      /SequelizeConnectionTimedOutError/,
+      /TimeoutError/,
+    ],
+  },
+});
+
+// Retry logic
 const connectWithRetry = async (retries = 5, delay = 5000) => {
   let retryCount = 0;
 
@@ -67,17 +70,17 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
   }
 };
 
-// Initialize connection
+// Start connection
 connectWithRetry().catch((err) => {
   console.error('Fatal database connection error:', err);
-  process.exit(1); // Exit with error code for process managers to restart
+  process.exit(1);
 });
 
-// Connection event handlers for better monitoring
 sequelize.addHook('afterConnect', () => {
   console.log('New connection established');
 });
 
+// Clean shutdown
 process.on('SIGINT', async () => {
   try {
     await sequelize.close();
