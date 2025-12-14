@@ -1,39 +1,44 @@
-const FAQ = () => (
-  <section className='py-32 bg-gradient-to-b from-black to-purple-900/20'>
-    <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-      <div className='text-center mb-20'>
-        <h2 className='text-3xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-6'>
+import { memo } from 'react';
+
+const FAQ = memo(() => (
+  <section className='py-24 px-6'>
+    <div className='max-w-4xl mx-auto'>
+      {/* Header */}
+      <div className='text-center mb-12'>
+        <h2 className='text-3xl sm:text-4xl font-bold text-white mb-4'>
           Frequently Asked Questions
         </h2>
-        <p className='text-xl text-white/70 max-w-2xl mx-auto'>
-          Find answers to common questions about SyncVibe
-        </p>
+        <p className='text-white/50 max-w-xl mx-auto'>Everything you need to know about SyncVibe</p>
       </div>
 
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
+      {/* FAQ Items */}
+      <div className='space-y-4'>
         <FAQItem
           question='How do I get started with SyncVibe?'
-          answer='Getting started with SyncVibe is easy. Simply create an account, either using Google or email, and start syncing with friends.'
+          answer='Create a free account using Google or email, invite your friends, and start listening together. It takes less than a minute to set up.'
         />
         <FAQItem
-          question='Can I use SyncVibe on my mobile device?'
-          answer='Yes SyncVibe is fully responsive and works seamlessly on mobile devices. You can access it through your mobile browser or download the 
-          mobile app.'
+          question='Is SyncVibe available on mobile?'
+          answer='Yes! SyncVibe works on all devices. You can use the web app on mobile browsers or download our Android app for the best experience.'
         />
         <FAQItem
-          question='How do I create a private playlist?'
-          answer='To create a private playlist, simply navigate to the playlist section, click on the create playlist button, and add your favorite songs to the playlist. You can then share the playlist with your friends.'
+          question='How does synchronized playback work?'
+          answer='When you create a group session, everyone in the room hears the exact same audio at the exact same moment. Our technology compensates for network latency to keep everyone in perfect sync.'
+        />
+        <FAQItem
+          question='Can I create private playlists?'
+          answer='Absolutely. Create personal playlists or collaborative ones where friends can add tracks. You control who can view and edit each playlist.'
         />
       </div>
     </div>
   </section>
-);
+));
 
-const FAQItem = ({ question, answer }) => (
-  <div className='bg-white/5 rounded-xl p-8 border border-white/10'>
-    <h3 className='text-xl font-semibold text-white mb-4'>{question}</h3>
-    <p className='text-white/70'>{answer}</p>
+const FAQItem = memo(({ question, answer }) => (
+  <div className='p-6 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-white/[0.12] transition-colors'>
+    <h3 className='text-lg font-medium text-white mb-2'>{question}</h3>
+    <p className='text-white/50 text-sm leading-relaxed'>{answer}</p>
   </div>
-);
+));
 
 export default FAQ;

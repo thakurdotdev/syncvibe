@@ -1,25 +1,18 @@
-import { cn } from '@/lib/utils';
-import { yupResolver } from '@hookform/resolvers/yup';
-import axios from 'axios';
-import { memo, useCallback, useContext, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import * as yup from 'yup';
-import LoadingScreen from '../Loader';
-import DotPattern from '../ui/dot-pattern';
-import googleIcon from '/google.png?url';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Context } from '@/Context/Context';
+import { yupResolver } from '@hookform/resolvers/yup';
+import axios from 'axios';
+import { memo, useCallback, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import * as yup from 'yup';
+import googleIcon from '/google.png?url';
 
-// Strong password regex pattern
 const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
-// Validation schema with better error messages
 const validationSchema = yup.object().shape({
   name: yup
     .string()
@@ -44,7 +37,6 @@ const validationSchema = yup.object().shape({
     ),
 });
 
-// API client with default config
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   withCredentials: true,
@@ -54,7 +46,6 @@ const api = axios.create({
   },
 });
 
-// Memoized form component
 const RegisterForm = memo(({ onSubmit, loading }) => {
   const form = useForm({
     resolver: yupResolver(validationSchema),
@@ -63,7 +54,7 @@ const RegisterForm = memo(({ onSubmit, loading }) => {
       email: '',
       password: '',
     },
-    mode: 'onChange', // Enable real-time validation
+    mode: 'onChange',
   });
 
   return (
@@ -133,11 +124,9 @@ RegisterForm.displayName = 'RegisterForm';
 const Register = () => {
   document.title = 'Register - SyncVibe';
   window.scrollTo(0, 0);
-  const { getProfile } = useContext(Context);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  // Memoized handlers
   const handleFormSubmit = useCallback(
     async (data) => {
       setLoading(true);
@@ -160,23 +149,6 @@ const Register = () => {
     [navigate]
   );
 
-  const handleLoginGuest = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await api.post('/api/guestLogin');
-
-      if (response.status === 200) {
-        await getProfile();
-        navigate('/feed', { replace: true });
-        toast.success('Logged in as guest');
-      }
-    } catch (error) {
-      handleError(error);
-    } finally {
-      setLoading(false);
-    }
-  }, [getProfile, navigate]);
-
   const handleError = useCallback((error) => {
     const errorMessage =
       error.response?.data?.message || error.message || 'An error occurred. Please try again.';
@@ -188,71 +160,52 @@ const Register = () => {
   }, []);
 
   return (
-    <LoadingScreen isLoading={loading}>
-      <div className='min-h-dvh max-md:p-5 flex flex-col justify-center items-center relative overflow-hidden'>
-        <DotPattern
-          className={cn('[mask-image:radial-gradient(550px_circle_at_center,white,transparent)]')}
-        />
-        <div className='absolute -top-24 -left-24 w-96 h-96 rounded-full bg-purple-600/30 filter blur-[100px] animate-pulse'></div>
-        <div
-          className='absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-pink-600/20 filter blur-[120px] animate-pulse'
-          style={{ animationDelay: '2s' }}
-        ></div>
-        <div
-          className='absolute top-1/3 right-1/4 w-64 h-64 rounded-full bg-blue-600/20 filter blur-[80px] animate-pulse'
-          style={{ animationDelay: '1s' }}
-        ></div>
-        <Card className='w-full max-w-md z-10 shadow-lg'>
-          <CardHeader>
-            <CardTitle className='text-2xl text-center font-bold'>Create your account</CardTitle>
-          </CardHeader>
+    <div className='min-h-dvh flex flex-col justify-center items-center p-6 bg-[#050505] relative overflow-hidden'>
+      {/* Subtle glow */}
+      <div className='absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-[120px]' />
+      <div className='absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500/5 rounded-full blur-[120px]' />
 
-          <CardContent>
-            <RegisterForm onSubmit={handleFormSubmit} loading={loading} />
-          </CardContent>
+      <Card className='w-full max-w-md z-10 bg-white/[0.03] border-white/[0.08] backdrop-blur-sm'>
+        <CardHeader>
+          <CardTitle className='text-2xl text-center font-bold'>Create your account</CardTitle>
+        </CardHeader>
 
-          <CardFooter className='flex flex-col space-y-4'>
-            <div className='text-sm text-center text-muted-foreground'>
-              Already have an account?{' '}
-              <Link
-                to='/login'
-                className='text-primary underline-offset-4 hover:underline font-medium'
-              >
-                Login
-              </Link>
-            </div>
+        <CardContent>
+          <RegisterForm onSubmit={handleFormSubmit} loading={loading} />
+        </CardContent>
 
-            <div className='relative'>
-              <div className='absolute inset-0 flex items-center'>
-                <span className='w-full border-t' />
-              </div>
-              <div className='relative flex justify-center text-xs uppercase'>
-                <span className='bg-background px-2 text-muted-foreground'>Or continue with</span>
-              </div>
-            </div>
-
-            <Button
-              variant='outline'
-              onClick={handleGoogleLogin}
-              className='w-full'
-              disabled={loading}
+        <CardFooter className='flex flex-col space-y-4'>
+          <div className='text-sm text-center text-muted-foreground'>
+            Already have an account?{' '}
+            <Link
+              to='/login'
+              className='text-primary underline-offset-4 hover:underline font-medium'
             >
-              <img src={googleIcon} alt='Google' className='w-4 h-4 mr-2' />
-              Login with Google
-            </Button>
+              Login
+            </Link>
+          </div>
 
-            {/* <Button
-              variant="outline"
-              onClick={handleLoginGuest}
-              className="w-full"
-              disabled={loading}
-            >
-              Continue as Guest
-            </Button> */}
-          </CardFooter>
-        </Card>
-      </div>
-    </LoadingScreen>
+          <div className='relative'>
+            <div className='absolute inset-0 flex items-center'>
+              <span className='w-full border-t' />
+            </div>
+            <div className='relative flex justify-center text-xs uppercase'>
+              <span className='bg-background px-2 text-muted-foreground'>Or continue with</span>
+            </div>
+          </div>
+
+          <Button
+            variant='outline'
+            onClick={handleGoogleLogin}
+            className='w-full'
+            disabled={loading}
+          >
+            <img src={googleIcon} alt='Google' className='w-4 h-4 mr-2' />
+            Login with Google
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
   );
 };
 

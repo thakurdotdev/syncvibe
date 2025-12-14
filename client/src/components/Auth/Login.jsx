@@ -3,7 +3,6 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useProfile } from '@/Context/Context';
-import { cn } from '@/lib/utils';
 import { yupResolver } from '@hookform/resolvers/yup';
 import axios from 'axios';
 import { Eye, EyeOff, KeyRound, Loader2Icon } from 'lucide-react';
@@ -12,7 +11,6 @@ import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import * as yup from 'yup';
-import DotPattern from '../ui/dot-pattern';
 import TwoFactorLogin from './TwoFactorLogin';
 import googleIcon from '/google.png?url';
 
@@ -145,19 +143,10 @@ const Login = () => {
   // Show 2FA step if required
   if (show2FA) {
     return (
-      <div className='flex flex-col justify-center items-center max-md:p-5 h-svh overflow-hidden relative'>
-        <DotPattern
-          className={cn('[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]')}
-        />
-        <div className='absolute -top-24 -left-24 w-96 h-96 rounded-full bg-purple-600/30 filter blur-[100px] animate-pulse'></div>
-        <div
-          className='absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-pink-600/20 filter blur-[120px] animate-pulse'
-          style={{ animationDelay: '2s' }}
-        ></div>
-        <div
-          className='absolute top-1/3 right-1/4 w-64 h-64 rounded-full bg-blue-600/20 filter blur-[80px] animate-pulse'
-          style={{ animationDelay: '1s' }}
-        ></div>
+      <div className='min-h-svh flex flex-col justify-center items-center p-6 bg-[#050505] relative overflow-hidden'>
+        {/* Subtle glow */}
+        <div className='absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-[120px]' />
+        <div className='absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500/5 rounded-full blur-[120px]' />
         <TwoFactorLogin
           userId={twoFactorUserId}
           onSuccess={handle2FASuccess}
@@ -168,20 +157,12 @@ const Login = () => {
   }
 
   return (
-    <div className='flex flex-col justify-center items-center max-md:p-5 h-svh overflow-hidden relative'>
-      <DotPattern
-        className={cn('[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]')}
-      />
-      <div className='absolute -top-24 -left-24 w-96 h-96 rounded-full bg-purple-600/30 filter blur-[100px] animate-pulse'></div>
-      <div
-        className='absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-pink-600/20 filter blur-[120px] animate-pulse'
-        style={{ animationDelay: '2s' }}
-      ></div>
-      <div
-        className='absolute top-1/3 right-1/4 w-64 h-64 rounded-full bg-blue-600/20 filter blur-[80px] animate-pulse'
-        style={{ animationDelay: '1s' }}
-      ></div>
-      <Card className='w-full max-w-sm z-10'>
+    <div className='min-h-svh flex flex-col justify-center items-center p-6 bg-[#050505] relative overflow-hidden'>
+      {/* Subtle glow */}
+      <div className='absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-[120px]' />
+      <div className='absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500/5 rounded-full blur-[120px]' />
+
+      <Card className='w-full max-w-sm z-10 bg-white/[0.03] border-white/[0.08] backdrop-blur-sm'>
         <CardHeader>
           <CardTitle className='text-2xl text-center'>Login to SyncVibe</CardTitle>
         </CardHeader>

@@ -1,405 +1,294 @@
-import { useProfile } from '@/Context/Context';
 import {
-  ArrowDown,
+  ArrowRight,
   Download,
+  Headphones,
   Loader2,
   MessageCircle,
-  Music2,
+  Music,
   Share2,
-  Smartphone,
-  Star,
   Users,
   Video,
-  VideoIcon,
-  Zap,
 } from 'lucide-react';
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { lazy, memo, Suspense } from 'react';
+import { Link } from 'react-router-dom';
 import '../../App.css';
 import LazyImage from '../LazyImage';
 import Android from '../magicui/android';
-import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { FlipWords } from '../ui/flip-words';
 
-const FeatureCard = lazy(() => import('./FeatureCard'));
 const FAQ = lazy(() => import('./FAQ'));
-const Newsletter = lazy(() => import('./Newsletter'));
+
+const Hero = memo(() => (
+  <section className='min-h-[90vh] flex items-center px-6 pt-20 pb-10'>
+    <div className='max-w-7xl mx-auto w-full'>
+      {/* Centered content at top */}
+      <div className='text-center mb-16'>
+        {/* Small tag */}
+        <div className='inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-8'>
+          <span className='w-2 h-2 rounded-full bg-emerald-400 animate-pulse' />
+          <span className='text-sm font-medium text-emerald-400'>Now Live</span>
+        </div>
+
+        {/* Headline */}
+        <h1 className='text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-[1.1] mb-6'>
+          Listen to music together,
+          <br />
+          <span className='bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent'>
+            anywhere in the world.
+          </span>
+        </h1>
+
+        {/* Description */}
+        <p className='text-xl text-white/50 max-w-2xl mx-auto mb-10 leading-relaxed'>
+          SyncVibe lets you and your friends listen to the same music at the exact same time. Chat,
+          video call, and vibe together.
+        </p>
+
+        {/* CTA */}
+        <div className='flex flex-wrap gap-4 justify-center'>
+          <Link to='/register'>
+            <Button
+              size='lg'
+              className='h-14 px-8 rounded-2xl bg-white text-black hover:bg-white/90 font-semibold text-base'
+            >
+              Get Started Free
+              <ArrowRight className='ml-2 h-5 w-5' />
+            </Button>
+          </Link>
+          <a href='#download'>
+            <Button
+              size='lg'
+              variant='outline'
+              className='h-14 px-8 rounded-2xl border-white/10 bg-white/5 hover:bg-white/10 text-white text-base'
+            >
+              <Download className='mr-2 h-5 w-5' />
+              Download App
+            </Button>
+          </a>
+        </div>
+      </div>
+
+      {/* Large centered screenshot */}
+      <div className='relative max-w-5xl mx-auto'>
+        {/* Background glows */}
+        <div className='absolute -inset-10 bg-gradient-to-r from-emerald-500/30 via-teal-500/20 to-cyan-500/30 rounded-[3rem] blur-[80px] opacity-50' />
+
+        {/* Main image container */}
+        <div className='relative'>
+          {/* Glowing border effect */}
+          <div className='absolute -inset-[1px] bg-gradient-to-r from-emerald-500/50 via-teal-500/50 to-cyan-500/50 rounded-3xl opacity-50' />
+
+          {/* Screenshot */}
+          <div className='relative rounded-3xl overflow-hidden border border-white/10 bg-black/50'>
+            <LazyImage
+              src='https://res.cloudinary.com/dr7lkelwl/image/upload/v1736532162/posts/cyj0itbvmcv2tyaivu8q.webp'
+              alt='SyncVibe App Dashboard'
+              className='w-full h-auto'
+            />
+          </div>
+        </div>
+
+        {/* Stats bar below image */}
+        <div className='flex justify-center gap-12 mt-10'>
+          <div className='text-center'>
+            <div className='text-3xl font-bold text-white'>10K+</div>
+            <div className='text-sm text-white/40'>Active Users</div>
+          </div>
+          <div className='text-center'>
+            <div className='text-3xl font-bold text-white'>50K+</div>
+            <div className='text-sm text-white/40'>Songs Synced</div>
+          </div>
+          <div className='text-center'>
+            <div className='text-3xl font-bold text-white'>4.9★</div>
+            <div className='text-sm text-white/40'>User Rating</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+));
+
+const Features = memo(() => (
+  <section id='features' className='py-24 px-6'>
+    <div className='max-w-6xl mx-auto'>
+      <div className='text-center mb-16'>
+        <h2 className='text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4'>
+          Why people love <span className='text-emerald-400'>SyncVibe</span>
+        </h2>
+        <p className='text-white/50 max-w-xl mx-auto'>
+          Everything you need to enjoy music with friends, all in one place.
+        </p>
+      </div>
+
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+        <FeatureCard
+          icon={Headphones}
+          title='Synchronized Playback'
+          description='Everyone hears the same beat at the exact same moment, no matter where they are in the world.'
+          gradient='from-emerald-500/20 to-teal-500/20'
+        />
+        <FeatureCard
+          icon={Video}
+          title='Video Calls'
+          description='See your friends reactions in real-time with crystal clear HD video while you listen together.'
+          gradient='from-blue-500/20 to-cyan-500/20'
+        />
+        <FeatureCard
+          icon={MessageCircle}
+          title='Live Chat'
+          description='React, send emojis, and chat with your group while the music plays in the background.'
+          gradient='from-teal-500/20 to-cyan-500/20'
+        />
+        <FeatureCard
+          icon={Users}
+          title='Group Sessions'
+          description='Create private rooms for your squad or join public sessions with music lovers worldwide.'
+          gradient='from-sky-500/20 to-blue-500/20'
+        />
+        <FeatureCard
+          icon={Music}
+          title='Shared Playlists'
+          description='Collaborate on playlists with friends. Vote on the next track and discover new music.'
+          gradient='from-indigo-500/20 to-blue-500/20'
+        />
+        <FeatureCard
+          icon={Share2}
+          title='Share Stories'
+          description='Post moments, share what you are listening to, and keep up with your friends music taste.'
+          gradient='from-cyan-500/20 to-teal-500/20'
+        />
+      </div>
+    </div>
+  </section>
+));
+
+const FeatureCard = memo(({ icon: Icon, title, description, gradient }) => (
+  <div className='group relative'>
+    <div
+      className={`absolute inset-0 bg-gradient-to-br ${gradient} rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl`}
+    />
+    <div className='relative h-full p-8 rounded-3xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm hover:border-white/20 transition-all'>
+      <div className='w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center mb-6'>
+        <Icon className='w-7 h-7 text-white/80' />
+      </div>
+      <h3 className='text-xl font-semibold text-white mb-3'>{title}</h3>
+      <p className='text-white/40 leading-relaxed'>{description}</p>
+    </div>
+  </div>
+));
+
+const MobileApp = memo(() => (
+  <section id='download' className='px-6 py-24'>
+    <div className='max-w-6xl mx-auto'>
+      <div className='relative rounded-3xl overflow-hidden border border-white/[0.08]'>
+        {/* Background */}
+        <div className='absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5' />
+        <div className='absolute inset-0 bg-white/[0.02]' />
+
+        <div className='relative grid grid-cols-1 lg:grid-cols-2 gap-12 items-center p-5'>
+          {/* Content */}
+          <div>
+            <div className='inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 mb-6'>
+              <span className='w-1.5 h-1.5 rounded-full bg-emerald-400' />
+              <span className='text-xs font-medium text-emerald-400 uppercase tracking-wide'>
+                Android App
+              </span>
+            </div>
+
+            <h2 className='text-3xl sm:text-4xl font-bold text-white mb-4'>Take it anywhere</h2>
+
+            <p className='text-lg text-white/50 mb-8 max-w-md leading-relaxed'>
+              Download the SyncVibe Android app. Native notifications, background playback, and
+              seamless sync.
+            </p>
+
+            <a href='https://cdn.thakur.dev/SyncVibe.apk'>
+              <Button
+                size='lg'
+                className='h-12 px-6 rounded-xl bg-white text-black hover:bg-white/90 font-semibold'
+              >
+                <Download className='mr-2 h-4 w-4' />
+                Download APK
+              </Button>
+            </a>
+
+            {/* Stats */}
+            <div className='flex gap-8 mt-10 pt-10 border-t border-white/[0.08]'>
+              <div>
+                <div className='text-2xl font-bold text-white'>4.9★</div>
+                <div className='text-xs text-white/40'>Rating</div>
+              </div>
+              <div>
+                <div className='text-2xl font-bold text-white'>10K+</div>
+                <div className='text-xs text-white/40'>Downloads</div>
+              </div>
+              <div>
+                <div className='text-2xl font-bold text-white'>Free</div>
+                <div className='text-xs text-white/40'>Forever</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Phone */}
+          <div className='hidden lg:flex'>
+            <Android src='https://res.cloudinary.com/dr7lkelwl/image/upload/syncvibe_app_login_page.webp' />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+));
+
+const FinalCTA = memo(() => (
+  <section className='py-24 px-6'>
+    <div className='max-w-3xl mx-auto text-center'>
+      <h2 className='text-3xl sm:text-4xl font-bold text-white mb-4'>Ready to start syncing?</h2>
+      <p className='text-lg text-white/50 mb-8'>Join the community. It's free.</p>
+      <div className='flex flex-col sm:flex-row gap-4 justify-center'>
+        <Link to='/register'>
+          <Button
+            size='lg'
+            className='h-12 px-8 rounded-xl bg-white text-black hover:bg-white/90 font-semibold'
+          >
+            Get Started Free
+            <ArrowRight className='ml-2 h-4 w-4' />
+          </Button>
+        </Link>
+        <Link to='/login'>
+          <Button
+            size='lg'
+            variant='outline'
+            className='h-12 px-8 rounded-xl border-white/10 bg-white/5 hover:bg-white/10 text-white'
+          >
+            Sign In
+          </Button>
+        </Link>
+      </div>
+    </div>
+  </section>
+));
 
 const Home = () => {
-  window.scrollTo(0, 0);
-  const { user, loading } = useProfile();
-  const navigate = useNavigate();
-  const words = ['Vibe', 'Moments', 'Music', 'Life'];
-  const [showAppBanner, setShowAppBanner] = useState(true);
-
-  useEffect(() => {
-    if (user?.userid) {
-      navigate('/feed');
-    }
-  }, [user?.userid]);
-
-  if (loading) {
-    return (
-      <div className='h-screen flex items-center justify-center'>
-        <Loader2 className='w-10 h-10 animate-spin mx-auto' />
-      </div>
-    );
-  }
-
   return (
-    <div className='relative'>
-      {/* Fixed height placeholder to account for fixed header */}
-      <div className='h-16'></div>
-
-      {showAppBanner && <AppBanner onClose={() => setShowAppBanner(false)} />}
-
-      <main className='relative'>
-        <Hero words={words} />
-        <MobileApp />
+    <div className='min-h-screen bg-[#050505] text-white overflow-x-hidden'>
+      <div className='h-16' />
+      <main>
+        <Hero />
         <Features />
-        <Experience />
+        <MobileApp />
         <Suspense
           fallback={
-            <div className='h-64 flex items-center justify-center'>
-              <Loader2 className='w-10 h-10 animate-spin mx-auto' />
+            <div className='h-32 flex items-center justify-center'>
+              <Loader2 className='w-6 h-6 animate-spin text-white/30' />
             </div>
           }
         >
           <FAQ />
-          <Newsletter />
         </Suspense>
+        <FinalCTA />
       </main>
     </div>
   );
 };
-
-const AppBanner = ({ onClose }) => (
-  <div className='sticky top-16 z-50 bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 py-3 px-4 text-white flex items-center justify-center  shadow-lg'>
-    <div className='absolute inset-0 bg-black/10 backdrop-blur-sm'></div>
-    <div className='flex items-center justify-center gap-2 z-10'>
-      <Smartphone className='w-4 h-4' />
-      <p className='text-sm font-medium'>
-        SyncVibe is now available for Android!{' '}
-        <a
-          href='#download'
-          className='underline font-bold hover:text-white/90 transition-colors hidden sm:inline-block'
-        >
-          Download the APK
-        </a>
-      </p>
-    </div>
-    <button
-      onClick={onClose}
-      className='absolute right-4 top-1/2 transform -translate-y-1/2 text-white/80 hover:text-white transition-colors'
-      aria-label='Close banner'
-    >
-      &times;
-    </button>
-  </div>
-);
-
-const Hero = ({ words }) => (
-  <section className='min-h-screen flex flex-col items-center px-4 sm:px-6 lg:px-8 relative overflow-hidden'>
-    {/* Abstract background elements */}
-    <div className='absolute -top-24 -left-24 w-96 h-96 rounded-full bg-purple-600/30 filter blur-[100px] animate-pulse'></div>
-    <div
-      className='absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-pink-600/20 filter blur-[120px] animate-pulse'
-      style={{ animationDelay: '2s' }}
-    ></div>
-    <div
-      className='absolute top-1/3 right-1/4 w-64 h-64 rounded-full bg-blue-600/20 filter blur-[80px] animate-pulse'
-      style={{ animationDelay: '1s' }}
-    ></div>
-
-    <div className='z-10 text-center space-y-10 max-w-5xl flex items-center flex-col mx-auto mt-[120px]'>
-      <div className='relative'>
-        <Badge
-          variant='outline'
-          className='bg-white/10 backdrop-blur-md text-white px-6 py-2 rounded-full border-white/20 shadow-lg'
-        >
-          <Star className='w-4 h-4 mr-2 text-yellow-400' />
-          <span>
-            Introducing <span className='text-gradient font-bold'>SyncVibe</span>
-          </span>
-        </Badge>
-      </div>
-
-      <h1 className='text-5xl md:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-pink-200 leading-tight'>
-        Where You Can Sync
-        <div className='mt-4'>
-          <FlipWords words={words} interval={2000} transitionDuration={1000} />
-        </div>
-      </h1>
-
-      <p className='text-xl md:text-2xl text-white/80 max-w-3xl mx-auto leading-relaxed'>
-        Connect, share, and experience music together. Create unforgettable moments with friends
-        through synchronized listening and real-time interactions.
-      </p>
-
-      <div className='flex flex-col sm:flex-row gap-6 justify-center items-center pt-8'>
-        <Link to='/register'>
-          <Button
-            size='lg'
-            className='rounded-full px-10 py-7 text-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-600/30'
-          >
-            Start Syncing Now
-          </Button>
-        </Link>
-        <a href='#download'>
-          <Button
-            variant='outline'
-            size='lg'
-            className='rounded-full px-10 py-7 text-lg border-white/20 bg-white/5 backdrop-blur-sm hover:bg-white/10 transition-all shadow-xl shadow-pink-600/10'
-          >
-            <Download className='mr-2 h-5 w-5' />
-            Get the App
-          </Button>
-        </a>
-      </div>
-
-      <div className='absolute bottom-10 animate-bounce'>
-        <ArrowDown className='w-6 h-6 text-white/60' />
-      </div>
-    </div>
-  </section>
-);
-
-const MobileApp = () => (
-  <section id='download' className='py-32 relative overflow-hidden'>
-    {/* Background elements */}
-    <div className='absolute top-0 left-0 w-full h-full bg-gradient-to-b from-black/50 to-purple-900/10'></div>
-    <div className='absolute -bottom-1/2 right-0 w-full h-full bg-gradient-to-t from-green-600/10 to-transparent rounded-full transform rotate-12 filter blur-3xl'></div>
-
-    <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
-      <div className='flex flex-col md:flex-row items-center gap-16'>
-        {/* Left column: App details */}
-        <div className='md:w-1/2'>
-          <div className='inline-flex items-center px-3 py-1 rounded-full bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-500/30 text-green-400 text-sm font-medium mb-6'>
-            <Smartphone className='w-4 h-4 mr-2' />
-            NEW RELEASE
-          </div>
-
-          <h2 className='text-4xl md:text-6xl font-bold text-white mb-8 leading-tight'>
-            SyncVibe for{' '}
-            <span className='bg-gradient-to-r from-green-400 to-blue-500 text-transparent bg-clip-text'>
-              Android
-            </span>
-          </h2>
-
-          <p className='text-xl text-white/80 mb-10 leading-relaxed'>
-            Take your music experience on the go with our new Android app. Sync with friends, chat,
-            and share moments from anywhere.
-          </p>
-
-          <div className='space-y-8'>
-            <div className='flex items-start gap-5'>
-              <div className='bg-gradient-to-br from-purple-500/30 to-purple-500/10 p-3 rounded-xl border border-purple-500/30 shadow-lg shadow-purple-500/5'>
-                <Music2 className='w-6 h-6 text-purple-300' />
-              </div>
-              <div>
-                <h3 className='text-xl font-medium text-white mb-2'>Music Listening</h3>
-                <p className='text-white/70'>
-                  Enjoy your favorite tracks with friends in perfect sync
-                </p>
-              </div>
-            </div>
-
-            <div className='flex items-start gap-5'>
-              <div className='bg-gradient-to-br from-pink-500/30 to-pink-500/10 p-3 rounded-xl border border-pink-500/30 shadow-lg shadow-pink-500/5'>
-                <MessageCircle className='w-6 h-6 text-pink-300' />
-              </div>
-              <div>
-                <h3 className='text-xl font-medium text-white mb-2'>Native Notifications</h3>
-                <p className='text-white/70'>
-                  Stay connected with real-time notifications from your friends
-                </p>
-              </div>
-            </div>
-
-            <div className='flex items-start gap-5'>
-              <div className='bg-gradient-to-br from-blue-500/30 to-blue-500/10 p-3 rounded-xl border border-blue-500/30 shadow-lg shadow-blue-500/5'>
-                <VideoIcon className='w-6 h-6 text-blue-300' />
-              </div>
-              <div>
-                <h3 className='text-xl font-medium text-white mb-2'>Video Calls</h3>
-                <p className='text-white/70'>
-                  Connect with friends through high-quality video calls
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <a href='https://cdn.thakur.dev/SyncVibe.apk' className='inline-block mt-12'>
-            <Button className='rounded-full px-8 py-6 text-lg bg-gradient-to-r from-green-500 to-blue-500 hover:opacity-90 transition-all shadow-xl shadow-blue-500/20 group'>
-              <Download className='mr-2 h-5 w-5 group-hover:animate-bounce' />
-              Download APK
-            </Button>
-          </a>
-        </div>
-
-        {/* Right column: Phone mockup */}
-        <div className='md:w-1/2 relative mt-16 md:mt-0 w-full flex justify-center'>
-          {/* Phone frame */}
-          <div className='relative'>
-            <Android
-              className='size-full'
-              src={'https://res.cloudinary.com/dr7lkelwl/image/upload/syncvibe_app_login_page.webp'}
-            />
-          </div>
-
-          {/* Glow effects */}
-          <div className='absolute -z-10 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full h-full bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-full filter blur-3xl'></div>
-        </div>
-      </div>
-    </div>
-  </section>
-);
-
-const Features = () => (
-  <section className='py-32 relative overflow-hidden'>
-    <div className='absolute inset-0 bg-gradient-to-b from-purple-900/5 to-black/20'></div>
-
-    <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
-      <div className='text-center mb-24'>
-        <h2 className='text-4xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-pink-200 mb-6'>
-          Features you will love to
-          <span className='bg-gradient-to-r from-purple-400 to-pink-600 text-transparent bg-clip-text ml-2'>
-            sync
-          </span>
-        </h2>
-        <p className='text-xl text-white/70 max-w-2xl mx-auto'>
-          Discover all the ways SyncVibe helps you connect with friends
-        </p>
-      </div>
-
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
-        <Suspense
-          fallback={
-            <div className='h-64 flex items-center justify-center'>
-              <Loader2 className='w-10 h-10 animate-spin mx-auto' />
-            </div>
-          }
-        >
-          <FeatureCard
-            icon={Music2}
-            title='Synchronized Music'
-            description='Listen to music in perfect harmony with friends, no matter where they are'
-            className='bg-gradient-to-br from-purple-900/30 to-purple-900/5 border-purple-500/20 hover:border-purple-500/40 backdrop-blur-sm'
-            iconClassName='bg-gradient-to-br from-purple-500 to-purple-700 text-white'
-          />
-          <FeatureCard
-            icon={Video}
-            title='HD Video Calls'
-            description='Experience high-quality video calls with friends and family'
-            className='bg-gradient-to-br from-blue-900/30 to-blue-900/5 border-blue-500/20 hover:border-blue-500/40 backdrop-blur-sm'
-            iconClassName='bg-gradient-to-br from-blue-500 to-blue-700 text-white'
-          />
-          <FeatureCard
-            icon={MessageCircle}
-            title='Real-time Chat'
-            description='Stay connected with instant messaging and reactions'
-            className='bg-gradient-to-br from-green-900/30 to-green-900/5 border-green-500/20 hover:border-green-500/40 backdrop-blur-sm'
-            iconClassName='bg-gradient-to-br from-green-500 to-green-700 text-white'
-          />
-          <FeatureCard
-            icon={Share2}
-            title='Share Stories'
-            description='Share your favorite moments and memories with friends'
-            className='bg-gradient-to-br from-pink-900/30 to-pink-900/5 border-pink-500/20 hover:border-pink-500/40 backdrop-blur-sm'
-            iconClassName='bg-gradient-to-br from-pink-500 to-pink-700 text-white'
-          />
-          <FeatureCard
-            icon={Zap}
-            title='Express Yourself'
-            description='Share your thoughts and feelings with emojis, stickers, and reactions'
-            className='bg-gradient-to-br from-yellow-900/30 to-yellow-900/5 border-yellow-500/20 hover:border-yellow-500/40 backdrop-blur-sm'
-            iconClassName='bg-gradient-to-br from-yellow-500 to-yellow-700 text-white'
-          />
-          <FeatureCard
-            icon={Users}
-            title='Private Playlists'
-            description='Create private playlists and share them with friends'
-            className='bg-gradient-to-br from-indigo-900/30 to-indigo-900/5 border-indigo-500/20 hover:border-indigo-500/40 backdrop-blur-sm'
-            iconClassName='bg-gradient-to-br from-indigo-500 to-indigo-700 text-white'
-          />
-        </Suspense>
-      </div>
-    </div>
-  </section>
-);
-
-const Experience = () => (
-  <section className='py-32 relative overflow-hidden'>
-    <div className='absolute inset-0 bg-gradient-to-b from-black to-purple-900/10'></div>
-
-    <div className='w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10'>
-      <div className='text-center mb-24'>
-        <div className='inline-flex items-center px-4 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-purple-300 text-sm font-medium mb-6'>
-          SHOWCASE
-        </div>
-        <h2 className='text-4xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 mb-6'>
-          Experience the Magic
-        </h2>
-        <p className='text-xl text-white/70 max-w-2xl mx-auto'>
-          Take a look at how SyncVibe transforms your music experience
-        </p>
-      </div>
-
-      <div className='flex flex-col gap-20'>
-        <ExperienceCard
-          title='Listen to your favorite music without any interruptions'
-          imageSrc='https://res.cloudinary.com/dr7lkelwl/image/upload/v1736532162/posts/cyj0itbvmcv2tyaivu8q.webp'
-          altText='SyncVibe Music Player'
-          gradientFrom='from-purple-500/10'
-          gradientTo='to-pink-500/10'
-        />
-        <ExperienceCard
-          title='Chat with your friends in real-time'
-          imageSrc='https://res.cloudinary.com/dr7lkelwl/image/upload/v1736373340/posts/emlwh68crc59nv3zfbmp.webp'
-          altText='SyncVibe Chat Interface'
-          gradientFrom='from-blue-500/10'
-          gradientTo='to-indigo-500/10'
-        />
-        <ExperienceCard
-          title='Share your favorite moments with friends'
-          imageSrc='https://res.cloudinary.com/dr7lkelwl/image/upload/v1736688325/posts/m7xvw3jfhhzma1xj0jwn.webp'
-          altText='SyncVibe Feed Interface'
-          gradientFrom='from-green-500/10'
-          gradientTo='to-emerald-500/10'
-        />
-        <ExperienceCard
-          title='Take SyncVibe anywhere with our mobile app'
-          imageSrc='https://res.cloudinary.com/dr7lkelwl/image/upload/v1736532162/posts/cyj0itbvmcv2tyaivu8q.webp'
-          altText='SyncVibe Mobile App'
-          gradientFrom='from-orange-500/10'
-          gradientTo='to-red-500/10'
-        />
-      </div>
-    </div>
-  </section>
-);
-
-const ExperienceCard = ({ title, imageSrc, altText, gradientFrom, gradientTo }) => (
-  <div className='bg-black/30 backdrop-blur-xl rounded-3xl p-8 lg:p-12 border border-white/10 shadow-2xl transition-all hover:border-white/20 group'>
-    <div className='text-center max-w-5xl mx-auto'>
-      <h2 className='text-2xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 mb-12 tracking-tight'>
-        {title}
-      </h2>
-
-      <div className='mb-4 relative rounded-2xl overflow-hidden'>
-        <div
-          className={`absolute inset-0 bg-gradient-to-b ${gradientFrom} ${gradientTo} opacity-70 group-hover:opacity-100 transition-opacity duration-500`}
-        ></div>
-        <LazyImage
-          src={imageSrc}
-          alt={altText}
-          className='w-full relative z-10 shadow-2xl transition-all duration-500 group-hover:scale-[1.02]'
-        />
-        <div className='absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-20'></div>
-      </div>
-    </div>
-  </div>
-);
 
 export default Home;
