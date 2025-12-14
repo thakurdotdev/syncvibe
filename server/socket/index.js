@@ -1,6 +1,6 @@
 const { Expo } = require('expo-server-sdk');
 const { getPushToken } = require('../controllers/auth/loginUser');
-const QRCode = require('qrcode');
+const { setupGroupMusicHandlers, handleUserDisconnect } = require('./groupMusic');
 
 const expo = new Expo();
 
@@ -44,9 +44,6 @@ const socketManager = (io) => {
   const onlineUsers = new Set();
   const activeVideoCalls = new Map();
   const callTimeouts = new Map();
-
-  // Music group state
-  const musicGroups = new Map();
 
   const CALL_TIMEOUT = 30000; // 30 seconds timeout for unanswered calls
 
@@ -278,171 +275,8 @@ const socketManager = (io) => {
       socket.emit('initial_online_users', Array.from(onlineUsers));
     });
 
-    /////////////////////////////
-    //Music Group /////////////////////////////
-    /////////////////////////////
-
-    socket.on('time-sync-request', (data) => {
-      socket.emit('time-sync-response', {
-        clientTime: data.clientTime,
-        serverTime: Date.now(),
-      });
-    });
-
-    socket.on('get-music-groups', () => {
-      socket.emit('music-groups', Array.from(musicGroups.values()));
-    });
-
-    socket.on('create-music-group', async (data) => {
-      let groupId = Math.floor(100000 + Math.random() * 900000).toString();
-      groupId = 'syncvibe_' + groupId; // Prefix with 'syncvibe_'
-      const newGroup = {
-        id: groupId,
-        name: data.name,
-        createdBy: data.createdBy,
-        members: [
-          {
-            userId: data.createdBy,
-            userName: data.userName,
-            profilePic: data.profilePic,
-          },
-        ],
-        playbackState: {
-          isPlaying: false,
-          currentTime: 0,
-          currentTrack: null,
-          lastUpdate: Date.now(),
-        },
-      };
-
-      try {
-        const qrCodeBuffer = await QRCode.toBuffer(groupId, {
-          errorCorrectionLevel: 'H',
-          scale: 10,
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF',
-          },
-        });
-
-        musicGroups.set(groupId, {
-          ...newGroup,
-          qrCode: qrCodeBuffer.toString('base64'),
-        });
-        socket.join(`music-group-${groupId}`);
-
-        io.to(data.createdBy).emit('group-created', {
-          ...newGroup,
-          qrCode: qrCodeBuffer.toString('base64'),
-        });
-      } catch (err) {
-        console.error('QR Code Generation Failed:', err);
-        socket.emit('error', { message: 'QR Code generation failed' });
-      }
-    });
-
-    socket.on('join-music-group', (data) => {
-      const group = musicGroups.get(data.groupId);
-
-      if (group) {
-        socket.join(`music-group-${data.groupId}`);
-        group.members.push({
-          userId: data.userId,
-          userName: data.userName,
-          profilePic: data.profilePic,
-        });
-
-        socket.emit('group-joined', {
-          group,
-          members: group.members,
-          playbackState: group.playbackState,
-        });
-
-        socket.to(`music-group-${data.groupId}`).emit('member-joined', {
-          userId: data.userId,
-          userName: data.userName,
-          profilePic: data.profilePic,
-        });
-      } else {
-        io.to(userId).emit('group-not-found');
-      }
-    });
-
-    socket.on('music-change', (data) => {
-      const { groupId, song, currentTime, scheduledTime } = data;
-
-      const group = musicGroups.get(groupId);
-      if (!group) {
-        return;
-      }
-
-      group.playbackState = {
-        currentTime,
-        currentTrack: song,
-        lastUpdate: Date.now(),
-      };
-      // Broadcast to all members in the group
-      socket.to(`music-group-${groupId}`).emit('music-update', {
-        song,
-        currentTime,
-        scheduledTime,
-      });
-    });
-
-    socket.on('music-playback', (data) => {
-      const group = musicGroups.get(data.groupId);
-      if (group) {
-        group.playbackState = {
-          isPlaying: data.isPlaying,
-          currentTime: data.currentTime,
-          lastUpdate: Date.now(),
-        };
-
-        io.to(`music-group-${data.groupId}`).emit('playback-update', {
-          isPlaying: data.isPlaying,
-          currentTime: data.currentTime,
-          scheduledTime: data.scheduledTime,
-        });
-      }
-    });
-
-    socket.on('music-seek', (data) => {
-      const group = musicGroups.get(data.groupId);
-      if (group) {
-        group.playbackState = {
-          ...group.playbackState,
-          currentTime: data.currentTime,
-          lastUpdate: Date.now(),
-        };
-
-        io.to(`music-group-${data.groupId}`).emit('playback-update', {
-          isPlaying: data.isPlaying,
-          currentTime: data.currentTime,
-          scheduledTime: data.scheduledTime,
-        });
-      }
-    });
-
-    socket.on('leave-group', (data) => {
-      const group = musicGroups.get(data.groupId);
-      if (group) {
-        group.members = group.members.filter((member) => member.userId !== data.userId);
-
-        socket.to(`music-group-${data.groupId}`).emit('member-left', {
-          userId: data.userId,
-        });
-
-        if (group.members.length === 0) {
-          musicGroups.delete(data.groupId);
-          socket.to(`music-group-${data.groupId}`).emit('group-disbanded');
-        }
-      }
-    });
-
-    socket.on('chat-message', (data) => {
-      const { groupId } = data;
-      io.to(`music-group-${groupId}`).emit('new-message', data);
-    });
+    // Setup group music handlers
+    setupGroupMusicHandlers(io, socket, userId, userSockets);
 
     // Handle messages marked as read
     socket.on('messages-read', (data) => {
@@ -465,15 +299,8 @@ const socketManager = (io) => {
       if (userId) {
         console.log(`User ${userId} disconnected`);
 
-        const groupIds = Array.from(musicGroups.keys()).filter((groupId) =>
-          socket.rooms.has(`music-group-${groupId}`)
-        );
-
-        groupIds.forEach((groupId) => {
-          socket.to(`music-group-${groupId}`).emit('member-left', {
-            userId,
-          });
-        });
+        // Handle group music disconnect with grace period
+        handleUserDisconnect(io, userId, userSockets);
 
         // Handle ongoing call cleanup
         const otherUser = cleanupCall(userId);

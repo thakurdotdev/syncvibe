@@ -1,12 +1,15 @@
-import { createContext, useContext, useCallback, useRef, useEffect, useState } from 'react';
 import { useSocket } from '@/Context/ChatContext';
 import { useProfile } from '@/Context/Context';
+import { ensureHttpsForDownloadUrls } from '@/Pages/Music/Common';
 import axios from 'axios';
 import _ from 'lodash';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { ensureHttpsForDownloadUrls } from '@/Pages/Music/Common';
 
 export const GroupMusicContext = createContext(null);
+
+// Session storage key for group persistence
+const SESSION_KEY = 'syncvibe_group_session';
 
 export function GroupMusicProvider({ children }) {
   const { socket } = useSocket();
@@ -27,8 +30,13 @@ export function GroupMusicProvider({ children }) {
   const [lastSync, setLastSync] = useState(0);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const [connectionState, setConnectionState] = useState('disconnected');
+  const [isRejoining, setIsRejoining] = useState(false);
+
   const syncIntervalRef = useRef(null);
   const lastPlaybackUpdateRef = useRef(null);
+  const periodicSyncRef = useRef(null);
+  const hasAttemptedRejoinRef = useRef(false);
 
   const audioRef = useRef(null);
 
@@ -42,6 +50,37 @@ export function GroupMusicProvider({ children }) {
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Save group session to sessionStorage
+  const saveSession = useCallback((groupId) => {
+    if (groupId) {
+      sessionStorage.setItem(
+        SESSION_KEY,
+        JSON.stringify({
+          groupId,
+          lastUpdate: Date.now(),
+        })
+      );
+    }
+  }, []);
+
+  // Clear group session from sessionStorage
+  const clearSession = useCallback(() => {
+    sessionStorage.removeItem(SESSION_KEY);
+  }, []);
+
+  // Get stored session
+  const getStoredSession = useCallback(() => {
+    try {
+      const stored = sessionStorage.getItem(SESSION_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error('Error reading session:', e);
+    }
+    return null;
+  }, []);
 
   const updateMediaSession = useCallback((song) => {
     if (!('mediaSession' in navigator)) return;
@@ -74,6 +113,21 @@ export function GroupMusicProvider({ children }) {
       updateMediaSession(currentSong);
     }
   }, [currentSong, updateMediaSession]);
+
+  // Beforeunload warning when in a group
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (currentGroup) {
+        e.preventDefault();
+        e.returnValue =
+          'You are in a music group. Your session will be restored when you return. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [currentGroup]);
 
   const loadAudio = async (url) => {
     try {
@@ -178,7 +232,7 @@ export function GroupMusicProvider({ children }) {
       setDuration(0);
       setCurrentTime(0);
 
-      const url = selectSong.download_url.find((url) => url.quality === '320kbps').link;
+      const url = securedSong.download_url.find((url) => url.quality === '320kbps').link;
       await loadAudio(url);
 
       socket.emit('music-change', {
@@ -192,6 +246,7 @@ export function GroupMusicProvider({ children }) {
       setSearchQuery('');
       setSearchResults([]);
     } catch (error) {
+      console.log(error);
       toast.error('Failed to load song');
     } finally {
       setIsLoading(false);
@@ -247,6 +302,21 @@ export function GroupMusicProvider({ children }) {
     setIsGroupModalOpen(false);
   };
 
+  const rejoinGroup = useCallback(
+    (groupId) => {
+      if (!groupId || !user?.userid || !socket) return;
+
+      setIsRejoining(true);
+      socket.emit('rejoin-music-group', {
+        groupId,
+        userId: user.userid,
+        userName: user.name,
+        profilePic: user.profilepic,
+      });
+    },
+    [socket, user]
+  );
+
   const leaveGroup = () => {
     if (!currentGroup) return;
 
@@ -265,6 +335,7 @@ export function GroupMusicProvider({ children }) {
     setIsPlaying(false);
     setMessages([]);
     setGroupMembers([]);
+    clearSession();
     toast.info(`Left group ${currentGroup.name}`);
   };
 
@@ -280,6 +351,7 @@ export function GroupMusicProvider({ children }) {
     });
   };
 
+  // Time sync with server
   useEffect(() => {
     if (socket) {
       const syncWithServer = () => {
@@ -295,7 +367,7 @@ export function GroupMusicProvider({ children }) {
         setLastSync(endTime);
       });
 
-      // Sync every 10 seconds
+      // Sync every 5 seconds
       syncWithServer();
       syncIntervalRef.current = setInterval(syncWithServer, 5000);
 
@@ -307,8 +379,65 @@ export function GroupMusicProvider({ children }) {
     }
   }, [socket]);
 
+  // Periodic sync for drift correction when playing
+  useEffect(() => {
+    if (!currentGroup || !socket) return;
+
+    const requestSync = () => {
+      socket.emit('request-sync', { groupId: currentGroup.id });
+    };
+
+    // Request sync every 10 seconds when in a group
+    periodicSyncRef.current = setInterval(requestSync, 10000);
+
+    return () => {
+      if (periodicSyncRef.current) {
+        clearInterval(periodicSyncRef.current);
+      }
+    };
+  }, [currentGroup, socket]);
+
+  // Auto-rejoin on mount if session exists
+  useEffect(() => {
+    if (socket && user?.userid && !hasAttemptedRejoinRef.current) {
+      const session = getStoredSession();
+      if (session?.groupId) {
+        hasAttemptedRejoinRef.current = true;
+        rejoinGroup(session.groupId);
+      }
+    }
+  }, [socket, user, getStoredSession, rejoinGroup]);
+
+  // Socket event handlers
   useEffect(() => {
     if (!socket) return;
+
+    // Handle sync state for drift correction
+    socket.on('sync-state', (data) => {
+      const { playbackState } = data;
+      if (!playbackState?.currentTrack || !audioRef.current) return;
+
+      const serverNow = Date.now() + serverTimeOffset;
+      const timePassed = (serverNow - playbackState.lastUpdate) / 1000;
+      const expectedTime = playbackState.currentTime + (playbackState.isPlaying ? timePassed : 0);
+      const actualTime = audioRef.current.currentTime;
+      const drift = Math.abs(expectedTime - actualTime);
+
+      // Only correct if drift > 0.5 seconds to avoid jitter
+      if (drift > 0.5 && expectedTime <= audioRef.current.duration) {
+        audioRef.current.currentTime = expectedTime;
+        console.log(`Drift corrected: ${drift.toFixed(2)}s`);
+      }
+
+      // Sync play state
+      if (playbackState.isPlaying && audioRef.current.paused) {
+        audioRef.current.play().catch(console.error);
+        setIsPlaying(true);
+      } else if (!playbackState.isPlaying && !audioRef.current.paused) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      }
+    });
 
     socket.on('playback-update', (data) => {
       const serverNow = getServerTime();
@@ -336,23 +465,25 @@ export function GroupMusicProvider({ children }) {
 
     socket.on('music-update', async ({ song, currentTime, scheduledTime }) => {
       setCurrentSong(song);
-      const url = song.download_url.find((url) => url.quality === '320kbps').link;
+      const url = song.download_url.find((url) => url.quality === '320kbps')?.link;
 
-      await loadAudio(url);
+      if (url) {
+        await loadAudio(url);
 
-      const timeUntilPlay = scheduledTime - (Date.now() + serverTimeOffset);
+        const timeUntilPlay = scheduledTime - (Date.now() + serverTimeOffset);
 
-      setTimeout(
-        () => {
-          if (audioRef.current) {
-            audioRef.current.currentTime = currentTime;
-            if (isPlaying) {
-              audioRef.current.play();
+        setTimeout(
+          () => {
+            if (audioRef.current) {
+              audioRef.current.currentTime = currentTime;
+              if (isPlaying) {
+                audioRef.current.play();
+              }
             }
-          }
-        },
-        Math.max(0, timeUntilPlay)
-      );
+          },
+          Math.max(0, timeUntilPlay)
+        );
+      }
     });
 
     socket.on('group-created', (group) => {
@@ -365,29 +496,98 @@ export function GroupMusicProvider({ children }) {
           profilePic: user.profilepic,
         },
       ]);
+      saveSession(group.id);
+      toast.success(`Created group: ${group.name}`);
     });
 
-    socket.on('group-joined', (data) => {
+    socket.on('group-joined', async (data) => {
       const { group, members, playbackState } = data;
       setCurrentGroup(group);
       setGroupMembers(members);
+      saveSession(group.id);
 
-      if (playbackState.currentTrack) {
+      if (playbackState?.currentTrack) {
         setCurrentSong(playbackState.currentTrack);
-        loadAudio(playbackState.currentTrack.download_url[3].link);
-      }
+        const url =
+          playbackState.currentTrack.download_url?.find((u) => u.quality === '320kbps')?.link ||
+          playbackState.currentTrack.download_url?.[3]?.link;
 
-      if (playbackState.isPlaying) {
-        const serverNow = Date.now() + serverTimeOffset;
-        const timePassed = (serverNow - playbackState.lastUpdate) / 1000;
-        const syncedTime = playbackState.currentTime + timePassed;
+        if (url) {
+          await loadAudio(url);
 
-        if (audioRef.current) {
-          audioRef.current.currentTime = syncedTime;
-          audioRef.current.play();
+          // Calculate synced position
+          const serverNow = Date.now() + serverTimeOffset;
+          const timePassed = (serverNow - playbackState.lastUpdate) / 1000;
+          const syncedTime = playbackState.currentTime + (playbackState.isPlaying ? timePassed : 0);
+
+          if (audioRef.current) {
+            audioRef.current.currentTime = Math.min(
+              syncedTime,
+              audioRef.current.duration || syncedTime
+            );
+
+            if (playbackState.isPlaying) {
+              try {
+                await audioRef.current.play();
+                setIsPlaying(true);
+              } catch (err) {
+                console.error('Autoplay blocked:', err);
+              }
+            }
+          }
         }
-        setIsPlaying(true);
       }
+
+      toast.success(`Joined group: ${group.name}`);
+    });
+
+    socket.on('group-rejoined', async (data) => {
+      const { group, members, playbackState } = data;
+      setCurrentGroup(group);
+      setGroupMembers(members);
+      setIsRejoining(false);
+      saveSession(group.id);
+
+      if (playbackState?.currentTrack) {
+        setCurrentSong(playbackState.currentTrack);
+        const url =
+          playbackState.currentTrack.download_url?.find((u) => u.quality === '320kbps')?.link ||
+          playbackState.currentTrack.download_url?.[3]?.link;
+
+        if (url) {
+          await loadAudio(url);
+
+          // Calculate synced position based on elapsed time
+          const serverNow = Date.now() + serverTimeOffset;
+          const timePassed = (serverNow - playbackState.lastUpdate) / 1000;
+          const syncedTime = playbackState.currentTime + (playbackState.isPlaying ? timePassed : 0);
+
+          if (audioRef.current) {
+            audioRef.current.currentTime = Math.min(
+              syncedTime,
+              audioRef.current.duration || syncedTime
+            );
+
+            if (playbackState.isPlaying) {
+              try {
+                await audioRef.current.play();
+                setIsPlaying(true);
+              } catch (err) {
+                console.error('Autoplay blocked:', err);
+                toast.info('Click play to resume music');
+              }
+            }
+          }
+        }
+      }
+
+      toast.success(`Rejoined group: ${group.name}`);
+    });
+
+    socket.on('group-not-found', () => {
+      setIsRejoining(false);
+      clearSession();
+      toast.error('The group no longer exists');
     });
 
     socket.on('member-joined', (member) => {
@@ -395,11 +595,18 @@ export function GroupMusicProvider({ children }) {
         if (prev.find((m) => m.userId === member.userId)) return prev;
         return [...prev, member];
       });
+      toast.info(`${member.userName} joined the group`);
     });
 
     socket.on('member-left', ({ userId }) => {
       if (userId) {
-        setGroupMembers((prev) => prev.filter((member) => member.userId !== userId));
+        setGroupMembers((prev) => {
+          const member = prev.find((m) => m.userId === userId);
+          if (member) {
+            toast.info(`${member.userName} left the group`);
+          }
+          return prev.filter((member) => member.userId !== userId);
+        });
       }
     });
 
@@ -409,6 +616,7 @@ export function GroupMusicProvider({ children }) {
       setIsPlaying(false);
       setMessages([]);
       setGroupMembers([]);
+      clearSession();
       toast.info('Group disbanded');
     });
 
@@ -417,16 +625,28 @@ export function GroupMusicProvider({ children }) {
     });
 
     return () => {
+      socket.off('sync-state');
       socket.off('playback-update');
       socket.off('music-update');
       socket.off('group-created');
       socket.off('group-joined');
+      socket.off('group-rejoined');
+      socket.off('group-not-found');
       socket.off('member-joined');
       socket.off('member-left');
       socket.off('group-disbanded');
       socket.off('new-message');
     };
-  }, [socket, isPlaying, serverTimeOffset, user, loadAudio]);
+  }, [
+    socket,
+    isPlaying,
+    serverTimeOffset,
+    user,
+    loadAudio,
+    saveSession,
+    clearSession,
+    getServerTime,
+  ]);
 
   const contextValue = {
     // States
@@ -462,6 +682,8 @@ export function GroupMusicProvider({ children }) {
     setIsGroupModalOpen,
     isSearchLoading,
     setIsSearchLoading,
+    connectionState,
+    isRejoining,
     audioRef,
 
     // Functions
@@ -473,6 +695,7 @@ export function GroupMusicProvider({ children }) {
     debouncedSearch,
     createGroup,
     joinGroup,
+    rejoinGroup,
     leaveGroup,
     sendMessage,
   };
