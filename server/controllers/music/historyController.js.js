@@ -38,8 +38,8 @@ const addToHistory = async (req, res) => {
         deviceType: getDeviceType(req.headers['user-agent']),
         completionRate,
         playedCount: 1,
-        lastPlayedAt: new Date(),
         totalPlayTime: playedTime,
+        lastPlayedAt: new Date(),
       },
     });
 
@@ -97,8 +97,8 @@ const batchAddToHistory = async (req, res) => {
             deviceType: getDeviceType(req.headers['user-agent']),
             completionRate,
             playedCount: 1,
-            lastPlayedAt: new Date(timestamp || Date.now()),
             totalPlayTime: position,
+            lastPlayedAt: new Date(timestamp || Date.now()),
           },
         });
 
@@ -128,7 +128,7 @@ const batchAddToHistory = async (req, res) => {
 };
 
 /* =========================
-   PERSONALIZED RECOMMENDATION
+   PERSONALIZED RECOMMENDATIONS
 ========================= */
 
 const getPersonalizedRecommendations = async (req, res) => {
@@ -143,8 +143,10 @@ const getPersonalizedRecommendations = async (req, res) => {
       return res.status(200).json({ success: true, data: cached.data });
     }
 
-    const weightedRecommendations =
-      await calculateWeightedRecommendations(userId, limit);
+    const recommendations = await calculateWeightedRecommendations(
+      userId,
+      limit
+    );
 
     const recentlyPlayed = await HistorySong.findAll({
       where: { userId },
@@ -155,7 +157,7 @@ const getPersonalizedRecommendations = async (req, res) => {
     });
 
     const response = {
-      songs: weightedRecommendations.map((r) => r.songData),
+      songs: recommendations.map((r) => r.songData),
       recentlyPlayed: recentlyPlayed.map((r) => r.songData),
     };
 
@@ -174,27 +176,19 @@ const getPersonalizedRecommendations = async (req, res) => {
 const calculateWeightedRecommendations = async (userId, limit) => {
   const userStats = await getUserListeningStats(userId);
 
-  const weights = {
-    playCount: 0.35,
-    recency: 0.3,
-    completion: 0.2,
-    likeStatus: 0.15,
-  };
-
   return HistorySong.findAll({
     attributes: {
       include: [
         [
           HistorySong.sequelize.literal(`
             (
-              "playedCount" * ${weights.playCount} +
-              ("completionRate" / 100) * ${weights.completion} +
-              CASE WHEN "likeStatus" = true THEN ${weights.likeStatus} ELSE 0 END +
+              "HistorySong"."playedCount" * 0.35 +
+              ("HistorySong"."completionRate" / 100) * 0.2 +
+              CASE WHEN "HistorySong"."likeStatus" = true THEN 0.15 ELSE 0 END +
               CASE
-                WHEN "lastPlayedAt" >= NOW() - INTERVAL '7 days' THEN ${weights.recency}
-                WHEN "lastPlayedAt" >= NOW() - INTERVAL '30 days' THEN ${weights.recency *
-                  0.6}
-                ELSE ${weights.recency * 0.2}
+                WHEN "HistorySong"."lastPlayedAt" >= NOW() - INTERVAL '7 days' THEN 0.3
+                WHEN "HistorySong"."lastPlayedAt" >= NOW() - INTERVAL '30 days' THEN 0.18
+                ELSE 0.06
               END
             )
           `),
@@ -226,7 +220,7 @@ const calculateWeightedRecommendations = async (userId, limit) => {
 };
 
 /* =========================
-   SEARCH / HISTORY LIST
+   SEARCH / HISTORY
 ========================= */
 
 const getHistorySongs = async (req, res) => {
@@ -250,7 +244,7 @@ const getHistorySongs = async (req, res) => {
         { artistNames: { [Op.iLike]: `%${q}%` } },
         { songLanguage: { [Op.iLike]: `%${q}%` } },
         sequelize.where(
-          sequelize.cast(sequelize.col('songData'), 'text'),
+          sequelize.cast(sequelize.col('"HistorySong"."songData"'), 'text'),
           { [Op.iLike]: `%${q}%` }
         ),
       ];
@@ -261,9 +255,9 @@ const getHistorySongs = async (req, res) => {
           [
             sequelize.literal(`
               (
-                playedCount * 0.4 +
-                (completionRate / 100) * 0.3 +
-                CASE WHEN likeStatus = true THEN 0.3 ELSE 0 END
+                "HistorySong"."playedCount" * 0.4 +
+                ("HistorySong"."completionRate" / 100) * 0.3 +
+                CASE WHEN "HistorySong"."likeStatus" = true THEN 0.3 ELSE 0 END
               )
             `),
             'DESC',
@@ -299,7 +293,7 @@ const getHistorySongs = async (req, res) => {
 };
 
 /* =========================
-   LIKE / AI SCORE
+   LIKE + AI SCORE
 ========================= */
 
 const updateLikeStatus = async (req, res) => {
@@ -326,7 +320,7 @@ const updateLikeStatus = async (req, res) => {
 
 const updateRecommendationScore = async (userId, songId) => {
   try {
-    const userStats = await getUserListeningStats(userId);
+    const stats = await getUserListeningStats(userId);
 
     const song = await HistorySong.findOne({
       where: { userId, songId },
@@ -335,7 +329,7 @@ const updateRecommendationScore = async (userId, songId) => {
 
     if (!song) return;
 
-    const score = calculateAlgorithmicScore(song, userStats);
+    const score = calculateAlgorithmicScore(song, stats);
 
     await HistorySong.update(
       { aiRecommendationScore: score },
@@ -347,7 +341,7 @@ const updateRecommendationScore = async (userId, songId) => {
 };
 
 /* =========================
-   STATS + HELPERS
+   HELPERS
 ========================= */
 
 const getUserListeningStats = async (userId) => {
@@ -438,7 +432,7 @@ const updateExistingSong = async (song, playedTime, completionRate) => {
     playedTime,
     lastPlayedAt: new Date(),
     completionRate,
-    totalPlayTime: song.totalPlayTime + playedTime,
+    totalPlayTime: (song.totalPlayTime || 0) + playedTime,
   });
 };
 
@@ -453,4 +447,3 @@ module.exports = {
   updateLikeStatus,
   getHistorySongs,
 };
-  
