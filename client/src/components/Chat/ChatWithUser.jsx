@@ -1,7 +1,5 @@
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getOptimizedImageUrl, getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
-import data from '@emoji-mart/data';
-import EmojiPicker from '@emoji-mart/react';
 import axios from 'axios';
 import {
   ArrowLeft,
@@ -12,7 +10,6 @@ import {
   MoreHorizontal,
   Paperclip,
   SendHorizontal,
-  Smile,
   Trash,
   X,
 } from 'lucide-react';
@@ -386,9 +383,7 @@ const MessageInput = ({
   loggedInUserId,
   onFileSelect,
 }) => {
-  const isMobile = useIsMobile();
   const [message, setMessage] = useState('');
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const typingTimeoutRef = useRef(null);
 
   const fileInputRef = useRef(null);
@@ -439,7 +434,6 @@ const MessageInput = ({
     onSendMessage(message.trim());
 
     setMessage('');
-    setShowEmojiPicker(false);
   }, [
     message,
     filePreview,
@@ -473,24 +467,6 @@ const MessageInput = ({
 
       <div className='relative flex items-center gap-2'>
         <div className='flex gap-1'>
-          {!isMobile && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant='ghost'
-                    size='icon'
-                    className='rounded-full'
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  >
-                    <Smile className='h-5 w-5 text-muted-foreground' />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Emoji</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -545,17 +521,6 @@ const MessageInput = ({
           <SendHorizontal className='h-5 w-5' />
         </Button>
       </div>
-
-      {showEmojiPicker && (
-        <div className='absolute bottom-16 left-0 z-50'>
-          <EmojiPicker
-            data={data}
-            onEmojiSelect={(emoji) => setMessage((prev) => prev + emoji.native)}
-            theme='auto'
-            previewPosition='none'
-          />
-        </div>
-      )}
     </Card>
   );
 };

@@ -5,7 +5,6 @@ import { useGroupMusic } from '@/Context/GroupMusicContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-// Import modular components
 import {
   GroupModal,
   NowPlayingCard,
@@ -15,6 +14,7 @@ import {
   SearchDialog,
   QRCodeDialog,
   WelcomeView,
+  QueueSheet,
 } from './GroupMusic/index';
 
 import './music.css';
@@ -44,17 +44,31 @@ const GroupMusic = () => {
     handlePlayPause,
     handleSeek,
     handleVolumeChange,
-    selectSong,
     debouncedSearch,
     createGroup,
     joinGroup,
     leaveGroup,
     sendMessage,
+    // Queue functions
+    playNow,
+    addToQueue,
+    skipSong,
+    queue,
+    currentQueueItem,
+    upcomingQueue,
+    isQueueOpen,
+    setIsQueueOpen,
   } = useGroupMusic();
 
   const [isQrCodeOpen, setQrCodeOpen] = useState(false);
 
-  // Memoize callbacks to prevent unnecessary rerenders
+  // Active queue count = current song (if any) + upcoming songs
+  const activeQueueCount = useMemo(
+    () => (currentQueueItem ? 1 : 0) + upcomingQueue.length,
+    [currentQueueItem, upcomingQueue.length]
+  );
+
+  // Memoize callbacks
   const handleSearchChange = useCallback(
     (query) => {
       setSearchQuery(query);
@@ -72,6 +86,7 @@ const GroupMusic = () => {
     () => setIsGroupModalOpen(false),
     [setIsGroupModalOpen]
   );
+  const handleOpenQueue = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen]);
 
   // Memoize user id
   const userId = useMemo(() => user?.userid, [user?.userid]);
@@ -97,6 +112,8 @@ const GroupMusic = () => {
               onSearchOpen={handleOpenSearch}
               onQRCodeOpen={handleOpenQrCode}
               onLeaveGroup={leaveGroup}
+              onQueueOpen={handleOpenQueue}
+              queueCount={activeQueueCount}
             />
           </CardHeader>
 
@@ -126,6 +143,10 @@ const GroupMusic = () => {
                     onSeek={handleSeek}
                     onVolumeChange={handleVolumeChange}
                     onSearchOpen={handleOpenSearch}
+                    onQueueOpen={handleOpenQueue}
+                    onSkip={skipSong}
+                    currentQueueItem={currentQueueItem}
+                    queueCount={activeQueueCount}
                   />
 
                   {/* Chat & Members Grid */}
@@ -152,7 +173,7 @@ const GroupMusic = () => {
         </Card>
       </motion.div>
 
-      {/* Modals - Only render when needed */}
+      {/* Modals & Sheets */}
       {isGroupModalOpen && (
         <GroupModal
           isOpen={isGroupModalOpen}
@@ -170,13 +191,17 @@ const GroupMusic = () => {
           onSearchChange={handleSearchChange}
           searchResults={searchResults}
           isSearchLoading={isSearchLoading}
-          onSelectSong={selectSong}
+          onPlayNow={playNow}
+          onAddToQueue={addToQueue}
         />
       )}
 
       {isQrCodeOpen && (
         <QRCodeDialog isOpen={isQrCodeOpen} onClose={handleCloseQrCode} group={currentGroup} />
       )}
+
+      {/* Queue Sheet */}
+      <QueueSheet />
     </div>
   );
 };

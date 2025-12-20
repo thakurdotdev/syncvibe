@@ -1,17 +1,9 @@
 import { usePlaylist } from '@/Context/PlayerContext';
 import { memo } from 'react';
-import { AutoSizer, List } from 'react-virtualized';
 import { SongCard } from '../Cards';
 
 const QueueTab = memo(() => {
   const { playlist } = usePlaylist();
-  const rowHeight = 90;
-
-  const renderRow = ({ index, key, style }) => (
-    <div key={key} style={style}>
-      <SongCard song={playlist[index]} />
-    </div>
-  );
 
   if (!playlist?.length) {
     return (
@@ -23,19 +15,11 @@ const QueueTab = memo(() => {
 
   return (
     <div className='w-full h-[90vh]'>
-      <AutoSizer>
-        {({ height, width }) => (
-          <List
-            width={width}
-            height={height}
-            rowCount={playlist.length}
-            rowHeight={rowHeight}
-            rowRenderer={renderRow}
-            className='w-full max-w-3xl mx-auto p-4'
-            overscanRowCount={5}
-          />
-        )}
-      </AutoSizer>
+      <div className='flex flex-col p-4'>
+        {playlist.map((song, index) => (
+          <SongCard key={index} song={song} />
+        ))}
+      </div>
     </div>
   );
 });

@@ -61,7 +61,7 @@ const Album = () => {
     <div className='flex flex-col gap-10 p-5'>
       {/** Album Info */}
       <div
-        className={`w-full h-[250px] rounded-2xl bg-[url('${bgUrl}')] bg-cover`}
+        className={`w-full h-[250px] rounded-2xl bg-cover`}
         style={{
           backgroundImage: `url('${bgUrl}')`,
           backgroundSize: 'cover',

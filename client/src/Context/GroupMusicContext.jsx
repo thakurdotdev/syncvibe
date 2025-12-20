@@ -3,7 +3,15 @@ import { useProfile } from '@/Context/Context';
 import { ensureHttpsForDownloadUrls } from '@/Pages/Music/Common';
 import axios from 'axios';
 import _ from 'lodash';
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { toast } from 'sonner';
 
 export const GroupMusicContext = createContext(null);
@@ -14,32 +22,61 @@ const SESSION_KEY = 'syncvibe_group_session';
 export function GroupMusicProvider({ children }) {
   const { socket } = useSocket();
   const { user } = useProfile();
+
+  // Group state
   const [currentGroup, setCurrentGroup] = useState(null);
+  const [groupMembers, setGroupMembers] = useState([]);
+  const [messages, setMessages] = useState([]);
+
+  // Queue state
+  const [queue, setQueue] = useState([]);
+  const [currentQueueIndex, setCurrentQueueIndex] = useState(-1);
+  const [isQueueOpen, setIsQueueOpen] = useState(false);
+
+  // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [groupMembers, setGroupMembers] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [currentSong, setCurrentSong] = useState(null);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [volume, setVolume] = useState(0.7);
   const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState([]);
+
+  // Search state
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+
+  // Sync state
   const [serverTimeOffset, setServerTimeOffset] = useState(0);
   const [lastSync, setLastSync] = useState(0);
+
+  // UI state
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
-  const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [connectionState, setConnectionState] = useState('disconnected');
   const [isRejoining, setIsRejoining] = useState(false);
 
+  // Refs
   const syncIntervalRef = useRef(null);
   const lastPlaybackUpdateRef = useRef(null);
   const periodicSyncRef = useRef(null);
   const hasAttemptedRejoinRef = useRef(false);
-
   const audioRef = useRef(null);
 
+  // Derived state
+  const currentQueueItem = useMemo(() => {
+    return currentQueueIndex >= 0 && queue[currentQueueIndex] ? queue[currentQueueIndex] : null;
+  }, [queue, currentQueueIndex]);
+
+  const upcomingQueue = useMemo(() => {
+    return queue.filter((_, idx) => idx > currentQueueIndex);
+  }, [queue, currentQueueIndex]);
+
+  const playedQueue = useMemo(() => {
+    return queue.filter((_, idx) => idx < currentQueueIndex);
+  }, [queue, currentQueueIndex]);
+
+  // Utility functions
   const getServerTime = useCallback(() => {
     return Date.now() + serverTimeOffset;
   }, [serverTimeOffset]);
@@ -51,37 +88,28 @@ export function GroupMusicProvider({ children }) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Save group session to sessionStorage
+  // Session management
   const saveSession = useCallback((groupId) => {
     if (groupId) {
-      sessionStorage.setItem(
-        SESSION_KEY,
-        JSON.stringify({
-          groupId,
-          lastUpdate: Date.now(),
-        })
-      );
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ groupId, lastUpdate: Date.now() }));
     }
   }, []);
 
-  // Clear group session from sessionStorage
   const clearSession = useCallback(() => {
     sessionStorage.removeItem(SESSION_KEY);
   }, []);
 
-  // Get stored session
   const getStoredSession = useCallback(() => {
     try {
       const stored = sessionStorage.getItem(SESSION_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
+      return stored ? JSON.parse(stored) : null;
     } catch (e) {
       console.error('Error reading session:', e);
+      return null;
     }
-    return null;
   }, []);
 
+  // Media session
   const updateMediaSession = useCallback((song) => {
     if (!('mediaSession' in navigator)) return;
 
@@ -97,13 +125,9 @@ export function GroupMusicProvider({ children }) {
         : [],
     });
 
-    navigator.mediaSession.setActionHandler('play', () => {
-      handlePlayPause(true);
-    });
-
-    navigator.mediaSession.setActionHandler('pause', () => {
-      handlePlayPause(false);
-    });
+    navigator.mediaSession.setActionHandler('play', () => handlePlayPause(true));
+    navigator.mediaSession.setActionHandler('pause', () => handlePlayPause(false));
+    navigator.mediaSession.setActionHandler('nexttrack', () => skipSong());
 
     document.title = `${song.name} - SyncVibe`;
   }, []);
@@ -114,13 +138,12 @@ export function GroupMusicProvider({ children }) {
     }
   }, [currentSong, updateMediaSession]);
 
-  // Beforeunload warning when in a group
+  // Beforeunload warning
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (currentGroup) {
         e.preventDefault();
-        e.returnValue =
-          'You are in a music group. Your session will be restored when you return. Are you sure you want to leave?';
+        e.returnValue = 'You are in a music group. Your session will be restored when you return.';
         return e.returnValue;
       }
     };
@@ -129,42 +152,48 @@ export function GroupMusicProvider({ children }) {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [currentGroup]);
 
-  const loadAudio = async (url) => {
-    try {
-      setIsLoading(true);
-      if (audioRef.current) {
-        audioRef.current.src = url;
-        await audioRef.current.load();
+  // Audio loading - accepts optional queueItemId for idempotent song-ended tracking
+  const loadAudio = useCallback(
+    async (url, queueItemId = null) => {
+      try {
+        setIsLoading(true);
+        if (audioRef.current) {
+          audioRef.current.src = url;
+          await audioRef.current.load();
 
-        audioRef.current.onloadedmetadata = () => {
-          setCurrentTime(0);
-          setDuration(audioRef.current.duration);
-          setIsLoading(false);
-        };
+          audioRef.current.onloadedmetadata = () => {
+            setCurrentTime(0);
+            setDuration(audioRef.current.duration);
+            setIsLoading(false);
+          };
 
-        audioRef.current.ontimeupdate = () => {
-          setCurrentTime(audioRef.current.currentTime);
-        };
+          audioRef.current.ontimeupdate = () => {
+            setCurrentTime(audioRef.current.currentTime);
+          };
 
-        audioRef.current.onended = () => {
-          setIsPlaying(false);
-          socket.emit('music-playback', {
-            groupId: currentGroup?.id,
-            isPlaying: false,
-            currentTime: 0,
-            scheduledTime: getServerTime() + 100,
-          });
-        };
+          audioRef.current.onended = () => {
+            setIsPlaying(false);
+            // Notify server that song ended - pass songId for idempotency
+            if (currentGroup?.id) {
+              socket.emit('song-ended', {
+                groupId: currentGroup.id,
+                songId: queueItemId, // Server uses this to verify which song ended
+              });
+            }
+          };
 
-        audioRef.current.volume = volume;
+          audioRef.current.volume = volume;
+        }
+      } catch (error) {
+        console.error('Error loading audio:', error);
+        toast.error('Failed to load audio');
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error loading audio:', error);
-      toast.error('Failed to load audio');
-      setIsLoading(false);
-    }
-  };
+    },
+    [currentGroup?.id, socket, volume]
+  );
 
+  // Playback controls
   const handlePlayPause = async (forceState) => {
     const newIsPlaying = typeof forceState === 'boolean' ? forceState : !isPlaying;
     const currentAudioTime = audioRef.current?.currentTime || 0;
@@ -223,36 +252,111 @@ export function GroupMusicProvider({ children }) {
     }
   };
 
-  const selectSong = async (song) => {
-    try {
+  // ==================== QUEUE FUNCTIONS ====================
+
+  // Add song to queue
+  const addToQueue = useCallback(
+    (song) => {
+      if (!currentGroup?.id || !user) return;
+
       const securedSong = ensureHttpsForDownloadUrls(song);
-      setIsLoading(true);
-      setCurrentSong(securedSong);
-      setIsPlaying(false);
-      setDuration(0);
-      setCurrentTime(0);
 
-      const url = securedSong.download_url.find((url) => url.quality === '320kbps').link;
-      await loadAudio(url);
-
-      socket.emit('music-change', {
-        groupId: currentGroup?.id,
+      socket.emit('add-to-queue', {
+        groupId: currentGroup.id,
         song: securedSong,
-        currentTime: 0,
-        scheduledTime: Date.now() + serverTimeOffset + 300,
+        addedBy: {
+          userId: user.userid,
+          userName: user.name,
+          profilePic: user.profilepic,
+        },
       });
 
       setIsSearchOpen(false);
       setSearchQuery('');
       setSearchResults([]);
-    } catch (error) {
-      console.log(error);
-      toast.error('Failed to load song');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      toast.success('Added to queue');
+    },
+    [currentGroup?.id, user, socket]
+  );
 
+  // Play song now (inserts at current position)
+  const playNow = useCallback(
+    async (song) => {
+      if (!currentGroup?.id || !user) return;
+
+      try {
+        const securedSong = ensureHttpsForDownloadUrls(song);
+        setIsLoading(true);
+        setCurrentSong(securedSong);
+        setIsPlaying(false);
+        setDuration(0);
+        setCurrentTime(0);
+
+        const url = securedSong.download_url.find((url) => url.quality === '320kbps').link;
+        await loadAudio(url);
+
+        socket.emit('music-change', {
+          groupId: currentGroup.id,
+          song: securedSong,
+          currentTime: 0,
+          scheduledTime: Date.now() + serverTimeOffset + 300,
+          addedBy: {
+            userId: user.userid,
+            userName: user.name,
+            profilePic: user.profilepic,
+          },
+        });
+
+        setIsSearchOpen(false);
+        setSearchQuery('');
+        setSearchResults([]);
+      } catch (error) {
+        console.log(error);
+        toast.error('Failed to load song');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [currentGroup?.id, user, socket, serverTimeOffset, loadAudio]
+  );
+
+  // Remove song from queue
+  const removeFromQueue = useCallback(
+    (queueItemId) => {
+      if (!currentGroup?.id || !user) return;
+
+      socket.emit('remove-from-queue', {
+        groupId: currentGroup.id,
+        queueItemId,
+        userId: user.userid,
+      });
+    },
+    [currentGroup?.id, user, socket]
+  );
+
+  // Skip to next song
+  const skipSong = useCallback(() => {
+    if (!currentGroup?.id) return;
+    socket.emit('skip-song', { groupId: currentGroup.id, userName: user?.name });
+  }, [currentGroup?.id, socket, user?.name]);
+
+  // Reorder queue - server is source of truth
+  const reorderQueue = useCallback(
+    (fromIndex, toIndex) => {
+      if (!currentGroup?.id) return;
+      if (fromIndex === toIndex) return;
+
+      // Emit to server - server will broadcast updated queue
+      socket.emit('reorder-queue', {
+        groupId: currentGroup.id,
+        fromIndex,
+        toIndex,
+      });
+    },
+    [currentGroup?.id, socket]
+  );
+
+  // Search
   const debouncedSearch = useCallback(
     _.debounce(async (query) => {
       if (!query.trim()) {
@@ -275,6 +379,7 @@ export function GroupMusicProvider({ children }) {
     []
   );
 
+  // Group management
   const createGroup = (groupName) => {
     if (!groupName.trim()) {
       toast.error('Please enter a group name');
@@ -335,6 +440,8 @@ export function GroupMusicProvider({ children }) {
     setIsPlaying(false);
     setMessages([]);
     setGroupMembers([]);
+    setQueue([]);
+    setCurrentQueueIndex(-1);
     clearSession();
     toast.info(`Left group ${currentGroup.name}`);
   };
@@ -367,7 +474,6 @@ export function GroupMusicProvider({ children }) {
         setLastSync(endTime);
       });
 
-      // Sync every 5 seconds
       syncWithServer();
       syncIntervalRef.current = setInterval(syncWithServer, 5000);
 
@@ -379,7 +485,7 @@ export function GroupMusicProvider({ children }) {
     }
   }, [socket]);
 
-  // Periodic sync for drift correction when playing
+  // Periodic sync for drift correction
   useEffect(() => {
     if (!currentGroup || !socket) return;
 
@@ -387,8 +493,7 @@ export function GroupMusicProvider({ children }) {
       socket.emit('request-sync', { groupId: currentGroup.id });
     };
 
-    // Request sync every 10 seconds when in a group
-    periodicSyncRef.current = setInterval(requestSync, 10000);
+    periodicSyncRef.current = setInterval(requestSync, 5000); // Sync every 5 seconds
 
     return () => {
       if (periodicSyncRef.current) {
@@ -397,7 +502,7 @@ export function GroupMusicProvider({ children }) {
     };
   }, [currentGroup, socket]);
 
-  // Auto-rejoin on mount if session exists
+  // Auto-rejoin on mount
   useEffect(() => {
     if (socket && user?.userid && !hasAttemptedRejoinRef.current) {
       const session = getStoredSession();
@@ -412,33 +517,102 @@ export function GroupMusicProvider({ children }) {
   useEffect(() => {
     if (!socket) return;
 
-    // Handle sync state for drift correction
-    socket.on('sync-state', (data) => {
-      const { playbackState } = data;
-      if (!playbackState?.currentTrack || !audioRef.current) return;
+    // Sync state for drift correction and out-of-sync recovery
+    socket.on('sync-state', async (data) => {
+      const {
+        playbackState,
+        queue: serverQueue,
+        currentQueueIndex: serverQueueIndex,
+        currentSongId,
+      } = data;
 
+      // Update queue state
+      if (serverQueue) {
+        setQueue(serverQueue);
+        setCurrentQueueIndex(serverQueueIndex);
+      }
+
+      if (!playbackState) return;
+
+      // Check if we're playing the correct song (song ID verification)
+      const serverTrack = playbackState.currentTrack;
+      const currentItem =
+        serverQueueIndex >= 0 && serverQueue ? serverQueue[serverQueueIndex] : null;
+
+      // If server has no song playing, stop our playback
+      if (!serverTrack) {
+        if (audioRef.current && !audioRef.current.paused) {
+          audioRef.current.pause();
+          setIsPlaying(false);
+        }
+        setCurrentSong(null);
+        return;
+      }
+
+      // If we're playing a different song or no song, load the correct one
+      if (!currentSong || currentSong.id !== serverTrack.id) {
+        console.log('Out of sync - loading correct song');
+        setCurrentSong(serverTrack);
+        const url = serverTrack.download_url?.find((u) => u.quality === '320kbps')?.link;
+        if (url && audioRef.current) {
+          await loadAudio(url, currentItem?.id);
+        }
+      }
+
+      if (!audioRef.current) return;
+
+      // Drift correction
       const serverNow = Date.now() + serverTimeOffset;
       const timePassed = (serverNow - playbackState.lastUpdate) / 1000;
       const expectedTime = playbackState.currentTime + (playbackState.isPlaying ? timePassed : 0);
       const actualTime = audioRef.current.currentTime;
       const drift = Math.abs(expectedTime - actualTime);
 
-      // Only correct if drift > 0.5 seconds to avoid jitter
-      if (drift > 0.5 && expectedTime <= audioRef.current.duration) {
+      // Correct drift if more than 0.5 seconds
+      if (drift > 0.5 && expectedTime <= (audioRef.current.duration || Infinity)) {
         audioRef.current.currentTime = expectedTime;
         console.log(`Drift corrected: ${drift.toFixed(2)}s`);
       }
 
-      // Sync play state
+      // Sync play/pause state
       if (playbackState.isPlaying && audioRef.current.paused) {
-        audioRef.current.play().catch(console.error);
-        setIsPlaying(true);
+        try {
+          await audioRef.current.play();
+          setIsPlaying(true);
+        } catch (err) {
+          console.error('Autoplay blocked:', err);
+        }
       } else if (!playbackState.isPlaying && !audioRef.current.paused) {
         audioRef.current.pause();
         setIsPlaying(false);
       }
     });
 
+    // Queue updates
+    socket.on('queue-updated', (data) => {
+      const { queue: serverQueue, currentQueueIndex: serverQueueIndex, action, item } = data;
+      setQueue(serverQueue);
+      setCurrentQueueIndex(serverQueueIndex);
+
+      if (action === 'add' && item) {
+        // Notification handled by toast in addToQueue
+      } else if (action === 'remove') {
+        toast.info('Song removed from queue');
+      } else if (action === 'skip') {
+        toast.info('Skipped to next song');
+      }
+    });
+
+    socket.on('queue-error', ({ error }) => {
+      toast.error(error);
+    });
+
+    socket.on('queue-ended', () => {
+      setIsPlaying(false);
+      toast.info('Queue ended');
+    });
+
+    // Playback updates
     socket.on('playback-update', (data) => {
       const serverNow = getServerTime();
       lastPlaybackUpdateRef.current = serverNow;
@@ -463,29 +637,32 @@ export function GroupMusicProvider({ children }) {
       setLastSync(serverNow);
     });
 
-    socket.on('music-update', async ({ song, currentTime, scheduledTime }) => {
+    socket.on('music-update', async ({ song, currentTime, queueItem, autoPlay }) => {
       setCurrentSong(song);
       const url = song.download_url.find((url) => url.quality === '320kbps')?.link;
 
       if (url) {
-        await loadAudio(url);
+        await loadAudio(url, queueItem?.id);
 
-        const timeUntilPlay = scheduledTime - (Date.now() + serverTimeOffset);
-
-        setTimeout(
-          () => {
-            if (audioRef.current) {
-              audioRef.current.currentTime = currentTime;
-              if (isPlaying) {
-                audioRef.current.play();
-              }
+        if (audioRef.current) {
+          audioRef.current.currentTime = currentTime;
+          if (autoPlay || isPlaying) {
+            try {
+              await audioRef.current.play();
+              setIsPlaying(true);
+            } catch (err) {
+              console.error('Autoplay blocked:', err);
             }
-          },
-          Math.max(0, timeUntilPlay)
-        );
+          }
+        }
+      }
+
+      if (queueItem?.addedBy) {
+        toast.info(`Now playing: ${song.name} (added by ${queueItem.addedBy.userName})`);
       }
     });
 
+    // Group events
     socket.on('group-created', (group) => {
       setCurrentGroup(group);
       setGroupMembers([
@@ -496,14 +673,24 @@ export function GroupMusicProvider({ children }) {
           profilePic: user.profilepic,
         },
       ]);
+      setQueue([]);
+      setCurrentQueueIndex(-1);
       saveSession(group.id);
       toast.success(`Created group: ${group.name}`);
     });
 
     socket.on('group-joined', async (data) => {
-      const { group, members, playbackState } = data;
+      const {
+        group,
+        members,
+        playbackState,
+        queue: serverQueue,
+        currentQueueIndex: serverQueueIndex,
+      } = data;
       setCurrentGroup(group);
       setGroupMembers(members);
+      setQueue(serverQueue || []);
+      setCurrentQueueIndex(serverQueueIndex ?? -1);
       saveSession(group.id);
 
       if (playbackState?.currentTrack) {
@@ -513,9 +700,8 @@ export function GroupMusicProvider({ children }) {
           playbackState.currentTrack.download_url?.[3]?.link;
 
         if (url) {
-          await loadAudio(url);
+          await loadAudio(url, serverQueue?.[serverQueueIndex]?.id);
 
-          // Calculate synced position
           const serverNow = Date.now() + serverTimeOffset;
           const timePassed = (serverNow - playbackState.lastUpdate) / 1000;
           const syncedTime = playbackState.currentTime + (playbackState.isPlaying ? timePassed : 0);
@@ -542,9 +728,17 @@ export function GroupMusicProvider({ children }) {
     });
 
     socket.on('group-rejoined', async (data) => {
-      const { group, members, playbackState } = data;
+      const {
+        group,
+        members,
+        playbackState,
+        queue: serverQueue,
+        currentQueueIndex: serverQueueIndex,
+      } = data;
       setCurrentGroup(group);
       setGroupMembers(members);
+      setQueue(serverQueue || []);
+      setCurrentQueueIndex(serverQueueIndex ?? -1);
       setIsRejoining(false);
       saveSession(group.id);
 
@@ -555,9 +749,8 @@ export function GroupMusicProvider({ children }) {
           playbackState.currentTrack.download_url?.[3]?.link;
 
         if (url) {
-          await loadAudio(url);
+          await loadAudio(url, serverQueue?.[serverQueueIndex]?.id);
 
-          // Calculate synced position based on elapsed time
           const serverNow = Date.now() + serverTimeOffset;
           const timePassed = (serverNow - playbackState.lastUpdate) / 1000;
           const syncedTime = playbackState.currentTime + (playbackState.isPlaying ? timePassed : 0);
@@ -616,6 +809,8 @@ export function GroupMusicProvider({ children }) {
       setIsPlaying(false);
       setMessages([]);
       setGroupMembers([]);
+      setQueue([]);
+      setCurrentQueueIndex(-1);
       clearSession();
       toast.info('Group disbanded');
     });
@@ -626,6 +821,9 @@ export function GroupMusicProvider({ children }) {
 
     return () => {
       socket.off('sync-state');
+      socket.off('queue-updated');
+      socket.off('queue-error');
+      socket.off('queue-ended');
       socket.off('playback-update');
       socket.off('music-update');
       socket.off('group-created');
@@ -649,39 +847,56 @@ export function GroupMusicProvider({ children }) {
   ]);
 
   const contextValue = {
-    // States
+    // Group state
     currentGroup,
     setCurrentGroup,
+    groupMembers,
+    setGroupMembers,
+    messages,
+    setMessages,
+
+    // Queue state
+    queue,
+    currentQueueIndex,
+    currentQueueItem,
+    upcomingQueue,
+    playedQueue,
+    isQueueOpen,
+    setIsQueueOpen,
+
+    // Playback state
     isPlaying,
     setIsPlaying,
     currentTime,
     setCurrentTime,
     duration,
     setDuration,
-    groupMembers,
-    setGroupMembers,
-    searchResults,
-    setSearchResults,
-    searchQuery,
-    setSearchQuery,
     currentSong,
     setCurrentSong,
-    isSearchOpen,
-    setIsSearchOpen,
     volume,
     setVolume,
     isLoading,
     setIsLoading,
-    messages,
-    setMessages,
+
+    // Search state
+    searchResults,
+    setSearchResults,
+    searchQuery,
+    setSearchQuery,
+    isSearchOpen,
+    setIsSearchOpen,
+    isSearchLoading,
+    setIsSearchLoading,
+
+    // Sync state
     serverTimeOffset,
     setServerTimeOffset,
     lastSync,
     setLastSync,
+
+    // UI state
     isGroupModalOpen,
     setIsGroupModalOpen,
-    isSearchLoading,
-    setIsSearchLoading,
     connectionState,
     isRejoining,
     audioRef,
@@ -691,13 +906,24 @@ export function GroupMusicProvider({ children }) {
     handlePlayPause,
     handleSeek,
     handleVolumeChange,
-    selectSong,
     debouncedSearch,
+
+    // Queue functions
+    addToQueue,
+    playNow,
+    removeFromQueue,
+    skipSong,
+    reorderQueue,
+
+    // Group functions
     createGroup,
     joinGroup,
     rejoinGroup,
     leaveGroup,
     sendMessage,
+
+    // Legacy alias
+    selectSong: playNow,
   };
 
   return (
@@ -711,7 +937,7 @@ export function GroupMusicProvider({ children }) {
 export const useGroupMusic = () => {
   const context = useContext(GroupMusicContext);
   if (!context) {
-    throw new Error('useMusic must be used within a MusicProvider');
+    throw new Error('useGroupMusic must be used within a GroupMusicProvider');
   }
   return context;
 };

@@ -7,7 +7,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MessageCircle, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Memoized Message Component
+// Activity Message Component (system messages for queue events)
+const ActivityMessage = memo(({ msg }) => (
+  <div className='flex justify-center py-1'>
+    <p className='text-xs text-muted-foreground/70 bg-green-950/30 px-3 py-1 rounded-full'>
+      {msg.message}
+    </p>
+  </div>
+));
+
+// Chat Message Component
 const ChatMessage = memo(({ msg, isOwn }) => (
   <div className={cn('flex gap-2', isOwn ? 'justify-end' : 'justify-start')}>
     {!isOwn && (
@@ -40,7 +49,7 @@ const ChatMessage = memo(({ msg, isOwn }) => (
   </div>
 ));
 
-// Memoized Empty State
+// Empty State
 const EmptyState = memo(() => (
   <div className='h-full flex flex-col items-center justify-center text-center p-4'>
     <MessageCircle className='h-8 w-8 md:h-12 md:w-12 text-muted-foreground/30 mb-2' />
@@ -48,17 +57,21 @@ const EmptyState = memo(() => (
   </div>
 ));
 
-// Memoized Messages List
+// Messages List with activity message support
 const MessagesList = memo(({ messages, currentUserId }) => {
   if (messages.length === 0) {
     return <EmptyState />;
   }
 
   return (
-    <div className='space-y-3'>
-      {messages.map((msg, i) => (
-        <ChatMessage key={msg.id || i} msg={msg} isOwn={msg.senderId === currentUserId} />
-      ))}
+    <div className='space-y-2'>
+      {messages.map((msg, i) =>
+        msg.type === 'activity' ? (
+          <ActivityMessage key={msg.id || i} msg={msg} />
+        ) : (
+          <ChatMessage key={msg.id || i} msg={msg} isOwn={msg.senderId === currentUserId} />
+        )
+      )}
     </div>
   );
 });
@@ -96,8 +109,11 @@ const GroupChat = ({ messages, currentUserId, onSendMessage }) => {
     [handleSend]
   );
 
-  // Memoize message count
-  const messageCount = useMemo(() => messages.length, [messages.length]);
+  // Memoize message count (exclude activity messages from count)
+  const userMessageCount = useMemo(
+    () => messages.filter((m) => m.type !== 'activity').length,
+    [messages]
+  );
 
   return (
     <Card className='h-full flex flex-col border-border/50 shadow-lg overflow-hidden'>
@@ -107,14 +123,14 @@ const GroupChat = ({ messages, currentUserId, onSendMessage }) => {
             <MessageCircle className='h-3 w-3 md:h-4 md:w-4 text-primary' />
           </div>
           Chat
-          {messageCount > 0 && (
-            <span className='text-xs font-normal text-muted-foreground'>({messageCount})</span>
+          {userMessageCount > 0 && (
+            <span className='text-xs font-normal text-muted-foreground'>({userMessageCount})</span>
           )}
         </CardTitle>
       </CardHeader>
 
       <CardContent className='flex-1 flex flex-col p-0 min-h-0'>
-        <ScrollArea ref={scrollRef} className='flex-1 p-2 md:p-4' style={{ height: '350px' }}>
+        <ScrollArea ref={scrollRef} className='flex-1 p-2 md:p-4 max-h-[350px]'>
           <MessagesList messages={messages} currentUserId={currentUserId} />
         </ScrollArea>
 

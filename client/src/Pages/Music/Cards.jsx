@@ -179,156 +179,139 @@ export const SongCard = memo(({ song }) => {
   const isInQueue = playlist.some((item) => item.id === song.id);
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Card
-            className={cn(
-              CARD_BASE_CLASSES,
-              CARD_HOVER_CLASSES,
-              isCurrentSong && 'bg-primary/5 border-primary/30',
-              HOVER_TRANSITION,
-              'p-0'
-            )}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-          >
-            <CardContent className='p-1'>
-              <div className='flex items-center gap-4'>
-                <div
-                  className='relative min-w-[3rem] h-14'
-                  onClick={
-                    song.type === 'song'
-                      ? handlePlayClick
-                      : () =>
-                          navigate(`/music/${song.type}/${song.id}`, {
-                            state: song.id,
-                          })
-                  }
-                >
-                  <div className='relative'>
-                    <LazyImage
-                      src={Array.isArray(song.image) ? song.image?.[1].link : song.image}
-                      alt={name}
-                      height={50}
-                      width={50}
-                      className={cn(
-                        'w-14 h-14 rounded-lg',
-                        'group-hover:scale-105',
-                        HOVER_TRANSITION
-                      )}
-                    />
-                  </div>
+    <>
+      <Card
+        className={cn(
+          CARD_BASE_CLASSES,
+          CARD_HOVER_CLASSES,
+          isCurrentSong && 'bg-primary/5 border-primary/30',
+          HOVER_TRANSITION,
+          'p-0'
+        )}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <CardContent className='p-1'>
+          <div className='flex items-center gap-4'>
+            <div
+              className='relative min-w-[3rem] h-14'
+              onClick={
+                song.type === 'song'
+                  ? handlePlayClick
+                  : () =>
+                      navigate(`/music/${song.type}/${song.id}`, {
+                        state: song.id,
+                      })
+              }
+            >
+              <div className='relative'>
+                <LazyImage
+                  src={Array.isArray(song.image) ? song.image?.[1].link : song.image}
+                  alt={name}
+                  height={50}
+                  width={50}
+                  className={cn('w-14 h-14 rounded-lg', 'group-hover:scale-105', HOVER_TRANSITION)}
+                />
+              </div>
 
-                  {song.type === 'song' && (
-                    <div
-                      className={cn(
-                        'absolute inset-0 bg-black/60 flex items-center justify-center',
-                        !isCurrentSong && !isHovered && 'opacity-0',
-                        HOVER_TRANSITION
-                      )}
-                    >
-                      {loading ? (
-                        <Loader2 className='w-6 h-6 animate-spin text-white' />
-                      ) : isCurrentSong && isPlaying ? (
-                        <AudioWave />
-                      ) : (
-                        <Play className='w-6 h-6 text-white' />
-                      )}
-                    </div>
+              {song.type === 'song' && (
+                <div
+                  className={cn(
+                    'absolute inset-0 bg-black/60 flex items-center justify-center',
+                    !isCurrentSong && !isHovered && 'opacity-0',
+                    HOVER_TRANSITION
+                  )}
+                >
+                  {loading ? (
+                    <Loader2 className='w-6 h-6 animate-spin text-white' />
+                  ) : isCurrentSong && isPlaying ? (
+                    <AudioWave />
+                  ) : (
+                    <Play className='w-6 h-6 text-white' />
                   )}
                 </div>
+              )}
+            </div>
 
-                <div
-                  className='flex-grow min-w-0 space-y-1'
-                  onClick={
-                    song.type === 'song'
-                      ? handlePlayClick
-                      : () =>
-                          navigate(`/music/${song.type}/${song.id}`, {
-                            state: song.id,
-                          })
-                  }
-                >
-                  <div className='flex items-center gap-2'>
-                    <p className='font-medium line-clamp-1 group-hover:text-primary'>{name}</p>
-                    {isCurrentSong && (
-                      <Badge variant='secondary' className='h-5'>
-                        Playing
-                      </Badge>
-                    )}
-                  </div>
-                  <p className='text-sm text-muted-foreground line-clamp-1'>{artistName}</p>
-                </div>
-
-                {song.type === 'song' && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant='link' className='ml-auto'>
-                        <EllipsisVerticalIcon />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align='end' className='w-56'>
-                      {song?.album_id && (
-                        <DropdownMenuItem
-                          onClick={() =>
-                            navigate(`/music/album/${song.album_id}`, {
-                              state: song.album_id,
-                            })
-                          }
-                          className='capitalize cursor-pointer line-clamp-1 truncate'
-                        >
-                          More from {song.album}
-                        </DropdownMenuItem>
-                      )}
-                      {song?.artist_map?.primary_artists?.[0] && (
-                        <DropdownMenuItem
-                          onClick={() =>
-                            navigate(`/music/artist/${song.artist_map.primary_artists[0].id}`, {
-                              state: song.artist_map.primary_artists[0].id,
-                            })
-                          }
-                          className='capitalize cursor-pointer line-clamp-1 truncate'
-                        >
-                          More from {song.artist_map.primary_artists[0].name}
-                        </DropdownMenuItem>
-                      )}
-
-                      <DropdownMenuItem
-                        onClick={isInQueue ? handleRemoveFromQueue : handleAddToQueue}
-                        className='capitalize cursor-pointer'
-                      >
-                        {isInQueue ? 'Remove from Queue' : 'Add to Queue'}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => setIsModalOpen(true)}
-                        className='capitalize cursor-pointer'
-                      >
-                        Add to Playlist
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            <div
+              className='flex-grow min-w-0 space-y-1'
+              onClick={
+                song.type === 'song'
+                  ? handlePlayClick
+                  : () =>
+                      navigate(`/music/${song.type}/${song.id}`, {
+                        state: song.id,
+                      })
+              }
+            >
+              <div className='flex items-center gap-2'>
+                <p className='font-medium line-clamp-1 group-hover:text-primary'>{name}</p>
+                {isCurrentSong && (
+                  <Badge variant='secondary' className='h-5'>
+                    Playing
+                  </Badge>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        </TooltipTrigger>
-        <TooltipContent>
-          {error ? (
-            <p className='text-destructive'>Error: {error}</p>
-          ) : (
-            <p>
-              {isCurrentSong ? 'Now Playing' : 'Play'} {name}
-            </p>
-          )}
-        </TooltipContent>
-      </Tooltip>
+              <p className='text-sm text-muted-foreground line-clamp-1'>{artistName}</p>
+            </div>
+
+            {song.type === 'song' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant='link' className='ml-auto'>
+                    <EllipsisVerticalIcon />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align='end' className='w-56'>
+                  {song?.album_id && (
+                    <DropdownMenuItem
+                      onClick={() =>
+                        navigate(`/music/album/${song.album_id}`, {
+                          state: song.album_id,
+                        })
+                      }
+                      className='capitalize cursor-pointer line-clamp-1 truncate'
+                    >
+                      More from {song.album}
+                    </DropdownMenuItem>
+                  )}
+                  {song?.artist_map?.primary_artists?.[0] && (
+                    <DropdownMenuItem
+                      onClick={() =>
+                        navigate(`/music/artist/${song.artist_map.primary_artists[0].id}`, {
+                          state: song.artist_map.primary_artists[0].id,
+                        })
+                      }
+                      className='capitalize cursor-pointer line-clamp-1 truncate'
+                    >
+                      More from {song.artist_map.primary_artists[0].name}
+                    </DropdownMenuItem>
+                  )}
+
+                  <DropdownMenuItem
+                    onClick={isInQueue ? handleRemoveFromQueue : handleAddToQueue}
+                    className='capitalize cursor-pointer'
+                  >
+                    {isInQueue ? 'Remove from Queue' : 'Add to Queue'}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setIsModalOpen(true)}
+                    className='capitalize cursor-pointer'
+                  >
+                    Add to Playlist
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {isModalOpen && (
         <AddToPlaylist dialogOpen={isModalOpen} setDialogOpen={setIsModalOpen} song={song} />
       )}
-    </TooltipProvider>
+    </>
   );
 });
 

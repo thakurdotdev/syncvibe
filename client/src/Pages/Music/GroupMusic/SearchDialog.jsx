@@ -1,13 +1,35 @@
-import { memo, useCallback, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { memo, useCallback, useMemo, useState } from 'react';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { Loader2, Music, Play, Search } from 'lucide-react';
+import { Loader2, Music, Play, Search, ListPlus, MoreVertical, X } from 'lucide-react';
 
-// Memoized Search Result Item
-const SearchResultItem = memo(({ song, onSelect }) => {
-  const handleClick = useCallback(() => onSelect(song), [song, onSelect]);
+const SearchResultItem = memo(({ song, onPlayNow, onAddToQueue }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const handlePlayNow = useCallback(() => {
+    onPlayNow(song);
+    setIsMenuOpen(false);
+  }, [song, onPlayNow]);
+
+  const handleAddToQueue = useCallback(() => {
+    onAddToQueue(song);
+    setIsMenuOpen(false);
+  }, [song, onAddToQueue]);
 
   const duration = useMemo(() => {
     if (!song.duration) return null;
@@ -23,15 +45,16 @@ const SearchResultItem = memo(({ song, onSelect }) => {
 
   return (
     <div
-      onClick={handleClick}
       className={cn(
-        'group flex items-center gap-3 sm:gap-4 p-2 sm:p-3 rounded-xl cursor-pointer',
-        'hover:bg-accent/50 transition-colors duration-150',
-        'active:scale-[0.98]'
+        'group flex items-center gap-2 p-2 rounded-xl w-full',
+        'hover:bg-accent/50 transition-colors duration-150'
       )}
     >
-      {/* Album Art */}
-      <div className='relative h-12 w-12 sm:h-14 sm:w-14 rounded-lg overflow-hidden shrink-0'>
+      {/* Album Art - Click to play */}
+      <div
+        onClick={handlePlayNow}
+        className='relative h-10 w-10 rounded-lg overflow-hidden shrink-0 cursor-pointer'
+      >
         <img
           src={song.image?.[1]?.link}
           alt={song.name}
@@ -44,24 +67,41 @@ const SearchResultItem = memo(({ song, onSelect }) => {
             'opacity-0 group-hover:opacity-100 transition-opacity'
           )}
         >
-          <Play className='h-5 w-5 sm:h-6 sm:w-6 text-white' />
+          <Play className='h-4 w-4 text-white' />
         </div>
       </div>
 
-      {/* Song Info */}
-      <div className='flex-1 min-w-0'>
-        <p className='font-medium truncate text-sm sm:text-base group-hover:text-primary transition-colors'>
+      {/* Song Info - Click to play */}
+      <div className='flex-1 min-w-0 max-w-[280px] cursor-pointer' onClick={handlePlayNow}>
+        <p className='font-medium truncate text-sm group-hover:text-primary transition-colors'>
           {song.name}
         </p>
-        <p className='text-xs sm:text-sm text-muted-foreground truncate'>{artistName}</p>
+        <p className='text-xs text-muted-foreground truncate'>{artistName}</p>
       </div>
 
       {/* Duration */}
       {duration && (
-        <span className='text-xs sm:text-sm text-muted-foreground tabular-nums shrink-0'>
-          {duration}
-        </span>
+        <span className='text-xs text-muted-foreground tabular-nums shrink-0'>{duration}</span>
       )}
+
+      {/* Action Buttons */}
+      <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button variant='ghost' size='icon' className='h-7 w-7 shrink-0 text-muted-foreground'>
+            <MoreVertical className='h-4 w-4' />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align='end' className='w-40'>
+          <DropdownMenuItem onClick={handlePlayNow} className='gap-2'>
+            <Play className='h-4 w-4' />
+            Play Now
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleAddToQueue} className='gap-2'>
+            <ListPlus className='h-4 w-4' />
+            Add to Queue
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 });
@@ -90,23 +130,29 @@ const NoResultsState = memo(() => (
 ));
 
 // Memoized Results List
-const ResultsList = memo(({ results, onSelectSong }) => (
-  <div className='space-y-1'>
+const ResultsList = memo(({ results, onPlayNow, onAddToQueue }) => (
+  <div className='space-y-0.5 w-full overflow-hidden'>
     {results.map((song) => (
-      <SearchResultItem key={song.id} song={song} onSelect={onSelectSong} />
+      <SearchResultItem
+        key={song.id}
+        song={song}
+        onPlayNow={onPlayNow}
+        onAddToQueue={onAddToQueue}
+      />
     ))}
   </div>
 ));
 
-// Main SearchDialog Component
-const SearchDialog = ({
+// Main SearchSheet Component (converted from Dialog)
+const SearchSheet = ({
   isOpen,
   onClose,
   searchQuery,
   onSearchChange,
   searchResults,
   isSearchLoading,
-  onSelectSong,
+  onPlayNow,
+  onAddToQueue,
 }) => {
   const handleInputChange = useCallback((e) => onSearchChange(e.target.value), [onSearchChange]);
 
@@ -114,30 +160,49 @@ const SearchDialog = ({
   const hasQuery = useMemo(() => Boolean(searchQuery), [searchQuery]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className='sm:max-w-xl h-[100dvh] sm:h-auto sm:max-h-[85vh] flex flex-col p-4 sm:p-6 gap-0 rounded-none sm:rounded-lg'>
-        <DialogHeader className='pb-3'>
-          <DialogTitle className='flex items-center gap-2 text-lg sm:text-xl'>
-            <Music className='h-4 w-4 sm:h-5 sm:w-5 text-primary' />
-            Search Songs
-          </DialogTitle>
-        </DialogHeader>
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent className='w-full sm:max-w-md p-0 flex flex-col'>
+        <SheetHeader className='px-4 pt-4 pb-3 border-b space-y-3'>
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-2'>
+              <div className='p-1.5 rounded-lg bg-primary/10'>
+                <Search className='h-4 w-4 text-primary' />
+              </div>
+              <SheetTitle className='text-lg'>Search Songs</SheetTitle>
+            </div>
+            <Button
+              variant='ghost'
+              size='icon'
+              onClick={() => onClose(false)}
+              className='h-8 w-8 rounded-full'
+            >
+              <X className='h-4 w-4' />
+            </Button>
+          </div>
+          <SheetDescription className='sr-only'>
+            Search for songs to add to the queue
+          </SheetDescription>
 
-        <div className='space-y-3 sm:space-y-4 flex-1 min-h-0 flex flex-col'>
           {/* Search Input */}
           <div className='relative'>
-            <Search className='absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
+            <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
             <Input
               placeholder='Search songs, artists...'
               value={searchQuery}
               onChange={handleInputChange}
-              className='pl-9 sm:pl-10 h-10 sm:h-12 rounded-full bg-accent/30 border-border/50 text-sm'
+              className='pl-9 h-10 rounded-full bg-accent/30 border-border/50 text-sm'
               autoFocus
             />
           </div>
 
-          {/* Results */}
-          <ScrollArea className='flex-1 -mx-4 sm:-mx-6 px-4 sm:px-6'>
+          {/* Tip */}
+          <p className='text-xs text-muted-foreground text-center'>
+            Tap to play now • <ListPlus className='h-3 w-3 inline' /> to add to queue
+          </p>
+        </SheetHeader>
+
+        <ScrollArea className='flex-1 overflow-hidden'>
+          <div className='p-3 overflow-hidden'>
             {isSearchLoading ? (
               <LoadingState />
             ) : !hasQuery ? (
@@ -145,13 +210,17 @@ const SearchDialog = ({
             ) : !hasResults ? (
               <NoResultsState />
             ) : (
-              <ResultsList results={searchResults} onSelectSong={onSelectSong} />
+              <ResultsList
+                results={searchResults}
+                onPlayNow={onPlayNow}
+                onAddToQueue={onAddToQueue}
+              />
             )}
-          </ScrollArea>
-        </div>
-      </DialogContent>
-    </Dialog>
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
   );
 };
 
-export default memo(SearchDialog);
+export default memo(SearchSheet);

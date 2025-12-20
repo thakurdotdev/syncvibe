@@ -1,11 +1,9 @@
-import React, { useContext, useEffect, useState } from 'react';
-import ChatWithUser from './ChatWithUser';
-import SearchUser from './SearchUser';
+import { useContext, useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ChatContext } from '../../Context/ChatContext';
 import { Context } from '../../Context/Context';
-import { useLocation, useNavigate } from 'react-router-dom';
-import DotPattern from '../ui/dot-pattern';
-import { cn } from '@/lib/utils';
+import ChatWithUser from './ChatWithUser';
+import SearchUser from './SearchUser';
 
 const Chat = () => {
   const { user } = useContext(Context);

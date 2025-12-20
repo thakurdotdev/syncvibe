@@ -1,8 +1,6 @@
-import data from '@emoji-mart/data';
-import Picker from '@emoji-mart/react';
 import { yupResolver } from '@hookform/resolvers/yup';
 import axios from 'axios';
-import { Heart, MessageSquare, Send, Smile } from 'lucide-react';
+import { Heart, Loader2, MessageSquare, Send } from 'lucide-react';
 import { useContext, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -11,14 +9,12 @@ import * as Yup from 'yup';
 import { Context } from '../../Context/Context';
 import { getLikeDislikeStatus, handleLikeDislike } from '../../Utils/LikeDislike';
 import { TimeAgo } from '../../Utils/TimeAgo';
-import LoadingScreen from '../Loader';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '../ui/card';
 import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
 import { Separator } from '../ui/separator';
-import { Loader2 } from 'lucide-react';
 
 const validationSchema = Yup.object().shape({
   comment: Yup.string()
@@ -33,7 +29,6 @@ const PostDetail = () => {
   const [post, setPost] = useState();
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [liked, setLiked] = useState(false);
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -111,7 +106,6 @@ const PostDetail = () => {
       setComments([newComment, ...comments]);
       toast.success('Comment Added');
       setCommentText('');
-      setShowEmojiPicker(false);
 
       await axios.post(
         `${import.meta.env.VITE_API_URL}/api/post/comment`,
@@ -233,15 +227,6 @@ const PostDetail = () => {
             onChange={(e) => setCommentText(e.target.value)}
           />
           <Button
-            type='button'
-            variant='ghost'
-            size='icon'
-            className='absolute right-8 top-1/2 transform -translate-y-1/2'
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          >
-            <Smile className='w-5 h-5' />
-          </Button>
-          <Button
             type='submit'
             variant='ghost'
             size='icon'
@@ -249,14 +234,6 @@ const PostDetail = () => {
           >
             <Send className='w-5 h-5' />
           </Button>
-          {showEmojiPicker && (
-            <div className='absolute top-full right-0 z-10 mt-2'>
-              <Picker
-                data={data}
-                onEmojiSelect={(emoji) => setCommentText(commentText + emoji.native)}
-              />
-            </div>
-          )}
         </form>
         {errors.comment && <p className='text-sm text-red-500'>{errors.comment.message}</p>}
       </CardContent>

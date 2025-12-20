@@ -8,3 +8,4 @@ export { default as GroupHeader } from './GroupHeader';
 export { default as SearchDialog } from './SearchDialog';
 export { default as QRCodeDialog } from './QRCodeDialog';
 export { default as WelcomeView } from './WelcomeView';
+export { default as QueueSheet } from './QueueSheet';

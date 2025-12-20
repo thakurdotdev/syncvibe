@@ -82,7 +82,7 @@ const MembersList = ({ members, currentUserId, createdBy }) => {
       </CardHeader>
 
       <CardContent className='p-0'>
-        <ScrollArea style={{ height: '350px' }}>
+        <ScrollArea className='flex-1 p-2 md:p-4 max-h-[350px]'>
           <div className='p-2 md:p-4 space-y-1 md:space-y-2'>
             {members.map((member) => (
               <MemberItem

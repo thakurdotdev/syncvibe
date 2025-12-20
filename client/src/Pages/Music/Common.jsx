@@ -1,23 +1,21 @@
+import ShareDrawer from '@/components/Posts/ShareDrawer';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { usePlayer, usePlayerState, usePlayerTime } from '@/Context/PlayerContext';
+import { cn } from '@/lib/utils';
+import axios from 'axios';
 import {
   Loader2,
   Pause,
   Play,
+  Share2,
   Shuffle,
   SkipBack,
   SkipForward,
   Volume2,
   VolumeX,
 } from 'lucide-react';
-
-import ShareDrawer from '@/components/Posts/ShareDrawer';
-import { usePlayer, usePlayerState, usePlayerTime } from '@/Context/PlayerContext';
-import { cn } from '@/lib/utils';
-import axios from 'axios';
-import { Share2 } from 'lucide-react';
-import { memo, useCallback, useEffect, useState } from 'react';
-import { useRef } from 'react';
+import { memo, useCallback, useState } from 'react';
 
 export const formatTime = (time) => {
   if (!time) return '00:00';
