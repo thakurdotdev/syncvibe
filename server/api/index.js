@@ -141,6 +141,7 @@ const corsOptions = {
     'https://syncvibe.xyz',
     'http://localhost:5173',
     'https://dev.thakur.dev',
+    'https://syncvibe.thakur.dev',
     'https://tune.thakur.dev',
   ],
   credentials: true,
