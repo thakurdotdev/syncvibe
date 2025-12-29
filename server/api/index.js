@@ -203,7 +203,7 @@ app.get('/', (req, res) => {
 
 app.get('/health', (req, res) => {
   res.json({
-    status: 'ok',
+    status: 'Welcome to SyncVibe API',
     timestamp: new Date().toISOString(),
   });
 });
