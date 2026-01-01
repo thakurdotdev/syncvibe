@@ -8,26 +8,27 @@ on:
       - 'client/**'
 
 jobs:
-  deploy:
+  # ================= FRONTEND =================
+  frontend:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 2 # Needed for clean diff logic
+          fetch-depth: 2
 
-      # ---------- FRONTEND BUILD (CI SIDE) ----------
       - name: Build frontend
         run: |
           if git diff --name-only HEAD^ HEAD | grep '^client/' >/dev/null; then
             echo "Frontend changed → building"
             cd client
+
             echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > .env.production
             echo "VITE_IC_CREDENTIAL=${{ secrets.VITE_IC_CREDENTIAL }}" >> .env.production
             echo "VITE_IC_USERNAME=${{ secrets.VITE_IC_USERNAME }}" >> .env.production
             echo "VITE_SONG_URL=${{ secrets.VITE_SONG_URL }}" >> .env.production
-            npm ci
+
+            npm install --no-audit --no-fund
             npm run build
             tar -czf ../client-dist.tar.gz dist
           else
@@ -35,7 +36,7 @@ jobs:
           fi
 
       - name: Upload frontend to VPS
-        if: success()
+        if: success() && exists('client-dist.tar.gz')
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -45,8 +46,16 @@ jobs:
           target: /home/ubuntu/
           overwrite: true
 
-      # ---------- BACKEND DEPLOY (VPS SIDE) ----------
-      - name: Deploy backend + unpack frontend
+  # ================= BACKEND =================
+  backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Deploy backend
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -57,7 +66,6 @@ jobs:
             git fetch origin
             git reset --hard origin/main
 
-            # Backend
             if git diff --name-only HEAD@{1} HEAD | grep '^server/' >/dev/null; then
               echo "Backend code changed"
 
@@ -74,12 +82,8 @@ jobs:
               echo "Backend unchanged"
             fi
 
-            # Frontend
             if [ -f /home/ubuntu/client-dist.tar.gz ]; then
-              echo "Deploying frontend"
               sudo rm -rf /var/www/syncvibe-web/*
               sudo tar -xzf /home/ubuntu/client-dist.tar.gz -C /var/www/syncvibe-web
               rm /home/ubuntu/client-dist.tar.gz
-            else
-              echo "Frontend unchanged"
             fi
