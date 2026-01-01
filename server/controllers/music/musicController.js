@@ -1,7 +1,11 @@
 const { Sequelize } = require('sequelize');
 const Playlist = require('../../models/music/playlist');
 const PlaylistSong = require('../../models/music/playlistSong');
+const Song = require('../../models/music/Song');
 const sequelize = require('../../utils/sequelize');
+
+// Initialize associations
+require('../../models/music/index');
 
 const createPlaylist = async (req, res) => {
   try {
@@ -83,8 +87,12 @@ const deletePlaylist = async (req, res) => {
 
 const addSongToPlaylist = async (req, res) => {
   try {
-    const { playlistId, songId, songData } = req.body;
+    const { playlistId, songId, songData: rawSongData } = req.body;
     const userId = req.user.userid;
+
+    // Parse songData if it's a string
+    const songData = typeof rawSongData === 'string' ? JSON.parse(rawSongData) : rawSongData;
+
     const playlist = await Playlist.findOne({
       where: { id: playlistId, userId },
     });
@@ -93,8 +101,11 @@ const addSongToPlaylist = async (req, res) => {
       return res.status(404).json({ error: 'Playlist not found' });
     }
 
+    // Get or create song in central table
+    const song = await Song.getOrCreate(songData);
+
     const alreadyAdded = await PlaylistSong.findOne({
-      where: { playlistId, songId },
+      where: { playlistId, songRefId: song.id },
     });
 
     if (alreadyAdded) {
@@ -103,7 +114,13 @@ const addSongToPlaylist = async (req, res) => {
       });
     }
 
-    await PlaylistSong.create({ playlistId, songId, songData });
+    await PlaylistSong.create({
+      playlistId,
+      songRefId: song.id,
+      // Keep deprecated fields for backward compatibility
+      songId,
+      songData,
+    });
 
     res.status(201).json({ message: 'Song added to playlist' });
   } catch (error) {
@@ -206,18 +223,33 @@ const getPlaylistSongs = async (req, res) => {
 
     const songs = await PlaylistSong.findAll({
       where: { playlistId },
+      include: [
+        {
+          model: Song,
+          as: 'song',
+          attributes: ['songData'],
+        },
+      ],
       order: [['createdat', 'DESC']],
-      raw: true,
     });
 
-    const updatedSongs = songs.map((song) => {
+    const updatedSongs = songs.map((playlistSong) => {
+      // Prefer Song association, fall back to deprecated songData column
+      const songData =
+        playlistSong.song?.songData ||
+        (typeof playlistSong.songData === 'string'
+          ? JSON.parse(playlistSong.songData)
+          : playlistSong.songData);
       return {
-        ...song,
-        songData: JSON.parse(song.songData),
+        id: playlistSong.id,
+        playlistId: playlistSong.playlistId,
+        songRefId: playlistSong.songRefId,
+        songData,
+        createdat: playlistSong.createdat,
       };
     });
 
-    const playlistImage = updatedSongs.length > 0 ? updatedSongs[0].songData.image : null;
+    const playlistImage = updatedSongs.length > 0 ? updatedSongs[0].songData?.image : null;
 
     res.status(200).json({
       message: 'Playlist songs fetched',
