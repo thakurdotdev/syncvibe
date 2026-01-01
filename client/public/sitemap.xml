@@ -2,27 +2,27 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
    <!-- Static Pages -->
    <url>
-      <loc>https://syncvibe.xyz/</loc>
+      <loc>https://syncvibe.thakur.dev/</loc>
       <priority>1.0</priority>
       <changefreq>weekly</changefreq>
    </url>
    <url>
-      <loc>https://syncvibe.xyz/login</loc>
+      <loc>https://syncvibe.thakur.dev/login</loc>
       <priority>0.8</priority>
       <changefreq>monthly</changefreq>
    </url>
    <url>
-      <loc>https://syncvibe.xyz/register</loc>
+      <loc>https://syncvibe.thakur.dev/register</loc>
       <priority>0.8</priority>
       <changefreq>monthly</changefreq>
    </url>
    <url>
-      <loc>https://syncvibe.xyz/privacy-policy</loc>
+      <loc>https://syncvibe.thakur.dev/privacy-policy</loc>
       <priority>0.5</priority>
       <changefreq>monthly</changefreq>
    </url>
    <url>
-      <loc>https://syncvibe.xyz/terms-of-services</loc>
+      <loc>https://syncvibe.thakur.dev/terms-of-services</loc>
       <priority>0.5</priority>
       <changefreq>monthly</changefreq>
    </url>

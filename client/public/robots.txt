@@ -21,4 +21,4 @@ Allow: /privacy-policy
 Allow: /terms-of-services
 
 # Sitemap location
-Sitemap: https://syncvibe.xyz/sitemap.xml
+Sitemap: https://syncvibe.thakur.dev/sitemap.xml
