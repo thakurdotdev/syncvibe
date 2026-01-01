@@ -4,9 +4,10 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from '@/component
 import { Input } from '@/components/ui/input';
 import { useProfile } from '@/Context/Context';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { startAuthentication, browserSupportsWebAuthnAutofill } from '@simplewebauthn/browser';
 import axios from 'axios';
 import { Eye, EyeOff, KeyRound, Loader2Icon } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -34,6 +35,7 @@ const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnPath = searchParams.get('returnTo') || '/feed';
+  const passkeyAuthStarted = useRef(false);
 
   const form = useForm({
     resolver: yupResolver(validationSchema),
@@ -62,9 +64,83 @@ const Login = () => {
         setUserData(data.data);
       }
     } catch (error) {
-      console.log(error);
+      console.debug('Failed to fetch IP info:', error);
     }
   };
+
+  // Handle passkey authentication with conditional UI (autofill)
+  const handlePasskeyAuth = useCallback(
+    async (assertionResponse, email) => {
+      try {
+        setLoading(true);
+        const verificationRes = await axios.post(
+          `${import.meta.env.VITE_API_URL}/api/auth/passkey/authenticate/verify`,
+          {
+            assertionResponse,
+            email,
+            userData,
+          },
+          { withCredentials: true }
+        );
+
+        if (verificationRes.data.verified) {
+          await getProfile();
+          toast.success('Logged in with passkey!');
+          navigate(returnPath);
+        }
+      } catch (error) {
+        console.error('Passkey auth error:', error);
+        toast.error(error.response?.data?.message || 'Passkey authentication failed');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [userData, getProfile, navigate, returnPath]
+  );
+
+  // Initialize conditional UI (passkey autofill) on mount
+  useEffect(() => {
+    let isMounted = true;
+
+    const initConditionalUI = async () => {
+      if (passkeyAuthStarted.current) return;
+
+      try {
+        const supportsAutofill = await browserSupportsWebAuthnAutofill();
+        if (!supportsAutofill || !isMounted) return;
+
+        passkeyAuthStarted.current = true;
+
+        const optionsRes = await axios.post(
+          `${import.meta.env.VITE_API_URL}/api/auth/passkey/authenticate/conditional`
+        );
+
+        if (!isMounted) return;
+
+        const assertionResponse = await startAuthentication({
+          optionsJSON: optionsRes.data,
+          useBrowserAutofill: true,
+        });
+
+        if (assertionResponse && isMounted) {
+          await handlePasskeyAuth(assertionResponse, null);
+        }
+      } catch (error) {
+        // AbortError is expected when user navigates away or doesn't select a passkey
+        if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+          console.error('Passkey autofill error:', error.message);
+        }
+        passkeyAuthStarted.current = false;
+      }
+    };
+
+    initConditionalUI();
+
+    return () => {
+      isMounted = false;
+      passkeyAuthStarted.current = false;
+    };
+  }, [handlePasskeyAuth]);
 
   const handleFormSubmit = async (data) => {
     setLoading(true);
@@ -175,7 +251,12 @@ const Login = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input {...field} type='email' placeholder='Email' />
+                      <Input
+                        {...field}
+                        type='email'
+                        placeholder='Email'
+                        autoComplete='username webauthn'
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -193,6 +274,7 @@ const Login = () => {
                           {...field}
                           type={showPassword ? 'text' : 'password'}
                           placeholder='Password'
+                          autoComplete='current-password'
                         />
                         <Button
                           type='button'

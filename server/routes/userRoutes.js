@@ -25,9 +25,11 @@ const {
   registerPasskey,
   verifyRegister,
   authenticatePasskey,
+  authenticateConditional,
   verifyAuthentication,
   getPasskeys,
   deletePasskey,
+  updatePasskey,
 } = require('../controllers/auth/passkey');
 const { CookieExpiryDate } = require('../constant');
 const jwt = require('jsonwebtoken');
@@ -267,8 +269,10 @@ userRouter.route('/user/followlist/:userid').get(authMiddleware, getFollowLists)
 userRouter.post('/auth/passkey/register', authMiddleware, registerPasskey);
 userRouter.post('/auth/passkey/register/verify', authMiddleware, verifyRegister);
 userRouter.post('/auth/passkey/authenticate', authenticatePasskey);
+userRouter.post('/auth/passkey/authenticate/conditional', authenticateConditional);
 userRouter.post('/auth/passkey/authenticate/verify', verifyAuthentication);
 userRouter.get('/auth/passkey', authMiddleware, getPasskeys);
+userRouter.patch('/auth/passkey/:authenticatorid', authMiddleware, updatePasskey);
 userRouter.delete('/auth/passkey/:authenticatorid', authMiddleware, deletePasskey);
 
 module.exports = userRouter;

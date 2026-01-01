@@ -76,10 +76,6 @@ connectWithRetry().catch((err) => {
   process.exit(1);
 });
 
-sequelize.addHook('afterConnect', () => {
-  console.log('New connection established');
-});
-
 // Clean shutdown
 process.on('SIGINT', async () => {
   try {

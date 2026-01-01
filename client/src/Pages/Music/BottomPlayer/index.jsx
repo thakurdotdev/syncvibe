@@ -49,8 +49,6 @@ const BottomPlayer = () => {
     getRecommendations();
   }, [getRecommendations]);
 
-  console.log(currentSong);
-
   if (!currentSong) return null;
 
   return (

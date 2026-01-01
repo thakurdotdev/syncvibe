@@ -22,20 +22,41 @@ import { cn } from '@/lib/utils';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { startAuthentication } from '@simplewebauthn/browser';
 import axios from 'axios';
-import { KeyRound, Loader2 } from 'lucide-react';
-import { useContext, useState } from 'react';
+import { KeyRound, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
+import { useContext, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import * as yup from 'yup';
 import DotPattern from '../ui/dot-pattern';
-import { useEffect } from 'react';
 
 const schema = yup
   .object({
     email: yup.string().email('Please enter a valid email').required('Email is required'),
   })
   .required();
+
+// WebAuthn error messages for better UX
+const getWebAuthnErrorMessage = (error) => {
+  const name = error?.name || '';
+  const message = error?.message || '';
+
+  switch (name) {
+    case 'NotAllowedError':
+      if (message.includes('timed out')) {
+        return 'Authentication timed out. Please try again.';
+      }
+      return 'Authentication was cancelled or not allowed. Please try again.';
+    case 'SecurityError':
+      return 'Security error. Make sure you are using HTTPS.';
+    case 'NotSupportedError':
+      return 'Passkeys are not supported on this device or browser.';
+    case 'AbortError':
+      return 'The operation was cancelled.';
+    default:
+      return null; // Return null for API errors to use the server message
+  }
+};
 
 export const PasskeyLogin = () => {
   const { getProfile } = useContext(Context);
@@ -64,7 +85,8 @@ export const PasskeyLogin = () => {
         setUserData(data.data);
       }
     } catch (error) {
-      console.log(error);
+      // Silently fail - IP info is optional
+      console.debug('Failed to fetch IP info:', error);
     }
   };
 
@@ -73,41 +95,50 @@ export const PasskeyLogin = () => {
     setError('');
 
     try {
+      // Step 1: Get authentication options from server
       const options = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/auth/passkey/authenticate`,
-        {
-          email: data.email,
-        }
+        { email: data.email }
       );
 
-      if (options.data) {
-        const assertionResponse = await startAuthentication({
-          optionsJSON: options.data,
-        });
+      if (!options.data) {
+        throw new Error('Failed to get authentication options');
+      }
 
-        const verificationRes = await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/auth/passkey/authenticate/verify`,
-          {
-            assertionResponse: assertionResponse,
-            email: data.email,
-            userData: userData,
-          },
-          {
-            withCredentials: true,
-          }
-        );
+      // Step 2: Authenticate using WebAuthn API
+      const assertionResponse = await startAuthentication({
+        optionsJSON: options.data,
+      });
 
-        const verificationResult = verificationRes.data;
+      // Step 3: Verify with server
+      const verificationRes = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/auth/passkey/authenticate/verify`,
+        {
+          assertionResponse: assertionResponse,
+          email: data.email,
+          userData: userData,
+        },
+        { withCredentials: true }
+      );
 
-        if (verificationResult.verified) {
-          await getProfile();
-          toast.success('Login successful');
-          navigate('/feed');
-        }
+      if (verificationRes.data.verified) {
+        await getProfile();
+        toast.success('Login successful!');
+        navigate('/feed');
+      } else {
+        setError('Authentication verification failed. Please try again.');
       }
     } catch (error) {
-      if (error?.response?.data?.message) {
+      console.error('Passkey login error:', error);
+
+      // Check for WebAuthn-specific errors first
+      const webAuthnError = getWebAuthnErrorMessage(error);
+      if (webAuthnError) {
+        setError(webAuthnError);
+      } else if (error?.response?.data?.message) {
         setError(error.response.data.message);
+      } else {
+        setError('An unexpected error occurred. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -115,27 +146,21 @@ export const PasskeyLogin = () => {
   };
 
   return (
-    <div className='flex items-center justify-center max-h-svh h-svh overflow-hidden relative'>
-      <DotPattern
-        className={cn('[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]')}
-      />
-      <div className='absolute -top-24 -left-24 w-96 h-96 rounded-full bg-purple-600/30 filter blur-[100px] animate-pulse'></div>
-      <div
-        className='absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-pink-600/20 filter blur-[120px] animate-pulse'
-        style={{ animationDelay: '2s' }}
-      ></div>
-      <div
-        className='absolute top-1/3 right-1/4 w-64 h-64 rounded-full bg-blue-600/20 filter blur-[80px] animate-pulse'
-        style={{ animationDelay: '1s' }}
-      ></div>
-      <Card className='w-full max-w-md mx-auto z-10'>
+    <div className='flex items-center justify-center max-h-svh h-svh overflow-hidden relative bg-[#050505]'>
+      {/* Subtle glow */}
+      <div className='absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-[120px]' />
+      <div className='absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500/5 rounded-full blur-[120px]' />
+      <Card className='w-full max-w-md mx-auto z-10 bg-white/[0.03] border-white/[0.08] backdrop-blur-sm'>
         <CardHeader className='flex flex-col gap-3'>
           <div className='flex items-center gap-2'>
-            <KeyRound className='w-6 h-6 text-primary' />
+            <div className='p-2 rounded-lg bg-primary/10'>
+              <KeyRound className='w-6 h-6 text-primary' />
+            </div>
             <CardTitle>Login with Passkey</CardTitle>
           </div>
           <CardDescription className='mt-2'>
-            Use your device's biometric authentication or security key to sign in
+            Use your device's biometric authentication (Face ID, Touch ID, Windows Hello) or
+            security key to sign in securely.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -148,7 +173,12 @@ export const PasskeyLogin = () => {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder='Enter your email' type='email' {...field} />
+                      <Input
+                        placeholder='Enter your email'
+                        type='email'
+                        autoComplete='email webauthn'
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -157,20 +187,41 @@ export const PasskeyLogin = () => {
 
               {error && (
                 <Alert variant='destructive'>
+                  <AlertCircle className='h-4 w-4' />
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
-              <Button type='submit' className='w-full' disabled={isLoading}>
-                {isLoading && <Loader2 className='w-6 h-6 mr-2 animate-spin' />}
-                {isLoading ? 'Authenticating...' : 'Login with Passkey'}
-              </Button>
-              <Button variant='ghost' className='w-full' onClick={() => navigate('/login')}>
-                Login with Password
-              </Button>
+              <div className='space-y-3'>
+                <Button type='submit' className='w-full' disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className='w-5 h-5 mr-2 animate-spin' />
+                      Authenticating...
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className='w-5 h-5 mr-2' />
+                      Continue with Passkey
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  className='w-full'
+                  onClick={() => navigate('/login')}
+                >
+                  Login with Password
+                </Button>
+              </div>
             </form>
           </Form>
-          <CardFooter className='flex flex-col mt-3'></CardFooter>
+          <CardFooter className='flex flex-col mt-3 px-0'>
+            <p className='text-xs text-muted-foreground text-center'>
+              Passkeys provide a more secure, phishing-resistant way to sign in without passwords.
+            </p>
+          </CardFooter>
         </CardContent>
       </Card>
     </div>
