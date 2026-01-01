@@ -12,7 +12,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Smart deploy to VPS
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # Needed for clean diff logic
+
+      # ---------- FRONTEND BUILD (CI SIDE) ----------
+      - name: Build frontend
+        run: |
+          if git diff --name-only HEAD^ HEAD | grep '^client/' >/dev/null; then
+            echo "Frontend changed → building"
+            cd client
+            echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > .env.production
+            echo "VITE_IC_CREDENTIAL=${{ secrets.VITE_IC_CREDENTIAL }}" >> .env.production
+            echo "VITE_IC_USERNAME=${{ secrets.VITE_IC_USERNAME }}" >> .env.production
+            echo "VITE_SONG_URL=${{ secrets.VITE_SONG_URL }}" >> .env.production
+            npm ci
+            npm run build
+            tar -czf ../client-dist.tar.gz dist
+          else
+            echo "Frontend unchanged → skipping"
+          fi
+
+      - name: Upload frontend to VPS
+        if: success()
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: client-dist.tar.gz
+          target: /home/ubuntu/
+          overwrite: true
+
+      # ---------- BACKEND DEPLOY (VPS SIDE) ----------
+      - name: Deploy backend + unpack frontend
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -23,37 +57,29 @@ jobs:
             git fetch origin
             git reset --hard origin/main
 
-            # ---------------- BACKEND ----------------
+            # Backend
             if git diff --name-only HEAD@{1} HEAD | grep '^server/' >/dev/null; then
-              echo "Backend changed → redeploying API"
-              cd server
-              /home/ubuntu/.bun/bin/bun install
+              echo "Backend code changed"
+
+              if git diff --name-only HEAD@{1} HEAD | grep '^server/package.json$' >/dev/null; then
+                echo "Dependencies changed → bun install"
+                cd server
+                /home/ubuntu/.bun/bin/bun install
+                cd ..
+              fi
+
               sudo systemctl daemon-reexec
               sudo systemctl restart syncvibe-api.service
-              cd ..
             else
-              echo "Backend unchanged → skipping API"
+              echo "Backend unchanged"
             fi
 
-            # ---------------- FRONTEND ----------------
-            if git diff --name-only HEAD@{1} HEAD | grep '^client/' >/dev/null; then
-              echo "Frontend changed → rebuilding web"
-              cd client
-
-              # Inject public Vite config
-              cat > .env.production <<EOF
-              VITE_API_URL=${{ secrets.VITE_API_URL }}
-              VITE_IC_CREDENTIAL=${{ secrets.VITE_IC_CREDENTIAL }}
-              VITE_IC_USERNAME=${{ secrets.VITE_IC_USERNAME }}
-              VITE_SONG_URL=${{ secrets.VITE_SONG_URL }}
-              EOF
-
-              npm ci
-              npm run build
-
+            # Frontend
+            if [ -f /home/ubuntu/client-dist.tar.gz ]; then
+              echo "Deploying frontend"
               sudo rm -rf /var/www/syncvibe-web/*
-              sudo cp -r dist/* /var/www/syncvibe-web/
-              cd ..
+              sudo tar -xzf /home/ubuntu/client-dist.tar.gz -C /var/www/syncvibe-web
+              rm /home/ubuntu/client-dist.tar.gz
             else
-              echo "Frontend unchanged → skipping web"
+              echo "Frontend unchanged"
             fi
