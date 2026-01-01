@@ -7,6 +7,7 @@ const sequelize = require('../../utils/sequelize');
 require('../../models/music/index');
 
 const recommendationCache = new Map();
+const userStatsCache = new Map();
 
 /* =========================
    HISTORY INSERT / UPDATE
@@ -374,6 +375,12 @@ const updateRecommendationScore = async (userId, songId) => {
 ========================= */
 
 const getUserListeningStats = async (userId) => {
+  // Check cache first
+  const cached = userStatsCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   const languages = await HistorySong.findAll({
     attributes: ['songLanguage', [sequelize.fn('COUNT', sequelize.col('songId')), 'count']],
     where: {
@@ -402,10 +409,18 @@ const getUserListeningStats = async (userId) => {
     raw: true,
   });
 
-  return {
+  const stats = {
     preferredLanguages: languages.map((l) => l.songLanguage),
     preferredArtists: artists.flatMap((a) => a.artistNames.split(',').map((x) => x.trim())),
   };
+
+  // Cache for 15 minutes
+  userStatsCache.set(userId, {
+    expiresAt: Date.now() + 15 * 60 * 1000,
+    data: stats,
+  });
+
+  return stats;
 };
 
 const calculateAlgorithmicScore = (song, stats) => {
