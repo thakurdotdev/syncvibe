@@ -18,9 +18,19 @@ HistorySong.init(
         key: 'userid',
       },
     },
+    // NEW: Reference to central Song table
+    songRefId: {
+      type: DataTypes.INTEGER,
+      allowNull: true, // Nullable during migration
+      references: {
+        model: 'songs',
+        key: 'id',
+      },
+    },
+    // DEPRECATED: Will be removed after migration (use Song association instead)
     songId: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: true, // Made nullable for new records
     },
     songName: {
       type: DataTypes.STRING,
@@ -36,12 +46,13 @@ HistorySong.init(
     },
     songData: {
       type: DataTypes.JSON,
-      allowNull: false,
+      allowNull: true, // Made nullable for new records
     },
     duration: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true, // Made nullable for new records
     },
+    // User-specific listening data (keep these)
     playedCount: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -104,16 +115,36 @@ HistorySong.init(
     tableName: 'history_songs',
     modelName: 'HistorySong',
     indexes: [
+      // Primary lookup index
+      {
+        fields: ['userId', 'songRefId'],
+        unique: true,
+      },
+      // Backward compatibility
       {
         fields: ['userId', 'songId'],
-        unique: true,
+      },
+      // Fast history listing (sorted by lastPlayedAt)
+      {
+        fields: ['userId', 'lastPlayedAt'],
+      },
+      // Recommendations query optimization
+      {
+        fields: ['userId', 'aiRecommendationScore'],
+      },
+      // Liked songs quick lookup
+      {
+        fields: ['userId', 'likeStatus'],
+      },
+      // PlayedCount for recommendations
+      {
+        fields: ['userId', 'playedCount'],
       },
     ],
   }
 );
 
-// HistorySong.sync({ alter: true }).then(() => {
-//   console.log("HistorySong table created");
-// });
+// Association with Song (will be set up in associations file)
+// HistorySong.belongsTo(Song, { foreignKey: 'songRefId', as: 'song' });
 
 module.exports = HistorySong;
