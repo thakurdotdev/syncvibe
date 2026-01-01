@@ -12,12 +12,16 @@ jobs:
   frontend:
     runs-on: ubuntu-latest
 
+    outputs:
+      built: ${{ steps.build.outputs.built }}
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
       - name: Build frontend
+        id: build
         run: |
           if git diff --name-only HEAD^ HEAD | grep '^client/' >/dev/null; then
             echo "Frontend changed → building"
@@ -31,12 +35,14 @@ jobs:
             npm install --no-audit --no-fund
             npm run build
             tar -czf ../client-dist.tar.gz dist
+            echo "built=true" >> $GITHUB_OUTPUT
           else
             echo "Frontend unchanged → skipping"
+            echo "built=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Upload frontend to VPS
-        if: success() && exists('client-dist.tar.gz')
+        if: steps.build.outputs.built == 'true'
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -49,13 +55,14 @@ jobs:
   # ================= BACKEND =================
   backend:
     runs-on: ubuntu-latest
+    needs: frontend
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
-      - name: Deploy backend
+      - name: Deploy backend + frontend
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -70,7 +77,6 @@ jobs:
               echo "Backend code changed"
 
               if git diff --name-only HEAD@{1} HEAD | grep '^server/package.json$' >/dev/null; then
-                echo "Dependencies changed → bun install"
                 cd server
                 /home/ubuntu/.bun/bin/bun install
                 cd ..
@@ -83,7 +89,10 @@ jobs:
             fi
 
             if [ -f /home/ubuntu/client-dist.tar.gz ]; then
+              echo "Deploying frontend"
               sudo rm -rf /var/www/syncvibe-web/*
               sudo tar -xzf /home/ubuntu/client-dist.tar.gz -C /var/www/syncvibe-web
               rm /home/ubuntu/client-dist.tar.gz
+            else
+              echo "No frontend artifact"
             fi
