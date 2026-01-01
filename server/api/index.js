@@ -41,12 +41,12 @@ if (process.env.NODE_ENV === 'production') {
   app.use(
     helmet.contentSecurityPolicy({
       directives: {
-        defaultSrc: ["'self'", 'https://syncvibe.xyz'],
-        scriptSrc: ["'self'", 'https://syncvibe.xyz'],
-        imgSrc: ["'self'", 'https://syncvibe.xyz', 'https://res.cloudinary.com'],
-        connectSrc: ["'self'", 'https://syncvibe.xyz'],
-        styleSrc: ["'self'", 'https://syncvibe.xyz', "'unsafe-inline'"],
-        fontSrc: ["'self'", 'https://syncvibe.xyz'],
+        defaultSrc: ["'self'", 'https://syncvibe.thakur.dev'],
+        scriptSrc: ["'self'", 'https://syncvibe.thakur.dev'],
+        imgSrc: ["'self'", 'https://syncvibe.thakur.dev', 'https://res.cloudinary.com'],
+        connectSrc: ["'self'", 'https://syncvibe.thakur.dev'],
+        styleSrc: ["'self'", 'https://syncvibe.thakur.dev', "'unsafe-inline'"],
+        fontSrc: ["'self'", 'https://syncvibe.thakur.dev'],
         objectSrc: ["'none'"],
         upgradeInsecureRequests: [],
       },
@@ -138,10 +138,10 @@ require('../passport/index');
 
 const corsOptions = {
   origin: [
+    'https://syncvibe.thakur.dev',
+    'https://dev.thakur.dev',
     'https://syncvibe.xyz',
     'http://localhost:5173',
-    'https://dev.thakur.dev',
-    'https://syncvibe.thakur.dev',
     'https://tune.thakur.dev',
   ],
   credentials: true,

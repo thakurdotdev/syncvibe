@@ -19,9 +19,8 @@ configDotenv();
 // Constants for better maintainability and performance
 const CONFIG = {
   rpName: 'SyncVibe',
-  rpID: process.env.NODE_ENV === 'production' ? 'syncvibe.xyz' : 'client.thakur.dev',
-  origin:
-    process.env.NODE_ENV === 'production' ? process.env.CLIENT_URL : 'https://client.thakur.dev',
+  rpID: 'syncvibe.thakur.dev',
+  origin: 'https://syncvibe.thakur.dev',
   CHALLENGE_TIMEOUT: 60000,
   TOKEN_EXPIRY: JWTExpiryDate,
   COOKIE_EXPIRY: CookieExpiryDate, // 7 days in milliseconds
@@ -40,7 +39,7 @@ const generateToken = (user) => {
   return jwt.sign(
     {
       userid: user.userid,
-      role: user.email === 'guest@syncvibe.xyz' ? 'guest' : 'user',
+      role: 'user',
       name: user.name,
       username: user.username,
       email: user.email,
@@ -55,7 +54,7 @@ const generateToken = (user) => {
 
 const setCookie = (res, token) => {
   res.cookie('token', token, {
-    domain: process.env.NODE_ENV === 'production' ? '.syncvibe.xyz' : '.thakur.dev',
+    domain: '.thakur.dev',
     secure: true,
     httpOnly: true,
     sameSite: 'none',

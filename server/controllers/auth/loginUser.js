@@ -72,7 +72,7 @@ const loginUser = async (req, res) => {
     res
       .status(200)
       .cookie('token', token, {
-        domain: process.env.NODE_ENV === 'production' ? '.syncvibe.xyz' : '.thakur.dev',
+        domain: '.thakur.dev',
         secure: true,
         httpOnly: true,
         sameSite: 'none',
@@ -172,7 +172,7 @@ const forgotPassword = async (req, res) => {
 
 const guestLogin = async (req, res) => {
   try {
-    const guestEmail = 'guest@syncvibe.xyz';
+    const guestEmail = 'guest@thakur.dev';
 
     // Fetch guest user details from the database
     const user = await User.findOne({
@@ -212,7 +212,7 @@ const guestLogin = async (req, res) => {
     res
       .status(200)
       .cookie('token', token, {
-        domain: process.env.NODE_ENV === 'production' ? '.syncvibe.xyz' : '.thakur.dev',
+        domain: '.thakur.dev',
         secure: true,
         httpOnly: true,
         sameSite: 'none',
@@ -317,7 +317,7 @@ const verify2FA = async (req, res) => {
     res
       .status(200)
       .cookie('token', jwtToken, {
-        domain: process.env.NODE_ENV === 'production' ? '.syncvibe.xyz' : '.thakur.dev',
+        domain: '.thakur.dev',
         secure: true,
         httpOnly: true,
         sameSite: 'none',

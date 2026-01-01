@@ -70,7 +70,7 @@ const otpMailSender = async (email, otp, callback) => {
                 </div>
                 <p>This code will expire in 10 minutes.</p>
                 <div class="footer">
-                    Visit us at <a href="https://syncvibe.xyz" class="website-link">SyncVibe</a>
+                    Visit us at <a href="https://syncvibe.thakur.dev" class="website-link">SyncVibe</a>
                 </div>
             </td>
         </tr>

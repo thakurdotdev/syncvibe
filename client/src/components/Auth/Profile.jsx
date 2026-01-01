@@ -19,12 +19,13 @@ import { useCallback, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Context } from '../../Context/Context';
 import getFollowList from '../../Utils/getFollowList';
-import LoadingScreen from '../Loader';
 import DeleteAccount from '../Modals/DeleteAccount';
+import DisableTwoFactor from '../Modals/DisableTwoFactor';
 import Followers from '../Modals/Followers';
 import Followings from '../Modals/Followings';
 import ImageUpload from '../Modals/ImageUpload';
 import LoginLogs from '../Modals/LoginLogs';
+import TwoFactorAuth from '../Modals/TwoFactorAuth';
 import UpdatePassword from '../Modals/UpdatePassword';
 import UpdateProfileModel from '../Modals/UpdateProfileModel';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -33,8 +34,6 @@ import { Card } from '../ui/card';
 import { Dialog, DialogContent, DialogHeader } from '../ui/dialog';
 import DotPattern from '../ui/dot-pattern';
 import PasskeyManager from './PasskeyManager';
-import TwoFactorAuth from '../Modals/TwoFactorAuth';
-import DisableTwoFactor from '../Modals/DisableTwoFactor';
 
 const ProfileSection = ({ title, icon, children }) => (
   <Card className='rounded-xl shadow-md p-6 mb-6'>
@@ -88,10 +87,7 @@ const Profile = () => {
   const handle2FASuccess = (token) => {
     setTwoFactorEnabled(true);
     setUser((prevUser) => ({ ...prevUser, twoFactorEnabled: true }));
-    // Token will be undefined for setup flow (user already logged in)
-    // Token will be present for login flow
     if (token) {
-      // This is a login flow, handle token if needed
       console.log('Login token received:', token);
     }
     toast.success('Two-Factor Authentication enabled successfully!');
@@ -192,7 +188,7 @@ const Profile = () => {
   }, []);
 
   return (
-    <LoadingScreen isLoading={loading}>
+    <>
       <div className='p-4'>
         <DotPattern
           className={cn('[mask-image:radial-gradient(550px_circle_at_center,white,transparent)]')}
@@ -415,7 +411,7 @@ const Profile = () => {
         onClose={toggleDisable2FA}
         onSuccess={handleDisable2FASuccess}
       />
-    </LoadingScreen>
+    </>
   );
 };
 

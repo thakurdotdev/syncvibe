@@ -2,7 +2,7 @@ const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FromEmail = `SyncVibe <${process.env.RESEND_EMAIL ?? 'noreply@syncvibe.xyz'}>`;
+const FromEmail = `SyncVibe <${process.env.RESEND_EMAIL ?? 'noreply@thakur.dev'}>`;
 
 const logoUrl =
   'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp';
@@ -318,7 +318,7 @@ const newFeatureTemplate = `
         </div>
 
         <div style="text-align: center;">
-            <a href="https://syncvibe.xyz" class="button">Try These Features Now</a>
+            <a href="https://syncvibe.thakur.dev" class="button">Try These Features Now</a>
         </div>
 
         <div class="divider"></div>
@@ -413,7 +413,7 @@ const verifiedMailSender = async (email, username) => {
             <p class="text">Hi ${username}, your account has been verified successfully.</p>
             
             <div style="text-align: center; margin: 32px 0;">
-                <a href="https://syncvibe.xyz/login" class="button">Get Started →</a>
+                <a href="https://syncvibe.thakur.dev/login" class="button">Get Started →</a>
             </div>
             
             <div class="divider"></div>

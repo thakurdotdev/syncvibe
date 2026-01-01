@@ -96,8 +96,7 @@ userRouter.get('/auth/google/callback', (req, res, next) => {
 
     res.cookie('token', token, cookieOpts);
     const redirectMap = {
-      'syncvibe.xyz': '/feed',
-      'tune.thakur.dev': '/',
+      'syncvibe.thakur.dev': '/feed',
     };
 
     const hostname = new URL(clientUrl).hostname;
@@ -236,7 +235,7 @@ userRouter.route('/profile').get(authMiddleware, async (req, res) => {
 
 userRouter.route('/logout').get((req, res) => {
   res.clearCookie('token', {
-    domain: process.env.NODE_ENV === 'production' ? '.syncvibe.xyz' : '.thakur.dev',
+    domain: '.thakur.dev',
     secure: true,
     httpOnly: true,
     sameSite: 'none',
