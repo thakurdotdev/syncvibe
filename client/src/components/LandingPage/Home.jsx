@@ -242,7 +242,7 @@ const MobileApp = memo(() => (
 const FinalCTA = memo(() => (
   <section className='py-24 px-6'>
     <div className='max-w-3xl mx-auto text-center'>
-      <h2 className='text-3xl sm:text-4xl font-bold text-white mb-4'>Ready to start syncing?</h2>
+      <h2 className='text-3xl sm:text-4xl font-bold text-white mb-4'>Ready to start syncing with your friends?</h2>
       <p className='text-lg text-white/50 mb-8'>Join the community. It's free.</p>
       <div className='flex flex-col sm:flex-row gap-4 justify-center'>
         <Link to='/register'>
