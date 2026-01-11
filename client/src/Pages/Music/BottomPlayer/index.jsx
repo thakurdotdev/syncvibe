@@ -25,7 +25,7 @@ const BottomPlayer = () => {
   const [recommendations, setRecommendations] = useState([]);
 
   const getRecommendations = useCallback(async () => {
-    if (!currentSong?.id) return;
+    if (!currentSong?.id || playlist.length > 1) return;
 
     try {
       setLoading(true);

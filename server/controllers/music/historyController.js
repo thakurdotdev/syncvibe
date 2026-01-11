@@ -356,7 +356,7 @@ const updateRecommendationScore = async (userId, songId) => {
     const stats = await getUserListeningStats(userId);
 
     const song = await HistorySong.findOne({
-      where: { userId, songId },
+      where: { userId, songRefId: songId },
       raw: true,
     });
 
@@ -364,7 +364,7 @@ const updateRecommendationScore = async (userId, songId) => {
 
     const score = calculateAlgorithmicScore(song, stats);
 
-    await HistorySong.update({ aiRecommendationScore: score }, { where: { userId, songId } });
+    await HistorySong.update({ aiRecommendationScore: score }, { where: { userId, songRefId: songId } });
   } catch (error) {
     console.error('Error updating recommendation score:', error);
   }

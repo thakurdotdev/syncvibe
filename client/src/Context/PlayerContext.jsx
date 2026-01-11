@@ -9,7 +9,7 @@ import {
   useCallback,
 } from 'react';
 import { Context } from './Context';
-import { ensureHttpsForDownloadUrls } from '@/Pages/Music/Common';
+import { ensureHttpsForDownloadUrls, addToHistory } from '@/Pages/Music/Common';
 
 // Separate contexts for different concerns
 const PlayerControlsContext = createContext();
@@ -422,6 +422,8 @@ export function PlayerProvider({ children }) {
         if (!playbackState.isLoading) {
           await audio.play();
           playbackDispatch({ type: 'SET_PLAYING', payload: true });
+          // Add to history when song starts playing (handles both manual and autoplay)
+          addToHistory(playbackState.currentSong, 0, 'autoplay');
         }
 
         preloadNextTrack();

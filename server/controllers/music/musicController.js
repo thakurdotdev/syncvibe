@@ -186,7 +186,9 @@ const getPlaylists = async (req, res) => {
 
     const updatedPlaylists = playlists.map((playlist) => {
       const latestSong = playlist.latestSong && playlist.latestSong[0];
-      const image = latestSong ? JSON.parse(latestSong.songData).image : null;
+      const songData = latestSong ? latestSong.songData : null;
+      const parsedSongData = typeof songData === 'string' ? JSON.parse(songData) : songData;
+      const image = parsedSongData ? parsedSongData.image : null;
 
       return {
         id: playlist.id,

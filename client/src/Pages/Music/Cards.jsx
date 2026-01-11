@@ -38,7 +38,7 @@ import { memo, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import AddToPlaylist from './AddToPlaylist';
-import { addToHistory, ensureHttpsForDownloadUrls } from './Common';
+import { ensureHttpsForDownloadUrls } from './Common';
 import './music.css';
 
 const HOVER_TRANSITION = 'transition-all duration-0 ease-out';
@@ -140,7 +140,6 @@ export const SongCard = memo(({ song }) => {
       if (song?.download_url) {
         const updatedSong = ensureHttpsForDownloadUrls(song);
         playSong(ensureHttpsForDownloadUrls(updatedSong));
-        addToHistory(updatedSong, 10);
         return;
       }
       setLoading(true);
@@ -148,7 +147,6 @@ export const SongCard = memo(({ song }) => {
       if (response.data?.data?.songs[0]) {
         const song = ensureHttpsForDownloadUrls(response.data.data.songs[0]);
         playSong(song);
-        addToHistory(song, 10);
       }
     } catch (err) {
       setError(err.message);
@@ -347,7 +345,6 @@ export const NewSongCard = memo(({ song }) => {
       if (song?.download_url) {
         const updatedSong = ensureHttpsForDownloadUrls(song);
         playSong(updatedSong);
-        addToHistory(updatedSong, 10);
         return;
       }
 
@@ -357,7 +354,6 @@ export const NewSongCard = memo(({ song }) => {
       if (response.data?.data?.songs[0]) {
         const songData = ensureHttpsForDownloadUrls(response.data.data.songs[0]);
         playSong(songData);
-        addToHistory(songData, 10);
       }
     } catch (err) {
       setError(err.message);
