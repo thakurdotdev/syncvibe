@@ -1,4 +1,4 @@
-import { usePlayer } from '@/Context/PlayerContext';
+import { usePlayerStore } from '@/stores/playerStore';
 import axios from 'axios';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
@@ -10,8 +10,11 @@ const Playlist = () => {
   const params = useParams();
   const id = location.state || params?.id || null;
   const [playlistData, setPlaylistData] = useState(null);
-  const { addToPlaylist, playSong } = usePlayer();
   const [loading, setLoading] = useState(true);
+  
+  // Individual selectors
+  const setPlaylist = usePlayerStore((s) => s.setPlaylist);
+  const playSong = usePlayerStore((s) => s.playSong);
 
   const fetchPlaylistData = useCallback(async () => {
     try {
@@ -36,7 +39,7 @@ const Playlist = () => {
 
   const handlePlayAll = () => {
     if (playlistData?.songs?.length) {
-      addToPlaylist(
+      setPlaylist(
         playlistData.songs.map((song) => {
           return {
             ...song,
@@ -52,7 +55,7 @@ const Playlist = () => {
   const handleShuffle = () => {
     if (playlistData?.songs?.length) {
       const shuffledSongs = [...playlistData.songs].sort(() => Math.random() - 0.5);
-      addToPlaylist(
+      setPlaylist(
         shuffledSongs.map((song) => ({
           ...song,
           isPlaylist: true,

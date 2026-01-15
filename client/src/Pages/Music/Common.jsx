@@ -1,7 +1,7 @@
 import ShareDrawer from '@/components/Posts/ShareDrawer';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { usePlayer, usePlayerState, usePlayerTime } from '@/Context/PlayerContext';
+import { usePlayerStore } from '@/stores/playerStore';
 import { cn } from '@/lib/utils';
 import axios from 'axios';
 import {
@@ -71,8 +71,12 @@ export const LoadingState = ({ message, height }) => (
 );
 
 export const MusicControls = memo(({ size = 'default' }) => {
-  const { handleNextSong, handlePrevSong, handlePlayPauseSong } = usePlayer();
-  const { isPlaying } = usePlayerState();
+  // Individual selectors for actions (stable) and state (reactive)
+  const handleNextSong = usePlayerStore((s) => s.handleNextSong);
+  const handlePrevSong = usePlayerStore((s) => s.handlePrevSong);
+  const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+
   return (
     <div className='flex items-center gap-2'>
       <Button
@@ -86,7 +90,7 @@ export const MusicControls = memo(({ size = 'default' }) => {
       <Button
         variant='default'
         size='icon'
-        onClick={handlePlayPauseSong}
+        onClick={handlePlayPause}
         className={cn(
           'transition-all hover:scale-105',
           size === 'large' ? 'h-14 w-14' : 'h-10 w-10'
@@ -111,9 +115,10 @@ export const MusicControls = memo(({ size = 'default' }) => {
 });
 
 export const VolumeControl = memo(({ showVolume = false }) => {
-  const { handleVolumeChange } = usePlayer();
-  const { volume } = usePlayerState();
+  const handleVolumeChange = usePlayerStore((s) => s.handleVolumeChange);
+  const volume = usePlayerStore((s) => s.volume);
   const [isMuted, setIsMuted] = useState(false);
+
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
       const newMuted = !prev;
@@ -121,7 +126,9 @@ export const VolumeControl = memo(({ showVolume = false }) => {
       return newMuted;
     });
   }, [handleVolumeChange]);
+
   if (!showVolume) return null;
+
   return (
     <div className='flex items-center gap-2'>
       <Button variant='ghost' size='icon' className='h-8 w-8 hover:scale-105' onClick={toggleMute}>
@@ -140,15 +147,17 @@ export const VolumeControl = memo(({ showVolume = false }) => {
 });
 
 export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
-  const { currentTime, duration } = usePlayerTime() || {};
-  const { handleTimeSeek } = usePlayer() || {};
+  // Individual selectors for time state
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
+  const handleTimeSeek = usePlayerStore((s) => s.handleTimeSeek);
 
   return (
     <div className='space-y-2'>
       <Slider
         value={[currentTime]}
         min={0}
-        max={duration}
+        max={duration || 1}
         step={0.1}
         onValueChange={([value]) => handleTimeSeek(value)}
         className='h-1 cursor-pointer rounded-l-none'

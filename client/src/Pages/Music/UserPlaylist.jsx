@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { usePlaylist } from '@/Context/PlayerContext';
+import { usePlayerStore } from '@/stores/playerStore';
 import axios from 'axios';
 import { Loader2, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -84,7 +84,9 @@ const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading
 };
 
 const UserPlaylist = () => {
-  const { userPlaylist, getPlaylists } = usePlaylist();
+  // Individual selectors
+  const userPlaylist = usePlayerStore((s) => s.userPlaylist);
+  const getPlaylists = usePlayerStore((s) => s.getPlaylists);
   const [loading, setLoading] = useState(false);
   const [playlistDialog, setPlaylistDialog] = useState({
     isOpen: false,

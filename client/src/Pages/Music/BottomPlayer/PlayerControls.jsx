@@ -1,13 +1,16 @@
 import { memo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ListMusic, Minimize2 } from 'lucide-react';
-import { usePlayer } from '@/Context/PlayerContext';
+import { usePlayerStore } from '@/stores/playerStore';
 import { cn } from '@/lib/utils';
 import { MusicControls, VolumeControl } from '../Common';
 import SleepTimerModal from '../SleepTimer';
 
 const PlayerControls = memo(({ isMinimized, onMinimize, onOpenModal, isMobile }) => {
-  const { handlePlayPauseSong, handleNextSong, handlePrevSong } = usePlayer();
+  // Individual selectors - actions are stable references
+  const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
+  const handleNextSong = usePlayerStore((s) => s.handleNextSong);
+  const handlePrevSong = usePlayerStore((s) => s.handlePrevSong);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -17,7 +20,7 @@ const PlayerControls = memo(({ isMinimized, onMinimize, onOpenModal, isMobile })
         !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)
       ) {
         e.preventDefault();
-        handlePlayPauseSong();
+        handlePlayPause();
       }
       if (e.key === 'ArrowRight') handleNextSong();
       if (e.key === 'ArrowLeft') handlePrevSong();
@@ -25,7 +28,7 @@ const PlayerControls = memo(({ isMinimized, onMinimize, onOpenModal, isMobile })
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePlayPauseSong, handleNextSong, handlePrevSong]);
+  }, [handlePlayPause, handleNextSong, handlePrevSong]);
 
   return (
     <div className='flex items-center gap-2'>

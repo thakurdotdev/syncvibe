@@ -1,5 +1,5 @@
 import { ChatContext } from '@/Context/ChatContext';
-import { usePlayer } from '@/Context/PlayerContext';
+import { usePlayerStore } from '@/stores/playerStore';
 import { cn } from '@/lib/utils';
 import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
 import axios from 'axios';
@@ -47,7 +47,7 @@ const ProfileSection = ({ title, icon, children }) => (
 
 const Profile = () => {
   const { user, setUser, getProfile } = useContext(Context);
-  const { stopSong } = usePlayer();
+  const stopSong = usePlayerStore((s) => s.stopSong);
   const { cleanUpSocket } = useContext(ChatContext);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);

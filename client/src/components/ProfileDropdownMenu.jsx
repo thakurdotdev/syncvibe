@@ -10,7 +10,7 @@ import {
 import { SidebarMenuButton } from '@/components/ui/sidebar';
 import { ChatContext } from '@/Context/ChatContext';
 import { Context } from '@/Context/Context';
-import { usePlayer } from '@/Context/PlayerContext';
+import { usePlayerStore } from '@/stores/playerStore';
 import { useTheme } from '@/Context/ThemeProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 
 const ProfileDropdownMenu = ({ fromSidebar = true }) => {
   const { user, setUser } = useContext(Context);
-  const { stopSong } = usePlayer();
+  const stopSong = usePlayerStore((s) => s.stopSong);
   const { cleanUpSocket } = useContext(ChatContext);
   const { theme, setTheme } = useTheme();
   const isDark = theme === 'dark';

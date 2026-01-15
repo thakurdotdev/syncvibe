@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { usePlayer, usePlayerState, usePlaylist } from '@/Context/PlayerContext';
+import { usePlayerStore } from '@/stores/playerStore';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import axios from 'axios';
@@ -13,9 +13,10 @@ import PlayerSheet from './PlayerSheet';
 import AddToPlaylist from '../AddToPlaylist';
 
 const BottomPlayer = () => {
-  const { addToPlaylist } = usePlayer();
-  const { currentSong } = usePlayerState();
-  const { playlist } = usePlaylist();
+  // Individual selectors for minimal re-renders
+  const currentSong = usePlayerStore((s) => s.currentSong);
+  const playlist = usePlayerStore((s) => s.playlist);
+  const addToQueue = usePlayerStore((s) => s.addToQueue);
 
   const isMobile = useIsMobile();
   const [isMinimized, setIsMinimized] = useState(false);
@@ -25,7 +26,19 @@ const BottomPlayer = () => {
   const [recommendations, setRecommendations] = useState([]);
 
   const getRecommendations = useCallback(async () => {
-    if (!currentSong?.id || playlist.length > 1) return;
+    if (!currentSong?.id) return;
+
+    // Find current song's position in the queue
+    const currentIndex = playlist.findIndex((song) => song.id === currentSong.id);
+    
+    // Fetch recommendations if:
+    // 1. Current song is not in the queue, OR
+    // 2. We're at the last song or second-to-last song in the queue
+    const shouldFetchRecommendations = 
+      currentIndex === -1 || 
+      currentIndex >= playlist.length - 2;
+
+    if (!shouldFetchRecommendations) return;
 
     try {
       setLoading(true);
@@ -34,8 +47,9 @@ const BottomPlayer = () => {
       );
       if (response.data?.data) {
         setRecommendations(response.data.data);
-        if (playlist.length < 2 && response.data.data.length > 0) {
-          addToPlaylist(response.data.data);
+        // Add recommendations to queue, they will be deduplicated by addToQueue
+        if (response.data.data.length > 0) {
+          addToQueue(response.data.data);
         }
       }
     } catch (error) {
@@ -43,7 +57,7 @@ const BottomPlayer = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentSong?.id, playlist.length, addToPlaylist]);
+  }, [currentSong?.id, playlist, addToQueue]);
 
   useEffect(() => {
     getRecommendations();

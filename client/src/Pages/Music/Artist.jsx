@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { usePlayer } from '@/Context/PlayerContext';
+import { usePlayerStore } from '@/stores/playerStore';
 import axios from 'axios';
 import { ArrowLeft } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -15,7 +15,10 @@ const Artist = () => {
   const id = location.state || params?.id || null;
   const [artistData, setArtistData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { addToPlaylist, playSong } = usePlayer();
+  
+  // Individual selectors
+  const setPlaylist = usePlayerStore((s) => s.setPlaylist);
+  const playSong = usePlayerStore((s) => s.playSong);
 
   const fetchArtistData = useCallback(async () => {
     try {
@@ -44,7 +47,7 @@ const Artist = () => {
 
   const handlePlayAll = () => {
     if (artistData?.top_songs?.length) {
-      addToPlaylist(artistData.top_songs);
+      setPlaylist(artistData.top_songs);
       playSong(artistData.top_songs[0]);
     }
   };
@@ -52,7 +55,7 @@ const Artist = () => {
   const handleShuffle = () => {
     if (artistData?.top_songs?.length) {
       const shuffledSongs = [...artistData.top_songs].sort(() => Math.random() - 0.5);
-      addToPlaylist(shuffledSongs);
+      setPlaylist(shuffledSongs);
       playSong(shuffledSongs[0]);
     }
   };

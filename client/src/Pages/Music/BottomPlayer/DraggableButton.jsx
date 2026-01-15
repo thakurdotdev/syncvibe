@@ -2,12 +2,12 @@ import { memo, useMemo } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { Card } from '@/components/ui/card';
 import { PlayIcon } from 'lucide-react';
-import { usePlayerState } from '@/Context/PlayerContext';
+import { usePlayerStore } from '@/stores/playerStore';
 import { AudioWave } from '../Cards';
 import he from 'he';
 
 const DraggableButton = memo(({ position, onMaximize, currentSong, isDragging }) => {
-  const { isPlaying } = usePlayerState();
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: 'minimized-player',
   });

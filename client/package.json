@@ -44,8 +44,8 @@
     "input-otp": "^1.4.1",
     "lodash": "^4.17.21",
     "lucide-react": "^0.427.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "react-hook-form": "^7.53.1",
     "react-image-crop": "^11.0.7",
     "react-infinite-scroll-component": "^6.1.0",
@@ -64,8 +64,8 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@types/react": "^19.2.3",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
     "babel-plugin-react-compiler": "^1.0.0",

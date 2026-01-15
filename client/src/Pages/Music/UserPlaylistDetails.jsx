@@ -1,5 +1,5 @@
 import { Context } from '@/Context/Context';
-import { usePlayer } from '@/Context/PlayerContext';
+import { usePlayerStore } from '@/stores/playerStore';
 import axios from 'axios';
 import { CalendarDays, ListMusic } from 'lucide-react';
 import { useCallback, useContext, useEffect, useState } from 'react';
@@ -78,7 +78,10 @@ const UserPlaylistDetails = () => {
   const id = location.state || params?.id || null;
   const [playlistData, setPlaylistData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { addToPlaylist, playSong } = usePlayer();
+  
+  // Individual selectors
+  const setPlaylist = usePlayerStore((s) => s.setPlaylist);
+  const playSong = usePlayerStore((s) => s.playSong);
 
   useEffect(() => {
     if (!user || !playlistData || !id) return;
@@ -109,7 +112,7 @@ const UserPlaylistDetails = () => {
 
   const handlePlayAll = () => {
     if (playlistData?.songs?.length) {
-      addToPlaylist(playlistData.songs.map((s) => s.songData));
+      setPlaylist(playlistData.songs.map((s) => s.songData));
       playSong(playlistData.songs[0].songData);
     }
   };
@@ -119,7 +122,7 @@ const UserPlaylistDetails = () => {
       const shuffledSongs = [...playlistData.songs]
         .map((s) => s.songData)
         .sort(() => Math.random() - 0.5);
-      addToPlaylist(shuffledSongs);
+      setPlaylist(shuffledSongs);
       playSong(shuffledSongs[0]);
     }
   };

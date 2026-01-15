@@ -1,4 +1,4 @@
-import { useSleepTimer } from '@/Context/PlayerContext';
+import { usePlayerStore } from '@/stores/playerStore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,8 +16,12 @@ import { Clock, Music, Timer, X } from 'lucide-react';
 import { useState } from 'react';
 
 const SleepTimerModal = () => {
-  const { setSleepTimer, clearSleepTimer, timeRemaining, songsRemaining, isActive } =
-    useSleepTimer();
+  // Individual selectors for sleep timer state
+  const sleepTimer = usePlayerStore((s) => s.sleepTimer);
+  const setSleepTimer = usePlayerStore((s) => s.setSleepTimer);
+  const clearSleepTimer = usePlayerStore((s) => s.clearSleepTimer);
+  
+  const { timeRemaining, songsRemaining, isActive } = sleepTimer;
   const [timerType, setTimerType] = useState('time');
   const [selectedTime, setSelectedTime] = useState(30);
   const [selectedSongs, setSelectedSongs] = useState(5);

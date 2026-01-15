@@ -1,4 +1,4 @@
-import { usePlayer, usePlayerState, usePlaylist } from '@/Context/PlayerContext';
+import { usePlayerStore } from '@/stores/playerStore';
 import LazyImage from '@/components/LazyImage';
 import {
   AlertDialog,
@@ -112,9 +112,15 @@ export const ArtistCard = memo(({ artist }) => {
 
 export const SongCard = memo(({ song }) => {
   const navigate = useNavigate();
-  const { playSong, handlePlayPauseSong, addToPlaylist, addToQueue } = usePlayer();
-  const { currentSong, isPlaying } = usePlayerState();
-  const { playlist } = usePlaylist();
+  
+  // Individual selectors for minimal re-renders
+  const currentSongId = usePlayerStore((s) => s.currentSong?.id);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const playlist = usePlayerStore((s) => s.playlist);
+  const playSong = usePlayerStore((s) => s.playSong);
+  const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
+  const setPlaylist = usePlayerStore((s) => s.setPlaylist);
+  const addToQueue = usePlayerStore((s) => s.addToQueue);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -123,7 +129,7 @@ export const SongCard = memo(({ song }) => {
 
   if (!song?.id || !song?.image?.[2]) return null;
 
-  const isCurrentSong = currentSong?.id === song.id;
+  const isCurrentSong = currentSongId === song.id;
   const name = he.decode(song.name || song.title || '');
   const artistName =
     song?.artist_map?.artists
@@ -134,7 +140,7 @@ export const SongCard = memo(({ song }) => {
   const handlePlayClick = async (e) => {
     try {
       if (isCurrentSong) {
-        handlePlayPauseSong();
+        handlePlayPause();
         return;
       }
       if (song?.download_url) {
@@ -145,8 +151,8 @@ export const SongCard = memo(({ song }) => {
       setLoading(true);
       const response = await axios.get(`${import.meta.env.VITE_SONG_URL}/song?id=${song.id}`);
       if (response.data?.data?.songs[0]) {
-        const song = ensureHttpsForDownloadUrls(response.data.data.songs[0]);
-        playSong(song);
+        const fetchedSong = ensureHttpsForDownloadUrls(response.data.data.songs[0]);
+        playSong(fetchedSong);
       }
     } catch (err) {
       setError(err.message);
@@ -169,10 +175,15 @@ export const SongCard = memo(({ song }) => {
 
   const handleRemoveFromQueue = useCallback((e) => {
     e.stopPropagation();
+    // Prevent removing the currently playing song
+    if (isCurrentSong) {
+      toast.error('Cannot remove currently playing song from queue');
+      return;
+    }
     const updatedQueue = playlist.filter((item) => item.id !== song.id);
-    addToPlaylist(updatedQueue);
+    setPlaylist(updatedQueue);
     toast.success(`Removed ${name} from queue`);
-  }, []);
+  }, [playlist, song.id, name, setPlaylist, isCurrentSong]);
 
   const isInQueue = playlist.some((item) => item.id === song.id);
 
@@ -287,10 +298,11 @@ export const SongCard = memo(({ song }) => {
                   )}
 
                   <DropdownMenuItem
-                    onClick={isInQueue ? handleRemoveFromQueue : handleAddToQueue}
+                    onClick={isInQueue && !isCurrentSong ? handleRemoveFromQueue : handleAddToQueue}
                     className='capitalize cursor-pointer'
+                    disabled={isCurrentSong && isInQueue}
                   >
-                    {isInQueue ? 'Remove from Queue' : 'Add to Queue'}
+                    {isInQueue ? (isCurrentSong ? 'Now Playing' : 'Remove from Queue') : 'Add to Queue'}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -315,9 +327,15 @@ export const SongCard = memo(({ song }) => {
 
 export const NewSongCard = memo(({ song }) => {
   const navigate = useNavigate();
-  const { playSong, handlePlayPauseSong, addToPlaylist, addToQueue } = usePlayer();
-  const { currentSong, isPlaying } = usePlayerState();
-  const { playlist } = usePlaylist();
+  
+  // Individual selectors for minimal re-renders
+  const currentSongId = usePlayerStore((s) => s.currentSong?.id);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const playlist = usePlayerStore((s) => s.playlist);
+  const playSong = usePlayerStore((s) => s.playSong);
+  const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
+  const setPlaylist = usePlayerStore((s) => s.setPlaylist);
+  const addToQueue = usePlayerStore((s) => s.addToQueue);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -326,7 +344,7 @@ export const NewSongCard = memo(({ song }) => {
 
   if (!song?.id || !song?.image?.[2]) return null;
 
-  const isCurrentSong = currentSong?.id === song.id;
+  const isCurrentSong = currentSongId === song.id;
   const name = he.decode(song.name || song.title || '');
   const artistName =
     song?.artist_map?.artists
@@ -338,7 +356,7 @@ export const NewSongCard = memo(({ song }) => {
   const handlePlayClick = async () => {
     try {
       if (isCurrentSong) {
-        handlePlayPauseSong();
+        handlePlayPause();
         return;
       }
 
@@ -377,11 +395,16 @@ export const NewSongCard = memo(({ song }) => {
   const handleRemoveFromQueue = useCallback(
     (e) => {
       e.stopPropagation();
+      // Prevent removing the currently playing song
+      if (isCurrentSong) {
+        toast.error('Cannot remove currently playing song from queue');
+        return;
+      }
       const updatedQueue = playlist.filter((item) => item.id !== song.id);
-      addToPlaylist(updatedQueue);
+      setPlaylist(updatedQueue);
       toast.success(`Removed ${name} from queue`);
     },
-    [song, name, playlist, addToPlaylist]
+    [song, name, playlist, setPlaylist, isCurrentSong]
   );
 
   const handleNavigate = useCallback(() => {
@@ -522,11 +545,12 @@ export const NewSongCard = memo(({ song }) => {
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            isInQueue ? handleRemoveFromQueue(e) : handleAddToQueue(e);
+                            isInQueue && !isCurrentSong ? handleRemoveFromQueue(e) : handleAddToQueue(e);
                           }}
                           className='capitalize cursor-pointer'
+                          disabled={isCurrentSong && isInQueue}
                         >
-                          {isInQueue ? 'Remove from Queue' : 'Add to Queue'}
+                          {isInQueue ? (isCurrentSong ? 'Now Playing' : 'Remove from Queue') : 'Add to Queue'}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem

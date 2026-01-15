@@ -4,7 +4,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { usePlaylist } from '@/Context/PlayerContext';
+import { usePlayerStore } from '@/stores/playerStore';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { Check, ListMusic, Loader2, Music, Plus, Search, X } from 'lucide-react';
@@ -12,7 +12,9 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 const AddToPlaylist = ({ dialogOpen, setDialogOpen, song }) => {
-  const { userPlaylist, getPlaylists } = usePlaylist();
+  // Individual selectors
+  const userPlaylist = usePlayerStore((s) => s.userPlaylist);
+  const getPlaylists = usePlayerStore((s) => s.getPlaylists);
   const [newPlaylistDialog, setNewPlaylistDialog] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [loading, setLoading] = useState(false);
