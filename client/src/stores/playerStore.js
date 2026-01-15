@@ -53,7 +53,7 @@ export const usePlayerStore = create(
           audioElement.currentTime = 0;
           audioElement.src = '';
         }
-        set({ currentSong: null, isPlaying: false });
+        set({ currentSong: null, isPlaying: false, currentTime: 0 });
         document.title = 'SyncVibe';
       },
 
@@ -216,7 +216,10 @@ export const usePlayerStore = create(
 
         navigator.mediaSession.metadata = new MediaMetadata({
           title: song.name,
-          artist: song?.artist_map?.artists?.slice(0, 3)?.map((a) => a.name).join(', '),
+          artist: song?.artist_map?.artists
+            ?.slice(0, 3)
+            ?.map((a) => a.name)
+            .join(', '),
           album: song?.album,
           artwork: song.image?.[2]?.link
             ? [{ src: song.image[2].link, sizes: '500x500', type: 'image/jpeg' }]
@@ -237,19 +240,24 @@ export const usePlayerStore = create(
       },
 
       loadAndPlayCurrentSong: async (prevSongId) => {
-        const { currentSong, currentTime, isLoading, updateMediaSession, preloadNextTrack, _hasRestoredTime } = get();
+        const { currentSong, currentTime, updateMediaSession, preloadNextTrack, _hasRestoredTime } =
+          get();
         if (!audioElement || !currentSong || currentSong.id === prevSongId) {
           return prevSongId;
         }
         try {
           audioElement.src = getAudioUrl(currentSong);
           await audioElement.load();
-          
+
           if (!_hasRestoredTime && currentTime > 0) {
             audioElement.currentTime = currentTime;
             set({ _hasRestoredTime: true });
+          } else {
+            await audioElement.play();
+            set({ isPlaying: true, _hasRestoredTime: true });
+            addToHistory(currentSong, 0, 'autoplay');
           }
-          
+
           updateMediaSession(currentSong);
           preloadNextTrack();
           return currentSong.id;
