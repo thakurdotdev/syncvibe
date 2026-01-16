@@ -7,8 +7,9 @@ import axios from 'axios';
 let audioElement = null;
 let nextAudioElement = null;
 
-const getAudioUrl = (song) =>
-  song?.download_url?.[4]?.link || song?.download_url?.[3]?.link || '';
+const getAudioUrl = (song) => {
+  return song?.download_url?.[4]?.link || song?.download_url?.[3]?.link || '';
+};
 
 export const usePlayerStore = create(
   persist(
@@ -17,81 +18,60 @@ export const usePlayerStore = create(
       isPlaying: false,
       isLoading: false,
       volume: 1,
-
       currentTime: 0,
       duration: 0,
-
-      savedTime: 0,
-      _hasRestoredTime: false,
-
       playlist: [],
       userPlaylist: [],
-
       sleepTimer: {
         timeRemaining: 0,
         songsRemaining: 0,
         isActive: false,
       },
+      sleepTimerInterval: null,
+      _hasRestoredTime: false,
 
       setAudioRefs: (audio, nextAudio) => {
         audioElement = audio;
         nextAudioElement = nextAudio;
       },
 
-      updateTime: (currentTime) => set({ currentTime }),
-
-      saveProgress: () => {
-        const { currentTime } = get();
-        set({ savedTime: Math.floor(currentTime) });
-      },
-
       playSong: (song) => {
         if (!song?.id) return;
-        const { saveProgress, playlist } = get();
-
-        saveProgress();
-        set({ isLoading: true, _hasRestoredTime: false });
-
-        const secureSong = ensureHttpsForDownloadUrls(song);
-        const exists = playlist.some((s) => s.id === song.id);
-        if (!exists) set({ playlist: [secureSong] });
-
-        set({ currentSong: secureSong, isLoading: false });
+        set({ isLoading: true });
+        const secureAudio = ensureHttpsForDownloadUrls(song);
+        const { playlist } = get();
+        const isInQueue = playlist.some((item) => item.id === song.id);
+        if (!isInQueue) {
+          set({ playlist: [secureAudio] });
+        }
+        set({ currentSong: secureAudio, isLoading: false });
       },
 
       stopSong: () => {
-        const { saveProgress } = get();
-        saveProgress();
-
         if (audioElement) {
           audioElement.pause();
           audioElement.currentTime = 0;
           audioElement.src = '';
         }
-
-        set({
-          currentSong: null,
-          isPlaying: false,
-          currentTime: 0,
-          savedTime: 0,
-        });
-
+        set({ currentSong: null, isPlaying: false, currentTime: 0 });
         document.title = 'SyncVibe';
       },
 
       handlePlayPause: () => {
-        const { isPlaying, saveProgress } = get();
+        const { isPlaying } = get();
         if (!audioElement) return;
-
         if (isPlaying) {
           audioElement.pause();
-          saveProgress();
         } else {
           audioElement.play().catch(console.error);
         }
-
         set({ isPlaying: !isPlaying });
       },
+
+      setPlaying: (isPlaying) => set({ isPlaying }),
+      setLoading: (isLoading) => set({ isLoading }),
+      updateTime: (currentTime) => set({ currentTime }),
+      setDuration: (duration) => set({ duration }),
 
       handleTimeSeek: (time) => {
         if (audioElement) {
@@ -100,103 +80,62 @@ export const usePlayerStore = create(
         }
       },
 
-      setDuration: (duration) => set({ duration }),
+      handleVolumeChange: (value) => {
+        const newVolume = Math.min(Math.max(value, 0), 1);
+        if (audioElement) {
+          audioElement.volume = newVolume;
+        }
+        set({ volume: newVolume });
+      },
 
+      setVolume: (volume) => set({ volume: Math.min(Math.max(volume, 0), 1) }),
       setPlaylist: (playlist) => set({ playlist }),
 
       addToQueue: (songs) => {
         const { playlist } = get();
-        const arr = Array.isArray(songs) ? songs : [songs];
-        const ids = new Set(playlist.map((s) => s.id));
-        const unique = arr.filter((s) => !ids.has(s.id));
-        if (unique.length) set({ playlist: [...playlist, ...unique] });
+        const newSongs = Array.isArray(songs) ? songs : [songs];
+        const existingIds = new Set(playlist.map((song) => song.id));
+        const uniqueNewSongs = newSongs.filter((song) => !existingIds.has(song.id));
+        if (uniqueNewSongs.length > 0) {
+          set({ playlist: [...playlist, ...uniqueNewSongs] });
+        }
       },
 
       handleNextSong: () => {
-        const { currentSong, playlist, playSong, saveProgress } = get();
-        if (!currentSong || !playlist.length) return;
-
-        saveProgress();
-        const idx = playlist.findIndex((s) => s.id === currentSong.id);
-        playSong(playlist[(idx + 1) % playlist.length]);
+        const { currentSong, playlist, playSong } = get();
+        if (!currentSong) return;
+        if (!playlist.length) {
+          set({ playlist: [currentSong] });
+          return;
+        }
+        const currentIndex = playlist.findIndex((song) => song.id === currentSong.id);
+        if (currentIndex !== -1) {
+          const nextIndex = (currentIndex + 1) % playlist.length;
+          playSong(playlist[nextIndex]);
+        } else if (playlist.length > 0) {
+          playSong(playlist[0]);
+        }
       },
 
       handlePrevSong: () => {
-        const { currentSong, playlist, playSong, saveProgress } = get();
-        if (!currentSong || !playlist.length) return;
-
-        saveProgress();
-        const idx = playlist.findIndex((s) => s.id === currentSong.id);
-        playSong(playlist[(idx - 1 + playlist.length) % playlist.length]);
+        const { currentSong, playlist, playSong } = get();
+        if (!playlist.length || !currentSong) return;
+        const currentIndex = playlist.findIndex((song) => song.id === currentSong.id);
+        if (currentIndex !== -1) {
+          const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+          playSong(playlist[prevIndex]);
+        }
       },
 
       preloadNextTrack: () => {
         const { playlist, currentSong } = get();
-        if (!nextAudioElement || !currentSong || !playlist.length) return;
-
-        const idx = playlist.findIndex((s) => s.id === currentSong.id);
-        const next = playlist[(idx + 1) % playlist.length];
-        if (next) {
-          nextAudioElement.src = getAudioUrl(next);
+        if (!playlist.length || !currentSong || !nextAudioElement) return;
+        const currentIndex = playlist.findIndex((song) => song.id === currentSong.id);
+        const nextIndex = (currentIndex + 1) % playlist.length;
+        const nextSong = playlist[nextIndex];
+        if (nextSong) {
+          nextAudioElement.src = getAudioUrl(nextSong);
           nextAudioElement.load();
-        }
-      },
-
-      updateMediaSession: (song) => {
-        if (!('mediaSession' in navigator)) return;
-        const { handleNextSong, handlePrevSong } = get();
-
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: song.name,
-          artist: song?.artist_map?.artists?.slice(0, 3).map((a) => a.name).join(', '),
-          album: song?.album,
-          artwork: song.image?.[2]?.link
-            ? [{ src: song.image[2].link, sizes: '500x500', type: 'image/jpeg' }]
-            : [],
-        });
-
-        navigator.mediaSession.setActionHandler('play', () => audioElement?.play());
-        navigator.mediaSession.setActionHandler('pause', () => audioElement?.pause());
-        navigator.mediaSession.setActionHandler('nexttrack', handleNextSong);
-        navigator.mediaSession.setActionHandler('previoustrack', handlePrevSong);
-
-        document.title = `${song.name} - SyncVibe`;
-      },
-
-      loadAndPlayCurrentSong: async (prevSongId) => {
-        const {
-          currentSong,
-          savedTime,
-          _hasRestoredTime,
-          updateMediaSession,
-          preloadNextTrack,
-        } = get();
-
-        if (!audioElement || !currentSong || currentSong.id === prevSongId) {
-          return prevSongId;
-        }
-
-        try {
-          audioElement.src = getAudioUrl(currentSong);
-
-          if (!_hasRestoredTime && savedTime > 0) {
-            audioElement.currentTime = savedTime;
-            set({ currentTime: savedTime, _hasRestoredTime: true });
-          }
-
-          await audioElement.play();
-
-          set({ isPlaying: true });
-          addToHistory(currentSong, audioElement.currentTime, 'autoplay');
-
-          updateMediaSession(currentSong);
-          preloadNextTrack();
-
-          return currentSong.id;
-        } catch (err) {
-          console.error('Playback error:', err);
-          set({ isPlaying: false });
-          return prevSongId;
         }
       },
 
@@ -204,13 +143,128 @@ export const usePlayerStore = create(
 
       getPlaylists: async () => {
         try {
-          const { data } = await axios.get(
-            `${import.meta.env.VITE_API_URL}/api/playlist/get`,
-            { withCredentials: true }
-          );
-          if (data?.data) set({ userPlaylist: data.data });
-        } catch (e) {
-          console.error('Failed to fetch playlists', e);
+          const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/playlist/get`, {
+            withCredentials: true,
+          });
+          if (data?.data) {
+            set({ userPlaylist: data.data });
+          }
+        } catch (error) {
+          console.error('Failed to fetch playlists:', error);
+        }
+      },
+
+      setSleepTimer: (minutes = 0, songs = 0) => {
+        const { sleepTimerInterval } = get();
+        if (sleepTimerInterval) {
+          clearInterval(sleepTimerInterval);
+        }
+        if (minutes > 0) {
+          const interval = setInterval(() => {
+            const { sleepTimer, stopSong } = get();
+            const newTimeRemaining = sleepTimer.timeRemaining - 1;
+            if (newTimeRemaining <= 0) {
+              clearInterval(interval);
+              stopSong();
+              set({
+                sleepTimer: { timeRemaining: 0, songsRemaining: 0, isActive: false },
+                sleepTimerInterval: null,
+              });
+            } else {
+              set({ sleepTimer: { ...sleepTimer, timeRemaining: newTimeRemaining } });
+            }
+          }, 1000);
+          set({
+            sleepTimer: { timeRemaining: minutes * 60, songsRemaining: 0, isActive: true },
+            sleepTimerInterval: interval,
+          });
+        } else if (songs > 0) {
+          set({
+            sleepTimer: { timeRemaining: 0, songsRemaining: songs, isActive: true },
+            sleepTimerInterval: null,
+          });
+        }
+      },
+
+      clearSleepTimer: () => {
+        const { sleepTimerInterval } = get();
+        if (sleepTimerInterval) {
+          clearInterval(sleepTimerInterval);
+        }
+        set({
+          sleepTimer: { timeRemaining: 0, songsRemaining: 0, isActive: false },
+          sleepTimerInterval: null,
+        });
+      },
+
+      decrementSongsRemaining: () => {
+        const { sleepTimer, stopSong } = get();
+        if (sleepTimer.isActive && sleepTimer.songsRemaining > 0) {
+          const newSongsRemaining = sleepTimer.songsRemaining - 1;
+          if (newSongsRemaining <= 0) {
+            stopSong();
+            set({ sleepTimer: { timeRemaining: 0, songsRemaining: 0, isActive: false } });
+          } else {
+            set({ sleepTimer: { ...sleepTimer, songsRemaining: newSongsRemaining } });
+          }
+        }
+      },
+
+      updateMediaSession: (song) => {
+        if (!('mediaSession' in navigator)) return;
+        const { handlePrevSong, handleNextSong } = get();
+
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: song.name,
+          artist: song?.artist_map?.artists
+            ?.slice(0, 3)
+            ?.map((a) => a.name)
+            .join(', '),
+          album: song?.album,
+          artwork: song.image?.[2]?.link
+            ? [{ src: song.image[2].link, sizes: '500x500', type: 'image/jpeg' }]
+            : [],
+        });
+
+        navigator.mediaSession.setActionHandler('play', () => {
+          audioElement?.play().catch(console.error);
+          set({ isPlaying: true });
+        });
+        navigator.mediaSession.setActionHandler('pause', () => {
+          audioElement?.pause();
+          set({ isPlaying: false });
+        });
+        navigator.mediaSession.setActionHandler('previoustrack', handlePrevSong);
+        navigator.mediaSession.setActionHandler('nexttrack', handleNextSong);
+        document.title = `${song.name} - SyncVibe`;
+      },
+
+      loadAndPlayCurrentSong: async (prevSongId) => {
+        const { currentSong, currentTime, updateMediaSession, preloadNextTrack, _hasRestoredTime } =
+          get();
+        if (!audioElement || !currentSong || currentSong.id === prevSongId) {
+          return prevSongId;
+        }
+        try {
+          audioElement.src = getAudioUrl(currentSong);
+          await audioElement.load();
+
+          if (!_hasRestoredTime && currentTime > 0) {
+            audioElement.currentTime = currentTime;
+            set({ _hasRestoredTime: true });
+          } else {
+            await audioElement.play();
+            set({ isPlaying: true, _hasRestoredTime: true });
+            addToHistory(currentSong, 0, 'autoplay');
+          }
+
+          updateMediaSession(currentSong);
+          preloadNextTrack();
+          return currentSong.id;
+        } catch (err) {
+          console.error('Playback error:', err);
+          set({ isPlaying: false });
+          return prevSongId;
         }
       },
     }),
@@ -220,7 +274,7 @@ export const usePlayerStore = create(
         currentSong: state.currentSong,
         playlist: state.playlist,
         volume: state.volume,
-        savedTime: state.savedTime,
+        currentTime: state.currentTime,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
@@ -241,6 +295,7 @@ export const usePlayerControls = () =>
       handleNextSong: s.handleNextSong,
       handlePrevSong: s.handlePrevSong,
       handleTimeSeek: s.handleTimeSeek,
+      handleVolumeChange: s.handleVolumeChange,
       addToQueue: s.addToQueue,
       addToPlaylist: s.setPlaylist,
     }))
@@ -274,6 +329,15 @@ export const usePlaylistState = () =>
       setPlaylist: s.setPlaylist,
       setUserPlaylist: s.setUserPlaylist,
       getPlaylists: s.getPlaylists,
+    }))
+  );
+
+export const useSleepTimerState = () =>
+  usePlayerStore(
+    useShallow((s) => ({
+      ...s.sleepTimer,
+      setSleepTimer: s.setSleepTimer,
+      clearSleepTimer: s.clearSleepTimer,
     }))
   );
 
