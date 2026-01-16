@@ -4,10 +4,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { ensureHttpsForDownloadUrls, addToHistory } from '@/Pages/Music/Common';
 import axios from 'axios';
 
-/* singletons */
 let audioElement = null;
 let nextAudioElement = null;
-let progressAutoSaveInterval = null;
 
 const getAudioUrl = (song) =>
   song?.download_url?.[4]?.link || song?.download_url?.[3]?.link || '';
@@ -47,24 +45,10 @@ export const usePlayerStore = create(
         set({ savedTime: Math.floor(currentTime) });
       },
 
-      startAutoSave: () => {
-        if (progressAutoSaveInterval) return;
-        progressAutoSaveInterval = setInterval(() => {
-          const { currentTime } = get();
-          set({ savedTime: Math.floor(currentTime) });
-        }, 20000);
-      },
-
-      stopAutoSave: () => {
-        if (progressAutoSaveInterval) {
-          clearInterval(progressAutoSaveInterval);
-          progressAutoSaveInterval = null;
-        }
-      },
-
       playSong: (song) => {
         if (!song?.id) return;
         const { saveProgress, playlist } = get();
+
         saveProgress();
         set({ isLoading: true, _hasRestoredTime: false });
 
@@ -76,9 +60,8 @@ export const usePlayerStore = create(
       },
 
       stopSong: () => {
-        const { stopAutoSave, saveProgress } = get();
+        const { saveProgress } = get();
         saveProgress();
-        stopAutoSave();
 
         if (audioElement) {
           audioElement.pause();
@@ -97,16 +80,14 @@ export const usePlayerStore = create(
       },
 
       handlePlayPause: () => {
-        const { isPlaying, saveProgress, startAutoSave, stopAutoSave } = get();
+        const { isPlaying, saveProgress } = get();
         if (!audioElement) return;
 
         if (isPlaying) {
           audioElement.pause();
           saveProgress();
-          stopAutoSave();
         } else {
           audioElement.play().catch(console.error);
-          startAutoSave();
         }
 
         set({ isPlaying: !isPlaying });
@@ -134,6 +115,7 @@ export const usePlayerStore = create(
       handleNextSong: () => {
         const { currentSong, playlist, playSong, saveProgress } = get();
         if (!currentSong || !playlist.length) return;
+
         saveProgress();
         const idx = playlist.findIndex((s) => s.id === currentSong.id);
         playSong(playlist[(idx + 1) % playlist.length]);
@@ -142,6 +124,7 @@ export const usePlayerStore = create(
       handlePrevSong: () => {
         const { currentSong, playlist, playSong, saveProgress } = get();
         if (!currentSong || !playlist.length) return;
+
         saveProgress();
         const idx = playlist.findIndex((s) => s.id === currentSong.id);
         playSong(playlist[(idx - 1 + playlist.length) % playlist.length]);
@@ -150,6 +133,7 @@ export const usePlayerStore = create(
       preloadNextTrack: () => {
         const { playlist, currentSong } = get();
         if (!nextAudioElement || !currentSong || !playlist.length) return;
+
         const idx = playlist.findIndex((s) => s.id === currentSong.id);
         const next = playlist[(idx + 1) % playlist.length];
         if (next) {
@@ -186,7 +170,6 @@ export const usePlayerStore = create(
           _hasRestoredTime,
           updateMediaSession,
           preloadNextTrack,
-          startAutoSave,
         } = get();
 
         if (!audioElement || !currentSong || currentSong.id === prevSongId) {
@@ -195,7 +178,6 @@ export const usePlayerStore = create(
 
         try {
           audioElement.src = getAudioUrl(currentSong);
-          await audioElement.load();
 
           if (!_hasRestoredTime && savedTime > 0) {
             audioElement.currentTime = savedTime;
@@ -203,7 +185,6 @@ export const usePlayerStore = create(
           }
 
           await audioElement.play();
-          startAutoSave();
 
           set({ isPlaying: true });
           addToHistory(currentSong, audioElement.currentTime, 'autoplay');
@@ -260,7 +241,6 @@ export const usePlayerControls = () =>
       handleNextSong: s.handleNextSong,
       handlePrevSong: s.handlePrevSong,
       handleTimeSeek: s.handleTimeSeek,
-      handleVolumeChange: s.handleVolumeChange,
       addToQueue: s.addToQueue,
       addToPlaylist: s.setPlaylist,
     }))
