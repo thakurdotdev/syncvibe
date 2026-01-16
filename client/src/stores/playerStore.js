@@ -8,7 +8,6 @@ import axios from 'axios';
 let audioElement = null;
 let nextAudioElement = null;
 let progressAutoSaveInterval = null;
-let lifecycleBound = false;
 
 const getAudioUrl = (song) =>
   song?.download_url?.[4]?.link || song?.download_url?.[3]?.link || '';
@@ -39,22 +38,6 @@ export const usePlayerStore = create(
       setAudioRefs: (audio, nextAudio) => {
         audioElement = audio;
         nextAudioElement = nextAudio;
-      },
-
-      bindLifecycle: () => {
-        if (lifecycleBound) return;
-        lifecycleBound = true;
-
-        const persistNow = () => {
-          try {
-            get().saveProgress();
-          } catch {}
-        };
-
-        window.addEventListener('pagehide', persistNow);
-        document.addEventListener('visibilitychange', () => {
-          if (document.visibilityState === 'hidden') persistNow();
-        });
       },
 
       updateTime: (currentTime) => set({ currentTime }),
@@ -204,7 +187,6 @@ export const usePlayerStore = create(
           updateMediaSession,
           preloadNextTrack,
           startAutoSave,
-          bindLifecycle,
         } = get();
 
         if (!audioElement || !currentSong || currentSong.id === prevSongId) {
@@ -222,7 +204,6 @@ export const usePlayerStore = create(
 
           await audioElement.play();
           startAutoSave();
-          bindLifecycle();
 
           set({ isPlaying: true });
           addToHistory(currentSong, audioElement.currentTime, 'autoplay');
