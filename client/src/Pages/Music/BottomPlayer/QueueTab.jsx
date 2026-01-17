@@ -1,13 +1,6 @@
-import LazyImage from "@/components/LazyImage"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { cn } from "@/lib/utils"
-import { usePlayerStore } from "@/stores/playerStore"
+/** biome-ignore-all lint/a11y/noStaticElementInteractions: <explanation> */
+/** biome-ignore-all lint/a11y/useKeyWithClickEvents: <explanation> */
+
 import {
   closestCenter,
   DndContext,
@@ -30,6 +23,16 @@ import { Disc3, GripVertical, ListMusic, MoreHorizontal, Pause, Play, User, X } 
 import { memo, useCallback, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
+import LazyImage from "@/components/LazyImage"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { cn } from "@/lib/utils"
+import { usePlayerStore } from "@/stores/playerStore"
 
 // Minimal queue song item - clean and lightweight
 const QueueSongItem = memo(
@@ -310,7 +313,7 @@ const QueueTab = memo(() => {
   }
 
   return (
-    <div className="h-[85vh] overflow-y-auto">
+    <div className="h-full">
       <div className="px-3 py-2">
         <p className="text-xs text-muted-foreground mb-3">
           {playlist.length} song{playlist.length !== 1 ? "s" : ""}

@@ -6,7 +6,7 @@ import { Music } from "lucide-react"
 import { memo, useMemo } from "react"
 import { MusicControls, ProgressBarMusic } from "../Common"
 
-const NowPlayingTab = memo(({ currentSong }) => {
+const NowPlayingTab = memo(({ currentSong, isDesktop = false }) => {
   const songImage = useMemo(() => currentSong?.image?.[2]?.link, [currentSong])
 
   const artistName = useMemo(
@@ -18,12 +18,66 @@ const NowPlayingTab = memo(({ currentSong }) => {
     [currentSong],
   )
 
+  if (isDesktop) {
+    return (
+      <div className="w-full h-full flex items-center justify-center px-8 py-12 relative overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-25 blur-3xl scale-125"
+          style={{ backgroundImage: `url(${songImage})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/50" />
+
+        <div className="relative z-10 flex flex-col items-center gap-12 w-full">
+          <div
+            className="relative group shrink-0"
+            style={{ width: "min(400px, 45vh)", height: "min(400px, 45vh)" }}
+          >
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/30 via-transparent to-primary/20 opacity-60 blur-2xl scale-110 group-hover:opacity-80 transition-opacity duration-300" />
+            <Avatar className="w-full h-full rounded-2xl shadow-2xl relative z-10 ring-1 ring-white/20">
+              <AvatarImage src={songImage} alt={currentSong.name} className="object-cover" />
+              <AvatarFallback className="text-6xl bg-gradient-to-br from-primary/10 to-primary/5">
+                <Music className="w-24 h-24 text-muted-foreground" />
+              </AvatarFallback>
+            </Avatar>
+            {currentSong?.genre && (
+              <div className="absolute top-4 left-4 z-20">
+                <Badge
+                  variant="secondary"
+                  className="text-xs bg-black/40 backdrop-blur-sm border border-white/20 text-white"
+                >
+                  {currentSong.genre}
+                </Badge>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 flex flex-col gap-6 text-center">
+            <div>
+              <SheetTitle className="text-2xl xl:text-4xl font-bold mb-3 line-clamp-2">
+                {he.decode(currentSong.name)}
+              </SheetTitle>
+              <p className="text-lg text-muted-foreground line-clamp-1">{he.decode(artistName)}</p>
+              {currentSong?.album?.name && (
+                <p className="text-sm text-muted-foreground/60 mt-2">
+                  {he.decode(currentSong.album.name)}
+                </p>
+              )}
+            </div>
+            <ProgressBarMusic isTimeVisible={true} />
+
+            <div className="flex justify-center">
+              <MusicControls size="large" />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="h-full flex flex-col p-4 sm:p-6 max-w-2xl mx-auto gap-10 relative">
-      {/* Subtle gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/[0.02] to-transparent pointer-events-none" />
 
-      {/* Album Art */}
       <div className="flex justify-center relative z-10">
         <div className="w-full h-96 relative group">
           <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 via-transparent to-primary/10 opacity-50 blur-xl scale-105 group-hover:opacity-70 transition-opacity duration-300" />
@@ -34,7 +88,6 @@ const NowPlayingTab = memo(({ currentSong }) => {
             </AvatarFallback>
           </Avatar>
 
-          {/* Genre badges if available */}
           {currentSong?.genre && (
             <div className="absolute top-3 left-3 z-20">
               <Badge
@@ -48,10 +101,9 @@ const NowPlayingTab = memo(({ currentSong }) => {
         </div>
       </div>
 
-      {/* Header with Title and Menu */}
       <div className="flex items-start justify-between relative z-10">
         <div className="flex-1 min-w-0 pr-4">
-          <SheetTitle className="text-xl sm:text-2xl lg:text-3xl mb-1 line-clamp-2 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
+          <SheetTitle className="text-xl sm:text-2xl lg:text-3xl mb-1 line-clamp-2">
             {he.decode(currentSong.name)}
           </SheetTitle>
           <p className="text-sm sm:text-base text-muted-foreground line-clamp-1">
@@ -65,14 +117,11 @@ const NowPlayingTab = memo(({ currentSong }) => {
         </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="">
+      <div>
         <ProgressBarMusic isTimeVisible={true} />
       </div>
 
-      {/* Controls Section */}
       <div className="space-y-6 relative z-10">
-        {/* Main Music Controls */}
         <div className="flex justify-center">
           <MusicControls size="large" />
         </div>
