@@ -1,5 +1,5 @@
-const { DataTypes, Model } = require('sequelize');
-const sequelize = require('../../utils/sequelize');
+const { DataTypes, Model } = require("sequelize")
+const sequelize = require("../../utils/sequelize")
 
 class HistorySong extends Model {}
 
@@ -14,8 +14,8 @@ HistorySong.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'users',
-        key: 'userid',
+        model: "users",
+        key: "userid",
       },
     },
     // NEW: Reference to central Song table
@@ -23,8 +23,8 @@ HistorySong.init(
       type: DataTypes.INTEGER,
       allowNull: true, // Nullable during migration
       references: {
-        model: 'songs',
-        key: 'id',
+        model: "songs",
+        key: "id",
       },
     },
     // DEPRECATED: Will be removed after migration (use Song association instead)
@@ -112,39 +112,39 @@ HistorySong.init(
   {
     sequelize,
     timestamps: false,
-    tableName: 'history_songs',
-    modelName: 'HistorySong',
+    tableName: "history_songs",
+    modelName: "HistorySong",
     indexes: [
       // Primary lookup index
       {
-        fields: ['userId', 'songRefId'],
+        fields: ["userId", "songRefId"],
         unique: true,
       },
       // Backward compatibility
       {
-        fields: ['userId', 'songId'],
+        fields: ["userId", "songId"],
       },
       // Fast history listing (sorted by lastPlayedAt)
       {
-        fields: ['userId', 'lastPlayedAt'],
+        fields: ["userId", "lastPlayedAt"],
       },
       // Recommendations query optimization
       {
-        fields: ['userId', 'aiRecommendationScore'],
+        fields: ["userId", "aiRecommendationScore"],
       },
       // Liked songs quick lookup
       {
-        fields: ['userId', 'likeStatus'],
+        fields: ["userId", "likeStatus"],
       },
       // PlayedCount for recommendations
       {
-        fields: ['userId', 'playedCount'],
+        fields: ["userId", "playedCount"],
       },
     ],
-  }
-);
+  },
+)
 
 // Association with Song (will be set up in associations file)
 // HistorySong.belongsTo(Song, { foreignKey: 'songRefId', as: 'song' });
 
-module.exports = HistorySong;
+module.exports = HistorySong

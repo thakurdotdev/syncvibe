@@ -1,9 +1,9 @@
-import ShareDrawer from '@/components/Posts/ShareDrawer';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import { usePlayerStore } from '@/stores/playerStore';
-import { cn } from '@/lib/utils';
-import axios from 'axios';
+import ShareDrawer from "@/components/Posts/ShareDrawer"
+import { Button } from "@/components/ui/button"
+import { Slider } from "@/components/ui/slider"
+import { usePlayerStore } from "@/stores/playerStore"
+import { cn } from "@/lib/utils"
+import axios from "axios"
 import {
   Loader2,
   Pause,
@@ -14,34 +14,34 @@ import {
   SkipForward,
   Volume2,
   VolumeX,
-} from 'lucide-react';
-import { memo, useCallback, useState } from 'react';
+} from "lucide-react"
+import { memo, useCallback, useState } from "react"
 
 export const formatTime = (time) => {
-  if (!time) return '00:00';
-  const minutes = Math.floor(time / 60);
-  const seconds = Math.floor(time % 60);
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-};
+  if (!time) return "00:00"
+  const minutes = Math.floor(time / 60)
+  const seconds = Math.floor(time % 60)
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+}
 
 export const PlaylistActions = ({ onPlayAll, onShuffle, disabled, showShare = true }) => {
-  const [isShareDrawerOpen, setIsShareDrawerOpen] = useState(false);
+  const [isShareDrawerOpen, setIsShareDrawerOpen] = useState(false)
   return (
     <>
-      <div className='flex items-center gap-2'>
-        <Button onClick={onPlayAll} disabled={disabled} className='gap-2'>
-          <Play className='w-4 h-4' />
+      <div className="flex items-center gap-2">
+        <Button onClick={onPlayAll} disabled={disabled} className="gap-2">
+          <Play className="w-4 h-4" />
           Play All
         </Button>
 
-        <Button variant='outline' onClick={onShuffle} disabled={disabled} className='gap-2'>
-          <Shuffle className='w-4 h-4' />
+        <Button variant="outline" onClick={onShuffle} disabled={disabled} className="gap-2">
+          <Shuffle className="w-4 h-4" />
           Shuffle
         </Button>
 
         {showShare && (
-          <Button variant='outline' onClick={() => setIsShareDrawerOpen(true)} className='gap-2'>
-            <Share2 className='w-4 h-4' />
+          <Button variant="outline" onClick={() => setIsShareDrawerOpen(true)} className="gap-2">
+            <Share2 className="w-4 h-4" />
             Share
           </Button>
         )}
@@ -54,84 +54,84 @@ export const PlaylistActions = ({ onPlayAll, onShuffle, disabled, showShare = tr
         />
       )}
     </>
-  );
-};
+  )
+}
 
 export const LoadingState = ({ message, height }) => (
   <div
     className={`flex ${
-      height ? height : 'h-full'
+      height ? height : "h-full"
     } items-center justify-center bg-background/50 backdrop-blur-sm`}
   >
-    <div className='flex flex-col items-center gap-4'>
-      <Loader2 className='w-10 h-10 animate-spin text-primary' />
-      <p className='text-muted-foreground animate-pulse'>{message || 'Loading your music...'}</p>
+    <div className="flex flex-col items-center gap-4">
+      <Loader2 className="w-10 h-10 animate-spin text-primary" />
+      <p className="text-muted-foreground animate-pulse">{message || "Loading your music..."}</p>
     </div>
   </div>
-);
+)
 
-export const MusicControls = memo(({ size = 'default' }) => {
+export const MusicControls = memo(({ size = "default" }) => {
   // Individual selectors for actions (stable) and state (reactive)
-  const handleNextSong = usePlayerStore((s) => s.handleNextSong);
-  const handlePrevSong = usePlayerStore((s) => s.handlePrevSong);
-  const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
-  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const handleNextSong = usePlayerStore((s) => s.handleNextSong)
+  const handlePrevSong = usePlayerStore((s) => s.handlePrevSong)
+  const handlePlayPause = usePlayerStore((s) => s.handlePlayPause)
+  const isPlaying = usePlayerStore((s) => s.isPlaying)
 
   return (
-    <div className='flex items-center gap-2'>
+    <div className="flex items-center gap-2">
       <Button
-        variant='ghost'
-        size='icon'
+        variant="ghost"
+        size="icon"
         onClick={handlePrevSong}
-        className={cn('transition-all hover:scale-105', size === 'large' ? 'h-12 w-12' : 'h-9 w-9')}
+        className={cn("transition-all hover:scale-105", size === "large" ? "h-12 w-12" : "h-9 w-9")}
       >
-        <SkipBack className={size === 'large' ? 'h-6 w-6' : 'h-4 w-4'} />
+        <SkipBack className={size === "large" ? "h-6 w-6" : "h-4 w-4"} />
       </Button>
       <Button
-        variant='default'
-        size='icon'
+        variant="default"
+        size="icon"
         onClick={handlePlayPause}
         className={cn(
-          'transition-all hover:scale-105',
-          size === 'large' ? 'h-14 w-14' : 'h-10 w-10'
+          "transition-all hover:scale-105",
+          size === "large" ? "h-14 w-14" : "h-10 w-10",
         )}
       >
         {isPlaying ? (
-          <Pause className={size === 'large' ? 'h-6 w-6' : 'h-4 w-4'} />
+          <Pause className={size === "large" ? "h-6 w-6" : "h-4 w-4"} />
         ) : (
-          <Play className={size === 'large' ? 'h-6 w-6' : 'h-4 w-4'} />
+          <Play className={size === "large" ? "h-6 w-6" : "h-4 w-4"} />
         )}
       </Button>
       <Button
-        variant='ghost'
-        size='icon'
+        variant="ghost"
+        size="icon"
         onClick={handleNextSong}
-        className={cn('transition-all hover:scale-105', size === 'large' ? 'h-12 w-12' : 'h-9 w-9')}
+        className={cn("transition-all hover:scale-105", size === "large" ? "h-12 w-12" : "h-9 w-9")}
       >
-        <SkipForward className={size === 'large' ? 'h-6 w-6' : 'h-4 w-4'} />
+        <SkipForward className={size === "large" ? "h-6 w-6" : "h-4 w-4"} />
       </Button>
     </div>
-  );
-});
+  )
+})
 
 export const VolumeControl = memo(({ showVolume = false }) => {
-  const handleVolumeChange = usePlayerStore((s) => s.handleVolumeChange);
-  const volume = usePlayerStore((s) => s.volume);
-  const [isMuted, setIsMuted] = useState(false);
+  const handleVolumeChange = usePlayerStore((s) => s.handleVolumeChange)
+  const volume = usePlayerStore((s) => s.volume)
+  const [isMuted, setIsMuted] = useState(false)
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
-      const newMuted = !prev;
-      handleVolumeChange(newMuted ? 0 : 1);
-      return newMuted;
-    });
-  }, [handleVolumeChange]);
+      const newMuted = !prev
+      handleVolumeChange(newMuted ? 0 : 1)
+      return newMuted
+    })
+  }, [handleVolumeChange])
 
-  if (!showVolume) return null;
+  if (!showVolume) return null
 
   return (
-    <div className='flex items-center gap-2'>
-      <Button variant='ghost' size='icon' className='h-8 w-8 hover:scale-105' onClick={toggleMute}>
+    <div className="flex items-center gap-2">
+      <Button variant="ghost" size="icon" className="h-8 w-8 hover:scale-105" onClick={toggleMute}>
         {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
       </Button>
       <Slider
@@ -139,93 +139,93 @@ export const VolumeControl = memo(({ showVolume = false }) => {
         min={0}
         max={1}
         step={0.01}
-        className='w-16'
+        className="w-16"
         onValueChange={([value]) => handleVolumeChange(value)}
       />
     </div>
-  );
-});
+  )
+})
 
 export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
   // Individual selectors for time state
-  const currentTime = usePlayerStore((s) => s.currentTime);
-  const duration = usePlayerStore((s) => s.duration);
-  const handleTimeSeek = usePlayerStore((s) => s.handleTimeSeek);
+  const currentTime = usePlayerStore((s) => s.currentTime)
+  const duration = usePlayerStore((s) => s.duration)
+  const handleTimeSeek = usePlayerStore((s) => s.handleTimeSeek)
 
   return (
-    <div className='space-y-2'>
+    <div className="space-y-2">
       <Slider
         value={[currentTime]}
         min={0}
         max={duration || 1}
         step={0.1}
         onValueChange={([value]) => handleTimeSeek(value)}
-        className='h-1 cursor-pointer rounded-l-none'
+        className="h-1 cursor-pointer rounded-l-none"
       />
       {isTimeVisible && (
-        <div className='flex justify-between'>
-          <p className='text-muted-foreground text-sm'>{formatTime(currentTime)}</p>
-          <p className='text-muted-foreground text-sm'>{formatTime(duration)}</p>
+        <div className="flex justify-between">
+          <p className="text-muted-foreground text-sm">{formatTime(currentTime)}</p>
+          <p className="text-muted-foreground text-sm">{formatTime(duration)}</p>
         </div>
       )}
     </div>
-  );
-});
+  )
+})
 
 export const ensureHttpsForDownloadUrls = (song) => {
-  if (!song || typeof song !== 'object') return song;
+  if (!song || typeof song !== "object") return song
 
   // Handle download_url edge cases
   const updatedDownloadUrls = Array.isArray(song.download_url)
     ? song.download_url.map((item) => {
-        if (!item || typeof item !== 'object') return item;
+        if (!item || typeof item !== "object") return item
         return {
           ...item,
           link:
-            item.link && typeof item.link === 'string'
-              ? item.link.startsWith('http://')
-                ? item.link.replace('http://', 'https://')
+            item.link && typeof item.link === "string"
+              ? item.link.startsWith("http://")
+                ? item.link.replace("http://", "https://")
                 : item.link
               : item.link,
-        };
+        }
       })
-    : song.download_url;
+    : song.download_url
 
   // Handle image edge cases
   const updatedArtworkUrls = Array.isArray(song.image)
     ? song.image.map((item) => {
-        if (!item || typeof item !== 'object') return item;
+        if (!item || typeof item !== "object") return item
         return {
           ...item,
           link:
-            item.link && typeof item.link === 'string'
-              ? item.link.startsWith('http://')
-                ? item.link.replace('http://', 'https://')
+            item.link && typeof item.link === "string"
+              ? item.link.startsWith("http://")
+                ? item.link.replace("http://", "https://")
                 : item.link
               : item.link,
-        };
+        }
       })
-    : song.image;
+    : song.image
 
   return {
     ...song,
     download_url: updatedDownloadUrls,
     image: updatedArtworkUrls,
-  };
-};
+  }
+}
 
 export const addToHistory = async (songData, playedTime, trackingType) => {
   try {
     const response = await axios.post(
       `${import.meta.env.VITE_API_URL}/api/history/add`,
       { songData, playedTime, trackingType },
-      { withCredentials: true }
-    );
+      { withCredentials: true },
+    )
 
     if (response.status === 200) {
-      console.log(`Successfully tracked ${trackingType} for song:`, songData.name);
+      console.log(`Successfully tracked ${trackingType} for song:`, songData.name)
     }
   } catch (error) {
-    console.error(`Error adding song to history (${trackingType}):`, error);
+    console.error(`Error adding song to history (${trackingType}):`, error)
   }
-};
+}

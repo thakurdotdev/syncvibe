@@ -1,8 +1,8 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../../utils/sequelize');
+const { DataTypes } = require("sequelize")
+const sequelize = require("../../utils/sequelize")
 
 const OTP = sequelize.define(
-  'OTP',
+  "OTP",
   {
     id: {
       type: DataTypes.INTEGER,
@@ -25,8 +25,8 @@ const OTP = sequelize.define(
   },
   {
     timestamps: false,
-    tableName: 'otps',
-  }
-);
+    tableName: "otps",
+  },
+)
 
-module.exports = OTP;
+module.exports = OTP

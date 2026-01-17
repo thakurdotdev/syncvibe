@@ -1,8 +1,8 @@
-const { DataTypes, Op } = require('sequelize');
-const sequelize = require('../../utils/sequelize');
+const { DataTypes, Op } = require("sequelize")
+const sequelize = require("../../utils/sequelize")
 
 const Chat = sequelize.define(
-  'Chat',
+  "Chat",
   {
     chatid: {
       type: DataTypes.INTEGER,
@@ -34,29 +34,29 @@ const Chat = sequelize.define(
   },
   {
     timestamps: false,
-    tableName: 'chats',
+    tableName: "chats",
     indexes: [
       {
-        fields: ['chatid'],
+        fields: ["chatid"],
       },
       {
-        fields: ['participants'],
-        using: 'gin',
+        fields: ["participants"],
+        using: "gin",
       },
       {
-        fields: ['updatedat'],
+        fields: ["updatedat"],
       },
     ],
     hooks: {
       afterCreate: (chat, options) => {
-        console.log('New chat created:', chat.chatid);
+        console.log("New chat created:", chat.chatid)
       },
       afterUpdate: (chat, options) => {
-        console.log('Chat updated:', chat.chatid);
+        console.log("Chat updated:", chat.chatid)
       },
     },
-  }
-);
+  },
+)
 
 // Chat.sync({ alter: true });
 
@@ -67,8 +67,8 @@ Chat.findByParticipant = function (userId) {
         [Op.contains]: [userId],
       },
     },
-    order: [['updatedat', 'DESC']],
-  });
-};
+    order: [["updatedat", "DESC"]],
+  })
+}
 
-module.exports = Chat;
+module.exports = Chat

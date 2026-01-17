@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -6,151 +6,151 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { usePlayerStore } from '@/stores/playerStore';
-import axios from 'axios';
-import { Loader2, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import { UserPlaylistCard } from './Cards';
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { usePlayerStore } from "@/stores/playerStore"
+import axios from "axios"
+import { Loader2, Plus } from "lucide-react"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
+import { UserPlaylistCard } from "./Cards"
 
 const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading }) => {
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-  });
+    name: "",
+    description: "",
+  })
 
   useEffect(() => {
     if (initialData) {
       setFormData({
         id: initialData.id,
-        name: initialData.name || '',
-        description: initialData.description || '',
-      });
+        name: initialData.name || "",
+        description: initialData.description || "",
+      })
     } else {
       setFormData({
-        name: '',
-        description: '',
-      });
+        name: "",
+        description: "",
+      })
     }
-  }, [initialData?.id]);
+  }, [initialData?.id])
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
+    e.preventDefault()
+    onSubmit(formData)
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-[425px]'>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{initialData?.id ? 'Edit Playlist' : 'Create New Playlist'}</DialogTitle>
+          <DialogTitle>{initialData?.id ? "Edit Playlist" : "Create New Playlist"}</DialogTitle>
           <DialogDescription>
             {initialData?.id
-              ? 'Update your playlist details below.'
-              : 'Fill in the details for your new playlist.'}
+              ? "Update your playlist details below."
+              : "Fill in the details for your new playlist."}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className='space-y-4'>
-          <div className='space-y-2'>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
             <Input
-              placeholder='Playlist Name'
+              placeholder="Playlist Name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
             />
           </div>
-          <div className='space-y-2'>
+          <div className="space-y-2">
             <Textarea
-              placeholder='Add a description...'
+              placeholder="Add a description..."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className='resize-none'
+              className="resize-none"
               rows={3}
             />
           </div>
           <DialogFooter>
-            <Button type='submit' disabled={isLoading}>
-              {isLoading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-              {initialData?.id ? 'Save Changes' : 'Create Playlist'}
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {initialData?.id ? "Save Changes" : "Create Playlist"}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  );
-};
+  )
+}
 
 const UserPlaylist = () => {
   // Individual selectors
-  const userPlaylist = usePlayerStore((s) => s.userPlaylist);
-  const getPlaylists = usePlayerStore((s) => s.getPlaylists);
-  const [loading, setLoading] = useState(false);
+  const userPlaylist = usePlayerStore((s) => s.userPlaylist)
+  const getPlaylists = usePlayerStore((s) => s.getPlaylists)
+  const [loading, setLoading] = useState(false)
   const [playlistDialog, setPlaylistDialog] = useState({
     isOpen: false,
     data: null,
-  });
+  })
 
   const handlePlaylistSubmit = async (formData) => {
-    setLoading(true);
+    setLoading(true)
     try {
       if (formData.id) {
         // Edit existing playlist
         const response = await axios.patch(
           `${import.meta.env.VITE_API_URL}/api/playlist/update`,
           formData,
-          { withCredentials: true }
-        );
-        toast.success('Playlist updated successfully!');
+          { withCredentials: true },
+        )
+        toast.success("Playlist updated successfully!")
       } else {
         // Create new playlist
         const response = await axios.post(
           `${import.meta.env.VITE_API_URL}/api/playlist/create`,
           formData,
-          { withCredentials: true }
-        );
-        toast.success('Playlist created successfully!');
+          { withCredentials: true },
+        )
+        toast.success("Playlist created successfully!")
       }
-      getPlaylists();
-      setPlaylistDialog({ isOpen: false, data: null });
+      getPlaylists()
+      setPlaylistDialog({ isOpen: false, data: null })
     } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || 'An error occurred.';
-      toast.error(errorMessage);
+      const errorMessage = error.response?.data?.message || error.message || "An error occurred."
+      toast.error(errorMessage)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleDeletePlaylist = async (playlistId) => {
-    setLoading(true);
+    setLoading(true)
     try {
       await axios.delete(`${import.meta.env.VITE_API_URL}/api/playlist/delete`, {
         data: { playlistId },
         withCredentials: true,
-      });
-      toast.success('Playlist deleted successfully!');
-      getPlaylists();
+      })
+      toast.success("Playlist deleted successfully!")
+      getPlaylists()
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'An error occurred.';
-      toast.error(errorMessage);
+      const errorMessage = error.response?.data?.message || "An error occurred."
+      toast.error(errorMessage)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
-    <div className='p-5 space-y-6'>
-      <div className='flex justify-between items-center'>
-        <h2 className='text-2xl font-bold'>My Playlists</h2>
-        <Button onClick={() => setPlaylistDialog({ isOpen: true, data: null })} className='gap-2'>
-          <Plus className='h-4 w-4' />
+    <div className="p-5 space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">My Playlists</h2>
+        <Button onClick={() => setPlaylistDialog({ isOpen: true, data: null })} className="gap-2">
+          <Plus className="h-4 w-4" />
           Create Playlist
         </Button>
       </div>
 
-      <div className='flex flex-wrap'>
+      <div className="flex flex-wrap">
         {userPlaylist.map((playlist) => (
           <UserPlaylistCard
             key={playlist.id}
@@ -174,7 +174,7 @@ const UserPlaylist = () => {
         isLoading={loading}
       />
     </div>
-  );
-};
+  )
+}
 
-export default UserPlaylist;
+export default UserPlaylist

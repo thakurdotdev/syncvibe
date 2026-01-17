@@ -1,6 +1,6 @@
-const { DataTypes, Model } = require('sequelize');
-const sequelize = require('../../utils/sequelize');
-const User = require('./userModel');
+const { DataTypes, Model } = require("sequelize")
+const sequelize = require("../../utils/sequelize")
+const User = require("./userModel")
 
 class LoginLog extends Model {}
 
@@ -35,25 +35,25 @@ LoginLog.init(
       type: DataTypes.INTEGER,
       references: {
         model: User,
-        key: 'userid',
+        key: "userid",
       },
       allowNull: false,
     },
   },
   {
     sequelize,
-    modelName: 'LoginLog',
+    modelName: "LoginLog",
     timestamps: true,
-    tableName: 'loginlogs',
-  }
-);
+    tableName: "loginlogs",
+  },
+)
 
 // Associations
-User.hasMany(LoginLog, { foreignKey: 'userid', as: 'loginLogs' });
-LoginLog.belongsTo(User, { foreignKey: 'userid', as: 'user' });
+User.hasMany(LoginLog, { foreignKey: "userid", as: "loginLogs" })
+LoginLog.belongsTo(User, { foreignKey: "userid", as: "user" })
 
 // LoginLog.sync({ alter: true }).then(() =>
 //   console.log("LoginLog table created"),
 // );
 
-module.exports = LoginLog;
+module.exports = LoginLog

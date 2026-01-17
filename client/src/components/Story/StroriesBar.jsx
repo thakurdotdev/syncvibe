@@ -1,118 +1,118 @@
-import React, { useEffect, useState, useContext } from 'react';
-import { ScrollArea, ScrollBar } from '../ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Plus } from 'lucide-react';
-import CreateStory from './CreateStory';
-import { Context } from '@/Context/Context';
-import StoryViewer from './StoryViewer';
-import axios from 'axios';
-import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
-import { Card } from '../ui/card';
-import { Loader2Icon } from 'lucide-react';
+import React, { useEffect, useState, useContext } from "react"
+import { ScrollArea, ScrollBar } from "../ui/scroll-area"
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+import { Plus } from "lucide-react"
+import CreateStory from "./CreateStory"
+import { Context } from "@/Context/Context"
+import StoryViewer from "./StoryViewer"
+import axios from "axios"
+import { getProfileCloudinaryUrl } from "@/Utils/Cloudinary"
+import { Card } from "../ui/card"
+import { Loader2Icon } from "lucide-react"
 
 const StoriesBar = () => {
-  const { user } = useContext(Context);
-  const [stories, setStories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isCreateStoryOpen, setIsCreateStoryOpen] = useState(false);
-  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
-  const [selectedUserIndex, setSelectedUserIndex] = useState(null);
+  const { user } = useContext(Context)
+  const [stories, setStories] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [isCreateStoryOpen, setIsCreateStoryOpen] = useState(false)
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false)
+  const [selectedUserIndex, setSelectedUserIndex] = useState(null)
 
   useEffect(() => {
-    fetchStories();
-  }, []);
+    fetchStories()
+  }, [])
 
   const fetchStories = async () => {
     try {
       const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/story/feed`, {
         withCredentials: true,
-      });
+      })
 
       if (response.status === 200) {
-        setStories(response.data.stories);
+        setStories(response.data.stories)
       }
     } catch (error) {
-      console.error('Error fetching stories:', error);
+      console.error("Error fetching stories:", error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleStoryClick = (index) => {
-    setSelectedUserIndex(index);
-    setStoryViewerOpen(true);
-  };
+    setSelectedUserIndex(index)
+    setStoryViewerOpen(true)
+  }
 
   if (loading) {
     return (
-      <Card className='flex items-center justify-center p-4 mt-3 h-28'>
-        <Loader2Icon className='w-8 h-8 animate-spin' />
+      <Card className="flex items-center justify-center p-4 mt-3 h-28">
+        <Loader2Icon className="w-8 h-8 animate-spin" />
       </Card>
-    );
+    )
   }
 
   return (
     <>
-      <Card className='rounded-lg p-4 mt-3'>
-        <ScrollArea className='w-full whitespace-nowrap'>
-          <div className='flex gap-4'>
+      <Card className="rounded-lg p-4 mt-3">
+        <ScrollArea className="w-full whitespace-nowrap">
+          <div className="flex gap-4">
             <div
-              className='flex flex-col items-center gap-1 cursor-pointer'
+              className="flex flex-col items-center gap-1 cursor-pointer"
               onClick={() => setIsCreateStoryOpen(true)}
             >
-              <div className='relative'>
-                <Avatar className='w-14 h-14 border-2 border-white'>
+              <div className="relative">
+                <Avatar className="w-14 h-14 border-2 border-white">
                   <AvatarImage src={getProfileCloudinaryUrl(user?.profilepic)} />
                   <AvatarFallback>{user?.name?.[0]}</AvatarFallback>
                 </Avatar>
-                <div className='absolute bottom-0 right-0 bg-blue-500 rounded-full p-1'>
-                  <Plus className='w-4 h-4 text-white' />
+                <div className="absolute bottom-0 right-0 bg-blue-500 rounded-full p-1">
+                  <Plus className="w-4 h-4 text-white" />
                 </div>
               </div>
-              <span className='text-xs truncate w-16 text-center'>Add story</span>
+              <span className="text-xs truncate w-16 text-center">Add story</span>
             </div>
 
             {stories.map((storyGroup, index) => (
               <div
                 key={storyGroup.user.userid}
-                className='flex flex-col items-center gap-1 cursor-pointer'
+                className="flex flex-col items-center gap-1 cursor-pointer"
                 onClick={() => handleStoryClick(index)}
               >
                 <div
                   className={`rounded-full p-1 ${
                     storyGroup.hasUnviewedStories
-                      ? 'bg-gradient-to-tr from-yellow-400 to-fuchsia-600'
-                      : 'bg-gray-300'
+                      ? "bg-gradient-to-tr from-yellow-400 to-fuchsia-600"
+                      : "bg-gray-300"
                   }`}
                 >
-                  <Avatar className='w-14 h-14 border-2 border-white'>
+                  <Avatar className="w-14 h-14 border-2 border-white">
                     <AvatarImage src={getProfileCloudinaryUrl(storyGroup.user.profilepic)} />
                     <AvatarFallback>{storyGroup.user.username[0]}</AvatarFallback>
                   </Avatar>
                 </div>
-                <span className='text-xs truncate w-16 text-center'>
+                <span className="text-xs truncate w-16 text-center">
                   {storyGroup.user.username}
                 </span>
               </div>
             ))}
           </div>
-          <ScrollBar orientation='horizontal' />
+          <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </Card>
 
       <StoryViewer
         isOpen={storyViewerOpen}
         onClose={() => {
-          setStoryViewerOpen(false);
-          fetchStories();
-          setSelectedUserIndex(null);
+          setStoryViewerOpen(false)
+          fetchStories()
+          setSelectedUserIndex(null)
         }}
         stories={stories}
         initialUserIndex={selectedUserIndex}
         setSelectedUserIndex={setSelectedUserIndex}
         onStoriesEnd={() => {
-          setStoryViewerOpen(false);
-          fetchStories();
+          setStoryViewerOpen(false)
+          fetchStories()
         }}
       />
 
@@ -122,7 +122,7 @@ const StoriesBar = () => {
         onSuccess={() => fetchStories()}
       />
     </>
-  );
-};
+  )
+}
 
-export default StoriesBar;
+export default StoriesBar

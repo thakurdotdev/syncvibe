@@ -1,5 +1,5 @@
-const User = require('../../models/auth/userModel');
-const Comment = require('../../models/post/commentModel');
+const User = require("../../models/auth/userModel")
+const Comment = require("../../models/post/commentModel")
 
 const getComments = async (req, res) => {
   try {
@@ -8,27 +8,27 @@ const getComments = async (req, res) => {
       include: [
         {
           model: User,
-          as: 'user',
-          attributes: ['name', 'profilepic', 'username'],
+          as: "user",
+          attributes: ["name", "profilepic", "username"],
         },
         {
           model: Comment,
-          as: 'parentComment',
+          as: "parentComment",
           include: [
             {
               model: User,
-              as: 'user',
-              attributes: ['name', 'username'],
+              as: "user",
+              attributes: ["name", "username"],
             },
           ],
         },
       ],
-      order: [['createdat', 'DESC']],
-    });
+      order: [["createdat", "DESC"]],
+    })
 
     // Transform the comments to include replyingTo information
     const transformedComments = comments.map((comment) => {
-      const plainComment = comment.get({ plain: true });
+      const plainComment = comment.get({ plain: true })
       return {
         id: plainComment.id,
         comment: plainComment.comment,
@@ -38,17 +38,17 @@ const getComments = async (req, res) => {
         parentCommentId: plainComment.parentCommentId,
         user: plainComment.user,
         replyingTo: plainComment.parentComment?.user?.name || null,
-      };
-    });
+      }
+    })
 
     res.status(200).json({
       comments: transformedComments,
       total: transformedComments.length,
-    });
+    })
   } catch (err) {
-    console.error('Error fetching comments:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    console.error("Error fetching comments:", err)
+    res.status(500).json({ error: "Internal Server Error" })
   }
-};
+}
 
-module.exports = getComments;
+module.exports = getComments

@@ -1,11 +1,11 @@
-const { Resend } = require('resend');
+const { Resend } = require("resend")
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY)
 
-const FromEmail = `SyncVibe <${process.env.RESEND_EMAIL ?? 'noreply@thakur.dev'}>`;
+const FromEmail = `SyncVibe <${process.env.RESEND_EMAIL ?? "noreply@thakur.dev"}>`
 
 const logoUrl =
-  'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp';
+  "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp"
 
 const baseEmailStyle = `
     :root {
@@ -158,7 +158,7 @@ const baseEmailStyle = `
             margin: 10px 0;
         }
     }
-`;
+`
 
 const newFeatureTemplate = `
 <!DOCTYPE html>
@@ -336,7 +336,7 @@ const newFeatureTemplate = `
         </div>
     </div>
 </body>
-</html>`;
+</html>`
 
 const resendOtp = async (email, otp) => {
   const emailContent = `
@@ -372,25 +372,25 @@ const resendOtp = async (email, otp) => {
         </div>
     </div>
 </body>
-</html>`;
+</html>`
 
   const { data, error } = await resend.emails.send({
     from: FromEmail,
     to: [email],
-    subject: 'Verify your email address',
+    subject: "Verify your email address",
     html: emailContent,
-  });
+  })
 
   if (error) {
     throw {
       status: 500,
-      message: 'Error sending verification code',
-      code: 'EMAIL_ERROR',
-    };
+      message: "Error sending verification code",
+      code: "EMAIL_ERROR",
+    }
   }
 
-  return data;
-};
+  return data
+}
 
 const verifiedMailSender = async (email, username) => {
   const emailContent = `
@@ -438,25 +438,25 @@ const verifiedMailSender = async (email, username) => {
         </div>
     </div>
 </body>
-</html>`;
+</html>`
 
   const { data, error } = await resend.emails.send({
     from: FromEmail,
     to: [email],
-    subject: 'Welcome to SyncVibe',
+    subject: "Welcome to SyncVibe",
     html: emailContent,
-  });
+  })
 
   if (error) {
     throw {
       status: 500,
-      message: 'Error sending welcome email',
-      code: 'EMAIL_ERROR',
-    };
+      message: "Error sending welcome email",
+      code: "EMAIL_ERROR",
+    }
   }
 
-  return data;
-};
+  return data
+}
 
 const passwordResetMailSender = async (email, resetUrl) => {
   const emailContent = `
@@ -502,25 +502,25 @@ const passwordResetMailSender = async (email, resetUrl) => {
         </div>
     </div>
 </body>
-</html>`;
+</html>`
 
   const { data, error } = await resend.emails.send({
     from: FromEmail,
     to: [email],
-    subject: 'Reset your SyncVibe password',
+    subject: "Reset your SyncVibe password",
     html: emailContent,
-  });
+  })
 
   if (error) {
     throw {
       status: 500,
-      message: 'Error sending password reset email',
-      code: 'EMAIL_ERROR',
-    };
+      message: "Error sending password reset email",
+      code: "EMAIL_ERROR",
+    }
   }
 
-  return data;
-};
+  return data
+}
 
 const otpForDeleteMailSender = async (email, otp) => {
   const emailContent = `
@@ -559,33 +559,33 @@ const otpForDeleteMailSender = async (email, otp) => {
         </div>
     </div>
 </body>
-</html>`;
+</html>`
 
   try {
     const { data, error } = await resend.emails.send({
       from: FromEmail,
       to: [email],
-      subject: 'Verify Account Deletion Request',
+      subject: "Verify Account Deletion Request",
       html: emailContent,
-    });
+    })
 
     if (error) {
       throw new Error(
         JSON.stringify({
           status: 500,
-          message: 'Error sending verification code',
-          code: 'EMAIL_ERROR',
+          message: "Error sending verification code",
+          code: "EMAIL_ERROR",
           details: error,
-        })
-      );
+        }),
+      )
     }
 
-    return data;
+    return data
   } catch (error) {
-    console.error('Email sending failed:', error);
-    throw error;
+    console.error("Email sending failed:", error)
+    throw error
   }
-};
+}
 
 const accountDeletedMailSender = async (email) => {
   const emailContent = `
@@ -622,24 +622,24 @@ const accountDeletedMailSender = async (email) => {
     </div>
 </body>
 
-</html>`;
+</html>`
   const { data, error } = await resend.emails.send({
     from: FromEmail,
     to: [email],
-    subject: 'Account deleted',
+    subject: "Account deleted",
     html: emailContent,
-  });
+  })
 
   if (error) {
     throw {
       status: 500,
-      message: 'Error sending account deleted email',
-      code: 'EMAIL_ERROR',
-    };
+      message: "Error sending account deleted email",
+      code: "EMAIL_ERROR",
+    }
   }
 
-  return data;
-};
+  return data
+}
 
 module.exports = {
   resendOtp,
@@ -647,4 +647,4 @@ module.exports = {
   passwordResetMailSender,
   otpForDeleteMailSender,
   accountDeletedMailSender,
-};
+}

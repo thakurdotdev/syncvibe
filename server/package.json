@@ -2,9 +2,10 @@
   "name": "syncvibe-api",
   "version": "1.0.0",
   "description": "",
+  "main": "index.js",
   "scripts": {
-    "start": "node ./api/index.js",
-    "dev": "nodemon ./api/index.js",
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "build": "npm install",
     "format": "prettier --write ."
   },
@@ -43,8 +44,5 @@
     "ua-parser-js": "^1.0.41",
     "uuid": "^13.0.0",
     "yup": "^1.7.1"
-  },
-  "devDependencies": {
-    "prettier": "^3.7.4"
   }
 }

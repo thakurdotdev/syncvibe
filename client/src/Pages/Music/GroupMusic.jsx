@@ -1,9 +1,9 @@
-import { useState, useCallback, useMemo, memo } from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { useProfile } from '@/Context/Context';
-import { useGroupMusic } from '@/Context/GroupMusicContext';
-import { AnimatePresence, motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import { useState, useCallback, useMemo, memo } from "react"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { useProfile } from "@/Context/Context"
+import { useGroupMusic } from "@/Context/GroupMusicContext"
+import { AnimatePresence, motion } from "framer-motion"
+import { cn } from "@/lib/utils"
 
 import {
   GroupModal,
@@ -15,12 +15,12 @@ import {
   QRCodeDialog,
   WelcomeView,
   QueueSheet,
-} from './GroupMusic/index';
+} from "./GroupMusic/index"
 
-import './music.css';
+import "./music.css"
 
 const GroupMusic = () => {
-  const { user } = useProfile();
+  const { user } = useProfile()
   const {
     currentGroup,
     isPlaying,
@@ -58,41 +58,38 @@ const GroupMusic = () => {
     upcomingQueue,
     isQueueOpen,
     setIsQueueOpen,
-  } = useGroupMusic();
+  } = useGroupMusic()
 
-  const [isQrCodeOpen, setQrCodeOpen] = useState(false);
+  const [isQrCodeOpen, setQrCodeOpen] = useState(false)
 
   // Active queue count = current song (if any) + upcoming songs
   const activeQueueCount = useMemo(
     () => (currentQueueItem ? 1 : 0) + upcomingQueue.length,
-    [currentQueueItem, upcomingQueue.length]
-  );
+    [currentQueueItem, upcomingQueue.length],
+  )
 
   // Memoize callbacks
   const handleSearchChange = useCallback(
     (query) => {
-      setSearchQuery(query);
-      debouncedSearch(query);
+      setSearchQuery(query)
+      debouncedSearch(query)
     },
-    [setSearchQuery, debouncedSearch]
-  );
+    [setSearchQuery, debouncedSearch],
+  )
 
-  const handleOpenSearch = useCallback(() => setIsSearchOpen(true), [setIsSearchOpen]);
-  const handleCloseSearch = useCallback(() => setIsSearchOpen(false), [setIsSearchOpen]);
-  const handleOpenQrCode = useCallback(() => setQrCodeOpen(true), []);
-  const handleCloseQrCode = useCallback(() => setQrCodeOpen(false), []);
-  const handleOpenGroupModal = useCallback(() => setIsGroupModalOpen(true), [setIsGroupModalOpen]);
-  const handleCloseGroupModal = useCallback(
-    () => setIsGroupModalOpen(false),
-    [setIsGroupModalOpen]
-  );
-  const handleOpenQueue = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen]);
+  const handleOpenSearch = useCallback(() => setIsSearchOpen(true), [setIsSearchOpen])
+  const handleCloseSearch = useCallback(() => setIsSearchOpen(false), [setIsSearchOpen])
+  const handleOpenQrCode = useCallback(() => setQrCodeOpen(true), [])
+  const handleCloseQrCode = useCallback(() => setQrCodeOpen(false), [])
+  const handleOpenGroupModal = useCallback(() => setIsGroupModalOpen(true), [setIsGroupModalOpen])
+  const handleCloseGroupModal = useCallback(() => setIsGroupModalOpen(false), [setIsGroupModalOpen])
+  const handleOpenQueue = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen])
 
   // Memoize user id
-  const userId = useMemo(() => user?.userid, [user?.userid]);
+  const userId = useMemo(() => user?.userid, [user?.userid])
 
   return (
-    <div className='mx-auto max-w-7xl px-2 md:px-4 py-2 md:py-6'>
+    <div className="mx-auto max-w-7xl px-2 md:px-4 py-2 md:py-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -100,12 +97,12 @@ const GroupMusic = () => {
       >
         <Card
           className={cn(
-            'overflow-hidden border-border/50',
-            'bg-gradient-to-br from-background via-background to-accent/10',
-            'shadow-xl'
+            "overflow-hidden border-border/50",
+            "bg-gradient-to-br from-background via-background to-accent/10",
+            "shadow-xl",
           )}
         >
-          <CardHeader className='px-3 md:px-6 py-2 md:pb-2'>
+          <CardHeader className="px-3 md:px-6 py-2 md:pb-2">
             <GroupHeader
               currentGroup={currentGroup}
               isRejoining={isRejoining}
@@ -117,18 +114,18 @@ const GroupMusic = () => {
             />
           </CardHeader>
 
-          <CardContent className='px-2 md:px-6 pb-4'>
-            <AnimatePresence mode='wait'>
+          <CardContent className="px-2 md:px-6 pb-4">
+            <AnimatePresence mode="wait">
               {!currentGroup ? (
-                <WelcomeView key='welcome' onOpenModal={handleOpenGroupModal} />
+                <WelcomeView key="welcome" onOpenModal={handleOpenGroupModal} />
               ) : (
                 <motion.div
-                  key='group-content'
+                  key="group-content"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.4 }}
-                  className='space-y-3 md:space-y-6'
+                  className="space-y-3 md:space-y-6"
                 >
                   {/* Now Playing */}
                   <NowPlayingCard
@@ -150,8 +147,8 @@ const GroupMusic = () => {
                   />
 
                   {/* Chat & Members Grid */}
-                  <div className='grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-6'>
-                    <div className='lg:col-span-2'>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-6">
+                    <div className="lg:col-span-2">
                       <GroupChat
                         messages={messages}
                         currentUserId={userId}
@@ -203,7 +200,7 @@ const GroupMusic = () => {
       {/* Queue Sheet */}
       <QueueSheet />
     </div>
-  );
-};
+  )
+}
 
-export default memo(GroupMusic);
+export default memo(GroupMusic)

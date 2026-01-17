@@ -1,46 +1,46 @@
-import { memo, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { ListMusic, Minimize2 } from 'lucide-react';
-import { usePlayerStore } from '@/stores/playerStore';
-import { cn } from '@/lib/utils';
-import { MusicControls, VolumeControl } from '../Common';
-import SleepTimerModal from '../SleepTimer';
+import { memo, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { ListMusic, Minimize2 } from "lucide-react"
+import { usePlayerStore } from "@/stores/playerStore"
+import { cn } from "@/lib/utils"
+import { MusicControls, VolumeControl } from "../Common"
+import SleepTimerModal from "../SleepTimer"
 
 const PlayerControls = memo(({ isMinimized, onMinimize, onOpenModal, isMobile }) => {
   // Individual selectors - actions are stable references
-  const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
-  const handleNextSong = usePlayerStore((s) => s.handleNextSong);
-  const handlePrevSong = usePlayerStore((s) => s.handlePrevSong);
+  const handlePlayPause = usePlayerStore((s) => s.handlePlayPause)
+  const handleNextSong = usePlayerStore((s) => s.handleNextSong)
+  const handlePrevSong = usePlayerStore((s) => s.handlePrevSong)
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (
-        e.key === ' ' &&
+        e.key === " " &&
         document.activeElement &&
-        !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)
+        !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)
       ) {
-        e.preventDefault();
-        handlePlayPause();
+        e.preventDefault()
+        handlePlayPause()
       }
-      if (e.key === 'ArrowRight') handleNextSong();
-      if (e.key === 'ArrowLeft') handlePrevSong();
-    };
+      if (e.key === "ArrowRight") handleNextSong()
+      if (e.key === "ArrowLeft") handlePrevSong()
+    }
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePlayPause, handleNextSong, handlePrevSong]);
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [handlePlayPause, handleNextSong, handlePrevSong])
 
   return (
-    <div className='flex items-center gap-2'>
+    <div className="flex items-center gap-2">
       <Button
-        variant='ghost'
-        size='icon'
+        variant="ghost"
+        size="icon"
         className={cn(
-          'h-12 w-12 rounded-full shadow-lg',
-          'transition-all duration-500 hover:scale-105',
+          "h-12 w-12 rounded-full shadow-lg",
+          "transition-all duration-500 hover:scale-105",
           isMinimized
-            ? 'opacity-0 pointer-events-none -translate-y-10'
-            : 'opacity-100 translate-y-0'
+            ? "opacity-0 pointer-events-none -translate-y-10"
+            : "opacity-100 translate-y-0",
         )}
         onClick={onMinimize}
       >
@@ -48,13 +48,13 @@ const PlayerControls = memo(({ isMinimized, onMinimize, onOpenModal, isMobile })
       </Button>
 
       <Button
-        variant='ghost'
-        size='icon'
+        variant="ghost"
+        size="icon"
         onClick={(e) => {
-          e.stopPropagation();
-          onOpenModal();
+          e.stopPropagation()
+          onOpenModal()
         }}
-        className='hidden sm:flex hover:scale-105'
+        className="hidden sm:flex hover:scale-105"
       >
         <ListMusic size={18} />
       </Button>
@@ -63,8 +63,8 @@ const PlayerControls = memo(({ isMinimized, onMinimize, onOpenModal, isMobile })
       {!isMobile && <SleepTimerModal />}
       <MusicControls />
     </div>
-  );
-});
+  )
+})
 
-PlayerControls.displayName = 'PlayerControls';
-export default PlayerControls;
+PlayerControls.displayName = "PlayerControls"
+export default PlayerControls

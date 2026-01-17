@@ -1,12 +1,12 @@
-const Post = require('../../models/post/postModel');
-const sequelize = require('../../utils/sequelize');
+const Post = require("../../models/post/postModel")
+const sequelize = require("../../utils/sequelize")
 
 const getAllPosts = async (req, res) => {
   try {
-    const userid = req.user.userid;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page - 1) * limit;
+    const userid = req.user.userid
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+    const offset = (page - 1) * limit
 
     const [totalPosts, posts] = await Promise.all([
       Post.count({ where: { showpost: true } }),
@@ -37,15 +37,15 @@ const getAllPosts = async (req, res) => {
         {
           replacements: { limit, offset, userid },
           type: sequelize.QueryTypes.SELECT,
-        }
+        },
       ),
-    ]);
+    ])
 
-    res.status(200).json({ totalPosts, posts });
+    res.status(200).json({ totalPosts, posts })
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    console.log(err)
+    res.status(500).json({ error: "Internal Server Error" })
   }
-};
+}
 
-module.exports = getAllPosts;
+module.exports = getAllPosts

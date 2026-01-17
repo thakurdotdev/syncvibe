@@ -1,8 +1,8 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../../utils/sequelize');
+const { DataTypes } = require("sequelize")
+const sequelize = require("../../utils/sequelize")
 
 const PlaylistSong = sequelize.define(
-  'PlaylistSong',
+  "PlaylistSong",
   {
     id: {
       type: DataTypes.INTEGER,
@@ -13,8 +13,8 @@ const PlaylistSong = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'playlists',
-        key: 'id',
+        model: "playlists",
+        key: "id",
       },
     },
     // NEW: Reference to central Song table
@@ -22,8 +22,8 @@ const PlaylistSong = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true, // Nullable during migration
       references: {
-        model: 'songs',
-        key: 'id',
+        model: "songs",
+        key: "id",
       },
     },
     // DEPRECATED: Will be removed after migration
@@ -43,14 +43,14 @@ const PlaylistSong = sequelize.define(
   },
   {
     timestamps: false,
-    tableName: 'playlist_songs',
+    tableName: "playlist_songs",
     indexes: [
       {
-        fields: ['playlistId', 'songRefId'],
+        fields: ["playlistId", "songRefId"],
         unique: true,
       },
     ],
-  }
-);
+  },
+)
 
-module.exports = PlaylistSong;
+module.exports = PlaylistSong

@@ -1,7 +1,7 @@
-import React from 'react';
+import React from "react"
 
 const Command = () => {
-  return <div>Command</div>;
-};
+  return <div>Command</div>
+}
 
-export default Command;
+export default Command

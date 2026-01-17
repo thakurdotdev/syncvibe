@@ -1,5 +1,5 @@
-const { DataTypes, Model } = require('sequelize');
-const sequelize = require('../../utils/sequelize');
+const { DataTypes, Model } = require("sequelize")
+const sequelize = require("../../utils/sequelize")
 
 class Comment extends Model {}
 
@@ -31,28 +31,28 @@ Comment.init(
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'comments',
-        key: 'id',
+        model: "comments",
+        key: "id",
       },
     },
   },
   {
     sequelize,
-    modelName: 'Comment',
+    modelName: "Comment",
     timestamps: false,
-    tableName: 'comments',
-  }
-);
+    tableName: "comments",
+  },
+)
 
 // Add self-referential association for nested comments
 Comment.belongsTo(Comment, {
-  as: 'parentComment',
-  foreignKey: 'parentCommentId',
-});
+  as: "parentComment",
+  foreignKey: "parentCommentId",
+})
 
 Comment.hasMany(Comment, {
-  as: 'childComments',
-  foreignKey: 'parentCommentId',
-});
+  as: "childComments",
+  foreignKey: "parentCommentId",
+})
 
-module.exports = Comment;
+module.exports = Comment

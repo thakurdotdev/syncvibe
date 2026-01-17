@@ -1,25 +1,22 @@
-const express = require('express');
-const authMiddleware = require('../middleware/authMiddleware');
-const fileHandleMiddleware = require('../middleware/fileHandleMiddleware');
+const express = require("express")
+const authMiddleware = require("../middleware/authMiddleware")
 const {
   createStory,
   viewStories,
   getUserStories,
   getFeedStories,
   markStoriesAsViewed,
-} = require('../controllers/story/story');
+} = require("../controllers/story/story")
 
-const storyRoutes = express.Router();
+const storyRoutes = express.Router()
 
-storyRoutes
-  .route('/story/create')
-  .post(authMiddleware, fileHandleMiddleware.single('file'), createStory);
+storyRoutes.route("/story/create").post(authMiddleware, createStory)
 
-storyRoutes.route('/story/view/:createdby').get(authMiddleware, viewStories);
-storyRoutes.route('/story/feed').get(authMiddleware, getFeedStories);
+storyRoutes.route("/story/view/:createdby").get(authMiddleware, viewStories)
+storyRoutes.route("/story/feed").get(authMiddleware, getFeedStories)
 
-storyRoutes.route('/story/:userid').get(authMiddleware, getUserStories);
+storyRoutes.route("/story/:userid").get(authMiddleware, getUserStories)
 
-storyRoutes.route('/story/viewed').post(authMiddleware, markStoriesAsViewed);
+storyRoutes.route("/story/viewed").post(authMiddleware, markStoriesAsViewed)
 
-module.exports = storyRoutes;
+module.exports = storyRoutes
