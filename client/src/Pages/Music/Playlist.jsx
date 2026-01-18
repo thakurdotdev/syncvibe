@@ -1,41 +1,20 @@
 import { usePlayerStore } from "@/stores/playerStore"
-import axios from "axios"
-import { useCallback, useEffect, useState } from "react"
-import { useLocation, useParams } from "react-router-dom"
+import { useParams } from "react-router-dom"
 import { SongCard } from "./Cards"
 import { LoadingState, PlaylistActions } from "./Common"
+import { useExternalPlaylistQuery } from "@/hooks/queries/useSongQueries"
 
 const Playlist = () => {
-  const location = useLocation()
   const params = useParams()
-  const id = location.state || params?.id || null
-  const [playlistData, setPlaylistData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const id = params?.id || null
 
-  // Individual selectors
   const setPlaylist = usePlayerStore((s) => s.setPlaylist)
   const playSong = usePlayerStore((s) => s.playSong)
 
-  const fetchPlaylistData = useCallback(async () => {
-    try {
-      setLoading(true)
-      const response = await axios.get(`${import.meta.env.VITE_SONG_URL}/playlist?id=${id}`)
-      const data = response.data
-      setPlaylistData(data.data)
-      setLoading(false)
-    } catch (error) {
-      setLoading(false)
-      console.error("Error fetching playlist data:", error)
-    }
-  }, [id])
+  const { data: playlistData, isLoading } = useExternalPlaylistQuery(id)
 
-  useEffect(() => {
-    if (id) {
-      fetchPlaylistData()
-    }
-  }, [id, fetchPlaylistData])
-
-  if (loading) return <LoadingState />
+  if (isLoading) return <LoadingState />
+  if (!playlistData) return null
 
   const handlePlayAll = () => {
     if (playlistData?.songs?.length) {
@@ -70,7 +49,6 @@ const Playlist = () => {
 
   return (
     <div className="flex flex-col gap-10 p-5">
-      {/** Playlist Info */}
       <div
         className="w-full h-[250px] sm:h-[300px] rounded-2xl"
         style={{
@@ -111,7 +89,6 @@ const Playlist = () => {
         disabled={!playlistData?.songs?.length}
       />
 
-      {/** Playlist Songs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
         {playlistData.songs.map((song, index) => (
           <SongCard key={song.id} song={song} />

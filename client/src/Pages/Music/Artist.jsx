@@ -1,49 +1,24 @@
 import { Button } from "@/components/ui/button"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { usePlayerStore } from "@/stores/playerStore"
-import axios from "axios"
 import { ArrowLeft } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
-import { useLocation, useNavigate, useParams } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import { AlbumCard, ArtistCard, PlaylistCard, SongCard } from "./Cards"
 import { LoadingState, PlaylistActions } from "./Common"
+import { useArtistQuery } from "@/hooks/queries/useSongQueries"
 
 const Artist = () => {
   const navigate = useNavigate()
   const params = useParams()
-  const location = useLocation()
-  const id = location.state || params?.id || null
-  const [artistData, setArtistData] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const id = params?.id || null
 
-  // Individual selectors
   const setPlaylist = usePlayerStore((s) => s.setPlaylist)
   const playSong = usePlayerStore((s) => s.playSong)
 
-  const fetchArtistData = useCallback(async () => {
-    try {
-      setIsLoading(true)
-      const response = await axios.get(`${import.meta.env.VITE_SONG_URL}/artist?id=${id}`)
-      if (response.status === 200) {
-        const data = response.data
-        setArtistData(data.data)
-        setIsLoading(false)
-      }
-    } catch (error) {
-      setIsLoading(false)
-      console.error("Error fetching playlist data:", error)
-    }
-  }, [id])
-
-  useEffect(() => {
-    if (id) {
-      fetchArtistData()
-    }
-  }, [id, fetchArtistData])
-
-  console.log(artistData)
+  const { data: artistData, isLoading } = useArtistQuery(id)
 
   if (isLoading) return <LoadingState />
+  if (!artistData) return null
 
   const handlePlayAll = () => {
     if (artistData?.top_songs?.length) {
@@ -107,7 +82,7 @@ const Artist = () => {
         onShuffle={handleShuffle}
         disabled={!artistData?.top_songs?.length}
       />
-      {/** Top Songs */}
+
       <h2 className="text-2xl font-semibold mt-6">Top Songs</h2>
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
         {artistData.top_songs.map((song, index) => (
@@ -115,7 +90,6 @@ const Artist = () => {
         ))}
       </div>
 
-      {/** Top Albums */}
       <h2 className="text-2xl font-semibold mt-6">Top Albums</h2>
       <ScrollArea>
         <div className="flex gap-1 overflow-x-auto mb-3">
@@ -136,7 +110,6 @@ const Artist = () => {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {/** Similar Artists */}
       {artistData.similar_artists.length > 0 && (
         <>
           <h2 className="text-2xl font-semibold mt-6">Similar Artists</h2>

@@ -1,4 +1,10 @@
-import { usePlayerStore } from "@/stores/playerStore"
+import axios from "axios"
+import { AnimatePresence, motion } from "framer-motion"
+import he from "he"
+import { Disc3, ListMusic, Loader2, MoreVertical, Pencil, Play, Trash2 } from "lucide-react"
+import { memo, useCallback, useMemo, useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { toast } from "sonner"
 import LazyImage from "@/components/LazyImage"
 import {
   AlertDialog,
@@ -13,7 +19,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,41 +26,28 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import axios from "axios"
-import he from "he"
-import {
-  EllipsisVerticalIcon,
-  ListMusic,
-  Loader2,
-  Music2Icon,
-  Pencil,
-  Play,
-  Trash2,
-} from "lucide-react"
-import { memo, useCallback, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { toast } from "sonner"
+import { usePlayerStore } from "@/stores/playerStore"
 import AddToPlaylist from "./AddToPlaylist"
 import { ensureHttpsForDownloadUrls } from "./Common"
 import "./music.css"
 
-const HOVER_TRANSITION = "transition-all duration-0 ease-out"
-const CARD_BASE_CLASSES =
-  "group relative overflow-hidden backdrop-blur-sm border border-transparent cursor-pointer"
-const CARD_HOVER_CLASSES = "hover:shadow-lg hover:bg-accent/50 hover:border-primary/20"
+const MotionCard = motion.div
 
 export const AudioWave = memo(() => (
-  <div className="flex items-center justify-center gap-1 h-8 px-2">
-    {[...Array(5)].map((_, i) => (
-      <span
+  <div className="flex items-center justify-center gap-0.5 h-6">
+    {[...Array(4)].map((_, i) => (
+      <motion.span
         key={i}
-        className="w-1 bg-green-400 rounded-full animate-wave"
-        style={{
-          animationDelay: `${i * 0.4}s`,
-          height: "16px",
-          transformOrigin: "bottom",
+        className="w-0.5 bg-white rounded-full"
+        animate={{
+          height: ["8px", "16px", "8px"],
+        }}
+        transition={{
+          duration: 0.6,
+          repeat: Infinity,
+          delay: i * 0.1,
+          ease: "easeInOut",
         }}
       />
     ))}
@@ -66,54 +58,36 @@ export const ArtistCard = memo(({ artist }) => {
   const navigate = useNavigate()
   if (!artist?.name || !artist?.image) return null
 
-  const imageUrl = useMemo(
-    () => (Array.isArray(artist.image) ? artist.image[2].link : artist.image),
-    [artist.image],
-  )
-
-  const handleClick = useCallback(
-    () => navigate(`/music/artist/${artist.id}`, { state: artist.id }),
-    [artist.id, navigate],
-  )
+  const imageUrl = Array.isArray(artist.image) ? artist.image[2].link : artist.image
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Card
-            className={cn(CARD_BASE_CLASSES, CARD_HOVER_CLASSES, "w-[150px]", HOVER_TRANSITION)}
-            onClick={handleClick}
-          >
-            <CardContent className="p-4 space-y-4">
-              <LazyImage
-                src={imageUrl}
-                alt={artist.name}
-                height={128}
-                width={128}
-                className={cn(
-                  "rounded-full ring-2 ring-offset-2 ring-offset-background ring-primary/10 group-hover:ring-primary/30 object-cover group-hover:scale-105",
-                  HOVER_TRANSITION,
-                )}
-              />
-              <div className="text-center space-y-1">
-                <p className="font-semibold line-clamp-1 group-hover:text-primary">{artist.name}</p>
-                <p className="text-sm text-muted-foreground line-clamp-1">
-                  {artist.description || "Artist"}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TooltipTrigger>
-        <TooltipContent>View {artist.name}'s profile</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <MotionCard
+      className="w-[150px] group cursor-pointer p-3 rounded-lg"
+      onClick={() => navigate(`/music/artist/${artist.id}`, { state: artist.id })}
+      whileHover={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <div className="relative mb-3">
+        <LazyImage
+          src={imageUrl}
+          alt={artist.name}
+          height={128}
+          width={128}
+          className="w-full aspect-square rounded-full object-cover"
+        />
+      </div>
+      <p className="font-medium text-sm text-center truncate group-hover:text-primary transition-colors">
+        {artist.name}
+      </p>
+      <p className="text-xs text-muted-foreground text-center truncate">
+        {artist.description || "Artist"}
+      </p>
+    </MotionCard>
   )
 })
 
 export const SongCard = memo(({ song }) => {
   const navigate = useNavigate()
-
-  // Individual selectors for minimal re-renders
   const currentSongId = usePlayerStore((s) => s.currentSong?.id)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const playlist = usePlayerStore((s) => s.playlist)
@@ -123,8 +97,8 @@ export const SongCard = memo(({ song }) => {
   const addToQueue = usePlayerStore((s) => s.addToQueue)
 
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
   const [isHovered, setIsHovered] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   if (!song?.id || !song?.image?.[2]) return null
@@ -133,197 +107,185 @@ export const SongCard = memo(({ song }) => {
   const name = he.decode(song.name || song.title || "")
   const artistName =
     song?.artist_map?.artists
-      ?.slice(0, 3)
-      ?.map((artist) => artist.name)
-      .join(", ") || song?.name
+      ?.slice(0, 2)
+      ?.map((a) => a.name)
+      .join(", ") ||
+    song?.name ||
+    ""
+  const isInQueue = playlist.some((item) => item.id === song.id)
 
-  const handlePlayClick = async (e) => {
+  const handlePlay = async (e) => {
+    e?.stopPropagation()
+    if (isCurrentSong) {
+      handlePlayPause()
+      return
+    }
+    if (song?.download_url) {
+      playSong(ensureHttpsForDownloadUrls(song))
+      return
+    }
+    setLoading(true)
     try {
-      if (isCurrentSong) {
-        handlePlayPause()
-        return
-      }
-      if (song?.download_url) {
-        const updatedSong = ensureHttpsForDownloadUrls(song)
-        playSong(ensureHttpsForDownloadUrls(updatedSong))
-        return
-      }
-      setLoading(true)
       const response = await axios.get(`${import.meta.env.VITE_SONG_URL}/song?id=${song.id}`)
       if (response.data?.data?.songs[0]) {
-        const fetchedSong = ensureHttpsForDownloadUrls(response.data.data.songs[0])
-        playSong(fetchedSong)
+        playSong(ensureHttpsForDownloadUrls(response.data.data.songs[0]))
       }
     } catch (err) {
-      setError(err.message)
       console.error("Error fetching song:", err)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleAddToQueue = useCallback(
-    (e) => {
-      e.stopPropagation()
-      if (!isCurrentSong) {
-        addToQueue(song)
-        toast.success(`Added ${name} to queue`)
-      }
-    },
-    [song, name, isCurrentSong, addToQueue],
-  )
+  const handleAddToQueue = (e) => {
+    e.stopPropagation()
+    if (!isCurrentSong) {
+      addToQueue(song)
+      toast.success(`Added to queue`)
+    }
+  }
 
-  const handleRemoveFromQueue = useCallback(
-    (e) => {
-      e.stopPropagation()
-      // Prevent removing the currently playing song
-      if (isCurrentSong) {
-        toast.error("Cannot remove currently playing song from queue")
-        return
-      }
-      const updatedQueue = playlist.filter((item) => item.id !== song.id)
-      setPlaylist(updatedQueue)
-      toast.success(`Removed ${name} from queue`)
-    },
-    [playlist, song.id, name, setPlaylist, isCurrentSong],
-  )
+  const handleRemoveFromQueue = (e) => {
+    e.stopPropagation()
+    if (isCurrentSong) {
+      toast.error("Can't remove playing song")
+      return
+    }
+    setPlaylist(playlist.filter((item) => item.id !== song.id))
+    toast.success(`Removed from queue`)
+  }
 
-  const isInQueue = playlist.some((item) => item.id === song.id)
+  const handleNavigate = () => {
+    if (song.type !== "song") {
+      navigate(`/music/${song.type}/${song.id}`, { state: song.id })
+    }
+  }
 
   return (
     <>
-      <Card
-        className={cn(
-          CARD_BASE_CLASSES,
-          CARD_HOVER_CLASSES,
-          isCurrentSong && "bg-primary/5 border-primary/30",
-          HOVER_TRANSITION,
-          "p-0",
-        )}
+      <MotionCard
+        className={cn("group cursor-pointer rounded-lg p-2", isCurrentSong && "bg-primary/5")}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        whileHover={{
+          backgroundColor: isCurrentSong ? "rgba(var(--primary), 0.08)" : "rgba(255,255,255,0.05)",
+        }}
+        whileTap={{ scale: 0.995 }}
       >
-        <CardContent className="p-1">
-          <div className="flex items-center gap-4">
-            <div
-              className="relative min-w-[3rem] h-14"
-              onClick={
-                song.type === "song"
-                  ? handlePlayClick
-                  : () =>
-                      navigate(`/music/${song.type}/${song.id}`, {
-                        state: song.id,
-                      })
-              }
-            >
-              <div className="relative">
-                <LazyImage
-                  src={Array.isArray(song.image) ? song.image?.[1].link : song.image}
-                  alt={name}
-                  height={50}
-                  width={50}
-                  className={cn("w-14 h-14 rounded-lg", "group-hover:scale-105", HOVER_TRANSITION)}
-                />
-              </div>
-
-              {song.type === "song" && (
-                <div
-                  className={cn(
-                    "absolute inset-0 bg-black/60 flex items-center justify-center",
-                    !isCurrentSong && !isHovered && "opacity-0",
-                    HOVER_TRANSITION,
-                  )}
-                >
-                  {loading ? (
-                    <Loader2 className="w-6 h-6 animate-spin text-white" />
-                  ) : isCurrentSong && isPlaying ? (
-                    <AudioWave />
-                  ) : (
-                    <Play className="w-6 h-6 text-white" />
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div
-              className="flex-grow min-w-0 space-y-1"
-              onClick={
-                song.type === "song"
-                  ? handlePlayClick
-                  : () =>
-                      navigate(`/music/${song.type}/${song.id}`, {
-                        state: song.id,
-                      })
-              }
-            >
-              <div className="flex items-center gap-2">
-                <p className="font-medium line-clamp-1 group-hover:text-primary">{name}</p>
-                {isCurrentSong && (
-                  <Badge variant="secondary" className="h-5">
-                    Playing
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground line-clamp-1">{artistName}</p>
-            </div>
-
+        <div
+          className="flex items-center gap-3"
+          onClick={song.type === "song" ? handlePlay : handleNavigate}
+        >
+          <div className="relative flex-shrink-0 w-12 h-12">
+            <LazyImage
+              src={Array.isArray(song.image) ? song.image?.[1].link : song.image}
+              alt={name}
+              height={48}
+              width={48}
+              className="w-12 h-12 rounded-md object-cover"
+            />
             {song.type === "song" && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="link" className="ml-auto">
-                    <EllipsisVerticalIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  {song?.album_id && (
-                    <DropdownMenuItem
-                      onClick={() =>
-                        navigate(`/music/album/${song.album_id}`, {
-                          state: song.album_id,
-                        })
-                      }
-                      className="capitalize cursor-pointer line-clamp-1 truncate"
-                    >
-                      More from {song.album}
-                    </DropdownMenuItem>
-                  )}
-                  {song?.artist_map?.primary_artists?.[0] && (
-                    <DropdownMenuItem
-                      onClick={() =>
-                        navigate(`/music/artist/${song.artist_map.primary_artists[0].id}`, {
-                          state: song.artist_map.primary_artists[0].id,
-                        })
-                      }
-                      className="capitalize cursor-pointer line-clamp-1 truncate"
-                    >
-                      More from {song.artist_map.primary_artists[0].name}
-                    </DropdownMenuItem>
-                  )}
-
-                  <DropdownMenuItem
-                    onClick={isInQueue && !isCurrentSong ? handleRemoveFromQueue : handleAddToQueue}
-                    className="capitalize cursor-pointer"
-                    disabled={isCurrentSong && isInQueue}
+              <AnimatePresence>
+                {(isCurrentSong || isHovered || menuOpen) && (
+                  <motion.div
+                    className="absolute inset-0 rounded-md bg-black/60 flex items-center justify-center"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
                   >
-                    {isInQueue
-                      ? isCurrentSong
-                        ? "Now Playing"
-                        : "Remove from Queue"
-                      : "Add to Queue"}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setIsModalOpen(true)}
-                    className="capitalize cursor-pointer"
-                  >
-                    Add to Playlist
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    {loading ? (
+                      <Loader2 className="w-5 h-5 text-white animate-spin" />
+                    ) : isCurrentSong && isPlaying ? (
+                      <AudioWave />
+                    ) : (
+                      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                        <Play className="w-5 h-5 text-white" fill="white" />
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             )}
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="font-medium text-sm truncate">{name}</p>
+              <AnimatePresence>
+                {isCurrentSong && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                  >
+                    <Badge variant="secondary" className="h-4 text-[10px] px-1.5 shrink-0">
+                      Playing
+                    </Badge>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <p className="text-xs text-muted-foreground truncate">{artistName}</p>
+          </div>
+
+          {song.type === "song" && (
+            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {song?.album_id && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      navigate(`/music/album/${song.album_id}`, { state: song.album_id })
+                    }}
+                  >
+                    Go to album
+                  </DropdownMenuItem>
+                )}
+                {song?.artist_map?.primary_artists?.[0] && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      navigate(`/music/artist/${song.artist_map.primary_artists[0].id}`)
+                    }}
+                  >
+                    Go to artist
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  onClick={isInQueue && !isCurrentSong ? handleRemoveFromQueue : handleAddToQueue}
+                  disabled={isCurrentSong && isInQueue}
+                >
+                  {isInQueue
+                    ? isCurrentSong
+                      ? "Now Playing"
+                      : "Remove from queue"
+                    : "Add to queue"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setIsModalOpen(true)
+                  }}
+                >
+                  Add to playlist
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </MotionCard>
 
       {isModalOpen && (
         <AddToPlaylist dialogOpen={isModalOpen} setDialogOpen={setIsModalOpen} song={song} />
@@ -334,8 +296,6 @@ export const SongCard = memo(({ song }) => {
 
 export const NewSongCard = memo(({ song }) => {
   const navigate = useNavigate()
-
-  // Individual selectors for minimal re-renders
   const currentSongId = usePlayerStore((s) => s.currentSong?.id)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
   const playlist = usePlayerStore((s) => s.playlist)
@@ -345,8 +305,8 @@ export const NewSongCard = memo(({ song }) => {
   const addToQueue = usePlayerStore((s) => s.addToQueue)
 
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
   const [isHovered, setIsHovered] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   if (!song?.id || !song?.image?.[2]) return null
@@ -355,317 +315,266 @@ export const NewSongCard = memo(({ song }) => {
   const name = he.decode(song.name || song.title || "")
   const artistName =
     song?.artist_map?.artists
-      ?.slice(0, 3)
-      ?.map((artist) => artist.name)
-      .join(", ") || song?.name
+      ?.slice(0, 2)
+      ?.map((a) => a.name)
+      .join(", ") ||
+    song?.name ||
+    ""
   const isInQueue = playlist.some((item) => item.id === song.id)
 
-  const handlePlayClick = async () => {
+  const handlePlay = async () => {
+    if (isCurrentSong) {
+      handlePlayPause()
+      return
+    }
+    if (song?.download_url) {
+      playSong(ensureHttpsForDownloadUrls(song))
+      return
+    }
+    setLoading(true)
     try {
-      if (isCurrentSong) {
-        handlePlayPause()
-        return
-      }
-
-      if (song?.download_url) {
-        const updatedSong = ensureHttpsForDownloadUrls(song)
-        playSong(updatedSong)
-        return
-      }
-
-      setLoading(true)
       const response = await axios.get(`${import.meta.env.VITE_SONG_URL}/song?id=${song.id}`)
-
       if (response.data?.data?.songs[0]) {
-        const songData = ensureHttpsForDownloadUrls(response.data.data.songs[0])
-        playSong(songData)
+        playSong(ensureHttpsForDownloadUrls(response.data.data.songs[0]))
       }
     } catch (err) {
-      setError(err.message)
       console.error("Error fetching song:", err)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleAddToQueue = useCallback(
-    (e) => {
-      e.stopPropagation()
-      if (!isCurrentSong) {
-        addToQueue(song)
-        toast.success(`Added ${name} to queue`)
-      }
-    },
-    [song, name, isCurrentSong, addToQueue],
-  )
+  const handleAddToQueue = (e) => {
+    e.stopPropagation()
+    if (!isCurrentSong) {
+      addToQueue(song)
+      toast.success(`Added to queue`)
+    }
+  }
 
-  const handleRemoveFromQueue = useCallback(
-    (e) => {
-      e.stopPropagation()
-      // Prevent removing the currently playing song
-      if (isCurrentSong) {
-        toast.error("Cannot remove currently playing song from queue")
-        return
-      }
-      const updatedQueue = playlist.filter((item) => item.id !== song.id)
-      setPlaylist(updatedQueue)
-      toast.success(`Removed ${name} from queue`)
-    },
-    [song, name, playlist, setPlaylist, isCurrentSong],
-  )
+  const handleRemoveFromQueue = (e) => {
+    e.stopPropagation()
+    if (isCurrentSong) {
+      toast.error("Can't remove playing song")
+      return
+    }
+    setPlaylist(playlist.filter((item) => item.id !== song.id))
+    toast.success(`Removed from queue`)
+  }
 
-  const handleNavigate = useCallback(() => {
+  const handleNavigate = () => {
     if (song.type !== "song") {
       navigate(`/music/${song.type}/${song.id}`, { state: song.id })
     }
-  }, [song, navigate])
+  }
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Card
-            className={cn(
-              CARD_BASE_CLASSES,
-              CARD_HOVER_CLASSES,
-              "w-[150px]",
-              isCurrentSong && "bg-primary/5 border-primary/30",
-              HOVER_TRANSITION,
-              "p-0",
-            )}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            onClick={song.type === "song" ? handlePlayClick : handleNavigate}
+    <>
+      <MotionCard
+        className={cn(
+          "w-[150px] group cursor-pointer rounded-lg p-2",
+          isCurrentSong && "bg-primary/5",
+        )}
+        onClick={song.type === "song" ? handlePlay : handleNavigate}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        whileHover={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <div className="relative mb-2 overflow-hidden rounded-lg">
+          <motion.div
+            animate={{ scale: isHovered ? 1.05 : 1 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
           >
-            <CardContent className="space-y-4 p-1">
-              <div className="relative">
-                <LazyImage
-                  src={Array.isArray(song.image) ? song.image?.[2]?.link : song.image}
-                  alt={name}
-                  className={cn("rounded-lg w-full", "group-hover:scale-105", HOVER_TRANSITION)}
-                />
-                <div
-                  className={cn(
-                    "absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent",
-                    "rounded-lg flex items-center justify-center",
-                    !isCurrentSong && !isHovered ? "opacity-0" : "opacity-100",
-                    HOVER_TRANSITION,
-                  )}
-                >
-                  {loading ? (
-                    <Loader2 className="w-10 h-10 animate-spin text-white" />
-                  ) : isCurrentSong && isPlaying ? (
-                    <div className="transform scale-150">
-                      <AudioWave />
-                    </div>
-                  ) : (
-                    <Play
-                      className={cn(
-                        "w-10 h-10 text-white transform",
-                        "translate-y-4 group-hover:translate-y-0",
-                        HOVER_TRANSITION,
-                      )}
-                    />
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <p className="md:font-semibold text-sm line-clamp-1 group-hover:text-primary">
-                    {name}
-                  </p>
-                  {isCurrentSong && (
-                    <Badge variant="secondary" className="h-5">
-                      Playing
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground line-clamp-1 truncate">{artistName}</p>
-
-                <div className="flex justify-between items-center mt-2">
-                  {song.language ? (
-                    <Badge variant="outline" className="text-xs capitalize">
-                      {song.language}
-                    </Badge>
-                  ) : song?.album ? (
-                    <Badge
-                      variant="outline"
-                      className="text-xs capitalize truncate line-clamp-1 mr-3"
+            <LazyImage
+              src={Array.isArray(song.image) ? song.image?.[2]?.link : song.image}
+              alt={name}
+              height={140}
+              width={140}
+              className="w-full aspect-square rounded-lg object-cover"
+            />
+          </motion.div>
+          <AnimatePresence>
+            {(isCurrentSong || isHovered || menuOpen) && (
+              <motion.div
+                className="absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                {loading ? (
+                  <Loader2 className="w-8 h-8 text-white animate-spin" />
+                ) : isCurrentSong && isPlaying ? (
+                  <div className="scale-125">
+                    <AudioWave />
+                  </div>
+                ) : (
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.05 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <Play className="w-10 h-10 text-white" fill="white" />
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {song.type === "song" && (
+            <div
+              className={cn(
+                "absolute top-1 right-1 transition-opacity duration-150",
+                "opacity-100 md:opacity-0 md:group-hover:opacity-100",
+                menuOpen && "!opacity-100",
+              )}
+            >
+              <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 bg-black/50 hover:bg-black/70"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="h-4 w-4 text-white" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {song?.album_id && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/music/album/${song.album_id}`, { state: song.album_id })
+                      }}
                     >
-                      {song.album}
-                    </Badge>
-                  ) : song?.type === "album" ? (
-                    <Badge
-                      variant="outline"
-                      className="text-xs capitalize truncate line-clamp-1 mr-3"
-                    >
-                      Album
-                    </Badge>
-                  ) : song?.type === "playlist" ? (
-                    <Badge
-                      variant="outline"
-                      className="text-xs capitalize truncate line-clamp-1 mr-3"
-                    >
-                      Playlist
-                    </Badge>
-                  ) : null}
-                  {song.type === "song" && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <EllipsisVerticalIcon className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        {song?.album_id && (
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              navigate(`/music/album/${song.album_id}`, {
-                                state: song.album_id,
-                              })
-                            }}
-                            className="capitalize cursor-pointer line-clamp-1 truncate"
-                          >
-                            More from {song.album}
-                          </DropdownMenuItem>
-                        )}
-                        {song?.artist_map?.primary_artists?.[0] && (
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              navigate(`/music/artist/${song.artist_map.primary_artists[0].id}`, {
-                                state: song.artist_map.primary_artists[0].id,
-                              })
-                            }}
-                            className="capitalize cursor-pointer line-clamp-1"
-                          >
-                            More from {song.artist_map.primary_artists[0].name}
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            isInQueue && !isCurrentSong
-                              ? handleRemoveFromQueue(e)
-                              : handleAddToQueue(e)
-                          }}
-                          className="capitalize cursor-pointer"
-                          disabled={isCurrentSong && isInQueue}
-                        >
-                          {isInQueue
-                            ? isCurrentSong
-                              ? "Now Playing"
-                              : "Remove from Queue"
-                            : "Add to Queue"}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setIsModalOpen(true)
-                          }}
-                          className="capitalize cursor-pointer"
-                        >
-                          Add to Playlist
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      Go to album
+                    </DropdownMenuItem>
                   )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TooltipTrigger>
-        <TooltipContent>
-          {error ? (
-            <p className="text-destructive">Error: {error}</p>
-          ) : (
-            <p>
-              {isCurrentSong ? "Now Playing" : "Play"} {name}
-            </p>
+                  {song?.artist_map?.primary_artists?.[0] && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/music/artist/${song.artist_map.primary_artists[0].id}`)
+                      }}
+                    >
+                      Go to artist
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    onClick={isInQueue && !isCurrentSong ? handleRemoveFromQueue : handleAddToQueue}
+                    disabled={isCurrentSong && isInQueue}
+                  >
+                    {isInQueue
+                      ? isCurrentSong
+                        ? "Now Playing"
+                        : "Remove from queue"
+                      : "Add to queue"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setIsModalOpen(true)
+                    }}
+                  >
+                    Add to playlist
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
-        </TooltipContent>
-      </Tooltip>
+        </div>
+        <div>
+          <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+            {name}
+          </p>
+          <p className="text-xs text-muted-foreground truncate">{artistName}</p>
+          {(song.language || song.album || song.type !== "song") && (
+            <Badge
+              variant="outline"
+              className="mt-1.5 text-[10px] h-5 capitalize max-w-full truncate"
+            >
+              {song.language || (song.type === "song" ? song.album : song.type)}
+            </Badge>
+          )}
+        </div>
+      </MotionCard>
 
       {isModalOpen && (
         <AddToPlaylist dialogOpen={isModalOpen} setDialogOpen={setIsModalOpen} song={song} />
       )}
-    </TooltipProvider>
+    </>
   )
 })
 
 export const AlbumCard = memo(({ album }) => {
   const navigate = useNavigate()
+  const [isHovered, setIsHovered] = useState(false)
   const name = useMemo(() => he.decode(album.name || album.title || ""), [album])
 
-  const handleClick = useCallback(
-    () =>
-      navigate(`/music/album/${album.album_id || album?.id}`, {
-        state: album.album_id || album?.id,
-      }),
-    [album, navigate],
-  )
-
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Card
-            className={cn(CARD_BASE_CLASSES, CARD_HOVER_CLASSES, "w-[150px]", HOVER_TRANSITION)}
-            onClick={handleClick}
-          >
-            <CardContent className="p-1 space-y-4">
-              <div className="relative">
-                <LazyImage
-                  src={album.image?.[2]?.link || album.image?.[2]?.url}
-                  alt={name}
-                  height={144}
-                  width={144}
-                  className={cn("rounded-lg", "group-hover:scale-105", HOVER_TRANSITION)}
-                />
-                <div
-                  className={cn(
-                    "absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent",
-                    "rounded-lg flex items-center justify-center",
-                    "opacity-0 group-hover:opacity-100",
-                    HOVER_TRANSITION,
-                  )}
-                >
-                  <Music2Icon
-                    className={cn(
-                      "w-10 h-10 text-white transform",
-                      "translate-y-4 group-hover:translate-y-0",
-                      HOVER_TRANSITION,
-                    )}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <p className="font-semibold line-clamp-1 group-hover:text-primary">{name}</p>
-                {album.language && (
-                  <Badge variant="secondary" className="capitalize text-xs">
-                    {album.language}
-                  </Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TooltipTrigger>
-        <TooltipContent>View {name} album</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <MotionCard
+      className="w-[150px] group cursor-pointer rounded-lg p-2"
+      onClick={() =>
+        navigate(`/music/album/${album.album_id || album?.id}`, {
+          state: album.album_id || album?.id,
+        })
+      }
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      whileHover={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <div className="relative mb-2 overflow-hidden rounded-lg">
+        <motion.div
+          animate={{ scale: isHovered ? 1.05 : 1 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+        >
+          <LazyImage
+            src={album.image?.[2]?.link || album.image?.[2]?.url}
+            alt={name}
+            height={140}
+            width={140}
+            className="w-full aspect-square rounded-lg object-cover"
+          />
+        </motion.div>
+        <AnimatePresence>
+          {isHovered && (
+            <motion.div
+              className="absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.05 }}
+              >
+                <Disc3 className="w-8 h-8 text-white" />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+        {name}
+      </p>
+      {album.language && (
+        <Badge variant="outline" className="mt-1 text-[10px] h-5 capitalize max-w-full truncate">
+          {album.language}
+        </Badge>
+      )}
+    </MotionCard>
   )
 })
 
 export const PlaylistCard = memo(({ playlist }) => {
   const navigate = useNavigate()
+  const [isHovered, setIsHovered] = useState(false)
 
   if (!playlist?.name || !playlist?.image) return null
 
@@ -679,87 +588,55 @@ export const PlaylistCard = memo(({ playlist }) => {
     [playlist.image],
   )
 
-  const handleClick = useCallback(
-    () => navigate(`/music/playlist/${playlist.id}`, { state: playlist.id }),
-    [playlist.id, navigate],
-  )
-
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Card
-            className={cn(CARD_BASE_CLASSES, CARD_HOVER_CLASSES, "w-[150px]", HOVER_TRANSITION)}
-            onClick={handleClick}
-          >
-            <CardContent className="p-1 space-y-4">
-              <div className="relative mx-auto">
-                <LazyImage
-                  src={imageUrl}
-                  alt={playlist.name}
-                  height={144}
-                  width={144}
-                  className={cn(
-                    "rounded-lg object-cover",
-                    "group-hover:scale-105",
-                    HOVER_TRANSITION,
-                  )}
-                />
-                <div
-                  className={cn(
-                    "absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent",
-                    "rounded-lg flex items-center justify-center",
-                    "opacity-0 group-hover:opacity-100",
-                    HOVER_TRANSITION,
-                  )}
-                >
-                  <ListMusic
-                    className={cn(
-                      "w-10 h-10 text-white transform",
-                      "translate-y-4 group-hover:translate-y-0",
-                      HOVER_TRANSITION,
-                    )}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <p className="font-semibold tracking-tight line-clamp-1 group-hover:text-primary">
-                  {playlist.name}
-                </p>
-                <p className="text-sm text-muted-foreground line-clamp-2 group-hover:text-muted-foreground/80">
-                  {subtitle}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TooltipTrigger>
-        <TooltipContent>Open {playlist.name}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <MotionCard
+      className="w-[150px] group cursor-pointer rounded-lg p-2"
+      onClick={() => navigate(`/music/playlist/${playlist.id}`, { state: playlist.id })}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      whileHover={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <div className="relative mb-2 overflow-hidden rounded-lg">
+        <motion.div
+          animate={{ scale: isHovered ? 1.05 : 1 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+        >
+          <LazyImage
+            src={imageUrl}
+            alt={playlist.name}
+            height={140}
+            width={140}
+            className="w-full aspect-square rounded-lg object-cover"
+          />
+        </motion.div>
+        <AnimatePresence>
+          {isHovered && (
+            <motion.div
+              className="absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.05 }}
+              >
+                <ListMusic className="w-8 h-8 text-white" />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+        {playlist.name}
+      </p>
+      <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+    </MotionCard>
   )
 })
-
-const ActionButton = ({ icon: Icon, label, onClick, variant = "secondary" }) => (
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          size="icon"
-          variant={variant}
-          className={cn(
-            "h-8 w-8 bg-white/20 backdrop-blur-sm",
-            variant === "secondary" ? "hover:bg-white/40" : "hover:bg-red-500/80",
-            HOVER_TRANSITION,
-          )}
-          onClick={onClick}
-        >
-          <Icon className="w-4 h-4 text-white" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
-)
 
 const DeleteConfirmDialog = ({ isOpen, onClose, onConfirm, playlistName }) => (
   <AlertDialog open={isOpen} onOpenChange={onClose}>
@@ -767,7 +644,7 @@ const DeleteConfirmDialog = ({ isOpen, onClose, onConfirm, playlistName }) => (
       <AlertDialogHeader>
         <AlertDialogTitle>Delete Playlist</AlertDialogTitle>
         <AlertDialogDescription>
-          Are you sure you want to delete "{playlistName}"? This action cannot be undone.
+          Delete "{playlistName}"? This can't be undone.
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
@@ -790,14 +667,12 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
 
   if (!playlist?.name) return null
 
-  const subtitle = playlist.description || "Playlist"
+  const subtitle = playlist.description || `${playlist.songs?.length || 0} songs`
 
   const handleCardClick = useCallback(
     (e) => {
       if (e.target.closest(".action-buttons")) return
-      navigate(`/music/my-playlist/${playlist.id}`, {
-        state: playlist.id,
-      })
+      navigate(`/music/my-playlist/${playlist.id}`, { state: playlist.id })
     },
     [playlist.id, navigate],
   )
@@ -807,110 +682,91 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
     setShowDeleteAlert(false)
   }, [playlist.id, onDelete])
 
-  const handleEdit = useCallback(
-    (e) => {
-      e.stopPropagation()
-      onEdit?.(playlist)
-    },
-    [playlist, onEdit],
-  )
-
   return (
     <>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Card
-              className={cn(
-                CARD_BASE_CLASSES,
-                CARD_HOVER_CLASSES,
-                "w-1/2 sm:w-[200px]",
-                HOVER_TRANSITION,
-              )}
-              onClick={handleCardClick}
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-            >
-              <CardContent className="p-4 space-y-4">
-                <div className="relative mx-auto">
-                  <Avatar
-                    className={cn(
-                      "w-full h-36 rounded-lg",
-                      "ring-2 ring-offset-2 ring-offset-background ring-primary/10",
-                      "group-hover:ring-primary/30",
-                      HOVER_TRANSITION,
-                    )}
-                  >
-                    <AvatarImage
-                      src={playlist?.image?.[2]?.link}
-                      alt={playlist.name}
-                      className={cn(
-                        "rounded-lg object-cover",
-                        "group-hover:scale-105",
-                        HOVER_TRANSITION,
-                      )}
-                    />
-                    <AvatarFallback className="rounded-lg">
-                      <ListMusic className="w-10 h-10 text-muted-foreground" />
-                    </AvatarFallback>
-                  </Avatar>
-
-                  {/* Overlay with actions */}
-                  <div
-                    className={cn(
-                      "absolute inset-0 rounded-lg",
-                      "flex flex-col items-center justify-center gap-3",
-                      "bg-gradient-to-t from-black/60 via-black/30 to-transparent",
-                      isHovered ? "opacity-100" : "opacity-0",
-                      HOVER_TRANSITION,
-                    )}
-                  >
-                    <ListMusic
-                      className={cn(
-                        "w-10 h-10 text-white transform",
-                        isHovered ? "translate-y-0" : "translate-y-4",
-                        HOVER_TRANSITION,
-                      )}
-                    />
-
-                    {/* Action buttons */}
-                    <div
-                      className={cn(
-                        "action-buttons absolute bottom-2 right-2",
-                        "flex items-center gap-1",
-                        "transform",
-                        isHovered ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
-                        HOVER_TRANSITION,
-                      )}
-                    >
-                      <ActionButton icon={Pencil} label="Edit playlist" onClick={handleEdit} />
-                      <ActionButton
-                        icon={Trash2}
-                        label="Delete playlist"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setShowDeleteAlert(true)
-                        }}
-                        variant="destructive"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="font-semibold tracking-tight line-clamp-1 group-hover:text-primary">
-                    {playlist.name}
-                  </p>
-                  <p className="text-sm text-muted-foreground line-clamp-2 group-hover:text-muted-foreground/80">
-                    {subtitle}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </TooltipTrigger>
-          <TooltipContent>Open {playlist.name}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <MotionCard
+        className="w-[180px] group cursor-pointer rounded-lg p-2"
+        onClick={handleCardClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        whileHover={{ backgroundColor: "rgba(255,255,255,0.05)" }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <div className="relative mb-2 overflow-hidden rounded-lg">
+          <motion.div
+            animate={{ scale: isHovered ? 1.05 : 1 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            <Avatar className="w-full h-auto aspect-square rounded-lg">
+              <AvatarImage
+                src={playlist?.image?.[2]?.link}
+                alt={playlist.name}
+                className="object-cover rounded-lg"
+              />
+              <AvatarFallback className="rounded-lg aspect-square flex items-center justify-center bg-muted">
+                <ListMusic className="w-8 h-8 text-muted-foreground" />
+              </AvatarFallback>
+            </Avatar>
+          </motion.div>
+          <AnimatePresence>
+            {isHovered && (
+              <motion.div
+                className="absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.05 }}
+                >
+                  <ListMusic className="w-8 h-8 text-white" />
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <AnimatePresence>
+            {isHovered && (
+              <motion.div
+                className="action-buttons absolute bottom-2 right-2 flex gap-1"
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 5 }}
+                transition={{ duration: 0.15 }}
+              >
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="h-7 w-7 bg-white/90 hover:bg-white"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onEdit?.(playlist)
+                  }}
+                >
+                  <Pencil className="w-3.5 h-3.5 text-foreground" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="h-7 w-7 bg-white/90 hover:bg-destructive hover:text-white"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowDeleteAlert(true)
+                  }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+        <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+          {playlist.name}
+        </p>
+        <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+      </MotionCard>
 
       <DeleteConfirmDialog
         isOpen={showDeleteAlert}

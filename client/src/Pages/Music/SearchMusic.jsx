@@ -1,52 +1,30 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import axios from "axios"
 import { ArrowLeft, Loader2, Search } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { AlbumCard, ArtistCard, PlaylistCard, SongCard } from "./Cards"
+import { useSearchQuery } from "@/hooks/queries/useSongQueries"
 
 const SearchMusic = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const query = location.state || ""
   const [searchQuery, setSearchQuery] = useState(query)
-  const [searchResults, setSearchResults] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [debouncedQuery, setDebouncedQuery] = useState("")
 
   useEffect(() => {
     if (query) {
-      fetchData(query)
+      setDebouncedQuery(query)
       navigate(location.pathname, { state: "" })
     }
-  }, [query])
+  }, [query, navigate, location.pathname])
 
-  // Fetch Data from API
-  const fetchData = useCallback(async (query) => {
-    try {
-      if (!query.trim()) {
-        setSearchResults(null)
-        setIsLoading(false)
-        return
-      }
-
-      setIsLoading(true)
-
-      const response = await axios.get(`${import.meta.env.VITE_SONG_URL}/search?q=${query}`)
-
-      if (response.status === 200) {
-        setSearchResults(response.data?.data)
-      }
-    } catch (error) {
-      console.error("Error fetching search data:", error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  const { data: searchResults, isLoading } = useSearchQuery(debouncedQuery)
 
   const handleSearchClick = () => {
     if (searchQuery.trim()) {
-      fetchData(searchQuery)
+      setDebouncedQuery(searchQuery)
     }
   }
 
@@ -54,7 +32,6 @@ const SearchMusic = () => {
     setSearchQuery(e.target.value)
   }
 
-  // Results Section Component
   const ResultsSection = ({ title, items, renderItem }) => {
     if (!items?.data?.length) return null
 
@@ -108,10 +85,8 @@ const SearchMusic = () => {
             <Loader2 className="w-8 h-8 animate-spin" />
           </div>
         )}
-        {/* Main content */}
         {searchResults && !isLoading && (
           <div>
-            {/* Top Result */}
             {searchResults.top_query?.data?.length > 0 && (
               <section className="mb-8 max-w-[30%]">
                 <h2 className="text-2xl font-semibold mb-4">Top Result</h2>
@@ -129,7 +104,6 @@ const SearchMusic = () => {
               </section>
             )}
 
-            {/* Other sections */}
             <ResultsSection
               title="Top Songs"
               items={searchResults.songs}

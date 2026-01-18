@@ -53,7 +53,7 @@ const NowPlayingTab = memo(({ currentSong, isDesktop = false }) => {
 
           <div className="flex-1 flex flex-col gap-6 text-center">
             <div>
-              <SheetTitle className="text-2xl xl:text-4xl font-bold mb-3 line-clamp-2">
+              <SheetTitle className="text-2xl xl:text-3xl font-bold mb-3 line-clamp-2">
                 {he.decode(currentSong.name)}
               </SheetTitle>
               <p className="text-lg text-muted-foreground line-clamp-1">{he.decode(artistName)}</p>

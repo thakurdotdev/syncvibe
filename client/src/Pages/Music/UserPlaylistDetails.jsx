@@ -1,12 +1,12 @@
 import { Context } from "@/Context/Context"
 import { usePlayerStore } from "@/stores/playerStore"
-import axios from "axios"
 import { CalendarDays, ListMusic } from "lucide-react"
-import { useCallback, useContext, useEffect, useState } from "react"
-import { useLocation, useNavigate, useParams } from "react-router-dom"
+import { useContext, useEffect } from "react"
+import { useNavigate, useParams } from "react-router-dom"
 import { SongCard } from "./Cards"
 import { LoadingState, PlaylistActions } from "./Common"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { usePlaylistDetailsQuery } from "@/hooks/queries/usePlaylistQueries"
 
 const PlaylistHeader = ({ playlistData }) => {
   const bgUrl = Array.isArray(playlistData?.image) ? playlistData?.image[2]?.link : ""
@@ -71,44 +71,22 @@ const PlaylistHeader = ({ playlistData }) => {
 }
 
 const UserPlaylistDetails = () => {
-  const location = useLocation()
   const navigate = useNavigate()
   const params = useParams()
   const { user } = useContext(Context)
-  const id = location.state || params?.id || null
-  const [playlistData, setPlaylistData] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const id = params?.id || null
 
-  // Individual selectors
   const setPlaylist = usePlayerStore((s) => s.setPlaylist)
   const playSong = usePlayerStore((s) => s.playSong)
+
+  const { data: playlistData, isLoading } = usePlaylistDetailsQuery(id)
 
   useEffect(() => {
     if (!user || !playlistData || !id) return
     if (user?.userid !== playlistData?.userId) {
       navigate("/music/my-playlist")
     }
-  }, [user, playlistData, navigate])
-
-  const fetchPlaylistData = useCallback(async () => {
-    try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/playlist/details`, {
-        params: { id },
-        withCredentials: true,
-      })
-      setPlaylistData(response.data.data)
-    } catch (error) {
-      console.error("Error fetching playlist data:", error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [id])
-
-  useEffect(() => {
-    if (id) {
-      fetchPlaylistData()
-    }
-  }, [id, fetchPlaylistData])
+  }, [user, playlistData, navigate, id])
 
   const handlePlayAll = () => {
     if (playlistData?.songs?.length) {

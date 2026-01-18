@@ -1,41 +1,20 @@
 import { usePlayerStore } from "@/stores/playerStore"
-import axios from "axios"
-import { useEffect, useState } from "react"
-import { useLocation } from "react-router-dom"
+import { useParams } from "react-router-dom"
 import { SongCard } from "./Cards"
 import { ensureHttpsForDownloadUrls, LoadingState, PlaylistActions } from "./Common"
-import { useParams } from "react-router-dom"
+import { useAlbumQuery } from "@/hooks/queries/useSongQueries"
 
 const Album = () => {
-  const location = useLocation()
   const params = useParams()
-  const id = location.state || params?.id || null
-  const [albumData, setAlbumData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const id = params?.id || null
 
-  // Individual selectors
   const setPlaylist = usePlayerStore((s) => s.setPlaylist)
   const playSong = usePlayerStore((s) => s.playSong)
 
-  useEffect(() => {
-    const fetchAlbumData = async () => {
-      try {
-        const response = await axios.get(`${import.meta.env.VITE_SONG_URL}/album?id=${id}`)
-        const data = response.data
-        setAlbumData(data.data)
-        setLoading(false)
-      } catch (error) {
-        setLoading(false)
-        console.error("Error fetching playlist data:", error)
-      }
-    }
+  const { data: albumData, isLoading } = useAlbumQuery(id)
 
-    if (id) {
-      fetchAlbumData()
-    }
-  }, [id])
-
-  if (loading) return <LoadingState />
+  if (isLoading) return <LoadingState />
+  if (!albumData) return null
 
   const handlePlayAll = () => {
     if (albumData?.songs?.length) {
@@ -62,7 +41,6 @@ const Album = () => {
 
   return (
     <div className="flex flex-col gap-10 p-5">
-      {/** Album Info */}
       <div
         className={`w-full h-[250px] rounded-2xl bg-cover`}
         style={{
@@ -90,7 +68,6 @@ const Album = () => {
         disabled={!albumData?.songs?.length}
       />
 
-      {/** Album Songs */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
         {albumData.songs.map((song, index) => (
           <div key={index}>

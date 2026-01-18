@@ -91,7 +91,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-white/[0.04] pointer-events-none" />
 
         {/* Desktop: Side-by-side layout */}
-        <div className="hidden lg:flex h-full w-full max-w-6xl mx-auto relative z-10">
+        <div className="hidden lg:flex h-full w-full max-w-5xl mx-auto relative z-10">
           {/* Now Playing Section */}
           <div className="flex-1 flex flex-col border-r border-white/10 relative">
             <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20">

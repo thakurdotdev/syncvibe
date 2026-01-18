@@ -9,12 +9,16 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { usePlayerStore } from "@/stores/playerStore"
-import axios from "axios"
 import { Loader2, Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { UserPlaylistCard } from "./Cards"
+import { useUserPlaylistsQuery } from "@/hooks/queries/usePlaylistQueries"
+import {
+  useCreatePlaylistMutation,
+  useUpdatePlaylistMutation,
+  useDeletePlaylistMutation,
+} from "@/hooks/mutations/usePlaylistMutations"
 
 const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading }) => {
   const [formData, setFormData] = useState({
@@ -23,7 +27,7 @@ const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading
   })
 
   useEffect(() => {
-    if (initialData) {
+    if (initialData?.id) {
       setFormData({
         id: initialData.id,
         name: initialData.name || "",
@@ -35,7 +39,7 @@ const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading
         description: "",
       })
     }
-  }, [initialData?.id])
+  }, [initialData?.id, initialData?.name])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -84,60 +88,53 @@ const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading
 }
 
 const UserPlaylist = () => {
-  // Individual selectors
-  const userPlaylist = usePlayerStore((s) => s.userPlaylist)
-  const getPlaylists = usePlayerStore((s) => s.getPlaylists)
-  const [loading, setLoading] = useState(false)
+  const { data: userPlaylist = [] } = useUserPlaylistsQuery()
   const [playlistDialog, setPlaylistDialog] = useState({
     isOpen: false,
     data: null,
   })
 
-  const handlePlaylistSubmit = async (formData) => {
-    setLoading(true)
-    try {
-      if (formData.id) {
-        // Edit existing playlist
-        const response = await axios.patch(
-          `${import.meta.env.VITE_API_URL}/api/playlist/update`,
-          formData,
-          { withCredentials: true },
-        )
-        toast.success("Playlist updated successfully!")
-      } else {
-        // Create new playlist
-        const response = await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/playlist/create`,
-          formData,
-          { withCredentials: true },
-        )
-        toast.success("Playlist created successfully!")
-      }
-      getPlaylists()
+  const createMutation = useCreatePlaylistMutation({
+    onSuccess: () => {
+      toast.success("Playlist created successfully!")
       setPlaylistDialog({ isOpen: false, data: null })
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || "An error occurred."
-      toast.error(errorMessage)
-    } finally {
-      setLoading(false)
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || error.message || "An error occurred.")
+    },
+  })
+
+  const updateMutation = useUpdatePlaylistMutation({
+    onSuccess: () => {
+      toast.success("Playlist updated successfully!")
+      setPlaylistDialog({ isOpen: false, data: null })
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || error.message || "An error occurred.")
+    },
+  })
+
+  const deleteMutation = useDeletePlaylistMutation({
+    onSuccess: () => {
+      toast.success("Playlist deleted successfully!")
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "An error occurred.")
+    },
+  })
+
+  const isLoading = createMutation.isPending || updateMutation.isPending
+
+  const handlePlaylistSubmit = (formData) => {
+    if (formData.id) {
+      updateMutation.mutate(formData)
+    } else {
+      createMutation.mutate(formData)
     }
   }
 
-  const handleDeletePlaylist = async (playlistId) => {
-    setLoading(true)
-    try {
-      await axios.delete(`${import.meta.env.VITE_API_URL}/api/playlist/delete`, {
-        data: { playlistId },
-        withCredentials: true,
-      })
-      toast.success("Playlist deleted successfully!")
-      getPlaylists()
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || "An error occurred."
-      toast.error(errorMessage)
-    } finally {
-      setLoading(false)
-    }
+  const handleDeletePlaylist = (playlistId) => {
+    deleteMutation.mutate(playlistId)
   }
 
   return (
@@ -171,7 +168,7 @@ const UserPlaylist = () => {
         }
         onSubmit={handlePlaylistSubmit}
         initialData={playlistDialog.data}
-        isLoading={loading}
+        isLoading={isLoading}
       />
     </div>
   )

@@ -1,51 +1,30 @@
-import React, { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Loader2, Search, XCircle } from "lucide-react"
-import axios from "axios"
+import { Loader2, Search, XCircle, X } from "lucide-react"
 import { AlbumCard, ArtistCard, PlaylistCard, SongCard } from "./Cards"
 import { Button } from "@/components/ui/button"
-import { X } from "lucide-react"
+import { useSearchQuery } from "@/hooks/queries/useSongQueries"
 
 const SearchDialog = ({ open, setOpen }) => {
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
-
-  const fetchData = useCallback(async (query) => {
-    if (!query.trim()) {
-      setSearchResults(null)
-      setIsLoading(false)
-      return
-    }
-
-    try {
-      setIsLoading(true)
-      const response = await axios.get(`${import.meta.env.VITE_SONG_URL}/search?q=${query}`)
-
-      if (response.status === 200) {
-        setSearchResults(response.data?.data)
-      }
-    } catch (error) {
-      console.error("Error fetching search data:", error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  const [debouncedQuery, setDebouncedQuery] = useState("")
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchData(searchQuery)
+      setDebouncedQuery(searchQuery)
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [searchQuery, fetchData])
+  }, [searchQuery])
+
+  const { data: searchResults, isLoading } = useSearchQuery(debouncedQuery)
 
   const handleClose = useCallback(() => {
     setOpen(false)
     setSearchQuery("")
-    setSearchResults(null)
+    setDebouncedQuery("")
   }, [setOpen])
 
   const ResultsGrid = ({ title, items, renderItem }) => {

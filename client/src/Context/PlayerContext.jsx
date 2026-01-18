@@ -1,13 +1,8 @@
 import { useContext, useEffect, useRef } from "react"
 import { Context } from "./Context"
 import { usePlayerStore } from "@/stores/playerStore"
+import { useUserPlaylistsQuery } from "@/hooks/queries/usePlaylistQueries"
 
-/**
- * PlayerProvider - Minimal provider that only:
- * 1. Manages audio element refs
- * 2. Sets up audio event listeners
- * 3. Syncs audio with store state
- */
 export function PlayerProvider({ children }) {
   const { user, loading } = useContext(Context)
   const audioRef = useRef(null)
@@ -15,27 +10,33 @@ export function PlayerProvider({ children }) {
   const prevSongIdRef = useRef(null)
   const lastUpdateTime = useRef(0)
 
-  // Get store actions (stable references)
   const setAudioRefs = usePlayerStore((s) => s.setAudioRefs)
   const loadAndPlayCurrentSong = usePlayerStore((s) => s.loadAndPlayCurrentSong)
   const handleNextSong = usePlayerStore((s) => s.handleNextSong)
   const updateTime = usePlayerStore((s) => s.updateTime)
   const setDuration = usePlayerStore((s) => s.setDuration)
-  const getPlaylists = usePlayerStore((s) => s.getPlaylists)
+  const setUserPlaylist = usePlayerStore((s) => s.setUserPlaylist)
   const decrementSongsRemaining = usePlayerStore((s) => s.decrementSongsRemaining)
 
-  // Get state that triggers effects
   const currentSong = usePlayerStore((s) => s.currentSong)
   const volume = usePlayerStore((s) => s.volume)
 
-  // Set audio refs on mount
+  const { data: userPlaylists } = useUserPlaylistsQuery({
+    enabled: !!user && !loading,
+  })
+
+  useEffect(() => {
+    if (userPlaylists) {
+      setUserPlaylist(userPlaylists)
+    }
+  }, [userPlaylists, setUserPlaylist])
+
   useEffect(() => {
     if (audioRef.current && nextAudioRef.current) {
       setAudioRefs(audioRef.current, nextAudioRef.current)
     }
   }, [setAudioRefs])
 
-  // Audio event listeners
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
@@ -68,7 +69,6 @@ export function PlayerProvider({ children }) {
     }
   }, [handleNextSong, volume, updateTime, setDuration])
 
-  // Load and play song when currentSong changes
   useEffect(() => {
     const loadSong = async () => {
       prevSongIdRef.current = await loadAndPlayCurrentSong(prevSongIdRef.current)
@@ -76,18 +76,11 @@ export function PlayerProvider({ children }) {
     loadSong()
   }, [currentSong, loadAndPlayCurrentSong])
 
-  // Decrement songs remaining on song change (for sleep timer)
   useEffect(() => {
     if (currentSong) {
       decrementSongsRemaining()
     }
   }, [currentSong?.id, decrementSongsRemaining])
-
-  // Fetch user playlists on login
-  useEffect(() => {
-    if (!user || loading) return
-    getPlaylists()
-  }, [user, loading, getPlaylists])
 
   return (
     <>
