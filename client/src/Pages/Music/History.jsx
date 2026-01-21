@@ -192,20 +192,32 @@ const HistoryPage = () => {
   const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
+    const q = searchQuery.trim()
+
     const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery)
+      if (q.length >= 3) {
+        setDebouncedSearch(q)
+      } else {
+        setDebouncedSearch("") // disable search
+      }
       setCurrentPage(1)
     }, 500)
+
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  const { data, isLoading, isError, error, refetch } = useHistoryQuery({
-    page: currentPage,
-    limit: pageSize,
-    sortBy,
-    sortOrder,
-    searchQuery: debouncedSearch,
-  })
+  const { data, isLoading, isError, error, refetch } = useHistoryQuery(
+    {
+      page: currentPage,
+      limit: pageSize,
+      sortBy,
+      sortOrder,
+      searchQuery: debouncedSearch,
+    },
+    {
+      enabled: debouncedSearch.length >= 3,
+    },
+  )
 
   const songs = data?.songs ?? []
   const totalCount = data?.count ?? 0

@@ -1,15 +1,7 @@
 const { DataTypes, Model } = require("sequelize")
 const sequelize = require("../../utils/sequelize")
 
-/**
- * Central Song model - stores unique songs with full songData JSON.
- * Indexed columns are extracted for efficient querying, but the
- * complete song object is always read from the songData column.
- */
 class Song extends Model {
-  /**
-   * Extract artist names from songData for indexing
-   */
   static extractArtistNames(songData) {
     const artists =
       songData?.artist_map?.artists ||
@@ -28,29 +20,25 @@ class Song extends Model {
     )
   }
 
-  /**
-   * Get or create a song in the central table
-   * @param {Object} songData - Full song object from API
-   * @returns {Promise<Song>} The song record
-   */
   static async getOrCreate(songData) {
-    if (!songData?.id) {
-      throw new Error("songData.id is required")
-    }
+    if (!songData?.id) throw new Error("songData.id is required")
 
-    const [song] = await Song.findOrCreate({
-      where: { songId: songData.id },
-      defaults: {
+    try {
+      return await Song.create({
         songId: songData.id,
         name: songData.name || songData.title || "Unknown",
         artistNames: Song.extractArtistNames(songData),
+        albumName: songData.album?.name || songData.album_name || songData.album || null,
         language: songData.language || "unknown",
         duration: songData.duration || 0,
-        songData: songData,
-      },
-    })
-
-    return song
+        songData,
+      })
+    } catch (err) {
+      if (err.name === "SequelizeUniqueConstraintError") {
+        return Song.findOne({ where: { songId: songData.id } })
+      }
+      throw err
+    }
   }
 }
 
@@ -67,7 +55,6 @@ Song.init(
       unique: true,
       comment: "External song ID from Saavn/API",
     },
-    // Indexed columns for efficient queries
     name: {
       type: DataTypes.STRING(500),
       allowNull: true,
@@ -77,6 +64,11 @@ Song.init(
       type: DataTypes.STRING(500),
       allowNull: true,
       comment: "Comma-separated artist names (indexed for search)",
+    },
+    albumName: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+      comment: "Album name (indexed for search)",
     },
     language: {
       type: DataTypes.STRING(50),
@@ -88,7 +80,6 @@ Song.init(
       allowNull: true,
       comment: "Duration in seconds",
     },
-    // Full song data - THE SOURCE OF TRUTH
     songData: {
       type: DataTypes.JSONB,
       allowNull: false,
@@ -110,12 +101,6 @@ Song.init(
     timestamps: true,
     tableName: "songs",
     modelName: "Song",
-    indexes: [
-      { fields: ["songId"], unique: true },
-      { fields: ["name"] },
-      { fields: ["artistNames"] },
-      { fields: ["language"] },
-    ],
   },
 )
 

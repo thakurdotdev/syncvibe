@@ -10,6 +10,7 @@ HistorySong.init(
       primaryKey: true,
       autoIncrement: true,
     },
+
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -18,91 +19,73 @@ HistorySong.init(
         key: "userid",
       },
     },
-    // NEW: Reference to central Song table
+
     songRefId: {
       type: DataTypes.INTEGER,
-      allowNull: true, // Nullable during migration
+      allowNull: false,
       references: {
         model: "songs",
         key: "id",
       },
     },
-    // DEPRECATED: Will be removed after migration (use Song association instead)
-    songId: {
-      type: DataTypes.STRING(255),
-      allowNull: true, // Made nullable for new records
-    },
-    songName: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    artistNames: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    songLanguage: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    songData: {
-      type: DataTypes.JSON,
-      allowNull: true, // Made nullable for new records
-    },
-    duration: {
-      type: DataTypes.INTEGER,
-      allowNull: true, // Made nullable for new records
-    },
-    // User-specific listening data (keep these)
+
     playedCount: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 1,
     },
+
     playedTime: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
+
     totalPlayTime: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
-    mood: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    timeOfDay: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    skipCount: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0,
-    },
+
     completionRate: {
       type: DataTypes.FLOAT,
       defaultValue: 0,
     },
-    deviceType: {
-      type: DataTypes.STRING,
-      allowNull: true,
+
+    skipCount: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
     },
+
     likeStatus: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+
+    mood: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+
+    timeOfDay: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+
+    deviceType: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+
     tags: {
       type: DataTypes.JSON,
       defaultValue: [],
     },
-    aiRecommendationScore: {
-      type: DataTypes.FLOAT,
-      allowNull: true,
-    },
+
     lastPlayedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
+
     createdat: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -111,40 +94,33 @@ HistorySong.init(
   },
   {
     sequelize,
-    timestamps: false,
     tableName: "history_songs",
     modelName: "HistorySong",
+    timestamps: false,
+
     indexes: [
-      // Primary lookup index
+      // ONE history row per user per song
       {
-        fields: ["userId", "songRefId"],
         unique: true,
+        fields: ["userId", "songRefId"],
       },
-      // Backward compatibility
-      {
-        fields: ["userId", "songId"],
-      },
-      // Fast history listing (sorted by lastPlayedAt)
+
+      // Fast history listing
       {
         fields: ["userId", "lastPlayedAt"],
       },
-      // Recommendations query optimization
-      {
-        fields: ["userId", "aiRecommendationScore"],
-      },
-      // Liked songs quick lookup
+
+      // Likes page
       {
         fields: ["userId", "likeStatus"],
       },
-      // PlayedCount for recommendations
+
+      // Recommendation scan
       {
         fields: ["userId", "playedCount"],
       },
     ],
   },
 )
-
-// Association with Song (will be set up in associations file)
-// HistorySong.belongsTo(Song, { foreignKey: 'songRefId', as: 'song' });
 
 module.exports = HistorySong
