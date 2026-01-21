@@ -193,7 +193,7 @@ const HistoryPage = () => {
   const isSearchActive = debouncedSearch && debouncedSearch.length >= 3
 
   useEffect(() => {
-    const q = searchQuery.trim()
+    const q = (searchQuery ?? "").trim()
 
     const timer = setTimeout(() => {
       if (q.length >= 3) {
@@ -212,7 +212,7 @@ const HistoryPage = () => {
     limit: pageSize,
     sortBy,
     sortOrder,
-    searchQuery: isSearchActive ? debouncedSearch : null,
+    searchQuery: isSearchActive ? debouncedSearch : "",
   })
 
   const songs = data?.songs ?? []
