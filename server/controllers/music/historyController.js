@@ -196,7 +196,7 @@ const calculateWeightedRecommendations = async (userId, limit) => {
 const getHistorySongs = async (req, res) => {
   try {
     const userId = req.user.userid
-    const { page = 1, limit = 10, searchQuery } = req.query
+    const { page = 1, limit = 10, searchQuery = "" } = req.query
 
     const whereClause = { userId, songRefId: { [Op.ne]: null } }
 
