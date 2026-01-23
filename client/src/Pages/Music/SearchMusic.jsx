@@ -3,8 +3,8 @@ import { Input } from "@/components/ui/input"
 import { ArrowLeft, Loader2, Search } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { AlbumCard, ArtistCard, PlaylistCard, SongCard } from "./Cards"
-import { useSearchQuery } from "@/hooks/queries/useSongQueries"
+import { SongCard } from "./Cards"
+import { useBackendSearchQuery } from "@/hooks/queries/useSongQueries"
 
 const SearchMusic = () => {
   const navigate = useNavigate()
@@ -20,7 +20,7 @@ const SearchMusic = () => {
     }
   }, [query, navigate, location.pathname])
 
-  const { data: searchResults, isLoading } = useSearchQuery(debouncedQuery)
+  const { data: searchResults, isLoading } = useBackendSearchQuery(debouncedQuery)
 
   const handleSearchClick = () => {
     if (searchQuery.trim()) {
@@ -30,23 +30,6 @@ const SearchMusic = () => {
 
   const handleInputChange = (e) => {
     setSearchQuery(e.target.value)
-  }
-
-  const ResultsSection = ({ title, items, renderItem }) => {
-    if (!items?.data?.length) return null
-
-    return (
-      <section className="mb-8">
-        <h2 className="text-2xl font-semibold mb-4">{title}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {items.data.map((item, index) => (
-            <div key={item.id || index} className="min-w-[200px]">
-              {renderItem(item)}
-            </div>
-          ))}
-        </div>
-      </section>
-    )
   }
 
   return (
@@ -59,7 +42,7 @@ const SearchMusic = () => {
           value={searchQuery}
           onChange={handleInputChange}
           type="text"
-          placeholder="Search for songs, albums, artists, playlists..."
+          placeholder="Search for songs..."
           className="pl-4 pr-10 py-2 rounded-full"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -87,43 +70,27 @@ const SearchMusic = () => {
         )}
         {searchResults && !isLoading && (
           <div>
-            {searchResults.top_query?.data?.length > 0 && (
-              <section className="mb-8 max-w-[30%]">
-                <h2 className="text-2xl font-semibold mb-4">Top Result</h2>
-                {searchResults.top_query?.data.map((result) => {
-                  const Component = {
-                    song: SongCard,
-                    artist: ArtistCard,
-                    album: AlbumCard,
-                  }[result.type]
-
-                  if (!Component) return null
-
-                  return <Component {...{ [result.type]: result }} />
-                })}
+            {searchResults.songs?.length > 0 ? (
+              <section className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-semibold">Search Results</h2>
+                  <span className="text-sm text-muted-foreground">
+                    {searchResults.count} songs found
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {searchResults.songs.map((song, index) => (
+                    <div key={song?.id || index} className="min-w-[200px]">
+                      <SongCard song={song} />
+                    </div>
+                  ))}
+                </div>
               </section>
+            ) : (
+              <div className="text-center text-muted-foreground mt-20">
+                No songs found for "{debouncedQuery}"
+              </div>
             )}
-
-            <ResultsSection
-              title="Top Songs"
-              items={searchResults.songs}
-              renderItem={(song) => <SongCard song={song} />}
-            />
-            <ResultsSection
-              title="Top Artists"
-              items={searchResults.artists}
-              renderItem={(artist) => <ArtistCard artist={artist} />}
-            />
-            <ResultsSection
-              title="Top Albums"
-              items={searchResults.albums}
-              renderItem={(album) => <AlbumCard album={album} />}
-            />
-            <ResultsSection
-              title="Top Playlists"
-              items={searchResults.playlists}
-              renderItem={(playlist) => <PlaylistCard playlist={playlist} />}
-            />
           </div>
         )}
       </div>

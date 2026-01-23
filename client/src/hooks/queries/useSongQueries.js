@@ -5,6 +5,7 @@ import {
   fetchExternalPlaylist,
   fetchSongRecommendations,
   searchSongs,
+  searchSongsBackend,
   songKeys,
 } from "@/api/music/songs"
 
@@ -12,6 +13,16 @@ export const useSearchQuery = (query, options = {}) => {
   return useQuery({
     queryKey: songKeys.search(query),
     queryFn: () => searchSongs(query),
+    enabled: !!query?.trim(),
+    staleTime: 1000 * 60 * 5,
+    ...options,
+  })
+}
+
+export const useBackendSearchQuery = (query, options = {}) => {
+  return useQuery({
+    queryKey: songKeys.backendSearch(query),
+    queryFn: () => searchSongsBackend(query),
     enabled: !!query?.trim(),
     staleTime: 1000 * 60 * 5,
     ...options,

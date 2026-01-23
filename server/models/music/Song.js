@@ -40,6 +40,29 @@ class Song extends Model {
       throw err
     }
   }
+
+  static async bulkGetOrCreate(songsData) {
+    if (!songsData?.length) return { created: 0, skipped: 0 }
+
+    const records = songsData
+      .filter((s) => s?.id)
+      .map((songData) => ({
+        songId: songData.id,
+        name: songData.name || songData.title || "Unknown",
+        artistNames: Song.extractArtistNames(songData),
+        albumName: songData.album?.name || songData.album_name || songData.album || null,
+        language: songData.language || "unknown",
+        duration: songData.duration || 0,
+        songData,
+      }))
+
+    const result = await Song.bulkCreate(records, {
+      ignoreDuplicates: true,
+      returning: false,
+    })
+
+    return { created: result.length, total: records.length }
+  }
 }
 
 Song.init(

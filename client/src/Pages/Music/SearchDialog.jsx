@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback } from "react"
+import { Loader2, Search, X, XCircle } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Loader2, Search, XCircle, X } from "lucide-react"
-import { AlbumCard, ArtistCard, PlaylistCard, SongCard } from "./Cards"
-import { Button } from "@/components/ui/button"
-import { useSearchQuery } from "@/hooks/queries/useSongQueries"
+import { useBackendSearchQuery } from "@/hooks/queries/useSongQueries"
+import { SongCard } from "./Cards"
 
 const SearchDialog = ({ open, setOpen }) => {
   const [searchQuery, setSearchQuery] = useState("")
@@ -19,28 +19,13 @@ const SearchDialog = ({ open, setOpen }) => {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  const { data: searchResults, isLoading } = useSearchQuery(debouncedQuery)
+  const { data: searchResults, isLoading } = useBackendSearchQuery(debouncedQuery)
 
   const handleClose = useCallback(() => {
     setOpen(false)
     setSearchQuery("")
     setDebouncedQuery("")
   }, [setOpen])
-
-  const ResultsGrid = ({ title, items, renderItem }) => {
-    if (!items?.data?.length) return null
-
-    return (
-      <section className="mb-6">
-        <h2 className="text-lg font-medium mb-4">{title}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.data.map((item, index) => (
-            <div key={item.id || index}>{renderItem(item)}</div>
-          ))}
-        </div>
-      </section>
-    )
-  }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -84,57 +69,35 @@ const SearchDialog = ({ open, setOpen }) => {
               <div className="flex items-center justify-center h-40">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
-            ) : searchResults ? (
+            ) : searchResults?.songs?.length > 0 ? (
               <div className="space-y-6">
-                <ResultsGrid
-                  title="Songs"
-                  items={searchResults.songs}
-                  renderItem={(song) => <SongCard song={song} />}
-                />
-
-                {searchResults?.artists?.data?.length > 0 && (
-                  <section className="mb-6">
-                    <h2 className="text-lg font-medium mb-4">Artists</h2>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      {searchResults?.artists?.data?.map((artist, index) => (
-                        <div key={artist.id || index} onClick={handleClose}>
-                          <ArtistCard artist={artist} />
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                {searchResults?.albums?.data?.length > 0 && (
-                  <section className="mb-6">
-                    <h2 className="text-lg font-medium mb-4">Albums</h2>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      {searchResults?.albums?.data?.map((album, index) => (
-                        <div key={album.id || index} onClick={handleClose}>
-                          <AlbumCard album={album} />
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
-                {searchResults?.playlists?.data?.length > 0 && (
-                  <section className="mb-6">
-                    <h2 className="text-lg font-medium mb-4">Playlists</h2>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      {searchResults?.playlists?.data?.map((playlist, index) => (
-                        <div key={playlist.id || index} onClick={handleClose}>
-                          <PlaylistCard playlist={playlist} />
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
+                <section className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-medium">Songs</h2>
+                    <span className="text-sm text-muted-foreground">
+                      {searchResults.count} found
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {searchResults.songs.map((song, index) => (
+                      <div key={song?.id || index}>
+                        <SongCard song={song} />
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            ) : debouncedQuery ? (
+              <div className="flex flex-col items-center justify-center text-muted-foreground h-[50vh]">
+                <Search className="w-16 h-16 mb-6" />
+                <p className="text-lg font-medium mb-2">No songs found</p>
+                <p className="text-sm">Try a different search term</p>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center text-muted-foreground h-[50vh]">
                 <Search className="w-16 h-16 mb-6 animate-pulse" />
                 <p className="text-lg font-medium mb-2">Start typing to search</p>
-                <p className="text-sm">Find your favorite songs, artists, and albums</p>
+                <p className="text-sm">Find your favorite songs</p>
               </div>
             )}
           </div>

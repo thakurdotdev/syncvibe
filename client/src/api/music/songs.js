@@ -5,6 +5,7 @@ const SONG_URL = import.meta.env.VITE_SONG_URL
 export const songKeys = {
   all: ["songs"],
   search: (query) => [...songKeys.all, "search", query],
+  backendSearch: (query) => [...songKeys.all, "backendSearch", query],
   album: (id) => [...songKeys.all, "album", id],
   artist: (id) => [...songKeys.all, "artist", id],
   externalPlaylist: (id) => [...songKeys.all, "externalPlaylist", id],
@@ -21,6 +22,16 @@ export const searchSongs = async (query) => {
 export const searchSongsOnly = async (query) => {
   if (!query?.trim()) return null
   const { data } = await axios.get(`${SONG_URL}/search/songs?q=${query}`)
+  return data?.data
+}
+
+const API_URL = import.meta.env.VITE_API_URL
+
+export const searchSongsBackend = async (query, limit = 10) => {
+  if (!query?.trim()) return null
+  const { data } = await axios.get(
+    `${API_URL}/api/music/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+  )
   return data?.data
 }
 

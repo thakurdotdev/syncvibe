@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { fetchUserPlaylists, fetchPlaylistDetails, playlistKeys } from "@/api/music/playlist"
+import { fetchPlaylistDetails, fetchUserPlaylists, playlistKeys } from "@/api/music/playlist"
 
 export const useUserPlaylistsQuery = (options = {}) => {
   return useQuery({
