@@ -29,8 +29,12 @@ sequelize.authenticate().then(() => {
   })
 })
 
-process.on("SIGTERM", () => {
-  server.close(() => sequelize.close().finally(() => process.exit(0)))
+process.on("SIGTERM", async () => {
+  console.log("SIGTERM received, shutting down gracefully...")
+  server.close(async () => {
+    await sequelize.close()
+    process.exit(0)
+  })
 })
 
 process.on("uncaughtException", (err) => {

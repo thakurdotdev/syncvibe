@@ -14,9 +14,15 @@ import { Context } from "./Context/Context"
 import { ChatContext } from "./Context/ChatContext"
 import GroupMusic from "./Pages/Music/GroupMusic"
 import BottomPlayer from "./Pages/Music/BottomPlayer"
+import { useProfileSuspenseQuery } from "./hooks/queries/useProfileQuery"
 
 const Header = lazy(() => import("./components/LandingPage/Header"))
 const Footer = lazy(() => import("./components/LandingPage/Footer"))
+
+const ProfileLoader = ({ children }) => {
+  useProfileSuspenseQuery()
+  return children
+}
 
 // Lazy-load components
 const Login = lazy(() => import("./components/Auth/Login"))
@@ -118,7 +124,9 @@ export const ProtectedRoutes = () => {
       >
         <div className="mt-[60px] h-[calc(100vh-60px)]">
           <Suspense fallback={<Fallback />}>
-            <Outlet />
+            <ProfileLoader>
+              <Outlet />
+            </ProfileLoader>
           </Suspense>
         </div>
       </main>

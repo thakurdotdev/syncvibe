@@ -1,21 +1,16 @@
-import { createContext, useEffect, useState } from "react"
-import axios from "axios"
-import { useContext } from "react"
-import { useMemo } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { createContext, useContext, useEffect, useMemo, useState } from "react"
+import { profileKeys } from "@/api/auth/profile"
+import { useProfileQuery } from "@/hooks/queries/useProfileQuery"
 
 export const Context = createContext()
 
 export const useProfile = () => useContext(Context)
 
 export const ContextProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const { data: user, isLoading: loading, refetch } = useProfileQuery()
   const [musicConfig, setMusicConfig] = useState({})
-
-  useEffect(() => {
-    if (user) return
-    getProfile()
-  }, [user])
 
   useEffect(() => {
     const dataFromStorage = localStorage.getItem("musicConfig")
@@ -24,19 +19,12 @@ export const ContextProvider = ({ children }) => {
     }
   }, [])
 
-  const getProfile = async () => {
-    try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/profile`, {
-        withCredentials: true,
-      })
-      if (response.status === 200) {
-        setUser(response.data.user)
-      }
-    } catch (error) {
-      console.error("Error fetching profile:", error.message)
-    } finally {
-      setLoading(false)
-    }
+  const setUser = (newUser) => {
+    queryClient.setQueryData(profileKeys.current(), newUser)
+  }
+
+  const getProfile = () => {
+    refetch()
   }
 
   const memoizedValue = useMemo(
