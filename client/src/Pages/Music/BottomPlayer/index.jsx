@@ -45,20 +45,20 @@ const BottomPlayer = () => {
     <>
       <Card
         className={cn(
-          "fixed bottom-0 left-0 w-full bg-background/80 backdrop-blur-md border-t z-50 transition-all duration-500",
-          isMinimized ? "translate-y-full opacity-0" : "translate-y-0 opacity-100",
+          "fixed bottom-0 left-0 w-full border-0 bg-background/95 backdrop-blur-md z-50 transition-all duration-300 ease-out",
+          isMinimized
+            ? "translate-y-full opacity-0 pointer-events-none"
+            : "translate-y-0 opacity-100",
         )}
       >
         <CardContent className="p-0">
-          <div className="absolute -top-1 left-0 w-full">
+          <div className="absolute top-0 left-0 right-0">
             <ProgressBarMusic />
           </div>
 
-          <div className="flex items-center justify-between p-4 pt-5">
+          <div className="flex items-center justify-between px-4 py-3 pt-4">
             <SongInfo currentSong={currentSong} onOpenSheet={() => setIsSheetOpen(true)} />
-
             <PlayerControls
-              isMinimized={isMinimized}
               onMinimize={() => setIsMinimized(true)}
               onOpenModal={() => setIsModalOpen(true)}
               isMobile={isMobile}

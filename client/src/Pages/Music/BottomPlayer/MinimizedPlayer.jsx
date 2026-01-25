@@ -2,30 +2,29 @@ import { memo, useEffect, useState } from "react"
 import { DndContext, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core"
 import DraggableButton from "./DraggableButton"
 
-const BUTTON_SIZE = 48
+const BUTTON_SIZE = 56
 
 const MinimizedPlayer = memo(({ isMinimized, onMaximize, currentSong, isMobile }) => {
   const [position, setPosition] = useState({
-    x: isMobile ? window.innerWidth - 100 : 23,
-    y: isMobile ? window.innerHeight - 150 : 752,
+    x: isMobile ? window.innerWidth - 180 : 23,
+    y: isMobile ? window.innerHeight - 100 : window.innerHeight - 120,
   })
   const [isDragging, setIsDragging] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250,
-        tolerance: 8,
+        delay: 150,
+        tolerance: 5,
       },
     }),
   )
 
-  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       setPosition((prevPos) => ({
@@ -43,7 +42,6 @@ const MinimizedPlayer = memo(({ isMinimized, onMaximize, currentSong, isMobile }
   }
 
   const handleDragEnd = (event) => {
-    setIsDragging(false)
     const { delta } = event
 
     if (delta) {
@@ -52,6 +50,8 @@ const MinimizedPlayer = memo(({ isMinimized, onMaximize, currentSong, isMobile }
         y: Math.min(Math.max(0, prev.y + delta.y), window.innerHeight - BUTTON_SIZE),
       }))
     }
+
+    setIsDragging(false)
   }
 
   if (!isMinimized) return null

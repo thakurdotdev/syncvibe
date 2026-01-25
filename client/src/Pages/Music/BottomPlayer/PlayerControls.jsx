@@ -1,13 +1,13 @@
+import { motion } from "framer-motion"
+import { ChevronDown, ListMusic } from "lucide-react"
 import { memo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { ListMusic, Minimize2 } from "lucide-react"
-import { usePlayerStore } from "@/stores/playerStore"
 import { cn } from "@/lib/utils"
+import { usePlayerStore } from "@/stores/playerStore"
 import { MusicControls, VolumeControl } from "../Common"
 import SleepTimerModal from "../SleepTimer"
 
-const PlayerControls = memo(({ isMinimized, onMinimize, onOpenModal, isMobile }) => {
-  // Individual selectors - actions are stable references
+const PlayerControls = memo(({ onMinimize, onOpenModal }) => {
   const handlePlayPause = usePlayerStore((s) => s.handlePlayPause)
   const handleNextSong = usePlayerStore((s) => s.handleNextSong)
   const handlePrevSong = usePlayerStore((s) => s.handlePrevSong)
@@ -31,37 +31,39 @@ const PlayerControls = memo(({ isMinimized, onMinimize, onOpenModal, isMobile })
   }, [handlePlayPause, handleNextSong, handlePrevSong])
 
   return (
-    <div className="flex items-center gap-2">
-      <Button
-        variant="ghost"
-        size="icon"
-        className={cn(
-          "h-12 w-12 rounded-full shadow-lg",
-          "transition-all duration-500 hover:scale-105",
-          isMinimized
-            ? "opacity-0 pointer-events-none -translate-y-10"
-            : "opacity-100 translate-y-0",
-        )}
-        onClick={onMinimize}
-      >
-        <Minimize2 size={20} />
-      </Button>
-
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={(e) => {
-          e.stopPropagation()
-          onOpenModal()
-        }}
-        className="hidden sm:flex hover:scale-105"
-      >
-        <ListMusic size={18} />
-      </Button>
-
-      <VolumeControl />
-      {!isMobile && <SleepTimerModal />}
+    <div className="flex items-center gap-1 sm:gap-2">
       <MusicControls />
+
+      <div className="hidden sm:flex items-center gap-1">
+        <VolumeControl showVolume={true} />
+      </div>
+
+      <SleepTimerModal />
+
+      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => {
+            e.stopPropagation()
+            onOpenModal()
+          }}
+          className="hidden sm:flex h-9 w-9 hover:bg-white/10 text-white/70 hover:text-white"
+        >
+          <ListMusic size={18} />
+        </Button>
+      </motion.div>
+
+      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn("h-9 w-9 hover:bg-white/10 text-white/70 hover:text-white")}
+          onClick={onMinimize}
+        >
+          <ChevronDown size={18} />
+        </Button>
+      </motion.div>
     </div>
   )
 })

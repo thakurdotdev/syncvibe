@@ -1,4 +1,5 @@
-import { usePlayerStore } from "@/stores/playerStore"
+import { Clock, Music, Timer, X } from "lucide-react"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,8 +13,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Slider } from "@/components/ui/slider"
-import { Clock, Music, Timer, X } from "lucide-react"
-import { useState } from "react"
+import { usePlayerStore } from "@/stores/playerStore"
 
 const SleepTimerModal = () => {
   // Individual selectors for sleep timer state
@@ -44,9 +44,9 @@ const SleepTimerModal = () => {
     <Dialog>
       <DialogTrigger asChild>
         <Button
-          variant={isActive ? "secondary" : "ghost"}
+          variant="ghost"
           size="icon"
-          className="hover:scale-105 relative"
+          className="hover:scale-105 relative transition-all"
           type="button"
           onClick={(e) => e.stopPropagation()}
         >
