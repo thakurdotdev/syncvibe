@@ -43,9 +43,9 @@ const SongInfo = memo(({ currentSong, onOpenSheet }) => {
 
       <div className="flex flex-col min-w-0 flex-1 max-w-[140px] sm:max-w-[200px]">
         <div className="overflow-hidden">
-          <p className="text-sm font-semibold text-white truncate">{decodedName}</p>
+          <p className="text-sm font-semibold truncate">{decodedName}</p>
         </div>
-        <p className="text-xs text-white/50 truncate">{decodedArtist}</p>
+        <p className="text-xs truncate text-muted-foreground">{decodedArtist}</p>
       </div>
     </button>
   )

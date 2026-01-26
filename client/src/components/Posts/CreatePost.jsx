@@ -1,16 +1,3 @@
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { cn } from "@/lib/utils"
-import { getProfileCloudinaryUrl } from "@/Utils/Cloudinary"
-import { uploadMultipleToCloudinary } from "@/Utils/cloudinaryUpload"
-import axios from "axios"
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,6 +9,19 @@ import {
 } from "lucide-react"
 import { useContext, useRef, useState } from "react"
 import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogTrigger,
+} from "@/components/ui/revola"
+import { Textarea } from "@/components/ui/textarea"
+import { useCreatePostMutation } from "@/hooks/mutations/usePostMutations"
+import { cn } from "@/lib/utils"
+import { getProfileCloudinaryUrl } from "@/Utils/Cloudinary"
+import { uploadMultipleToCloudinary } from "@/Utils/cloudinaryUpload"
 import { Context } from "../../Context/Context"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import { Progress } from "../ui/progress"
@@ -31,7 +31,7 @@ const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp
 const MAX_CONTENT_LENGTH = 500
 const MAX_IMAGES = 4
 
-const CreatePost = ({ openModal, setPosts }) => {
+const CreatePost = ({ openModal }) => {
   const { user } = useContext(Context)
   const [open, setOpen] = useState(openModal || false)
   const [content, setContent] = useState("")
@@ -42,6 +42,8 @@ const CreatePost = ({ openModal, setPosts }) => {
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef(null)
   const dialogRef = useRef(null)
+
+  const createMutation = useCreatePostMutation()
 
   const resetState = () => {
     setContent("")
@@ -150,23 +152,19 @@ const CreatePost = ({ openModal, setPosts }) => {
         }
       }
 
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/create`,
+      createMutation.mutate(
+        { title: content, images: uploadedImages },
         {
-          title: content,
-          images: uploadedImages,
-        },
-        {
-          withCredentials: true,
-          headers: { "Content-Type": "application/json" },
+          onSuccess: () => {
+            setOpen(false)
+            resetState()
+            toast.success("Post created successfully")
+          },
+          onError: (err) => {
+            toast.error(err.response?.data?.message || "Failed to create post")
+          },
         },
       )
-
-      if (response.status === 200) {
-        setOpen(false)
-        resetState()
-        toast.success("Post created successfully")
-      }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to create post")
     } finally {
@@ -176,7 +174,7 @@ const CreatePost = ({ openModal, setPosts }) => {
   }
 
   return (
-    <Dialog
+    <ResponsiveDialog
       open={open}
       onOpenChange={(newOpen) => {
         if (!newOpen) {
@@ -185,7 +183,7 @@ const CreatePost = ({ openModal, setPosts }) => {
         setOpen(newOpen)
       }}
     >
-      <DialogTrigger asChild>
+      <ResponsiveDialogTrigger asChild>
         <Button
           variant="secondary"
           className="h-10 max-md:w-10 flex items-center gap-2 rounded-full"
@@ -194,27 +192,31 @@ const CreatePost = ({ openModal, setPosts }) => {
           <PlusIcon />
           <span className="hidden md:block">Create</span>
         </Button>
-      </DialogTrigger>
+      </ResponsiveDialogTrigger>
 
-      <DialogContent
+      <ResponsiveDialogContent
         ref={dialogRef}
-        className={cn("sm:max-w-[600px] p-0", isDragging && "ring-2 ring-blue-500 ring-inset")}
+        className={cn(
+          "sm:max-w-[600px] p-0 flex flex-col max-sm:h-auto max-sm:max-h-[90%]",
+          isDragging && "ring-2 ring-blue-500 ring-inset",
+        )}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
+        showCloseButton={false}
       >
-        <DialogHeader className="p-4 border-b dark:border-gray-700">
-          <DialogTitle className="flex items-center space-x-2">
+        <ResponsiveDialogHeader className="px-4 pt-4 sm:px-6 sm:pt-6 border-b dark:border-gray-700 pb-4 flex-shrink-0">
+          <ResponsiveDialogTitle className="flex items-center space-x-2">
             <Avatar className="h-8 w-8">
               <AvatarImage src={getProfileCloudinaryUrl(user?.profilepic)} />
               <AvatarFallback>{user?.name?.[0]}</AvatarFallback>
             </Avatar>
             <span className="ml-2 font-semibold">Create Post</span>
-          </DialogTitle>
-        </DialogHeader>
+          </ResponsiveDialogTitle>
+        </ResponsiveDialogHeader>
 
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4 overflow-y-auto flex-1">
           <Textarea
             placeholder="What's on your mind?"
             value={content}
@@ -338,7 +340,7 @@ const CreatePost = ({ openModal, setPosts }) => {
               disabled={loading || (!content.trim() && images.length === 0)}
               className="min-w-[100px]"
             >
-              {loading ? (
+              {loading || createMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   {uploadProgress > 0 ? "Uploading..." : "Posting..."}
@@ -358,8 +360,8 @@ const CreatePost = ({ openModal, setPosts }) => {
           multiple
           className="hidden"
         />
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }
 

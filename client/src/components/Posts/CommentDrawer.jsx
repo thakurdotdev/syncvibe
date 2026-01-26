@@ -1,21 +1,22 @@
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer"
-import { getProfileCloudinaryUrl } from "@/Utils/Cloudinary"
-import { TimeAgo } from "@/Utils/TimeAgo"
-import axios from "axios"
 import { ChevronDown, ChevronUp, Loader2, Send, X } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
+import {
+  ResponsiveDialog,
+  ResponsiveDialogClose,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from "@/components/ui/revola"
+import { useAddCommentMutation } from "@/hooks/mutations/usePostMutations"
+import { useCommentsQuery } from "@/hooks/queries/usePostQueries"
+import { getProfileCloudinaryUrl } from "@/Utils/Cloudinary"
+import { TimeAgo } from "@/Utils/TimeAgo"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
-import { ScrollArea } from "../ui/scroll-area"
-import { Input } from "../ui/input"
 import { Button } from "../ui/button"
+import { Input } from "../ui/input"
+import { ScrollArea } from "../ui/scroll-area"
 
 const Comment = ({ comment, comments, onReply, replyingTo }) => {
   const navigate = useNavigate()
@@ -140,67 +141,35 @@ const Comment = ({ comment, comments, onReply, replyingTo }) => {
   )
 }
 
-const CommentDrawer = ({ postid, isOpen, onClose, setPosts }) => {
-  const [comments, setComments] = useState([])
-  const [loading, setLoading] = useState(true)
+const CommentDrawer = ({ postid, isOpen, onClose }) => {
   const [commentText, setCommentText] = useState("")
   const [replyingTo, setReplyingTo] = useState(null)
   const [replyingToUsername, setReplyingToUsername] = useState("")
 
-  const getComments = async () => {
-    try {
-      setLoading(true)
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/get/comment/${postid}`,
-        { withCredentials: true },
-      )
-      if (response.status === 200) {
-        setComments(response.data.comments)
-      }
-    } catch (error) {
-      console.error(error)
-      toast.error("Failed to load comments")
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { data: commentsData, isLoading: loading } = useCommentsQuery(postid, {
+    enabled: isOpen && !!postid,
+  })
+  const comments = commentsData?.comments ?? []
 
-  const handleCommentSubmit = async (e) => {
+  const addCommentMutation = useAddCommentMutation()
+
+  const handleCommentSubmit = (e) => {
     e.preventDefault()
     if (!commentText.trim()) return
-
-    try {
-      setLoading(true)
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/post/comment`,
-        {
-          comment: commentText,
-          postid,
-          parentCommentId: replyingTo,
+    addCommentMutation.mutate(
+      { comment: commentText, postid, parentCommentId: replyingTo },
+      {
+        onSuccess: () => {
+          toast.success(replyingTo ? "Reply Added" : "Comment Added")
+          setCommentText("")
+          setReplyingTo(null)
+          setReplyingToUsername("")
         },
-        { withCredentials: true },
-      )
-
-      if (response.status === 200) {
-        await getComments()
-        toast.success(replyingTo ? "Reply Added" : "Comment Added")
-        setCommentText("")
-        setReplyingTo(null)
-        setReplyingToUsername("")
-        setPosts((prevPosts) =>
-          prevPosts.map((post) =>
-            post.postid === postid
-              ? { ...post, commentsCount: Number(post.commentsCount) + 1 }
-              : post,
-          ),
-        )
-      }
-    } catch (error) {
-      console.error("Error posting comment:", error)
-      toast.error("Failed to post comment")
-    } finally {
-      setLoading(false)
-    }
+        onError: () => {
+          toast.error("Failed to post comment")
+        },
+      },
+    )
   }
 
   const handleReply = (commentId, username) => {
@@ -210,25 +179,19 @@ const CommentDrawer = ({ postid, isOpen, onClose, setPosts }) => {
     document.getElementById("comment-input").focus()
   }
 
-  useEffect(() => {
-    if (isOpen) {
-      getComments()
-    }
-  }, [isOpen, postid])
-
   const parentComments = comments.filter((comment) => !comment.parentCommentId)
 
   return (
-    <Drawer open={isOpen} onOpenChange={onClose}>
-      <DrawerContent className="h-[85vh] sm:h-[90vh] flex flex-col">
-        <DrawerHeader className="border-b border-gray-100 dark:border-gray-800 px-4 py-3 flex-shrink-0">
-          <DrawerTitle className="text-lg font-semibold">Comments</DrawerTitle>
-          <DrawerClose className="absolute right-3 top-3">
+    <ResponsiveDialog open={isOpen} onOpenChange={onClose}>
+      <ResponsiveDialogContent className="max-sm:max-h-[85%] sm:max-h-[90vh] sm:max-w-lg p-0 flex flex-col">
+        <ResponsiveDialogHeader className="border-b border-gray-100 dark:border-gray-800 px-4 py-3 flex-shrink-0">
+          <ResponsiveDialogTitle className="text-lg font-semibold">Comments</ResponsiveDialogTitle>
+          <ResponsiveDialogClose className="absolute right-3 top-3">
             <button className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
               <X className="w-5 h-5" />
             </button>
-          </DrawerClose>
-        </DrawerHeader>
+          </ResponsiveDialogClose>
+        </ResponsiveDialogHeader>
 
         <ScrollArea className="flex-1 overflow-y-auto">
           {loading ? (
@@ -293,8 +256,8 @@ const CommentDrawer = ({ postid, isOpen, onClose, setPosts }) => {
             </Button>
           </form>
         </div>
-      </DrawerContent>
-    </Drawer>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }
 

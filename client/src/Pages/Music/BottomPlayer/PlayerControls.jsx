@@ -48,19 +48,14 @@ const PlayerControls = memo(({ onMinimize, onOpenModal }) => {
             e.stopPropagation()
             onOpenModal()
           }}
-          className="hidden sm:flex h-9 w-9 hover:bg-white/10 text-white/70 hover:text-white"
+          className="hidden sm:flex h-9 w-9"
         >
           <ListMusic size={18} />
         </Button>
       </motion.div>
 
       <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn("h-9 w-9 hover:bg-white/10 text-white/70 hover:text-white")}
-          onClick={onMinimize}
-        >
+        <Button variant="ghost" size="icon" className={cn("h-9 w-9 ")} onClick={onMinimize}>
           <ChevronDown size={18} />
         </Button>
       </motion.div>

@@ -1,15 +1,15 @@
-import { Context } from "@/Context/Context"
-import { getProfileCloudinaryUrl } from "@/Utils/Cloudinary"
-import { uploadToCloudinary } from "@/Utils/cloudinaryUpload"
-import { popularSongs } from "@/Utils/constant"
 import axios from "axios"
 import { Loader2, Upload, X } from "lucide-react"
 import { useCallback, useContext, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { Context } from "@/Context/Context"
+import { getProfileCloudinaryUrl } from "@/Utils/Cloudinary"
+import { uploadToCloudinary } from "@/Utils/cloudinaryUpload"
+import { popularSongs } from "@/Utils/constant"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 import { Button } from "../ui/button"
 import { Card, CardContent } from "../ui/card"
-import { Dialog, DialogContent, DialogTitle } from "../ui/dialog"
+import { ResponsiveDialog, ResponsiveDialogContent, ResponsiveDialogTitle } from "../ui/revola"
 import { Input } from "../ui/input"
 import { Progress } from "../ui/progress"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../ui/sheet"
@@ -146,17 +146,19 @@ const CreateStory = ({ onClose, isOpen, onSuccess }) => {
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent
-        closeButton={false}
-        className="p-0 max-w-xl h-[90vh] flex flex-col rounded-xl overflow-hidden"
+    <ResponsiveDialog open={isOpen} onOpenChange={handleClose}>
+      <ResponsiveDialogContent
+        showCloseButton={false}
+        className="p-0 sm:max-w-xl max-sm:h-auto max-sm:max-h-[90%] flex flex-col rounded-xl overflow-hidden"
       >
-        <div className="flex items-center justify-between p-4 border-b ">
+        <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
           <Avatar className="h-10 w-10">
             <AvatarImage src={getProfileCloudinaryUrl(user?.profilepic)} />
             <AvatarFallback>{user?.name?.[0]}</AvatarFallback>
           </Avatar>
-          <DialogTitle className="text-xl font-semibold text-white">Create Story</DialogTitle>
+          <ResponsiveDialogTitle className="text-xl font-semibold">
+            Create Story
+          </ResponsiveDialogTitle>
           <div className="flex items-center space-x-2">
             <Button
               variant="ghost"
@@ -254,8 +256,8 @@ const CreateStory = ({ onClose, isOpen, onSuccess }) => {
             </div>
           </SheetContent>
         </Sheet>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }
 

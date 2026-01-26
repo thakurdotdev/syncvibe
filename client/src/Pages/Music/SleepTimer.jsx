@@ -4,19 +4,18 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogTrigger,
+} from "@/components/ui/revola"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Slider } from "@/components/ui/slider"
 import { usePlayerStore } from "@/stores/playerStore"
 
 const SleepTimerModal = () => {
-  // Individual selectors for sleep timer state
   const sleepTimer = usePlayerStore((s) => s.sleepTimer)
   const setSleepTimer = usePlayerStore((s) => s.setSleepTimer)
   const clearSleepTimer = usePlayerStore((s) => s.clearSleepTimer)
@@ -41,8 +40,8 @@ const SleepTimerModal = () => {
   }
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
+    <ResponsiveDialog>
+      <ResponsiveDialogTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
@@ -55,17 +54,17 @@ const SleepTimerModal = () => {
             <span className="absolute -top-1 -right-1 h-2 w-2 bg-destructive rounded-full animate-pulse" />
           )}
         </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      </ResponsiveDialogTrigger>
+      <ResponsiveDialogContent className="sm:max-w-[500px] p-0">
+        <ResponsiveDialogHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+          <ResponsiveDialogTitle className="flex items-center gap-2">
             <Clock size={24} />
             Sleep Timer
-          </DialogTitle>
-        </DialogHeader>
+          </ResponsiveDialogTitle>
+        </ResponsiveDialogHeader>
 
-        <Card className="w-full">
-          <CardContent className="p-6 space-y-4">
+        <Card className="w-full border-0 shadow-none">
+          <CardContent className="p-4 sm:p-6 space-y-4">
             <RadioGroup
               defaultValue={timerType}
               onValueChange={setTimerType}
@@ -143,7 +142,8 @@ const SleepTimerModal = () => {
                   </Badge>
                 </div>
                 <Button variant="destructive" size="sm" onClick={clearSleepTimer} className="gap-2">
-                  <X size={16} /> Cancel
+                  <X size={16} />
+                  Cancel
                 </Button>
               </div>
             )}
@@ -158,8 +158,8 @@ const SleepTimerModal = () => {
             </Button>
           </CardContent>
         </Card>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }
 

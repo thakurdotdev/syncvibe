@@ -86,10 +86,7 @@ export const MusicControls = memo(({ size = "default" }) => {
           variant="ghost"
           size="icon"
           onClick={handlePrevSong}
-          className={cn(
-            "text-white/70 hover:text-white hover:bg-white/10",
-            isLarge ? "h-12 w-12" : "h-9 w-9",
-          )}
+          className={cn("", isLarge ? "h-12 w-12" : "h-9 w-9")}
         >
           <SkipBack className={isLarge ? "h-5 w-5" : "h-4 w-4"} fill="currentColor" />
         </Button>
@@ -117,10 +114,7 @@ export const MusicControls = memo(({ size = "default" }) => {
           variant="ghost"
           size="icon"
           onClick={handleNextSong}
-          className={cn(
-            "text-white/70 hover:text-white hover:bg-white/10",
-            isLarge ? "h-12 w-12" : "h-9 w-9",
-          )}
+          className={cn("", isLarge ? "h-12 w-12" : "h-9 w-9")}
         >
           <SkipForward className={isLarge ? "h-5 w-5" : "h-4 w-4"} fill="currentColor" />
         </Button>
@@ -151,12 +145,7 @@ export const VolumeControl = memo(({ showVolume = false }) => {
   return (
     <div className="flex items-center gap-2 group">
       <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 text-white/70 hover:text-white hover:bg-white/10"
-          onClick={toggleMute}
-        >
+        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggleMute}>
           {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
         </Button>
       </motion.div>

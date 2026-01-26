@@ -1,6 +1,11 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from "@/components/ui/revola"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -73,13 +78,13 @@ const AddToPlaylist = ({ dialogOpen, setDialogOpen, song }) => {
 
   return (
     <>
-      <Drawer open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DrawerContent className="max-h-[90vh]">
-          <DrawerHeader className="space-y-4">
-            <DrawerTitle className="flex items-center gap-2 text-xl">
+      <ResponsiveDialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <ResponsiveDialogContent className="sm:max-w-md p-0">
+          <ResponsiveDialogHeader className="space-y-4 px-4 pt-4 sm:px-6 sm:pt-6">
+            <ResponsiveDialogTitle className="flex items-center gap-2 text-xl">
               <ListMusic className="w-5 h-5" />
               Add to Playlist
-            </DrawerTitle>
+            </ResponsiveDialogTitle>
 
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -100,9 +105,9 @@ const AddToPlaylist = ({ dialogOpen, setDialogOpen, song }) => {
                 </Button>
               )}
             </div>
-          </DrawerHeader>
+          </ResponsiveDialogHeader>
 
-          <div className="space-y-4 py-2 px-4 pb-6">
+          <div className="space-y-4 py-2 px-4 pb-6 sm:px-6">
             <Button
               variant="outline"
               className="w-full flex items-center gap-2 h-10 text-base hover:bg-primary hover:text-primary-foreground transition-all duration-200"
@@ -177,15 +182,15 @@ const AddToPlaylist = ({ dialogOpen, setDialogOpen, song }) => {
               )}
             </ScrollArea>
           </div>
-        </DrawerContent>
-      </Drawer>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
-      <Drawer open={newPlaylistDialog} onOpenChange={setNewPlaylistDialog}>
-        <DrawerContent className="max-h-[60vh]">
-          <DrawerHeader>
-            <DrawerTitle className="text-xl">Create New Playlist</DrawerTitle>
-          </DrawerHeader>
-          <form onSubmit={handleCreatePlaylist} className="space-y-4 px-4 pb-6">
+      <ResponsiveDialog open={newPlaylistDialog} onOpenChange={setNewPlaylistDialog}>
+        <ResponsiveDialogContent className="sm:max-w-md p-0">
+          <ResponsiveDialogHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
+            <ResponsiveDialogTitle className="text-xl">Create New Playlist</ResponsiveDialogTitle>
+          </ResponsiveDialogHeader>
+          <form onSubmit={handleCreatePlaylist} className="space-y-4 px-4 pb-6 sm:px-6">
             <div className="space-y-2">
               <Label htmlFor="playlistName">Playlist Name</Label>
               <Input
@@ -224,8 +229,8 @@ const AddToPlaylist = ({ dialogOpen, setDialogOpen, song }) => {
               </Button>
             </div>
           </form>
-        </DrawerContent>
-      </Drawer>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
     </>
   )
 }

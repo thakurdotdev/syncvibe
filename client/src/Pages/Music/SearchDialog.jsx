@@ -1,7 +1,7 @@
 import { Loader2, Search, X, XCircle } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { ResponsiveDialog, ResponsiveDialogContent } from "@/components/ui/revola"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useBackendSearchQuery } from "@/hooks/queries/useSongQueries"
@@ -28,12 +28,12 @@ const SearchDialog = ({ open, setOpen }) => {
   }, [setOpen])
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent
-        closeButton={false}
-        className="sm:max-w-6xl p-0 overflow-hidden max-sm:h-screen max-sm:w-full"
+    <ResponsiveDialog open={open} onOpenChange={handleClose}>
+      <ResponsiveDialogContent
+        showCloseButton={false}
+        className="sm:max-w-6xl p-0 overflow-hidden max-sm:max-h-[95%]"
       >
-        <div className="sticky max-sm:top-5 z-10 bg-background px-4 py-3 border-b flex justify-between h-20">
+        <div className="sticky max-sm:top-0 z-10 bg-background px-4 py-3 border-b flex justify-between h-20">
           <div className="relative flex items-center sm:w-[95%]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -63,7 +63,7 @@ const SearchDialog = ({ open, setOpen }) => {
           </Button>
         </div>
 
-        <ScrollArea className="sm:h-[70vh]">
+        <ScrollArea className="h-[60vh] sm:h-[70vh]">
           <div className="p-4">
             {isLoading ? (
               <div className="flex items-center justify-center h-40">
@@ -102,8 +102,8 @@ const SearchDialog = ({ open, setOpen }) => {
             )}
           </div>
         </ScrollArea>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }
 
