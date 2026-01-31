@@ -55,7 +55,7 @@ export function PlayerProvider({ children }) {
     }
 
     const handleEnded = () => {
-      handleNextSong()
+      handleNextSong(true)
     }
 
     audio.addEventListener("timeupdate", handleTimeUpdate)

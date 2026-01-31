@@ -1,9 +1,11 @@
 import axios from "axios"
-import { motion } from "framer-motion"
+import { AnimatePresence, motion } from "framer-motion"
 import {
   Loader2,
   Pause,
   Play,
+  Repeat,
+  Repeat1,
   Share2,
   Shuffle,
   SkipBack,
@@ -15,6 +17,7 @@ import { memo, useCallback, useState } from "react"
 import ShareDrawer from "@/components/Posts/ShareDrawer"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { usePlayerStore } from "@/stores/playerStore"
 
@@ -71,55 +74,180 @@ export const LoadingState = ({ message, height }) => (
   </div>
 )
 
-export const MusicControls = memo(({ size = "default" }) => {
+export const MusicControls = memo(({ size = "default", showExtras = true }) => {
   const handleNextSong = usePlayerStore((s) => s.handleNextSong)
   const handlePrevSong = usePlayerStore((s) => s.handlePrevSong)
   const handlePlayPause = usePlayerStore((s) => s.handlePlayPause)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
+  const shuffleMode = usePlayerStore((s) => s.shuffleMode)
+  const repeatMode = usePlayerStore((s) => s.repeatMode)
+  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle)
+  const toggleRepeat = usePlayerStore((s) => s.toggleRepeat)
 
   const isLarge = size === "large"
 
+  const RepeatIcon = repeatMode === "one" ? Repeat1 : Repeat
+
+  const repeatLabel = {
+    off: "Repeat: Off",
+    all: "Repeat: All",
+    one: "Repeat: One",
+  }
+
+  const buttonVariants = {
+    hover: { scale: 1.1 },
+    tap: { scale: 0.9 },
+  }
+
+  const playButtonVariants = {
+    hover: { scale: 1.05 },
+    tap: { scale: 0.95 },
+  }
+
   return (
-    <div className="flex items-center gap-1 sm:gap-2">
-      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handlePrevSong}
-          className={cn("", isLarge ? "h-12 w-12" : "h-9 w-9")}
-        >
-          <SkipBack className={isLarge ? "h-5 w-5" : "h-4 w-4"} fill="currentColor" />
-        </Button>
-      </motion.div>
+    <TooltipProvider delayDuration={300}>
+      <div className="flex items-center gap-1 sm:gap-2">
+        {showExtras && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <motion.div variants={buttonVariants} whileHover="hover" whileTap="tap">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleShuffle}
+                  className={cn(
+                    "relative transition-colors duration-200",
+                    isLarge ? "h-10 w-10" : "h-9 w-9",
+                    shuffleMode && "text-primary",
+                  )}
+                >
+                  <Shuffle className={isLarge ? "h-5 w-5" : "h-4 w-4"} />
+                  {shuffleMode && (
+                    <motion.span
+                      layoutId="shuffle-indicator"
+                      className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                    />
+                  )}
+                </Button>
+              </motion.div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {shuffleMode ? "Shuffle: On" : "Shuffle: Off"}
+            </TooltipContent>
+          </Tooltip>
+        )}
 
-      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-        <Button
-          size="icon"
-          onClick={handlePlayPause}
-          className={cn(
-            "bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25",
-            isLarge ? "h-14 w-14 rounded-full" : "h-10 w-10 rounded-full",
-          )}
-        >
-          {isPlaying ? (
-            <Pause className={isLarge ? "h-6 w-6" : "h-4 w-4"} fill="currentColor" />
-          ) : (
-            <Play className={cn(isLarge ? "h-6 w-6" : "h-4 w-4", "ml-0.5")} fill="currentColor" />
-          )}
-        </Button>
-      </motion.div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <motion.div variants={buttonVariants} whileHover="hover" whileTap="tap">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handlePrevSong}
+                className={cn("transition-colors duration-200", isLarge ? "h-12 w-12" : "h-9 w-9")}
+              >
+                <SkipBack className={isLarge ? "h-5 w-5" : "h-4 w-4"} fill="currentColor" />
+              </Button>
+            </motion.div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            Previous
+          </TooltipContent>
+        </Tooltip>
 
-      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleNextSong}
-          className={cn("", isLarge ? "h-12 w-12" : "h-9 w-9")}
-        >
-          <SkipForward className={isLarge ? "h-5 w-5" : "h-4 w-4"} fill="currentColor" />
-        </Button>
-      </motion.div>
-    </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <motion.div variants={playButtonVariants} whileHover="hover" whileTap="tap">
+              <Button
+                size="icon"
+                onClick={handlePlayPause}
+                className={cn(
+                  "bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-200",
+                  isLarge ? "h-14 w-14 rounded-full" : "h-10 w-10 rounded-full",
+                )}
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={isPlaying ? "pause" : "play"}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex items-center justify-center"
+                  >
+                    {isPlaying ? (
+                      <Pause className={isLarge ? "h-6 w-6" : "h-4 w-4"} fill="currentColor" />
+                    ) : (
+                      <Play
+                        className={cn(isLarge ? "h-6 w-6" : "h-4 w-4", "ml-0.5")}
+                        fill="currentColor"
+                      />
+                    )}
+                  </motion.span>
+                </AnimatePresence>
+              </Button>
+            </motion.div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            {isPlaying ? "Pause" : "Play"}
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <motion.div variants={buttonVariants} whileHover="hover" whileTap="tap">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleNextSong(false)}
+                className={cn("transition-colors duration-200", isLarge ? "h-12 w-12" : "h-9 w-9")}
+              >
+                <SkipForward className={isLarge ? "h-5 w-5" : "h-4 w-4"} fill="currentColor" />
+              </Button>
+            </motion.div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            Next
+          </TooltipContent>
+        </Tooltip>
+
+        {showExtras && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <motion.div variants={buttonVariants} whileHover="hover" whileTap="tap">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleRepeat}
+                  className={cn(
+                    "relative transition-colors duration-200",
+                    isLarge ? "h-10 w-10" : "h-9 w-9",
+                    repeatMode !== "off" && "text-primary",
+                  )}
+                >
+                  <RepeatIcon className={isLarge ? "h-5 w-5" : "h-4 w-4"} />
+                  {repeatMode !== "off" && (
+                    <motion.span
+                      layoutId="repeat-indicator"
+                      className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                    />
+                  )}
+                </Button>
+              </motion.div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {repeatLabel[repeatMode]}
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+    </TooltipProvider>
   )
 })
 
@@ -143,26 +271,51 @@ export const VolumeControl = memo(({ showVolume = false }) => {
   if (!showVolume) return null
 
   return (
-    <div className="flex items-center gap-2 group">
-      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggleMute}>
-          {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-        </Button>
-      </motion.div>
-      <div className="w-0 overflow-hidden group-hover:w-20 transition-all duration-300">
-        <Slider
-          value={[isMuted ? 0 : volume]}
-          min={0}
-          max={1}
-          step={0.01}
-          className="w-20 cursor-pointer [&_[role=slider]]:bg-primary [&_[role=slider]]:border-0"
-          onValueChange={([value]) => {
-            handleVolumeChange(value)
-            if (value > 0) setIsMuted(false)
-          }}
-        />
+    <TooltipProvider delayDuration={300}>
+      <div className="flex items-center gap-2 group">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 transition-colors duration-200"
+                onClick={toggleMute}
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={isMuted || volume === 0 ? "muted" : "unmuted"}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex items-center justify-center"
+                  >
+                    {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                  </motion.span>
+                </AnimatePresence>
+              </Button>
+            </motion.div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            {isMuted || volume === 0 ? "Unmute" : "Mute"}
+          </TooltipContent>
+        </Tooltip>
+        <div className="w-0 overflow-hidden group-hover:w-20 transition-all duration-300">
+          <Slider
+            value={[isMuted ? 0 : volume]}
+            min={0}
+            max={1}
+            step={0.01}
+            className="w-20 cursor-pointer [&_[role=slider]]:bg-primary [&_[role=slider]]:border-0"
+            onValueChange={([value]) => {
+              handleVolumeChange(value)
+              if (value > 0) setIsMuted(false)
+            }}
+          />
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   )
 })
 
@@ -182,9 +335,9 @@ export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
         className="h-1 cursor-pointer [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:opacity-0 hover:[&_[role=slider]]:opacity-100 [&_[role=slider]]:transition-opacity"
       />
       {isTimeVisible && (
-        <div className="flex justify-between px-1">
-          <p className="text-white/40 text-xs tabular-nums">{formatTime(currentTime)}</p>
-          <p className="text-white/40 text-xs tabular-nums">{formatTime(duration)}</p>
+        <div className="flex justify-between px-1 mt-2">
+          <p className="text-muted-foreground text-xs tabular-nums">{formatTime(currentTime)}</p>
+          <p className="text-muted-foreground text-xs tabular-nums">{formatTime(duration)}</p>
         </div>
       )}
     </div>

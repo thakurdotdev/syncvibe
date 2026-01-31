@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { usePlayerStore } from "@/stores/playerStore"
 import AddToPlaylist from "../AddToPlaylist"
 import { ProgressBarMusic } from "../Common"
+import FloatingVoiceControl from "./FloatingVoiceControl"
 import MinimizedPlayer from "./MinimizedPlayer"
 import PlayerControls from "./PlayerControls"
 import PlayerSheet from "./PlayerSheet"
@@ -15,6 +16,7 @@ const BottomPlayer = () => {
   const currentSong = usePlayerStore((s) => s.currentSong)
   const playlist = usePlayerStore((s) => s.playlist)
   const addToQueue = usePlayerStore((s) => s.addToQueue)
+  const autoFetchRecommendations = usePlayerStore((s) => s.autoFetchRecommendations)
 
   const isMobile = useIsMobile()
   const [isMinimized, setIsMinimized] = useState(false)
@@ -25,7 +27,10 @@ const BottomPlayer = () => {
   const currentIndex = playlist.findIndex((song) => song.id === currentSong?.id)
   const needsRecommendations = currentIndex === -1 || currentIndex >= playlist.length - 2
   const shouldFetch =
-    !!currentSong?.id && needsRecommendations && lastFetchedForId.current !== currentSong?.id
+    autoFetchRecommendations &&
+    !!currentSong?.id &&
+    needsRecommendations &&
+    lastFetchedForId.current !== currentSong?.id
 
   const { data: recommendations = [], isLoading: loading } = useSongRecommendationsQuery(
     currentSong?.id,
@@ -66,6 +71,8 @@ const BottomPlayer = () => {
           </div>
         </CardContent>
       </Card>
+
+      <FloatingVoiceControl />
 
       <MinimizedPlayer
         isMinimized={isMinimized}

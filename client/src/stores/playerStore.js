@@ -21,7 +21,11 @@ export const usePlayerStore = create(
       currentTime: 0,
       duration: 0,
       playlist: [],
+      originalPlaylist: [],
       userPlaylist: [],
+      shuffleMode: false,
+      repeatMode: "off",
+      autoFetchRecommendations: true,
       sleepTimer: {
         timeRemaining: 0,
         songsRemaining: 0,
@@ -89,27 +93,101 @@ export const usePlayerStore = create(
       },
 
       setVolume: (volume) => set({ volume: Math.min(Math.max(volume, 0), 1) }),
-      setPlaylist: (playlist) => set({ playlist }),
+      setPlaylist: (playlist) =>
+        set({ playlist, originalPlaylist: playlist, autoFetchRecommendations: true }),
 
       addToQueue: (songs) => {
-        const { playlist } = get()
+        const { playlist, originalPlaylist } = get()
         const newSongs = Array.isArray(songs) ? songs : [songs]
         const existingIds = new Set(playlist.map((song) => song.id))
         const uniqueNewSongs = newSongs.filter((song) => !existingIds.has(song.id))
         if (uniqueNewSongs.length > 0) {
-          set({ playlist: [...playlist, ...uniqueNewSongs] })
+          const newPlaylist = [...playlist, ...uniqueNewSongs]
+          const newOriginal = [...originalPlaylist, ...uniqueNewSongs]
+          set({ playlist: newPlaylist, originalPlaylist: newOriginal })
         }
       },
 
-      handleNextSong: () => {
-        const { currentSong, playlist, playSong } = get()
+      clearQueue: () => {
+        const { currentSong } = get()
+        if (currentSong) {
+          set({
+            playlist: [currentSong],
+            originalPlaylist: [currentSong],
+            autoFetchRecommendations: false,
+          })
+        } else {
+          set({ playlist: [], originalPlaylist: [], autoFetchRecommendations: false })
+        }
+      },
+
+      replaceQueue: (songs, keepCurrentSong = false) => {
+        const { currentSong } = get()
+        const newSongs = Array.isArray(songs) ? songs : [songs]
+        const secureSongs = newSongs.map(ensureHttpsForDownloadUrls)
+        if (keepCurrentSong && currentSong) {
+          const filtered = secureSongs.filter((s) => s.id !== currentSong.id)
+          const newQueue = [currentSong, ...filtered]
+          set({ playlist: newQueue, originalPlaylist: newQueue, autoFetchRecommendations: false })
+        } else {
+          set({
+            playlist: secureSongs,
+            originalPlaylist: secureSongs,
+            autoFetchRecommendations: false,
+          })
+        }
+      },
+
+      setAutoFetchRecommendations: (value) => set({ autoFetchRecommendations: value }),
+
+      toggleShuffle: () => {
+        const { shuffleMode, playlist, originalPlaylist, currentSong } = get()
+        if (!shuffleMode) {
+          const currentIndex = playlist.findIndex((s) => s.id === currentSong?.id)
+          const songsToShuffle = playlist.filter((_, i) => i !== currentIndex)
+          for (let i = songsToShuffle.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1))
+            ;[songsToShuffle[i], songsToShuffle[j]] = [songsToShuffle[j], songsToShuffle[i]]
+          }
+          const shuffled =
+            currentIndex !== -1 ? [playlist[currentIndex], ...songsToShuffle] : songsToShuffle
+          set({ shuffleMode: true, playlist: shuffled })
+        } else {
+          set({ shuffleMode: false, playlist: [...originalPlaylist] })
+        }
+      },
+
+      toggleRepeat: () => {
+        const { repeatMode } = get()
+        const modes = ["off", "all", "one"]
+        const nextIndex = (modes.indexOf(repeatMode) + 1) % modes.length
+        set({ repeatMode: modes[nextIndex] })
+      },
+
+      handleNextSong: (isAutoPlay = false) => {
+        const { currentSong, playlist, playSong, repeatMode } = get()
         if (!currentSong) return
         if (!playlist.length) {
           set({ playlist: [currentSong] })
           return
         }
+        if (isAutoPlay && repeatMode === "one") {
+          if (audioElement) {
+            audioElement.currentTime = 0
+            audioElement.play().catch(console.error)
+          }
+          return
+        }
         const currentIndex = playlist.findIndex((song) => song.id === currentSong.id)
         if (currentIndex !== -1) {
+          const isLastSong = currentIndex === playlist.length - 1
+          if (isLastSong && repeatMode === "off" && isAutoPlay) {
+            if (audioElement) {
+              audioElement.pause()
+            }
+            set({ isPlaying: false })
+            return
+          }
           const nextIndex = (currentIndex + 1) % playlist.length
           playSong(playlist[nextIndex])
         } else if (playlist.length > 0) {
@@ -118,8 +196,13 @@ export const usePlayerStore = create(
       },
 
       handlePrevSong: () => {
-        const { currentSong, playlist, playSong } = get()
+        const { currentSong, playlist, playSong, currentTime } = get()
         if (!playlist.length || !currentSong) return
+        if (currentTime > 3 && audioElement) {
+          audioElement.currentTime = 0
+          set({ currentTime: 0 })
+          return
+        }
         const currentIndex = playlist.findIndex((song) => song.id === currentSong.id)
         if (currentIndex !== -1) {
           const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length
@@ -128,9 +211,12 @@ export const usePlayerStore = create(
       },
 
       preloadNextTrack: () => {
-        const { playlist, currentSong } = get()
+        const { playlist, currentSong, repeatMode } = get()
         if (!playlist.length || !currentSong || !nextAudioElement) return
+        if (repeatMode === "one") return
         const currentIndex = playlist.findIndex((song) => song.id === currentSong.id)
+        const isLastSong = currentIndex === playlist.length - 1
+        if (isLastSong && repeatMode === "off") return
         const nextIndex = (currentIndex + 1) % playlist.length
         const nextSong = playlist[nextIndex]
         if (nextSong) {
@@ -273,8 +359,11 @@ export const usePlayerStore = create(
       partialize: (state) => ({
         currentSong: state.currentSong,
         playlist: state.playlist,
+        originalPlaylist: state.originalPlaylist,
         volume: state.volume,
         currentTime: state.currentTime,
+        shuffleMode: state.shuffleMode,
+        repeatMode: state.repeatMode,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
@@ -345,5 +434,9 @@ export const useCurrentSong = () => usePlayerStore((s) => s.currentSong)
 export const useIsPlaying = () => usePlayerStore((s) => s.isPlaying)
 export const usePlaylist = () => usePlayerStore((s) => s.playlist)
 export const useVolume = () => usePlayerStore((s) => s.volume)
+export const useShuffleMode = () =>
+  usePlayerStore((s) => ({ shuffleMode: s.shuffleMode, toggleShuffle: s.toggleShuffle }))
+export const useRepeatMode = () =>
+  usePlayerStore((s) => ({ repeatMode: s.repeatMode, toggleRepeat: s.toggleRepeat }))
 
 export { getAudioUrl }

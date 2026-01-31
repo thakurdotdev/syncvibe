@@ -7,7 +7,7 @@ import { usePlayerStore } from "@/stores/playerStore"
 import { MusicControls, VolumeControl } from "../Common"
 import SleepTimerModal from "../SleepTimer"
 
-const PlayerControls = memo(({ onMinimize, onOpenModal }) => {
+const PlayerControls = memo(({ onMinimize, onOpenModal, isMobile }) => {
   const handlePlayPause = usePlayerStore((s) => s.handlePlayPause)
   const handleNextSong = usePlayerStore((s) => s.handleNextSong)
   const handlePrevSong = usePlayerStore((s) => s.handlePrevSong)
@@ -32,7 +32,7 @@ const PlayerControls = memo(({ onMinimize, onOpenModal }) => {
 
   return (
     <div className="flex items-center gap-1 sm:gap-2">
-      <MusicControls />
+      <MusicControls showExtras={!isMobile} />
 
       <div className="hidden sm:flex items-center gap-1">
         <VolumeControl showVolume={true} />
