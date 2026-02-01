@@ -1,6 +1,7 @@
 const { Expo } = require("expo-server-sdk")
 const { getPushToken } = require("../controllers/auth/loginUser")
 const { setupGroupMusicHandlers, handleUserDisconnect } = require("./groupMusic")
+const { setSocketIO } = require("../utils/socketEmitter")
 
 const expo = new Expo()
 
@@ -39,11 +40,12 @@ async function sendPushNotification(recipientId, message, type = "message") {
 }
 
 const socketManager = (io) => {
-  // Track user connections and call states
   const userSockets = new Map()
   const onlineUsers = new Set()
   const activeVideoCalls = new Map()
   const callTimeouts = new Map()
+
+  setSocketIO(io, userSockets)
 
   const CALL_TIMEOUT = 30000 // 30 seconds timeout for unanswered calls
 
@@ -86,7 +88,6 @@ const socketManager = (io) => {
   io.on("connection", (socket) => {
     let userId
 
-    // Setup user connection
     socket.on("setup", (userData) => {
       try {
         userId = userData.userid

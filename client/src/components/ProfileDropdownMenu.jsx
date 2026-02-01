@@ -20,6 +20,7 @@ import { useContext } from "react"
 import { useNavigate } from "react-router-dom"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 import { cn } from "@/lib/utils"
+import { ReceiptIcon } from "lucide-react"
 
 const ProfileDropdownMenu = ({ fromSidebar = true }) => {
   const { user, setUser } = useContext(Context)
@@ -109,6 +110,16 @@ const ProfileDropdownMenu = ({ fromSidebar = true }) => {
           >
             {isDark ? <Sun /> : <Moon />}
             {isDark ? "Light" : "Dark"} mode
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            onClick={() => {
+              navigate("/payments/history")
+            }}
+            className="cursor-pointer"
+          >
+            <ReceiptIcon />
+            Payment History
           </DropdownMenuItem>
 
           <DropdownMenuItem

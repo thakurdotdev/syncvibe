@@ -1,4 +1,6 @@
 import {
+  Check,
+  Crown,
   History,
   Home,
   ListMusic,
@@ -21,6 +23,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { useEntitlementQuery } from "@/hooks/queries/useEntitlementQuery"
 import { cn } from "@/lib/utils"
 import LazyImage from "./LazyImage"
 import ProfileDropdownMenu from "./ProfileDropdownMenu"
@@ -41,6 +44,9 @@ export function AppSidebar() {
   const { isMobile, setOpenMobile } = useSidebar()
   const navigate = useNavigate()
   const location = useLocation()
+  const { data: entitlement } = useEntitlementQuery()
+
+  const isPro = entitlement?.plan?.code === "PRO"
 
   const handleNavigate = (path) => {
     navigate(path)
@@ -102,7 +108,28 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border/40 p-3">
+      <SidebarFooter className="border-t border-border/40 p-3 space-y-3">
+        {isPro ? (
+          <div className="w-full p-3 rounded-lg bg-gradient-to-r from-yellow-500/20 to-yellow-500/10">
+            <div className="flex items-center gap-2">
+              <Crown className="h-4 w-4 text-yellow-500" />
+              <span className="text-sm font-medium">PRO Member</span>
+              <Check className="h-4 w-4 text-green-500 ml-auto" />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">All features unlocked</p>
+          </div>
+        ) : (
+          <button
+            onClick={() => handleNavigate("/plans")}
+            className="w-full p-3 rounded-lg bg-gradient-to-r from-primary/20 to-primary/10 hover:from-primary/30 hover:to-primary/20 transition-all duration-200 group"
+          >
+            <div className="flex items-center gap-2">
+              <Crown className="h-4 w-4 text-yellow-500" />
+              <span className="text-sm font-medium">Upgrade to PRO</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 text-left">Unlock all features</p>
+          </button>
+        )}
         <ProfileDropdownMenu />
       </SidebarFooter>
     </Sidebar>
