@@ -71,8 +71,7 @@ const BottomPlayer = () => {
           </div>
         </CardContent>
       </Card>
-
-      <FloatingVoiceControl />
+      {!isSheetOpen && <FloatingVoiceControl />}
 
       <MinimizedPlayer
         isMinimized={isMinimized}

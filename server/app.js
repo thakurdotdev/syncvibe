@@ -14,6 +14,8 @@ const chatRoutes = require("./routes/chatRoutes")
 const storyRoutes = require("./routes/storyRoutes")
 const musicRoutes = require("./routes/musicRoutes")
 const uploadRoutes = require("./routes/uploadRoutes")
+const webhookRoutes = require("./routes/webhookRoutes")
+const paymentRoutes = require("./routes/paymentRoutes")
 
 require("./passport")
 
@@ -46,6 +48,8 @@ app.use(cookieParser())
 app.use(compression())
 app.use(hpp())
 
+app.use("/api", webhookRoutes)
+
 app.use(
   express.json({
     limit: "2mb",
@@ -73,7 +77,16 @@ app.use(passport.initialize())
 
 app.get("/health", (_, res) => res.json({ status: "ok" }))
 
-app.use("/api", userRouter, postRouter, chatRoutes, storyRoutes, musicRoutes, uploadRoutes)
+app.use(
+  "/api",
+  userRouter,
+  postRouter,
+  chatRoutes,
+  storyRoutes,
+  musicRoutes,
+  uploadRoutes,
+  paymentRoutes,
+)
 
 app.use((err, req, res, next) => {
   if (req.timedout) {
