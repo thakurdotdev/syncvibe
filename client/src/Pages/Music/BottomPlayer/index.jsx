@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils"
 import { usePlayerStore } from "@/stores/playerStore"
 import AddToPlaylist from "../AddToPlaylist"
 import { ProgressBarMusic } from "../Common"
-import FloatingVoiceControl from "./FloatingVoiceControl"
 import MinimizedPlayer from "./MinimizedPlayer"
 import PlayerControls from "./PlayerControls"
 import PlayerSheet from "./PlayerSheet"
@@ -71,7 +70,6 @@ const BottomPlayer = () => {
           </div>
         </CardContent>
       </Card>
-      {!isSheetOpen && <FloatingVoiceControl />}
 
       <MinimizedPlayer
         isMinimized={isMinimized}

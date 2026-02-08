@@ -57,10 +57,19 @@ function shuffleArray(array) {
   return shuffled
 }
 
-async function fetchWithRetry(url, retries = 2) {
+function addCacheBuster(url) {
+  const separator = url.includes("?") ? "&" : "?"
+  return `${url}${separator}_t=${Date.now()}`
+}
+
+async function fetchWithRetry(url, retries = 2, bypassCache = false) {
+  const finalUrl = bypassCache ? addCacheBuster(url) : url
   for (let i = 0; i <= retries; i++) {
     try {
-      const response = await fetch(url)
+      const headers = bypassCache
+        ? { "Cache-Control": "no-cache, no-store", Pragma: "no-cache" }
+        : {}
+      const response = await fetch(finalUrl, { headers })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       return await response.json()
     } catch (err) {
@@ -70,52 +79,52 @@ async function fetchWithRetry(url, retries = 2) {
   }
 }
 
-async function fetchModulesData(lang = "hindi") {
+async function fetchModulesData(lang = "hindi", bypassCache = false) {
   const url = `${SONG_API_URL}/modules?lang=${lang}&mini=true`
-  console.log(`[MusicSync] Fetching modules: ${url}`)
-  const response = await fetchWithRetry(url)
+  console.log(`[MusicSync] Fetching modules: ${url}${bypassCache ? " (bypassing cache)" : ""}`)
+  const response = await fetchWithRetry(url, 2, bypassCache)
   return response?.data || {}
 }
 
-async function fetchTrending(lang = "hindi") {
+async function fetchTrending(lang = "hindi", bypassCache = false) {
   const url = `${SONG_API_URL}/get/trending?lang=${lang}`
   console.log(`[MusicSync] Fetching trending`)
-  const response = await fetchWithRetry(url)
+  const response = await fetchWithRetry(url, 2, bypassCache)
   return response?.data || []
 }
 
-async function fetchCharts(lang = "hindi") {
+async function fetchCharts(lang = "hindi", bypassCache = false) {
   const url = `${SONG_API_URL}/get/charts?lang=${lang}`
   console.log(`[MusicSync] Fetching charts`)
-  const response = await fetchWithRetry(url)
+  const response = await fetchWithRetry(url, 2, bypassCache)
   return response?.data || []
 }
 
-async function fetchTopAlbums(lang = "hindi") {
+async function fetchTopAlbums(lang = "hindi", bypassCache = false) {
   const url = `${SONG_API_URL}/get/top-albums?lang=${lang}`
   console.log(`[MusicSync] Fetching top albums`)
-  const response = await fetchWithRetry(url)
+  const response = await fetchWithRetry(url, 2, bypassCache)
   return response?.data || []
 }
 
-async function fetchFeaturedPlaylists(lang = "hindi") {
+async function fetchFeaturedPlaylists(lang = "hindi", bypassCache = false) {
   const url = `${SONG_API_URL}/get/featured-playlists?lang=${lang}`
   console.log(`[MusicSync] Fetching featured playlists`)
-  const response = await fetchWithRetry(url)
+  const response = await fetchWithRetry(url, 2, bypassCache)
   return response?.data || []
 }
 
-async function fetchAlbumSongs(albumId) {
+async function fetchAlbumSongs(albumId, bypassCache = false) {
   const url = `${SONG_API_URL}/album?id=${albumId}`
   console.log(`[MusicSync] Fetching album: ${albumId}`)
-  const response = await fetchWithRetry(url)
+  const response = await fetchWithRetry(url, 2, bypassCache)
   return response?.data?.songs || []
 }
 
-async function fetchPlaylistSongs(playlistId) {
+async function fetchPlaylistSongs(playlistId, bypassCache = false) {
   const url = `${SONG_API_URL}/playlist?id=${playlistId}`
   console.log(`[MusicSync] Fetching playlist: ${playlistId}`)
-  const response = await fetchWithRetry(url)
+  const response = await fetchWithRetry(url, 2, bypassCache)
   return response?.data?.songs || []
 }
 
@@ -307,7 +316,7 @@ async function processSongsForDb(songs, stats) {
   return songsToAdd.length
 }
 
-async function syncModulesData(languages = ["hindi"]) {
+async function syncModulesData(languages = ["hindi"], bypassCache = false) {
   const startTime = Date.now()
   const stats = {
     songsAdded: 0,
@@ -319,11 +328,13 @@ async function syncModulesData(languages = ["hindi"]) {
     apiCalls: 0,
   }
 
-  console.log(`[MusicSync] Starting modules sync for languages: ${languages.join(", ")}`)
+  console.log(
+    `[MusicSync] Starting modules sync for languages: ${languages.join(", ")}${bypassCache ? " (bypassing cache)" : ""}`,
+  )
 
   for (const lang of languages) {
     try {
-      const modulesData = await fetchModulesData(lang)
+      const modulesData = await fetchModulesData(lang, bypassCache)
       stats.apiCalls++
 
       const { songs: inlineSongs, albumIds, playlistIds } = extractSongsFromModules(modulesData)
@@ -559,6 +570,120 @@ async function syncTopAlbums(languages = ["hindi"], limit = 5) {
   return { ...stats, durationSeconds: parseFloat(duration), type: "top-albums" }
 }
 
+async function syncByPlaylistIds(playlistIds, bypassCache = false) {
+  const startTime = Date.now()
+  const stats = {
+    songsAdded: 0,
+    songsSkipped: 0,
+    playlistsFetched: 0,
+    errors: 0,
+    apiCalls: 0,
+  }
+
+  if (!playlistIds?.length) {
+    return { ...stats, error: "No playlist IDs provided", type: "playlists" }
+  }
+
+  console.log(
+    `[MusicSync] Starting sync for ${playlistIds.length} playlists${bypassCache ? " (bypassing cache)" : ""}`,
+  )
+
+  const allSongs = []
+  for (let i = 0; i < playlistIds.length; i += BATCH_SIZE) {
+    const batch = playlistIds.slice(i, i + BATCH_SIZE)
+
+    const results = await Promise.all(
+      batch.map(async (id) => {
+        try {
+          stats.apiCalls++
+          return await fetchPlaylistSongs(id, bypassCache)
+        } catch (err) {
+          stats.errors++
+          console.error(`[MusicSync] Failed to fetch playlist ${id}:`, err.message)
+          return []
+        }
+      }),
+    )
+
+    results.forEach((songs) => {
+      if (songs.length) {
+        stats.playlistsFetched++
+        allSongs.push(...songs)
+      }
+    })
+
+    if (i + BATCH_SIZE < playlistIds.length) {
+      await delay(BATCH_DELAY_MS)
+    }
+  }
+
+  console.log(
+    `[MusicSync] Fetched ${allSongs.length} songs from ${stats.playlistsFetched} playlists`,
+  )
+  await processSongsForDb(allSongs, stats)
+
+  const duration = ((Date.now() - startTime) / 1000).toFixed(2)
+  console.log(`[MusicSync] Playlist sync completed in ${duration}s:`, stats)
+
+  return { ...stats, durationSeconds: parseFloat(duration), type: "playlists" }
+}
+
+async function syncByAlbumIds(albumIds, bypassCache = false) {
+  const startTime = Date.now()
+  const stats = {
+    songsAdded: 0,
+    songsSkipped: 0,
+    albumsFetched: 0,
+    errors: 0,
+    apiCalls: 0,
+  }
+
+  if (!albumIds?.length) {
+    return { ...stats, error: "No album IDs provided", type: "albums" }
+  }
+
+  console.log(
+    `[MusicSync] Starting sync for ${albumIds.length} albums${bypassCache ? " (bypassing cache)" : ""}`,
+  )
+
+  const allSongs = []
+  for (let i = 0; i < albumIds.length; i += BATCH_SIZE) {
+    const batch = albumIds.slice(i, i + BATCH_SIZE)
+
+    const results = await Promise.all(
+      batch.map(async (id) => {
+        try {
+          stats.apiCalls++
+          return await fetchAlbumSongs(id, bypassCache)
+        } catch (err) {
+          stats.errors++
+          console.error(`[MusicSync] Failed to fetch album ${id}:`, err.message)
+          return []
+        }
+      }),
+    )
+
+    results.forEach((songs) => {
+      if (songs.length) {
+        stats.albumsFetched++
+        allSongs.push(...songs)
+      }
+    })
+
+    if (i + BATCH_SIZE < albumIds.length) {
+      await delay(BATCH_DELAY_MS)
+    }
+  }
+
+  console.log(`[MusicSync] Fetched ${allSongs.length} songs from ${stats.albumsFetched} albums`)
+  await processSongsForDb(allSongs, stats)
+
+  const duration = ((Date.now() - startTime) / 1000).toFixed(2)
+  console.log(`[MusicSync] Album sync completed in ${duration}s:`, stats)
+
+  return { ...stats, durationSeconds: parseFloat(duration), type: "albums" }
+}
+
 async function syncFull(options = {}) {
   const startTime = Date.now()
   const languages = options.languages || ["hindi"]
@@ -682,6 +807,8 @@ module.exports = {
   syncSearchQueries,
   syncFeaturedPlaylists,
   syncTopAlbums,
+  syncByPlaylistIds,
+  syncByAlbumIds,
   syncFull,
   getSyncStats,
   startScheduledSync,

@@ -25,6 +25,8 @@ const {
   syncSearchQueries,
   syncFeaturedPlaylists,
   syncTopAlbums,
+  syncByPlaylistIds,
+  syncByAlbumIds,
   syncFull,
   getSyncStats,
   getLastSyncResult,
@@ -50,8 +52,8 @@ musicRoutes.get("/music/search", searchSongs)
 
 musicRoutes.post("/sync", async (req, res) => {
   try {
-    const languages = req.body.languages || ["hindi"]
-    const stats = await syncModulesData(languages)
+    const { languages = ["hindi"], bypassCache = false } = req.body
+    const stats = await syncModulesData(languages, bypassCache)
     res.json({ success: true, data: stats })
   } catch (error) {
     console.error("[MusicSync] Sync failed:", error)
@@ -113,6 +115,34 @@ musicRoutes.post("/sync/top-albums", async (req, res) => {
     res.json({ success: true, data: stats })
   } catch (error) {
     console.error("[MusicSync] Top albums sync failed:", error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+musicRoutes.post("/sync/playlists", async (req, res) => {
+  try {
+    const { playlistIds, bypassCache = false } = req.body
+    if (!playlistIds?.length) {
+      return res.status(400).json({ success: false, error: "playlistIds array is required" })
+    }
+    const stats = await syncByPlaylistIds(playlistIds, bypassCache)
+    res.json({ success: true, data: stats })
+  } catch (error) {
+    console.error("[MusicSync] Playlist sync failed:", error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+musicRoutes.post("/sync/albums", async (req, res) => {
+  try {
+    const { albumIds, bypassCache = false } = req.body
+    if (!albumIds?.length) {
+      return res.status(400).json({ success: false, error: "albumIds array is required" })
+    }
+    const stats = await syncByAlbumIds(albumIds, bypassCache)
+    res.json({ success: true, data: stats })
+  } catch (error) {
+    console.error("[MusicSync] Album sync failed:", error)
     res.status(500).json({ success: false, error: error.message })
   }
 })
