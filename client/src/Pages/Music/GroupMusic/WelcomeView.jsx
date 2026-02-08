@@ -42,7 +42,7 @@ const WelcomeView = ({ onOpenModal }) => {
             repeat: Infinity,
             ease: "easeInOut",
           }}
-          className="p-6 rounded-full bg-gradient-to-br from-primary/20 to-primary/5"
+          className="p-6 rounded-full bg-linear-to-br from-primary/20 to-primary/5"
         >
           <Music className="h-16 w-16 text-primary" />
         </motion.div>

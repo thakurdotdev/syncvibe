@@ -26,7 +26,7 @@ const Comment = ({ comment, comments, onReply, replyingTo }) => {
   return (
     <div className="py-4 first:pt-0">
       <div className="flex gap-3">
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <Avatar className="h-10 w-10">
             <AvatarImage
               src={getProfileCloudinaryUrl(comment.user?.profilepic)}
@@ -184,7 +184,7 @@ const CommentDrawer = ({ postid, isOpen, onClose }) => {
   return (
     <ResponsiveDialog open={isOpen} onOpenChange={onClose}>
       <ResponsiveDialogContent className="max-sm:max-h-[85%] sm:max-h-[90vh] sm:max-w-lg p-0 flex flex-col">
-        <ResponsiveDialogHeader className="border-b border-gray-100 dark:border-gray-800 px-4 py-3 flex-shrink-0">
+        <ResponsiveDialogHeader className="border-b border-gray-100 dark:border-gray-800 px-4 py-3 shrink-0">
           <ResponsiveDialogTitle className="text-lg font-semibold">Comments</ResponsiveDialogTitle>
           <ResponsiveDialogClose className="absolute right-3 top-3">
             <button className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
@@ -217,7 +217,7 @@ const CommentDrawer = ({ postid, isOpen, onClose }) => {
           )}
         </ScrollArea>
 
-        <div className="border-t border-gray-100 dark:border-gray-800 p-4 bg-white dark:bg-gray-900 flex-shrink-0">
+        <div className="border-t border-gray-100 dark:border-gray-800 p-4 bg-white dark:bg-gray-900 shrink-0">
           {replyingTo && (
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm text-gray-600 dark:text-gray-400">

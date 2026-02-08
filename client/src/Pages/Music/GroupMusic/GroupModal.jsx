@@ -62,7 +62,7 @@ const GroupModal = ({ isOpen, onClose, onCreateGroup, onJoinGroup }) => {
                 onClick={() => setIsScannerOpen(true)}
                 className={cn(
                   "group relative p-6 rounded-xl cursor-pointer",
-                  "bg-gradient-to-br from-primary/10 via-primary/5 to-transparent",
+                  "bg-linear-to-br from-primary/10 via-primary/5 to-transparent",
                   "border border-primary/20 hover:border-primary/40",
                   "transition-all duration-300 hover:shadow-lg hover:shadow-primary/10",
                 )}

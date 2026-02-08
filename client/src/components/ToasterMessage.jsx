@@ -84,7 +84,7 @@ const ToastMessage = ({ toast, onClose }) => {
       `}
     >
       <div className="px-4 py-3 flex items-center gap-3 relative">
-        <Icon className={`w-5 h-5 ${getIconColor()} flex-shrink-0`} />
+        <Icon className={`w-5 h-5 ${getIconColor()} shrink-0`} />
         <p className="text-gray-100 font-medium text-sm pr-8">{toast.message}</p>
         <button
           onClick={onClose}

@@ -110,7 +110,7 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-border/40 p-3 space-y-3">
         {isPro ? (
-          <div className="w-full p-3 rounded-lg bg-gradient-to-r from-yellow-500/20 to-yellow-500/10">
+          <div className="w-full p-3 rounded-lg bg-linear-to-r from-yellow-500/20 to-yellow-500/10">
             <div className="flex items-center gap-2">
               <Crown className="h-4 w-4 text-yellow-500" />
               <span className="text-sm font-medium">PRO Member</span>
@@ -121,7 +121,7 @@ export function AppSidebar() {
         ) : (
           <button
             onClick={() => handleNavigate("/plans")}
-            className="w-full p-3 rounded-lg bg-gradient-to-r from-primary/20 to-primary/10 hover:from-primary/30 hover:to-primary/20 transition-all duration-200 group"
+            className="w-full p-3 rounded-lg bg-linear-to-r from-primary/20 to-primary/10 hover:from-primary/30 hover:to-primary/20 transition-all duration-200 group"
           >
             <div className="flex items-center gap-2">
               <Crown className="h-4 w-4 text-yellow-500" />

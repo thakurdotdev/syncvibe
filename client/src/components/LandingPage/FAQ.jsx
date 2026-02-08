@@ -35,7 +35,7 @@ const FAQ = memo(() => (
 ))
 
 const FAQItem = memo(({ question, answer }) => (
-  <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-white/[0.12] transition-colors">
+  <div className="p-6 rounded-2xl bg-white/3 border border-white/8 hover:border-white/12 transition-colors">
     <h3 className="text-lg font-medium text-white mb-2">{question}</h3>
     <p className="text-white/50 text-sm leading-relaxed">{answer}</p>
   </div>

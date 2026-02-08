@@ -206,7 +206,7 @@ const CreatePost = ({ openModal }) => {
         onDrop={handleDrop}
         showCloseButton={false}
       >
-        <ResponsiveDialogHeader className="px-4 pt-4 sm:px-6 sm:pt-6 border-b dark:border-gray-700 pb-4 flex-shrink-0">
+        <ResponsiveDialogHeader className="px-4 pt-4 sm:px-6 sm:pt-6 border-b dark:border-gray-700 pb-4 shrink-0">
           <ResponsiveDialogTitle className="flex items-center space-x-2">
             <Avatar className="h-8 w-8">
               <AvatarImage src={getProfileCloudinaryUrl(user?.profilepic)} />
@@ -232,7 +232,7 @@ const CreatePost = ({ openModal }) => {
           </div>
 
           {isDragging && (
-            <div className="absolute inset-0 bg-blue-500/10 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+            <div className="absolute inset-0 bg-blue-500/10 backdrop-blur-xs flex items-center justify-center pointer-events-none">
               <div className="text-center space-y-2">
                 <Upload className="w-12 h-12 mx-auto text-blue-500" />
                 <p className="text-lg font-medium">Drop images here</p>

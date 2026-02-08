@@ -77,12 +77,12 @@ const DraggableButton = memo(({ position, onMaximize, currentSong, isDragging })
   return (
     <div ref={setNodeRef} {...attributes} {...listeners} style={style} className="select-none">
       <div
-        className={`flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-[#1a1a1a] border border-white/[0.08] transition-transform ${
+        className={`flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-[#1a1a1a] border border-white/8 transition-transform ${
           isDragging ? "scale-105" : ""
         }`}
       >
         <div
-          className="relative w-11 h-11 flex-shrink-0 cursor-pointer"
+          className="relative w-11 h-11 shrink-0 cursor-pointer"
           onClick={(e) => {
             e.stopPropagation()
             if (!isDragging) handlePlayPause()

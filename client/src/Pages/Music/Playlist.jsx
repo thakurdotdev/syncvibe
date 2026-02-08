@@ -56,7 +56,7 @@ const Playlist = () => {
           backgroundSize: "cover",
         }}
       >
-        <div className="rounded-2xl w-full h-full bg-black/60 backdrop-blur-sm flex flex-col transition-all">
+        <div className="rounded-2xl w-full h-full bg-black/60 backdrop-blur-xs flex flex-col transition-all">
           <div className="flex flex-col p-3">
             <div className="flex items-center p-3 gap-6">
               <div className="w-[150px] h-[150px] sm:w-[200px] sm:h-[200px] rounded-lg overflow-hidden">

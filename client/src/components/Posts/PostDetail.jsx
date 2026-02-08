@@ -180,7 +180,7 @@ const PostDetail = () => {
         </div>
         {user?.userid !== post?.createdby && (
           <Button
-            variant={following ? "outline" : "default"}
+            variant={following ? "outline-solid" : "default"}
             onClick={() => handleFollow(post?.user?.userid)}
           >
             {following ? "Unfollow" : "Follow"}

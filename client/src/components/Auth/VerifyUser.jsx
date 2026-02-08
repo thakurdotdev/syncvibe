@@ -86,7 +86,7 @@ const VerifyUser = () => {
     <div className="flex items-center justify-center min-h-screen p-4 bg-background/95">
       <DotPattern
         className={cn(
-          "[mask-image:radial-gradient(550px_circle_at_center,white,transparent)]",
+          "mask-[radial-gradient(550px_circle_at_center,white,transparent)]",
           "opacity-50",
         )}
       />

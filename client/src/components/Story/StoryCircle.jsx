@@ -8,7 +8,7 @@ const StoryCircle = ({ user, hasStory, viewed, onClick }) => {
       <div
         className={cn(
           "p-[2px] rounded-full",
-          hasStory && !viewed && "bg-gradient-to-tr from-yellow-400 to-fuchsia-600",
+          hasStory && !viewed && "bg-linear-to-tr from-yellow-400 to-fuchsia-600",
           hasStory && viewed && "bg-gray-300 dark:bg-gray-600",
         )}
       >

@@ -152,7 +152,7 @@ const ResponsiveDialogClose = ({
 };
 ResponsiveDialogClose.displayName = "ResponsiveDialogClose";
 
-const ResponsiveDialogContentVariants = cva("fixed z-[9999] bg-background", {
+const ResponsiveDialogContentVariants = cva("fixed z-9999 bg-background", {
   variants: {
     device: {
       desktop:
@@ -187,12 +187,12 @@ const ResponsiveDialogContentVariants = cva("fixed z-[9999] bg-background", {
       device: "mobile",
       direction: "left",
       className:
-        "bottom-2 left-2 top-2 flex w-[310px] bg-transparent outline-none [--initial-transform:calc(100%+8px)]",
+        "bottom-2 left-2 top-2 flex w-[310px] bg-transparent outline-hidden [--initial-transform:calc(100%+8px)]",
     },
     {
       device: "mobile",
       direction: "right",
-      className: "bottom-2 right-2 top-2 w-[310px] bg-transparent outline-none [--initial-transform:calc(100%+8px)]",
+      className: "bottom-2 right-2 top-2 w-[310px] bg-transparent outline-hidden [--initial-transform:calc(100%+8px)]",
     },
   ],
 });
@@ -233,7 +233,7 @@ const ResponsiveDialogContent = React.forwardRef
         {!shouldUseDialog && direction === "bottom" && (
           <div
             className={cn(
-              "mx-auto my-4 h-1.5 w-14 rounded-full bg-muted-foreground/25 pb-1.5 data-[vaul-handle]:h-1.5 data-[vaul-handle]:w-14 data-[vaul-handle]:pb-1.5 dark:bg-muted",
+              "mx-auto my-4 h-1.5 w-14 rounded-full bg-muted-foreground/25 pb-1.5 data-vaul-handle:h-1.5 data-vaul-handle:w-14 data-vaul-handle:pb-1.5 dark:bg-muted",
               dragHandleClassName
             )} />
         )}
@@ -241,7 +241,7 @@ const ResponsiveDialogContent = React.forwardRef
         {shouldShowCloseButton && (
           <ResponsiveDialogClose
             className={cn(
-              "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background backdrop-blur-sm transition-opacity hover:opacity-100 focus:outline-none focus:ring-offset-2 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-white",
+              "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background backdrop-blur-xs transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-offset-2 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-white",
               closeButtonClassName
             )}>
             <X className="size-4" />

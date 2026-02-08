@@ -47,12 +47,12 @@ const HistorySkeleton = ({ pageSize = 28 }) => (
         className="rounded-xl border border-border/50 bg-card p-3"
       >
         <div className="flex items-center gap-3">
-          <Skeleton className="w-14 h-14 rounded-lg flex-shrink-0" />
+          <Skeleton className="w-14 h-14 rounded-lg shrink-0" />
           <div className="flex-1 space-y-2 min-w-0">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-3 w-1/2" />
           </div>
-          <Skeleton className="h-8 w-8 rounded-md flex-shrink-0" />
+          <Skeleton className="h-8 w-8 rounded-md shrink-0" />
         </div>
       </motion.div>
     ))}
@@ -131,7 +131,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, disabled }) => {
             size="sm"
             onClick={() => onPageChange(1)}
             disabled={disabled}
-            className="h-9 min-w-[2.25rem] text-sm"
+            className="h-9 min-w-9 text-sm"
           >
             1
           </Button>
@@ -146,7 +146,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, disabled }) => {
           size="sm"
           onClick={() => onPageChange(page)}
           disabled={disabled}
-          className="h-9 min-w-[2.25rem] text-sm"
+          className="h-9 min-w-9 text-sm"
         >
           {page}
         </Button>
@@ -162,7 +162,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, disabled }) => {
             size="sm"
             onClick={() => onPageChange(totalPages)}
             disabled={disabled}
-            className="h-9 min-w-[2.25rem] text-sm"
+            className="h-9 min-w-9 text-sm"
           >
             {totalPages}
           </Button>
@@ -266,7 +266,7 @@ const HistoryPage = () => {
               </div>
 
               <Button
-                variant={showFilters ? "secondary" : "outline"}
+                variant={showFilters ? "secondary" : "outline-solid"}
                 size="sm"
                 onClick={() => setShowFilters(!showFilters)}
                 className="gap-2"

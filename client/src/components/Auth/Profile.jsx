@@ -197,7 +197,7 @@ const Profile = () => {
     <>
       <div className="p-4">
         <DotPattern
-          className={cn("[mask-image:radial-gradient(550px_circle_at_center,white,transparent)]")}
+          className={cn("mask-[radial-gradient(550px_circle_at_center,white,transparent)]")}
         />
         <div className=" w-full max-w-4xl mx-auto z-10">
           {/* Profile Header */}

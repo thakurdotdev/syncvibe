@@ -96,7 +96,7 @@ const ChatHeader = ({
   const { otherUser, isTyping, isOnline } = currentChat || {}
 
   return (
-    <Card className="sticky top-0 z-10 mb-2 flex flex-row items-center w-full p-3 gap-3 rounded-none shadow-sm border-b">
+    <Card className="sticky top-0 z-10 mb-2 flex flex-row items-center w-full p-3 gap-3 rounded-none shadow-xs border-b">
       {isMobile && (
         <Button
           onClick={() => setCurrentChat(null)}
@@ -273,7 +273,7 @@ const MessageBubble = ({
           )}
 
           {message.content && (
-            <div className="text-sm font-normal whitespace-pre-wrap break-words">
+            <div className="text-sm font-normal whitespace-pre-wrap wrap-break-word">
               {message.content}
             </div>
           )}
@@ -450,7 +450,7 @@ const MessageInput = ({
   }, [])
 
   return (
-    <Card className="mt-auto w-full p-3 border-t shadow-sm rounded-none">
+    <Card className="mt-auto w-full p-3 border-t shadow-xs rounded-none">
       {filePreview && (
         <div className="mb-3 relative w-24 h-24 overflow-hidden rounded-md mr-auto">
           <img src={filePreview} alt="Preview" className="w-full h-full object-cover" />
@@ -502,7 +502,7 @@ const MessageInput = ({
           value={message}
           onChange={handleTyping}
           placeholder="Type a message..."
-          className="flex-grow rounded-full"
+          className="grow rounded-full"
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault()

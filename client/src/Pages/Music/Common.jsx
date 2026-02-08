@@ -65,7 +65,7 @@ export const LoadingState = ({ message, height }) => (
   <div
     className={`flex ${
       height ? height : "h-full"
-    } items-center justify-center bg-background/50 backdrop-blur-sm`}
+    } items-center justify-center bg-background/50 backdrop-blur-xs`}
   >
     <div className="flex flex-col items-center gap-4">
       <Loader2 className="w-10 h-10 animate-spin text-emerald-500" />
@@ -307,7 +307,7 @@ export const VolumeControl = memo(({ showVolume = false }) => {
             min={0}
             max={1}
             step={0.01}
-            className="w-20 cursor-pointer [&_[role=slider]]:bg-primary [&_[role=slider]]:border-0"
+            className="w-20 cursor-pointer **:[[role=slider]]:bg-primary **:[[role=slider]]:border-0"
             onValueChange={([value]) => {
               handleVolumeChange(value)
               if (value > 0) setIsMuted(false)
@@ -332,7 +332,7 @@ export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
         max={duration || 1}
         step={0.1}
         onValueChange={([value]) => handleTimeSeek(value)}
-        className="h-1 cursor-pointer [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:opacity-0 hover:[&_[role=slider]]:opacity-100 [&_[role=slider]]:transition-opacity"
+        className="h-1 cursor-pointer **:[[role=slider]]:h-3 **:[[role=slider]]:w-3 **:[[role=slider]]:bg-white **:[[role=slider]]:border-0 **:[[role=slider]]:opacity-0 **:[[role=slider]]:hover:opacity-100 **:[[role=slider]]:transition-opacity"
       />
       {isTimeVisible && (
         <div className="flex justify-between px-1 mt-2">

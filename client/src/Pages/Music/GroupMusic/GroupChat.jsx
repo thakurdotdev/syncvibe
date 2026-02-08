@@ -35,7 +35,7 @@ const ChatMessage = memo(({ msg, isOwn }) => (
       )}
     >
       {!isOwn && <p className="text-xs font-medium mb-1 opacity-70">{msg.userName}</p>}
-      <p className="text-sm break-words">{msg.message}</p>
+      <p className="text-sm wrap-break-word">{msg.message}</p>
     </div>
 
     {isOwn && (

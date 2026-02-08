@@ -66,7 +66,7 @@ const ShareDrawer = ({ postid, shareLink, isOpen, onClose }) => {
       name: "Share",
       icon: Share2,
       action: () => handleShare("native"),
-      className: "bg-gradient-to-r from-blue-500 to-blue-600 text-white",
+      className: "bg-linear-to-r from-blue-500 to-blue-600 text-white",
       showOnMobile: true,
     },
     {
@@ -111,7 +111,7 @@ const ShareDrawer = ({ postid, shareLink, isOpen, onClose }) => {
 
           <div className="p-6">
             {/* Link Preview Card */}
-            <div className="mb-8 bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 backdrop-blur-sm">
+            <div className="mb-8 bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 backdrop-blur-xs">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <LinkIcon className="w-4 h-4 text-blue-500" />

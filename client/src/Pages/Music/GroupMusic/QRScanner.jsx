@@ -105,14 +105,14 @@ const QRScanner = ({ isOpen, onClose, onScan }) => {
           <div
             className={cn(
               "relative w-full aspect-square rounded-xl overflow-hidden",
-              "bg-gradient-to-br from-accent/30 to-accent/10",
+              "bg-linear-to-br from-accent/30 to-accent/10",
               "border border-border/50",
             )}
           >
             <div id="qr-reader" ref={scannerRef} className="w-full h-full" />
 
             {!isScanning && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-background/80 backdrop-blur-sm">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-background/80 backdrop-blur-xs">
                 <Camera className="h-16 w-16 text-muted-foreground" />
                 <p className="text-muted-foreground text-center px-4">
                   {error || "Click start to open camera and scan QR code"}

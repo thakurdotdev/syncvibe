@@ -162,7 +162,7 @@ const SearchUser = ({
           placeholder="Search for a user..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full p-3 px-5 rounded-full shadow-sm"
+          className="w-full p-3 px-5 rounded-full shadow-xs"
         />
         {searchQuery && (
           <button onClick={clearSearch} className="absolute right-2">

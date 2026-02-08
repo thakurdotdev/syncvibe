@@ -151,7 +151,7 @@ const CreateStory = ({ onClose, isOpen, onSuccess }) => {
         showCloseButton={false}
         className="p-0 sm:max-w-xl max-sm:h-auto max-sm:max-h-[90%] flex flex-col rounded-xl overflow-hidden"
       >
-        <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
+        <div className="flex items-center justify-between p-4 border-b shrink-0">
           <Avatar className="h-10 w-10">
             <AvatarImage src={getProfileCloudinaryUrl(user?.profilepic)} />
             <AvatarFallback>{user?.name?.[0]}</AvatarFallback>

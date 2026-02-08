@@ -203,7 +203,7 @@ export default function PlansPage() {
               <CardFooter>
                 <Button
                   className="w-full"
-                  variant={isCurrentPlan ? "outline" : plan.popular ? "default" : "secondary"}
+                  variant={isCurrentPlan ? "outline-solid" : plan.popular ? "default" : "secondary"}
                   disabled={isCurrentPlan || isProcessing || isLoading}
                   onClick={() => handleUpgrade(plan.code)}
                 >

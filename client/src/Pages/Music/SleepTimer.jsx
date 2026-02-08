@@ -152,7 +152,7 @@ const SleepTimerModal = () => {
               onClick={handleSetTimer}
               disabled={isActive}
               className="w-full"
-              variant={isActive ? "outline" : "default"}
+              variant={isActive ? "outline-solid" : "default"}
             >
               {isActive ? "Timer Active" : "Start Timer"}
             </Button>

@@ -146,7 +146,7 @@ const AddToPlaylist = ({ dialogOpen, setDialogOpen, song }) => {
                           <Music className="w-5 h-5" />
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex-grow">
+                      <div className="grow">
                         <p className="font-medium">{playlist.name}</p>
                         <p className="text-sm text-muted-foreground">
                           {playlist.songCount || 0} songs

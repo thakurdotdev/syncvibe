@@ -20,7 +20,7 @@ const LoginLogItem = ({ log }) => {
       className={cn(
         "relative overflow-hidden rounded-lg border transition-shadow",
         suspicious
-          ? "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 shadow"
+          ? "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 shadow-sm"
           : "bg-white dark:bg-background border-border hover:shadow-md",
       )}
     >

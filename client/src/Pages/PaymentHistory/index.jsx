@@ -114,7 +114,7 @@ export default function PaymentHistoryPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
-      <Card className="mb-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+      <Card className="mb-6 bg-linear-to-br from-primary/5 to-primary/10 border-primary/20">
         <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-primary/15">

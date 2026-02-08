@@ -82,7 +82,7 @@ const NowPlayingCard = ({
     <div
       className={cn(
         "rounded-2xl p-4 md:p-6 overflow-hidden relative",
-        "bg-gradient-to-br from-accent/40 via-accent/20 to-transparent",
+        "bg-linear-to-br from-accent/40 via-accent/20 to-transparent",
         "border border-border/50",
         "shadow-xl",
         HOVER_TRANSITION,
@@ -110,7 +110,7 @@ const NowPlayingCard = ({
                 className="h-full w-full object-cover"
               />
               {isPlaying && (
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent flex items-end justify-center pb-3">
+                <div className="absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent flex items-end justify-center pb-3">
                   <Equalizer />
                 </div>
               )}

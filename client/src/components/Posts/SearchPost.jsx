@@ -83,7 +83,7 @@ const SearchPost = () => {
                 })
               }}
               key={user?.userid}
-              className="w-[100%] md:w-[30%] flex items-center p-4 rounded-lg cursor-pointer bg-slate-100 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 transition-shadow shadow-md hover:shadow-lg"
+              className="w-full md:w-[30%] flex items-center p-4 rounded-lg cursor-pointer bg-slate-100 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 transition-shadow shadow-md hover:shadow-lg"
             >
               <div className="relative">
                 <img

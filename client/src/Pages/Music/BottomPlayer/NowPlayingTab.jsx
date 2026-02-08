@@ -25,17 +25,17 @@ const NowPlayingTab = memo(({ currentSong, isDesktop = false }) => {
           className="absolute inset-0 bg-cover bg-center opacity-25 blur-3xl scale-125"
           style={{ backgroundImage: `url(${songImage})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/50" />
+        <div className="absolute inset-0 bg-linear-to-t from-background via-background/70 to-background/50" />
 
         <div className="relative z-10 flex flex-col items-center gap-12 w-full">
           <div
             className="relative group shrink-0"
             style={{ width: "min(400px, 45vh)", height: "min(400px, 45vh)" }}
           >
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/30 via-transparent to-primary/20 opacity-60 blur-2xl scale-110 group-hover:opacity-80 transition-opacity duration-300" />
+            <div className="absolute inset-0 rounded-2xl bg-linear-to-br from-primary/30 via-transparent to-primary/20 opacity-60 blur-2xl scale-110 group-hover:opacity-80 transition-opacity duration-300" />
             <Avatar className="w-full h-full rounded-2xl shadow-2xl relative z-10 ring-1 ring-white/20">
               <AvatarImage src={songImage} alt={currentSong.name} className="object-cover" />
-              <AvatarFallback className="text-6xl bg-gradient-to-br from-primary/10 to-primary/5">
+              <AvatarFallback className="text-6xl bg-linear-to-br from-primary/10 to-primary/5">
                 <Music className="w-24 h-24 text-muted-foreground" />
               </AvatarFallback>
             </Avatar>
@@ -43,7 +43,7 @@ const NowPlayingTab = memo(({ currentSong, isDesktop = false }) => {
               <div className="absolute top-4 left-4 z-20">
                 <Badge
                   variant="secondary"
-                  className="text-xs bg-black/40 backdrop-blur-sm border border-white/20 text-white"
+                  className="text-xs bg-black/40 backdrop-blur-xs border border-white/20 text-white"
                 >
                   {currentSong.genre}
                 </Badge>
@@ -76,14 +76,14 @@ const NowPlayingTab = memo(({ currentSong, isDesktop = false }) => {
 
   return (
     <div className="h-full flex flex-col p-4 sm:p-6 max-w-2xl mx-auto gap-10 relative">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/[0.02] to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-linear-to-b from-transparent via-primary/2 to-transparent pointer-events-none" />
 
       <div className="flex justify-center relative z-10">
         <div className="w-full h-96 relative group">
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 via-transparent to-primary/10 opacity-50 blur-xl scale-105 group-hover:opacity-70 transition-opacity duration-300" />
+          <div className="absolute inset-0 rounded-2xl bg-linear-to-br from-primary/20 via-transparent to-primary/10 opacity-50 blur-xl scale-105 group-hover:opacity-70 transition-opacity duration-300" />
           <Avatar className="w-full h-full rounded-2xl shadow-2xl relative z-10 ring-1 ring-white/10">
             <AvatarImage src={songImage} alt={currentSong.name} className="object-cover" />
-            <AvatarFallback className="text-4xl sm:text-6xl bg-gradient-to-br from-primary/10 to-primary/5 backdrop-blur-sm">
+            <AvatarFallback className="text-4xl sm:text-6xl bg-linear-to-br from-primary/10 to-primary/5 backdrop-blur-xs">
               <Music className="w-16 h-16 sm:w-20 sm:h-20 text-muted-foreground" />
             </AvatarFallback>
           </Avatar>
@@ -92,7 +92,7 @@ const NowPlayingTab = memo(({ currentSong, isDesktop = false }) => {
             <div className="absolute top-3 left-3 z-20">
               <Badge
                 variant="secondary"
-                className="text-xs bg-white/20 backdrop-blur-sm border border-white/20 text-foreground"
+                className="text-xs bg-white/20 backdrop-blur-xs border border-white/20 text-foreground"
               >
                 {currentSong.genre}
               </Badge>

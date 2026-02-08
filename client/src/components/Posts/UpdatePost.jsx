@@ -53,7 +53,7 @@ const UpdatePost = ({ isOpen, toggleDialog, post }) => {
       }}
     >
       <ResponsiveDialogContent className="sm:max-w-[425px] p-0 flex flex-col max-sm:h-auto max-sm:max-h-[90%]">
-        <ResponsiveDialogHeader className="px-4 pt-4 sm:px-6 sm:pt-6 flex-shrink-0">
+        <ResponsiveDialogHeader className="px-4 pt-4 sm:px-6 sm:pt-6 shrink-0">
           <ResponsiveDialogTitle>Update Post</ResponsiveDialogTitle>
         </ResponsiveDialogHeader>
         <div className="px-4 pb-4 sm:px-6 sm:pb-6 overflow-y-auto flex-1">

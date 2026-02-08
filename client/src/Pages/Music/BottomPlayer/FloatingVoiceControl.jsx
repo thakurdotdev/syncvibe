@@ -86,7 +86,7 @@ const FloatingVoiceControl = memo(() => {
   const showSearching = isSearching && searchLoading
 
   const content = (
-    <div className="fixed bottom-20 right-4 z-[9999] flex flex-col items-end gap-2">
+    <div className="fixed bottom-20 right-4 z-9999 flex flex-col items-end gap-2">
       <AnimatePresence>
         {(isListening || showSearching) && (
           <motion.div

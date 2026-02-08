@@ -48,7 +48,7 @@ const Album = () => {
           backgroundSize: "cover",
         }}
       >
-        <div className="rounded-2xl w-full h-full bg-black/60 backdrop-blur-sm flex items-center p-3 gap-6">
+        <div className="rounded-2xl w-full h-full bg-black/60 backdrop-blur-xs flex items-center p-3 gap-6">
           <div className="w-[200px] h-[200px]">
             <img src={bgUrl} className="rounded-lg" />
           </div>

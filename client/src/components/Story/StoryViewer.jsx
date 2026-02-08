@@ -195,7 +195,7 @@ const StoryViewer = ({
       <DialogContent className="max-w-3xl h-svh p-0 gap-0 bg-black max-sm:border-none overflow-hidden">
         <div className="relative h-full flex flex-col">
           {/* Progress Bars */}
-          <div className="absolute top-0 left-0 right-0 z-20 flex gap-1.5 p-2 bg-gradient-to-b from-black/40 via-black/20 to-transparent">
+          <div className="absolute top-0 left-0 right-0 z-20 flex gap-1.5 p-2 bg-linear-to-b from-black/40 via-black/20 to-transparent">
             {currentUserStories.map((_, idx) => (
               <div key={idx} className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden">
                 <div
@@ -240,7 +240,7 @@ const StoryViewer = ({
           {/* Main Content */}
           <div className="flex-1 flex items-center justify-center bg-black/90 relative">
             {(isPreloading || !isMediaLoaded) && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-xs">
                 <div className="w-8 h-8 border-3 border-white/10 border-t-white rounded-full animate-spin" />
               </div>
             )}
@@ -313,11 +313,11 @@ const StoryViewer = ({
           )}
 
           {/* Message Input */}
-          {/* <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent">
+          {/* <div className="absolute bottom-0 left-0 right-0 p-4 bg-linear-to-t from-black/60 to-transparent">
             <input
               type="text"
               placeholder="Send message"
-              className="w-full bg-white/10 text-white placeholder-white/50 text-sm px-4 py-2 rounded-full border border-white/20 focus:outline-none focus:border-white/40 transition-colors"
+              className="w-full bg-white/10 text-white placeholder-white/50 text-sm px-4 py-2 rounded-full border border-white/20 focus:outline-hidden focus:border-white/40 transition-colors"
               onClick={(e) => e.stopPropagation()}
             />
           </div> */}

@@ -33,7 +33,7 @@ const Hero = memo(() => (
         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-[1.1] mb-6">
           Listen to music together,
           <br />
-          <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
+          <span className="bg-linear-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
             anywhere in the world.
           </span>
         </h1>
@@ -71,12 +71,12 @@ const Hero = memo(() => (
       {/* Large centered screenshot */}
       <div className="relative max-w-5xl mx-auto">
         {/* Background glows */}
-        <div className="absolute -inset-10 bg-gradient-to-r from-emerald-500/30 via-teal-500/20 to-cyan-500/30 rounded-[3rem] blur-[80px] opacity-50" />
+        <div className="absolute -inset-10 bg-linear-to-r from-emerald-500/30 via-teal-500/20 to-cyan-500/30 rounded-[3rem] blur-[80px] opacity-50" />
 
         {/* Main image container */}
         <div className="relative">
           {/* Glowing border effect */}
-          <div className="absolute -inset-[1px] bg-gradient-to-r from-emerald-500/50 via-teal-500/50 to-cyan-500/50 rounded-3xl opacity-50" />
+          <div className="absolute -inset-px bg-linear-to-r from-emerald-500/50 via-teal-500/50 to-cyan-500/50 rounded-3xl opacity-50" />
 
           {/* Screenshot */}
           <div className="relative rounded-3xl overflow-hidden border border-white/10 bg-black/50">
@@ -165,9 +165,9 @@ const Features = memo(() => (
 const FeatureCard = memo(({ icon: Icon, title, description, gradient }) => (
   <div className="group relative">
     <div
-      className={`absolute inset-0 bg-gradient-to-br ${gradient} rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl`}
+      className={`absolute inset-0 bg-linear-to-br ${gradient} rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl`}
     />
-    <div className="relative h-full p-8 rounded-3xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm hover:border-white/20 transition-all">
+    <div className="relative h-full p-8 rounded-3xl bg-white/3 border border-white/8 backdrop-blur-xs hover:border-white/20 transition-all">
       <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center mb-6">
         <Icon className="w-7 h-7 text-white/80" />
       </div>
@@ -180,10 +180,10 @@ const FeatureCard = memo(({ icon: Icon, title, description, gradient }) => (
 const MobileApp = memo(() => (
   <section id="download" className="px-6 py-24">
     <div className="max-w-6xl mx-auto">
-      <div className="relative rounded-3xl overflow-hidden border border-white/[0.08]">
+      <div className="relative rounded-3xl overflow-hidden border border-white/8">
         {/* Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5" />
-        <div className="absolute inset-0 bg-white/[0.02]" />
+        <div className="absolute inset-0 bg-linear-to-br from-emerald-500/5 via-transparent to-teal-500/5" />
+        <div className="absolute inset-0 bg-white/2" />
 
         <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-12 items-center p-5">
           {/* Content */}
@@ -213,7 +213,7 @@ const MobileApp = memo(() => (
             </a>
 
             {/* Stats */}
-            <div className="flex gap-8 mt-10 pt-10 border-t border-white/[0.08]">
+            <div className="flex gap-8 mt-10 pt-10 border-t border-white/8">
               <div>
                 <div className="text-2xl font-bold text-white">4.9★</div>
                 <div className="text-xs text-white/40">Rating</div>

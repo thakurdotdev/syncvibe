@@ -98,7 +98,7 @@ const GroupMusic = () => {
         <Card
           className={cn(
             "overflow-hidden border-border/50",
-            "bg-gradient-to-br from-background via-background to-accent/10",
+            "bg-linear-to-br from-background via-background to-accent/10",
             "shadow-xl",
           )}
         >

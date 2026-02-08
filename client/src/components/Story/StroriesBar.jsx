@@ -81,7 +81,7 @@ const StoriesBar = () => {
                 <div
                   className={`rounded-full p-1 ${
                     storyGroup.hasUnviewedStories
-                      ? "bg-gradient-to-tr from-yellow-400 to-fuchsia-600"
+                      ? "bg-linear-to-tr from-yellow-400 to-fuchsia-600"
                       : "bg-gray-300"
                   }`}
                 >

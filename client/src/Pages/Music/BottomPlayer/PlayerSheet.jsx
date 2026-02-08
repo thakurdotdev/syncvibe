@@ -86,9 +86,9 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent
         side="bottom"
-        className="h-full w-full p-0 overflow-hidden bg-gradient-to-br from-background/95 via-background/90 to-background/95 backdrop-blur-xl border-t border-white/10 shadow-2xl"
+        className="h-full w-full p-0 overflow-hidden bg-linear-to-br from-background/95 via-background/90 to-background/95 backdrop-blur-xl border-t border-white/10 shadow-2xl"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-white/[0.04] pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-br from-white/8 via-transparent to-white/4 pointer-events-none" />
 
         {/* Desktop: Side-by-side layout */}
         <div className="hidden lg:flex h-full w-full max-w-5xl mx-auto relative z-10">
@@ -101,7 +101,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-10 w-10 bg-black/30 backdrop-blur-sm hover:bg-black/50 rounded-full"
+                    className="h-10 w-10 bg-black/30 backdrop-blur-xs hover:bg-black/50 rounded-full"
                   >
                     <MoreHorizontal className="h-5 w-5" />
                   </Button>
@@ -130,8 +130,8 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
           </div>
 
           {/* Queue Section */}
-          <div className="w-[420px] flex flex-col bg-white/[0.02]">
-            <div className="h-14 px-4 flex items-center gap-2 border-b border-white/10 bg-white/[0.03] shrink-0 justify-between">
+          <div className="w-[420px] flex flex-col bg-white/2">
+            <div className="h-14 px-4 flex items-center gap-2 border-b border-white/10 bg-white/3 shrink-0 justify-between">
               <div className="flex items-center gap-2">
                 <ListMusic className="w-4 h-4 text-primary" />
                 <span className="text-base font-medium">Queue</span>
@@ -147,7 +147,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                 variant="ghost"
                 size="icon"
                 onClick={onClose}
-                className="h-10 w-10 bg-black/30 backdrop-blur-sm hover:bg-black/50 rounded-full"
+                className="h-10 w-10 bg-black/30 backdrop-blur-xs hover:bg-black/50 rounded-full"
               >
                 <ChevronDownIcon className="h-5 w-5" />
               </Button>
@@ -160,7 +160,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
 
         {/* Mobile/Tablet: Tab-based layout */}
         <div className="lg:hidden h-full flex flex-col w-full max-w-[500px] mx-auto relative z-10">
-          <SheetHeader className="px-3 pb-0 border-b border-white/10 bg-gradient-to-r from-white/[0.05] to-transparent">
+          <SheetHeader className="px-3 pb-0 border-b border-white/10 bg-linear-to-r from-white/5 to-transparent">
             <div className="flex items-center justify-between">
               <Button
                 variant="ghost"
@@ -203,12 +203,12 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
             </div>
 
             <div className="flex justify-center pb-4">
-              <div className="grid grid-cols-2 w-full bg-white/[0.08] rounded-lg p-1 border border-white/10">
+              <div className="grid grid-cols-2 w-full bg-white/8 rounded-lg p-1 border border-white/10">
                 <button
                   onClick={() => setActiveTab("current")}
                   className={`flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                     activeTab === "current"
-                      ? "bg-primary/20 text-foreground shadow-sm"
+                      ? "bg-primary/20 text-foreground shadow-xs"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -220,7 +220,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                   onClick={() => setActiveTab("queue")}
                   className={`flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                     activeTab === "queue"
-                      ? "bg-primary/20 text-foreground shadow-sm"
+                      ? "bg-primary/20 text-foreground shadow-xs"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >

@@ -6,7 +6,7 @@ const AccordionBorderItem = memo(({ title, content, isActive, onClick }) => {
   return (
     <div className="border-b dark:border-b-slate-700 last:border-b-0">
       <motion.button
-        className="w-full p-4 text-left bg-white dark:bg-gray-800 focus:outline-none transition-colors duration-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+        className="w-full p-4 text-left bg-white dark:bg-gray-800 focus:outline-hidden transition-colors duration-300 hover:bg-gray-200 dark:hover:bg-gray-700"
         onClick={onClick}
         aria-expanded={isActive}
         whileTap={{ scale: 0.98 }}
@@ -55,7 +55,7 @@ const AccordionBorder = ({ items }) => {
 
   return (
     <motion.div
-      className="w-full border rounded-lg overflow-hidden shadow-sm dark:border-gray-700"
+      className="w-full border rounded-lg overflow-hidden shadow-xs dark:border-gray-700"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}

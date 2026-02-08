@@ -45,7 +45,7 @@ const MusicCommand = () => {
           readOnly
           className="w-full pl-9 pr-12 h-full cursor-pointer select-none 
                      rounded-full bg-secondary/40 hover:bg-secondary/60
-                     transition-all duration-200 border-none shadow-sm
+                     transition-all duration-200 border-none shadow-xs
                      focus:ring-0 focus:ring-offset-0 group-hover:shadow-md focus-visible:ring-0 focus-visible:ring-offset-0"
         />
 

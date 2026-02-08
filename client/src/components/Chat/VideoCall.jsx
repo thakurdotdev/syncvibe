@@ -228,7 +228,7 @@ const VideoCallUI = () => {
     <div className="fixed inset-0 flex items-center justify-center z-50 overflow-hidden">
       <Card
         ref={refs.fullscreenContainer}
-        className="relative w-full h-[100vh] overflow-hidden select-none"
+        className="relative w-full h-screen overflow-hidden select-none"
       >
         <div className="relative w-full h-full flex">
           {/* Primary Video */}
@@ -278,7 +278,7 @@ const VideoCallUI = () => {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant={callState.isVideoEnabled ? "outline" : "destructive"}
+                  variant={callState.isVideoEnabled ? "outline-solid" : "destructive"}
                   size="icon"
                   className="h-12 w-12 rounded-full"
                   onClick={toggleVideo}
@@ -298,7 +298,7 @@ const VideoCallUI = () => {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant={callState.isAudioEnabled ? "outline" : "destructive"}
+                  variant={callState.isAudioEnabled ? "outline-solid" : "destructive"}
                   size="icon"
                   className="h-12 w-12 rounded-full"
                   onClick={toggleAudio}

@@ -62,7 +62,7 @@ export const PostSkeleton = () => {
 
 export const UserPostSkeleton = () => {
   return (
-    <Card className="relative group cursor-pointer rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+    <Card className="relative group cursor-pointer rounded-lg overflow-hidden shadow-xs hover:shadow-md transition-shadow duration-300">
       {/* Post Image or Content */}
       <div className="aspect-square w-full overflow-hidden bg-gray-100 dark:bg-gray-700 relative">
         {/* Skeleton for Image */}
@@ -71,7 +71,7 @@ export const UserPostSkeleton = () => {
           <div className="w-full h-full bg-gray-300 dark:bg-gray-800 animate-pulse"></div>
 
           {/* Skeleton for Multiple Image Indicator */}
-          <div className="absolute top-3 right-3 bg-gray-300 dark:bg-gray-800 bg-opacity-60 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
+          <div className="absolute top-3 right-3 bg-gray-300 dark:bg-gray-800 bg-opacity-60 backdrop-blur-xs rounded-full px-3 py-1.5 flex items-center gap-1.5">
             <div className="w-4 h-4 bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
             <div className="w-10 h-3 bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
           </div>
@@ -83,11 +83,11 @@ export const UserPostSkeleton = () => {
         </div>
 
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex space-x-6 text-white">
-          <div className="flex items-center space-x-2 backdrop-blur-sm bg-black bg-opacity-20 rounded-full px-3 py-1">
+          <div className="flex items-center space-x-2 backdrop-blur-xs bg-black bg-opacity-20 rounded-full px-3 py-1">
             <Heart className="w-5 h-5" color="red" fill="red" />
             <span className="text-sm font-medium">999</span>
           </div>
-          <div className="flex items-center space-x-2 backdrop-blur-sm bg-black bg-opacity-20 rounded-full px-3 py-1">
+          <div className="flex items-center space-x-2 backdrop-blur-xs bg-black bg-opacity-20 rounded-full px-3 py-1">
             <MessageCircle className="w-5 h-5" />
             <span className="text-sm font-medium">55</span>
           </div>

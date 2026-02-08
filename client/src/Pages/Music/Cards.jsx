@@ -176,7 +176,7 @@ export const SongCard = memo(({ song }) => {
           className="flex items-center gap-3"
           onClick={song.type === "song" ? handlePlay : handleNavigate}
         >
-          <div className="relative flex-shrink-0 w-12 h-12">
+          <div className="relative shrink-0 w-12 h-12">
             <LazyImage
               src={Array.isArray(song.image) ? song.image?.[1].link : song.image}
               alt={name}
@@ -427,7 +427,7 @@ export const NewSongCard = memo(({ song }) => {
               className={cn(
                 "absolute top-1 right-1 transition-opacity duration-150",
                 "opacity-100 md:opacity-0 md:group-hover:opacity-100",
-                menuOpen && "!opacity-100",
+                menuOpen && "opacity-100!",
               )}
             >
               <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>

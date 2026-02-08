@@ -12,7 +12,7 @@ const Header = memo(() => {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
-      <div className="absolute inset-0 bg-[#050505]/80 backdrop-blur-2xl border-b border-white/[0.05]" />
+      <div className="absolute inset-0 bg-[#050505]/80 backdrop-blur-2xl border-b border-white/5" />
       <nav className="relative max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2.5">

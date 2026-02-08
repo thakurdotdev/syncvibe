@@ -46,7 +46,7 @@ const Artist = () => {
           backgroundSize: "cover",
         }}
       >
-        <div className="rounded-2xl w-full h-full bg-black/60 backdrop-blur-sm flex flex-col transition-all relative">
+        <div className="rounded-2xl w-full h-full bg-black/60 backdrop-blur-xs flex flex-col transition-all relative">
           <div className="absolute top-3 right-3">
             <Button onClick={() => navigate(-1)} variant="ghost">
               <ArrowLeft className="w-5 h-5" />

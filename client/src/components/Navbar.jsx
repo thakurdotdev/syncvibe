@@ -8,9 +8,9 @@ import { useIsMobile } from "@/hooks/use-mobile"
 const Navbar = () => {
   const isMobile = useIsMobile()
   return (
-    <Card className="fixed top-0 w-full z-10 rounded-none backdrop-blur-sm bg-opacity-20 h-14">
+    <Card className="fixed top-0 w-full z-10 rounded-none backdrop-blur-xs bg-opacity-20 h-14">
       <div className="mx-auto px-4">
-        <div className="flex justify-between items-center py-1 sm:ml-[16rem]">
+        <div className="flex justify-between items-center py-1 sm:ml-64">
           <SidebarTrigger />
 
           <div className="flex items-center gap-3">

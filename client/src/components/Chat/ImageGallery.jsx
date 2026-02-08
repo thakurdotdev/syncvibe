@@ -146,8 +146,8 @@ const ImageGallery = React.memo(({ images, initialIndex = 0, onClose }) => {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl"
     >
       {/* Modern gradient overlays */}
-      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
-      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 top-0 h-32 bg-linear-to-b from-black/60 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-black/60 to-transparent pointer-events-none" />
 
       {/* Close button with improved animation */}
       <motion.button
@@ -156,7 +156,7 @@ const ImageGallery = React.memo(({ images, initialIndex = 0, onClose }) => {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={onClose}
-        className="absolute top-4 right-4 p-2 rounded-full bg-black/40 text-white backdrop-blur-sm border border-white/10 z-50 hover:bg-black/60 transition-colors"
+        className="absolute top-4 right-4 p-2 rounded-full bg-black/40 text-white backdrop-blur-xs border border-white/10 z-50 hover:bg-black/60 transition-colors"
       >
         <X className="w-6 h-6" />
       </motion.button>
@@ -170,7 +170,7 @@ const ImageGallery = React.memo(({ images, initialIndex = 0, onClose }) => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={handlePrevious}
-            className="absolute left-4 p-3 rounded-full bg-black/40 text-white backdrop-blur-sm border border-white/10 z-50 hover:bg-black/60 transition-colors"
+            className="absolute left-4 p-3 rounded-full bg-black/40 text-white backdrop-blur-xs border border-white/10 z-50 hover:bg-black/60 transition-colors"
           >
             <ChevronLeft className="w-6 h-6" />
           </motion.button>
@@ -181,7 +181,7 @@ const ImageGallery = React.memo(({ images, initialIndex = 0, onClose }) => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={handleNext}
-            className="absolute right-4 p-3 rounded-full bg-black/40 text-white backdrop-blur-sm border border-white/10 z-50 hover:bg-black/60 transition-colors"
+            className="absolute right-4 p-3 rounded-full bg-black/40 text-white backdrop-blur-xs border border-white/10 z-50 hover:bg-black/60 transition-colors"
           >
             <ChevronRight className="w-6 h-6" />
           </motion.button>
@@ -230,7 +230,7 @@ const ImageGallery = React.memo(({ images, initialIndex = 0, onClose }) => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-full bg-black/40 text-white text-sm font-medium backdrop-blur-sm border border-white/10"
+          className="absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-full bg-black/40 text-white text-sm font-medium backdrop-blur-xs border border-white/10"
         >
           {currentIndex + 1} / {images.length}
         </motion.div>
@@ -242,7 +242,7 @@ const ImageGallery = React.memo(({ images, initialIndex = 0, onClose }) => {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           onClick={handleDownload}
-          className="absolute bottom-4 right-4 p-3 rounded-full bg-black/40 text-white backdrop-blur-sm border border-white/10 z-50 hover:bg-black/60 transition-colors"
+          className="absolute bottom-4 right-4 p-3 rounded-full bg-black/40 text-white backdrop-blur-xs border border-white/10 z-50 hover:bg-black/60 transition-colors"
         >
           <Download className="w-6 h-6" />
         </motion.button>

@@ -82,13 +82,13 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
             <div className="flex items-center gap-2">
               <button
                 onClick={answerCall}
-                className="p-3 rounded-full bg-green-500 hover:bg-green-600 text-white transform transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                className="p-3 rounded-full bg-green-500 hover:bg-green-600 text-white transform transition-all duration-200 hover:scale-105 focus:outline-hidden focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
               >
                 <Phone className="w-5 h-5" />
               </button>
               <button
                 onClick={endCall}
-                className="p-3 rounded-full bg-red-500 hover:bg-red-600 text-white transform transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                className="p-3 rounded-full bg-red-500 hover:bg-red-600 text-white transform transition-all duration-200 hover:scale-105 focus:outline-hidden focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
               >
                 <PhoneOff className="w-5 h-5" />
               </button>

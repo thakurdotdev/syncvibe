@@ -18,7 +18,7 @@ const PlaylistHeader = ({ playlistData }) => {
         style={{ backgroundImage: `url('${bgUrl}')` }}
       />
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/60 to-black/40 backdrop-blur-sm">
+      <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/60 to-black/40 backdrop-blur-xs">
         <div className="h-full w-full p-4 md:p-6 flex flex-col md:flex-row md:items-end">
           <div className="flex flex-col md:flex-row md:items-end gap-4 md:gap-6 mt-auto">
             <div className="w-[120px] h-[120px] sm:w-[150px] sm:h-[150px] md:w-[200px] md:h-[200px] rounded-lg overflow-hidden shadow-xl mx-auto md:mx-0">

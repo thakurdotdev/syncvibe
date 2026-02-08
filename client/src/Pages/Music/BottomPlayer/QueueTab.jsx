@@ -160,7 +160,7 @@ const QueueSongItem = memo(
         <motion.div
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="relative w-10 h-10 shrink-0 cursor-pointer rounded-md overflow-hidden shadow-sm"
+          className="relative w-10 h-10 shrink-0 cursor-pointer rounded-md overflow-hidden shadow-xs"
           onClick={handlePlay}
         >
           <LazyImage

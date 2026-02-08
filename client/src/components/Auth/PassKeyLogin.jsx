@@ -150,7 +150,7 @@ export const PasskeyLogin = () => {
       {/* Subtle glow */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-[120px]" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500/5 rounded-full blur-[120px]" />
-      <Card className="w-full max-w-md mx-auto z-10 bg-white/[0.03] border-white/[0.08] backdrop-blur-sm">
+      <Card className="w-full max-w-md mx-auto z-10 bg-white/3 border-white/8 backdrop-blur-xs">
         <CardHeader className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-primary/10">

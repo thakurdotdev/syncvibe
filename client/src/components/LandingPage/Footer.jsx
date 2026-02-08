@@ -4,7 +4,7 @@ import { Github, Twitter } from "lucide-react"
 
 const Footer = memo(() => {
   return (
-    <footer className="bg-[#050505] border-t border-white/[0.05]">
+    <footer className="bg-[#050505] border-t border-white/5">
       <div className="max-w-6xl mx-auto px-6 py-12">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
           {/* Brand */}
@@ -58,7 +58,7 @@ const Footer = memo(() => {
         </div>
 
         {/* Bottom */}
-        <div className="mt-12 pt-8 border-t border-white/[0.05] flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="mt-12 pt-8 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-sm text-white/30">
             © {new Date().getFullYear()} SyncVibe. All rights reserved.
           </p>

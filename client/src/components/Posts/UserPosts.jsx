@@ -359,7 +359,7 @@ const UserPosts = () => {
       </Dialog>
 
       {imagesToShow.length > 0 && showGallery && (
-        <div className="fixed inset-0 z-[100]">
+        <div className="fixed inset-0 z-100">
           <ImageGallery
             onClose={() => {
               setShowGallery(false)
