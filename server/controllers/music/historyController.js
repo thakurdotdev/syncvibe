@@ -2,10 +2,13 @@ const HistorySong = require("../../models/music/HistorySong")
 const Song = require("../../models/music/Song")
 const { Op } = require("sequelize")
 const sequelize = require("../../utils/sequelize")
+const {
+  getRecommendationsForUser,
+  getRecentlyPlayed,
+  queueUserForRecalc,
+} = require("../../services/recommendationService")
 
 require("../../models/music/index")
-
-const recommendationCache = new Map()
 
 const addToHistory = async (req, res) => {
   try {
@@ -33,6 +36,7 @@ const addToHistory = async (req, res) => {
       lastPlayedAt: new Date(),
     })
 
+    queueUserForRecalc(userId)
     res.json({ message: "History updated successfully" })
   } catch (error) {
     console.error("Error in addToHistory:", error)
@@ -83,6 +87,7 @@ const batchAddToHistory = async (req, res) => {
       }
     }
 
+    queueUserForRecalc(userId)
     res.json({
       message: "Batch history updated successfully",
       results,
@@ -100,34 +105,16 @@ const getPersonalizedRecommendations = async (req, res) => {
     const userId = req.user.userid
     const limit = parseInt(req.query.limit || 12, 10)
 
-    const cacheKey = `recs:${userId}:${limit}`
-    const cached = recommendationCache.get(cacheKey)
-
-    let recommendationSongs
-    if (cached && cached.expiresAt > Date.now()) {
-      recommendationSongs = cached.data
-    } else {
-      const rows = await calculateWeightedRecommendations(userId, limit)
-      recommendationSongs = rows.map((r) => r.song?.songData)
-
-      recommendationCache.set(cacheKey, {
-        expiresAt: Date.now() + 5 * 60 * 1000,
-        data: recommendationSongs,
-      })
-    }
-
-    const recentlyPlayed = await HistorySong.findAll({
-      where: { userId, songRefId: { [Op.ne]: null } },
-      include: [{ model: Song, as: "song", attributes: ["songData"], required: true }],
-      order: [["lastPlayedAt", "DESC"]],
-      limit: 15,
-    })
+    const [recommendationSongs, recentlyPlayedSongs] = await Promise.all([
+      getRecommendationsForUser(userId, limit),
+      getRecentlyPlayed(userId, 15),
+    ])
 
     res.status(200).json({
       success: true,
       data: {
         songs: recommendationSongs,
-        recentlyPlayed: recentlyPlayed.map((r) => r.song?.songData),
+        recentlyPlayed: recentlyPlayedSongs,
       },
     })
   } catch (error) {
@@ -136,154 +123,73 @@ const getPersonalizedRecommendations = async (req, res) => {
   }
 }
 
-const calculateWeightedRecommendations = async (userId, limit) => {
-  const { artists, languages } = await getRecentContext(userId)
-
-  const artistLikes = artists.map((a) => `%${a}%`)
-  const languageList = languages.map((l) => sequelize.escape(l)).join(",")
-
-  return HistorySong.findAll({
-    include: [
-      {
-        model: Song,
-        as: "song",
-        attributes: ["songData", "artistNames", "language"],
-        required: true,
-      },
-    ],
-    where: {
-      userId,
-      songRefId: { [Op.ne]: null },
-      lastPlayedAt: {
-        [Op.gte]: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
-      },
-    },
-    order: [
-      [
-        sequelize.literal(`
-          (
-            -- 🔥 STRONG RECENCY
-            EXP(-EXTRACT(HOUR FROM NOW() - "HistorySong"."lastPlayedAt") / 24) * 0.45 +
-
-            -- 🎧 ARTIST CONTEXT
-            CASE
-              WHEN "song"."artistNames" ILIKE ANY (
-                ARRAY[${artistLikes.map((a) => sequelize.escape(a)).join(",")}]
-              )
-              THEN 0.25
-              ELSE 0
-            END +
-
-            -- 🌍 LANGUAGE CONTEXT
-            CASE
-              WHEN "song"."language" IN (${languageList || "NULL"})
-              THEN 0.15
-              ELSE 0
-            END +
-
-            -- ❤️ USER SIGNALS
-            ("HistorySong"."completionRate" / 100) * 0.1 +
-            CASE WHEN "HistorySong"."likeStatus" = true THEN 0.1 ELSE 0 END
-          )
-        `),
-        "DESC",
-      ],
-    ],
-    limit,
-  })
-}
-
 const getHistorySongs = async (req, res) => {
   try {
     const userId = req.user.userid
-    const { page = 1, limit = 10, searchQuery = "" } = req.query
+    const pageNum = parseInt(req.query.page, 10) || 1
+    const limitNum = parseInt(req.query.limit, 10) || 10
+    const searchQuery = req.query.searchQuery?.trim() || ""
+    const offset = (pageNum - 1) * limitNum
 
-    const whereClause = { userId, songRefId: { [Op.ne]: null } }
+    let query
+    let replacements = { userId, limit: limitNum, offset }
 
-    const includeOptions = {
-      model: Song,
-      as: "song",
-      attributes: ["songData", "name", "artistNames"],
-      required: true,
+    if (searchQuery) {
+      query = `
+        WITH matched_songs AS (
+          SELECT id, "songData",
+            GREATEST(
+              similarity(name, :search),
+              similarity("artistNames", :search),
+              similarity("albumName", :search)
+            ) AS score
+          FROM songs
+          WHERE name % :search
+             OR "artistNames" % :search
+             OR "albumName" % :search
+        )
+        SELECT 
+          s."songData",
+          COUNT(*) OVER() AS total_count
+        FROM history_songs hs
+        INNER JOIN matched_songs s ON s.id = hs."songRefId"
+        WHERE hs."userId" = :userId
+        ORDER BY s.score DESC, hs."lastPlayedAt" DESC
+        LIMIT :limit OFFSET :offset
+      `
+      replacements.search = searchQuery.toLowerCase()
+    } else {
+      query = `
+        SELECT 
+          s."songData",
+          COUNT(*) OVER() AS total_count
+        FROM history_songs hs
+        INNER JOIN songs s ON s.id = hs."songRefId"
+        WHERE hs."userId" = :userId AND hs."songRefId" IS NOT NULL
+        ORDER BY hs."lastPlayedAt" DESC
+        LIMIT :limit OFFSET :offset
+      `
     }
 
-    if (searchQuery?.trim()) {
-      const q = searchQuery.toLowerCase().trim()
-      includeOptions.where = {
-        [Op.or]: [
-          sequelize.literal(`similarity("song"."name", ${sequelize.escape(q)}) > 0.2`),
-          sequelize.literal(`similarity("song"."artistNames", ${sequelize.escape(q)}) > 0.2`),
-          sequelize.literal(`similarity("song"."albumName", ${sequelize.escape(q)}) > 0.2`),
-        ],
-      }
-    }
-
-    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10)
-
-    const historySongs = await HistorySong.findAndCountAll({
-      where: whereClause,
-      include: [includeOptions],
-      limit: parseInt(limit, 10),
-      offset,
-      order: [["lastPlayedAt", "DESC"]],
-      distinct: true,
-      subQuery: false,
+    const results = await sequelize.query(query, {
+      replacements,
+      type: sequelize.QueryTypes.SELECT,
     })
+
+    const totalCount = results[0]?.total_count || 0
 
     res.status(200).json({
       status: "success",
       data: {
-        songs: historySongs.rows.map((r) => r.song?.songData),
-        count: historySongs.count,
-        currentPage: parseInt(page, 10),
-        totalPages: Math.ceil(historySongs.count / parseInt(limit, 10)),
+        songs: results.map((r) => r.songData),
+        count: parseInt(totalCount, 10),
+        currentPage: pageNum,
+        totalPages: Math.ceil(totalCount / limitNum),
       },
     })
   } catch (error) {
     console.error("Error in getHistorySongs:", error)
     res.status(500).json({ error: "Failed to get history songs" })
-  }
-}
-
-const getRecentContext = async (userId) => {
-  const recent = await HistorySong.findAll({
-    where: {
-      userId,
-      lastPlayedAt: {
-        [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000), // last 24h
-      },
-    },
-    include: [
-      {
-        model: Song,
-        as: "song",
-        attributes: ["artistNames", "language"],
-        required: true,
-      },
-    ],
-    limit: 20,
-  })
-
-  const artists = new Set()
-  const languages = new Set()
-
-  for (const r of recent) {
-    const artistNames = r.song?.artistNames
-    if (artistNames) {
-      artistNames.split(",").forEach((a) => {
-        const name = a.trim()
-        if (name) artists.add(name)
-      })
-    }
-
-    if (r.song?.language) {
-      languages.add(r.song.language)
-    }
-  }
-
-  return {
-    artists: [...artists],
-    languages: [...languages],
   }
 }
 

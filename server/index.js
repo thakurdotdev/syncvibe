@@ -22,10 +22,13 @@ const io = new Server(server, {
 
 socketManager(io)
 
+const { startBackgroundRecalc } = require("./services/recommendationService")
+
 sequelize.authenticate().then(() => {
   const port = process.env.PORT || 4000
   server.listen(port, () => {
     console.log(`Server running on port ${port}`)
+    startBackgroundRecalc(60000)
   })
 })
 
