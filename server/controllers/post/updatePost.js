@@ -9,9 +9,13 @@ const updatePost = async (req, res) => {
   }
 
   try {
-    const { title } = req.body
+    const { title, images } = req.body
+    const updateData = {}
 
-    await Post.update({ title }, { where: { postid, createdby } })
+    if (title !== undefined) updateData.title = title
+    if (images !== undefined) updateData.images = images
+
+    await Post.update(updateData, { where: { postid, createdby } })
 
     res.status(200).json({ message: "success" })
   } catch (err) {

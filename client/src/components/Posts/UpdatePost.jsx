@@ -9,9 +9,9 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
 } from "@/components/ui/revola"
-import { Textarea } from "@/components/ui/textarea"
+import RichTextEditor from "@/components/ui/RichTextEditor"
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"
+import { Form, FormField, FormItem, FormMessage } from "@/components/ui/form"
 import { Loader2 } from "lucide-react"
 
 const validationSchema = Yup.object().shape({
@@ -64,13 +64,11 @@ const UpdatePost = ({ isOpen, toggleDialog, post }) => {
                 name="content"
                 render={({ field }) => (
                   <FormItem>
-                    <FormControl>
-                      <Textarea
-                        placeholder="What's on your mind?"
-                        className="min-h-[100px] resize-none"
-                        {...field}
-                      />
-                    </FormControl>
+                    <RichTextEditor
+                      content={field.value}
+                      onChange={field.onChange}
+                      placeholder="What's on your mind?"
+                    />
                     <FormMessage />
                   </FormItem>
                 )}

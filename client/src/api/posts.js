@@ -10,10 +10,19 @@ export const postKeys = {
   detail: (id) => [...postKeys.details(), id],
   comments: (postId) => [...postKeys.all, "comments", postId],
   likeStatus: (postId) => [...postKeys.all, "likeStatus", postId],
+  userPosts: (userId) => [...postKeys.all, "user", userId],
 }
 
 export const fetchPosts = async ({ page = 1, limit = 10 }) => {
   const { data } = await axios.get(`${API_URL}/api/posts`, {
+    params: { page, limit },
+    withCredentials: true,
+  })
+  return data
+}
+
+export const fetchUserPosts = async ({ userId, page = 1, limit = 12 }) => {
+  const { data } = await axios.get(`${API_URL}/api/user/posts/${userId}`, {
     params: { page, limit },
     withCredentials: true,
   })
@@ -39,13 +48,15 @@ export const createPost = async ({ title, images }) => {
   return data
 }
 
-export const updatePost = async ({ postid, content }) => {
-  const formData = new FormData()
-  formData.append("content", content)
-  const { data } = await axios.patch(`${API_URL}/api/post/update/${postid}`, formData, {
-    withCredentials: true,
-    headers: { "Content-Type": "multipart/form-data" },
-  })
+export const updatePost = async ({ postid, title, images }) => {
+  const { data } = await axios.patch(
+    `${API_URL}/api/post/update/${postid}`,
+    { title, images },
+    {
+      withCredentials: true,
+      headers: { "Content-Type": "application/json" },
+    },
+  )
   return data
 }
 
@@ -68,13 +79,9 @@ export const hidePost = async (postid) => {
 }
 
 export const likeDislikePost = async (postid) => {
-  const { data } = await axios.post(
-    `${API_URL}/api/post/likedislike/${postid}`,
-    {},
-    {
-      withCredentials: true,
-    },
-  )
+  const { data } = await axios.get(`${API_URL}/api/post/likedislike/${postid}`, {
+    withCredentials: true,
+  })
   return data
 }
 

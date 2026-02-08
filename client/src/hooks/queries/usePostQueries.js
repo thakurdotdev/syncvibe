@@ -1,5 +1,12 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
-import { fetchComments, fetchPostById, fetchPosts, getLikeStatus, postKeys } from "@/api/posts"
+import {
+  fetchComments,
+  fetchPostById,
+  fetchPosts,
+  fetchUserPosts,
+  getLikeStatus,
+  postKeys,
+} from "@/api/posts"
 
 export const usePostsInfiniteQuery = (limit = 10, options = {}) => {
   return useInfiniteQuery({
@@ -9,6 +16,17 @@ export const usePostsInfiniteQuery = (limit = 10, options = {}) => {
       const totalFetched = allPages.reduce((acc, page) => acc + page.posts.length, 0)
       return totalFetched < lastPage.totalPosts ? allPages.length + 1 : undefined
     },
+    staleTime: 1000 * 60 * 2,
+    ...options,
+  })
+}
+
+export const useUserPostsInfiniteQuery = (userId, limit = 12, options = {}) => {
+  return useInfiniteQuery({
+    queryKey: postKeys.userPosts(userId),
+    queryFn: ({ pageParam = 1 }) => fetchUserPosts({ userId, page: pageParam, limit }),
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
+    enabled: !!userId,
     staleTime: 1000 * 60 * 2,
     ...options,
   })

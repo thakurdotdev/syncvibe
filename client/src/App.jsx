@@ -9,8 +9,10 @@ import { PlayerProvider } from "./Context/PlayerContext"
 import { ThemeProvider } from "./Context/ThemeProvider"
 import { Toaster } from "./components/ui/sonner"
 import { ProtectedRoutes, PublicRoutes, privateRoutes, publicRoutes } from "./Routes"
+import { setQueryClient } from "./stores/uploadStore"
 
 const queryClient = new QueryClient()
+setQueryClient(queryClient)
 
 function App() {
   return (

@@ -8,6 +8,7 @@ import Navbar from "./components/Navbar"
 import { AppSidebar } from "./components/AppSidebar"
 import IncomingCallNotification from "./components/Chat/IncomingCall"
 import VideoCallUI from "./components/Chat/VideoCall"
+import UploadIndicator from "./components/Posts/UploadIndicator"
 import { Outlet } from "react-router-dom"
 import { useContext } from "react"
 import { Context } from "./Context/Context"
@@ -39,7 +40,7 @@ const NotFoundPage = lazy(() => import("./components/NotFound"))
 const Dashboard = lazy(() => import("./components/Posts/Dashboard"))
 const PostDetail = lazy(() => import("./components/Posts/PostDetail"))
 const SearchPost = lazy(() => import("./components/Posts/SearchPost"))
-const UpdatePost = lazy(() => import("./components/Posts/UpdatePost"))
+const PostEditor = lazy(() => import("./Pages/Posts/PostEditor"))
 const UserPosts = lazy(() => import("./components/Posts/UserPosts"))
 const StoryViewer = lazy(() => import("./components/Story/StoryViewer"))
 const Album = lazy(() => import("./Pages/Music/Album"))
@@ -67,7 +68,8 @@ export const privateRoutes = [
   { path: "/feed", element: <Dashboard /> },
   { path: "/feed/post/:postid", element: <PostDetail /> },
   { path: "/post/search", element: <SearchPost /> },
-  { path: "/post/update/:postid", element: <UpdatePost /> },
+  { path: "/post/create", element: <PostEditor /> },
+  { path: "/post/edit/:postid", element: <PostEditor /> },
   { path: "/chat", element: <Chat /> },
   { path: "/stories/:userid", element: <StoryViewer /> },
   { path: "/music", element: <HomePage /> },
@@ -141,6 +143,7 @@ export const ProtectedRoutes = () => {
         endCall={rejectCall}
       />
       {isInCall && <VideoCallUI />}
+      <UploadIndicator />
     </>
   )
 }
