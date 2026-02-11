@@ -153,17 +153,11 @@ const Profile = () => {
 
   const handleProfilePicUpdate = useCallback(
     async (croppedImageUrl, file) => {
+      setIsDialogOpen(false)
+      setLoading(true)
+
       try {
-        setLoading(true)
-
-        let fileToUpload = file
-        if (!fileToUpload && croppedImageUrl) {
-          const response = await fetch(croppedImageUrl)
-          const blob = await response.blob()
-          fileToUpload = new File([blob], "profile.jpg", { type: "image/jpeg" })
-        }
-
-        const uploadResult = await uploadToCloudinary(fileToUpload, "profile")
+        const uploadResult = await uploadToCloudinary(file, "profile")
 
         const { status, data } = await axios.post(
           `${import.meta.env.VITE_API_URL}/api/update-profilepic`,
@@ -176,8 +170,7 @@ const Profile = () => {
 
         if (status === 200) {
           setUser((prevUser) => ({ ...prevUser, profilepic: data.profilepic }))
-          toast.success("Profile picture updated successfully")
-          setIsDialogOpen(false)
+          toast.success("Profile picture updated!")
         }
       } catch (error) {
         console.error("Error updating profile picture:", error)
@@ -190,8 +183,9 @@ const Profile = () => {
   )
 
   const toggleDialog = useCallback(() => {
+    if (loading) return
     setIsDialogOpen((prev) => !prev)
-  }, [])
+  }, [loading])
 
   return (
     <>
@@ -203,22 +197,37 @@ const Profile = () => {
           {/* Profile Header */}
           <Card className="rounded-xl shadow-md p-6 mb-6">
             <div className="flex flex-col md:flex-row items-center md:items-start">
-              <div className="relative mb-6 md:mb-0 md:mr-8">
-                <Avatar className="w-48 h-48 rounded-full overflow-hidden shadow-lg relative">
+              <div className="relative mb-6 md:mb-0 md:mr-8 group">
+                <Avatar
+                  className={cn(
+                    "w-48 h-48 rounded-full overflow-hidden shadow-lg relative transition-all duration-300",
+                    loading &&
+                      "ring-4 ring-blue-500/50 ring-offset-2 ring-offset-background animate-pulse",
+                  )}
+                >
                   <AvatarImage
                     src={getProfileCloudinaryUrl(user?.profilepic)}
                     alt={user?.name}
                     className="w-full h-full object-cover"
                   />
-                  <AvatarFallback className="w-full h-full">CN</AvatarFallback>
+                  <AvatarFallback className="w-full h-full text-3xl">
+                    {user?.name?.charAt(0)?.toUpperCase() || "U"}
+                  </AvatarFallback>
                 </Avatar>
+
+                {loading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full backdrop-blur-[2px]">
+                    <Loader2 size={32} className="text-white animate-spin" />
+                  </div>
+                )}
 
                 <Button
                   onClick={toggleDialog}
                   variant="ghost"
-                  className="absolute bottom-2 w-10 h-10 right-2 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition duration-300 shadow-md"
+                  disabled={loading}
+                  className="absolute bottom-2 right-2 w-10 h-10 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition duration-300 shadow-md hover:scale-110"
                 >
-                  <Camera />
+                  <Camera size={18} />
                 </Button>
               </div>
               <div className="flex-1">
@@ -386,9 +395,9 @@ const Profile = () => {
 
       {/* Profile Picture Update Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={toggleDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>Update Profile Picture</DialogHeader>
-          <ImageUpload onImageUpdate={handleProfilePicUpdate} />
+          <ImageUpload onImageUpdate={handleProfilePicUpdate} loading={loading} />
         </DialogContent>
       </Dialog>
 
