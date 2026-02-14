@@ -51,8 +51,12 @@ export const fetchExternalPlaylist = async (id) => {
 }
 
 export const fetchSongRecommendations = async (id) => {
-  const { data } = await axios.get(`${SONG_URL}/song/recommend?id=${id}`)
-  return data?.data || []
+  try {
+    const { data } = await axios.get(`${API_URL}/api/play-next/${id}?limit=20`)
+    return data?.data || []
+  } catch {
+    return []
+  }
 }
 
 export const fetchSongById = async (id) => {

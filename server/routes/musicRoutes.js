@@ -33,6 +33,7 @@ const {
   POPULAR_ARTISTS,
   SEARCH_QUERIES,
 } = require("../services/musicSyncService")
+const { getPlayNextSongs, rebuildAllPlayNext } = require("../services/playNextService")
 
 const musicRoutes = express.Router()
 
@@ -180,6 +181,50 @@ musicRoutes.get("/sync/status", async (req, res) => {
       },
     })
   } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+musicRoutes.get("/play-next/:songId", async (req, res) => {
+  try {
+    const { songId } = req.params
+
+    if (!songId || typeof songId !== "string") {
+      return res.status(400).json({ success: false, error: "Invalid songId" })
+    }
+
+    const limitRaw = parseInt(req.query.limit, 10)
+    const limit = Math.min(Math.max(limitRaw || 20, 1), 50)
+
+    const excludeSongIds = req.query.exclude
+      ? req.query.exclude.split(",").map((s) => s.trim())
+      : []
+
+    const data = await getPlayNextSongs({
+      baseSongId: songId,
+      limit,
+      excludeSongIds,
+    })
+    res.set(
+      "Cache-Control",
+      "public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800",
+    )
+    return res.json({ success: true, data })
+  } catch (error) {
+    console.error("[PlayNext] Error:", error.message)
+    if (res.headersSent) return
+    const status = error.message.includes("not found") ? 404 : 500
+    res.set("Cache-Control", "no-store")
+    return res.status(status).json({ success: false, error: error.message })
+  }
+})
+
+musicRoutes.post("/play-next/rebuild", async (req, res) => {
+  try {
+    const stats = await rebuildAllPlayNext()
+    res.json({ success: true, data: stats })
+  } catch (error) {
+    console.error("[PlayNext] Rebuild failed:", error)
     res.status(500).json({ success: false, error: error.message })
   }
 })
