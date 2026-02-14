@@ -1,6 +1,7 @@
 const Song = require("../models/music/Song")
 const HistorySong = require("../models/music/HistorySong")
 const { cache } = require("../utils/redis")
+const { Op } = require("sequelize")
 
 const SONG_API_URL = process.env.SONG_API_URL || "https://songapi.thakur.dev"
 const CACHE_PREFIX = "song:playnext:"
@@ -78,7 +79,6 @@ const initialize = async () => {
       const sd = song.songData || {}
       const entry = {
         songId: song.songId,
-        songData: sd,
         name: song.name || sd.name || "Unknown",
         primaryArtist: extractPrimaryArtist(sd),
         allPrimaryArtists: extractAllPrimaryArtists(sd),
@@ -107,6 +107,7 @@ const initialize = async () => {
 
     initialized = true
     initializing = false
+    await cache.set("playnext:last_init", Date.now(), 0)
     console.log(
       `[PlayNext] Initialized: ${songMap.size} songs, ${artistMap.size} artists, ${labelMap.size} labels, ${languageMap.size} languages, ${albumMap.size} albums`,
     )
@@ -238,7 +239,10 @@ const getPlayNextSongs = async ({ baseSongId, userId = null, limit = 20, exclude
     return external.filter((s) => !excludeSet.has(s.id)).slice(0, limit)
   }
 
-  if (!initialized) return []
+  if (!initialized) {
+    initialize()
+    return []
+  }
 
   const baseSong = songMap.get(baseSongId)
   if (!baseSong) {
@@ -291,10 +295,19 @@ const getPlayNextSongs = async ({ baseSongId, userId = null, limit = 20, exclude
     resultIds = personalized.map((p) => p.songId)
   }
 
-  return resultIds
-    .slice(0, limit)
-    .map((id) => songMap.get(id)?.songData)
-    .filter(Boolean)
+  const finalIds = resultIds.slice(0, limit)
+  if (finalIds.length === 0) return []
+
+  const songs = await Song.findAll({
+    where: { songId: { [Op.in]: finalIds } },
+    attributes: ["songId", "songData"],
+    raw: true,
+  })
+
+  const dataMap = new Map()
+  for (const s of songs) dataMap.set(s.songId, s.songData)
+
+  return finalIds.map((id) => dataMap.get(id)).filter(Boolean)
 }
 
 const rebuildAllPlayNext = async () => {
@@ -343,7 +356,10 @@ const reload = async () => {
   await initialize()
 }
 
-setTimeout(() => initialize(), 5000)
+cache.get("playnext:last_init").then((ts) => {
+  if (ts) console.log(`[PlayNext] Last init: ${new Date(ts).toISOString()} — skipping eager load`)
+  else console.log("[PlayNext] No previous init found — will load lazily on first fallback request")
+})
 
 module.exports = {
   initialize,

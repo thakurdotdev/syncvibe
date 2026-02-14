@@ -222,16 +222,20 @@ userRouter.route("/guestLogin").post(guestLogin)
 userRouter.route("/login-logs").get(authMiddleware, getLoginLogs)
 
 userRouter.route("/profile").get(authMiddleware, async (req, res) => {
-  const userid = req.user.userid
-  if (userid) {
+  try {
+    const userid = req.user.userid
+    if (!userid) {
+      return res.status(401).json({ message: "Unauthorized" })
+    }
     const user = await User.findOne({
       where: { userid },
       attributes: { exclude: ["password"] },
       raw: true,
     })
-    res.status(200).json({ user })
-  } else {
-    res.status(401).json({ message: "Unauthorized" })
+    return res.status(200).json({ user })
+  } catch (error) {
+    if (res.headersSent) return
+    return res.status(500).json({ message: "Failed to fetch profile" })
   }
 })
 
