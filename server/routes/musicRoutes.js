@@ -207,7 +207,9 @@ musicRoutes.get("/play-next/:songId", async (req, res) => {
     })
     res.set(
       "Cache-Control",
-      "public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800",
+      data.length > 0
+        ? "public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800"
+        : "no-store",
     )
     return res.json({ success: true, data })
   } catch (error) {

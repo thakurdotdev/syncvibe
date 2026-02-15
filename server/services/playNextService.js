@@ -3,20 +3,34 @@ const HistorySong = require("../models/music/HistorySong")
 const { cache } = require("../utils/redis")
 const { Op } = require("sequelize")
 
-const SONG_API_URL = process.env.SONG_API_URL || "https://songapi.thakur.dev"
+const SONG_API_URL = process.env.SONG_API_URL || "https://song.thakur.dev"
 const CACHE_PREFIX = "song:playnext:"
 const CACHE_TTL = 7 * 24 * 60 * 60
 
 let songMap = new Map()
 let artistMap = new Map()
-let labelMap = new Map()
+let composerMap = new Map()
 let languageMap = new Map()
 let albumMap = new Map()
 let singerMap = new Map()
+let nameIndex = new Map()
 let initialized = false
 let initializing = false
 
 const normalize = (str) => (str || "").toLowerCase().trim()
+
+const cleanTitle = (name) => {
+  return normalize(name)
+    .replace(/\s*[\(\[].*?[\)\]]/g, "")
+    .replace(
+      /\s*-\s*(from|feat|ft|remix|unplugged|reprise|acoustic|lofi|slowed|reverb|version|male|female|duet|sad|happy|jhankar|remastered|deluxe).*$/i,
+      "",
+    )
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+const dedupKey = (name, artist) => `${cleanTitle(name)}::${normalize(artist)}`
 
 const extractPrimaryArtist = (songData) => {
   const primary = songData?.artist_map?.primary_artists?.[0]?.name
@@ -36,6 +50,14 @@ const extractSingers = (songData) => {
 const extractAllPrimaryArtists = (songData) => {
   const primaries = songData?.artist_map?.primary_artists || []
   return primaries.map((a) => normalize(a.name)).filter(Boolean)
+}
+
+const extractComposers = (songData) => {
+  const musicField = songData?.music || ""
+  return musicField
+    .split(",")
+    .map((c) => normalize(c))
+    .filter((c) => c && c !== "unknown")
 }
 
 const addToMap = (map, key, songId) => {
@@ -70,22 +92,34 @@ const initialize = async () => {
 
     songMap = new Map()
     artistMap = new Map()
-    labelMap = new Map()
+    composerMap = new Map()
     languageMap = new Map()
     albumMap = new Map()
     singerMap = new Map()
+    nameIndex = new Map()
 
     for (const song of songs) {
       const sd = song.songData || {}
+      const primaryArtist = extractPrimaryArtist(sd)
+      const dk = dedupKey(song.name || sd.name, primaryArtist)
+
+      if (nameIndex.has(dk)) {
+        const existing = songMap.get(nameIndex.get(dk))
+        if (existing && (sd.play_count || 0) <= (existing.playCount || 0)) continue
+        songMap.delete(nameIndex.get(dk))
+      }
+      nameIndex.set(dk, song.songId)
+
+      const composers = extractComposers(sd)
       const entry = {
         songId: song.songId,
         name: song.name || sd.name || "Unknown",
-        primaryArtist: extractPrimaryArtist(sd),
+        primaryArtist,
         allPrimaryArtists: extractAllPrimaryArtists(sd),
         singers: extractSingers(sd),
+        composers,
         albumName: normalize(song.albumName || sd.album || ""),
         language: normalize(song.language || sd.language || ""),
-        label: normalize(sd.label || ""),
         duration: song.duration || sd.duration || 0,
         playCount: sd.play_count || 0,
         year: sd.year || 0,
@@ -100,7 +134,9 @@ const initialize = async () => {
       for (const singer of entry.singers) {
         addToMap(singerMap, singer, song.songId)
       }
-      addToMap(labelMap, entry.label, song.songId)
+      for (const composer of composers) {
+        addToMap(composerMap, composer, song.songId)
+      }
       addToMap(languageMap, entry.language, song.songId)
       addToMap(albumMap, entry.albumName, song.songId)
     }
@@ -109,7 +145,7 @@ const initialize = async () => {
     initializing = false
     await cache.set("playnext:last_init", Date.now(), 0)
     console.log(
-      `[PlayNext] Initialized: ${songMap.size} songs, ${artistMap.size} artists, ${labelMap.size} labels, ${languageMap.size} languages, ${albumMap.size} albums`,
+      `[PlayNext] Initialized: ${songMap.size} songs, ${artistMap.size} artists, ${composerMap.size} composers, ${languageMap.size} languages, ${albumMap.size} albums`,
     )
   } catch (err) {
     initializing = false
@@ -135,48 +171,81 @@ const collectCandidates = (baseSong, excludeSet) => {
   for (const singer of baseSong.singers) {
     addFromMap(singerMap, singer)
   }
+  for (const composer of baseSong.composers) {
+    addFromMap(composerMap, composer)
+  }
+  if (baseSong.albumName) {
+    addFromMap(albumMap, baseSong.albumName)
+  }
   addFromMap(languageMap, baseSong.language)
-  addFromMap(labelMap, baseSong.label)
 
   candidates.delete(baseSong.songId)
   return candidates
 }
 
-const scoreSong = (candidate, baseSong, recentSongIds, userHistoryMap) => {
+const scoreSong = (candidate, baseSong) => {
   let score = 0
+
+  if (candidate.albumName && candidate.albumName === baseSong.albumName) score += 50
 
   const sharedPrimaryArtists = candidate.allPrimaryArtists.filter((a) =>
     baseSong.allPrimaryArtists.includes(a),
   )
-  if (sharedPrimaryArtists.length > 0) score += 60
+  if (sharedPrimaryArtists.length > 0) score += 45
 
   const sharedSingers = candidate.singers.filter((s) => baseSong.singers.includes(s))
-  if (sharedSingers.length > 0) score += 40
+  if (sharedSingers.length > 0) score += 35
 
-  if (candidate.albumName && candidate.albumName === baseSong.albumName) score += 30
-
-  if (candidate.label && candidate.label === baseSong.label) score += 25
+  const sharedComposers = candidate.composers.filter((c) => baseSong.composers.includes(c))
+  if (sharedComposers.length > 0) score += 30
 
   if (candidate.language && candidate.language === baseSong.language) score += 15
 
+  if (candidate.year > 0 && baseSong.year > 0) {
+    const yearDiff = Math.abs(candidate.year - baseSong.year)
+    if (yearDiff === 0) score += 10
+    else if (yearDiff <= 2) score += 7
+    else if (yearDiff <= 5) score += 3
+  }
+
   if (candidate.duration > 0 && baseSong.duration > 0) {
-    if (Math.abs(candidate.duration - baseSong.duration) < 30) score += 5
+    const durationDiff = Math.abs(candidate.duration - baseSong.duration)
+    if (durationDiff < 30) score += 5
+    else if (durationDiff < 60) score += 2
   }
 
-  score += normalizePlayCount(candidate.playCount) * 10
+  score += normalizePlayCount(candidate.playCount) * 8
 
-  score += Math.random() * 5
-
-  const history = userHistoryMap?.get(candidate.songId)
-  if (history) {
-    if (recentSongIds.has(candidate.songId)) score -= 50
-    if (history.skipCount >= 5) score -= 40
-    else if (history.skipCount >= 3) score -= 20
-    if (history.playedCount > 10) score -= 30
-    else if (history.playedCount > 5) score -= 15
-  }
+  score += Math.random() * 3
 
   return score
+}
+
+const diversify = (scored, songMap, limit) => {
+  const result = []
+  const artistCount = new Map()
+  const seenNames = new Set()
+  const MAX_PER_ARTIST = 4
+
+  for (const item of scored) {
+    if (result.length >= limit) break
+
+    const entry = songMap.get(item.songId)
+    if (!entry) continue
+
+    const nameKey = cleanTitle(entry.name)
+    if (seenNames.has(nameKey)) continue
+    seenNames.add(nameKey)
+
+    const artist = entry.primaryArtist
+    const count = artistCount.get(artist) || 0
+    if (count >= MAX_PER_ARTIST) continue
+
+    artistCount.set(artist, count + 1)
+    result.push(item.songId)
+  }
+
+  return result
 }
 
 const getUserHistory = async (userId) => {
@@ -220,13 +289,24 @@ const getUserHistory = async (userId) => {
   return { recentSongIds, historyMap }
 }
 
+const deduplicateExternal = (songs) => {
+  const seen = new Set()
+  return songs.filter((s) => {
+    const key = dedupKey(s.name, s.artist_map?.primary_artists?.[0]?.name || "")
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 const fetchExternalRecommendations = async (songId) => {
   try {
     const response = await fetch(`${SONG_API_URL}/song/recommend?id=${songId}`)
     if (!response.ok) return []
     const json = await response.json()
     const data = json?.data || []
-    return data.filter((s) => s?.id && s?.download_url?.length > 0)
+    const valid = data.filter((s) => s?.id && s?.download_url?.length > 0)
+    return deduplicateExternal(valid)
   } catch {
     return []
   }
@@ -261,12 +341,12 @@ const getPlayNextSongs = async ({ baseSongId, userId = null, limit = 20, exclude
     for (const id of candidateIds) {
       const candidate = songMap.get(id)
       if (!candidate) continue
-      const score = scoreSong(candidate, baseSong, new Set(), null)
+      const score = scoreSong(candidate, baseSong)
       scored.push({ songId: id, score })
     }
 
     scored.sort((a, b) => b.score - a.score)
-    cachedIds = scored.slice(0, 100).map((s) => s.songId)
+    cachedIds = diversify(scored, songMap, 100)
 
     await cache.set(`${CACHE_PREFIX}${baseSongId}`, cachedIds, CACHE_TTL)
   }
@@ -277,8 +357,6 @@ const getPlayNextSongs = async ({ baseSongId, userId = null, limit = 20, exclude
     const { recentSongIds, historyMap } = await getUserHistory(userId)
 
     const personalized = resultIds.map((id) => {
-      const candidate = songMap.get(id)
-      if (!candidate) return { songId: id, score: 0 }
       let penalty = 0
       const history = historyMap.get(id)
       if (history) {
@@ -331,12 +409,12 @@ const rebuildAllPlayNext = async () => {
       for (const id of candidateIds) {
         const candidate = songMap.get(id)
         if (!candidate) continue
-        const score = scoreSong(candidate, baseSong, new Set(), null)
+        const score = scoreSong(candidate, baseSong)
         scored.push({ songId: id, score })
       }
 
       scored.sort((a, b) => b.score - a.score)
-      const topIds = scored.slice(0, 100).map((s) => s.songId)
+      const topIds = diversify(scored, songMap, 100)
 
       await cache.set(`${CACHE_PREFIX}${songId}`, topIds, 0)
       processed++
