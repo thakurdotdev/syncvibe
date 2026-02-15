@@ -1,13 +1,13 @@
-import { memo, useRef, useEffect, useCallback, useMemo } from "react"
+import { memo, useRef, useEffect, useCallback, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { MessageCircle, Send } from "lucide-react"
+import { MessageCircle, Send, Lock, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
+import UpgradeDialog from "@/components/UpgradeDialog"
 
-// Activity Message Component (system messages for queue events)
 const ActivityMessage = memo(({ msg }) => (
   <div className="flex justify-center py-1">
     <p className="text-xs text-muted-foreground/70 bg-green-950/30 px-3 py-1 rounded-full">
@@ -16,7 +16,6 @@ const ActivityMessage = memo(({ msg }) => (
   </div>
 ))
 
-// Chat Message Component
 const ChatMessage = memo(({ msg, isOwn }) => (
   <div className={cn("flex gap-2", isOwn ? "justify-end" : "justify-start")}>
     {!isOwn && (
@@ -49,7 +48,6 @@ const ChatMessage = memo(({ msg, isOwn }) => (
   </div>
 ))
 
-// Empty State
 const EmptyState = memo(() => (
   <div className="h-full flex flex-col items-center justify-center text-center p-4">
     <MessageCircle className="h-8 w-8 md:h-12 md:w-12 text-muted-foreground/30 mb-2" />
@@ -57,7 +55,32 @@ const EmptyState = memo(() => (
   </div>
 ))
 
-// Messages List with activity message support
+const ChatLockedOverlay = memo(({ onUpgrade }) => (
+  <div
+    className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg cursor-pointer"
+    onClick={onUpgrade}
+  >
+    <div className="flex flex-col items-center gap-3 p-6 text-center">
+      <div className="p-3 rounded-full bg-primary/10">
+        <Lock className="h-6 w-6 text-primary" />
+      </div>
+      <div>
+        <p className="font-semibold text-sm">Group Chat is a PRO feature</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Tap to upgrade and chat with your group
+        </p>
+      </div>
+      <Button
+        size="sm"
+        className="gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        Upgrade to PRO
+      </Button>
+    </div>
+  </div>
+))
+
 const MessagesList = memo(({ messages, currentUserId }) => {
   if (messages.length === 0) {
     return <EmptyState />
@@ -76,12 +99,11 @@ const MessagesList = memo(({ messages, currentUserId }) => {
   )
 })
 
-// Main GroupChat Component
-const GroupChat = ({ messages, currentUserId, onSendMessage }) => {
+const GroupChat = ({ messages, currentUserId, onSendMessage, locked = false }) => {
   const inputRef = useRef(null)
   const scrollRef = useRef(null)
+  const [showUpgrade, setShowUpgrade] = useState(false)
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) {
       const scrollContainer = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]")
@@ -92,12 +114,13 @@ const GroupChat = ({ messages, currentUserId, onSendMessage }) => {
   }, [messages.length])
 
   const handleSend = useCallback(() => {
+    if (locked) return
     const message = inputRef.current?.value?.trim()
     if (message) {
       onSendMessage(message)
       inputRef.current.value = ""
     }
-  }, [onSendMessage])
+  }, [onSendMessage, locked])
 
   const handleKeyPress = useCallback(
     (e) => {
@@ -109,20 +132,22 @@ const GroupChat = ({ messages, currentUserId, onSendMessage }) => {
     [handleSend],
   )
 
-  // Memoize message count (exclude activity messages from count)
   const userMessageCount = useMemo(
     () => messages.filter((m) => m.type !== "activity").length,
     [messages],
   )
 
   return (
-    <Card className="h-full flex flex-col border-border/50 shadow-lg overflow-hidden">
+    <Card className="h-full flex flex-col border-border/50 shadow-lg overflow-hidden relative">
+      {locked && <ChatLockedOverlay onUpgrade={() => setShowUpgrade(true)} />}
+
       <CardHeader className="py-2 md:pb-3 px-3 md:px-6 border-b border-border/50">
         <CardTitle className="text-sm md:text-lg flex items-center gap-2">
           <div className="p-1 md:p-1.5 rounded-full bg-primary/10">
             <MessageCircle className="h-3 w-3 md:h-4 md:w-4 text-primary" />
           </div>
           Chat
+          {locked && <Lock className="h-3 w-3 text-muted-foreground" />}
           {userMessageCount > 0 && (
             <span className="text-xs font-normal text-muted-foreground">({userMessageCount})</span>
           )}
@@ -138,13 +163,15 @@ const GroupChat = ({ messages, currentUserId, onSendMessage }) => {
           <div className="flex gap-2">
             <Input
               ref={inputRef}
-              placeholder="Type a message..."
+              placeholder={locked ? "PRO feature" : "Type a message..."}
               onKeyPress={handleKeyPress}
+              disabled={locked}
               className="rounded-full bg-background border-border/50 h-9 md:h-10 text-sm"
             />
             <Button
               onClick={handleSend}
               size="icon"
+              disabled={locked}
               className="rounded-full shrink-0 h-9 w-9 md:h-10 md:w-10"
             >
               <Send className="h-3.5 w-3.5 md:h-4 md:w-4" />
@@ -152,6 +179,8 @@ const GroupChat = ({ messages, currentUserId, onSendMessage }) => {
           </div>
         </div>
       </CardContent>
+
+      <UpgradeDialog open={showUpgrade} onOpenChange={setShowUpgrade} feature="realtimeChat" />
     </Card>
   )
 }

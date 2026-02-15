@@ -61,8 +61,7 @@ const MemberItem = memo(({ member, isCreator, isCurrentUser }) => (
 ))
 
 // Main MembersList Component
-const MembersList = ({ members, currentUserId, createdBy }) => {
-  // Memoize member count
+const MembersList = ({ members, currentUserId, createdBy, maxMembers }) => {
   const memberCount = useMemo(() => members.length, [members.length])
 
   return (
@@ -77,6 +76,7 @@ const MembersList = ({ members, currentUserId, createdBy }) => {
           </div>
           <Badge variant="secondary" className="font-normal text-xs">
             {memberCount}
+            {maxMembers ? `/${maxMembers}` : ""}
           </Badge>
         </CardTitle>
       </CardHeader>

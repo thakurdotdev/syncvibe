@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, memo } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { useProfile } from "@/Context/Context"
 import { useGroupMusic } from "@/Context/GroupMusicContext"
+import { useFeatureAccess } from "@/hooks/useFeatureAccess"
 import { AnimatePresence, motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 
@@ -21,6 +22,7 @@ import "./music.css"
 
 const GroupMusic = () => {
   const { user } = useProfile()
+  const { canChat, maxGroupMembers } = useFeatureAccess()
   const {
     currentGroup,
     isPlaying,
@@ -49,7 +51,6 @@ const GroupMusic = () => {
     joinGroup,
     leaveGroup,
     sendMessage,
-    // Queue functions
     playNow,
     addToQueue,
     skipSong,
@@ -62,13 +63,11 @@ const GroupMusic = () => {
 
   const [isQrCodeOpen, setQrCodeOpen] = useState(false)
 
-  // Active queue count = current song (if any) + upcoming songs
   const activeQueueCount = useMemo(
     () => (currentQueueItem ? 1 : 0) + upcomingQueue.length,
     [currentQueueItem, upcomingQueue.length],
   )
 
-  // Memoize callbacks
   const handleSearchChange = useCallback(
     (query) => {
       setSearchQuery(query)
@@ -85,8 +84,9 @@ const GroupMusic = () => {
   const handleCloseGroupModal = useCallback(() => setIsGroupModalOpen(false), [setIsGroupModalOpen])
   const handleOpenQueue = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen])
 
-  // Memoize user id
   const userId = useMemo(() => user?.userid, [user?.userid])
+
+  const groupMaxMembers = currentGroup?.maxMembers || maxGroupMembers
 
   return (
     <div className="mx-auto max-w-7xl px-2 md:px-4 py-2 md:py-6">
@@ -127,7 +127,6 @@ const GroupMusic = () => {
                   transition={{ duration: 0.4 }}
                   className="space-y-3 md:space-y-6"
                 >
-                  {/* Now Playing */}
                   <NowPlayingCard
                     currentSong={currentSong}
                     isPlaying={isPlaying}
@@ -146,13 +145,13 @@ const GroupMusic = () => {
                     queueCount={activeQueueCount}
                   />
 
-                  {/* Chat & Members Grid */}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-6">
                     <div className="lg:col-span-2">
                       <GroupChat
                         messages={messages}
                         currentUserId={userId}
                         onSendMessage={sendMessage}
+                        locked={!canChat}
                       />
                     </div>
                     <div>
@@ -160,6 +159,7 @@ const GroupMusic = () => {
                         members={groupMembers}
                         currentUserId={userId}
                         createdBy={currentGroup?.createdBy}
+                        maxMembers={groupMaxMembers}
                       />
                     </div>
                   </div>
@@ -170,7 +170,6 @@ const GroupMusic = () => {
         </Card>
       </motion.div>
 
-      {/* Modals & Sheets */}
       {isGroupModalOpen && (
         <GroupModal
           isOpen={isGroupModalOpen}
@@ -197,7 +196,6 @@ const GroupMusic = () => {
         <QRCodeDialog isOpen={isQrCodeOpen} onClose={handleCloseQrCode} group={currentGroup} />
       )}
 
-      {/* Queue Sheet */}
       <QueueSheet />
     </div>
   )

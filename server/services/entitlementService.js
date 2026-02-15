@@ -74,9 +74,16 @@ const getUserEntitlement = async (userid) => {
   })
 }
 
+const getUserPlanLimits = async (userid) => {
+  const entitlement = await getUserEntitlement(userid)
+  if (entitlement?.plan) return entitlement.plan
+  return Plan.findOne({ where: { code: "FREE" } })
+}
+
 module.exports = {
   getActiveEntitlement,
   createProEntitlement,
   hasFeatureAccess,
   getUserEntitlement,
+  getUserPlanLimits,
 }

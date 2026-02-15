@@ -1,5 +1,6 @@
 const QRCode = require("qrcode")
 const { v4: uuidv4 } = require("uuid")
+const { getUserPlanLimits } = require("../services/entitlementService")
 
 // Music group state
 const musicGroups = new Map()
@@ -29,6 +30,9 @@ const generateMessageId = () => uuidv4()
  * Emit an activity message to group chat
  */
 const emitActivityMessage = (io, groupId, activityType, data) => {
+  const group = musicGroups.get(groupId)
+  if (!group?.features?.realtimeChat) return
+
   const activityMessages = {
     "song-added": `🎵 ${data.userName} added "${data.songName}" to the queue`,
     "song-playing": `▶️ Now playing "${data.songName}"${data.addedBy ? ` (added by ${data.addedBy})` : ""}`,
@@ -101,21 +105,23 @@ const createGroupState = (data) => ({
       profilePic: data.profilePic,
     },
   ],
-  // Queue system
   queue: [],
   currentQueueIndex: -1,
-  currentSongId: null, // Track current song by ID for idempotent operations
-  // Playback state
+  currentSongId: null,
   playbackState: {
     isPlaying: false,
     currentTime: 0,
     currentTrack: null,
     lastUpdate: Date.now(),
   },
-  // Settings
   settings: {
     allowAnyoneToAdd: true,
-    maxQueueSize: 50,
+    maxQueueSize: data.planLimits?.realtimeSyncEnabled ? 50 : 3,
+  },
+  maxMembers: data.planLimits?.maxGroupMembers || 2,
+  features: {
+    realtimeChat: data.planLimits?.realtimeChatEnabled || false,
+    realtimeSync: data.planLimits?.realtimeSyncEnabled || false,
   },
 })
 
@@ -311,12 +317,21 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
   // Create a new music group
   socket.on("create-music-group", async (data) => {
     const groupId = generateGroupId()
+
+    let planLimits
+    try {
+      planLimits = await getUserPlanLimits(data.createdBy)
+    } catch (err) {
+      console.error("Failed to fetch plan limits:", err)
+    }
+
     const newGroup = createGroupState({
       id: groupId,
       name: data.name,
       createdBy: data.createdBy,
       userName: data.userName,
       profilePic: data.profilePic,
+      planLimits,
     })
 
     try {
@@ -347,9 +362,17 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
     const group = musicGroups.get(data.groupId)
 
     if (group) {
+      const existingMember = group.members.find((m) => m.userId === data.userId)
+
+      if (!existingMember && group.members.length >= group.maxMembers) {
+        return socket.emit("group-full", {
+          maxMembers: group.maxMembers,
+          message: `Group is full (${group.maxMembers} members max)`,
+        })
+      }
+
       socket.join(`music-group-${data.groupId}`)
 
-      const existingMember = group.members.find((m) => m.userId === data.userId)
       if (!existingMember) {
         group.members.push({
           userId: data.userId,
@@ -705,6 +728,15 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
   // Group chat message
   socket.on("chat-message", (data) => {
     const { groupId } = data
+    const group = musicGroups.get(groupId)
+
+    if (group && !group.features.realtimeChat) {
+      return socket.emit("feature-locked", {
+        feature: "realtimeChat",
+        message: "Real-time chat requires PRO plan",
+      })
+    }
+
     io.to(`music-group-${groupId}`).emit("new-message", data)
   })
 }

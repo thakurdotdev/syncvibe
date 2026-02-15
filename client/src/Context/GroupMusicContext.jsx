@@ -1,6 +1,7 @@
 import { useSocket } from "@/Context/ChatContext"
 import { useProfile } from "@/Context/Context"
 import { ensureHttpsForDownloadUrls } from "@/Pages/Music/Common"
+import UpgradeDialog from "@/components/UpgradeDialog"
 import axios from "axios"
 import _ from "lodash"
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
@@ -47,6 +48,11 @@ export function GroupMusicProvider({ children }) {
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false)
   const [connectionState, setConnectionState] = useState("disconnected")
   const [isRejoining, setIsRejoining] = useState(false)
+  const [upgradeDialog, setUpgradeDialog] = useState({
+    open: false,
+    feature: "default",
+    message: "",
+  })
 
   // Refs
   const syncIntervalRef = useRef(null)
@@ -251,6 +257,16 @@ export function GroupMusicProvider({ children }) {
     (song) => {
       if (!currentGroup?.id || !user) return
 
+      const maxQueueSize = currentGroup?.settings?.maxQueueSize || 3
+      if (queue.length >= maxQueueSize) {
+        setUpgradeDialog({
+          open: true,
+          feature: "queueLimit",
+          message: `Free plan allows only ${maxQueueSize} songs in queue. Upgrade to PRO for up to 50.`,
+        })
+        return
+      }
+
       const securedSong = ensureHttpsForDownloadUrls(song)
 
       socket.emit("add-to-queue", {
@@ -268,7 +284,7 @@ export function GroupMusicProvider({ children }) {
       setSearchResults([])
       toast.success("Added to queue")
     },
-    [currentGroup?.id, user, socket],
+    [currentGroup?.id, currentGroup?.settings?.maxQueueSize, user, socket, queue.length],
   )
 
   // Play song now (inserts at current position)
@@ -809,6 +825,22 @@ export function GroupMusicProvider({ children }) {
       setMessages((prev) => [...prev, message])
     })
 
+    socket.on("group-full", ({ maxMembers, message }) => {
+      setUpgradeDialog({
+        open: true,
+        feature: "groupMembers",
+        message: message || `Group is full (${maxMembers} members max)`,
+      })
+    })
+
+    socket.on("feature-locked", ({ feature, message }) => {
+      setUpgradeDialog({
+        open: true,
+        feature: feature || "default",
+        message: message || "This feature requires PRO plan",
+      })
+    })
+
     return () => {
       socket.off("sync-state")
       socket.off("queue-updated")
@@ -824,6 +856,8 @@ export function GroupMusicProvider({ children }) {
       socket.off("member-left")
       socket.off("group-disbanded")
       socket.off("new-message")
+      socket.off("group-full")
+      socket.off("feature-locked")
     }
   }, [
     socket,
@@ -920,6 +954,12 @@ export function GroupMusicProvider({ children }) {
     <GroupMusicContext.Provider value={contextValue}>
       {children}
       <audio ref={audioRef} />
+      <UpgradeDialog
+        open={upgradeDialog.open}
+        onOpenChange={(open) => setUpgradeDialog((prev) => ({ ...prev, open }))}
+        feature={upgradeDialog.feature}
+        customMessage={upgradeDialog.message}
+      />
     </GroupMusicContext.Provider>
   )
 }
