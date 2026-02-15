@@ -1,8 +1,7 @@
 import React, { lazy, Suspense } from "react"
 import { Loader2 } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { Navigate, useLocation } from "react-router-dom"
 import { useIsMobile } from "./hooks/use-mobile"
-import { useLocation } from "react-router-dom"
 import { useSidebar } from "./components/ui/sidebar"
 import Navbar from "./components/Navbar"
 import { AppSidebar } from "./components/AppSidebar"
@@ -36,6 +35,7 @@ const Chat = lazy(() => import("./components/Chat/Chat"))
 const Home = lazy(() => import("./components/LandingPage/Home"))
 const PrivacyPolicy = lazy(() => import("./components/LandingPage/PrivacyPolicy"))
 const TermsOfService = lazy(() => import("./components/LandingPage/TermOfService"))
+const RefundPolicy = lazy(() => import("./components/LandingPage/RefundPolicy"))
 const NotFoundPage = lazy(() => import("./components/NotFound"))
 const Dashboard = lazy(() => import("./components/Posts/Dashboard"))
 const PostDetail = lazy(() => import("./components/Posts/PostDetail"))
@@ -82,7 +82,6 @@ export const privateRoutes = [
   { path: "/music/my-playlist/:id", element: <UserPlaylistDetails /> },
   { path: "/music/history", element: <HistoryPage /> },
   { path: "/music/sync", element: <GroupMusic /> },
-  { path: "/plans", element: <PlansPage /> },
   { path: "/payments/history", element: <PaymentHistoryPage /> },
 ]
 
@@ -94,12 +93,13 @@ export const publicRoutes = [
   { path: "/passkey-login", element: <PasskeyLogin /> },
   { path: "/privacy-policy", element: <PrivacyPolicy /> },
   { path: "/terms-of-services", element: <TermsOfService /> },
+  { path: "/refund-policy", element: <RefundPolicy /> },
+  { path: "/plans", element: <PlansPage /> },
   { path: "*", element: <NotFoundPage /> },
 ]
 
 // Protected Routes Component
 export const ProtectedRoutes = () => {
-  const navigate = useNavigate()
   const { user, loading } = useContext(Context)
   const { open } = useSidebar()
   const isMobile = useIsMobile()
@@ -111,12 +111,11 @@ export const ProtectedRoutes = () => {
   }
 
   if (!user?.email) {
-    return navigate(`/login?returnTo=${location.pathname}`)
+    return <Navigate to={`/login?returnTo=${location.pathname}`} replace />
   }
 
   if (!user?.verified) {
-    toast.error("Please verify your email first")
-    return navigate("/verify", { state: { email: user?.email } })
+    return <Navigate to="/verify" state={{ email: user?.email }} replace />
   }
 
   return (

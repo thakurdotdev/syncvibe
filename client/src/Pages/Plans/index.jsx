@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { Check, Crown, Sparkles, Zap } from "lucide-react"
 import { useContext, useEffect, useState } from "react"
+import { Link, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { paymentKeys } from "@/api/payment"
 import { ChatContext } from "@/Context/ChatContext"
@@ -40,10 +41,15 @@ const planMeta = {
 }
 
 export default function PlansPage() {
-  const { user } = useContext(Context)
-  const { socket } = useContext(ChatContext)
+  const userCtx = useContext(Context)
+  const chatCtx = useContext(ChatContext)
+  const user = userCtx?.user || null
+  const socket = chatCtx?.socket || null
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { data: entitlement, isLoading: entitlementLoading } = useEntitlementQuery()
+  const { data: entitlement, isLoading: entitlementLoading } = useEntitlementQuery({
+    enabled: !!user,
+  })
   const { data: dbPlans, isLoading: plansLoading } = usePlansQuery()
   const createOrderMutation = useCreatePaymentOrderMutation()
   const [processingPlan, setProcessingPlan] = useState(null)
@@ -90,6 +96,11 @@ export default function PlansPage() {
 
   const handleUpgrade = async (planCode) => {
     if (planCode === "FREE" || currentPlan === planCode) return
+
+    if (!user) {
+      navigate("/login?returnTo=/plans")
+      return
+    }
 
     setProcessingPlan(planCode)
 
@@ -146,7 +157,7 @@ export default function PlansPage() {
   }))
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
+    <div className="container mx-auto px-4 py-28 max-w-5xl">
       <div className="text-center mb-10">
         <h1 className="text-3xl font-bold mb-3 flex items-center justify-center gap-2">
           <Sparkles className="h-8 w-8 text-primary" />
@@ -222,9 +233,30 @@ export default function PlansPage() {
       </div>
 
       <p className="text-center text-xs text-muted-foreground mt-8">
-        Payments are processed securely via Razorpay. Your subscription will be activated after
-        payment confirmation.
+        Payments are processed securely via Razorpay. All purchases are final and non-refundable.
       </p>
+      <div className="flex items-center justify-center gap-4 mt-3 text-xs text-muted-foreground">
+        <Link
+          to="/refund-policy"
+          className="hover:text-foreground underline underline-offset-2 transition-colors"
+        >
+          Refund Policy
+        </Link>
+        <span className="text-border">•</span>
+        <Link
+          to="/terms-of-services"
+          className="hover:text-foreground underline underline-offset-2 transition-colors"
+        >
+          Terms of Service
+        </Link>
+        <span className="text-border">•</span>
+        <Link
+          to="/privacy-policy"
+          className="hover:text-foreground underline underline-offset-2 transition-colors"
+        >
+          Privacy Policy
+        </Link>
+      </div>
     </div>
   )
 }

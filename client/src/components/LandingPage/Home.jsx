@@ -1,5 +1,7 @@
 import {
   ArrowRight,
+  Check,
+  Crown,
   Download,
   Headphones,
   Loader2,
@@ -8,6 +10,7 @@ import {
   Share2,
   Users,
   Video,
+  Zap,
 } from "lucide-react"
 import { lazy, memo, Suspense } from "react"
 import { Link } from "react-router-dom"
@@ -239,6 +242,75 @@ const MobileApp = memo(() => (
   </section>
 ))
 
+const Pricing = memo(() => (
+  <section id="pricing" className="py-24 px-6">
+    <div className="max-w-4xl mx-auto">
+      <div className="text-center mb-16">
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
+          Simple <span className="text-emerald-400">pricing</span>
+        </h2>
+        <p className="text-white/50 max-w-xl mx-auto">Start free. Upgrade when you need more.</p>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+        <div className="relative p-8 rounded-3xl bg-white/3 border border-white/8 hover:border-white/20 transition-all">
+          <h3 className="text-xl font-bold text-white mb-1">Free</h3>
+          <p className="text-white/40 text-sm mb-6">Get started with the basics</p>
+          <div className="text-4xl font-bold text-white mb-8">
+            ₹0 <span className="text-base font-normal text-white/40">forever</span>
+          </div>
+          <ul className="space-y-3">
+            {[
+              "Music streaming",
+              "Create playlists",
+              "Up to 2 members in groups",
+              "3 songs in group queue",
+            ].map((f) => (
+              <li key={f} className="flex items-center gap-2 text-sm text-white/60">
+                <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="relative p-8 rounded-3xl bg-white/3 border border-emerald-500/30 hover:border-emerald-500/50 transition-all">
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-emerald-500 text-xs font-semibold text-black flex items-center gap-1">
+            <Crown className="h-3 w-3" /> Popular
+          </div>
+          <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+            <Zap className="h-5 w-5 text-yellow-500" /> PRO
+          </h3>
+          <p className="text-white/40 text-sm mb-6">Unlock everything</p>
+          <div className="text-4xl font-bold text-white mb-8">
+            ₹299 <span className="text-base font-normal text-white/40">/year</span>
+          </div>
+          <ul className="space-y-3">
+            {[
+              "Everything in Free",
+              "Up to 10 members in groups",
+              "50 songs in group queue",
+              "Real-time group chat",
+              "Priority support",
+            ].map((f) => (
+              <li key={f} className="flex items-center gap-2 text-sm text-white/60">
+                <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                {f}
+              </li>
+            ))}
+          </ul>
+          <Link to="/plans">
+            <Button className="w-full mt-8 h-12 rounded-xl bg-white text-black hover:bg-white/90 font-semibold">
+              Upgrade to PRO
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </div>
+  </section>
+))
+
 const FinalCTA = memo(() => (
   <section className="py-24 px-6">
     <div className="max-w-3xl mx-auto text-center">
@@ -278,6 +350,7 @@ const Home = () => {
         <Hero />
         <Features />
         <MobileApp />
+        <Pricing />
         <Suspense
           fallback={
             <div className="h-32 flex items-center justify-center">

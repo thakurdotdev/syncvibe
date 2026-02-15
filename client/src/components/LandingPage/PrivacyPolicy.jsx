@@ -7,7 +7,7 @@ const PrivacyPolicy = () => {
       <div className="max-w-4xl mx-auto px-6 py-14 lg:px-8 shadow-lg rounded-lg">
         <header className="border-b pb-6 mb-6">
           <h1 className="text-3xl font-bold ">Privacy Policy</h1>
-          <p className="mt-2 text-gray-600">Last Updated: January 10, 2025</p>
+          <p className="mt-2 text-gray-600">Last Updated: February 15, 2026</p>
         </header>
 
         <main className="space-y-6  leading-relaxed">
@@ -29,7 +29,12 @@ const PrivacyPolicy = () => {
               </li>
               <li>
                 <strong>Usage Data:</strong> Information about how you interact with our website,
-                such as pages visited and features used.
+                such as pages visited, features used, and music listening history.
+              </li>
+              <li>
+                <strong>Payment Information:</strong> Transaction details processed through
+                Razorpay. We do not store your payment card details — all payment data is handled
+                securely by Razorpay.
               </li>
             </ul>
           </section>
@@ -40,6 +45,8 @@ const PrivacyPolicy = () => {
             <ul className="list-disc list-inside space-y-2 mt-2">
               <li>To provide and maintain the SyncVibe platform.</li>
               <li>To improve user experience and add new features.</li>
+              <li>To process payments and manage your subscription.</li>
+              <li>To personalize your music recommendations.</li>
               <li>To communicate with you about updates, promotions, and support.</li>
             </ul>
           </section>

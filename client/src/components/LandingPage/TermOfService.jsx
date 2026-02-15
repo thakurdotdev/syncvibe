@@ -7,7 +7,7 @@ const TermsOfService = () => {
       <div className="max-w-4xl mx-auto px-6 py-14 lg:px-8 shadow-lg rounded-lg">
         <header className="border-b pb-6 mb-6">
           <h1 className="text-3xl font-bold ">Terms of Service</h1>
-          <p className="mt-2 ">Last Updated: January 10, 2025</p>
+          <p className="mt-2 ">Last Updated: February 15, 2026</p>
         </header>
 
         <main className="space-y-6  leading-relaxed">
@@ -63,16 +63,39 @@ const TermsOfService = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold ">6. Termination</h2>
+            <h2 className="text-xl font-semibold ">6. Payments & Subscriptions</h2>
+            <p className="mt-2">
+              SyncVibe offers a paid PRO plan with enhanced features. By purchasing a PRO plan, you
+              agree to the following:
+            </p>
+            <ul className="list-disc list-inside space-y-2 mt-2">
+              <li>
+                All purchases are <strong>final and non-refundable</strong>. Please review the plan
+                details carefully before making a payment.
+              </li>
+              <li>
+                Payments are processed securely through Razorpay. SyncVibe does not store your
+                payment card details.
+              </li>
+              <li>PRO features are available for the duration of your purchased plan period.</li>
+              <li>
+                SyncVibe reserves the right to modify pricing, features, or plan offerings at any
+                time.
+              </li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold ">7. Termination</h2>
             <p className="mt-2">
               We reserve the right to suspend or terminate your access to SyncVibe at our sole
               discretion, without prior notice, for violating these terms or engaging in prohibited
-              activities.
+              activities. No refunds will be issued upon termination.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold ">7. Limitation of Liability</h2>
+            <h2 className="text-xl font-semibold ">8. Limitation of Liability</h2>
             <p className="mt-2">
               SyncVibe is provided "as is" without warranties of any kind. We are not liable for any
               damages or losses resulting from your use of the website.
@@ -80,10 +103,10 @@ const TermsOfService = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold ">8. Governing Law</h2>
+            <h2 className="text-xl font-semibold ">9. Governing Law</h2>
             <p className="mt-2">
-              These terms are governed by the laws of [Your Jurisdiction]. Any disputes will be
-              resolved exclusively in the courts of [Your Location].
+              These terms are governed by the laws of India. Any disputes will be resolved
+              exclusively in the courts of India.
             </p>
           </section>
 

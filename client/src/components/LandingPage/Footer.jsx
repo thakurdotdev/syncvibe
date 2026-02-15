@@ -22,6 +22,9 @@ const Footer = memo(() => {
             <a href="#features" className="text-white/40 hover:text-white transition-colors">
               Features
             </a>
+            <Link to="/plans" className="text-white/40 hover:text-white transition-colors">
+              Pricing
+            </Link>
             <a href="#download" className="text-white/40 hover:text-white transition-colors">
               Download
             </a>
@@ -33,6 +36,9 @@ const Footer = memo(() => {
               className="text-white/40 hover:text-white transition-colors"
             >
               Terms
+            </Link>
+            <Link to="/refund-policy" className="text-white/40 hover:text-white transition-colors">
+              Refund Policy
             </Link>
           </div>
 
