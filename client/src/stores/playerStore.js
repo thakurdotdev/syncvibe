@@ -6,6 +6,7 @@ import axios from "axios"
 
 let audioElement = null
 let nextAudioElement = null
+const TIME_STORAGE_KEY = "player-time"
 
 const getAudioUrl = (song) => {
   return song?.download_url?.[4]?.link || song?.download_url?.[3]?.link || ""
@@ -48,7 +49,7 @@ export const usePlayerStore = create(
         if (!isInQueue) {
           set({ playlist: [secureAudio] })
         }
-        set({ currentSong: secureAudio, isLoading: false })
+        set({ currentSong: secureAudio, isLoading: false, currentTime: 0, duration: 0 })
       },
 
       stopSong: () => {
@@ -66,10 +67,16 @@ export const usePlayerStore = create(
         if (!audioElement) return
         if (isPlaying) {
           audioElement.pause()
+          set({ isPlaying: false })
         } else {
-          audioElement.play().catch(console.error)
+          audioElement
+            .play()
+            .then(() => set({ isPlaying: true }))
+            .catch((err) => {
+              console.error("Play failed:", err)
+              set({ isPlaying: false })
+            })
         }
-        set({ isPlaying: !isPlaying })
       },
 
       setPlaying: (isPlaying) => set({ isPlaying }),
@@ -332,15 +339,16 @@ export const usePlayerStore = create(
           return prevSongId
         }
         try {
+          set({ isLoading: true })
           audioElement.src = getAudioUrl(currentSong)
-          await audioElement.load()
 
           if (!_hasRestoredTime && currentTime > 0) {
             audioElement.currentTime = currentTime
-            set({ _hasRestoredTime: true })
+            set({ _hasRestoredTime: true, isLoading: false })
           } else {
+            set({ currentTime: 0 })
             await audioElement.play()
-            set({ isPlaying: true, _hasRestoredTime: true })
+            set({ isPlaying: true, _hasRestoredTime: true, isLoading: false })
             addToHistory(currentSong, 0, "autoplay")
           }
 
@@ -348,8 +356,11 @@ export const usePlayerStore = create(
           preloadNextTrack()
           return currentSong.id
         } catch (err) {
+          if (err.name === "AbortError") {
+            return prevSongId
+          }
           console.error("Playback error:", err)
-          set({ isPlaying: false })
+          set({ isPlaying: false, isLoading: false })
           return prevSongId
         }
       },
@@ -361,7 +372,6 @@ export const usePlayerStore = create(
         playlist: state.playlist,
         originalPlaylist: state.originalPlaylist,
         volume: state.volume,
-        currentTime: state.currentTime,
         shuffleMode: state.shuffleMode,
         repeatMode: state.repeatMode,
       }),
@@ -369,6 +379,12 @@ export const usePlayerStore = create(
         if (state) {
           state.isPlaying = false
           state.isLoading = false
+          try {
+            const savedTime = parseFloat(localStorage.getItem(TIME_STORAGE_KEY))
+            if (savedTime > 0) {
+              state.currentTime = savedTime
+            }
+          } catch {}
         }
       },
     },

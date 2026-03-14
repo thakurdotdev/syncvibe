@@ -3,7 +3,6 @@ const { Op } = require("sequelize")
 const sequelize = require("../../utils/sequelize")
 
 const SONG_API_URL = process.env.SONG_API_URL || "https://song.thakur.dev"
-const MIN_DB_RESULTS = 5
 
 async function fetchExternalSearch(query, limit = 30) {
   try {
@@ -18,6 +17,35 @@ async function fetchExternalSearch(query, limit = 30) {
   }
 }
 
+function computeRelevanceScore(song, query) {
+  const q = query.toLowerCase()
+  const name = (song.name || "").toLowerCase()
+  const artist = (song.artist_map?.artists?.map((a) => a.name).join(" ") || "").toLowerCase()
+  const album = (song.album || "").toLowerCase()
+
+  const exactName = name === q ? 1.0 : 0
+  const startsWithName = name.startsWith(q) ? 0.5 : 0
+  const includesName = name.includes(q) ? 0.3 : 0
+  const includesArtist = artist.includes(q) ? 0.25 : 0
+  const includesAlbum = album.includes(q) ? 0.15 : 0
+
+  const words = q.split(/\s+/)
+  const wordMatchRatio =
+    words.length > 1
+      ? words.filter((w) => name.includes(w) || artist.includes(w)).length / words.length
+      : 0
+
+  return Math.min(
+    exactName +
+      startsWithName +
+      includesName +
+      includesArtist +
+      includesAlbum +
+      wordMatchRatio * 0.4,
+    1.0,
+  )
+}
+
 const searchSongs = async (req, res) => {
   try {
     const { q: query, limit = 20, page = 1 } = req.query
@@ -30,58 +58,78 @@ const searchSongs = async (req, res) => {
     const offset = (parseInt(page, 10) - 1) * searchLimit
     const q = query.toLowerCase().trim()
 
-    const dbResults = await Song.findAll({
-      where: {
-        [Op.or]: [
-          sequelize.literal(`similarity("Song"."name", ${sequelize.escape(q)}) > 0.2`),
-          sequelize.literal(`similarity("Song"."artistNames", ${sequelize.escape(q)}) > 0.2`),
-          sequelize.literal(`similarity("Song"."albumName", ${sequelize.escape(q)}) > 0.2`),
+    const [dbResults, externalResults] = await Promise.all([
+      Song.findAll({
+        where: {
+          [Op.or]: [
+            sequelize.literal(`similarity("Song"."name", ${sequelize.escape(q)}) > 0.15`),
+            sequelize.literal(`similarity("Song"."artistNames", ${sequelize.escape(q)}) > 0.15`),
+            sequelize.literal(`similarity("Song"."albumName", ${sequelize.escape(q)}) > 0.15`),
+          ],
+        },
+        order: [
+          [
+            sequelize.literal(`
+              GREATEST(
+                similarity("Song"."name", ${sequelize.escape(q)}),
+                similarity("Song"."artistNames", ${sequelize.escape(q)}),
+                similarity("Song"."albumName", ${sequelize.escape(q)})
+              )
+            `),
+            "DESC",
+          ],
         ],
-      },
-      order: [
-        [
-          sequelize.literal(`
-            GREATEST(
-              similarity("Song"."name", ${sequelize.escape(q)}),
-              similarity("Song"."artistNames", ${sequelize.escape(q)}),
-              similarity("Song"."albumName", ${sequelize.escape(q)})
-            )
-          `),
-          "DESC",
-        ],
-      ],
-      limit: searchLimit,
-      offset,
-      attributes: ["songData", "songId"],
-    })
+        limit: searchLimit,
+        offset,
+        attributes: {
+          include: [
+            [
+              sequelize.literal(`
+                GREATEST(
+                  similarity("Song"."name", ${sequelize.escape(q)}),
+                  similarity("Song"."artistNames", ${sequelize.escape(q)}),
+                  similarity("Song"."albumName", ${sequelize.escape(q)})
+                )
+              `),
+              "similarityScore",
+            ],
+          ],
+        },
+      }),
+      fetchExternalSearch(query, searchLimit),
+    ])
 
-    const dbSongs = dbResults.map((r) => r.songData)
-    const dbSongIds = new Set(dbResults.map((r) => r.songId))
+    const scoredMap = new Map()
 
-    let externalSongs = []
-    const needMoreResults = dbSongs.length < MIN_DB_RESULTS
+    for (const row of dbResults) {
+      const score = parseFloat(row.getDataValue("similarityScore")) || 0
+      scoredMap.set(row.songId, { song: row.songData, score })
+    }
 
-    if (needMoreResults) {
-      const externalResults = await fetchExternalSearch(query, searchLimit)
-      externalSongs = externalResults.filter((song) => !dbSongIds.has(song.id))
-
-      if (externalSongs.length > 0) {
-        Song.bulkGetOrCreate(externalSongs).catch((err) => {
-          console.error("[SearchController] Background save failed:", err.message)
-        })
+    for (const song of externalResults) {
+      const score = computeRelevanceScore(song, q)
+      const existing = scoredMap.get(song.id)
+      if (!existing || score > existing.score) {
+        scoredMap.set(song.id, { song, score })
       }
     }
 
-    const combinedSongs = [...dbSongs, ...externalSongs].slice(0, searchLimit)
+    const ranked = [...scoredMap.values()].sort((a, b) => b.score - a.score).slice(0, searchLimit)
+
+    const newExternalSongs = externalResults.filter(
+      (s) => !dbResults.some((r) => r.songId === s.id),
+    )
+    if (newExternalSongs.length > 0) {
+      Song.bulkGetOrCreate(newExternalSongs).catch((err) => {
+        console.error("[SearchController] Background save failed:", err.message)
+      })
+    }
 
     res.status(200).json({
       status: "success",
       data: {
-        songs: combinedSongs,
-        count: combinedSongs.length,
-        source: needMoreResults ? "hybrid" : "database",
-        dbCount: dbSongs.length,
-        externalCount: externalSongs.length,
+        songs: ranked.map((r) => r.song),
+        count: ranked.length,
       },
     })
   } catch (error) {
