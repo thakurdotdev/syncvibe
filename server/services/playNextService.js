@@ -1,21 +1,12 @@
 const Song = require("../models/music/Song")
 const HistorySong = require("../models/music/HistorySong")
-const { cache } = require("../utils/redis")
+const { cache, getRedis } = require("../utils/redis")
 const { Op } = require("sequelize")
 
 const SONG_API_URL = process.env.SONG_API_URL || "https://song.thakur.dev"
 const CACHE_PREFIX = "song:playnext:"
-const CACHE_TTL = 7 * 24 * 60 * 60
-
-let songMap = new Map()
-let artistMap = new Map()
-let composerMap = new Map()
-let languageMap = new Map()
-let albumMap = new Map()
-let singerMap = new Map()
-let nameIndex = new Map()
-let initialized = false
-let initializing = false
+const CACHE_TTL = 30 * 24 * 60 * 60
+const SONG_ATTRS = ["songId", "name", "artistNames", "albumName", "language", "duration", "songData"]
 
 const normalize = (str) => (str || "").toLowerCase().trim()
 
@@ -60,127 +51,26 @@ const extractComposers = (songData) => {
     .filter((c) => c && c !== "unknown")
 }
 
-const addToMap = (map, key, songId) => {
-  if (!key) return
-  const k = normalize(key)
-  if (!k || k === "unknown") return
-  if (!map.has(k)) map.set(k, [])
-  map.get(k).push(songId)
-}
-
 const normalizePlayCount = (playCount) => {
   if (!playCount || playCount <= 0) return 0
   return Math.min(Math.log10(playCount) / 9, 1)
 }
 
-const initialize = async () => {
-  if (initialized || initializing) return
-  initializing = true
-  try {
-    const songs = await Song.findAll({
-      attributes: [
-        "songId",
-        "name",
-        "artistNames",
-        "albumName",
-        "language",
-        "duration",
-        "songData",
-      ],
-      raw: true,
-    })
-
-    songMap = new Map()
-    artistMap = new Map()
-    composerMap = new Map()
-    languageMap = new Map()
-    albumMap = new Map()
-    singerMap = new Map()
-    nameIndex = new Map()
-
-    for (const song of songs) {
-      const sd = song.songData || {}
-      const primaryArtist = extractPrimaryArtist(sd)
-      const dk = dedupKey(song.name || sd.name, primaryArtist)
-
-      if (nameIndex.has(dk)) {
-        const existing = songMap.get(nameIndex.get(dk))
-        if (existing && (sd.play_count || 0) <= (existing.playCount || 0)) continue
-        songMap.delete(nameIndex.get(dk))
-      }
-      nameIndex.set(dk, song.songId)
-
-      const composers = extractComposers(sd)
-      const entry = {
-        songId: song.songId,
-        name: song.name || sd.name || "Unknown",
-        primaryArtist,
-        allPrimaryArtists: extractAllPrimaryArtists(sd),
-        singers: extractSingers(sd),
-        composers,
-        albumName: normalize(song.albumName || sd.album || ""),
-        language: normalize(song.language || sd.language || ""),
-        duration: song.duration || sd.duration || 0,
-        playCount: sd.play_count || 0,
-        year: sd.year || 0,
-      }
-
-      songMap.set(song.songId, entry)
-
-      addToMap(artistMap, entry.primaryArtist, song.songId)
-      for (const artist of entry.allPrimaryArtists) {
-        addToMap(artistMap, artist, song.songId)
-      }
-      for (const singer of entry.singers) {
-        addToMap(singerMap, singer, song.songId)
-      }
-      for (const composer of composers) {
-        addToMap(composerMap, composer, song.songId)
-      }
-      addToMap(languageMap, entry.language, song.songId)
-      addToMap(albumMap, entry.albumName, song.songId)
-    }
-
-    initialized = true
-    initializing = false
-    await cache.set("playnext:last_init", Date.now(), 0)
-    console.log(
-      `[PlayNext] Initialized: ${songMap.size} songs, ${artistMap.size} artists, ${composerMap.size} composers, ${languageMap.size} languages, ${albumMap.size} albums`,
-    )
-  } catch (err) {
-    initializing = false
-    console.error("[PlayNext] Initialization failed:", err.message)
+const buildEntry = (song) => {
+  const sd = song.songData || {}
+  return {
+    songId: song.songId,
+    name: song.name || sd.name || "Unknown",
+    primaryArtist: extractPrimaryArtist(sd),
+    allPrimaryArtists: extractAllPrimaryArtists(sd),
+    singers: extractSingers(sd),
+    composers: extractComposers(sd),
+    albumName: normalize(song.albumName || sd.album || ""),
+    language: normalize(song.language || sd.language || ""),
+    duration: song.duration || sd.duration || 0,
+    playCount: sd.play_count || 0,
+    year: sd.year || 0,
   }
-}
-
-const collectCandidates = (baseSong, excludeSet) => {
-  const candidates = new Set()
-
-  const addFromMap = (map, key) => {
-    const ids = map.get(key)
-    if (!ids) return
-    for (const id of ids) {
-      if (!excludeSet.has(id)) candidates.add(id)
-    }
-  }
-
-  addFromMap(artistMap, baseSong.primaryArtist)
-  for (const artist of baseSong.allPrimaryArtists) {
-    addFromMap(artistMap, artist)
-  }
-  for (const singer of baseSong.singers) {
-    addFromMap(singerMap, singer)
-  }
-  for (const composer of baseSong.composers) {
-    addFromMap(composerMap, composer)
-  }
-  if (baseSong.albumName) {
-    addFromMap(albumMap, baseSong.albumName)
-  }
-  addFromMap(languageMap, baseSong.language)
-
-  candidates.delete(baseSong.songId)
-  return candidates
 }
 
 const scoreSong = (candidate, baseSong) => {
@@ -215,13 +105,12 @@ const scoreSong = (candidate, baseSong) => {
   }
 
   score += normalizePlayCount(candidate.playCount) * 8
-
   score += Math.random() * 3
 
   return score
 }
 
-const diversify = (scored, songMap, limit) => {
+const diversifyScored = (scored, limit) => {
   const result = []
   const artistCount = new Map()
   const seenNames = new Set()
@@ -230,22 +119,98 @@ const diversify = (scored, songMap, limit) => {
   for (const item of scored) {
     if (result.length >= limit) break
 
-    const entry = songMap.get(item.songId)
-    if (!entry) continue
-
-    const nameKey = cleanTitle(entry.name)
+    const nameKey = cleanTitle(item.name)
     if (seenNames.has(nameKey)) continue
     seenNames.add(nameKey)
 
-    const artist = entry.primaryArtist
-    const count = artistCount.get(artist) || 0
+    const count = artistCount.get(item.primaryArtist) || 0
     if (count >= MAX_PER_ARTIST) continue
 
-    artistCount.set(artist, count + 1)
+    artistCount.set(item.primaryArtist, count + 1)
     result.push(item.songId)
   }
 
   return result
+}
+
+const computeForSong = async (baseSongId) => {
+  const baseSongRow = await Song.findOne({
+    where: { songId: baseSongId },
+    attributes: SONG_ATTRS,
+    raw: true,
+  })
+  if (!baseSongRow) return []
+
+  const baseSong = buildEntry(baseSongRow)
+  const orConditions = []
+
+  if (baseSong.language) {
+    orConditions.push({ language: baseSong.language })
+  }
+  if (baseSongRow.albumName) {
+    orConditions.push({ albumName: baseSongRow.albumName })
+  }
+
+  const artists = [...new Set([...baseSong.allPrimaryArtists, ...baseSong.singers])]
+  for (const artist of artists.slice(0, 3)) {
+    if (artist && artist !== "unknown") {
+      orConditions.push({ artistNames: { [Op.iLike]: `%${artist}%` } })
+    }
+  }
+
+  if (orConditions.length === 0) return []
+
+  const candidates = await Song.findAll({
+    where: {
+      [Op.or]: orConditions,
+      songId: { [Op.ne]: baseSongId },
+    },
+    attributes: SONG_ATTRS,
+    raw: true,
+    limit: 500,
+  })
+
+  const seen = new Set()
+  const scored = []
+
+  for (const c of candidates) {
+    const entry = buildEntry(c)
+    const dk = dedupKey(entry.name, entry.primaryArtist)
+    if (seen.has(dk)) continue
+    seen.add(dk)
+    scored.push({
+      songId: entry.songId,
+      score: scoreSong(entry, baseSong),
+      name: entry.name,
+      primaryArtist: entry.primaryArtist,
+    })
+  }
+
+  scored.sort((a, b) => b.score - a.score)
+  return diversifyScored(scored, 100)
+}
+
+const deduplicateExternal = (songs) => {
+  const seen = new Set()
+  return songs.filter((s) => {
+    const key = dedupKey(s.name, s.artist_map?.primary_artists?.[0]?.name || "")
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+const fetchExternalRecommendations = async (songId) => {
+  try {
+    const response = await fetch(`${SONG_API_URL}/song/recommend?id=${songId}`)
+    if (!response.ok) return []
+    const json = await response.json()
+    const data = json?.data || []
+    const valid = data.filter((s) => s?.id && s?.download_url?.length > 0)
+    return deduplicateExternal(valid)
+  } catch {
+    return []
+  }
 }
 
 const getUserHistory = async (userId) => {
@@ -289,29 +254,6 @@ const getUserHistory = async (userId) => {
   return { recentSongIds, historyMap }
 }
 
-const deduplicateExternal = (songs) => {
-  const seen = new Set()
-  return songs.filter((s) => {
-    const key = dedupKey(s.name, s.artist_map?.primary_artists?.[0]?.name || "")
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-}
-
-const fetchExternalRecommendations = async (songId) => {
-  try {
-    const response = await fetch(`${SONG_API_URL}/song/recommend?id=${songId}`)
-    if (!response.ok) return []
-    const json = await response.json()
-    const data = json?.data || []
-    const valid = data.filter((s) => s?.id && s?.download_url?.length > 0)
-    return deduplicateExternal(valid)
-  } catch {
-    return []
-  }
-}
-
 const getPlayNextSongs = async ({ baseSongId, userId = null, limit = 20, excludeSongIds = [] }) => {
   const external = await fetchExternalRecommendations(baseSongId)
   if (external.length > 0) {
@@ -319,37 +261,16 @@ const getPlayNextSongs = async ({ baseSongId, userId = null, limit = 20, exclude
     return external.filter((s) => !excludeSet.has(s.id)).slice(0, limit)
   }
 
-  if (!initialized) {
-    initialize()
-    return []
-  }
-
-  const baseSong = songMap.get(baseSongId)
-  if (!baseSong) {
-    throw new Error(`Song not found: ${baseSongId}`)
-  }
-
   let cachedIds = await cache.get(`${CACHE_PREFIX}${baseSongId}`)
 
   if (!cachedIds) {
-    const excludeSet = new Set(excludeSongIds)
-    excludeSet.add(baseSongId)
-
-    const candidateIds = collectCandidates(baseSong, excludeSet)
-
-    const scored = []
-    for (const id of candidateIds) {
-      const candidate = songMap.get(id)
-      if (!candidate) continue
-      const score = scoreSong(candidate, baseSong)
-      scored.push({ songId: id, score })
+    cachedIds = await computeForSong(baseSongId)
+    if (cachedIds.length > 0) {
+      await cache.set(`${CACHE_PREFIX}${baseSongId}`, cachedIds, CACHE_TTL)
     }
-
-    scored.sort((a, b) => b.score - a.score)
-    cachedIds = diversify(scored, songMap, 100)
-
-    await cache.set(`${CACHE_PREFIX}${baseSongId}`, cachedIds, CACHE_TTL)
   }
+
+  if (!cachedIds || cachedIds.length === 0) return []
 
   let resultIds = cachedIds.filter((id) => !excludeSongIds.includes(id))
 
@@ -389,59 +310,38 @@ const getPlayNextSongs = async ({ baseSongId, userId = null, limit = 20, exclude
 }
 
 const rebuildAllPlayNext = async () => {
-  await initialize()
-
+  const allSongs = await Song.findAll({ attributes: ["songId"], raw: true })
+  const total = allSongs.length
   let processed = 0
-  const allSongIds = Array.from(songMap.keys())
+  const BATCH = 20
 
-  const BATCH_SIZE = 500
-  for (let i = 0; i < allSongIds.length; i += BATCH_SIZE) {
-    const batch = allSongIds.slice(i, i + BATCH_SIZE)
+  for (let i = 0; i < total; i += BATCH) {
+    const batch = allSongs.slice(i, i + BATCH)
 
-    const promises = batch.map(async (songId) => {
-      const baseSong = songMap.get(songId)
-      if (!baseSong) return
+    await Promise.all(
+      batch.map(async ({ songId }) => {
+        const ids = await computeForSong(songId)
+        if (ids.length > 0) {
+          await cache.set(`${CACHE_PREFIX}${songId}`, ids, CACHE_TTL)
+        }
+        processed++
+      }),
+    )
 
-      const excludeSet = new Set([songId])
-      const candidateIds = collectCandidates(baseSong, excludeSet)
-
-      const scored = []
-      for (const id of candidateIds) {
-        const candidate = songMap.get(id)
-        if (!candidate) continue
-        const score = scoreSong(candidate, baseSong)
-        scored.push({ songId: id, score })
-      }
-
-      scored.sort((a, b) => b.score - a.score)
-      const topIds = diversify(scored, songMap, 100)
-
-      await cache.set(`${CACHE_PREFIX}${songId}`, topIds, 0)
-      processed++
-    })
-
-    await Promise.all(promises)
-    console.log(`[PlayNext] Rebuilt ${processed}/${allSongIds.length}`)
+    console.log(`[PlayNext] Rebuilt ${processed}/${total}`)
   }
 
+  await cache.set("playnext:last_rebuild", Date.now(), CACHE_TTL)
   console.log(`[PlayNext] Rebuild complete: ${processed} songs processed`)
-  return { processed, total: allSongIds.length }
+  return { processed, total }
 }
 
-const reload = async () => {
-  initialized = false
-  initializing = false
-  await initialize()
+const invalidateSong = async (songId) => {
+  await cache.del(`${CACHE_PREFIX}${songId}`)
 }
-
-cache.get("playnext:last_init").then((ts) => {
-  if (ts) console.log(`[PlayNext] Last init: ${new Date(ts).toISOString()} — skipping eager load`)
-  else console.log("[PlayNext] No previous init found — will load lazily on first fallback request")
-})
 
 module.exports = {
-  initialize,
   getPlayNextSongs,
   rebuildAllPlayNext,
-  reload,
+  invalidateSong,
 }

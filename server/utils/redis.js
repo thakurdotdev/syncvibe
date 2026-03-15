@@ -36,7 +36,12 @@ const cache = {
     const client = getRedis()
     if (!client) return false
     try {
-      await client.setex(key, ttlSeconds, JSON.stringify(value))
+      const data = JSON.stringify(value)
+      if (ttlSeconds > 0) {
+        await client.setex(key, ttlSeconds, data)
+      } else {
+        await client.set(key, data)
+      }
       return true
     } catch {
       return false

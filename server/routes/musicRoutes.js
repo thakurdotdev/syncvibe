@@ -33,7 +33,7 @@ const {
   POPULAR_ARTISTS,
   SEARCH_QUERIES,
 } = require("../services/musicSyncService")
-const { getPlayNextSongs, rebuildAllPlayNext } = require("../services/playNextService")
+const { getPlayNextSongs, rebuildAllPlayNext, invalidateSong } = require("../services/playNextService")
 
 const musicRoutes = express.Router()
 
