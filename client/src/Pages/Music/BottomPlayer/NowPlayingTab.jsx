@@ -186,8 +186,8 @@ const NowPlayingTab = memo(({ currentSong }) => {
   const c1 = colors?.c1 || [35, 30, 45]
   const c2 = colors?.c2 || [30, 35, 40]
 
-  const imgShadowDesktop = `0 30px 80px rgba(0,0,0,0.5), 0 0 80px -20px rgba(${c1[0]},${c1[1]},${c1[2]},0.2)`
-  const imgShadowMobile = `0 24px 60px rgba(0,0,0,0.5), 0 0 60px -15px rgba(${c1[0]},${c1[1]},${c1[2]},0.2)`
+  const imgShadowDesktop = `0 30px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05), 0 0 80px -20px rgba(${c1[0]},${c1[1]},${c1[2]},0.25)`
+  const imgShadowMobile = `0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05), 0 0 60px -15px rgba(${c1[0]},${c1[1]},${c1[2]},0.25)`
 
   const orbColor = (c, a) => ({
     background: `rgba(${c[0]},${c[1]},${c[2]},${a})`,
@@ -195,29 +195,45 @@ const NowPlayingTab = memo(({ currentSong }) => {
   })
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-[#050505]">
-      {/* Blurred album art background */}
+    <div className="w-full h-full relative overflow-hidden bg-[#050508]">
+      {/* Layer 1: Album art dissolved into pure color fields */}
       {images.previous && (
         <div
           className="absolute inset-0 bg-cover bg-center np-bg-fade-out"
-          style={{ backgroundImage: `url(${images.previous})`, filter: "blur(60px) saturate(1.2) brightness(0.6)", transform: "scale(1.5)" }}
+          style={{ backgroundImage: `url(${images.previous})`, filter: "blur(160px) saturate(1.4) brightness(0.65)", transform: "scale(2)" }}
         />
       )}
       <div
         className={`absolute inset-0 bg-cover bg-center ${images.transitioning ? "np-bg-fade-in" : ""}`}
-        style={{ backgroundImage: `url(${images.current})`, filter: "blur(60px) saturate(1.2) brightness(0.6)", transform: "scale(1.5)", transition: "background-image 0.5s ease" }}
+        style={{ backgroundImage: `url(${images.current})`, filter: "blur(160px) saturate(1.4) brightness(0.65)", transform: "scale(2)", transition: "background-image 0.6s ease" }}
       />
 
-      {/* Animated orbs for subtle movement */}
+      {/* Layer 2: Glass noise texture */}
+      <div className="absolute inset-0 np-glass-noise" />
+
+      {/* Layer 3: Specular highlights — top-left and bottom-right light catches */}
+      <div className="absolute inset-0" style={{
+        background: "radial-gradient(ellipse 70% 50% at 25% 20%, rgba(255,255,255,0.08) 0%, transparent 50%)"
+      }} />
+      <div className="absolute inset-0" style={{
+        background: "radial-gradient(ellipse 50% 35% at 75% 75%, rgba(255,255,255,0.04) 0%, transparent 40%)"
+      }} />
+
+      {/* Layer 4: Animated liquid shimmer */}
       <div className="absolute inset-0 np-orb-layer">
-        <div className="np-orb np-o1" style={orbColor(c1, 0.25)} />
-        <div className="np-orb np-o2" style={orbColor(c2, 0.2)} />
+        <div className="np-orb np-o1" style={orbColor(c1, 0.18)} />
+        <div className="np-orb np-o2" style={orbColor(c2, 0.14)} />
+        <div className="np-shimmer" />
       </div>
 
-      {/* Dark overlay + vignette */}
-      <div className="absolute inset-0 bg-black/40" />
+      {/* Layer 5: Luminous depth — glass curvature effect */}
       <div className="absolute inset-0" style={{
-        background: "radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(5,5,5,0.4) 65%, rgba(5,5,5,0.85) 100%)"
+        background: "radial-gradient(ellipse 120% 80% at 50% 40%, rgba(255,255,255,0.03) 0%, transparent 50%)"
+      }} />
+
+      {/* Layer 6: Vignette */}
+      <div className="absolute inset-0" style={{
+        background: "radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(5,5,8,0.3) 60%, rgba(5,5,8,0.85) 100%)"
       }} />
 
       {/* Desktop layout */}
@@ -274,7 +290,7 @@ const NowPlayingTab = memo(({ currentSong }) => {
       <div className="lg:hidden relative z-10 h-full flex flex-col items-center justify-between px-6 sm:px-8 pt-16 pb-8">
         <div className="flex-1 flex flex-col items-center justify-center gap-5 w-full max-w-sm">
           <div
-            className="shrink-0 transition-all duration-500 ease-out"
+            className="transition-all duration-500 ease-out"
             style={{
               opacity: showEntrance ? 1 : 0,
               transform: showEntrance ? "scale(1)" : "scale(0.93)",
@@ -282,7 +298,7 @@ const NowPlayingTab = memo(({ currentSong }) => {
           >
             <CrossfadeAvatar
               images={images}
-              size="min(80vw, 42vh, 360px)"
+              size="min(90vw, 42vh, 360px)"
               shadow={imgShadowMobile}
               name={currentSong.name}
             />
@@ -331,39 +347,59 @@ const NowPlayingTab = memo(({ currentSong }) => {
       </div>
 
       <style>{`
+        .np-glass-noise {
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+          opacity: 0.03;
+          mix-blend-mode: overlay;
+        }
         .np-orb-layer {
-          filter: blur(80px);
-          transform: scale(1.3);
+          filter: blur(100px);
+          transform: scale(1.4);
           mix-blend-mode: soft-light;
-          opacity: 0.8;
+          opacity: 0.7;
         }
         .np-orb {
           position: absolute;
           border-radius: 50%;
         }
         .np-o1 {
-          width: 60%;
-          height: 65%;
+          width: 55%;
+          height: 60%;
           top: -10%;
           left: -10%;
-          animation: npo1 24s ease-in-out infinite;
+          animation: npo1 26s ease-in-out infinite;
         }
         .np-o2 {
-          width: 55%;
-          height: 55%;
+          width: 50%;
+          height: 50%;
           bottom: -10%;
           right: -10%;
-          animation: npo2 28s ease-in-out infinite;
+          animation: npo2 32s ease-in-out infinite;
+        }
+        .np-shimmer {
+          position: absolute;
+          width: 40%;
+          height: 30%;
+          top: 15%;
+          left: 20%;
+          border-radius: 50%;
+          background: radial-gradient(ellipse, rgba(255,255,255,0.06) 0%, transparent 70%);
+          animation: npShimmer 18s ease-in-out infinite;
         }
         @keyframes npo1 {
           0%, 100% { transform: translate(0, 0) scale(1); border-radius: 50%; }
-          33% { transform: translate(12%, 18%) scale(1.06); border-radius: 44% 56% 52% 48%; }
-          66% { transform: translate(6%, 10%) scale(0.97); border-radius: 48% 52% 46% 54%; }
+          33% { transform: translate(10%, 15%) scale(1.05); border-radius: 44% 56% 52% 48%; }
+          66% { transform: translate(5%, 8%) scale(0.97); border-radius: 48% 52% 46% 54%; }
         }
         @keyframes npo2 {
           0%, 100% { transform: translate(0, 0) scale(1); border-radius: 50%; }
-          33% { transform: translate(-10%, -14%) scale(1.05); border-radius: 54% 46% 48% 52%; }
-          66% { transform: translate(-16%, -6%) scale(0.96); border-radius: 47% 53% 52% 48%; }
+          33% { transform: translate(-8%, -12%) scale(1.04); border-radius: 54% 46% 48% 52%; }
+          66% { transform: translate(-14%, -5%) scale(0.96); border-radius: 47% 53% 52% 48%; }
+        }
+        @keyframes npShimmer {
+          0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+          33% { transform: translate(30%, 10%); opacity: 1; }
+          66% { transform: translate(-10%, 20%); opacity: 0.4; }
         }
         .np-bg-fade-in {
           animation: npBgIn 0.8s ease-out both;
@@ -403,7 +439,7 @@ const NowPlayingTab = memo(({ currentSong }) => {
           to { opacity: 1; transform: translateY(0); }
         }
         @media (prefers-reduced-motion: reduce) {
-          .np-orb, .np-fade-in, .np-fade-out, .np-text-in, .np-bg-fade-in, .np-bg-fade-out { animation: none !important; }
+          .np-orb, .np-fade-in, .np-fade-out, .np-text-in, .np-bg-fade-in, .np-bg-fade-out, .np-shimmer { animation: none !important; }
           .np-fade-in, .np-text-in, .np-bg-fade-in { opacity: 1 !important; }
           .np-fade-out, .np-bg-fade-out { opacity: 0 !important; }
         }
