@@ -32,18 +32,16 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
   if (!incomingCall) return null
 
   return (
-    <div className="fixed bottom-6 md:right-6 z-50 w-full md:w-auto max-md:px-4">
+    <div className="fixed bottom-6 md:right-6 z-1000 w-full md:w-auto max-md:px-4">
       <div
-        className={`transform transition-all duration-500 ease-out ${
-          isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
-        }`}
+        className={`transform transition-all duration-500 ease-out ${isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+          }`}
       >
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden w-full md:max-w-md">
           <div className="p-4 flex items-center gap-4 relative">
             <div
-              className={`absolute inset-0 ${
-                isRinging ? "animate-ping" : ""
-              } rounded-2xl bg-green-500/10`}
+              className={`absolute inset-0 ${isRinging ? "animate-ping" : ""
+                } rounded-2xl bg-green-500/10`}
             />
 
             <div className="relative bg-gray-100 dark:bg-gray-700 rounded-full p-2">
@@ -59,9 +57,8 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
                 </div>
               )}
               <div
-                className={`absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 ${
-                  isRinging ? "animate-pulse" : ""
-                }`}
+                className={`absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 ${isRinging ? "animate-pulse" : ""
+                  }`}
               />
             </div>
 
@@ -71,9 +68,8 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                 <span
-                  className={`w-2 h-2 rounded-full bg-green-500 ${
-                    isRinging ? "animate-pulse" : ""
-                  }`}
+                  className={`w-2 h-2 rounded-full bg-green-500 ${isRinging ? "animate-pulse" : ""
+                    }`}
                 />
                 Incoming video call...
               </span>
