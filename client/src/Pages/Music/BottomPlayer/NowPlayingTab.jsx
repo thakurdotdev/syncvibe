@@ -63,6 +63,39 @@ const useImageColors = (imageSrc) => {
   return colors
 }
 
+const useBlurredBg = (imageSrc) => {
+  const [bgUrls, setBgUrls] = useState({ current: null, previous: null, transitioning: false })
+  const canvasRef = useRef(null)
+  const timeoutRef = useRef(null)
+  const prevSrc = useRef(null)
+
+  useEffect(() => {
+    if (!imageSrc || imageSrc === prevSrc.current) return
+    prevSrc.current = imageSrc
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    img.onload = () => {
+      if (!canvasRef.current) canvasRef.current = document.createElement("canvas")
+      const canvas = canvasRef.current
+      canvas.width = 64
+      canvas.height = 64
+      const ctx = canvas.getContext("2d")
+      ctx.filter = "blur(4px) saturate(1.3) brightness(0.65)"
+      ctx.drawImage(img, -4, -4, 72, 72)
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.7)
+      setBgUrls((prev) => ({ current: dataUrl, previous: prev.current, transitioning: true }))
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      timeoutRef.current = setTimeout(() => {
+        setBgUrls((prev) => ({ ...prev, previous: null, transitioning: false }))
+      }, 800)
+    }
+    img.src = imageSrc
+    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current) }
+  }, [imageSrc])
+
+  return bgUrls
+}
+
 const useCrossfadeImage = (src) => {
   const [images, setImages] = useState({ current: src, previous: null, transitioning: false })
   const timeoutRef = useRef(null)
@@ -121,31 +154,22 @@ const UpNextHint = memo(({ nextSong }) => {
 UpNextHint.displayName = "UpNextHint"
 
 const CrossfadeAvatar = memo(({ images, size, shadow, name }) => (
-  <div className="relative np-img-hover" style={{ width: size, height: size }}>
+  <div className="relative np-img-hover overflow-hidden rounded-2xl" style={{ width: size, height: size, boxShadow: shadow }}>
+    <div className="absolute inset-0 flex items-center justify-center bg-white/5">
+      <Music className="w-24 h-24 text-white/20" />
+    </div>
     {images.previous && (
-      <Avatar
-        className="rounded-2xl absolute inset-0"
-        style={{ width: size, height: size, boxShadow: shadow }}
-      >
-        <AvatarImage
-          src={images.previous}
-          className="object-cover np-fade-out"
-        />
-      </Avatar>
-    )}
-    <Avatar
-      className="rounded-2xl relative"
-      style={{ width: size, height: size, boxShadow: shadow }}
-    >
-      <AvatarImage
-        src={images.current}
-        alt={name}
-        className={`object-cover ${images.transitioning ? "np-fade-in" : ""}`}
+      <img
+        src={images.previous}
+        className="absolute inset-0 w-full h-full object-cover np-fade-out"
+        aria-hidden="true"
       />
-      <AvatarFallback className="text-6xl bg-white/5">
-        <Music className="w-24 h-24 text-white/20" />
-      </AvatarFallback>
-    </Avatar>
+    )}
+    <img
+      src={images.current}
+      alt={name}
+      className={`absolute inset-0 w-full h-full object-cover ${images.transitioning ? "np-fade-in" : ""}`}
+    />
   </div>
 ))
 CrossfadeAvatar.displayName = "CrossfadeAvatar"
@@ -154,6 +178,7 @@ const NowPlayingTab = memo(({ currentSong }) => {
   const songImage = useMemo(() => currentSong?.image?.[2]?.link, [currentSong])
   const colors = useImageColors(songImage)
   const images = useCrossfadeImage(songImage)
+  const mobileBg = useBlurredBg(songImage)
   const nextSong = useNextSong(currentSong)
   const hasAnimated = useRef(false)
   const [showEntrance, setShowEntrance] = useState(false)
@@ -196,42 +221,57 @@ const NowPlayingTab = memo(({ currentSong }) => {
 
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#050508]">
-      {/* Layer 1: Album art dissolved into pure color fields */}
+
+      {/* === MOBILE BG: Pre-blurred canvas, no CSS filter === */}
+      {mobileBg.previous && (
+        <div
+          className="lg:hidden absolute inset-0 bg-cover bg-center np-bg-fade-out"
+          style={{ backgroundImage: `url(${mobileBg.previous})` }}
+        />
+      )}
+      {mobileBg.current && (
+        <div
+          className={`lg:hidden absolute inset-0 bg-cover bg-center ${mobileBg.transitioning ? "np-bg-fade-in" : ""}`}
+          style={{ backgroundImage: `url(${mobileBg.current})` }}
+        />
+      )}
+
+      {/* === DESKTOP BG: Full liquid glass with CSS blur === */}
       {images.previous && (
         <div
-          className="absolute inset-0 bg-cover bg-center np-bg-fade-out"
+          className="hidden lg:block absolute inset-0 bg-cover bg-center np-bg-fade-out"
           style={{ backgroundImage: `url(${images.previous})`, filter: "blur(160px) saturate(1.4) brightness(0.65)", transform: "scale(2)" }}
         />
       )}
       <div
-        className={`absolute inset-0 bg-cover bg-center ${images.transitioning ? "np-bg-fade-in" : ""}`}
+        className={`hidden lg:block absolute inset-0 bg-cover bg-center ${images.transitioning ? "np-bg-fade-in" : ""}`}
         style={{ backgroundImage: `url(${images.current})`, filter: "blur(160px) saturate(1.4) brightness(0.65)", transform: "scale(2)", transition: "background-image 0.6s ease" }}
       />
 
-      {/* Layer 2: Glass noise texture */}
-      <div className="absolute inset-0 np-glass-noise" />
+      {/* Desktop-only: glass noise */}
+      <div className="hidden lg:block absolute inset-0 np-glass-noise" />
 
-      {/* Layer 3: Specular highlights — top-left and bottom-right light catches */}
-      <div className="absolute inset-0" style={{
+      {/* Desktop-only: specular highlights */}
+      <div className="hidden lg:block absolute inset-0" style={{
         background: "radial-gradient(ellipse 70% 50% at 25% 20%, rgba(255,255,255,0.08) 0%, transparent 50%)"
       }} />
-      <div className="absolute inset-0" style={{
+      <div className="hidden lg:block absolute inset-0" style={{
         background: "radial-gradient(ellipse 50% 35% at 75% 75%, rgba(255,255,255,0.04) 0%, transparent 40%)"
       }} />
 
-      {/* Layer 4: Animated liquid shimmer */}
-      <div className="absolute inset-0 np-orb-layer">
+      {/* Desktop-only: animated liquid shimmer */}
+      <div className="hidden lg:block absolute inset-0 np-orb-layer">
         <div className="np-orb np-o1" style={orbColor(c1, 0.18)} />
         <div className="np-orb np-o2" style={orbColor(c2, 0.14)} />
         <div className="np-shimmer" />
       </div>
 
-      {/* Layer 5: Luminous depth — glass curvature effect */}
-      <div className="absolute inset-0" style={{
+      {/* Desktop-only: luminous depth */}
+      <div className="hidden lg:block absolute inset-0" style={{
         background: "radial-gradient(ellipse 120% 80% at 50% 40%, rgba(255,255,255,0.03) 0%, transparent 50%)"
       }} />
 
-      {/* Layer 6: Vignette */}
+      {/* Shared: vignette (single gradient, very light on GPU) */}
       <div className="absolute inset-0" style={{
         background: "radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(5,5,8,0.3) 60%, rgba(5,5,8,0.85) 100%)"
       }} />
