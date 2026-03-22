@@ -4,9 +4,31 @@ const { cache, getRedis } = require("../utils/redis")
 const { Op } = require("sequelize")
 
 const SONG_API_URL = process.env.SONG_API_URL || "https://song.thakur.dev"
-const CACHE_PREFIX = "song:playnext:"
+const CACHE_PREFIX = "pn:v3:"
 const CACHE_TTL = 30 * 24 * 60 * 60
 const SONG_ATTRS = ["songId", "name", "artistNames", "albumName", "language", "duration", "songData"]
+
+const MIN_SCORE_THRESHOLD = 30
+
+const buildArtistILike = (name) => {
+  if (name.length <= 3) {
+    return {
+      [Op.or]: [
+        { artistNames: { [Op.iLike]: `${name}` } },
+        { artistNames: { [Op.iLike]: `${name}, %` } },
+        { artistNames: { [Op.iLike]: `%, ${name}` } },
+        { artistNames: { [Op.iLike]: `%, ${name}, %` } },
+      ],
+    }
+  }
+  return { artistNames: { [Op.iLike]: `%${name}%` } }
+}
+
+const VARIANT_TAGS = [
+  "remix", "dubstep", "edm", "lofi", "lo-fi", "slowed", "reverb", "8d",
+  "mashup", "nightcore", "bass boosted", "phonk", "trap", "instrumental",
+  "karaoke", "cover", "unplugged", "acoustic", "reprise", "jhankar", "jhankar beats",
+]
 
 const normalize = (str) => (str || "").toLowerCase().trim()
 
@@ -21,34 +43,50 @@ const cleanTitle = (name) => {
     .trim()
 }
 
-const dedupKey = (name, artist) => `${cleanTitle(name)}::${normalize(artist)}`
-
-const extractPrimaryArtist = (songData) => {
-  const primary = songData?.artist_map?.primary_artists?.[0]?.name
-  if (primary) return normalize(primary)
-  const firstArtist = songData?.artist_map?.artists?.[0]?.name
-  return normalize(firstArtist || "unknown")
+const hasVariantTag = (name) => {
+  const lower = normalize(name)
+  return VARIANT_TAGS.some((tag) => {
+    const pattern = new RegExp(`\\b${tag}\\b|[\\(\\[]\\s*${tag}`, "i")
+    return pattern.test(lower)
+  })
 }
+
+const dedupKey = (name, artist) => `${cleanTitle(name)}::${normalize(artist)}`
 
 const extractSingers = (songData) => {
   const artists = songData?.artist_map?.artists || []
   return artists
-    .filter((a) => a?.role?.toLowerCase().includes("singer"))
+    .filter((a) => {
+      const role = (a?.role || "").toLowerCase()
+      return role.includes("singer") && !role.includes("music")
+    })
     .map((a) => normalize(a.name))
     .filter(Boolean)
 }
 
-const extractAllPrimaryArtists = (songData) => {
-  const primaries = songData?.artist_map?.primary_artists || []
-  return primaries.map((a) => normalize(a.name)).filter(Boolean)
-}
+const extractMusicDirectors = (songData) => {
+  const artists = songData?.artist_map?.artists || []
+  const fromRole = artists
+    .filter((a) => {
+      const role = (a?.role || "").toLowerCase()
+      return role.includes("music") || role === "composer"
+    })
+    .map((a) => normalize(a.name))
 
-const extractComposers = (songData) => {
-  const musicField = songData?.music || ""
-  return musicField
+  const fromField = (songData?.music || "")
     .split(",")
     .map((c) => normalize(c))
     .filter((c) => c && c !== "unknown")
+
+  return [...new Set([...fromRole, ...fromField])].filter(Boolean)
+}
+
+const extractLyricists = (songData) => {
+  const artists = songData?.artist_map?.artists || []
+  return artists
+    .filter((a) => (a?.role || "").toLowerCase().includes("lyricist"))
+    .map((a) => normalize(a.name))
+    .filter(Boolean)
 }
 
 const normalizePlayCount = (playCount) => {
@@ -61,60 +99,70 @@ const buildEntry = (song) => {
   return {
     songId: song.songId,
     name: song.name || sd.name || "Unknown",
-    primaryArtist: extractPrimaryArtist(sd),
-    allPrimaryArtists: extractAllPrimaryArtists(sd),
     singers: extractSingers(sd),
-    composers: extractComposers(sd),
+    musicDirectors: extractMusicDirectors(sd),
+    lyricists: extractLyricists(sd),
     albumName: normalize(song.albumName || sd.album || ""),
+    albumId: sd.album_id || "",
     language: normalize(song.language || sd.language || ""),
     duration: song.duration || sd.duration || 0,
     playCount: sd.play_count || 0,
     year: sd.year || 0,
+    isVariant: hasVariantTag(song.name || sd.name || ""),
   }
 }
 
 const scoreSong = (candidate, baseSong) => {
   let score = 0
 
-  if (candidate.albumName && candidate.albumName === baseSong.albumName) score += 50
+  if (baseSong.isVariant !== candidate.isVariant) {
+    score -= 40
+  }
 
-  const sharedPrimaryArtists = candidate.allPrimaryArtists.filter((a) =>
-    baseSong.allPrimaryArtists.includes(a),
-  )
-  if (sharedPrimaryArtists.length > 0) score += 45
+  if (candidate.albumId && candidate.albumId === baseSong.albumId) {
+    score += 60
+  } else if (candidate.albumName && candidate.albumName === baseSong.albumName) {
+    score += 55
+  }
 
   const sharedSingers = candidate.singers.filter((s) => baseSong.singers.includes(s))
-  if (sharedSingers.length > 0) score += 35
+  score += Math.min(sharedSingers.length, 3) * 35
 
-  const sharedComposers = candidate.composers.filter((c) => baseSong.composers.includes(c))
-  if (sharedComposers.length > 0) score += 30
+  const sharedMDs = candidate.musicDirectors.filter((m) => baseSong.musicDirectors.includes(m))
+  score += Math.min(sharedMDs.length, 2) * 8
 
-  if (candidate.language && candidate.language === baseSong.language) score += 15
+  const sharedLyricists = candidate.lyricists.filter((l) => baseSong.lyricists.includes(l))
+  if (sharedLyricists.length > 0) score += 5
+
+  if (candidate.language && candidate.language === baseSong.language) {
+    score += 10
+  } else if (candidate.language && baseSong.language && candidate.language !== baseSong.language) {
+    score -= 30
+  }
 
   if (candidate.year > 0 && baseSong.year > 0) {
     const yearDiff = Math.abs(candidate.year - baseSong.year)
-    if (yearDiff === 0) score += 10
-    else if (yearDiff <= 2) score += 7
-    else if (yearDiff <= 5) score += 3
+    if (yearDiff === 0) score += 8
+    else if (yearDiff <= 2) score += 5
+    else if (yearDiff <= 5) score += 2
+    else if (yearDiff > 10) score -= 10
   }
 
   if (candidate.duration > 0 && baseSong.duration > 0) {
     const durationDiff = Math.abs(candidate.duration - baseSong.duration)
-    if (durationDiff < 30) score += 5
-    else if (durationDiff < 60) score += 2
+    if (durationDiff < 30) score += 3
   }
 
-  score += normalizePlayCount(candidate.playCount) * 8
-  score += Math.random() * 3
+  score += normalizePlayCount(candidate.playCount) * 5
 
   return score
 }
 
 const diversifyScored = (scored, limit) => {
   const result = []
-  const artistCount = new Map()
+  const singerGroupCount = new Map()
   const seenNames = new Set()
-  const MAX_PER_ARTIST = 4
+  const MAX_PER_SINGER = 4
 
   for (const item of scored) {
     if (result.length >= limit) break
@@ -123,10 +171,11 @@ const diversifyScored = (scored, limit) => {
     if (seenNames.has(nameKey)) continue
     seenNames.add(nameKey)
 
-    const count = artistCount.get(item.primaryArtist) || 0
-    if (count >= MAX_PER_ARTIST) continue
+    const topSinger = item.topSinger || "unknown"
+    const count = singerGroupCount.get(topSinger) || 0
+    if (count >= MAX_PER_SINGER) continue
+    singerGroupCount.set(topSinger, count + 1)
 
-    artistCount.set(item.primaryArtist, count + 1)
     result.push(item.songId)
   }
 
@@ -142,47 +191,85 @@ const computeForSong = async (baseSongId) => {
   if (!baseSongRow) return []
 
   const baseSong = buildEntry(baseSongRow)
-  const orConditions = []
 
-  if (baseSong.language) {
-    orConditions.push({ language: baseSong.language })
-  }
-  if (baseSongRow.albumName) {
-    orConditions.push({ albumName: baseSongRow.albumName })
-  }
+  const singerConditions = baseSong.singers
+    .filter((s) => s && s !== "unknown")
+    .slice(0, 5)
+    .map((singer) => buildArtistILike(singer))
 
-  const artists = [...new Set([...baseSong.allPrimaryArtists, ...baseSong.singers])]
-  for (const artist of artists.slice(0, 3)) {
-    if (artist && artist !== "unknown") {
-      orConditions.push({ artistNames: { [Op.iLike]: `%${artist}%` } })
-    }
-  }
+  const albumCondition = baseSongRow.albumName
+    ? [{ albumName: baseSongRow.albumName }]
+    : []
 
-  if (orConditions.length === 0) return []
+  const primaryConditions = [...singerConditions, ...albumCondition]
 
-  const candidates = await Song.findAll({
+  if (primaryConditions.length === 0) return []
+
+  const primaryCandidates = await Song.findAll({
     where: {
-      [Op.or]: orConditions,
+      [Op.or]: primaryConditions,
       songId: { [Op.ne]: baseSongId },
     },
     attributes: SONG_ATTRS,
     raw: true,
-    limit: 500,
+    limit: 300,
   })
+
+  let allCandidates = [...primaryCandidates]
+
+  if (allCandidates.length < 80) {
+    const existingIds = new Set(allCandidates.map((c) => c.songId))
+    existingIds.add(baseSongId)
+
+    const mdConditions = baseSong.musicDirectors
+      .filter((m) => m && m !== "unknown")
+      .slice(0, 3)
+      .map((md) => buildArtistILike(md))
+
+    if (mdConditions.length > 0 && baseSong.language) {
+      const { sequelize } = Song
+      const yearFilter = baseSong.year > 0
+        ? sequelize.where(
+            sequelize.cast(sequelize.json("songData.year"), "integer"),
+            { [Op.between]: [baseSong.year - 10, baseSong.year + 10] },
+          )
+        : undefined
+
+      const supplementary = await Song.findAll({
+        where: {
+          [Op.and]: [
+            { [Op.or]: mdConditions },
+            { language: baseSong.language },
+            { songId: { [Op.notIn]: [...existingIds] } },
+            yearFilter,
+          ],
+        },
+        attributes: SONG_ATTRS,
+        raw: true,
+        limit: 150,
+      })
+
+      allCandidates = [...allCandidates, ...supplementary]
+    }
+  }
 
   const seen = new Set()
   const scored = []
 
-  for (const c of candidates) {
+  for (const c of allCandidates) {
     const entry = buildEntry(c)
-    const dk = dedupKey(entry.name, entry.primaryArtist)
+    const dk = dedupKey(entry.name, entry.singers[0] || "unknown")
     if (seen.has(dk)) continue
     seen.add(dk)
+
+    const score = scoreSong(entry, baseSong)
+    if (score < MIN_SCORE_THRESHOLD) continue
+
     scored.push({
       songId: entry.songId,
-      score: scoreSong(entry, baseSong),
+      score,
       name: entry.name,
-      primaryArtist: entry.primaryArtist,
+      topSinger: entry.singers[0] || "unknown",
     })
   }
 

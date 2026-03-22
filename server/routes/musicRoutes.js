@@ -205,18 +205,11 @@ musicRoutes.get("/play-next/:songId", async (req, res) => {
       limit,
       excludeSongIds,
     })
-    res.set(
-      "Cache-Control",
-      data.length > 0
-        ? "public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800"
-        : "no-store",
-    )
     return res.json({ success: true, data })
   } catch (error) {
     console.error("[PlayNext] Error:", error.message)
     if (res.headersSent) return
     const status = error.message.includes("not found") ? 404 : 500
-    res.set("Cache-Control", "no-store")
     return res.status(status).json({ success: false, error: error.message })
   }
 })
