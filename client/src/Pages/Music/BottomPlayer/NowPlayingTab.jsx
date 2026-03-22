@@ -80,9 +80,9 @@ const useBlurredBg = (imageSrc) => {
       canvas.width = 64
       canvas.height = 64
       const ctx = canvas.getContext("2d")
-      ctx.filter = "blur(4px) saturate(1.3) brightness(0.65)"
-      ctx.drawImage(img, -4, -4, 72, 72)
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.7)
+      ctx.filter = "blur(6px) saturate(1.4) brightness(0.6)"
+      ctx.drawImage(img, -6, -6, 76, 76)
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.6)
       setBgUrls((prev) => ({ current: dataUrl, previous: prev.current, transitioning: true }))
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
       timeoutRef.current = setTimeout(() => {
@@ -178,7 +178,7 @@ const NowPlayingTab = memo(({ currentSong }) => {
   const songImage = useMemo(() => currentSong?.image?.[2]?.link, [currentSong])
   const colors = useImageColors(songImage)
   const images = useCrossfadeImage(songImage)
-  const mobileBg = useBlurredBg(songImage)
+  const blurredBg = useBlurredBg(songImage)
   const nextSong = useNextSong(currentSong)
   const hasAnimated = useRef(false)
   const [showEntrance, setShowEntrance] = useState(false)
@@ -214,67 +214,66 @@ const NowPlayingTab = memo(({ currentSong }) => {
   const imgShadowDesktop = `0 30px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05), 0 0 80px -20px rgba(${c1[0]},${c1[1]},${c1[2]},0.25)`
   const imgShadowMobile = `0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05), 0 0 60px -15px rgba(${c1[0]},${c1[1]},${c1[2]},0.25)`
 
-  const orbColor = (c, a) => ({
-    background: `rgba(${c[0]},${c[1]},${c[2]},${a})`,
-    transition: "background 2s ease-out",
-  })
+  const orbStyle = useMemo(() => ({
+    o1: { background: `rgba(${c1[0]},${c1[1]},${c1[2]},0.18)`, transition: "background 2s ease-out" },
+    o2: { background: `rgba(${c2[0]},${c2[1]},${c2[2]},0.14)`, transition: "background 2s ease-out" },
+  }), [c1, c2])
+
+  const overlayStyle = useMemo(() => ({
+    background: [
+      "radial-gradient(ellipse 70% 50% at 25% 20%, rgba(255,255,255,0.08) 0%, transparent 50%)",
+      "radial-gradient(ellipse 50% 35% at 75% 75%, rgba(255,255,255,0.04) 0%, transparent 40%)",
+      "radial-gradient(ellipse 120% 80% at 50% 40%, rgba(255,255,255,0.03) 0%, transparent 50%)",
+      "radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(5,5,8,0.3) 60%, rgba(5,5,8,0.85) 100%)",
+    ].join(", "),
+  }), [])
+
+  const mobileVignette = useMemo(() => ({
+    background: "radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(5,5,8,0.3) 60%, rgba(5,5,8,0.85) 100%)",
+  }), [])
 
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#050508]">
 
-      {/* === MOBILE BG: Pre-blurred canvas, no CSS filter === */}
-      {mobileBg.previous && (
+      {/* === MOBILE BG: Pre-blurred canvas, zero CSS filter cost === */}
+      {blurredBg.previous && (
         <div
           className="lg:hidden absolute inset-0 bg-cover bg-center np-bg-fade-out"
-          style={{ backgroundImage: `url(${mobileBg.previous})` }}
+          style={{ backgroundImage: `url(${blurredBg.previous})` }}
         />
       )}
-      {mobileBg.current && (
+      {blurredBg.current && (
         <div
-          className={`lg:hidden absolute inset-0 bg-cover bg-center ${mobileBg.transitioning ? "np-bg-fade-in" : ""}`}
-          style={{ backgroundImage: `url(${mobileBg.current})` }}
+          className={`lg:hidden absolute inset-0 bg-cover bg-center ${blurredBg.transitioning ? "np-bg-fade-in" : ""}`}
+          style={{ backgroundImage: `url(${blurredBg.current})` }}
         />
       )}
 
-      {/* === DESKTOP BG: Full liquid glass with CSS blur === */}
+      {/* === DESKTOP BG: CSS blur for high quality === */}
       {images.previous && (
         <div
           className="hidden lg:block absolute inset-0 bg-cover bg-center np-bg-fade-out"
-          style={{ backgroundImage: `url(${images.previous})`, filter: "blur(160px) saturate(1.4) brightness(0.65)", transform: "scale(2)" }}
+          style={{ backgroundImage: `url(${images.previous})`, filter: "blur(160px) saturate(1.4) brightness(0.65)", transform: "scale(2) translateZ(0)", willChange: "transform" }}
         />
       )}
       <div
         className={`hidden lg:block absolute inset-0 bg-cover bg-center ${images.transitioning ? "np-bg-fade-in" : ""}`}
-        style={{ backgroundImage: `url(${images.current})`, filter: "blur(160px) saturate(1.4) brightness(0.65)", transform: "scale(2)", transition: "background-image 0.6s ease" }}
+        style={{ backgroundImage: `url(${images.current})`, filter: "blur(160px) saturate(1.4) brightness(0.65)", transform: "scale(2) translateZ(0)", willChange: "transform" }}
       />
 
-      {/* Desktop-only: glass noise */}
+      {/* Desktop: glass effects */}
       <div className="hidden lg:block absolute inset-0 np-glass-noise" />
-
-      {/* Desktop-only: specular highlights */}
-      <div className="hidden lg:block absolute inset-0" style={{
-        background: "radial-gradient(ellipse 70% 50% at 25% 20%, rgba(255,255,255,0.08) 0%, transparent 50%)"
-      }} />
-      <div className="hidden lg:block absolute inset-0" style={{
-        background: "radial-gradient(ellipse 50% 35% at 75% 75%, rgba(255,255,255,0.04) 0%, transparent 40%)"
-      }} />
-
-      {/* Desktop-only: animated liquid shimmer */}
       <div className="hidden lg:block absolute inset-0 np-orb-layer">
-        <div className="np-orb np-o1" style={orbColor(c1, 0.18)} />
-        <div className="np-orb np-o2" style={orbColor(c2, 0.14)} />
+        <div className="np-orb np-o1" style={orbStyle.o1} />
+        <div className="np-orb np-o2" style={orbStyle.o2} />
         <div className="np-shimmer" />
       </div>
 
-      {/* Desktop-only: luminous depth */}
-      <div className="hidden lg:block absolute inset-0" style={{
-        background: "radial-gradient(ellipse 120% 80% at 50% 40%, rgba(255,255,255,0.03) 0%, transparent 50%)"
-      }} />
+      {/* Desktop: specular + luminous + vignette merged into one div */}
+      <div className="hidden lg:block absolute inset-0" style={overlayStyle} />
 
-      {/* Shared: vignette (single gradient, very light on GPU) */}
-      <div className="absolute inset-0" style={{
-        background: "radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(5,5,8,0.3) 60%, rgba(5,5,8,0.85) 100%)"
-      }} />
+      {/* Mobile: vignette only */}
+      <div className="lg:hidden absolute inset-0" style={mobileVignette} />
 
       {/* Desktop layout */}
       <div className="hidden lg:flex relative z-10 h-full w-full max-w-[1100px] mx-auto items-center gap-14 xl:gap-20 px-10 xl:px-16">
@@ -393,53 +392,53 @@ const NowPlayingTab = memo(({ currentSong }) => {
           mix-blend-mode: overlay;
         }
         .np-orb-layer {
-          filter: blur(100px);
-          transform: scale(1.4);
+          filter: blur(80px);
+          transform: scale(1.3);
           mix-blend-mode: soft-light;
-          opacity: 0.7;
+          opacity: 0.6;
         }
         .np-orb {
           position: absolute;
           border-radius: 50%;
         }
         .np-o1 {
-          width: 55%;
-          height: 60%;
-          top: -10%;
-          left: -10%;
+          width: 50%;
+          height: 55%;
+          top: -8%;
+          left: -8%;
           animation: npo1 26s ease-in-out infinite;
         }
         .np-o2 {
-          width: 50%;
-          height: 50%;
-          bottom: -10%;
-          right: -10%;
+          width: 45%;
+          height: 45%;
+          bottom: -8%;
+          right: -8%;
           animation: npo2 32s ease-in-out infinite;
         }
         .np-shimmer {
           position: absolute;
-          width: 40%;
-          height: 30%;
+          width: 35%;
+          height: 25%;
           top: 15%;
           left: 20%;
           border-radius: 50%;
-          background: radial-gradient(ellipse, rgba(255,255,255,0.06) 0%, transparent 70%);
-          animation: npShimmer 18s ease-in-out infinite;
+          background: radial-gradient(ellipse, rgba(255,255,255,0.05) 0%, transparent 70%);
+          animation: npShimmer 20s ease-in-out infinite;
         }
         @keyframes npo1 {
           0%, 100% { transform: translate(0, 0) scale(1); border-radius: 50%; }
-          33% { transform: translate(10%, 15%) scale(1.05); border-radius: 44% 56% 52% 48%; }
-          66% { transform: translate(5%, 8%) scale(0.97); border-radius: 48% 52% 46% 54%; }
+          33% { transform: translate(8%, 12%) scale(1.04); border-radius: 44% 56% 52% 48%; }
+          66% { transform: translate(4%, 6%) scale(0.97); border-radius: 48% 52% 46% 54%; }
         }
         @keyframes npo2 {
           0%, 100% { transform: translate(0, 0) scale(1); border-radius: 50%; }
-          33% { transform: translate(-8%, -12%) scale(1.04); border-radius: 54% 46% 48% 52%; }
-          66% { transform: translate(-14%, -5%) scale(0.96); border-radius: 47% 53% 52% 48%; }
+          33% { transform: translate(-6%, -10%) scale(1.03); border-radius: 54% 46% 48% 52%; }
+          66% { transform: translate(-12%, -4%) scale(0.97); border-radius: 47% 53% 52% 48%; }
         }
         @keyframes npShimmer {
-          0%, 100% { transform: translate(0, 0); opacity: 0.6; }
-          33% { transform: translate(30%, 10%); opacity: 1; }
-          66% { transform: translate(-10%, 20%); opacity: 0.4; }
+          0%, 100% { transform: translate(0, 0); opacity: 0.5; }
+          33% { transform: translate(25%, 8%); opacity: 0.8; }
+          66% { transform: translate(-8%, 15%); opacity: 0.3; }
         }
         .np-bg-fade-in {
           animation: npBgIn 0.8s ease-out both;
