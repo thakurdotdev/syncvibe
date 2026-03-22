@@ -1,8 +1,8 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { SheetTitle } from "@/components/ui/sheet"
 import he from "he"
 import { ChevronRight, Music } from "lucide-react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { SheetTitle } from "@/components/ui/sheet"
 import { usePlayerStore } from "@/stores/playerStore"
 import { MusicControls, ProgressBarMusic } from "../Common"
 
@@ -233,7 +233,7 @@ const NowPlayingTab = memo(({ currentSong }) => {
   }), [])
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-[#050508]">
+    <div className="w-full h-full relative overflow-hidden bg-[#050508] lg:pr-[300px]">
 
       {/* === MOBILE BG: Pre-blurred canvas, zero CSS filter cost === */}
       {blurredBg.previous && (
@@ -253,12 +253,12 @@ const NowPlayingTab = memo(({ currentSong }) => {
       {images.previous && (
         <div
           className="hidden lg:block absolute inset-0 bg-cover bg-center np-bg-fade-out"
-          style={{ backgroundImage: `url(${images.previous})`, filter: "blur(160px) saturate(1.4) brightness(0.65)", transform: "scale(2) translateZ(0)", willChange: "transform" }}
+          style={{ backgroundImage: `url(${images.previous})`, filter: "blur(100px) saturate(1.3) brightness(0.6)", transform: "scale(1.5) translateZ(0)", willChange: "opacity" }}
         />
       )}
       <div
         className={`hidden lg:block absolute inset-0 bg-cover bg-center ${images.transitioning ? "np-bg-fade-in" : ""}`}
-        style={{ backgroundImage: `url(${images.current})`, filter: "blur(160px) saturate(1.4) brightness(0.65)", transform: "scale(2) translateZ(0)", willChange: "transform" }}
+        style={{ backgroundImage: `url(${images.current})`, filter: "blur(100px) saturate(1.3) brightness(0.6)", transform: "scale(1.5) translateZ(0)" }}
       />
 
       {/* Desktop: glass effects */}
@@ -293,7 +293,7 @@ const NowPlayingTab = memo(({ currentSong }) => {
         </div>
 
         <div
-          className="flex-1 flex flex-col gap-6 min-w-0 transition-all duration-600 ease-out"
+          className="flex-1 flex flex-col gap-6 min-w-0 overflow-hidden transition-all duration-600 ease-out"
           style={{
             opacity: showEntrance ? 1 : 0,
             transform: showEntrance ? "translateY(0)" : "translateY(20px)",
@@ -392,10 +392,11 @@ const NowPlayingTab = memo(({ currentSong }) => {
           mix-blend-mode: overlay;
         }
         .np-orb-layer {
-          filter: blur(80px);
-          transform: scale(1.3);
+          filter: blur(50px);
+          transform: scale(1.2);
           mix-blend-mode: soft-light;
-          opacity: 0.6;
+          opacity: 0.5;
+          contain: layout style;
         }
         .np-orb {
           position: absolute;

@@ -49,9 +49,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useSongRecommendationsQuery } from "@/hooks/queries/useSongQueries"
 import { cn } from "@/lib/utils"
 import { usePlayerStore } from "@/stores/playerStore"
-import { useSongRecommendationsQuery } from "@/hooks/queries/useSongQueries"
 
 const buttonVariants = {
   hover: { scale: 1.05 },
@@ -77,7 +77,9 @@ const QueueSongItem = memo(
     onRemove,
     onFetchRecommendations,
     isLoadingRecs,
+    variant,
   }) => {
+    const isDesktop = variant === "desktop"
     const navigate = useNavigate()
 
     const name = useMemo(() => he.decode(song.name || song.title || ""), [song.name, song.title])
@@ -135,6 +137,124 @@ const QueueSongItem = memo(
       },
       [onFetchRecommendations, song.id, song.name, song.title],
     )
+
+    const desktopClasses = isDesktop
+      ? isCurrentSong
+        ? "dqp-item-active"
+        : "dqp-item"
+      : ""
+
+    if (isDesktop) {
+      return (
+        <div
+          className={cn(
+            "group flex items-center gap-2 py-1.5 px-1 rounded-lg transition-opacity duration-200",
+            desktopClasses,
+            isDragging && "opacity-30",
+          )}
+        >
+          <div
+            {...dragHandleProps}
+            className="cursor-grab active:cursor-grabbing p-0.5 text-white/30 hover:text-white/60 touch-none"
+          >
+            <GripVertical className="w-3.5 h-3.5" />
+          </div>
+
+          <div
+            className="relative w-9 h-9 shrink-0 cursor-pointer rounded-md overflow-hidden"
+            onClick={handlePlay}
+          >
+            <LazyImage
+              src={Array.isArray(song.image) ? song.image?.[1]?.link : song.image}
+              alt={name}
+              className="w-full h-full object-cover"
+            />
+            <div
+              className="absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity duration-150"
+              style={{ opacity: isCurrentSong ? 1 : 0 }}
+            >
+              {isCurrentSong && isPlaying ? (
+                <Pause className="w-3.5 h-3.5 text-white fill-white" />
+              ) : (
+                <Play className="w-3.5 h-3.5 text-white fill-white" />
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={handlePlay}>
+            <p
+              className={cn(
+                "text-xs font-medium line-clamp-1 text-white/90",
+                isCurrentSong && "text-white",
+              )}
+            >
+              {name}
+            </p>
+            {artistName && <p className="text-[11px] text-white/40 line-clamp-1">{artistName}</p>}
+          </div>
+
+          {isCurrentSong && isPlaying && (
+            <div className="flex items-center gap-0.5 mr-1">
+              <span className="dqp-eq-bar dqp-eq-1" />
+              <span className="dqp-eq-bar dqp-eq-2" />
+              <span className="dqp-eq-bar dqp-eq-3" />
+            </div>
+          )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-white/30 hover:text-white/60"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="w-3.5 h-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onClick={handleFetchRecs}
+                disabled={isLoadingRecs}
+                className="cursor-pointer text-sm"
+              >
+                {isLoadingRecs ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5 mr-2" />
+                )}
+                Get similar songs
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {song?.album_id && (
+                <DropdownMenuItem onClick={handleGoToAlbum} className="cursor-pointer text-sm">
+                  <Disc3 className="w-3.5 h-3.5 mr-2" />
+                  Go to Album
+                </DropdownMenuItem>
+              )}
+              {song?.artist_map?.primary_artists?.[0] && (
+                <DropdownMenuItem onClick={handleGoToArtist} className="cursor-pointer text-sm">
+                  <User className="w-3.5 h-3.5 mr-2" />
+                  Go to Artist
+                </DropdownMenuItem>
+              )}
+              {!isCurrentSong && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleRemove}
+                    className="cursor-pointer text-sm text-destructive focus:text-destructive"
+                  >
+                    <X className="w-3.5 h-3.5 mr-2" />
+                    Remove
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )
+    }
 
     return (
       <motion.div
@@ -254,7 +374,6 @@ const QueueSongItem = memo(
           </motion.div>
         )}
 
-        {/* More actions */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -315,7 +434,7 @@ QueueSongItem.displayName = "QueueSongItem"
 
 // Sortable wrapper
 const SortableSongItem = memo(
-  ({ song, isCurrentSong, isPlaying, onPlay, onRemove, onFetchRecommendations, isLoadingRecs }) => {
+  ({ song, isCurrentSong, isPlaying, onPlay, onRemove, onFetchRecommendations, isLoadingRecs, variant }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
       id: song.id,
     })
@@ -337,6 +456,7 @@ const SortableSongItem = memo(
           onRemove={onRemove}
           onFetchRecommendations={onFetchRecommendations}
           isLoadingRecs={isLoadingRecs}
+          variant={variant}
         />
       </div>
     )
@@ -346,7 +466,7 @@ const SortableSongItem = memo(
 SortableSongItem.displayName = "SortableSongItem"
 
 // Main QueueTab
-const QueueTab = memo(() => {
+const QueueTab = memo(({ variant } = {}) => {
   const playlist = usePlayerStore((s) => s.playlist)
   const currentSong = usePlayerStore((s) => s.currentSong)
   const currentSongId = currentSong?.id
@@ -605,6 +725,7 @@ const QueueTab = memo(() => {
                     onRemove={handleRemove}
                     onFetchRecommendations={handleSongFetchRecs}
                     isLoadingRecs={loadingSongId === song.id}
+                    variant={variant}
                   />
                 ))}
               </div>
@@ -621,6 +742,7 @@ const QueueTab = memo(() => {
                   onRemove={handleRemove}
                   onFetchRecommendations={handleSongFetchRecs}
                   isLoadingRecs={loadingSongId === activeSong.id}
+                  variant={variant}
                 />
               )}
             </DragOverlay>
@@ -632,4 +754,5 @@ const QueueTab = memo(() => {
 })
 
 QueueTab.displayName = "QueueTab"
+export { QueueTab }
 export default QueueTab
