@@ -1,10 +1,8 @@
 import { useState, useCallback, useMemo, memo } from "react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { useProfile } from "@/Context/Context"
 import { useGroupMusic } from "@/Context/GroupMusicContext"
 import { useFeatureAccess } from "@/hooks/useFeatureAccess"
 import { AnimatePresence, motion } from "framer-motion"
-import { cn } from "@/lib/utils"
 
 import {
   GroupModal,
@@ -59,6 +57,8 @@ const GroupMusic = () => {
     upcomingQueue,
     isQueueOpen,
     setIsQueueOpen,
+    isSyncing,
+    syncCountdown,
   } = useGroupMusic()
 
   const [isQrCodeOpen, setQrCodeOpen] = useState(false)
@@ -85,24 +85,17 @@ const GroupMusic = () => {
   const handleOpenQueue = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen])
 
   const userId = useMemo(() => user?.userid, [user?.userid])
-
   const groupMaxMembers = currentGroup?.maxMembers || maxGroupMembers
 
   return (
-    <div className="mx-auto max-w-7xl px-2 md:px-4 py-2 md:py-6">
+    <div className="mx-auto max-w-7xl px-2 md:px-4 py-2 md:py-4">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 0.35 }}
       >
-        <Card
-          className={cn(
-            "overflow-hidden border-border/50",
-            "bg-linear-to-br from-background via-background to-accent/10",
-            "shadow-xl",
-          )}
-        >
-          <CardHeader className="px-3 md:px-6 py-2 md:pb-2">
+        <div className="rounded-2xl border border-border/30 bg-background overflow-hidden">
+          <div className="px-3 md:px-5 pt-3 md:pt-4 pb-2">
             <GroupHeader
               currentGroup={currentGroup}
               isRejoining={isRejoining}
@@ -112,25 +105,27 @@ const GroupMusic = () => {
               onQueueOpen={handleOpenQueue}
               queueCount={activeQueueCount}
             />
-          </CardHeader>
+          </div>
 
-          <CardContent className="px-2 md:px-6 pb-4">
+          <div className="px-3 md:px-5 pb-4">
             <AnimatePresence mode="wait">
               {!currentGroup ? (
                 <WelcomeView key="welcome" onOpenModal={handleOpenGroupModal} />
               ) : (
                 <motion.div
                   key="group-content"
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.4 }}
-                  className="space-y-3 md:space-y-6"
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-3 md:space-y-4"
                 >
                   <NowPlayingCard
                     currentSong={currentSong}
                     isPlaying={isPlaying}
                     isLoading={isLoading}
+                    isSyncing={isSyncing}
+                    syncCountdown={syncCountdown}
                     currentTime={currentTime}
                     duration={duration}
                     volume={volume}
@@ -145,7 +140,7 @@ const GroupMusic = () => {
                     queueCount={activeQueueCount}
                   />
 
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
                     <div className="lg:col-span-2">
                       <GroupChat
                         messages={messages}
@@ -166,8 +161,8 @@ const GroupMusic = () => {
                 </motion.div>
               )}
             </AnimatePresence>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </motion.div>
 
       {isGroupModalOpen && (

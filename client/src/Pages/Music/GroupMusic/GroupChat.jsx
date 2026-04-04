@@ -1,5 +1,4 @@
 import { memo, useRef, useEffect, useCallback, useMemo, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -10,7 +9,7 @@ import UpgradeDialog from "@/components/UpgradeDialog"
 
 const ActivityMessage = memo(({ msg }) => (
   <div className="flex justify-center py-1">
-    <p className="text-xs text-muted-foreground/70 bg-green-950/30 px-3 py-1 rounded-full">
+    <p className="text-[11px] text-muted-foreground/50 bg-accent/40 px-3 py-1 rounded-full">
       {msg.message}
     </p>
   </div>
@@ -19,9 +18,9 @@ const ActivityMessage = memo(({ msg }) => (
 const ChatMessage = memo(({ msg, isOwn }) => (
   <div className={cn("flex gap-2", isOwn ? "justify-end" : "justify-start")}>
     {!isOwn && (
-      <Avatar className="h-8 w-8 shrink-0">
+      <Avatar className="h-7 w-7 shrink-0 mt-0.5">
         <AvatarImage src={msg.profilePic} />
-        <AvatarFallback className="text-xs">
+        <AvatarFallback className="text-[10px] bg-accent">
           {msg.userName?.charAt(0)?.toUpperCase()}
         </AvatarFallback>
       </Avatar>
@@ -29,50 +28,43 @@ const ChatMessage = memo(({ msg, isOwn }) => (
 
     <div
       className={cn(
-        "max-w-[75%] rounded-2xl px-4 py-2.5",
-        isOwn ? "bg-primary text-primary-foreground rounded-br-md" : "bg-accent rounded-bl-md",
+        "max-w-[75%] rounded-2xl px-3 py-2",
+        isOwn
+          ? "bg-primary text-primary-foreground rounded-br-sm"
+          : "bg-accent/60 rounded-bl-sm",
       )}
     >
-      {!isOwn && <p className="text-xs font-medium mb-1 opacity-70">{msg.userName}</p>}
-      <p className="text-sm wrap-break-word">{msg.message}</p>
+      {!isOwn && <p className="text-[10px] font-medium mb-0.5 opacity-50">{msg.userName}</p>}
+      <p className="text-sm leading-relaxed wrap-break-word">{msg.message}</p>
     </div>
-
-    {isOwn && (
-      <Avatar className="h-8 w-8 shrink-0">
-        <AvatarImage src={msg.profilePic} />
-        <AvatarFallback className="text-xs">
-          {msg.userName?.charAt(0)?.toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-    )}
   </div>
 ))
 
 const EmptyState = memo(() => (
-  <div className="h-full flex flex-col items-center justify-center text-center p-4">
-    <MessageCircle className="h-8 w-8 md:h-12 md:w-12 text-muted-foreground/30 mb-2" />
-    <p className="text-muted-foreground text-xs md:text-sm">No messages yet</p>
+  <div className="h-full flex flex-col items-center justify-center text-center p-6">
+    <MessageCircle className="h-8 w-8 text-muted-foreground/20 mb-2" />
+    <p className="text-xs text-muted-foreground/40">No messages yet</p>
   </div>
 ))
 
 const ChatLockedOverlay = memo(({ onUpgrade }) => (
   <div
-    className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg cursor-pointer"
+    className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-xl cursor-pointer"
     onClick={onUpgrade}
   >
     <div className="flex flex-col items-center gap-3 p-6 text-center">
-      <div className="p-3 rounded-full bg-primary/10">
-        <Lock className="h-6 w-6 text-primary" />
+      <div className="p-3 rounded-full bg-accent/50">
+        <Lock className="h-5 w-5 text-muted-foreground/60" />
       </div>
       <div>
-        <p className="font-semibold text-sm">Group Chat is a PRO feature</p>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="font-medium text-sm">Group Chat is a PRO feature</p>
+        <p className="text-xs text-muted-foreground/50 mt-1">
           Tap to upgrade and chat with your group
         </p>
       </div>
       <Button
         size="sm"
-        className="gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+        className="gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0"
       >
         <Sparkles className="h-3.5 w-3.5" />
         Upgrade to PRO
@@ -82,12 +74,9 @@ const ChatLockedOverlay = memo(({ onUpgrade }) => (
 ))
 
 const MessagesList = memo(({ messages, currentUserId }) => {
-  if (messages.length === 0) {
-    return <EmptyState />
-  }
-
+  if (messages.length === 0) return <EmptyState />
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5 p-1">
       {messages.map((msg, i) =>
         msg.type === "activity" ? (
           <ActivityMessage key={msg.id || i} msg={msg} />
@@ -132,56 +121,42 @@ const GroupChat = ({ messages, currentUserId, onSendMessage, locked = false }) =
     [handleSend],
   )
 
-  const userMessageCount = useMemo(
-    () => messages.filter((m) => m.type !== "activity").length,
-    [messages],
-  )
-
   return (
-    <Card className="h-full flex flex-col border-border/50 shadow-lg overflow-hidden relative">
+    <div className="rounded-xl border border-border/40 bg-accent/10 overflow-hidden flex flex-col h-full relative">
       {locked && <ChatLockedOverlay onUpgrade={() => setShowUpgrade(true)} />}
 
-      <CardHeader className="py-2 md:pb-3 px-3 md:px-6 border-b border-border/50">
-        <CardTitle className="text-sm md:text-lg flex items-center gap-2">
-          <div className="p-1 md:p-1.5 rounded-full bg-primary/10">
-            <MessageCircle className="h-3 w-3 md:h-4 md:w-4 text-primary" />
-          </div>
-          Chat
-          {locked && <Lock className="h-3 w-3 text-muted-foreground" />}
-          {userMessageCount > 0 && (
-            <span className="text-xs font-normal text-muted-foreground">({userMessageCount})</span>
-          )}
-        </CardTitle>
-      </CardHeader>
+      <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-border/30">
+        <MessageCircle className="h-3.5 w-3.5 text-muted-foreground/60" />
+        <span className="text-sm font-medium">Chat</span>
+        {locked && <Lock className="h-3 w-3 text-muted-foreground/40" />}
+      </div>
 
-      <CardContent className="flex-1 flex flex-col p-0 min-h-0">
-        <ScrollArea ref={scrollRef} className="flex-1 p-2 md:p-4 max-h-[350px]">
-          <MessagesList messages={messages} currentUserId={currentUserId} />
-        </ScrollArea>
+      <ScrollArea ref={scrollRef} className="flex-1 px-2.5 py-2 max-h-[300px]">
+        <MessagesList messages={messages} currentUserId={currentUserId} />
+      </ScrollArea>
 
-        <div className="p-2 md:p-3 border-t border-border/50 bg-accent/30">
-          <div className="flex gap-2">
-            <Input
-              ref={inputRef}
-              placeholder={locked ? "PRO feature" : "Type a message..."}
-              onKeyPress={handleKeyPress}
-              disabled={locked}
-              className="rounded-full bg-background border-border/50 h-9 md:h-10 text-sm"
-            />
-            <Button
-              onClick={handleSend}
-              size="icon"
-              disabled={locked}
-              className="rounded-full shrink-0 h-9 w-9 md:h-10 md:w-10"
-            >
-              <Send className="h-3.5 w-3.5 md:h-4 md:w-4" />
-            </Button>
-          </div>
+      <div className="p-2 border-t border-border/30">
+        <div className="flex gap-2">
+          <Input
+            ref={inputRef}
+            placeholder={locked ? "PRO feature" : "Type a message..."}
+            onKeyPress={handleKeyPress}
+            disabled={locked}
+            className="rounded-full bg-accent/30 border-border/30 h-9 text-sm placeholder:text-muted-foreground/30"
+          />
+          <Button
+            onClick={handleSend}
+            size="icon"
+            disabled={locked}
+            className="rounded-full shrink-0 h-9 w-9"
+          >
+            <Send className="h-3.5 w-3.5" />
+          </Button>
         </div>
-      </CardContent>
+      </div>
 
       <UpgradeDialog open={showUpgrade} onOpenChange={setShowUpgrade} feature="realtimeChat" />
-    </Card>
+    </div>
   )
 }
 

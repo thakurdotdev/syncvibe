@@ -33,6 +33,8 @@ export function GroupMusicProvider({ children }) {
   const [currentSong, setCurrentSong] = useState(null)
   const [volume, setVolume] = useState(0.7)
   const [isLoading, setIsLoading] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncCountdown, setSyncCountdown] = useState(0)
 
   // Search state
   const [searchResults, setSearchResults] = useState([])
@@ -60,6 +62,17 @@ export function GroupMusicProvider({ children }) {
   const periodicSyncRef = useRef(null)
   const hasAttemptedRejoinRef = useRef(false)
   const audioRef = useRef(null)
+  const syncTimerRef = useRef(null)
+
+  const isPlayingRef = useRef(isPlaying)
+  const currentSongRef = useRef(currentSong)
+  const currentGroupRef = useRef(currentGroup)
+  const serverTimeOffsetRef = useRef(serverTimeOffset)
+
+  useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
+  useEffect(() => { currentSongRef.current = currentSong }, [currentSong])
+  useEffect(() => { currentGroupRef.current = currentGroup }, [currentGroup])
+  useEffect(() => { serverTimeOffsetRef.current = serverTimeOffset }, [serverTimeOffset])
 
   // Derived state
   const currentQueueItem = useMemo(() => {
@@ -438,12 +451,21 @@ export function GroupMusicProvider({ children }) {
 
     if (audioRef.current) {
       audioRef.current.pause()
-      audioRef.current.currentTime = 0
+      audioRef.current.removeAttribute('src')
+      audioRef.current.load()
+    }
+
+    if (syncTimerRef.current) {
+      clearInterval(syncTimerRef.current)
+      syncTimerRef.current = null
     }
 
     setCurrentGroup(null)
+    currentGroupRef.current = null
     setCurrentSong(null)
     setIsPlaying(false)
+    setIsSyncing(false)
+    setSyncCountdown(0)
     setMessages([])
     setGroupMembers([])
     setQueue([])
@@ -556,7 +578,7 @@ export function GroupMusicProvider({ children }) {
       }
 
       // If we're playing a different song or no song, load the correct one
-      if (!currentSong || currentSong.id !== serverTrack.id) {
+      if (!currentSongRef.current || currentSongRef.current.id !== serverTrack.id) {
         console.log("Out of sync - loading correct song")
         setCurrentSong(serverTrack)
         const url = serverTrack.download_url?.find((u) => u.quality === "320kbps")?.link
@@ -568,7 +590,7 @@ export function GroupMusicProvider({ children }) {
       if (!audioRef.current) return
 
       // Drift correction
-      const serverNow = Date.now() + serverTimeOffset
+      const serverNow = Date.now() + serverTimeOffsetRef.current
       const timePassed = (serverNow - playbackState.lastUpdate) / 1000
       const expectedTime = playbackState.currentTime + (playbackState.isPlaying ? timePassed : 0)
       const actualTime = audioRef.current.currentTime
@@ -643,21 +665,63 @@ export function GroupMusicProvider({ children }) {
       setLastSync(serverNow)
     })
 
-    socket.on("music-update", async ({ song, currentTime, queueItem, autoPlay }) => {
+    socket.on("music-update", async ({ song, currentTime, queueItem, autoPlay, scheduledPlayTime }) => {
+      if (syncTimerRef.current) clearInterval(syncTimerRef.current)
+
       setCurrentSong(song)
-      const url = song.download_url.find((url) => url.quality === "320kbps")?.link
+      currentSongRef.current = song
+      const url = song.download_url.find((u) => u.quality === "320kbps")?.link
 
-      if (url) {
-        await loadAudio(url, queueItem?.id)
+      if (scheduledPlayTime) {
+        setIsSyncing(true)
+        const serverNow = Date.now() + serverTimeOffsetRef.current
+        const totalDelay = Math.max(0, scheduledPlayTime - serverNow)
+        setSyncCountdown(Math.ceil(totalDelay / 1000))
 
-        if (audioRef.current) {
-          audioRef.current.currentTime = currentTime
-          if (autoPlay || isPlaying) {
+        syncTimerRef.current = setInterval(() => {
+          const remaining = Math.max(0, scheduledPlayTime - (Date.now() + serverTimeOffsetRef.current))
+          const secs = Math.ceil(remaining / 1000)
+          setSyncCountdown(secs)
+          if (secs <= 0) {
+            clearInterval(syncTimerRef.current)
+            syncTimerRef.current = null
+          }
+        }, 200)
+
+        if (url) {
+          await loadAudio(url, queueItem?.id)
+        }
+
+        const nowAfterLoad = Date.now() + serverTimeOffsetRef.current
+        const remainingDelay = Math.max(0, scheduledPlayTime - nowAfterLoad)
+
+        setTimeout(async () => {
+          if (!currentGroupRef.current) return; // Prevent playing if user left
+          
+          setIsSyncing(false)
+          setSyncCountdown(0)
+          if (audioRef.current && audioRef.current.src) {
+            audioRef.current.currentTime = currentTime || 0
             try {
               await audioRef.current.play()
               setIsPlaying(true)
             } catch (err) {
               console.error("Autoplay blocked:", err)
+            }
+          }
+        }, remainingDelay)
+      } else {
+        if (url) {
+          await loadAudio(url, queueItem?.id)
+          if (audioRef.current) {
+            audioRef.current.currentTime = currentTime
+            if (autoPlay || isPlayingRef.current) {
+              try {
+                await audioRef.current.play()
+                setIsPlaying(true)
+              } catch (err) {
+                console.error("Autoplay blocked:", err)
+              }
             }
           }
         }
@@ -810,9 +874,22 @@ export function GroupMusicProvider({ children }) {
     })
 
     socket.on("group-disbanded", () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.removeAttribute('src')
+        audioRef.current.load()
+      }
+      if (syncTimerRef.current) {
+        clearInterval(syncTimerRef.current)
+        syncTimerRef.current = null
+      }
+      
       setCurrentGroup(null)
+      currentGroupRef.current = null
       setCurrentSong(null)
       setIsPlaying(false)
+      setIsSyncing(false)
+      setSyncCountdown(0)
       setMessages([])
       setGroupMembers([])
       setQueue([])
@@ -859,16 +936,7 @@ export function GroupMusicProvider({ children }) {
       socket.off("group-full")
       socket.off("feature-locked")
     }
-  }, [
-    socket,
-    isPlaying,
-    serverTimeOffset,
-    user,
-    loadAudio,
-    saveSession,
-    clearSession,
-    getServerTime,
-  ])
+  }, [socket, user, loadAudio, saveSession, clearSession, getServerTime])
 
   const contextValue = {
     // Group state
@@ -901,6 +969,8 @@ export function GroupMusicProvider({ children }) {
     setVolume,
     isLoading,
     setIsLoading,
+    isSyncing,
+    syncCountdown,
 
     // Search state
     searchResults,

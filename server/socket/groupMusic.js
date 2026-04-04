@@ -13,7 +13,7 @@ const TIME_TO_REJOIN = 10000 // 10 seconds
  */
 const generateGroupId = () => {
   const id = Math.floor(100000 + Math.random() * 900000).toString()
-  return "syncvibe_" + id
+  return `syncvibe_${id}`
 }
 
 /**
@@ -263,6 +263,15 @@ const skipToNext = (group, expectedSongId = null) => {
   }
 }
 
+const prunePlayedSongs = (group) => {
+  const playedCount = group.queue.filter(item => item.status === "played").length
+  if (playedCount === 0) return
+  group.queue = group.queue.filter(item => item.status !== "played")
+  if (group.currentQueueIndex >= 0) {
+    group.currentQueueIndex = Math.max(0, group.currentQueueIndex - playedCount)
+  }
+}
+
 /**
  * Reorder queue items
  */
@@ -482,10 +491,12 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
 
       // If this is the first song, broadcast song change
       if (result.autoPlay && group.queue.length === 1) {
+        const scheduledPlayTime = Date.now() + 2000
         io.to(`music-group-${groupId}`).emit("music-update", {
           song: result.queueItem.song,
           currentTime: 0,
           queueItem: result.queueItem,
+          scheduledPlayTime,
         })
 
         emitActivityMessage(io, groupId, "song-playing", {
@@ -528,22 +539,24 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
     const result = skipToNext(group)
 
     if (result.success) {
+      prunePlayedSongs(group)
+
       io.to(`music-group-${groupId}`).emit("queue-updated", {
         ...getQueueState(group),
         action: "skip",
       })
 
-      // Activity message for skip
       emitActivityMessage(io, groupId, "song-skipped", { userName })
 
       if (result.hasNext) {
+        const scheduledPlayTime = Date.now() + 2000
         io.to(`music-group-${groupId}`).emit("music-update", {
           song: result.currentItem.song,
           currentTime: 0,
           queueItem: result.currentItem,
+          scheduledPlayTime,
         })
 
-        // Activity message for now playing
         emitActivityMessage(io, groupId, "song-playing", {
           songName: result.currentItem.song.name,
           addedBy: result.currentItem.addedBy?.userName,
@@ -571,26 +584,30 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
       return
     }
 
-    // Broadcast updated queue state
+    if (!result.success) return
+
+    prunePlayedSongs(group)
+
     io.to(`music-group-${groupId}`).emit("queue-updated", {
       ...getQueueState(group),
       action: "song-ended",
     })
 
-    if (result.success && result.hasNext) {
+    if (result.hasNext) {
+      const scheduledPlayTime = Date.now() + 2000
       io.to(`music-group-${groupId}`).emit("music-update", {
         song: result.currentItem.song,
         currentTime: 0,
         queueItem: result.currentItem,
         autoPlay: true,
+        scheduledPlayTime,
       })
 
-      // Activity message for next song
       emitActivityMessage(io, groupId, "song-playing", {
         songName: result.currentItem.song.name,
         addedBy: result.currentItem.addedBy?.userName,
       })
-    } else if (result.success) {
+    } else {
       io.to(`music-group-${groupId}`).emit("queue-ended")
       emitActivityMessage(io, groupId, "queue-ended", {})
     }
@@ -633,17 +650,18 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
       status: "playing",
     }
 
-    // Mark all current as played
     group.queue.forEach((item, idx) => {
       if (idx <= group.currentQueueIndex) {
         item.status = "played"
       }
     })
 
-    // Insert at current position + 1 or at 0 if empty
     const insertIndex = group.currentQueueIndex >= 0 ? group.currentQueueIndex + 1 : 0
     group.queue.splice(insertIndex, 0, queueItem)
     group.currentQueueIndex = insertIndex
+    group.currentSongId = queueItem.id
+
+    prunePlayedSongs(group)
 
     group.playbackState = {
       ...group.playbackState,
@@ -653,11 +671,13 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
       lastUpdate: Date.now(),
     }
 
+    const scheduledPlayTime = Date.now() + 2000
     socket.to(`music-group-${groupId}`).emit("music-update", {
       song,
       currentTime,
       scheduledTime,
       queueItem,
+      scheduledPlayTime,
     })
 
     io.to(`music-group-${groupId}`).emit("queue-updated", {
@@ -678,7 +698,7 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
         lastUpdate: Date.now(),
       }
 
-      io.to(`music-group-${data.groupId}`).emit("playback-update", {
+      socket.to(`music-group-${data.groupId}`).emit("playback-update", {
         isPlaying: data.isPlaying,
         currentTime: data.currentTime,
         scheduledTime: data.scheduledTime,

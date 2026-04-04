@@ -1,6 +1,6 @@
 import { memo } from "react"
 import { Button } from "@/components/ui/button"
-import { Music, Users, Radio, Sparkles } from "lucide-react"
+import { Music, Users, Radio, MessageCircle } from "lucide-react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 
@@ -8,68 +8,51 @@ const features = [
   {
     icon: Users,
     title: "Listen Together",
-    description: "Sync music playback with friends in real-time",
+    description: "Sync playback with friends in real-time",
   },
   {
     icon: Radio,
     title: "Perfect Sync",
-    description: "Everyone hears the same beat at the same moment",
+    description: "Same beat, same moment, every device",
   },
   {
-    icon: Sparkles,
+    icon: MessageCircle,
     title: "Group Chat",
-    description: "Chat and share reactions while listening",
+    description: "Chat and react while listening together",
   },
 ]
 
 const WelcomeView = ({ onOpenModal }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="flex flex-col items-center justify-center py-16 px-4"
+      exit={{ opacity: 0, y: -16 }}
+      className="flex flex-col items-center justify-center py-12 md:py-16 px-4"
     >
-      {/* Animated Music Icon */}
       <div className="relative mb-8">
         <motion.div
-          animate={{
-            scale: [1, 1.1, 1],
-            rotate: [0, 5, -5, 0],
-          }}
-          transition={{
-            duration: 4,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="p-6 rounded-full bg-linear-to-br from-primary/20 to-primary/5"
+          animate={{ scale: [1, 1.05, 1] }}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          className="p-6 rounded-full bg-accent/50"
         >
-          <Music className="h-16 w-16 text-primary" />
+          <Music className="h-12 w-12 md:h-14 md:w-14 text-primary/60" />
         </motion.div>
 
-        {/* Decorative rings */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <motion.div
-            animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="h-28 w-28 rounded-full border-2 border-primary/20"
-          />
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <motion.div
-            animate={{ scale: [1, 1.8], opacity: [0.3, 0] }}
-            transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-            className="h-28 w-28 rounded-full border-2 border-primary/10"
-          />
-        </div>
+        <motion.div
+          animate={{ scale: [1, 1.5], opacity: [0.3, 0] }}
+          transition={{ duration: 2.5, repeat: Infinity }}
+          className="absolute inset-0 flex items-center justify-center"
+        >
+          <div className="h-24 w-24 rounded-full border border-primary/10" />
+        </motion.div>
       </div>
 
-      {/* Title & Description */}
       <motion.h2
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="text-3xl font-bold text-center mb-3"
+        transition={{ delay: 0.15 }}
+        className="text-2xl md:text-3xl font-bold text-center mb-2"
       >
         Group Music Session
       </motion.h2>
@@ -77,56 +60,53 @@ const WelcomeView = ({ onOpenModal }) => {
       <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="text-muted-foreground text-center max-w-md mb-8"
+        transition={{ delay: 0.25 }}
+        className="text-muted-foreground/60 text-center max-w-sm mb-10 text-sm"
       >
-        Create or join a group to listen to music together with friends, perfectly synchronized in
-        real-time.
+        Create or join a group to listen together, perfectly synchronized across all devices.
       </motion.p>
 
-      {/* Features Grid */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10 max-w-2xl"
+        transition={{ delay: 0.35 }}
+        className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-10 max-w-xl w-full"
       >
         {features.map((feature, index) => (
           <motion.div
             key={feature.title}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 + index * 0.1 }}
+            transition={{ delay: 0.4 + index * 0.08 }}
             className={cn(
               "flex flex-col items-center p-4 rounded-xl",
-              "bg-accent/30 border border-border/50",
-              "hover:bg-accent/50 transition-colors",
+              "bg-accent/20 border border-border/30",
+              "hover:bg-accent/30 transition-colors duration-200",
             )}
           >
-            <feature.icon className="h-8 w-8 text-primary mb-2" />
-            <h3 className="font-semibold text-sm">{feature.title}</h3>
-            <p className="text-xs text-muted-foreground text-center mt-1">{feature.description}</p>
+            <feature.icon className="h-6 w-6 text-muted-foreground/50 mb-2" />
+            <h3 className="font-medium text-sm">{feature.title}</h3>
+            <p className="text-[11px] text-muted-foreground/40 text-center mt-0.5 leading-relaxed">
+              {feature.description}
+            </p>
           </motion.div>
         ))}
       </motion.div>
 
-      {/* CTA Button */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.8 }}
+        transition={{ delay: 0.65 }}
       >
         <Button
           onClick={onOpenModal}
           size="lg"
           className={cn(
-            "rounded-full px-10 py-6 text-lg font-medium",
-            "bg-primary hover:bg-primary/90",
-            "shadow-xl shadow-primary/25",
-            "hover:scale-105 transition-transform",
+            "rounded-full px-8 py-5 text-sm font-medium gap-2",
+            "hover:scale-[1.02] transition-transform duration-200",
           )}
         >
-          <Users className="mr-2 h-5 w-5" />
+          <Users className="h-4 w-4" />
           Get Started
         </Button>
       </motion.div>
