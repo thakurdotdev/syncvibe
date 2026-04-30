@@ -7,7 +7,7 @@ import { QrCode, Plus, Users, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import QRScanner from "./QRScanner"
 
-const GroupModal = ({ isOpen, onClose, onCreateGroup, onJoinGroup }) => {
+const GroupModal = ({ isOpen, onClose, onCreateGroup, onJoinGroup, defaultTab = "join" }) => {
   const [newGroupName, setNewGroupName] = useState("")
   const [groupId, setGroupId] = useState("")
   const [isCreating, setIsCreating] = useState(false)
@@ -46,7 +46,7 @@ const GroupModal = ({ isOpen, onClose, onCreateGroup, onJoinGroup }) => {
             </DialogTitle>
           </DialogHeader>
 
-          <Tabs defaultValue="join" className="w-full">
+          <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="join" className="rounded-full">
                 Join Group

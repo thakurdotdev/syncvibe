@@ -1,7 +1,7 @@
-import { Input } from "@/components/ui/input"
-import { Command, Search } from "lucide-react"
+import { Search } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import SearchDialog from "./SearchDialog"
+import "./music.css"
 
 const MusicCommand = () => {
   const [open, setOpen] = useState(false)
@@ -22,54 +22,28 @@ const MusicCommand = () => {
     return () => document.removeEventListener("keydown", handleKeyDown)
   }, [toggleOpen])
 
+  const isMac = navigator.userAgent.includes("Mac")
+
   return (
-    <div className="w-full max-w-2xl mx-auto px-4">
-      <div
+    <>
+      <button
         onClick={toggleOpen}
-        className="relative h-10 flex items-center group"
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            toggleOpen()
-          }
-        }}
+        className="music-search-trigger"
+        type="button"
       >
-        <Search
-          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 
-                          text-muted-foreground group-hover:text-primary 
-                          transition-colors duration-200"
-        />
-
-        <Input
-          readOnly
-          className="w-full pl-9 pr-12 h-full cursor-pointer select-none 
-                     rounded-full bg-secondary/40 hover:bg-secondary/60
-                     transition-all duration-200 border-none shadow-xs
-                     focus:ring-0 focus:ring-offset-0 group-hover:shadow-md focus-visible:ring-0 focus-visible:ring-offset-0"
-        />
-
-        <span
-          className="absolute left-9 top-1/2 -translate-y-1/2 
-                       text-muted-foreground pointer-events-none
-                       group-hover:text-primary transition-colors duration-200"
-        >
-          Search music...
+        <Search className="music-search-icon" />
+        <span className="music-search-placeholder">
+          <span className="hidden sm:inline">Search songs, artists, albums...</span>
+          <span className="sm:hidden">Search songs...</span>
         </span>
-
-        <kbd
-          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-5 select-none items-center gap-1 
-                       rounded border bg-background px-1.5 
-                       font-mono text-[10px] font-medium text-muted-foreground
-                       group-hover:border-primary group-hover:text-primary
-                       transition-colors duration-200"
-        >
-          <Command className="h-3 w-3" />K
+        <kbd className="music-search-kbd">
+          <span className="music-search-kbd-key">{isMac ? "⌘" : "Ctrl"}</span>
+          <span className="music-search-kbd-key">K</span>
         </kbd>
-      </div>
+      </button>
 
       <SearchDialog open={open} setOpen={setOpen} />
-    </div>
+    </>
   )
 }
 

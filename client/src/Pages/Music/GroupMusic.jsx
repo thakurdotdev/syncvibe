@@ -62,6 +62,7 @@ const GroupMusic = () => {
   } = useGroupMusic()
 
   const [isQrCodeOpen, setQrCodeOpen] = useState(false)
+  const [modalDefaultTab, setModalDefaultTab] = useState("join")
 
   const activeQueueCount = useMemo(
     () => (currentQueueItem ? 1 : 0) + upcomingQueue.length,
@@ -80,8 +81,14 @@ const GroupMusic = () => {
   const handleCloseSearch = useCallback(() => setIsSearchOpen(false), [setIsSearchOpen])
   const handleOpenQrCode = useCallback(() => setQrCodeOpen(true), [])
   const handleCloseQrCode = useCallback(() => setQrCodeOpen(false), [])
-  const handleOpenGroupModal = useCallback(() => setIsGroupModalOpen(true), [setIsGroupModalOpen])
+  const handleOpenGroupModal = useCallback((tab = "join") => {
+    setModalDefaultTab(tab)
+    setIsGroupModalOpen(true)
+  }, [setIsGroupModalOpen])
   const handleCloseGroupModal = useCallback(() => setIsGroupModalOpen(false), [setIsGroupModalOpen])
+  const handleClipboardJoin = useCallback((code) => {
+    joinGroup(code)
+  }, [joinGroup])
   const handleOpenQueue = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen])
 
   const userId = useMemo(() => user?.userid, [user?.userid])
@@ -110,7 +117,7 @@ const GroupMusic = () => {
           <div className="px-3 md:px-5 pb-4">
             <AnimatePresence mode="wait">
               {!currentGroup ? (
-                <WelcomeView key="welcome" onOpenModal={handleOpenGroupModal} />
+                <WelcomeView key="welcome" onOpenModal={handleOpenGroupModal} onClipboardJoin={handleClipboardJoin} />
               ) : (
                 <motion.div
                   key="group-content"
@@ -171,6 +178,7 @@ const GroupMusic = () => {
           onClose={handleCloseGroupModal}
           onCreateGroup={createGroup}
           onJoinGroup={joinGroup}
+          defaultTab={modalDefaultTab}
         />
       )}
 

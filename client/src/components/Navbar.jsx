@@ -13,7 +13,7 @@ const Navbar = () => {
         <div className="flex justify-between items-center py-1 sm:ml-64">
           <SidebarTrigger />
 
-          <div className="flex items-center gap-3">
+          <div className="flex-1 flex items-center justify-center px-2 sm:px-4">
             <MusicCommand />
           </div>
           <div className="flex items-center gap-3">

@@ -4,6 +4,7 @@ import { useSongRecommendationsQuery } from "@/hooks/queries/useSongQueries"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import { usePlayerStore } from "@/stores/playerStore"
+import { useAppModeStore } from "@/stores/appModeStore"
 import AddToPlaylist from "../AddToPlaylist"
 import { ProgressBarMusic } from "../Common"
 import MinimizedPlayer from "./MinimizedPlayer"
@@ -18,6 +19,8 @@ const BottomPlayer = () => {
   const autoFetchRecommendations = usePlayerStore((s) => s.autoFetchRecommendations)
 
   const isMobile = useIsMobile()
+  const appMode = useAppModeStore((s) => s.mode)
+  const hasMobileNav = isMobile && appMode === "music"
   const [isMinimized, setIsMinimized] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -49,7 +52,8 @@ const BottomPlayer = () => {
     <>
       <Card
         className={cn(
-          "fixed bottom-0 left-0 w-full border-0 bg-background/95 backdrop-blur-md z-50 transition-all duration-300 ease-out",
+          "fixed left-0 w-full border-0 bg-background/95 backdrop-blur-md z-50 transition-all duration-300 ease-out",
+          hasMobileNav ? "bottom-14" : "bottom-0",
           isMinimized
             ? "translate-y-full opacity-0 pointer-events-none"
             : "translate-y-0 opacity-100",

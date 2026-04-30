@@ -8,11 +8,34 @@ import { GroupMusicProvider } from "./Context/GroupMusicContext"
 import { PlayerProvider } from "./Context/PlayerContext"
 import { ThemeProvider } from "./Context/ThemeProvider"
 import { Toaster } from "./components/ui/sonner"
-import { ProtectedRoutes, PublicRoutes, privateRoutes, publicRoutes } from "./Routes"
+import { ProtectedRoutes, PublicRoutes, privateRoutes, publicRoutes, musicOnlyRoutes } from "./Routes"
 import { setQueryClient } from "./stores/uploadStore"
+import { useAppModeStore } from "./stores/appModeStore"
+import ClipboardGroupDetector from "./components/ClipboardGroupDetector"
 
 const queryClient = new QueryClient()
 setQueryClient(queryClient)
+
+function AppRoutes() {
+  const mode = useAppModeStore((s) => s.mode)
+  const activePrivateRoutes = mode === "music" ? musicOnlyRoutes : privateRoutes
+
+  return (
+    <Routes>
+      <Route element={<ProtectedRoutes />}>
+        {activePrivateRoutes.map((route) => (
+          <Route key={route.path} path={route.path} element={route.element} />
+        ))}
+      </Route>
+
+      <Route element={<PublicRoutes />}>
+        {publicRoutes.map((route) => (
+          <Route key={route.path} path={route.path} element={route.element} />
+        ))}
+      </Route>
+    </Routes>
+  )
+}
 
 function App() {
   return (
@@ -25,20 +48,8 @@ function App() {
                 <ChatProvider>
                   <GroupMusicProvider>
                     <Toaster position="bottom-right" />
-
-                    <Routes>
-                      <Route element={<ProtectedRoutes />}>
-                        {privateRoutes.map((route) => (
-                          <Route key={route.path} path={route.path} element={route.element} />
-                        ))}
-                      </Route>
-
-                      <Route element={<PublicRoutes />}>
-                        {publicRoutes.map((route) => (
-                          <Route key={route.path} path={route.path} element={route.element} />
-                        ))}
-                      </Route>
-                    </Routes>
+                    <ClipboardGroupDetector />
+                    <AppRoutes />
                   </GroupMusicProvider>
                 </ChatProvider>
               </PlayerProvider>

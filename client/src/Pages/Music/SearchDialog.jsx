@@ -1,15 +1,18 @@
+import { createPortal } from "react-dom"
 import { Loader2, Search, X, XCircle } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { ResponsiveDialog, ResponsiveDialogContent } from "@/components/ui/revola"
-import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useBackendSearchQuery } from "@/hooks/queries/useSongQueries"
 import { SongCard } from "./Cards"
+import { AnimatePresence, motion } from "framer-motion"
+import "./music.css"
 
 const SearchDialog = ({ open, setOpen }) => {
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
+  const inputRef = useRef(null)
+  const overlayRef = useRef(null)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -27,83 +30,140 @@ const SearchDialog = ({ open, setOpen }) => {
     setDebouncedQuery("")
   }, [setOpen])
 
-  return (
-    <ResponsiveDialog open={open} onOpenChange={handleClose}>
-      <ResponsiveDialogContent
-        showCloseButton={false}
-        className="sm:max-w-6xl p-0 overflow-hidden max-sm:max-h-[95%]"
-      >
-        <div className="sticky max-sm:top-0 z-10 bg-background px-4 py-3 border-b flex justify-between h-20">
-          <div className="relative flex items-center sm:w-[95%]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search music..."
-              className="pl-9 pr-10 border-none bg-secondary/40 focus:bg-secondary/60 rounded-full focus-visible:ring-0 focus-visible:ring-ring focus-visible:ring-offset-0"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              autoFocus
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground 
-                         hover:text-primary transition-colors"
-              >
-                <XCircle className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-10 w-10 rounded-full absolute top-5 right-2"
-            onClick={handleClose}
-          >
-            <X className="w-12 h-12" />
-          </Button>
-        </div>
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden"
+      requestAnimationFrame(() => {
+        inputRef.current?.focus()
+      })
+    } else {
+      document.body.style.overflow = ""
+    }
+    return () => {
+      document.body.style.overflow = ""
+    }
+  }, [open])
 
-        <ScrollArea className="h-[60vh] sm:h-[70vh]">
-          <div className="p-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-40">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+  useEffect(() => {
+    if (!open) return
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        handleClose()
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [open, handleClose])
+
+  const handleOverlayClick = (e) => {
+    if (e.target === overlayRef.current) {
+      handleClose()
+    }
+  }
+
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          ref={overlayRef}
+          className="search-dialog-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          onClick={handleOverlayClick}
+        >
+          <motion.div
+            className="search-dialog-container"
+            initial={{ opacity: 0, y: -20, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.98 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="search-dialog-header">
+              <div className="search-dialog-input-wrap">
+                <Search className="search-dialog-input-icon" />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  placeholder="Search songs, artists..."
+                  className="search-dialog-input"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery("")
+                      inputRef.current?.focus()
+                    }}
+                    className="search-dialog-clear"
+                    type="button"
+                  >
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                )}
               </div>
-            ) : searchResults?.songs?.length > 0 ? (
-              <div className="space-y-6">
-                <section className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-medium">Songs</h2>
-                    <span className="text-sm text-muted-foreground">
-                      {searchResults.count} found
-                    </span>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="search-dialog-close"
+                onClick={handleClose}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+
+            <ScrollArea className="search-dialog-body">
+              <div className="p-4 sm:p-5">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-40">
+                    <div className="search-dialog-loader">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      <span className="text-sm text-muted-foreground mt-3">Searching...</span>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {searchResults.songs.map((song, index) => (
-                      <div key={song?.id || index}>
-                        <SongCard song={song} />
-                      </div>
-                    ))}
+                ) : searchResults?.songs?.length > 0 ? (
+                  <section>
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-base font-semibold">Songs</h2>
+                      <span className="text-xs text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-full">
+                        {searchResults.count} found
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
+                      {searchResults.songs.map((song, index) => (
+                        <div key={song?.id || index}>
+                          <SongCard song={song} />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ) : debouncedQuery ? (
+                  <div className="search-dialog-empty">
+                    <div className="search-dialog-empty-icon">
+                      <Search className="w-8 h-8" />
+                    </div>
+                    <p className="text-base font-medium mb-1">No songs found</p>
+                    <p className="text-sm text-muted-foreground">Try a different search term</p>
                   </div>
-                </section>
+                ) : (
+                  <div className="search-dialog-empty">
+                    <div className="search-dialog-empty-icon pulse">
+                      <Search className="w-8 h-8" />
+                    </div>
+                    <p className="text-base font-medium mb-1">Start typing to search</p>
+                    <p className="text-sm text-muted-foreground">Find your favorite songs & albums</p>
+                  </div>
+                )}
               </div>
-            ) : debouncedQuery ? (
-              <div className="flex flex-col items-center justify-center text-muted-foreground h-[50vh]">
-                <Search className="w-16 h-16 mb-6" />
-                <p className="text-lg font-medium mb-2">No songs found</p>
-                <p className="text-sm">Try a different search term</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center text-muted-foreground h-[50vh]">
-                <Search className="w-16 h-16 mb-6 animate-pulse" />
-                <p className="text-lg font-medium mb-2">Start typing to search</p>
-                <p className="text-sm">Find your favorite songs</p>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-      </ResponsiveDialogContent>
-    </ResponsiveDialog>
+            </ScrollArea>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
   )
 }
 

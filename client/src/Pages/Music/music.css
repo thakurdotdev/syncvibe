@@ -158,3 +158,315 @@
 .audio-bar:nth-child(4) {
   animation-delay: 0.6s;
 }
+
+/* ─── Search Trigger ─── */
+
+.music-search-trigger {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 10px;
+  gap: 8px;
+  border-radius: 10px;
+  border: 1px solid hsl(var(--border) / 0.4);
+  background: hsl(var(--secondary) / 0.3);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .music-search-trigger {
+    height: 40px;
+    padding: 0 14px;
+    gap: 10px;
+    border-radius: 12px;
+    min-width: 280px;
+  }
+}
+
+.music-search-trigger:hover {
+  border-color: hsl(var(--primary) / 0.25);
+  background: hsl(var(--secondary) / 0.5);
+  box-shadow: 0 2px 12px -3px hsl(var(--primary) / 0.1);
+}
+
+.music-search-trigger:active {
+  transform: scale(0.98);
+}
+
+.music-search-icon {
+  width: 16px;
+  height: 16px;
+  color: hsl(var(--muted-foreground));
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+.music-search-trigger:hover .music-search-icon {
+  color: hsl(var(--primary));
+}
+
+.music-search-placeholder {
+  flex: 1;
+  text-align: left;
+  font-size: 13px;
+  color: hsl(var(--muted-foreground) / 0.6);
+  user-select: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 640px) {
+  .music-search-placeholder {
+    font-size: 14px;
+  }
+}
+
+.music-search-kbd {
+  display: none;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+  .music-search-kbd {
+    display: flex;
+  }
+}
+
+.music-search-kbd-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 5px;
+  border: 1px solid hsl(var(--border) / 0.5);
+  background: hsl(var(--background) / 0.7);
+  font-size: 10px;
+  font-weight: 500;
+  font-family: inherit;
+  color: hsl(var(--muted-foreground) / 0.7);
+  line-height: 1;
+  transition: all 0.2s ease;
+}
+
+.music-search-trigger:hover .music-search-kbd-key {
+  border-color: hsl(var(--primary) / 0.25);
+  color: hsl(var(--primary) / 0.7);
+}
+
+/* ─── Search Dialog ─── */
+
+.search-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0;
+}
+
+@media (min-width: 640px) {
+  .search-dialog-overlay {
+    padding: 6vh 1rem;
+  }
+}
+
+.search-dialog-container {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  background: hsl(var(--background));
+  border: none;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .search-dialog-container {
+    height: auto;
+    max-width: 860px;
+    max-height: 75vh;
+    border-radius: 16px;
+    border: 1px solid hsl(var(--border) / 0.4);
+    box-shadow:
+      0 20px 60px -12px rgba(0, 0, 0, 0.35),
+      0 0 0 1px hsl(var(--border) / 0.08);
+  }
+}
+
+.search-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid hsl(var(--border) / 0.4);
+  flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+  .search-dialog-header {
+    padding: 12px 14px;
+  }
+}
+
+.search-dialog-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.search-dialog-input-icon {
+  position: absolute;
+  left: 10px;
+  width: 16px;
+  height: 16px;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+}
+
+@media (min-width: 640px) {
+  .search-dialog-input-icon {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.search-dialog-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 34px 0 34px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: hsl(var(--secondary) / 0.35);
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+@media (min-width: 640px) {
+  .search-dialog-input {
+    height: 42px;
+    padding: 0 38px;
+    font-size: 15px;
+  }
+}
+
+.search-dialog-input::placeholder {
+  color: hsl(var(--muted-foreground) / 0.5);
+}
+
+.search-dialog-input:focus {
+  background: hsl(var(--secondary) / 0.5);
+  border-color: hsl(var(--primary) / 0.25);
+}
+
+.search-dialog-clear {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.search-dialog-clear:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--secondary) / 0.5);
+}
+
+.search-dialog-close {
+  flex-shrink: 0;
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 8px !important;
+}
+
+@media (min-width: 640px) {
+  .search-dialog-close {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 10px !important;
+  }
+}
+
+.search-dialog-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  height: calc(100dvh - 60px);
+}
+
+@media (min-width: 640px) {
+  .search-dialog-body {
+    height: auto;
+    max-height: calc(75vh - 68px);
+  }
+}
+
+.search-dialog-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-dialog-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 240px;
+  color: hsl(var(--muted-foreground));
+}
+
+.search-dialog-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  background: hsl(var(--secondary) / 0.4);
+  color: hsl(var(--muted-foreground) / 0.5);
+}
+
+.search-dialog-empty-icon.pulse {
+  animation: search-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes search-pulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.04);
+  }
+}
+

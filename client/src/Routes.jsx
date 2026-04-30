@@ -1,20 +1,23 @@
-import React, { lazy, Suspense } from "react"
 import { Loader2 } from "lucide-react"
-import { Navigate, useLocation } from "react-router-dom"
-import { useIsMobile } from "./hooks/use-mobile"
-import { useSidebar } from "./components/ui/sidebar"
-import Navbar from "./components/Navbar"
+import { lazy, Suspense, useContext } from "react"
+import { Navigate, Outlet, useLocation } from "react-router-dom"
+import { ChatContext } from "./Context/ChatContext"
+import { Context } from "./Context/Context"
+import BottomPlayer from "./Pages/Music/BottomPlayer"
+import GroupMusic from "./Pages/Music/GroupMusic"
 import { AppSidebar } from "./components/AppSidebar"
+import { MusicSidebar } from "./components/MusicSidebar"
 import IncomingCallNotification from "./components/Chat/IncomingCall"
 import VideoCallUI from "./components/Chat/VideoCall"
+import Navbar from "./components/Navbar"
+import MusicNavbar from "./components/MusicNavbar"
+import ModeChooser from "./components/ModeChooser"
 import UploadIndicator from "./components/Posts/UploadIndicator"
-import { Outlet } from "react-router-dom"
-import { useContext } from "react"
-import { Context } from "./Context/Context"
-import { ChatContext } from "./Context/ChatContext"
-import GroupMusic from "./Pages/Music/GroupMusic"
-import BottomPlayer from "./Pages/Music/BottomPlayer"
+import MobileBottomBar from "./components/MobileBottomBar"
+import { useSidebar } from "./components/ui/sidebar"
 import { useProfileSuspenseQuery } from "./hooks/queries/useProfileQuery"
+import { useIsMobile } from "./hooks/use-mobile"
+import { useAppModeStore } from "./stores/appModeStore"
 
 const Header = lazy(() => import("./components/LandingPage/Header"))
 const Footer = lazy(() => import("./components/LandingPage/Footer"))
@@ -48,7 +51,6 @@ const Artist = lazy(() => import("./Pages/Music/Artist"))
 const HomePage = lazy(() => import("./Pages/Music/Homepage"))
 const LanguagePreference = lazy(() => import("./Pages/Music/LanguagePrefrance"))
 const Playlist = lazy(() => import("./Pages/Music/Playlist"))
-const SearchMusic = lazy(() => import("./Pages/Music/SearchMusic"))
 const UserPlaylist = lazy(() => import("./Pages/Music/UserPlaylist"))
 const UserPlaylistDetails = lazy(() => import("./Pages/Music/UserPlaylistDetails"))
 const HistoryPage = lazy(() => import("./Pages/Music/History"))
@@ -61,6 +63,7 @@ const Fallback = () => (
     <Loader2 className="w-8 h-8 animate-spin" />
   </div>
 )
+
 export const privateRoutes = [
   { path: "/profile", element: <Profile /> },
   { path: "/user/:username", element: <SeeUserProfile /> },
@@ -74,7 +77,6 @@ export const privateRoutes = [
   { path: "/stories/:userid", element: <StoryViewer /> },
   { path: "/music", element: <HomePage /> },
   { path: "/music/languages", element: <LanguagePreference /> },
-  { path: "/music/search", element: <SearchMusic /> },
   { path: "/music/playlist/:id", element: <Playlist /> },
   { path: "/music/album/:id", element: <Album /> },
   { path: "/music/artist/:id", element: <Artist /> },
@@ -83,6 +85,21 @@ export const privateRoutes = [
   { path: "/music/history", element: <HistoryPage /> },
   { path: "/music/sync", element: <GroupMusic /> },
   { path: "/payments/history", element: <PaymentHistoryPage /> },
+]
+
+export const musicOnlyRoutes = [
+  { path: "/music", element: <HomePage /> },
+  { path: "/music/playlist/:id", element: <Playlist /> },
+  { path: "/music/album/:id", element: <Album /> },
+  { path: "/music/artist/:id", element: <Artist /> },
+  { path: "/music/my-playlist", element: <UserPlaylist /> },
+  { path: "/music/my-playlist/:id", element: <UserPlaylistDetails /> },
+  { path: "/music/history", element: <HistoryPage /> },
+  { path: "/music/sync", element: <GroupMusic /> },
+  { path: "/post/search", element: <SearchPost /> },
+  { path: "/profile", element: <Profile /> },
+  { path: "/payments/history", element: <PaymentHistoryPage /> },
+  { path: "*", element: <Navigate to="/music" replace /> },
 ]
 
 export const publicRoutes = [
@@ -105,6 +122,8 @@ export const ProtectedRoutes = () => {
   const isMobile = useIsMobile()
   const { incomingCall, isInCall, answerCall, rejectCall } = useContext(ChatContext)
   const location = useLocation()
+  const mode = useAppModeStore((s) => s.mode)
+  const hasChosen = useAppModeStore((s) => s.hasChosen)
 
   if (loading) {
     return <Fallback />
@@ -118,14 +137,21 @@ export const ProtectedRoutes = () => {
     return <Navigate to="/verify" state={{ email: user?.email }} replace />
   }
 
+  if (!hasChosen) {
+    return <ModeChooser />
+  }
+
+  if (mode === "music") {
+    return <MusicLayout />
+  }
+
   return (
     <>
       <Navbar />
       <AppSidebar />
       <main
-        className={`${
-          open && !isMobile ? "w-full max-w-[calc(100%-260px)]" : "w-full"
-        } transition-all duration-300`}
+        className={`${open && !isMobile ? "w-full max-w-[calc(100%-260px)]" : "w-full"
+          } transition-all duration-300`}
       >
         <div className="mt-[60px] h-[calc(100vh-60px)]">
           <Suspense fallback={<Fallback />}>
@@ -143,6 +169,32 @@ export const ProtectedRoutes = () => {
       />
       {isInCall && <VideoCallUI />}
       <UploadIndicator />
+    </>
+  )
+}
+
+const MusicLayout = () => {
+  const { open } = useSidebar()
+  const isMobile = useIsMobile()
+
+  return (
+    <>
+      <MusicNavbar />
+      {!isMobile && <MusicSidebar />}
+      <main
+        className={`${open && !isMobile ? "w-full max-w-[calc(100%-260px)]" : "w-full"
+          } transition-all duration-300`}
+      >
+        <div className={`mt-[56px] h-[calc(100vh-56px)] ${isMobile ? "pb-16" : ""}`}>
+          <Suspense fallback={<Fallback />}>
+            <ProfileLoader>
+              <Outlet />
+            </ProfileLoader>
+          </Suspense>
+        </div>
+      </main>
+      <BottomPlayer />
+      {isMobile && <MobileBottomBar />}
     </>
   )
 }

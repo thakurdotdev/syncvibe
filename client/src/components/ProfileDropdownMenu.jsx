@@ -15,12 +15,13 @@ import { useTheme } from "@/Context/ThemeProvider"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { getProfileCloudinaryUrl } from "@/Utils/Cloudinary"
 import axios from "axios"
-import { BadgeCheck, ChevronsUpDown, LogOut, Moon, Sun } from "lucide-react"
+import { ArrowLeftRight, BadgeCheck, ChevronsUpDown, LogOut, Moon, Sun } from "lucide-react"
 import { useContext } from "react"
 import { useNavigate } from "react-router-dom"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 import { cn } from "@/lib/utils"
 import { ReceiptIcon } from "lucide-react"
+import { useAppModeStore } from "@/stores/appModeStore"
 
 const ProfileDropdownMenu = ({ fromSidebar = true }) => {
   const { user, setUser } = useContext(Context)
@@ -29,6 +30,8 @@ const ProfileDropdownMenu = ({ fromSidebar = true }) => {
   const { theme, setTheme } = useTheme()
   const isDark = theme === "dark"
   const isMobile = useIsMobile()
+  const resetMode = useAppModeStore((s) => s.resetMode)
+  const appMode = useAppModeStore((s) => s.mode)
   const navigate = useNavigate()
 
   const handleLogout = async () => {
@@ -130,6 +133,13 @@ const ProfileDropdownMenu = ({ fromSidebar = true }) => {
           >
             <BadgeCheck />
             Account
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={resetMode}
+            className="cursor-pointer"
+          >
+            <ArrowLeftRight />
+            Switch Mode
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
