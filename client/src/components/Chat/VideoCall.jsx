@@ -140,8 +140,8 @@ const VideoCallUI = () => {
       const duration =
         hrs > 0
           ? `${hrs}:${remainingMins.toString().padStart(2, "0")}:${secs
-              .toString()
-              .padStart(2, "0")}`
+            .toString()
+            .padStart(2, "0")}`
           : `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
 
       setCallState((prev) => ({ ...prev, duration }))
@@ -209,9 +209,8 @@ const VideoCallUI = () => {
       className={`absolute ${isPrimary ? "bottom-4 left-4 hidden md:block" : "bottom-2 left-2"}`}
     >
       <div
-        className={`flex items-center gap-2 bg-background/95 backdrop-blur-md ${
-          isPrimary ? "p-3" : "px-3 py-1.5"
-        } rounded-full shadow-lg`}
+        className={`flex items-center gap-2 bg-background/95 backdrop-blur-md ${isPrimary ? "p-3" : "px-3 py-1.5"
+          } rounded-full shadow-lg`}
       >
         <Avatar className={isPrimary ? "h-8 w-8" : "h-6 w-6"}>
           <AvatarImage src={participant?.profilepic} alt={participant?.name} />

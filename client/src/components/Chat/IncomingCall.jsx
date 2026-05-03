@@ -32,85 +32,91 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
   if (!incomingCall) return null
 
   return (
-    <div className="fixed bottom-6 md:right-6 z-1000 w-full md:w-auto max-md:px-4">
+    <div
+      className="fixed bottom-6 right-4 left-4 sm:left-auto sm:right-6 sm:w-[360px]"
+      style={{ zIndex: 9999 }}
+    >
       <div
-        className={`transform transition-all duration-500 ease-out ${isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+        className={`transition-all duration-500 ease-out ${isVisible ? "translate-y-0 opacity-100 scale-100" : "translate-y-4 opacity-0 scale-95"
           }`}
       >
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden w-full md:max-w-md">
-          <div className="p-4 flex items-center gap-4 relative">
-            <div
-              className={`absolute inset-0 ${isRinging ? "animate-ping" : ""
-                } rounded-2xl bg-green-500/10`}
-            />
+        <div className="incoming-call-card rounded-2xl overflow-hidden shadow-2xl">
+          <div className="p-4 flex items-center gap-3.5 relative">
+            {isRinging && (
+              <div className="absolute inset-0 rounded-2xl animate-pulse bg-emerald-500/5 pointer-events-none" />
+            )}
 
-            <div className="relative bg-gray-100 dark:bg-gray-700 rounded-full p-2">
+            <div className="relative shrink-0">
               {incomingCall.profilepic ? (
                 <img
                   src={incomingCall.profilepic}
                   alt={incomingCall.name}
-                  className="w-12 h-12 rounded-full object-cover"
+                  className="w-12 h-12 rounded-full object-cover ring-2 ring-emerald-500/30"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-                  <User className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center ring-2 ring-emerald-500/30">
+                  <User className="w-5 h-5 text-muted-foreground" />
                 </div>
               )}
               <div
-                className={`absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 ${isRinging ? "animate-pulse" : ""
+                className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-background ${isRinging ? "animate-pulse" : ""
                   }`}
               />
             </div>
 
             <div className="flex-1 min-w-0">
-              <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+              <p className="text-sm font-semibold text-foreground truncate">
                 {incomingCall.name}
-              </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                <span
-                  className={`w-2 h-2 rounded-full bg-green-500 ${isRinging ? "animate-pulse" : ""
-                    }`}
-                />
-                Incoming video call...
-              </span>
+              </p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                <span className="relative flex h-2 w-2">
+                  {isRinging && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  )}
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                Incoming video call
+              </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={answerCall}
-                className="p-3 rounded-full bg-green-500 hover:bg-green-600 text-white transform transition-all duration-200 hover:scale-105 focus:outline-hidden focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                className="h-11 w-11 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-lg shadow-emerald-500/25"
               >
-                <Phone className="w-5 h-5" />
+                <Phone className="w-[18px] h-[18px]" />
               </button>
               <button
                 onClick={endCall}
-                className="p-3 rounded-full bg-red-500 hover:bg-red-600 text-white transform transition-all duration-200 hover:scale-105 focus:outline-hidden focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                className="h-11 w-11 rounded-full bg-red-500 hover:bg-red-400 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-lg shadow-red-500/25"
               >
-                <PhoneOff className="w-5 h-5" />
+                <PhoneOff className="w-[18px] h-[18px]" />
               </button>
             </div>
           </div>
 
-          <div className="h-1 bg-gray-100 dark:bg-gray-700">
+          <div className="h-[3px] bg-muted/30">
             <div
-              className="h-full bg-green-500 transition-all duration-200"
+              className="h-full bg-emerald-500 rounded-full"
               style={{
                 width: "100%",
-                animation: isRinging ? "progress 30s linear" : "none",
+                animation: isRinging ? "call-progress 30s linear forwards" : "none",
               }}
             />
           </div>
         </div>
       </div>
 
-      <style jsx>{`
-        @keyframes progress {
-          from {
-            width: 100%;
-          }
-          to {
-            width: 0%;
-          }
+      <style>{`
+        .incoming-call-card {
+          background: rgba(0, 0, 0, 0.7);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        @keyframes call-progress {
+          from { width: 100%; }
+          to { width: 0%; }
         }
       `}</style>
     </div>

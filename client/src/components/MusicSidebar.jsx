@@ -97,22 +97,24 @@ export function MusicSidebar() {
 
       <SidebarFooter className="border-t border-border/40 p-3 space-y-2">
         {isPro ? (
-          <div className="p-2.5 rounded-lg bg-yellow-500/10 border border-yellow-500/15">
+          <div className="w-full p-3 rounded-lg bg-linear-to-r from-yellow-500/20 to-yellow-500/10">
             <div className="flex items-center gap-2">
-              <Crown className="h-3.5 w-3.5 text-yellow-500" />
-              <span className="text-xs font-medium">PRO</span>
-              <Check className="h-3.5 w-3.5 text-green-500 ml-auto" />
+              <Crown className="h-4 w-4 text-yellow-500" />
+              <span className="text-sm font-medium">PRO Member</span>
+              <Check className="h-4 w-4 text-green-500 ml-auto" />
             </div>
+            <p className="text-xs text-muted-foreground mt-1">All features unlocked</p>
           </div>
         ) : (
           <button
             onClick={() => handleNavigate("/plans")}
-            className="w-full p-2.5 rounded-lg bg-primary/5 hover:bg-primary/10 border border-primary/10 transition-colors text-left"
+            className="w-full p-3 rounded-lg bg-linear-to-r from-primary/20 to-primary/10 hover:from-primary/30 hover:to-primary/20 transition-all duration-200 group cursor-pointer"
           >
             <div className="flex items-center gap-2">
-              <Crown className="h-3.5 w-3.5 text-yellow-500" />
-              <span className="text-xs font-medium">Upgrade to PRO</span>
+              <Crown className="h-4 w-4 text-yellow-500" />
+              <span className="text-sm font-medium">Upgrade to PRO</span>
             </div>
+            <p className="text-xs text-muted-foreground mt-1 text-left">Unlock all features</p>
           </button>
         )}
 
