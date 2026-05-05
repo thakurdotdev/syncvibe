@@ -93,6 +93,14 @@ User.init(
       type: DataTypes.TEXT,
       allowNull: true, // store encrypted secret for TOTP
     },
+    resetPasswordToken: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+    },
+    resetPasswordExpires: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: true,

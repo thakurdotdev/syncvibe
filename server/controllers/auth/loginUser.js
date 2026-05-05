@@ -1,12 +1,17 @@
 const bcrypt = require("bcrypt")
+const crypto = require("crypto")
 const Yup = require("yup")
 const jwt = require("jsonwebtoken")
+const { Op } = require("sequelize")
 const User = require("../../models/auth/userModel")
 const LoginLog = require("../../models/auth/loginLogModel")
 const { parseUserAgent } = require("../../utils/helpers")
 const { JWTExpiryDate, CookieExpiryDate } = require("../../constant")
 const { verifyTOTP, generateTOTPSecret } = require("../../utils/totp")
 const { decrypt, encrypt } = require("../../utils/crypto")
+const { passwordResetMailSender } = require("../../utils/resend")
+
+const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000
 
 const validationSchema = Yup.object().shape({
   email: Yup.string().email("Invalid email address").required("Email is required"),
@@ -158,15 +163,99 @@ const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body
 
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" })
+    }
+
     const user = await User.findOne({ where: { email } })
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" })
+      return res.status(200).json({
+        message: "If an account with that email exists, we've sent a password reset link.",
+      })
     }
 
-    // Send email with reset password link
+    if (user.isDeleted) {
+      return res.status(200).json({
+        message: "If an account with that email exists, we've sent a password reset link.",
+      })
+    }
+
+    if (user.logintype === "GOOGLE") {
+      return res.status(400).json({
+        message: "This account uses Google login. Please sign in with Google instead.",
+      })
+    }
+
+    const rawToken = crypto.randomBytes(32).toString("hex")
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex")
+
+    await User.update(
+      {
+        resetPasswordToken: hashedToken,
+        resetPasswordExpires: new Date(Date.now() + RESET_TOKEN_EXPIRY_MS),
+      },
+      { where: { userid: user.userid } },
+    )
+
+    const clientUrl = process.env.NODE_ENV === "production"
+      ? "https://syncvibe.thakur.dev"
+      : "http://localhost:5173"
+
+    const resetUrl = `${clientUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`
+
+    await passwordResetMailSender(email, resetUrl)
+
+    return res.status(200).json({
+      message: "If an account with that email exists, we've sent a password reset link.",
+    })
   } catch (error) {
-    return res.status(500).json({ message: error.message })
+    console.error("Forgot password error:", error)
+    return res.status(500).json({ message: "An error occurred. Please try again later." })
+  }
+}
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token, email, password } = req.body
+
+    if (!token || !email || !password) {
+      return res.status(400).json({ message: "Token, email, and new password are required" })
+    }
+
+    if (password.trim().length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" })
+    }
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex")
+
+    const user = await User.findOne({
+      where: {
+        email,
+        resetPasswordToken: hashedToken,
+        resetPasswordExpires: { [Op.gt]: new Date() },
+      },
+    })
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired reset link" })
+    }
+
+    const hashedPassword = await bcrypt.hash(password.trim(), 10)
+
+    await User.update(
+      {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+      },
+      { where: { userid: user.userid } },
+    )
+
+    return res.status(200).json({ message: "Password reset successfully" })
+  } catch (error) {
+    console.error("Reset password error:", error)
+    return res.status(500).json({ message: "An error occurred. Please try again later." })
   }
 }
 
@@ -388,6 +477,7 @@ module.exports = {
   getLoginLogs,
   changePassword,
   forgotPassword,
+  resetPassword,
   guestLogin,
   getPushToken,
   setup2FA,

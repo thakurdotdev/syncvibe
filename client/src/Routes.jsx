@@ -40,6 +40,7 @@ const PrivacyPolicy = lazy(() => import("./components/LandingPage/PrivacyPolicy"
 const TermsOfService = lazy(() => import("./components/LandingPage/TermOfService"))
 const RefundPolicy = lazy(() => import("./components/LandingPage/RefundPolicy"))
 const NotFoundPage = lazy(() => import("./components/NotFound"))
+const ResetPassword = lazy(() => import("./components/Auth/ResetPassword"))
 const Dashboard = lazy(() => import("./components/Posts/Dashboard"))
 const PostDetail = lazy(() => import("./components/Posts/PostDetail"))
 const SearchPost = lazy(() => import("./components/Posts/SearchPost"))
@@ -112,6 +113,7 @@ export const publicRoutes = [
   { path: "/terms-of-services", element: <TermsOfService /> },
   { path: "/refund-policy", element: <RefundPolicy /> },
   { path: "/plans", element: <PlansPage /> },
+  { path: "/reset-password", element: <ResetPassword /> },
   { path: "*", element: <NotFoundPage /> },
 ]
 

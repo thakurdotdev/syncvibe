@@ -13,6 +13,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import * as yup from "yup"
 import TwoFactorLogin from "./TwoFactorLogin"
+import ForgotPassword from "./ForgotPassword"
 import googleIcon from "/google.png?url"
 
 const validationSchema = yup.object().shape({
@@ -295,6 +296,10 @@ const Login = () => {
                   </FormItem>
                 )}
               />
+
+              <div className="flex justify-end">
+                <ForgotPassword />
+              </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
