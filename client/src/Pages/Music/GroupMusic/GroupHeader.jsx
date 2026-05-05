@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Check, Copy, ListMusic, LogOut, Music, QrCode, RefreshCw, Search } from "lucide-react"
+import { Check, Copy, ListMusic, LogOut, Music, QrCode, RefreshCw, Search, UserPlus } from "lucide-react"
 import { memo, useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 
@@ -22,6 +22,7 @@ const GroupHeader = ({
   onQRCodeOpen,
   onLeaveGroup,
   onQueueOpen,
+  onInviteOpen,
   queueCount = 0,
 }) => {
   const [copied, setCopied] = useState(false)
@@ -82,6 +83,15 @@ const GroupHeader = ({
             className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
           >
             <Search className="h-4 w-4" />
+          </Button>
+
+          <Button
+            onClick={onInviteOpen}
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+          >
+            <UserPlus className="h-4 w-4" />
           </Button>
 
           <Button

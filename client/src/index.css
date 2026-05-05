@@ -84,6 +84,10 @@ layer(base);
     color-scheme: light;
   }
 
+  .liquid-glass {
+    @apply bg-card/80 backdrop-blur-2xl border border-border/50 shadow-2xl ring-1 ring-white/10;
+  }
+
   html,
   body {
     height: 100%;

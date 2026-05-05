@@ -14,6 +14,7 @@ import {
   QRCodeDialog,
   WelcomeView,
   QueueSheet,
+  InviteSheet,
 } from "./GroupMusic/index"
 
 import "./music.css"
@@ -59,6 +60,9 @@ const GroupMusic = () => {
     setIsQueueOpen,
     isSyncing,
     syncCountdown,
+    isInviteSheetOpen,
+    setIsInviteSheetOpen,
+    sendInvite,
   } = useGroupMusic()
 
   const [isQrCodeOpen, setQrCodeOpen] = useState(false)
@@ -90,6 +94,7 @@ const GroupMusic = () => {
     joinGroup(code)
   }, [joinGroup])
   const handleOpenQueue = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen])
+  const handleOpenInvite = useCallback(() => setIsInviteSheetOpen(true), [setIsInviteSheetOpen])
 
   const userId = useMemo(() => user?.userid, [user?.userid])
   const groupMaxMembers = currentGroup?.maxMembers || maxGroupMembers
@@ -110,6 +115,7 @@ const GroupMusic = () => {
               onQRCodeOpen={handleOpenQrCode}
               onLeaveGroup={leaveGroup}
               onQueueOpen={handleOpenQueue}
+              onInviteOpen={handleOpenInvite}
               queueCount={activeQueueCount}
             />
           </div>
@@ -200,6 +206,13 @@ const GroupMusic = () => {
       )}
 
       <QueueSheet />
+
+      <InviteSheet
+        isOpen={isInviteSheetOpen}
+        onClose={setIsInviteSheetOpen}
+        groupMembers={groupMembers}
+        sendInvite={sendInvite}
+      />
     </div>
   )
 }

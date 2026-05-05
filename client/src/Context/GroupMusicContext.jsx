@@ -2,9 +2,11 @@ import { useSocket } from "@/Context/ChatContext"
 import { useProfile } from "@/Context/Context"
 import { ensureHttpsForDownloadUrls } from "@/Pages/Music/Common"
 import UpgradeDialog from "@/components/UpgradeDialog"
+import InviteNotification from "@/components/InviteNotification"
 import axios from "axios"
 import _ from "lodash"
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
 export const GroupMusicContext = createContext(null)
@@ -15,6 +17,7 @@ const SESSION_KEY = "syncvibe_group_session"
 export function GroupMusicProvider({ children }) {
   const { socket } = useSocket()
   const { user } = useProfile()
+  const navigate = useNavigate()
 
   // Group state
   const [currentGroup, setCurrentGroup] = useState(null)
@@ -55,6 +58,10 @@ export function GroupMusicProvider({ children }) {
     feature: "default",
     message: "",
   })
+
+  // Invite state
+  const [pendingInvite, setPendingInvite] = useState(null)
+  const [isInviteSheetOpen, setIsInviteSheetOpen] = useState(false)
 
   // Refs
   const syncIntervalRef = useRef(null)
@@ -541,6 +548,54 @@ export function GroupMusicProvider({ children }) {
     }
   }, [socket, user, getStoredSession, rejoinGroup])
 
+  // Fetch pending invites on connect
+  useEffect(() => {
+    if (socket && user?.userid) {
+      socket.emit("get-pending-invites")
+    }
+  }, [socket, user?.userid])
+
+  const acceptInvite = useCallback(
+    (invite) => {
+      if (!socket || !user) return
+      socket.emit("accept-group-invite", {
+        groupId: invite.groupId,
+        userId: user.userid,
+        userName: user.name,
+        profilePic: user.profilepic,
+        inviterId: invite.inviterId,
+      })
+      setPendingInvite(null)
+      navigate("/music/sync")
+    },
+    [socket, user, navigate],
+  )
+
+  const declineInvite = useCallback(
+    (invite) => {
+      if (!socket) return
+      socket.emit("decline-group-invite", {
+        groupId: invite.groupId,
+        inviterId: invite.inviterId,
+      })
+      setPendingInvite(null)
+    },
+    [socket],
+  )
+
+  const sendInvite = useCallback(
+    (inviteeUserId) => {
+      if (!socket || !currentGroup || !user) return
+      socket.emit("send-group-invite", {
+        groupId: currentGroup.id,
+        inviteeUserId,
+        inviterName: user.name,
+        inviterPic: user.profilepic,
+      })
+    },
+    [socket, currentGroup, user],
+  )
+
   // Socket event handlers
   useEffect(() => {
     if (!socket) return
@@ -747,6 +802,7 @@ export function GroupMusicProvider({ children }) {
       setCurrentQueueIndex(-1)
       saveSession(group.id)
       toast.success(`Created group: ${group.name}`)
+      setIsInviteSheetOpen(true)
     })
 
     socket.on("group-joined", async (data) => {
@@ -918,6 +974,27 @@ export function GroupMusicProvider({ children }) {
       })
     })
 
+    socket.on("group-invite-received", (invite) => {
+      if (currentGroup) return
+      setPendingInvite(invite)
+    })
+
+    socket.on("invite-sent", ({ inviteeUserId }) => {
+      toast.success("Invite sent!")
+    })
+
+    socket.on("invite-error", ({ error }) => {
+      toast.error(error)
+    })
+
+    socket.on("invite-accepted", ({ userName }) => {
+      toast.success(`${userName} accepted the invite!`)
+    })
+
+    socket.on("group-invite-declined", ({ userId }) => {
+      toast.info("Invite was declined")
+    })
+
     return () => {
       socket.off("sync-state")
       socket.off("queue-updated")
@@ -935,6 +1012,11 @@ export function GroupMusicProvider({ children }) {
       socket.off("new-message")
       socket.off("group-full")
       socket.off("feature-locked")
+      socket.off("group-invite-received")
+      socket.off("invite-sent")
+      socket.off("invite-error")
+      socket.off("invite-accepted")
+      socket.off("group-invite-declined")
     }
   }, [socket, user, loadAudio, saveSession, clearSession, getServerTime])
 
@@ -1016,6 +1098,15 @@ export function GroupMusicProvider({ children }) {
     leaveGroup,
     sendMessage,
 
+    // Invite functions
+    pendingInvite,
+    setPendingInvite,
+    acceptInvite,
+    declineInvite,
+    sendInvite,
+    isInviteSheetOpen,
+    setIsInviteSheetOpen,
+
     // Legacy alias
     selectSong: playNow,
   }
@@ -1029,6 +1120,11 @@ export function GroupMusicProvider({ children }) {
         onOpenChange={(open) => setUpgradeDialog((prev) => ({ ...prev, open }))}
         feature={upgradeDialog.feature}
         customMessage={upgradeDialog.message}
+      />
+      <InviteNotification
+        invite={pendingInvite}
+        onAccept={acceptInvite}
+        onDecline={declineInvite}
       />
     </GroupMusicContext.Provider>
   )

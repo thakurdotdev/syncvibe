@@ -1,6 +1,7 @@
 const QRCode = require("qrcode")
 const { v4: uuidv4 } = require("uuid")
 const { getUserPlanLimits } = require("../services/entitlementService")
+const GroupInvite = require("../models/music/groupInviteModel")
 
 // Music group state
 const musicGroups = new Map()
@@ -759,6 +760,172 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
 
     io.to(`music-group-${groupId}`).emit("new-message", data)
   })
+
+  socket.on("send-group-invite", async (data) => {
+    const { groupId, inviteeUserId, inviterName, inviterPic } = data
+    const group = musicGroups.get(groupId)
+
+    if (!group) return socket.emit("invite-error", { error: "Group not found" })
+
+    const isMember = group.members.some((m) => m.userId === userId)
+    if (!isMember) return socket.emit("invite-error", { error: "You are not in this group" })
+
+    const alreadyIn = group.members.some((m) => m.userId === inviteeUserId)
+    if (alreadyIn) return socket.emit("invite-error", { error: "User is already in the group" })
+
+    if (group.members.length >= group.maxMembers) {
+      return socket.emit("invite-error", { error: "Group is full" })
+    }
+
+    const invitePayload = {
+      groupId,
+      groupName: group.name,
+      inviterName,
+      inviterPic,
+      inviterId: userId,
+      timestamp: Date.now(),
+    }
+
+    console.log(`Sending real-time invite from ${userId} to ${inviteeUserId}`)
+    io.to(inviteeUserId).emit("group-invite-received", invitePayload)
+    socket.emit("invite-sent", { inviteeUserId })
+
+    GroupInvite.create({
+      groupId,
+      groupName: group.name,
+      inviterId: userId,
+      inviterName,
+      inviterPic,
+      inviteeId: inviteeUserId,
+      status: "pending",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    }).catch((err) => console.error("Failed to persist invite:", err))
+  })
+
+  socket.on("accept-group-invite", (data) => {
+    const { groupId, userId: inviteeId, userName, profilePic, inviterId } = data
+    const group = musicGroups.get(groupId)
+
+    if (!group) return socket.emit("group-not-found")
+
+    const existingMember = group.members.find((m) => m.userId === inviteeId)
+    if (!existingMember && group.members.length >= group.maxMembers) {
+      return socket.emit("group-full", {
+        maxMembers: group.maxMembers,
+        message: `Group is full (${group.maxMembers} members max)`,
+      })
+    }
+
+    socket.join(`music-group-${groupId}`)
+
+    if (!existingMember) {
+      group.members.push({ userId: inviteeId, userName, profilePic })
+    }
+
+    trackUserGroup(inviteeId, groupId)
+
+    socket.emit("group-joined", {
+      group,
+      members: group.members,
+      playbackState: { ...group.playbackState, serverTime: Date.now() },
+      ...getQueueState(group),
+    })
+
+    socket.to(`music-group-${groupId}`).emit("member-joined", {
+      userId: inviteeId,
+      userName,
+      profilePic,
+    })
+
+    if (inviterId) {
+      io.to(inviterId).emit("invite-accepted", { userId: inviteeId, userName })
+    }
+
+    GroupInvite.destroy({
+      where: { groupId, inviteeId, status: "pending" },
+    }).catch((err) => console.error("Failed to delete invite record:", err))
+  })
+
+  socket.on("decline-group-invite", (data) => {
+    const { groupId, inviterId } = data
+
+    if (inviterId) {
+      io.to(String(inviterId)).emit("group-invite-declined", {
+        userId,
+        groupId,
+      })
+    }
+
+    GroupInvite.destroy({
+      where: { groupId, inviteeId: userId, status: "pending" },
+    }).catch((err) => console.error("Failed to delete invite record:", err))
+  })
+
+  socket.on("get-pending-invites", async () => {
+    try {
+      const invites = await GroupInvite.findAll({
+        where: {
+          inviteeId: userId,
+          status: "pending",
+          expiresAt: { [require("sequelize").Op.gt]: new Date() },
+        },
+        order: [["createdAt", "DESC"]],
+        limit: 1,
+        raw: true,
+      })
+
+      if (invites.length > 0) {
+        const invite = invites[0]
+        const group = musicGroups.get(invite.groupId)
+        if (group) {
+          socket.emit("group-invite-received", {
+            groupId: invite.groupId,
+            groupName: invite.groupName,
+            inviterName: invite.inviterName,
+            inviterPic: invite.inviterPic,
+            inviterId: invite.inviterId,
+            timestamp: new Date(invite.createdAt).getTime(),
+          })
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch pending invites:", err)
+    }
+  })
+
+  // Auto-check for pending invites on setup
+  const checkInvites = async () => {
+    try {
+      const invites = await GroupInvite.findAll({
+        where: {
+          inviteeId: userId,
+          status: "pending",
+          expiresAt: { [require("sequelize").Op.gt]: new Date() },
+        },
+        order: [["createdAt", "DESC"]],
+        limit: 1,
+        raw: true,
+      })
+
+      if (invites.length > 0) {
+        const invite = invites[0]
+        const group = musicGroups.get(invite.groupId)
+        if (group) {
+          socket.emit("group-invite-received", {
+            groupId: invite.groupId,
+            groupName: invite.groupName,
+            inviterName: invite.inviterName,
+            inviterPic: invite.inviterPic,
+            inviterId: invite.inviterId,
+            timestamp: new Date(invite.createdAt).getTime(),
+          })
+        }
+      }
+    } catch (err) {
+      console.error("Auto-fetch invites error:", err)
+    }
+  }
+  checkInvites()
 }
 
 /**

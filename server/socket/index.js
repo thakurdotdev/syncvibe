@@ -91,9 +91,16 @@ const socketManager = (io) => {
     socket.on("setup", (userData) => {
       try {
         userId = userData.userid
+        socket.userId = userId // Store it on the socket for other handlers
         socket.join(userId)
         userSockets.set(userId, socket)
         console.log(`User ${userId} connected`)
+
+        // Initialize music handlers after setup is complete (only once)
+        if (!socket.musicHandlersSetup) {
+          setupGroupMusicHandlers(io, socket, userId, userSockets)
+          socket.musicHandlersSetup = true
+        }
       } catch (error) {
         handleCallError(socket, error, "SETUP_FAILED")
       }
@@ -277,7 +284,6 @@ const socketManager = (io) => {
     })
 
     // Setup group music handlers
-    setupGroupMusicHandlers(io, socket, userId, userSockets)
 
     // Handle messages marked as read
     socket.on("messages-read", (data) => {
