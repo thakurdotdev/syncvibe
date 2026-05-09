@@ -10,7 +10,6 @@ import {
   GroupChat,
   MembersList,
   GroupHeader,
-  SearchDialog,
   QRCodeDialog,
   WelcomeView,
   QueueSheet,
@@ -19,39 +18,44 @@ import {
 
 import "./music.css"
 
+const AmbientGlow = memo(({ imageUrl }) => {
+  if (!imageUrl) return null
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      <img
+        src={imageUrl}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover scale-150 blur-[80px] opacity-[0.12]"
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
+    </div>
+  )
+})
+
 const GroupMusic = () => {
   const { user } = useProfile()
-  const { canChat, maxGroupMembers } = useFeatureAccess()
+  const { isPro, canChat, maxGroupMembers } = useFeatureAccess()
   const {
     currentGroup,
     isPlaying,
     currentTime,
     duration,
     groupMembers,
-    searchResults,
-    searchQuery,
-    setSearchQuery,
     currentSong,
-    isSearchOpen,
-    setIsSearchOpen,
     volume,
     isLoading,
     messages,
     isGroupModalOpen,
     setIsGroupModalOpen,
-    isSearchLoading,
     isRejoining,
     formatTime,
     handlePlayPause,
     handleSeek,
     handleVolumeChange,
-    debouncedSearch,
     createGroup,
     joinGroup,
     leaveGroup,
     sendMessage,
-    playNow,
-    addToQueue,
     skipSong,
     queue,
     currentQueueItem,
@@ -73,16 +77,12 @@ const GroupMusic = () => {
     [currentQueueItem, upcomingQueue.length],
   )
 
-  const handleSearchChange = useCallback(
-    (query) => {
-      setSearchQuery(query)
-      debouncedSearch(query)
-    },
-    [setSearchQuery, debouncedSearch],
+  const albumArt = useMemo(
+    () => currentSong?.image?.[2]?.link,
+    [currentSong?.image],
   )
 
-  const handleOpenSearch = useCallback(() => setIsSearchOpen(true), [setIsSearchOpen])
-  const handleCloseSearch = useCallback(() => setIsSearchOpen(false), [setIsSearchOpen])
+  const handleOpenSearch = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen])
   const handleOpenQrCode = useCallback(() => setQrCodeOpen(true), [])
   const handleCloseQrCode = useCallback(() => setQrCodeOpen(false), [])
   const handleOpenGroupModal = useCallback((tab = "join") => {
@@ -97,7 +97,7 @@ const GroupMusic = () => {
   const handleOpenInvite = useCallback(() => setIsInviteSheetOpen(true), [setIsInviteSheetOpen])
 
   const userId = useMemo(() => user?.userid, [user?.userid])
-  const groupMaxMembers = currentGroup?.maxMembers || maxGroupMembers
+  const groupMaxMembers = Math.max(currentGroup?.maxMembers || 0, maxGroupMembers)
 
   return (
     <div className="mx-auto max-w-7xl px-2 md:px-4 py-2 md:py-4">
@@ -106,74 +106,98 @@ const GroupMusic = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
       >
-        <div className="rounded-2xl border border-border/30 bg-background overflow-hidden">
-          <div className="px-3 md:px-5 pt-3 md:pt-4 pb-2">
-            <GroupHeader
-              currentGroup={currentGroup}
-              isRejoining={isRejoining}
-              onSearchOpen={handleOpenSearch}
-              onQRCodeOpen={handleOpenQrCode}
-              onLeaveGroup={leaveGroup}
-              onQueueOpen={handleOpenQueue}
-              onInviteOpen={handleOpenInvite}
-              queueCount={activeQueueCount}
-            />
-          </div>
+        <div className="relative rounded-2xl border border-border/30 bg-background overflow-hidden">
+          <AmbientGlow imageUrl={albumArt} />
 
-          <div className="px-3 md:px-5 pb-4">
-            <AnimatePresence mode="wait">
-              {!currentGroup ? (
-                <WelcomeView key="welcome" onOpenModal={handleOpenGroupModal} onClipboardJoin={handleClipboardJoin} />
-              ) : (
-                <motion.div
-                  key="group-content"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -12 }}
-                  transition={{ duration: 0.3 }}
-                  className="space-y-3 md:space-y-4"
-                >
-                  <NowPlayingCard
-                    currentSong={currentSong}
-                    isPlaying={isPlaying}
-                    isLoading={isLoading}
-                    isSyncing={isSyncing}
-                    syncCountdown={syncCountdown}
-                    currentTime={currentTime}
-                    duration={duration}
-                    volume={volume}
-                    formatTime={formatTime}
-                    onPlayPause={handlePlayPause}
-                    onSeek={handleSeek}
-                    onVolumeChange={handleVolumeChange}
-                    onSearchOpen={handleOpenSearch}
-                    onQueueOpen={handleOpenQueue}
-                    onSkip={skipSong}
-                    currentQueueItem={currentQueueItem}
-                    queueCount={activeQueueCount}
-                  />
+          <div className="relative z-10">
+            <div className="px-3 md:px-6 pt-3 md:pt-4 pb-2">
+              <GroupHeader
+                currentGroup={currentGroup}
+                isRejoining={isRejoining}
+                onSearchOpen={handleOpenSearch}
+                onQRCodeOpen={handleOpenQrCode}
+                onLeaveGroup={leaveGroup}
+                onQueueOpen={handleOpenQueue}
+                onInviteOpen={handleOpenInvite}
+                queueCount={activeQueueCount}
+              />
+            </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
-                    <div className="lg:col-span-2">
-                      <GroupChat
-                        messages={messages}
-                        currentUserId={userId}
-                        onSendMessage={sendMessage}
-                        locked={!canChat}
-                      />
+            <div className="px-3 md:px-6 pb-5 md:pb-6">
+              <AnimatePresence mode="wait">
+                {isRejoining && !currentGroup ? (
+                  <motion.div
+                    key="rejoining"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col items-center justify-center py-24 gap-5"
+                  >
+                    <div className="relative">
+                      <div className="h-14 w-14 rounded-full border-[3px] border-primary/20 border-t-primary animate-spin" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="h-6 w-6 rounded-full bg-primary/10 animate-pulse" />
+                      </div>
                     </div>
-                    <div>
-                      <MembersList
-                        members={groupMembers}
-                        currentUserId={userId}
-                        createdBy={currentGroup?.createdBy}
-                        maxMembers={groupMaxMembers}
-                      />
+                    <div className="text-center space-y-1.5">
+                      <p className="text-sm font-semibold text-foreground">Reconnecting to your session</p>
+                      <p className="text-xs text-muted-foreground">Syncing playback state...</p>
                     </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  </motion.div>
+                ) : !currentGroup ? (
+                  <WelcomeView key="welcome" onOpenModal={handleOpenGroupModal} onClipboardJoin={handleClipboardJoin} />
+                ) : (
+                  <motion.div
+                    key="group-content"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-4 md:space-y-5"
+                  >
+                    <NowPlayingCard
+                      currentSong={currentSong}
+                      isPlaying={isPlaying}
+                      isLoading={isLoading}
+                      isSyncing={isSyncing}
+                      syncCountdown={syncCountdown}
+                      currentTime={currentTime}
+                      duration={duration}
+                      volume={volume}
+                      formatTime={formatTime}
+                      onPlayPause={handlePlayPause}
+                      onSeek={handleSeek}
+                      onVolumeChange={handleVolumeChange}
+                      onSearchOpen={handleOpenSearch}
+                      onQueueOpen={handleOpenQueue}
+                      onSkip={skipSong}
+                      currentQueueItem={currentQueueItem}
+                      queueCount={activeQueueCount}
+                    />
+
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <div className="flex-1 min-w-0">
+                        <GroupChat
+                          messages={messages}
+                          currentUserId={userId}
+                          onSendMessage={sendMessage}
+                          locked={!canChat}
+                        />
+                      </div>
+                      <div className="w-full md:w-[260px] md:shrink-0 md:max-h-[340px]">
+                        <MembersList
+                          members={groupMembers}
+                          currentUserId={userId}
+                          createdBy={currentGroup?.createdBy}
+                          maxMembers={groupMaxMembers}
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -185,19 +209,6 @@ const GroupMusic = () => {
           onCreateGroup={createGroup}
           onJoinGroup={joinGroup}
           defaultTab={modalDefaultTab}
-        />
-      )}
-
-      {isSearchOpen && (
-        <SearchDialog
-          isOpen={isSearchOpen}
-          onClose={handleCloseSearch}
-          searchQuery={searchQuery}
-          onSearchChange={handleSearchChange}
-          searchResults={searchResults}
-          isSearchLoading={isSearchLoading}
-          onPlayNow={playNow}
-          onAddToQueue={addToQueue}
         />
       )}
 

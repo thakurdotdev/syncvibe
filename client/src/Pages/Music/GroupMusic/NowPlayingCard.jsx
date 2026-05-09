@@ -98,7 +98,7 @@ const NowPlayingCard = ({
           <p className="text-sm text-muted-foreground/40 mt-1">Search for songs to start listening</p>
           <Button
             onClick={onSearchOpen}
-            className="mt-6 rounded-full px-6 gap-2"
+            className="mt-6 rounded-full px-6 gap-2 cursor-pointer"
             variant="outline"
             size="sm"
           >
@@ -111,8 +111,8 @@ const NowPlayingCard = ({
   }
 
   return (
-    <div className="rounded-2xl border border-border/40 bg-accent/20 overflow-hidden">
-      <div className="p-3 md:p-5">
+    <div className="rounded-2xl border border-border/30 bg-accent/10 backdrop-blur-sm overflow-hidden">
+      <div className="p-4 md:p-6">
         <div className="flex gap-3 md:gap-5">
           <motion.div
             key={currentSong.id}
@@ -123,9 +123,9 @@ const NowPlayingCard = ({
           >
             <div
               className={cn(
-                "relative h-28 w-28 md:h-40 md:w-40 rounded-xl overflow-hidden",
+                "relative h-28 w-28 md:h-48 md:w-48 rounded-xl overflow-hidden",
                 "shadow-lg",
-                isPlaying && !isSyncing && "ring-1 ring-primary/20",
+                isPlaying && !isSyncing && "ring-2 ring-primary/20",
               )}
             >
               <img
@@ -165,7 +165,7 @@ const NowPlayingCard = ({
                 key={currentSong.id + "-title"}
                 initial={{ opacity: 0, x: 8 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="text-base md:text-xl font-semibold line-clamp-1 leading-tight"
+                className="text-base md:text-2xl font-bold line-clamp-1 leading-tight"
               >
                 {currentSong.name}
               </motion.h3>
@@ -216,10 +216,10 @@ const NowPlayingCard = ({
                   onClick={() => onPlayPause()}
                   disabled={controlsDisabled}
                   className={cn(
-                    "h-10 w-10 md:h-11 md:w-11 rounded-full",
+                    "h-11 w-11 md:h-12 md:w-12 rounded-full cursor-pointer",
                     "bg-primary text-primary-foreground",
-                    "hover:bg-primary/90 hover:scale-[1.03]",
-                    "transition-all duration-200",
+                    "hover:bg-primary/90 hover:scale-105",
+                    "transition-all duration-200 shadow-md",
                   )}
                 >
                   {isLoading || isSyncing ? (
@@ -236,7 +236,7 @@ const NowPlayingCard = ({
                   variant="ghost"
                   onClick={handleSkip}
                   disabled={controlsDisabled}
-                  className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                  className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   <SkipForward className="h-4 w-4" />
                 </Button>
@@ -247,7 +247,7 @@ const NowPlayingCard = ({
                   variant="ghost"
                   size="sm"
                   onClick={onQueueOpen}
-                  className="gap-1.5 rounded-full h-8 text-xs text-muted-foreground hover:text-foreground"
+                  className="gap-1.5 rounded-full h-8 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   <ListMusic className="h-3.5 w-3.5" />
                   Queue

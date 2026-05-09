@@ -2,22 +2,26 @@ import { memo, useMemo } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Users, Crown } from "lucide-react"
+import { Crown, Headphones, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { motion } from "framer-motion"
 
-const MemberItem = memo(({ member, isCreator, isCurrentUser }) => (
-  <div
+const MemberCard = memo(({ member, isCreator, isCurrentUser, index }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 8 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.25, delay: index * 0.05 }}
     className={cn(
-      "flex items-center gap-2.5 px-2.5 py-2 rounded-lg",
-      "transition-colors duration-150",
+      "flex items-center gap-3 px-3 py-2.5 rounded-xl",
+      "transition-colors duration-200",
       "hover:bg-accent/40",
-      isCurrentUser && "bg-accent/30",
+      isCurrentUser && "bg-primary/5 ring-1 ring-primary/10",
     )}
   >
     <div className="relative shrink-0">
-      <Avatar className="h-8 w-8">
+      <Avatar className="h-9 w-9 ring-2 ring-background">
         <AvatarImage src={member.profilePic} />
-        <AvatarFallback className="bg-accent text-muted-foreground text-xs">
+        <AvatarFallback className="bg-accent text-muted-foreground text-sm font-medium">
           {member.userName?.charAt(0)?.toUpperCase()}
         </AvatarFallback>
       </Avatar>
@@ -28,44 +32,71 @@ const MemberItem = memo(({ member, isCreator, isCurrentUser }) => (
       <div className="flex items-center gap-1.5">
         <span className="text-sm font-medium truncate">{member.userName}</span>
         {isCurrentUser && (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal border-border/50">
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal border-primary/20 text-primary">
             You
           </Badge>
         )}
       </div>
-      {isCreator && (
+      {isCreator ? (
         <div className="flex items-center gap-1 mt-0.5">
-          <Crown className="h-2.5 w-2.5 text-amber-500/70" />
-          <span className="text-[10px] text-amber-500/70">Creator</span>
+          <Crown className="h-2.5 w-2.5 text-amber-500" />
+          <span className="text-[10px] text-amber-500 font-medium">Creator</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1 mt-0.5">
+          <Headphones className="h-2.5 w-2.5 text-muted-foreground/40" />
+          <span className="text-[10px] text-muted-foreground/40">Listening</span>
         </div>
       )}
     </div>
-  </div>
+
+    <div className="flex items-center gap-0.5 shrink-0">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          animate={{ height: [3, 10, 5, 8, 3] }}
+          transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.15, ease: "easeInOut" }}
+          className="w-[2px] bg-primary/40 rounded-full"
+          style={{ height: 3 }}
+        />
+      ))}
+    </div>
+  </motion.div>
 ))
 
 const MembersList = ({ members, currentUserId, createdBy, maxMembers }) => {
   const memberCount = useMemo(() => members.length, [members.length])
 
   return (
-    <div className="rounded-xl border border-border/40 bg-accent/10 overflow-hidden h-full flex flex-col">
-      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border/30">
+    <div className="rounded-xl border border-border/30 bg-accent/10 backdrop-blur-sm overflow-hidden h-full flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
         <div className="flex items-center gap-2">
-          <Users className="h-3.5 w-3.5 text-muted-foreground/60" />
-          <span className="text-sm font-medium">Members</span>
+          <Users className="h-4 w-4 text-muted-foreground/60" />
+          <span className="text-sm font-semibold">Listeners</span>
         </div>
-        <Badge variant="secondary" className="text-[10px] font-normal h-5 px-1.5 bg-accent/50">
-          {memberCount}{maxMembers ? `/${maxMembers}` : ""}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="text-xs text-emerald-500 font-medium">Live</span>
+          </div>
+          <Badge variant="secondary" className="text-[10px] font-normal h-5 px-1.5 bg-accent/50">
+            {memberCount}{maxMembers ? `/${maxMembers}` : ""}
+          </Badge>
+        </div>
       </div>
 
-      <ScrollArea className="flex-1 max-h-[280px]">
-        <div className="p-1.5 space-y-0.5">
-          {members.map((member) => (
-            <MemberItem
+      <ScrollArea className="flex-1 max-h-75">
+        <div className="p-2 space-y-0.5">
+          {members.map((member, index) => (
+            <MemberCard
               key={member.userId}
               member={member}
               isCreator={member.userId === createdBy}
               isCurrentUser={member.userId === currentUserId}
+              index={index}
             />
           ))}
         </div>

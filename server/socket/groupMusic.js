@@ -134,6 +134,11 @@ const addToQueue = (group, song, addedBy) => {
     return { success: false, error: "Queue is full" }
   }
 
+  const isDuplicate = group.queue.some((item) => item.song?.id === song?.id)
+  if (isDuplicate) {
+    return { success: false, error: "Song is already in the queue" }
+  }
+
   const queueItem = {
     id: generateQueueItemId(),
     song,
@@ -411,7 +416,7 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
   })
 
   // Rejoin a music group (after page refresh)
-  socket.on("rejoin-music-group", (data) => {
+  socket.on("rejoin-music-group", async (data) => {
     const group = musicGroups.get(data.groupId)
 
     if (group) {
@@ -430,6 +435,20 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
           userName: data.userName,
           profilePic: data.profilePic,
         })
+      }
+
+      if (group.createdBy === data.userId) {
+        try {
+          const planLimits = await getUserPlanLimits(data.userId)
+          if (planLimits) {
+            group.features.realtimeChat = planLimits.realtimeChatEnabled || false
+            group.features.realtimeSync = planLimits.realtimeSyncEnabled || false
+            group.maxMembers = planLimits.maxGroupMembers || group.maxMembers
+            group.settings.maxQueueSize = planLimits.realtimeSyncEnabled ? 50 : group.settings.maxQueueSize
+          }
+        } catch (err) {
+          console.error("Failed to refresh plan limits on rejoin:", err)
+        }
       }
 
       trackUserGroup(data.userId, data.groupId)
@@ -673,10 +692,9 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
     }
 
     const scheduledPlayTime = Date.now() + 2000
-    socket.to(`music-group-${groupId}`).emit("music-update", {
+    io.to(`music-group-${groupId}`).emit("music-update", {
       song,
-      currentTime,
-      scheduledTime,
+      currentTime: 0,
       queueItem,
       scheduledPlayTime,
     })
@@ -702,7 +720,6 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
       socket.to(`music-group-${data.groupId}`).emit("playback-update", {
         isPlaying: data.isPlaying,
         currentTime: data.currentTime,
-        scheduledTime: data.scheduledTime,
       })
     }
   })
@@ -718,10 +735,9 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
         lastUpdate: Date.now(),
       }
 
-      io.to(`music-group-${data.groupId}`).emit("playback-update", {
+      socket.to(`music-group-${data.groupId}`).emit("playback-update", {
         isPlaying: data.isPlaying,
         currentTime: data.currentTime,
-        scheduledTime: data.scheduledTime,
       })
     }
   })

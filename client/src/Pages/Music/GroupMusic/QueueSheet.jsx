@@ -1,7 +1,7 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Input } from "@/components/ui/input"
+
 import {
   Sheet,
   SheetContent,
@@ -10,179 +10,16 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { useGroupMusic } from "@/Context/GroupMusicContext"
-import { cn } from "@/lib/utils"
-import {
-  closestCenter,
-  DndContext,
-  DragOverlay,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core"
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
-import { GripVertical, ListMusic, Play, SkipForward, Trash2, X } from "lucide-react"
-import { memo, useCallback, useMemo, useState } from "react"
+import { useGroupSessionStore } from "@/stores/groupMusic/sessionStore"
+import { fetchSongRecommendations } from "@/api/music/songs"
+import { ListMusic, Search, SkipForward, X } from "lucide-react"
+import { memo, useCallback, useRef, useState } from "react"
+import { AnimatePresence } from "framer-motion"
+import { toast } from "sonner"
+import SearchResults from "./QueueSheet/SearchResults"
+import QueueList from "./QueueSheet/QueueList"
+import Recommendations from "./QueueSheet/Recommendations"
 
-// Sortable Queue Item
-const SortableQueueItem = memo(
-  ({ item, index, isPlaying, isCurrentUser, isCreator, onRemove, isDragging }) => {
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging: isItemDragging,
-    } = useSortable({ id: item.id, disabled: isPlaying })
-
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isItemDragging ? 0.5 : 1,
-      zIndex: isItemDragging ? 50 : "auto",
-    }
-
-    const handleRemove = useCallback(() => {
-      onRemove(item.id)
-    }, [item.id, onRemove])
-
-    const canDrag = !isPlaying
-
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        className={cn(
-          "flex items-center gap-2 p-2 rounded-xl transition-colors w-full",
-          isPlaying
-            ? "bg-primary/10 border border-primary/30"
-            : "hover:bg-accent/50 border border-transparent",
-          isItemDragging && "shadow-lg bg-accent",
-        )}
-      >
-        {/* Drag Handle */}
-        {canDrag ? (
-          <button
-            {...attributes}
-            {...listeners}
-            className="p-1 rounded hover:bg-accent cursor-grab active:cursor-grabbing touch-none"
-          >
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </button>
-        ) : (
-          <div className="w-6 shrink-0 text-center">
-            <div className="flex items-center justify-center gap-0.5 h-4">
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className="w-1 bg-primary rounded-full animate-wave"
-                  style={{
-                    animationDelay: `${i * 0.15}s`,
-                    height: "100%",
-                    transformOrigin: "bottom",
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Album Art */}
-        <div className="relative h-10 w-10 rounded-lg overflow-hidden shrink-0">
-          <img
-            src={item.song?.image?.[1]?.link}
-            alt={item.song?.name}
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
-          {isPlaying && (
-            <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-              <Play className="h-4 w-4 text-white fill-white" />
-            </div>
-          )}
-        </div>
-
-        {/* Song Info */}
-        <div className="flex-1 min-w-0 max-w-[240px]">
-          <p className={cn("font-medium truncate text-sm", isPlaying && "text-primary")}>
-            {item.song?.name}
-          </p>
-          <p className="text-xs text-muted-foreground truncate">
-            {item.song?.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"}
-          </p>
-        </div>
-
-        {/* Added By */}
-        <div className="flex items-center gap-1 shrink-0">
-          <Avatar className="h-5 w-5">
-            <AvatarImage src={item.addedBy?.profilePic} />
-            <AvatarFallback className="text-[10px]">
-              {item.addedBy?.userName?.charAt(0)?.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        </div>
-
-        {/* Remove Button */}
-        {!isPlaying && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleRemove}
-            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        )}
-      </div>
-    )
-  },
-)
-
-// Drag Overlay Item (visual during drag)
-const DragOverlayItem = memo(({ item }) => (
-  <div className="flex items-center gap-2 p-2 rounded-xl bg-accent border border-border shadow-xl w-full max-w-md">
-    <div className="p-1 shrink-0">
-      <GripVertical className="h-4 w-4 text-muted-foreground" />
-    </div>
-    <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0">
-      <img
-        src={item?.song?.image?.[1]?.link}
-        alt={item?.song?.name}
-        className="h-full w-full object-cover"
-      />
-    </div>
-    <div className="flex-1 min-w-0 max-w-[280px]">
-      <p className="font-medium truncate text-sm">{item?.song?.name}</p>
-      <p className="text-xs text-muted-foreground truncate">
-        {item?.song?.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"}
-      </p>
-    </div>
-  </div>
-))
-
-// Empty Queue State
-const EmptyQueue = memo(() => (
-  <div className="flex flex-col items-center justify-center h-64 gap-4 text-center px-4">
-    <div className="p-4 rounded-full bg-primary/10">
-      <ListMusic className="h-10 w-10 text-primary/50" />
-    </div>
-    <div>
-      <p className="font-medium text-lg">Queue is empty</p>
-      <p className="text-muted-foreground text-sm mt-1">
-        Search for songs and add them to the queue
-      </p>
-    </div>
-  </div>
-))
-
-// Main QueueSheet Component
 const QueueSheet = () => {
   const {
     isQueueOpen,
@@ -195,60 +32,109 @@ const QueueSheet = () => {
     reorderQueue,
     skipSong,
     currentGroup,
+    searchResults,
+    searchQuery,
+    setSearchQuery,
+    isSearchLoading,
+    debouncedSearch,
+    playNow,
+    addToQueue,
   } = useGroupMusic()
   const { user } = useGroupMusic()
 
-  const [activeId, setActiveId] = useState(null)
+  const inputRef = useRef(null)
+  const [recommendations, setRecommendations] = useState([])
+  const [recsLoading, setRecsLoading] = useState(false)
+  const [recsSourceName, setRecsSourceName] = useState("")
 
-  const isCreator = useMemo(
-    () => currentGroup?.createdBy === user?.userid,
-    [currentGroup?.createdBy, user?.userid],
-  )
+  const isSearching = searchQuery.length > 0
 
-  // DnD sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  )
-
-  // Get item IDs for sortable context (only upcoming items)
-  const upcomingIds = useMemo(() => upcomingQueue.map((item) => item.id), [upcomingQueue])
-
-  const activeItem = useMemo(() => queue.find((item) => item.id === activeId), [queue, activeId])
-
-  const handleDragStart = useCallback((event) => {
-    setActiveId(event.active.id)
-  }, [])
-
-  const handleDragEnd = useCallback(
-    (event) => {
-      const { active, over } = event
-      setActiveId(null)
-
-      if (over && active.id !== over.id) {
-        const oldIndex = queue.findIndex((item) => item.id === active.id)
-        const newIndex = queue.findIndex((item) => item.id === over.id)
-
-        if (oldIndex !== -1 && newIndex !== -1) {
-          reorderQueue(oldIndex, newIndex)
-        }
+  const handleSearchChange = useCallback(
+    (e) => {
+      const val = e.target.value
+      setSearchQuery(val)
+      if (val.trim()) {
+        useGroupSessionStore.setState({ searchResults: [], isSearchLoading: true })
+      } else {
+        useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false })
       }
+      debouncedSearch(val)
     },
-    [queue, reorderQueue],
+    [setSearchQuery, debouncedSearch],
   )
 
-  const handleDragCancel = useCallback(() => {
-    setActiveId(null)
-  }, [])
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery("")
+    useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false })
+    inputRef.current?.focus()
+  }, [setSearchQuery])
+
+  const handleClose = useCallback((open) => {
+    if (!open) {
+      setSearchQuery("")
+      useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false })
+      setIsQueueOpen(false)
+    }
+  }, [setSearchQuery, setIsQueueOpen])
+
+  const fetchRecs = useCallback(async (songId) => {
+    if (!songId) return
+    setRecsLoading(true)
+    setRecommendations([])
+    const song = queue.find((q) => q.song?.id === songId)
+    setRecsSourceName(song?.song?.name || "")
+    try {
+      const data = await fetchSongRecommendations(songId)
+      const existingIds = new Set(queue.map((q) => q.song?.id))
+      const filtered = (data || []).filter((s) => !existingIds.has(s.id))
+      setRecommendations(filtered.slice(0, 15))
+    } catch {
+      toast.error("Failed to fetch recommendations")
+    } finally {
+      setRecsLoading(false)
+    }
+  }, [queue])
+
+  const handleAddToQueueWithRecs = useCallback(
+    (song) => {
+      addToQueue(song)
+      fetchRecs(song.id)
+    },
+    [addToQueue, fetchRecs],
+  )
+
+  const handleAddRecToQueue = useCallback(
+    (song) => {
+      addToQueue(song)
+    },
+    [addToQueue],
+  )
+
+  const handleAddAllRecs = useCallback(() => {
+    if (!recommendations.length) return
+    const maxQueueSize = currentGroup?.settings?.maxQueueSize || 3
+    const availableSlots = Math.max(0, maxQueueSize - queue.length)
+
+    if (availableSlots === 0) {
+      addToQueue(recommendations[0])
+      return
+    }
+
+    const toAdd = recommendations.slice(0, availableSlots)
+    toAdd.forEach((song) => addToQueue(song))
+
+    if (toAdd.length < recommendations.length) {
+      toast.success(`Added ${toAdd.length} of ${recommendations.length} songs (queue limit reached)`)
+    } else {
+      toast.success(`Added ${toAdd.length} songs to queue`)
+    }
+    setRecommendations((prev) => prev.filter((s) => !toAdd.find((a) => a.id === s.id)))
+  }, [recommendations, addToQueue, queue.length, currentGroup?.settings?.maxQueueSize])
 
   return (
-    <Sheet open={isQueueOpen} onOpenChange={setIsQueueOpen}>
-      <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
-        <SheetHeader className="px-4 pt-4 pb-3 border-b">
+    <Sheet open={isQueueOpen} onOpenChange={handleClose}>
+      <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col">
+        <SheetHeader className="px-4 pt-4 pb-3 border-b space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-primary/10">
@@ -256,14 +142,12 @@ const QueueSheet = () => {
               </div>
               <SheetTitle className="text-lg">Queue</SheetTitle>
               {queue.length > 0 && (
-                <Badge variant="secondary" className="text-xs">
-                  {queue.length}
-                </Badge>
+                <Badge variant="secondary" className="text-xs">{queue.length}</Badge>
               )}
             </div>
             <div className="flex items-center gap-2">
               {currentQueueItem && upcomingQueue.length > 0 && (
-                <Button variant="outline" size="sm" onClick={skipSong} className="gap-1.5">
+                <Button variant="outline" size="sm" onClick={skipSong} className="gap-1.5 cursor-pointer">
                   <SkipForward className="h-3.5 w-3.5" />
                   Skip
                 </Button>
@@ -271,75 +155,70 @@ const QueueSheet = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setIsQueueOpen(false)}
-                className="h-8 w-8 rounded-full"
+                onClick={() => handleClose(false)}
+                className="h-8 w-8 rounded-full cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
-          <SheetDescription className="sr-only">View and manage the music queue</SheetDescription>
+          <SheetDescription className="sr-only">View queue and search for songs</SheetDescription>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              ref={inputRef}
+              placeholder="Search songs to add..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="pl-9 pr-9 h-10 rounded-full bg-accent/30 border-border/50 text-sm"
+            />
+            {isSearching && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleClearSearch}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full cursor-pointer"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 overflow-hidden">
-          {queue.length === 0 ? (
-            <EmptyQueue />
-          ) : (
-            <div className="p-3 space-y-3 overflow-hidden">
-              {/* Now Playing Section */}
-              {currentQueueItem && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-2 mb-2">
-                    Now Playing
-                  </p>
-                  <SortableQueueItem
-                    item={currentQueueItem}
-                    index={currentQueueIndex}
-                    isPlaying={true}
-                    isCurrentUser={currentQueueItem.addedBy?.userId === user?.userid}
-                    isCreator={isCreator}
-                    onRemove={removeFromQueue}
-                  />
-                </div>
-              )}
-
-              {/* Up Next Section with Drag & Drop */}
-              {upcomingQueue.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-2 mb-2">
-                    Up Next ({upcomingQueue.length}) — Drag to reorder
-                  </p>
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    onDragCancel={handleDragCancel}
-                  >
-                    <SortableContext items={upcomingIds} strategy={verticalListSortingStrategy}>
-                      <div className="space-y-1">
-                        {upcomingQueue.map((item, idx) => (
-                          <SortableQueueItem
-                            key={item.id}
-                            item={item}
-                            index={currentQueueIndex + 1 + idx}
-                            isPlaying={false}
-                            isCurrentUser={item.addedBy?.userId === user?.userid}
-                            isCreator={isCreator}
-                            onRemove={removeFromQueue}
-                          />
-                        ))}
-                      </div>
-                    </SortableContext>
-                    <DragOverlay>
-                      {activeId ? <DragOverlayItem item={activeItem} /> : null}
-                    </DragOverlay>
-                  </DndContext>
-                </div>
-              )}
-            </div>
-          )}
-        </ScrollArea>
+        <div className="flex-1 overflow-y-auto">
+          <AnimatePresence mode="wait">
+            {isSearching ? (
+              <SearchResults
+                searchQuery={searchQuery}
+                searchResults={searchResults}
+                isSearchLoading={isSearchLoading}
+                onPlayNow={playNow}
+                onAddToQueue={handleAddToQueueWithRecs}
+              />
+            ) : (
+              <QueueList
+                queue={queue}
+                currentQueueIndex={currentQueueIndex}
+                currentQueueItem={currentQueueItem}
+                upcomingQueue={upcomingQueue}
+                removeFromQueue={removeFromQueue}
+                reorderQueue={reorderQueue}
+                onFetchRecs={fetchRecs}
+                user={user}
+                currentGroup={currentGroup}
+              >
+                <Recommendations
+                  recommendations={recommendations}
+                  isLoading={recsLoading}
+                  sourceName={recsSourceName}
+                  onAddToQueue={handleAddRecToQueue}
+                  onAddAll={handleAddAllRecs}
+                />
+              </QueueList>
+            )}
+          </AnimatePresence>
+        </div>
       </SheetContent>
     </Sheet>
   )

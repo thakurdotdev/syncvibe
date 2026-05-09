@@ -101,6 +101,8 @@ const socketManager = (io) => {
           setupGroupMusicHandlers(io, socket, userId, userSockets)
           socket.musicHandlersSetup = true
         }
+
+        socket.emit("setup-complete")
       } catch (error) {
         handleCallError(socket, error, "SETUP_FAILED")
       }

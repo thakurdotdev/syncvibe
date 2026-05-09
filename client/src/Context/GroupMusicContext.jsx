@@ -1,1114 +1,405 @@
 import { useSocket } from "@/Context/ChatContext"
 import { useProfile } from "@/Context/Context"
-import { ensureHttpsForDownloadUrls } from "@/Pages/Music/Common"
 import UpgradeDialog from "@/components/UpgradeDialog"
 import InviteNotification from "@/components/InviteNotification"
-import axios from "axios"
-import _ from "lodash"
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
+import { useGroupPlaybackStore } from "@/stores/groupMusic/playbackStore"
+import { useGroupSessionStore } from "@/stores/groupMusic/sessionStore"
+import { useGroupInviteStore } from "@/stores/groupMusic/inviteStore"
 
 export const GroupMusicContext = createContext(null)
-
-// Session storage key for group persistence
-const SESSION_KEY = "syncvibe_group_session"
 
 export function GroupMusicProvider({ children }) {
   const { socket } = useSocket()
   const { user } = useProfile()
   const navigate = useNavigate()
 
-  // Group state
-  const [currentGroup, setCurrentGroup] = useState(null)
-  const [groupMembers, setGroupMembers] = useState([])
-  const [messages, setMessages] = useState([])
-
-  // Queue state
-  const [queue, setQueue] = useState([])
-  const [currentQueueIndex, setCurrentQueueIndex] = useState(-1)
-  const [isQueueOpen, setIsQueueOpen] = useState(false)
-
-  // Playback state
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const [currentSong, setCurrentSong] = useState(null)
-  const [volume, setVolume] = useState(0.7)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSyncing, setIsSyncing] = useState(false)
-  const [syncCountdown, setSyncCountdown] = useState(0)
-
-  // Search state
-  const [searchResults, setSearchResults] = useState([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [isSearchLoading, setIsSearchLoading] = useState(false)
-
-  // Sync state
-  const [serverTimeOffset, setServerTimeOffset] = useState(0)
-  const [lastSync, setLastSync] = useState(0)
-
-  // UI state
-  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false)
-  const [connectionState, setConnectionState] = useState("disconnected")
-  const [isRejoining, setIsRejoining] = useState(false)
-  const [upgradeDialog, setUpgradeDialog] = useState({
-    open: false,
-    feature: "default",
-    message: "",
-  })
-
-  // Invite state
-  const [pendingInvite, setPendingInvite] = useState(null)
-  const [isInviteSheetOpen, setIsInviteSheetOpen] = useState(false)
-
-  // Refs
+  const audioRef = useRef(null)
   const syncIntervalRef = useRef(null)
-  const lastPlaybackUpdateRef = useRef(null)
   const periodicSyncRef = useRef(null)
   const hasAttemptedRejoinRef = useRef(false)
-  const audioRef = useRef(null)
-  const syncTimerRef = useRef(null)
 
-  const isPlayingRef = useRef(isPlaying)
-  const currentSongRef = useRef(currentSong)
-  const currentGroupRef = useRef(currentGroup)
-  const serverTimeOffsetRef = useRef(serverTimeOffset)
+  const playback = useGroupPlaybackStore()
+  const session = useGroupSessionStore()
+  const invite = useGroupInviteStore()
 
-  useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
-  useEffect(() => { currentSongRef.current = currentSong }, [currentSong])
-  useEffect(() => { currentGroupRef.current = currentGroup }, [currentGroup])
-  useEffect(() => { serverTimeOffsetRef.current = serverTimeOffset }, [serverTimeOffset])
-
-  // Derived state
-  const currentQueueItem = useMemo(() => {
-    return currentQueueIndex >= 0 && queue[currentQueueIndex] ? queue[currentQueueIndex] : null
-  }, [queue, currentQueueIndex])
-
-  const upcomingQueue = useMemo(() => {
-    return queue.filter((_, idx) => idx > currentQueueIndex)
-  }, [queue, currentQueueIndex])
-
-  const playedQueue = useMemo(() => {
-    return queue.filter((_, idx) => idx < currentQueueIndex)
-  }, [queue, currentQueueIndex])
-
-  // Utility functions
-  const getServerTime = useCallback(() => {
-    return Date.now() + serverTimeOffset
-  }, [serverTimeOffset])
-
-  const formatTime = (seconds) => {
-    if (!seconds) return "0:00"
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, "0")}`
-  }
-
-  // Session management
-  const saveSession = useCallback((groupId) => {
-    if (groupId) {
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ groupId, lastUpdate: Date.now() }))
+  useEffect(() => {
+    if (audioRef.current) {
+      useGroupPlaybackStore.getState().setAudioRef(audioRef.current)
     }
-  }, [])
-
-  const clearSession = useCallback(() => {
-    sessionStorage.removeItem(SESSION_KEY)
-  }, [])
-
-  const getStoredSession = useCallback(() => {
-    try {
-      const stored = sessionStorage.getItem(SESSION_KEY)
-      return stored ? JSON.parse(stored) : null
-    } catch (e) {
-      console.error("Error reading session:", e)
-      return null
-    }
-  }, [])
-
-  // Media session
-  const updateMediaSession = useCallback((song) => {
-    if (!("mediaSession" in navigator)) return
-
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: song.name,
-      artist: song?.artist_map?.artists
-        ?.slice(0, 3)
-        ?.map((artist) => artist.name)
-        .join(", "),
-      album: song?.album,
-      artwork: song.image?.[2]?.link
-        ? [{ src: song.image[2].link, sizes: "500x500", type: "image/jpeg" }]
-        : [],
-    })
-
-    navigator.mediaSession.setActionHandler("play", () => handlePlayPause(true))
-    navigator.mediaSession.setActionHandler("pause", () => handlePlayPause(false))
-    navigator.mediaSession.setActionHandler("nexttrack", () => skipSong())
-
-    document.title = `${song.name} - SyncVibe`
   }, [])
 
   useEffect(() => {
-    if (currentSong) {
-      updateMediaSession(currentSong)
+    if (playback.currentSong) {
+      playback.updateMediaSession(
+        playback.currentSong,
+        (force) => playback.handlePlayPause(socket, session.currentGroup?.id, force),
+        () => session.skipSong(socket, user),
+      )
     }
-  }, [currentSong, updateMediaSession])
+  }, [playback.currentSong])
 
-  // Beforeunload warning
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      if (currentGroup) {
+      if (useGroupSessionStore.getState().currentGroup) {
         e.preventDefault()
         e.returnValue = "You are in a music group. Your session will be restored when you return."
         return e.returnValue
       }
     }
-
     window.addEventListener("beforeunload", handleBeforeUnload)
     return () => window.removeEventListener("beforeunload", handleBeforeUnload)
-  }, [currentGroup])
+  }, [])
 
-  // Audio loading - accepts optional queueItemId for idempotent song-ended tracking
-  const loadAudio = useCallback(
-    async (url, queueItemId = null) => {
-      try {
-        setIsLoading(true)
-        if (audioRef.current) {
-          audioRef.current.src = url
-          await audioRef.current.load()
-
-          audioRef.current.onloadedmetadata = () => {
-            setCurrentTime(0)
-            setDuration(audioRef.current.duration)
-            setIsLoading(false)
-          }
-
-          audioRef.current.ontimeupdate = () => {
-            setCurrentTime(audioRef.current.currentTime)
-          }
-
-          audioRef.current.onended = () => {
-            setIsPlaying(false)
-            // Notify server that song ended - pass songId for idempotency
-            if (currentGroup?.id) {
-              socket.emit("song-ended", {
-                groupId: currentGroup.id,
-                songId: queueItemId, // Server uses this to verify which song ended
-              })
-            }
-          }
-
-          audioRef.current.volume = volume
-        }
-      } catch (error) {
-        console.error("Error loading audio:", error)
-        toast.error("Failed to load audio")
-        setIsLoading(false)
-      }
-    },
-    [currentGroup?.id, socket, volume],
-  )
-
-  // Playback controls
-  const handlePlayPause = async (forceState) => {
-    const newIsPlaying = typeof forceState === "boolean" ? forceState : !isPlaying
-    const currentAudioTime = audioRef.current?.currentTime || 0
-
-    try {
-      const scheduledTime = getServerTime() + 300
-
-      socket.emit("music-playback", {
-        groupId: currentGroup?.id,
-        isPlaying: newIsPlaying,
-        currentTime: currentAudioTime,
-        scheduledTime,
-      })
-
-      const executePlayback = async () => {
-        if (newIsPlaying) {
-          try {
-            await audioRef.current.play()
-          } catch (err) {
-            console.error("Error playing audio:", err)
-          }
-        } else {
-          audioRef.current.pause()
-        }
-        setIsPlaying(newIsPlaying)
-      }
-
-      const delay = Math.max(0, scheduledTime - getServerTime())
-      setTimeout(executePlayback, delay)
-    } catch (error) {
-      console.error("Playback control error:", error)
-    }
-  }
-
-  const handleSeek = (value) => {
-    if (!audioRef.current) return
-
-    const newTime = value[0]
-    const scheduledTime = getServerTime() + 300
-
-    socket.emit("music-seek", {
-      groupId: currentGroup?.id,
-      currentTime: newTime,
-      scheduledTime,
-      isPlaying,
-    })
-
-    audioRef.current.currentTime = newTime
-  }
-
-  const handleVolumeChange = (value) => {
-    const newVolume = value[0]
-    setVolume(newVolume)
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume
-    }
-  }
-
-  // ==================== QUEUE FUNCTIONS ====================
-
-  // Add song to queue
-  const addToQueue = useCallback(
-    (song) => {
-      if (!currentGroup?.id || !user) return
-
-      const maxQueueSize = currentGroup?.settings?.maxQueueSize || 3
-      if (queue.length >= maxQueueSize) {
-        setUpgradeDialog({
-          open: true,
-          feature: "queueLimit",
-          message: `Free plan allows only ${maxQueueSize} songs in queue. Upgrade to PRO for up to 50.`,
-        })
-        return
-      }
-
-      const securedSong = ensureHttpsForDownloadUrls(song)
-
-      socket.emit("add-to-queue", {
-        groupId: currentGroup.id,
-        song: securedSong,
-        addedBy: {
-          userId: user.userid,
-          userName: user.name,
-          profilePic: user.profilepic,
-        },
-      })
-
-      setIsSearchOpen(false)
-      setSearchQuery("")
-      setSearchResults([])
-      toast.success("Added to queue")
-    },
-    [currentGroup?.id, currentGroup?.settings?.maxQueueSize, user, socket, queue.length],
-  )
-
-  // Play song now (inserts at current position)
-  const playNow = useCallback(
-    async (song) => {
-      if (!currentGroup?.id || !user) return
-
-      try {
-        const securedSong = ensureHttpsForDownloadUrls(song)
-        setIsLoading(true)
-        setCurrentSong(securedSong)
-        setIsPlaying(false)
-        setDuration(0)
-        setCurrentTime(0)
-
-        const url = securedSong.download_url.find((url) => url.quality === "320kbps").link
-        await loadAudio(url)
-
-        socket.emit("music-change", {
-          groupId: currentGroup.id,
-          song: securedSong,
-          currentTime: 0,
-          scheduledTime: Date.now() + serverTimeOffset + 300,
-          addedBy: {
-            userId: user.userid,
-            userName: user.name,
-            profilePic: user.profilepic,
-          },
-        })
-
-        setIsSearchOpen(false)
-        setSearchQuery("")
-        setSearchResults([])
-      } catch (error) {
-        console.log(error)
-        toast.error("Failed to load song")
-      } finally {
-        setIsLoading(false)
-      }
-    },
-    [currentGroup?.id, user, socket, serverTimeOffset, loadAudio],
-  )
-
-  // Remove song from queue
-  const removeFromQueue = useCallback(
-    (queueItemId) => {
-      if (!currentGroup?.id || !user) return
-
-      socket.emit("remove-from-queue", {
-        groupId: currentGroup.id,
-        queueItemId,
-        userId: user.userid,
-      })
-    },
-    [currentGroup?.id, user, socket],
-  )
-
-  // Skip to next song
-  const skipSong = useCallback(() => {
-    if (!currentGroup?.id) return
-    socket.emit("skip-song", { groupId: currentGroup.id, userName: user?.name })
-  }, [currentGroup?.id, socket, user?.name])
-
-  // Reorder queue - server is source of truth
-  const reorderQueue = useCallback(
-    (fromIndex, toIndex) => {
-      if (!currentGroup?.id) return
-      if (fromIndex === toIndex) return
-
-      // Emit to server - server will broadcast updated queue
-      socket.emit("reorder-queue", {
-        groupId: currentGroup.id,
-        fromIndex,
-        toIndex,
-      })
-    },
-    [currentGroup?.id, socket],
-  )
-
-  // Search
-  const debouncedSearch = useCallback(
-    _.debounce(async (query) => {
-      if (!query.trim()) {
-        setSearchResults([])
-        return
-      }
-
-      try {
-        setIsSearchLoading(true)
-        const response = await axios.get(`${import.meta.env.VITE_SONG_URL}/search/songs?q=${query}`)
-        setSearchResults(response.data?.data?.results || [])
-      } catch (error) {
-        toast.error("Search failed. Please try again.")
-      } finally {
-        setIsSearchLoading(false)
-      }
-    }, 500),
-    [],
-  )
-
-  // Group management
-  const createGroup = (groupName) => {
-    if (!groupName.trim()) {
-      toast.error("Please enter a group name")
-      return
-    }
-
-    socket.emit("create-music-group", {
-      name: groupName,
-      createdBy: user.userid,
-      userName: user.name,
-      profilePic: user.profilepic,
-    })
-    setIsGroupModalOpen(false)
-  }
-
-  const joinGroup = (groupId) => {
-    if (!groupId.trim()) return
-
-    socket.emit("join-music-group", {
-      groupId,
-      userId: user.userid,
-      userName: user.name,
-      profilePic: user.profilepic,
-    })
-    setIsGroupModalOpen(false)
-  }
-
-  const rejoinGroup = useCallback(
-    (groupId) => {
-      if (!groupId || !user?.userid || !socket) return
-
-      setIsRejoining(true)
-      socket.emit("rejoin-music-group", {
-        groupId,
-        userId: user.userid,
-        userName: user.name,
-        profilePic: user.profilepic,
-      })
-    },
-    [socket, user],
-  )
-
-  const leaveGroup = () => {
-    if (!currentGroup) return
-
-    socket.emit("leave-group", {
-      groupId: currentGroup.id,
-      userId: user.userid,
-    })
-
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.removeAttribute('src')
-      audioRef.current.load()
-    }
-
-    if (syncTimerRef.current) {
-      clearInterval(syncTimerRef.current)
-      syncTimerRef.current = null
-    }
-
-    setCurrentGroup(null)
-    currentGroupRef.current = null
-    setCurrentSong(null)
-    setIsPlaying(false)
-    setIsSyncing(false)
-    setSyncCountdown(0)
-    setMessages([])
-    setGroupMembers([])
-    setQueue([])
-    setCurrentQueueIndex(-1)
-    clearSession()
-    toast.info(`Left group ${currentGroup.name}`)
-  }
-
-  const sendMessage = (message) => {
-    if (!message.trim()) return
-
-    socket.emit("chat-message", {
-      groupId: currentGroup?.id,
-      senderId: user.userid,
-      profilePic: user.profilepic,
-      userName: user.name,
-      message,
-    })
-  }
-
-  // Time sync with server
   useEffect(() => {
-    if (socket) {
-      const syncWithServer = () => {
-        const startTime = Date.now()
-        socket.emit("time-sync-request", { clientTime: startTime })
-      }
+    if (!socket) return
 
-      socket.on("time-sync-response", (data) => {
-        const endTime = Date.now()
-        const roundTripTime = endTime - data.clientTime
-        const serverTime = data.serverTime + roundTripTime / 2
-        setServerTimeOffset(serverTime - endTime)
-        setLastSync(endTime)
+    const syncWithServer = () => {
+      const startTime = Date.now()
+      socket.emit("time-sync-request", { clientTime: startTime })
+    }
+
+    socket.on("time-sync-response", (data) => {
+      const endTime = Date.now()
+      const roundTripTime = endTime - data.clientTime
+      const serverTime = data.serverTime + roundTripTime / 2
+      useGroupPlaybackStore.setState({
+        serverTimeOffset: serverTime - endTime,
+        lastSync: endTime,
       })
+    })
 
-      syncWithServer()
-      syncIntervalRef.current = setInterval(syncWithServer, 5000)
+    syncWithServer()
+    syncIntervalRef.current = setInterval(syncWithServer, 5000)
 
-      return () => {
-        if (syncIntervalRef.current) {
-          clearInterval(syncIntervalRef.current)
-        }
-      }
+    return () => {
+      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current)
     }
   }, [socket])
 
-  // Periodic sync for drift correction
   useEffect(() => {
+    const currentGroup = useGroupSessionStore.getState().currentGroup
     if (!currentGroup || !socket) return
 
     const requestSync = () => {
       socket.emit("request-sync", { groupId: currentGroup.id })
     }
 
-    periodicSyncRef.current = setInterval(requestSync, 5000) // Sync every 5 seconds
-
+    periodicSyncRef.current = setInterval(requestSync, 5000)
     return () => {
-      if (periodicSyncRef.current) {
-        clearInterval(periodicSyncRef.current)
-      }
+      if (periodicSyncRef.current) clearInterval(periodicSyncRef.current)
     }
-  }, [currentGroup, socket])
+  }, [session.currentGroup, socket])
 
-  // Auto-rejoin on mount
   useEffect(() => {
-    if (socket && user?.userid && !hasAttemptedRejoinRef.current) {
-      const session = getStoredSession()
-      if (session?.groupId) {
-        hasAttemptedRejoinRef.current = true
-        rejoinGroup(session.groupId)
+    if (!socket || !user?.userid) return
+
+    const handleSetupComplete = () => {
+      if (!hasAttemptedRejoinRef.current) {
+        const stored = useGroupSessionStore.getState().getStoredSession()
+        if (stored?.groupId) {
+          hasAttemptedRejoinRef.current = true
+          useGroupSessionStore.getState().rejoinGroup(socket, user, stored.groupId)
+        }
       }
-    }
-  }, [socket, user, getStoredSession, rejoinGroup])
-
-  // Fetch pending invites on connect
-  useEffect(() => {
-    if (socket && user?.userid) {
       socket.emit("get-pending-invites")
     }
-  }, [socket, user?.userid])
 
-  const acceptInvite = useCallback(
-    (invite) => {
-      if (!socket || !user) return
-      socket.emit("accept-group-invite", {
-        groupId: invite.groupId,
-        userId: user.userid,
-        userName: user.name,
-        profilePic: user.profilepic,
-        inviterId: invite.inviterId,
-      })
-      setPendingInvite(null)
-      navigate("/music/sync")
-    },
-    [socket, user, navigate],
-  )
+    socket.on("setup-complete", handleSetupComplete)
+    return () => socket.off("setup-complete", handleSetupComplete)
+  }, [socket, user])
 
-  const declineInvite = useCallback(
-    (invite) => {
-      if (!socket) return
-      socket.emit("decline-group-invite", {
-        groupId: invite.groupId,
-        inviterId: invite.inviterId,
-      })
-      setPendingInvite(null)
-    },
-    [socket],
-  )
-
-  const sendInvite = useCallback(
-    (inviteeUserId) => {
-      if (!socket || !currentGroup || !user) return
-      socket.emit("send-group-invite", {
-        groupId: currentGroup.id,
-        inviteeUserId,
-        inviterName: user.name,
-        inviterPic: user.profilepic,
-      })
-    },
-    [socket, currentGroup, user],
-  )
-
-  // Socket event handlers
   useEffect(() => {
     if (!socket) return
 
-    // Sync state for drift correction and out-of-sync recovery
+    const getGroupId = () => useGroupSessionStore.getState().currentGroup?.id
+    const pb = useGroupPlaybackStore
+    const ss = useGroupSessionStore
+    const inv = useGroupInviteStore
+
     socket.on("sync-state", async (data) => {
-      const {
-        playbackState,
-        queue: serverQueue,
-        currentQueueIndex: serverQueueIndex,
-        currentSongId,
-      } = data
-
-      // Update queue state
-      if (serverQueue) {
-        setQueue(serverQueue)
-        setCurrentQueueIndex(serverQueueIndex)
+      if (data.queue) {
+        ss.setState({ queue: data.queue, currentQueueIndex: data.currentQueueIndex })
       }
-
-      if (!playbackState) return
-
-      // Check if we're playing the correct song (song ID verification)
-      const serverTrack = playbackState.currentTrack
-      const currentItem =
-        serverQueueIndex >= 0 && serverQueue ? serverQueue[serverQueueIndex] : null
-
-      // If server has no song playing, stop our playback
-      if (!serverTrack) {
-        if (audioRef.current && !audioRef.current.paused) {
-          audioRef.current.pause()
-          setIsPlaying(false)
-        }
-        setCurrentSong(null)
-        return
-      }
-
-      // If we're playing a different song or no song, load the correct one
-      if (!currentSongRef.current || currentSongRef.current.id !== serverTrack.id) {
-        console.log("Out of sync - loading correct song")
-        setCurrentSong(serverTrack)
-        const url = serverTrack.download_url?.find((u) => u.quality === "320kbps")?.link
-        if (url && audioRef.current) {
-          await loadAudio(url, currentItem?.id)
-        }
-      }
-
-      if (!audioRef.current) return
-
-      // Drift correction
-      const serverNow = Date.now() + serverTimeOffsetRef.current
-      const timePassed = (serverNow - playbackState.lastUpdate) / 1000
-      const expectedTime = playbackState.currentTime + (playbackState.isPlaying ? timePassed : 0)
-      const actualTime = audioRef.current.currentTime
-      const drift = Math.abs(expectedTime - actualTime)
-
-      // Correct drift if more than 0.5 seconds
-      if (drift > 0.5 && expectedTime <= (audioRef.current.duration || Infinity)) {
-        audioRef.current.currentTime = expectedTime
-        console.log(`Drift corrected: ${drift.toFixed(2)}s`)
-      }
-
-      // Sync play/pause state
-      if (playbackState.isPlaying && audioRef.current.paused) {
-        try {
-          await audioRef.current.play()
-          setIsPlaying(true)
-        } catch (err) {
-          console.error("Autoplay blocked:", err)
-        }
-      } else if (!playbackState.isPlaying && !audioRef.current.paused) {
-        audioRef.current.pause()
-        setIsPlaying(false)
-      }
+      await pb.getState().handleSyncState(data, socket, getGroupId())
     })
 
-    // Queue updates
     socket.on("queue-updated", (data) => {
-      const { queue: serverQueue, currentQueueIndex: serverQueueIndex, action, item } = data
-      setQueue(serverQueue)
-      setCurrentQueueIndex(serverQueueIndex)
+      const { queue, currentQueueIndex, action, item } = data
+      ss.setState({ queue, currentQueueIndex })
 
-      if (action === "add" && item) {
-        // Notification handled by toast in addToQueue
-      } else if (action === "remove") {
-        toast.info("Song removed from queue")
-      } else if (action === "skip") {
-        toast.info("Skipped to next song")
-      }
+      if (action === "remove") toast.info("Song removed from queue")
+      else if (action === "skip") toast.info("Skipped to next song")
     })
 
-    socket.on("queue-error", ({ error }) => {
-      toast.error(error)
-    })
+    socket.on("queue-error", ({ error }) => toast.error(error))
 
     socket.on("queue-ended", () => {
-      setIsPlaying(false)
+      pb.setState({ isPlaying: false })
       toast.info("Queue ended")
     })
 
-    // Playback updates
     socket.on("playback-update", (data) => {
-      const serverNow = getServerTime()
-      lastPlaybackUpdateRef.current = serverNow
-      const { isPlaying: newIsPlaying, currentTime: newTime, scheduledTime } = data
-      const timeUntilPlay = Math.max(0, scheduledTime - serverNow)
-
-      if (audioRef.current) {
-        audioRef.current.currentTime = newTime
-
-        if (newIsPlaying) {
-          setTimeout(() => {
-            audioRef.current.play()
-            setIsPlaying(true)
-          }, timeUntilPlay)
-        } else {
-          audioRef.current.pause()
-          setIsPlaying(false)
-        }
-      }
-
-      setCurrentTime(newTime)
-      setLastSync(serverNow)
+      pb.getState().handlePlaybackUpdate(data)
     })
 
-    socket.on("music-update", async ({ song, currentTime, queueItem, autoPlay, scheduledPlayTime }) => {
-      if (syncTimerRef.current) clearInterval(syncTimerRef.current)
-
-      setCurrentSong(song)
-      currentSongRef.current = song
-      const url = song.download_url.find((u) => u.quality === "320kbps")?.link
-
-      if (scheduledPlayTime) {
-        setIsSyncing(true)
-        const serverNow = Date.now() + serverTimeOffsetRef.current
-        const totalDelay = Math.max(0, scheduledPlayTime - serverNow)
-        setSyncCountdown(Math.ceil(totalDelay / 1000))
-
-        syncTimerRef.current = setInterval(() => {
-          const remaining = Math.max(0, scheduledPlayTime - (Date.now() + serverTimeOffsetRef.current))
-          const secs = Math.ceil(remaining / 1000)
-          setSyncCountdown(secs)
-          if (secs <= 0) {
-            clearInterval(syncTimerRef.current)
-            syncTimerRef.current = null
-          }
-        }, 200)
-
-        if (url) {
-          await loadAudio(url, queueItem?.id)
-        }
-
-        const nowAfterLoad = Date.now() + serverTimeOffsetRef.current
-        const remainingDelay = Math.max(0, scheduledPlayTime - nowAfterLoad)
-
-        setTimeout(async () => {
-          if (!currentGroupRef.current) return; // Prevent playing if user left
-          
-          setIsSyncing(false)
-          setSyncCountdown(0)
-          if (audioRef.current && audioRef.current.src) {
-            audioRef.current.currentTime = currentTime || 0
-            try {
-              await audioRef.current.play()
-              setIsPlaying(true)
-            } catch (err) {
-              console.error("Autoplay blocked:", err)
-            }
-          }
-        }, remainingDelay)
-      } else {
-        if (url) {
-          await loadAudio(url, queueItem?.id)
-          if (audioRef.current) {
-            audioRef.current.currentTime = currentTime
-            if (autoPlay || isPlayingRef.current) {
-              try {
-                await audioRef.current.play()
-                setIsPlaying(true)
-              } catch (err) {
-                console.error("Autoplay blocked:", err)
-              }
-            }
-          }
-        }
-      }
-
-      if (queueItem?.addedBy) {
-        toast.info(`Now playing: ${song.name} (added by ${queueItem.addedBy.userName})`)
-      }
+    socket.on("music-update", async (data) => {
+      await pb.getState().handleMusicUpdate(data, socket, getGroupId())
     })
 
-    // Group events
     socket.on("group-created", (group) => {
-      setCurrentGroup(group)
-      setGroupMembers([
-        {
-          groupId: group.id,
-          userId: user.userid,
-          userName: user.name,
-          profilePic: user.profilepic,
-        },
-      ])
-      setQueue([])
-      setCurrentQueueIndex(-1)
-      saveSession(group.id)
-      toast.success(`Created group: ${group.name}`)
-      setIsInviteSheetOpen(true)
+      ss.getState().handleGroupCreated(group, user, (v) => inv.setState({ isInviteSheetOpen: v }))
     })
 
     socket.on("group-joined", async (data) => {
-      const {
-        group,
-        members,
-        playbackState,
-        queue: serverQueue,
-        currentQueueIndex: serverQueueIndex,
-      } = data
-      setCurrentGroup(group)
-      setGroupMembers(members)
-      setQueue(serverQueue || [])
-      setCurrentQueueIndex(serverQueueIndex ?? -1)
-      saveSession(group.id)
-
-      if (playbackState?.currentTrack) {
-        setCurrentSong(playbackState.currentTrack)
-        const url =
-          playbackState.currentTrack.download_url?.find((u) => u.quality === "320kbps")?.link ||
-          playbackState.currentTrack.download_url?.[3]?.link
-
-        if (url) {
-          await loadAudio(url, serverQueue?.[serverQueueIndex]?.id)
-
-          const serverNow = Date.now() + serverTimeOffset
-          const timePassed = (serverNow - playbackState.lastUpdate) / 1000
-          const syncedTime = playbackState.currentTime + (playbackState.isPlaying ? timePassed : 0)
-
-          if (audioRef.current) {
-            audioRef.current.currentTime = Math.min(
-              syncedTime,
-              audioRef.current.duration || syncedTime,
-            )
-
-            if (playbackState.isPlaying) {
-              try {
-                await audioRef.current.play()
-                setIsPlaying(true)
-              } catch (err) {
-                console.error("Autoplay blocked:", err)
-              }
-            }
-          }
-        }
-      }
-
-      toast.success(`Joined group: ${group.name}`)
+      ss.getState().handleGroupJoined(data)
+      const offset = pb.getState().serverTimeOffset
+      await pb.getState().syncPlaybackFromServer(
+        data.playbackState, data.queue, data.currentQueueIndex, socket, data.group.id, offset,
+      )
     })
 
     socket.on("group-rejoined", async (data) => {
-      const {
-        group,
-        members,
-        playbackState,
-        queue: serverQueue,
-        currentQueueIndex: serverQueueIndex,
-      } = data
-      setCurrentGroup(group)
-      setGroupMembers(members)
-      setQueue(serverQueue || [])
-      setCurrentQueueIndex(serverQueueIndex ?? -1)
-      setIsRejoining(false)
-      saveSession(group.id)
-
-      if (playbackState?.currentTrack) {
-        setCurrentSong(playbackState.currentTrack)
-        const url =
-          playbackState.currentTrack.download_url?.find((u) => u.quality === "320kbps")?.link ||
-          playbackState.currentTrack.download_url?.[3]?.link
-
-        if (url) {
-          await loadAudio(url, serverQueue?.[serverQueueIndex]?.id)
-
-          const serverNow = Date.now() + serverTimeOffset
-          const timePassed = (serverNow - playbackState.lastUpdate) / 1000
-          const syncedTime = playbackState.currentTime + (playbackState.isPlaying ? timePassed : 0)
-
-          if (audioRef.current) {
-            audioRef.current.currentTime = Math.min(
-              syncedTime,
-              audioRef.current.duration || syncedTime,
-            )
-
-            if (playbackState.isPlaying) {
-              try {
-                await audioRef.current.play()
-                setIsPlaying(true)
-              } catch (err) {
-                console.error("Autoplay blocked:", err)
-                toast.info("Click play to resume music")
-              }
-            }
-          }
-        }
-      }
-
-      toast.success(`Rejoined group: ${group.name}`)
+      ss.getState().handleGroupRejoined(data)
+      const offset = pb.getState().serverTimeOffset
+      await pb.getState().syncPlaybackFromServer(
+        data.playbackState, data.queue, data.currentQueueIndex, socket, data.group.id, offset,
+      )
     })
 
     socket.on("group-not-found", () => {
-      setIsRejoining(false)
-      clearSession()
+      ss.setState({ isRejoining: false })
+      ss.getState().clearSession()
       toast.error("The group no longer exists")
     })
 
     socket.on("member-joined", (member) => {
-      setGroupMembers((prev) => {
-        if (prev.find((m) => m.userId === member.userId)) return prev
-        return [...prev, member]
+      ss.setState((state) => {
+        if (state.groupMembers.find((m) => m.userId === member.userId)) return state
+        return { groupMembers: [...state.groupMembers, member] }
       })
       toast.info(`${member.userName} joined the group`)
     })
 
     socket.on("member-left", ({ userId }) => {
-      if (userId) {
-        setGroupMembers((prev) => {
-          const member = prev.find((m) => m.userId === userId)
-          if (member) {
-            toast.info(`${member.userName} left the group`)
-          }
-          return prev.filter((member) => member.userId !== userId)
-        })
-      }
+      if (!userId) return
+      const members = ss.getState().groupMembers
+      const member = members.find((m) => m.userId === userId)
+      if (member) toast.info(`${member.userName} left the group`)
+      ss.setState({ groupMembers: members.filter((m) => m.userId !== userId) })
     })
 
     socket.on("group-disbanded", () => {
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.removeAttribute('src')
-        audioRef.current.load()
-      }
-      if (syncTimerRef.current) {
-        clearInterval(syncTimerRef.current)
-        syncTimerRef.current = null
-      }
-      
-      setCurrentGroup(null)
-      currentGroupRef.current = null
-      setCurrentSong(null)
-      setIsPlaying(false)
-      setIsSyncing(false)
-      setSyncCountdown(0)
-      setMessages([])
-      setGroupMembers([])
-      setQueue([])
-      setCurrentQueueIndex(-1)
-      clearSession()
+      ss.getState().resetSession(() => pb.getState().reset())
       toast.info("Group disbanded")
     })
 
     socket.on("new-message", (message) => {
-      setMessages((prev) => [...prev, message])
+      ss.setState((state) => ({ messages: [...state.messages, message] }))
     })
 
     socket.on("group-full", ({ maxMembers, message }) => {
-      setUpgradeDialog({
-        open: true,
-        feature: "groupMembers",
-        message: message || `Group is full (${maxMembers} members max)`,
+      ss.setState({
+        upgradeDialog: {
+          open: true,
+          feature: "groupMembers",
+          message: message || `Group is full (${maxMembers} members max)`,
+        },
       })
     })
 
     socket.on("feature-locked", ({ feature, message }) => {
-      setUpgradeDialog({
-        open: true,
-        feature: feature || "default",
-        message: message || "This feature requires PRO plan",
+      ss.setState({
+        upgradeDialog: {
+          open: true,
+          feature: feature || "default",
+          message: message || "This feature requires PRO plan",
+        },
       })
     })
 
-    socket.on("group-invite-received", (invite) => {
-      if (currentGroup) return
-      setPendingInvite(invite)
+    socket.on("group-invite-received", (inviteData) => {
+      if (ss.getState().currentGroup) return
+      inv.setState({ pendingInvite: inviteData })
     })
 
-    socket.on("invite-sent", ({ inviteeUserId }) => {
-      toast.success("Invite sent!")
-    })
-
-    socket.on("invite-error", ({ error }) => {
-      toast.error(error)
-    })
-
-    socket.on("invite-accepted", ({ userName }) => {
-      toast.success(`${userName} accepted the invite!`)
-    })
-
-    socket.on("group-invite-declined", ({ userId }) => {
-      toast.info("Invite was declined")
-    })
+    socket.on("invite-sent", () => toast.success("Invite sent!"))
+    socket.on("invite-error", ({ error }) => toast.error(error))
+    socket.on("invite-accepted", ({ userName }) => toast.success(`${userName} accepted the invite!`))
+    socket.on("group-invite-declined", () => toast.info("Invite was declined"))
 
     return () => {
-      socket.off("sync-state")
-      socket.off("queue-updated")
-      socket.off("queue-error")
-      socket.off("queue-ended")
-      socket.off("playback-update")
-      socket.off("music-update")
-      socket.off("group-created")
-      socket.off("group-joined")
-      socket.off("group-rejoined")
-      socket.off("group-not-found")
-      socket.off("member-joined")
-      socket.off("member-left")
-      socket.off("group-disbanded")
-      socket.off("new-message")
-      socket.off("group-full")
-      socket.off("feature-locked")
-      socket.off("group-invite-received")
-      socket.off("invite-sent")
-      socket.off("invite-error")
-      socket.off("invite-accepted")
-      socket.off("group-invite-declined")
+      const events = [
+        "sync-state", "queue-updated", "queue-error", "queue-ended",
+        "playback-update", "music-update", "group-created", "group-joined",
+        "group-rejoined", "group-not-found", "member-joined", "member-left",
+        "group-disbanded", "new-message", "group-full", "feature-locked",
+        "group-invite-received", "invite-sent", "invite-error",
+        "invite-accepted", "group-invite-declined",
+      ]
+      events.forEach((e) => socket.off(e))
     }
-  }, [socket, user, loadAudio, saveSession, clearSession, getServerTime])
+  }, [socket, user])
+
+  const currentQueueItem = useMemo(() => session.getCurrentQueueItem(), [session.queue, session.currentQueueIndex])
+  const upcomingQueue = useMemo(() => session.getUpcomingQueue(), [session.queue, session.currentQueueIndex])
+  const playedQueue = useMemo(() => session.getPlayedQueue(), [session.queue, session.currentQueueIndex])
+
+  const wrappedHandlePlayPause = useCallback(
+    (forceState) => playback.handlePlayPause(socket, session.currentGroup?.id, forceState),
+    [socket, session.currentGroup?.id],
+  )
+
+  const wrappedHandleSeek = useCallback(
+    (value) => playback.handleSeek(socket, session.currentGroup?.id, value),
+    [socket, session.currentGroup?.id],
+  )
+
+  const wrappedCreateGroup = useCallback(
+    (name) => session.createGroup(socket, user, name),
+    [socket, user],
+  )
+
+  const wrappedJoinGroup = useCallback(
+    (groupId) => session.joinGroup(socket, user, groupId),
+    [socket, user],
+  )
+
+  const wrappedRejoinGroup = useCallback(
+    (groupId) => session.rejoinGroup(socket, user, groupId),
+    [socket, user],
+  )
+
+  const wrappedLeaveGroup = useCallback(
+    () => session.leaveGroup(socket, user, () => useGroupPlaybackStore.getState().reset()),
+    [socket, user],
+  )
+
+  const wrappedSendMessage = useCallback(
+    (msg) => session.sendMessage(socket, user, msg),
+    [socket, user],
+  )
+
+  const wrappedAddToQueue = useCallback(
+    (song) => session.addToQueue(socket, user, song),
+    [socket, user],
+  )
+
+  const wrappedPlayNow = useCallback(
+    (song) => session.playNow(socket, user, song),
+    [socket, user],
+  )
+
+  const wrappedRemoveFromQueue = useCallback(
+    (id) => session.removeFromQueue(socket, user, id),
+    [socket, user],
+  )
+
+  const wrappedSkipSong = useCallback(
+    () => session.skipSong(socket, user),
+    [socket, user],
+  )
+
+  const wrappedReorderQueue = useCallback(
+    (from, to) => session.reorderQueue(socket, from, to),
+    [socket],
+  )
+
+  const wrappedAcceptInvite = useCallback(
+    (inv) => invite.acceptInvite(socket, user, inv, navigate),
+    [socket, user, navigate],
+  )
+
+  const wrappedDeclineInvite = useCallback(
+    (inv) => invite.declineInvite(socket, inv),
+    [socket],
+  )
+
+  const wrappedSendInvite = useCallback(
+    (userId) => invite.sendInvite(socket, user, session.currentGroup, userId),
+    [socket, user, session.currentGroup],
+  )
 
   const contextValue = {
-    // Group state
-    currentGroup,
-    setCurrentGroup,
-    groupMembers,
-    setGroupMembers,
-    messages,
-    setMessages,
+    currentGroup: session.currentGroup,
+    setCurrentGroup: (v) => useGroupSessionStore.setState({ currentGroup: v }),
+    groupMembers: session.groupMembers,
+    setGroupMembers: (v) => useGroupSessionStore.setState({ groupMembers: v }),
+    messages: session.messages,
+    setMessages: (v) => useGroupSessionStore.setState({ messages: v }),
 
-    // Queue state
-    queue,
-    currentQueueIndex,
+    queue: session.queue,
+    currentQueueIndex: session.currentQueueIndex,
     currentQueueItem,
     upcomingQueue,
     playedQueue,
-    isQueueOpen,
-    setIsQueueOpen,
+    isQueueOpen: session.isQueueOpen,
+    setIsQueueOpen: (v) => useGroupSessionStore.setState({ isQueueOpen: v }),
 
-    // Playback state
-    isPlaying,
-    setIsPlaying,
-    currentTime,
-    setCurrentTime,
-    duration,
-    setDuration,
-    currentSong,
-    setCurrentSong,
-    volume,
-    setVolume,
-    isLoading,
-    setIsLoading,
-    isSyncing,
-    syncCountdown,
+    isPlaying: playback.isPlaying,
+    setIsPlaying: (v) => useGroupPlaybackStore.setState({ isPlaying: v }),
+    currentTime: playback.currentTime,
+    setCurrentTime: (v) => useGroupPlaybackStore.setState({ currentTime: v }),
+    duration: playback.duration,
+    setDuration: (v) => useGroupPlaybackStore.setState({ duration: v }),
+    currentSong: playback.currentSong,
+    setCurrentSong: (v) => useGroupPlaybackStore.setState({ currentSong: v }),
+    volume: playback.volume,
+    setVolume: (v) => useGroupPlaybackStore.setState({ volume: v }),
+    isLoading: playback.isLoading,
+    setIsLoading: (v) => useGroupPlaybackStore.setState({ isLoading: v }),
+    isSyncing: playback.isSyncing,
+    syncCountdown: playback.syncCountdown,
 
-    // Search state
-    searchResults,
-    setSearchResults,
-    searchQuery,
-    setSearchQuery,
-    isSearchOpen,
-    setIsSearchOpen,
-    isSearchLoading,
-    setIsSearchLoading,
+    searchResults: session.searchResults,
+    setSearchResults: (v) => useGroupSessionStore.setState({ searchResults: v }),
+    searchQuery: session.searchQuery,
+    setSearchQuery: (v) => useGroupSessionStore.setState({ searchQuery: v }),
+    isSearchOpen: session.isSearchOpen,
+    setIsSearchOpen: (v) => useGroupSessionStore.setState({ isSearchOpen: v }),
+    isSearchLoading: session.isSearchLoading,
+    setIsSearchLoading: (v) => useGroupSessionStore.setState({ isSearchLoading: v }),
 
-    // Sync state
-    serverTimeOffset,
-    setServerTimeOffset,
-    lastSync,
-    setLastSync,
+    serverTimeOffset: playback.serverTimeOffset,
+    setServerTimeOffset: (v) => useGroupPlaybackStore.setState({ serverTimeOffset: v }),
+    lastSync: playback.lastSync,
+    setLastSync: (v) => useGroupPlaybackStore.setState({ lastSync: v }),
 
-    // UI state
-    isGroupModalOpen,
-    setIsGroupModalOpen,
-    connectionState,
-    isRejoining,
+    isGroupModalOpen: session.isGroupModalOpen,
+    setIsGroupModalOpen: (v) => useGroupSessionStore.setState({ isGroupModalOpen: v }),
+    connectionState: session.connectionState,
+    isRejoining: session.isRejoining,
     audioRef,
 
-    // Functions
-    formatTime,
-    handlePlayPause,
-    handleSeek,
-    handleVolumeChange,
-    debouncedSearch,
+    formatTime: playback.formatTime,
+    handlePlayPause: wrappedHandlePlayPause,
+    handleSeek: wrappedHandleSeek,
+    handleVolumeChange: playback.handleVolumeChange,
+    debouncedSearch: session.debouncedSearch,
 
-    // Queue functions
-    addToQueue,
-    playNow,
-    removeFromQueue,
-    skipSong,
-    reorderQueue,
+    addToQueue: wrappedAddToQueue,
+    playNow: wrappedPlayNow,
+    removeFromQueue: wrappedRemoveFromQueue,
+    skipSong: wrappedSkipSong,
+    reorderQueue: wrappedReorderQueue,
 
-    // Group functions
-    createGroup,
-    joinGroup,
-    rejoinGroup,
-    leaveGroup,
-    sendMessage,
+    createGroup: wrappedCreateGroup,
+    joinGroup: wrappedJoinGroup,
+    rejoinGroup: wrappedRejoinGroup,
+    leaveGroup: wrappedLeaveGroup,
+    sendMessage: wrappedSendMessage,
 
-    // Invite functions
-    pendingInvite,
-    setPendingInvite,
-    acceptInvite,
-    declineInvite,
-    sendInvite,
-    isInviteSheetOpen,
-    setIsInviteSheetOpen,
+    pendingInvite: invite.pendingInvite,
+    setPendingInvite: (v) => useGroupInviteStore.setState({ pendingInvite: v }),
+    acceptInvite: wrappedAcceptInvite,
+    declineInvite: wrappedDeclineInvite,
+    sendInvite: wrappedSendInvite,
+    isInviteSheetOpen: invite.isInviteSheetOpen,
+    setIsInviteSheetOpen: (v) => useGroupInviteStore.setState({ isInviteSheetOpen: v }),
 
-    // Legacy alias
-    selectSong: playNow,
+    selectSong: wrappedPlayNow,
   }
 
   return (
@@ -1116,15 +407,17 @@ export function GroupMusicProvider({ children }) {
       {children}
       <audio ref={audioRef} />
       <UpgradeDialog
-        open={upgradeDialog.open}
-        onOpenChange={(open) => setUpgradeDialog((prev) => ({ ...prev, open }))}
-        feature={upgradeDialog.feature}
-        customMessage={upgradeDialog.message}
+        open={session.upgradeDialog.open}
+        onOpenChange={(open) =>
+          useGroupSessionStore.setState((s) => ({ upgradeDialog: { ...s.upgradeDialog, open } }))
+        }
+        feature={session.upgradeDialog.feature}
+        customMessage={session.upgradeDialog.message}
       />
       <InviteNotification
-        invite={pendingInvite}
-        onAccept={acceptInvite}
-        onDecline={declineInvite}
+        invite={invite.pendingInvite}
+        onAccept={wrappedAcceptInvite}
+        onDecline={wrappedDeclineInvite}
       />
     </GroupMusicContext.Provider>
   )

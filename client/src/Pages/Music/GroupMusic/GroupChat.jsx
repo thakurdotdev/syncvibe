@@ -1,4 +1,4 @@
-import { memo, useRef, useEffect, useCallback, useMemo, useState } from "react"
+import { memo, useRef, useEffect, useCallback, useState } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -64,7 +64,7 @@ const ChatLockedOverlay = memo(({ onUpgrade }) => (
       </div>
       <Button
         size="sm"
-        className="gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0"
+        className="gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0 cursor-pointer"
       >
         <Sparkles className="h-3.5 w-3.5" />
         Upgrade to PRO
@@ -131,7 +131,7 @@ const GroupChat = ({ messages, currentUserId, onSendMessage, locked = false }) =
         {locked && <Lock className="h-3 w-3 text-muted-foreground/40" />}
       </div>
 
-      <ScrollArea ref={scrollRef} className="flex-1 px-2.5 py-2 max-h-[300px]">
+      <ScrollArea ref={scrollRef} className="flex-1 px-2.5 py-2 max-h-75">
         <MessagesList messages={messages} currentUserId={currentUserId} />
       </ScrollArea>
 
@@ -148,7 +148,7 @@ const GroupChat = ({ messages, currentUserId, onSendMessage, locked = false }) =
             onClick={handleSend}
             size="icon"
             disabled={locked}
-            className="rounded-full shrink-0 h-9 w-9"
+            className="rounded-full shrink-0 h-9 w-9 cursor-pointer"
           >
             <Send className="h-3.5 w-3.5" />
           </Button>
