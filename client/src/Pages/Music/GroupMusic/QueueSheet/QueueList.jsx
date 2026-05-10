@@ -47,28 +47,28 @@ const SortableQueueItem = memo(
         ref={setNodeRef}
         style={style}
         className={cn(
-          "flex items-center gap-2 p-2 rounded-xl transition-colors w-full overflow-hidden",
+          "flex items-center gap-2.5 p-2 rounded-xl transition-all duration-200 w-full overflow-hidden group",
           isPlaying
-            ? "bg-primary/10 border border-primary/30"
+            ? "bg-primary/8 border border-primary/20 shadow-sm shadow-primary/5"
             : "hover:bg-accent/50 border border-transparent",
-          isItemDragging && "shadow-lg bg-accent",
+          isItemDragging && "shadow-xl bg-accent border-border",
         )}
       >
         {!isPlaying ? (
           <button
             {...attributes}
             {...listeners}
-            className="p-1 rounded hover:bg-accent cursor-grab active:cursor-grabbing touch-none"
+            className="p-1 rounded-md hover:bg-accent cursor-grab active:cursor-grabbing touch-none opacity-40 hover:opacity-100 transition-opacity"
           >
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </button>
         ) : (
           <div className="w-6 shrink-0 text-center">
-            <div className="flex items-center justify-center gap-0.5 h-4">
+            <div className="flex items-center justify-center gap-[3px] h-4">
               {[0, 1, 2].map((i) => (
                 <span
                   key={i}
-                  className="w-1 bg-primary rounded-full animate-wave"
+                  className="w-[3px] bg-primary rounded-full animate-wave"
                   style={{ animationDelay: `${i * 0.15}s`, height: "100%", transformOrigin: "bottom" }}
                 />
               ))}
@@ -76,7 +76,7 @@ const SortableQueueItem = memo(
           </div>
         )}
 
-        <div className="relative h-10 w-10 rounded-lg overflow-hidden shrink-0">
+        <div className="relative h-10 w-10 rounded-lg overflow-hidden shrink-0 shadow-sm">
           <img
             src={item.song?.image?.[1]?.link}
             alt={item.song?.name}
@@ -84,24 +84,22 @@ const SortableQueueItem = memo(
             loading="lazy"
           />
           {isPlaying && (
-            <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-              <Play className="h-4 w-4 text-white fill-white" />
+            <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
+              <Play className="h-3.5 w-3.5 text-white fill-white" />
             </div>
           )}
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className={cn("font-medium truncate text-sm", isPlaying && "text-primary")}>
-            {item.song?.name}
-          </p>
-          <p className="text-xs text-muted-foreground truncate">
+          <p className={cn("font-medium truncate text-sm", isPlaying && "text-primary")}>{item.song?.name}</p>
+          <p className="text-xs text-muted-foreground/70 truncate mt-0.5">
             {item.song?.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"}
           </p>
         </div>
 
-        <Avatar className="h-5 w-5 shrink-0">
+        <Avatar className="h-5 w-5 shrink-0 ring-1 ring-border/30">
           <AvatarImage src={item.addedBy?.profilePic} />
-          <AvatarFallback className="text-[10px]">
+          <AvatarFallback className="text-[10px] bg-accent">
             {item.addedBy?.userName?.charAt(0)?.toUpperCase()}
           </AvatarFallback>
         </Avatar>
@@ -112,7 +110,7 @@ const SortableQueueItem = memo(
               variant="ghost"
               size="icon"
               onClick={handleRecs}
-              className="h-7 w-7 text-muted-foreground hover:text-primary cursor-pointer"
+              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 cursor-pointer"
               title="Get recommendations"
             >
               <Sparkles className="h-3.5 w-3.5" />
@@ -121,7 +119,8 @@ const SortableQueueItem = memo(
               variant="ghost"
               size="icon"
               onClick={handleRemove}
-              className="h-7 w-7 text-muted-foreground hover:text-destructive cursor-pointer"
+              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+              title="Remove from queue"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
@@ -133,11 +132,11 @@ const SortableQueueItem = memo(
 )
 
 const DragOverlayItem = memo(({ item }) => (
-  <div className="flex items-center gap-2 p-2 rounded-xl bg-accent border border-border shadow-xl w-full max-w-md">
+  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-accent border border-border shadow-2xl w-full max-w-md">
     <div className="p-1 shrink-0">
       <GripVertical className="h-4 w-4 text-muted-foreground" />
     </div>
-    <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0">
+    <div className="h-10 w-10 rounded-lg overflow-hidden shrink-0 shadow-sm">
       <img
         src={item?.song?.image?.[1]?.link}
         alt={item?.song?.name}
@@ -154,13 +153,16 @@ const DragOverlayItem = memo(({ item }) => (
 ))
 
 const EmptyQueue = memo(() => (
-  <div className="flex flex-col items-center justify-center h-64 gap-4 text-center px-4">
-    <div className="p-4 rounded-full bg-primary/10">
-      <ListMusic className="h-10 w-10 text-primary/50" />
+  <div className="flex flex-col items-center justify-center h-72 gap-5 text-center px-4">
+    <div className="relative">
+      <div className="absolute inset-0 rounded-full bg-primary/10 animate-pulse scale-125" />
+      <div className="p-5 rounded-full bg-primary/5 border border-primary/10 relative">
+        <ListMusic className="h-10 w-10 text-primary/40" />
+      </div>
     </div>
-    <div>
-      <p className="font-medium text-lg">Queue is empty</p>
-      <p className="text-muted-foreground text-sm mt-1">Search for songs above to get started</p>
+    <div className="space-y-1.5">
+      <p className="font-semibold text-lg">Queue is empty</p>
+      <p className="text-muted-foreground/70 text-sm">Search for songs above to get started</p>
     </div>
   </div>
 ))
@@ -217,10 +219,10 @@ const QueueList = memo(({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.15 }}
     >
-      <div className="p-3 space-y-3">
+      <div className="p-3 space-y-4">
         {currentQueueItem && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-2 mb-2">
+            <p className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-widest px-2 mb-2">
               Now Playing
             </p>
             <SortableQueueItem
@@ -234,8 +236,11 @@ const QueueList = memo(({
 
         {upcomingQueue.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-2 mb-2">
-              Up Next ({upcomingQueue.length}) — Drag to reorder
+            <p className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-widest px-2 mb-2">
+              Up Next ({upcomingQueue.length})
+              <span className="normal-case tracking-normal text-muted-foreground/40 ml-1.5 font-normal">
+                — Drag to reorder
+              </span>
             </p>
             <DndContext
               sensors={sensors}

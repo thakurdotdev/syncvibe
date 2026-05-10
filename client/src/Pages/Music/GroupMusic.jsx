@@ -67,6 +67,7 @@ const GroupMusic = () => {
     isInviteSheetOpen,
     setIsInviteSheetOpen,
     sendInvite,
+    sendReaction,
   } = useGroupMusic()
 
   const [isQrCodeOpen, setQrCodeOpen] = useState(false)
@@ -173,7 +174,10 @@ const GroupMusic = () => {
                       onQueueOpen={handleOpenQueue}
                       onSkip={skipSong}
                       currentQueueItem={currentQueueItem}
+                      upcomingQueue={upcomingQueue}
                       queueCount={activeQueueCount}
+                      groupMembers={groupMembers}
+                      sendReaction={sendReaction}
                     />
 
                     <div className="flex flex-col md:flex-row gap-4">

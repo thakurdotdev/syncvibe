@@ -9,42 +9,53 @@ const SearchResults = memo(({ searchQuery, searchResults, isSearchLoading, onPla
   return (
     <motion.div
       key="search"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.15 }}
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      transition={{ duration: 0.2 }}
       className="px-2 py-3"
     >
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-2 mb-2">
-        Search Results {hasResults && `(${searchResults.length})`}
-      </p>
-
       {isSearchLoading ? (
-        <div className="flex flex-col items-center justify-center h-48 gap-3">
-          <Loader2 className="h-7 w-7 animate-spin text-primary" />
-          <p className="text-muted-foreground text-sm">Searching...</p>
+        <div className="flex flex-col items-center justify-center h-52 gap-3">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary relative" />
+          </div>
+          <p className="text-muted-foreground text-sm font-medium">Searching...</p>
         </div>
       ) : !searchQuery ? (
-        <div className="flex flex-col items-center justify-center h-48 gap-3">
-          <Search className="h-10 w-10 text-muted-foreground/30" />
+        <div className="flex flex-col items-center justify-center h-52 gap-3">
+          <div className="p-4 rounded-2xl bg-accent/40">
+            <Search className="h-8 w-8 text-muted-foreground/40" />
+          </div>
           <p className="text-muted-foreground text-sm">Start typing to search</p>
         </div>
       ) : !hasResults ? (
-        <div className="flex flex-col items-center justify-center h-48 gap-3">
-          <Music className="h-10 w-10 text-muted-foreground/30" />
-          <p className="text-muted-foreground text-sm">No songs found</p>
+        <div className="flex flex-col items-center justify-center h-52 gap-3">
+          <div className="p-4 rounded-2xl bg-accent/40">
+            <Music className="h-8 w-8 text-muted-foreground/40" />
+          </div>
+          <div className="text-center">
+            <p className="text-muted-foreground text-sm font-medium">No songs found</p>
+            <p className="text-muted-foreground/60 text-xs mt-1">Try a different search term</p>
+          </div>
         </div>
       ) : (
-        <div className="space-y-0.5">
-          {searchResults.map((song) => (
-            <SongItem
-              key={song.id}
-              song={song}
-              onPlayNow={onPlayNow}
-              onAddToQueue={onAddToQueue}
-            />
-          ))}
-        </div>
+        <>
+          <p className="text-xs font-medium text-muted-foreground/70 uppercase tracking-wider px-2 mb-2">
+            {searchResults.length} result{searchResults.length !== 1 ? "s" : ""}
+          </p>
+          <div className="space-y-0.5">
+            {searchResults.map((song) => (
+              <SongItem
+                key={song.id}
+                song={song}
+                onPlayNow={onPlayNow}
+                onAddToQueue={onAddToQueue}
+              />
+            ))}
+          </div>
+        </>
       )}
     </motion.div>
   )

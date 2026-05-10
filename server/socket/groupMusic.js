@@ -464,25 +464,22 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
     }
   })
 
-  // Request sync state - provides full playback state for drift correction
   socket.on("request-sync", (data) => {
     const group = musicGroups.get(data.groupId)
+    if (!group) return
 
-    if (group) {
-      const currentItem = group.currentQueueIndex >= 0 ? group.queue[group.currentQueueIndex] : null
+    const currentItem = group.currentQueueIndex >= 0 ? group.queue[group.currentQueueIndex] : null
+    const serverTime = Date.now()
 
-      socket.emit("sync-state", {
-        playbackState: {
-          ...group.playbackState,
-          serverTime: Date.now(),
-          // Include current track info for out-of-sync recovery
-          currentTrack: currentItem?.song || null,
-        },
-        ...getQueueState(group),
-        // Include song ID for verification
-        currentSongId: group.currentSongId,
-      })
-    }
+    socket.emit("sync-state", {
+      playbackState: {
+        ...group.playbackState,
+        serverTime,
+        currentTrack: currentItem?.song || null,
+      },
+      ...getQueueState(group),
+      currentSongId: group.currentSongId,
+    })
   })
 
   // ==================== QUEUE EVENTS ====================
@@ -511,13 +508,19 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
 
       // If this is the first song, broadcast song change
       if (result.autoPlay && group.queue.length === 1) {
-        const scheduledPlayTime = Date.now() + 2000
+        const serverTime = Date.now()
+        const scheduledPlayTime = serverTime + 2000
         io.to(`music-group-${groupId}`).emit("music-update", {
           song: result.queueItem.song,
           currentTime: 0,
           queueItem: result.queueItem,
           scheduledPlayTime,
+          serverTime,
         })
+
+        group.playbackState.isPlaying = true
+        group.playbackState.currentTime = 0
+        group.playbackState.lastUpdate = scheduledPlayTime
 
         emitActivityMessage(io, groupId, "song-playing", {
           songName: song.name,
@@ -569,13 +572,18 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
       emitActivityMessage(io, groupId, "song-skipped", { userName })
 
       if (result.hasNext) {
-        const scheduledPlayTime = Date.now() + 2000
+        const serverTime = Date.now()
+        const scheduledPlayTime = serverTime + 2000
         io.to(`music-group-${groupId}`).emit("music-update", {
           song: result.currentItem.song,
           currentTime: 0,
           queueItem: result.currentItem,
           scheduledPlayTime,
+          serverTime,
         })
+
+        group.playbackState.currentTime = 0
+        group.playbackState.lastUpdate = scheduledPlayTime
 
         emitActivityMessage(io, groupId, "song-playing", {
           songName: result.currentItem.song.name,
@@ -614,14 +622,19 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
     })
 
     if (result.hasNext) {
-      const scheduledPlayTime = Date.now() + 2000
+      const serverTime = Date.now()
+      const scheduledPlayTime = serverTime + 2000
       io.to(`music-group-${groupId}`).emit("music-update", {
         song: result.currentItem.song,
         currentTime: 0,
         queueItem: result.currentItem,
         autoPlay: true,
         scheduledPlayTime,
+        serverTime,
       })
+
+      group.playbackState.currentTime = 0
+      group.playbackState.lastUpdate = scheduledPlayTime
 
       emitActivityMessage(io, groupId, "song-playing", {
         songName: result.currentItem.song.name,
@@ -683,20 +696,23 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
 
     prunePlayedSongs(group)
 
+    const serverTime = Date.now()
+    const scheduledPlayTime = serverTime + 2000
+
     group.playbackState = {
       ...group.playbackState,
-      currentTime,
+      currentTime: 0,
       currentTrack: song,
-      isPlaying: false,
-      lastUpdate: Date.now(),
+      isPlaying: true,
+      lastUpdate: scheduledPlayTime,
     }
 
-    const scheduledPlayTime = Date.now() + 2000
     io.to(`music-group-${groupId}`).emit("music-update", {
       song,
       currentTime: 0,
       queueItem,
       scheduledPlayTime,
+      serverTime,
     })
 
     io.to(`music-group-${groupId}`).emit("queue-updated", {
@@ -705,41 +721,55 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
     })
   })
 
-  // Update playback state (play/pause)
   socket.on("music-playback", (data) => {
     const group = musicGroups.get(data.groupId)
+    if (!group) return
 
-    if (group) {
-      group.playbackState = {
-        ...group.playbackState,
-        isPlaying: data.isPlaying,
-        currentTime: data.currentTime,
-        lastUpdate: Date.now(),
-      }
-
-      socket.to(`music-group-${data.groupId}`).emit("playback-update", {
-        isPlaying: data.isPlaying,
-        currentTime: data.currentTime,
-      })
+    const serverTime = Date.now()
+    group.playbackState = {
+      ...group.playbackState,
+      isPlaying: data.isPlaying,
+      currentTime: data.currentTime,
+      lastUpdate: serverTime,
     }
+
+    io.to(`music-group-${data.groupId}`).emit("playback-update", {
+      isPlaying: data.isPlaying,
+      currentTime: data.currentTime,
+      serverTime,
+    })
   })
 
-  // Seek to a position
   socket.on("music-seek", (data) => {
     const group = musicGroups.get(data.groupId)
+    if (!group) return
 
-    if (group) {
-      group.playbackState = {
-        ...group.playbackState,
-        currentTime: data.currentTime,
-        lastUpdate: Date.now(),
-      }
-
-      socket.to(`music-group-${data.groupId}`).emit("playback-update", {
-        isPlaying: data.isPlaying,
-        currentTime: data.currentTime,
-      })
+    const serverTime = Date.now()
+    group.playbackState = {
+      ...group.playbackState,
+      currentTime: data.currentTime,
+      isPlaying: data.isPlaying,
+      lastUpdate: serverTime,
     }
+
+    io.to(`music-group-${data.groupId}`).emit("playback-update", {
+      isPlaying: data.isPlaying,
+      currentTime: data.currentTime,
+      serverTime,
+      isSeeking: true,
+    })
+  })
+
+  socket.on("song-reaction", (data) => {
+    const { groupId, emoji, userName } = data
+    const group = musicGroups.get(groupId)
+    if (!group) return
+
+    socket.to(`music-group-${groupId}`).emit("song-reaction", {
+      emoji,
+      userName,
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    })
   })
 
   // Leave a group

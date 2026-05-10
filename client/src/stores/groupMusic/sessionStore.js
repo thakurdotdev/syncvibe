@@ -19,6 +19,7 @@ export const useGroupSessionStore = create((set, get) => ({
   connectionState: "disconnected",
   isRejoining: false,
   upgradeDialog: { open: false, feature: "default", message: "" },
+  floatingReactions: [],
 
   searchResults: [],
   searchQuery: "",

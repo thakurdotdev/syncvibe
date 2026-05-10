@@ -1,5 +1,5 @@
-import { create } from "zustand"
 import { toast } from "sonner"
+import { create } from "zustand"
 
 let audioElement = null
 let syncTimerRef = null
@@ -10,7 +10,7 @@ export const useGroupPlaybackStore = create((set, get) => ({
   currentTime: 0,
   duration: 0,
   currentSong: null,
-  volume: 0.7,
+  volume: 1,
   isLoading: false,
   isSyncing: false,
   syncCountdown: 0,
@@ -74,28 +74,12 @@ export const useGroupPlaybackStore = create((set, get) => ({
 
     const newIsPlaying = typeof forceState === "boolean" ? forceState : !isPlaying
     const currentAudioTime = audioElement.currentTime || 0
-    lastPlaybackActionAt = Date.now()
 
-    try {
-      socket.emit("music-playback", {
-        groupId,
-        isPlaying: newIsPlaying,
-        currentTime: currentAudioTime,
-      })
-
-      if (newIsPlaying) {
-        try {
-          await audioElement.play()
-        } catch (err) {
-          console.error("Error playing audio:", err)
-        }
-      } else {
-        audioElement.pause()
-      }
-      set({ isPlaying: newIsPlaying })
-    } catch (error) {
-      console.error("Playback control error:", error)
-    }
+    socket.emit("music-playback", {
+      groupId,
+      isPlaying: newIsPlaying,
+      currentTime: currentAudioTime,
+    })
   },
 
   handleSeek: (socket, groupId, value) => {
@@ -108,8 +92,6 @@ export const useGroupPlaybackStore = create((set, get) => ({
       currentTime: newTime,
       isPlaying,
     })
-
-    audioElement.currentTime = newTime
   },
 
   handleVolumeChange: (value) => {
@@ -142,6 +124,9 @@ export const useGroupPlaybackStore = create((set, get) => ({
     if (!playbackState) return
     if (get().isSyncing) return
 
+    const recentAction = Date.now() - lastPlaybackActionAt < 4000
+    if (recentAction) return
+
     const serverTrack = playbackState.currentTrack
     const currentItem = serverQueueIndex >= 0 && serverQueue ? serverQueue[serverQueueIndex] : null
 
@@ -165,18 +150,16 @@ export const useGroupPlaybackStore = create((set, get) => ({
 
     if (!audioElement) return
 
-    const serverNow = Date.now() + get().serverTimeOffset
-    const timePassed = (serverNow - playbackState.lastUpdate) / 1000
-    const expectedTime = playbackState.currentTime + (playbackState.isPlaying ? timePassed : 0)
+    const serverNow = playbackState.serverTime || (Date.now() + get().serverTimeOffset)
+    const clientNow = Date.now() + get().serverTimeOffset
+    const timeSinceUpdate = Math.max(0, (clientNow - (playbackState.lastUpdate || serverNow)) / 1000)
+    const expectedTime = playbackState.currentTime + (playbackState.isPlaying ? timeSinceUpdate : 0)
     const actualTime = audioElement.currentTime
     const drift = Math.abs(expectedTime - actualTime)
 
-    if (drift > 0.5 && expectedTime <= (audioElement.duration || Infinity)) {
+    if (drift > 1.0 && expectedTime <= (audioElement.duration || Infinity)) {
       audioElement.currentTime = expectedTime
     }
-
-    const recentAction = Date.now() - lastPlaybackActionAt < 3000
-    if (recentAction) return
 
     if (playbackState.isPlaying && audioElement.paused) {
       try {
@@ -194,33 +177,45 @@ export const useGroupPlaybackStore = create((set, get) => ({
   handlePlaybackUpdate: (data) => {
     if (get().isSyncing) return
     lastPlaybackActionAt = Date.now()
-    const { isPlaying: newIsPlaying, currentTime: newTime } = data
+    const { isPlaying: newIsPlaying, currentTime: newTime, serverTime, isSeeking } = data
 
-    if (audioElement) {
-      audioElement.currentTime = newTime
-      if (newIsPlaying) {
-        audioElement.play().catch(() => {})
-        set({ isPlaying: true })
-      } else {
-        audioElement.pause()
-        set({ isPlaying: false })
-      }
+    if (!audioElement) return
+
+    let adjustedTime = newTime
+    if (serverTime) {
+      const clientNow = Date.now() + get().serverTimeOffset
+      const elapsed = Math.max(0, (clientNow - serverTime) / 1000)
+      adjustedTime = newIsPlaying ? newTime + elapsed : newTime
     }
 
-    set({ currentTime: newTime })
+    const drift = Math.abs(audioElement.currentTime - adjustedTime)
+    if (drift > 0.3 || isSeeking) {
+      audioElement.currentTime = adjustedTime
+    }
+
+    if (newIsPlaying) {
+      audioElement.play().catch(() => { })
+      set({ isPlaying: true })
+    } else {
+      audioElement.pause()
+      set({ isPlaying: false })
+    }
+
+    set({ currentTime: adjustedTime })
   },
 
-  handleMusicUpdate: async ({ song, currentTime, queueItem, autoPlay, scheduledPlayTime }, socket, groupId) => {
+  handleMusicUpdate: async ({ song, currentTime, queueItem, autoPlay, scheduledPlayTime, serverTime }, socket, groupId) => {
     if (syncTimerRef) clearInterval(syncTimerRef)
+    lastPlaybackActionAt = Date.now()
 
     set({ currentSong: song })
     const url = song.download_url.find((u) => u.quality === "320kbps")?.link
-    const { isPlaying, loadAudio } = get()
+    const { loadAudio } = get()
 
     if (scheduledPlayTime) {
       set({ isSyncing: true })
-      const serverNow = Date.now() + get().serverTimeOffset
-      const totalDelay = Math.max(0, scheduledPlayTime - serverNow)
+      const clientNow = Date.now() + get().serverTimeOffset
+      const totalDelay = Math.max(0, scheduledPlayTime - clientNow)
       set({ syncCountdown: Math.ceil(totalDelay / 1000) })
 
       syncTimerRef = setInterval(() => {
@@ -240,7 +235,8 @@ export const useGroupPlaybackStore = create((set, get) => ({
 
       setTimeout(async () => {
         set({ isSyncing: false, syncCountdown: 0 })
-        if (audioElement && audioElement.src) {
+        lastPlaybackActionAt = Date.now()
+        if (audioElement?.src) {
           audioElement.currentTime = currentTime || 0
           try {
             await audioElement.play()
@@ -255,7 +251,7 @@ export const useGroupPlaybackStore = create((set, get) => ({
         await loadAudio(url, queueItem?.id, socket, groupId)
         if (audioElement) {
           audioElement.currentTime = currentTime
-          if (autoPlay || isPlaying) {
+          if (autoPlay) {
             try {
               await audioElement.play()
               set({ isPlaying: true })

@@ -1,13 +1,13 @@
-import { useSocket } from "@/Context/ChatContext"
-import { useProfile } from "@/Context/Context"
-import UpgradeDialog from "@/components/UpgradeDialog"
-import InviteNotification from "@/components/InviteNotification"
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
+import { useSocket } from "@/Context/ChatContext"
+import { useProfile } from "@/Context/Context"
+import InviteNotification from "@/components/InviteNotification"
+import UpgradeDialog from "@/components/UpgradeDialog"
+import { useGroupInviteStore } from "@/stores/groupMusic/inviteStore"
 import { useGroupPlaybackStore } from "@/stores/groupMusic/playbackStore"
 import { useGroupSessionStore } from "@/stores/groupMusic/sessionStore"
-import { useGroupInviteStore } from "@/stores/groupMusic/inviteStore"
 
 export const GroupMusicContext = createContext(null)
 
@@ -87,7 +87,7 @@ export function GroupMusicProvider({ children }) {
       socket.emit("request-sync", { groupId: currentGroup.id })
     }
 
-    periodicSyncRef.current = setInterval(requestSync, 5000)
+    periodicSyncRef.current = setInterval(requestSync, 10000)
     return () => {
       if (periodicSyncRef.current) clearInterval(periodicSyncRef.current)
     }
@@ -230,6 +230,12 @@ export function GroupMusicProvider({ children }) {
     socket.on("invite-accepted", ({ userName }) => toast.success(`${userName} accepted the invite!`))
     socket.on("group-invite-declined", () => toast.info("Invite was declined"))
 
+    socket.on("song-reaction", (data) => {
+      ss.setState((state) => ({
+        floatingReactions: [...state.floatingReactions.slice(-20), data],
+      }))
+    })
+
     return () => {
       const events = [
         "sync-state", "queue-updated", "queue-error", "queue-ended",
@@ -237,7 +243,7 @@ export function GroupMusicProvider({ children }) {
         "group-rejoined", "group-not-found", "member-joined", "member-left",
         "group-disbanded", "new-message", "group-full", "feature-locked",
         "group-invite-received", "invite-sent", "invite-error",
-        "invite-accepted", "group-invite-declined",
+        "invite-accepted", "group-invite-declined", "song-reaction",
       ]
       events.forEach((e) => socket.off(e))
     }
@@ -322,6 +328,25 @@ export function GroupMusicProvider({ children }) {
     [socket, user, session.currentGroup],
   )
 
+  const wrappedSendReaction = useCallback(
+    (emoji) => {
+      if (!socket || !session.currentGroup?.id || !user) return
+      const reactionData = {
+        groupId: session.currentGroup.id,
+        emoji,
+        userName: user.name,
+      }
+      socket.emit("song-reaction", reactionData)
+      useGroupSessionStore.setState((state) => ({
+        floatingReactions: [...state.floatingReactions.slice(-20), {
+          ...reactionData,
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        }],
+      }))
+    },
+    [socket, session.currentGroup?.id, user],
+  )
+
   const contextValue = {
     currentGroup: session.currentGroup,
     setCurrentGroup: (v) => useGroupSessionStore.setState({ currentGroup: v }),
@@ -400,6 +425,7 @@ export function GroupMusicProvider({ children }) {
     setIsInviteSheetOpen: (v) => useGroupInviteStore.setState({ isInviteSheetOpen: v }),
 
     selectSong: wrappedPlayNow,
+    sendReaction: wrappedSendReaction,
   }
 
   return (

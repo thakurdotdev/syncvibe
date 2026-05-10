@@ -55,9 +55,3 @@ const GroupInvite = sequelize.define(
 )
 
 module.exports = GroupInvite
-
-GroupInvite.sync({ alter: true }).then(() => {
-  console.log("GroupInvite table synced")
-}).catch((err) => {
-  console.error("GroupInvite sync error:", err)
-})
