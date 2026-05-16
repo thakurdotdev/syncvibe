@@ -187,6 +187,55 @@ export const useGroupSessionStore = create((set, get) => ({
     set({ isSearchOpen: false, searchQuery: "", searchResults: [] })
   },
 
+  playNext: (socket, user, song) => {
+    const { currentGroup } = get()
+    if (!currentGroup?.id || !user) return
+
+    const securedSong = ensureHttpsForDownloadUrls(song)
+    socket.emit("play-next", {
+      groupId: currentGroup.id,
+      song: securedSong,
+      addedBy: {
+        userId: user.userid,
+        userName: user.name,
+        profilePic: user.profilepic,
+      },
+    })
+
+    set({ isSearchOpen: false, searchQuery: "", searchResults: [] })
+    toast.success("Playing next")
+  },
+
+  addPlaylistToQueue: (socket, user, songs) => {
+    const { currentGroup, queue } = get()
+    if (!currentGroup?.id || !user || !songs?.length) return
+
+    const maxQueueSize = currentGroup?.settings?.maxQueueSize || 3
+    if (queue.length >= maxQueueSize) {
+      set({
+        upgradeDialog: {
+          open: true,
+          feature: "queueLimit",
+          message: `Free plan allows only ${maxQueueSize} songs in queue. Upgrade to PRO for up to 50.`,
+        },
+      })
+      return
+    }
+
+    const securedSongs = songs.map(ensureHttpsForDownloadUrls)
+    socket.emit("add-playlist-to-queue", {
+      groupId: currentGroup.id,
+      songs: securedSongs,
+      addedBy: {
+        userId: user.userid,
+        userName: user.name,
+        profilePic: user.profilepic,
+      },
+    })
+
+    toast.success(`Adding ${songs.length} songs to queue`)
+  },
+
   removeFromQueue: (socket, user, queueItemId) => {
     const { currentGroup } = get()
     if (!currentGroup?.id || !user) return

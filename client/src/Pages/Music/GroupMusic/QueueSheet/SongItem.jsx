@@ -3,13 +3,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { ListPlus, MoreVertical, Play } from "lucide-react"
+import { Bookmark, ListPlus, MoreVertical, Play, SkipForward } from "lucide-react"
 import { memo, useCallback, useMemo, useState } from "react"
 
-const SongItem = memo(({ song, onPlayNow, onAddToQueue, compact = false }) => {
+const SongItem = memo(({ song, onPlayNow, onAddToQueue, onPlayNext, onSaveToPlaylist, compact = false }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const handlePlayNow = useCallback(() => {
@@ -21,6 +22,16 @@ const SongItem = memo(({ song, onPlayNow, onAddToQueue, compact = false }) => {
     onAddToQueue(song)
     setIsMenuOpen(false)
   }, [song, onAddToQueue])
+
+  const handlePlayNext = useCallback(() => {
+    onPlayNext?.(song)
+    setIsMenuOpen(false)
+  }, [song, onPlayNext])
+
+  const handleSave = useCallback(() => {
+    onSaveToPlaylist?.(song)
+    setIsMenuOpen(false)
+  }, [song, onSaveToPlaylist])
 
   const artistName = useMemo(
     () => song.artist_map?.primary_artists?.[0]?.name || "Unknown Artist",
@@ -93,15 +104,30 @@ const SongItem = memo(({ song, onPlayNow, onAddToQueue, compact = false }) => {
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44 rounded-xl">
+          <DropdownMenuContent align="end" className="w-48 rounded-xl">
             <DropdownMenuItem onClick={handlePlayNow} className="gap-2.5 cursor-pointer rounded-lg">
               <Play className="h-4 w-4" />
               Play Now
             </DropdownMenuItem>
+            {onPlayNext && (
+              <DropdownMenuItem onClick={handlePlayNext} className="gap-2.5 cursor-pointer rounded-lg">
+                <SkipForward className="h-4 w-4" />
+                Play Next
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={handleAddToQueue} className="gap-2.5 cursor-pointer rounded-lg">
               <ListPlus className="h-4 w-4" />
               Add to Queue
             </DropdownMenuItem>
+            {onSaveToPlaylist && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSave} className="gap-2.5 cursor-pointer rounded-lg">
+                  <Bookmark className="h-4 w-4" />
+                  Save to Playlist
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

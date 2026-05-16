@@ -17,12 +17,12 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVertical, ListMusic, Play, Sparkles, Trash2 } from "lucide-react"
+import { Bookmark, GripVertical, ListMusic, Play, Sparkles, Trash2 } from "lucide-react"
 import { memo, useCallback, useMemo, useState } from "react"
 import { motion } from "framer-motion"
 
 const SortableQueueItem = memo(
-  ({ item, isPlaying, onRemove, onFetchRecs }) => {
+  ({ item, isPlaying, onRemove, onFetchRecs, onSaveToPlaylist }) => {
     const {
       attributes,
       listeners,
@@ -41,6 +41,7 @@ const SortableQueueItem = memo(
 
     const handleRemove = useCallback(() => onRemove(item.id), [item.id, onRemove])
     const handleRecs = useCallback(() => onFetchRecs?.(item.song?.id), [item.song?.id, onFetchRecs])
+    const handleSave = useCallback(() => onSaveToPlaylist?.(item.song), [item.song, onSaveToPlaylist])
 
     return (
       <div
@@ -104,28 +105,41 @@ const SortableQueueItem = memo(
           </AvatarFallback>
         </Avatar>
 
-        {!isPlaying && (
-          <div className="flex items-center gap-0.5 shrink-0">
+        <div className="flex items-center gap-0.5 shrink-0">
+          {onSaveToPlaylist && (
             <Button
               variant="ghost"
               size="icon"
-              onClick={handleRecs}
+              onClick={handleSave}
               className="h-7 w-7 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 cursor-pointer"
-              title="Get recommendations"
+              title="Save to playlist"
             >
-              <Sparkles className="h-3.5 w-3.5" />
+              <Bookmark className="h-3.5 w-3.5" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleRemove}
-              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
-              title="Remove from queue"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        )}
+          )}
+          {!isPlaying && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRecs}
+                className="h-7 w-7 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 cursor-pointer"
+                title="Get recommendations"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRemove}
+                className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                title="Remove from queue"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
+        </div>
       </div>
     )
   },
@@ -175,9 +189,9 @@ const QueueList = memo(({
   removeFromQueue,
   reorderQueue,
   onFetchRecs,
+  onSaveToPlaylist,
   user,
   currentGroup,
-  children,
 }) => {
   const [activeId, setActiveId] = useState(null)
 
@@ -230,6 +244,7 @@ const QueueList = memo(({
               isPlaying={true}
               onRemove={removeFromQueue}
               onFetchRecs={onFetchRecs}
+              onSaveToPlaylist={onSaveToPlaylist}
             />
           </div>
         )}
@@ -258,6 +273,7 @@ const QueueList = memo(({
                       isPlaying={false}
                       onRemove={removeFromQueue}
                       onFetchRecs={onFetchRecs}
+                      onSaveToPlaylist={onSaveToPlaylist}
                     />
                   ))}
                 </div>
@@ -268,8 +284,6 @@ const QueueList = memo(({
             </DndContext>
           </div>
         )}
-
-        {children}
       </div>
     </motion.div>
   )

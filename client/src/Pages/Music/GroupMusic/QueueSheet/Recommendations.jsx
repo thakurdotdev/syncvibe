@@ -1,138 +1,153 @@
 import { Button } from "@/components/ui/button"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
-import { ChevronDown, ChevronUp, ListPlus, Loader2, Plus, Sparkles } from "lucide-react"
-import { memo, useCallback, useState } from "react"
-import { AnimatePresence, motion } from "framer-motion"
+import { ListPlus, Loader2, Music, Sparkles } from "lucide-react"
+import { memo } from "react"
+import { motion } from "framer-motion"
+import SongItem from "./SongItem"
 
-const RecCard = memo(({ song, onAdd }) => {
-  const [added, setAdded] = useState(false)
+const Recommendations = memo(
+  ({
+    recommendations,
+    isLoading,
+    sourceName,
+    onPlayNow,
+    onPlayNext,
+    onAddToQueue,
+    onAddAll,
+    onSaveToPlaylist,
+  }) => {
+    const hasRecommendations = recommendations?.length > 0
 
-  const handleAdd = useCallback((e) => {
-    e.stopPropagation()
-    if (added) return
-    onAdd(song)
-    setAdded(true)
-  }, [song, onAdd, added])
+    return (
+      <motion.div
+        key="recommendations"
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -4 }}
+        transition={{ duration: 0.2 }}
+        className="px-2 py-3"
+      >
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center h-64 gap-6">
+            <div className="relative">
+              {/* Magic sparkles surrounding the loader */}
+              <motion.div
+                animate={{
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 90, 180, 270, 360],
+                  opacity: [0.3, 0.6, 0.3]
+                }}
+                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                className="absolute -inset-8 border border-dashed border-primary/20 rounded-full"
+              />
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.25 }}
-      className={cn(
-        "flex-none w-[130px] sm:w-[140px] rounded-xl overflow-hidden group/card",
-        "bg-accent/30 border border-border/30 hover:border-primary/30",
-        "hover:shadow-lg hover:shadow-primary/5 transition-all duration-300",
-        added && "opacity-40 pointer-events-none",
-      )}
-    >
-      <div className="relative aspect-square w-full overflow-hidden">
-        <img
-          src={song.image?.[1]?.link || song.image?.[2]?.link}
-          alt={song.name}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-110"
-          loading="lazy"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-300" />
-        <button
-          onClick={handleAdd}
-          className={cn(
-            "absolute bottom-2 right-2 p-1.5 rounded-full transition-all duration-200 cursor-pointer",
-            "shadow-lg backdrop-blur-sm",
-            added
-              ? "bg-emerald-500 text-white scale-100"
-              : "bg-primary text-primary-foreground hover:scale-110 active:scale-95",
-          )}
-        >
-          {added ? (
-            <span className="text-[10px] font-bold px-0.5">✓</span>
-          ) : (
-            <Plus className="h-3.5 w-3.5" />
-          )}
-        </button>
-      </div>
-      <div className="px-2.5 py-2">
-        <p className="text-xs font-medium truncate leading-tight">{song.name}</p>
-        <p className="text-[11px] text-muted-foreground/70 truncate leading-tight mt-0.5">
-          {song.artist_map?.primary_artists?.[0]?.name || song.artist_map?.artists?.[0]?.name || "Unknown"}
-        </p>
-      </div>
-    </motion.div>
-  )
-})
+              {[...Array(3)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute"
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{
+                    opacity: [0, 1, 0],
+                    scale: [0, 1, 0],
+                    x: Math.cos(i * 120 * Math.PI / 180) * 30,
+                    y: Math.sin(i * 120 * Math.PI / 180) * 30,
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    delay: i * 0.4,
+                    ease: "easeInOut"
+                  }}
+                >
+                  <Sparkles className="h-3 w-3 text-primary shadow-lg shadow-primary/20" />
+                </motion.div>
+              ))}
 
-const Recommendations = memo(({ recommendations, isLoading, sourceName, onAddToQueue, onAddAll }) => {
-  const [collapsed, setCollapsed] = useState(false)
-
-  const toggle = useCallback(() => setCollapsed((c) => !c), [])
-
-  if (!isLoading && (!recommendations || recommendations.length === 0)) return null
-
-  return (
-    <div className="mt-5 pb-2">
-      <div className="flex items-center justify-between mb-3 px-1">
-        <button
-          onClick={toggle}
-          className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider hover:text-foreground transition-colors cursor-pointer"
-        >
-          <div className="p-1 rounded-md bg-primary/10">
-            <Sparkles className="h-3 w-3 text-primary" />
-          </div>
-          <span className="text-muted-foreground">Recommended</span>
-          {sourceName && (
-            <span className="normal-case tracking-normal text-muted-foreground/40 max-w-[100px] sm:max-w-[140px] truncate text-[11px] font-normal">
-              — {sourceName}
-            </span>
-          )}
-          {collapsed ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronUp className="h-3 w-3 text-muted-foreground" />}
-        </button>
-
-        {!collapsed && recommendations?.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onAddAll}
-            className="h-7 text-xs gap-1.5 text-primary hover:text-primary hover:bg-primary/10 rounded-lg cursor-pointer"
-          >
-            <ListPlus className="h-3.5 w-3.5" />
-            Add All
-          </Button>
-        )}
-      </div>
-
-      <AnimatePresence>
-        {!collapsed && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            {isLoading ? (
-              <div className="flex items-center justify-center py-10 gap-2.5">
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-                  <Loader2 className="h-5 w-5 animate-spin text-primary relative" />
-                </div>
-                <span className="text-sm text-muted-foreground font-medium">Finding similar songs...</span>
+              <div className="relative p-4 rounded-3xl bg-primary/5 border border-primary/10 shadow-inner">
+                <Loader2 className="h-8 w-8 animate-spin text-primary relative z-10" />
+                <motion.div
+                  className="absolute inset-0 rounded-3xl bg-primary/10"
+                  animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.2, 0.5] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
               </div>
-            ) : (
-              <ScrollArea className="w-full">
-                <div className="flex gap-2.5 pb-3 px-1">
-                  {recommendations.map((song) => (
-                    <RecCard key={song.id} song={song} onAdd={onAddToQueue} />
-                  ))}
+            </div>
+
+            <div className="text-center space-y-2 max-w-[240px]">
+              <motion.p
+                className="text-sm font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground via-primary to-foreground bg-[length:200%_auto]"
+                animate={{ backgroundPosition: ["0% center", "200% center"] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+              >
+                Curating your next vibe...
+              </motion.p>
+              {sourceName && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-[11px] text-muted-foreground/60 font-medium px-4 py-1 rounded-full bg-accent/30 inline-block truncate max-w-full"
+                >
+                  Analyzing <span className="text-primary/70 italic">"{sourceName}"</span>
+                </motion.p>
+              )}
+            </div>
+          </div>
+        ) : !hasRecommendations ? (
+          <div className="flex flex-col items-center justify-center h-52 gap-3">
+            <div className="p-4 rounded-2xl bg-accent/40">
+              <Music className="h-8 w-8 text-muted-foreground/40" />
+            </div>
+            <div className="text-center">
+              <p className="text-muted-foreground text-sm font-medium">No recommendations yet</p>
+              <p className="text-muted-foreground/60 text-xs mt-1">
+                Play a song to get tailored recommendations
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between px-2 mb-3">
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Recommended
+                  </p>
                 </div>
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            )}
-          </motion.div>
+                {sourceName && (
+                  <p className="text-[10px] text-muted-foreground/40 mt-0.5 truncate max-w-[180px]">
+                    Inspired by {sourceName}
+                  </p>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onAddAll}
+                className="h-8 px-3 text-xs gap-2 text-primary hover:text-primary hover:bg-primary/10 rounded-lg cursor-pointer"
+              >
+                <ListPlus className="h-4 w-4" />
+                Add All
+              </Button>
+            </div>
+
+            <div className="space-y-0.5">
+              {recommendations.map((song) => (
+                <SongItem
+                  key={song.id}
+                  song={song}
+                  onPlayNow={onPlayNow}
+                  onAddToQueue={onAddToQueue}
+                  onPlayNext={onPlayNext}
+                  onSaveToPlaylist={onSaveToPlaylist}
+                />
+              ))}
+            </div>
+          </>
         )}
-      </AnimatePresence>
-    </div>
-  )
-})
+      </motion.div>
+    )
+  },
+)
 
 export default Recommendations

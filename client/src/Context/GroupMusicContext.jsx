@@ -298,6 +298,11 @@ export function GroupMusicProvider({ children }) {
     [socket, user],
   )
 
+  const wrappedPlayNext = useCallback(
+    (song) => session.playNext(socket, user, song),
+    [socket, user],
+  )
+
   const wrappedRemoveFromQueue = useCallback(
     (id) => session.removeFromQueue(socket, user, id),
     [socket, user],
@@ -311,6 +316,11 @@ export function GroupMusicProvider({ children }) {
   const wrappedReorderQueue = useCallback(
     (from, to) => session.reorderQueue(socket, from, to),
     [socket],
+  )
+
+  const wrappedAddPlaylistToQueue = useCallback(
+    (songs) => session.addPlaylistToQueue(socket, user, songs),
+    [socket, user],
   )
 
   const wrappedAcceptInvite = useCallback(
@@ -406,9 +416,11 @@ export function GroupMusicProvider({ children }) {
 
     addToQueue: wrappedAddToQueue,
     playNow: wrappedPlayNow,
+    playNext: wrappedPlayNext,
     removeFromQueue: wrappedRemoveFromQueue,
     skipSong: wrappedSkipSong,
     reorderQueue: wrappedReorderQueue,
+    addPlaylistToQueue: wrappedAddPlaylistToQueue,
 
     createGroup: wrappedCreateGroup,
     joinGroup: wrappedJoinGroup,

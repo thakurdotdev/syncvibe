@@ -3,7 +3,7 @@ import { memo } from "react"
 import { motion } from "framer-motion"
 import SongItem from "./SongItem"
 
-const SearchResults = memo(({ searchQuery, searchResults, isSearchLoading, onPlayNow, onAddToQueue }) => {
+const SearchResults = memo(({ searchQuery, searchResults, isSearchLoading, onPlayNow, onAddToQueue, onPlayNext, onSaveToPlaylist }) => {
   const hasResults = searchResults?.length > 0
 
   return (
@@ -52,6 +52,8 @@ const SearchResults = memo(({ searchQuery, searchResults, isSearchLoading, onPla
                 song={song}
                 onPlayNow={onPlayNow}
                 onAddToQueue={onAddToQueue}
+                onPlayNext={onPlayNext}
+                onSaveToPlaylist={onSaveToPlaylist}
               />
             ))}
           </div>

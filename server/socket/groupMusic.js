@@ -168,6 +168,45 @@ const addToQueue = (group, song, addedBy) => {
   return { success: true, queueItem, autoPlay: shouldAutoPlay }
 }
 
+const addPlayNext = (group, song, addedBy) => {
+  if (group.queue.length >= group.settings.maxQueueSize) {
+    return { success: false, error: "Queue is full" }
+  }
+
+  const isDuplicate = group.queue.some((item) => item.song?.id === song?.id)
+  if (isDuplicate) {
+    return { success: false, error: "Song is already in the queue" }
+  }
+
+  const queueItem = {
+    id: generateQueueItemId(),
+    song,
+    addedBy: {
+      userId: addedBy.userId,
+      userName: addedBy.userName,
+      profilePic: addedBy.profilePic,
+    },
+    addedAt: Date.now(),
+    status: "pending",
+  }
+
+  if (group.currentQueueIndex === -1) {
+    group.queue.push(queueItem)
+    group.currentQueueIndex = 0
+    group.currentSongId = queueItem.id
+    queueItem.status = "playing"
+    group.playbackState.currentTrack = song
+    group.playbackState.currentTime = 0
+    group.playbackState.isPlaying = true
+    group.playbackState.lastUpdate = Date.now()
+    return { success: true, queueItem, autoPlay: true }
+  }
+
+  const insertIndex = group.currentQueueIndex + 1
+  group.queue.splice(insertIndex, 0, queueItem)
+  return { success: true, queueItem, autoPlay: false }
+}
+
 /**
  * Remove song from queue
  */
@@ -529,6 +568,100 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
       }
     } else {
       socket.emit("queue-error", { error: result.error })
+    }
+  })
+
+  socket.on("play-next", (data) => {
+    const { groupId, song, addedBy } = data
+    const group = musicGroups.get(groupId)
+    if (!group) return
+
+    const result = addPlayNext(group, song, addedBy)
+
+    if (result.success) {
+      io.to(`music-group-${groupId}`).emit("queue-updated", {
+        ...getQueueState(group),
+        action: "play-next",
+        item: result.queueItem,
+      })
+
+      emitActivityMessage(io, groupId, "song-added", {
+        userName: addedBy.userName,
+        songName: song.name,
+      })
+
+      if (result.autoPlay) {
+        const serverTime = Date.now()
+        const scheduledPlayTime = serverTime + 2000
+        io.to(`music-group-${groupId}`).emit("music-update", {
+          song: result.queueItem.song,
+          currentTime: 0,
+          queueItem: result.queueItem,
+          scheduledPlayTime,
+          serverTime,
+        })
+
+        group.playbackState.isPlaying = true
+        group.playbackState.currentTime = 0
+        group.playbackState.lastUpdate = scheduledPlayTime
+
+        emitActivityMessage(io, groupId, "song-playing", {
+          songName: song.name,
+          addedBy: addedBy.userName,
+        })
+      }
+    } else {
+      socket.emit("queue-error", { error: result.error })
+    }
+  })
+
+  socket.on("add-playlist-to-queue", (data) => {
+    const { groupId, songs, addedBy } = data
+    const group = musicGroups.get(groupId)
+    if (!group) return
+
+    let addedCount = 0
+    const errors = []
+
+    for (const song of songs) {
+      const result = addToQueue(group, song, addedBy)
+      if (result.success) {
+        addedCount++
+        if (result.autoPlay && addedCount === 1) {
+          const serverTime = Date.now()
+          const scheduledPlayTime = serverTime + 2000
+          io.to(`music-group-${groupId}`).emit("music-update", {
+            song: result.queueItem.song,
+            currentTime: 0,
+            queueItem: result.queueItem,
+            scheduledPlayTime,
+            serverTime,
+          })
+          group.playbackState.isPlaying = true
+          group.playbackState.currentTime = 0
+          group.playbackState.lastUpdate = scheduledPlayTime
+
+          emitActivityMessage(io, groupId, "song-playing", {
+            songName: song.name,
+            addedBy: addedBy.userName,
+          })
+        }
+      } else {
+        if (result.error === "Queue is full") break
+        errors.push(result.error)
+      }
+    }
+
+    if (addedCount > 0) {
+      io.to(`music-group-${groupId}`).emit("queue-updated", {
+        ...getQueueState(group),
+        action: "playlist-added",
+        addedCount,
+      })
+    }
+
+    if (addedCount === 0 && errors.length > 0) {
+      socket.emit("queue-error", { error: errors[0] })
     }
   })
 
