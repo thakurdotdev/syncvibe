@@ -301,7 +301,7 @@ const NowPlayingTab = memo(({ currentSong }) => {
           }}
         >
           <div key={textKey} className="space-y-2 np-text-in">
-            <SheetTitle className="text-3xl xl:text-[2.5rem] font-bold line-clamp-2 text-white tracking-tight leading-[1.15]">
+            <SheetTitle className="text-3xl xl:text-[2rem] font-bold line-clamp-1 text-white tracking-tight leading-[1.15]">
               {he.decode(currentSong.name)}
             </SheetTitle>
             <p className="text-base xl:text-lg text-white/50 line-clamp-1">{he.decode(artistName)}</p>

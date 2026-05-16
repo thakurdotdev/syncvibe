@@ -1,8 +1,9 @@
 import { useDraggable } from "@dnd-kit/core"
 import he from "he"
-import { Pause, Play } from "lucide-react"
+import { Pause, Play, Maximize2 } from "lucide-react"
 import { memo, useMemo } from "react"
 import { usePlayerStore } from "@/stores/playerStore"
+import { cn } from "@/lib/utils"
 
 const ProgressRing = memo(({ progress, size = 44, strokeWidth = 2.5 }) => {
   const radius = (size - strokeWidth) / 2
@@ -10,9 +11,9 @@ const ProgressRing = memo(({ progress, size = 44, strokeWidth = 2.5 }) => {
   const strokeDashoffset = circumference - (progress / 100) * circumference
 
   return (
-    <svg className="progress-ring absolute inset-0" width={size} height={size}>
+    <svg className="absolute inset-0 -rotate-90" width={size} height={size}>
       <circle
-        className="text-white/10"
+        className="text-white/5"
         strokeWidth={strokeWidth}
         stroke="currentColor"
         fill="transparent"
@@ -21,10 +22,11 @@ const ProgressRing = memo(({ progress, size = 44, strokeWidth = 2.5 }) => {
         cy={size / 2}
       />
       <circle
-        className="progress-ring-circle text-primary"
+        className="text-primary transition-all duration-500 ease-out"
         strokeWidth={strokeWidth}
         strokeDasharray={circumference}
         strokeDashoffset={strokeDashoffset}
+        strokeLinecap="round"
         stroke="currentColor"
         fill="transparent"
         r={radius}
@@ -36,10 +38,14 @@ const ProgressRing = memo(({ progress, size = 44, strokeWidth = 2.5 }) => {
 })
 
 const AudioWaveVisual = memo(() => (
-  <div className="flex items-center gap-0.5 h-4">
-    <div className="audio-bar" style={{ animationDelay: "0s" }} />
-    <div className="audio-bar" style={{ animationDelay: "0.2s" }} />
-    <div className="audio-bar" style={{ animationDelay: "0.4s" }} />
+  <div className="flex items-center gap-0.5 h-3">
+    {[0, 0.2, 0.4].map((delay) => (
+      <div
+        key={delay}
+        className="w-0.5 h-full bg-primary animate-music-bar"
+        style={{ animationDelay: `${delay}s` }}
+      />
+    ))}
   </div>
 ))
 
@@ -56,7 +62,8 @@ const DraggableButton = memo(({ position, onMaximize, currentSong, isDragging })
   const songImage = useMemo(
     () =>
       currentSong?.image?.[2]?.link ||
-      "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/f_auto/v1731395454/j6r5zemodfexdxid4gcx.png",
+      currentSong?.image?.[1]?.link ||
+      "https://res.cloudinary.com/dr7lkelwl/image/upload/v1731395454/j6r5zemodfexdxid4gcx.png",
     [currentSong],
   )
 
@@ -71,36 +78,67 @@ const DraggableButton = memo(({ position, onMaximize, currentSong, isDragging })
     left: transform ? position.x + transform.x : position.x,
     touchAction: "none",
     zIndex: 9999,
-    cursor: isDragging ? "grabbing" : "grab",
   }
 
+  const artists = useMemo(() => {
+    const artistData = currentSong?.artist_map?.artists
+      ?.slice(0, 2)
+      ?.map((artist) => artist.name)
+      .join(", ") ||
+      currentSong?.primaryArtists ||
+      currentSong?.artist
+
+    return artistData ? he.decode(artistData) : "Unknown Artist"
+  }, [currentSong])
+
   return (
-    <div ref={setNodeRef} {...attributes} {...listeners} style={style} className="select-none">
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      style={style}
+      className="select-none group"
+    >
       <div
-        className={`flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-[#1a1a1a] border border-white/8 transition-transform ${
-          isDragging ? "scale-105" : ""
-        }`}
+        className={cn(
+          "liquid-glass flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full transition-all duration-500 overflow-hidden relative",
+          isDragging ? "scale-110 cursor-grabbing brightness-110" : "cursor-grab hover:scale-105 hover:brightness-110",
+        )}
       >
+        {/* Dynamic Ambient Background */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <img
+            src={songImage}
+            alt=""
+            className="w-full h-full object-cover blur-2xl opacity-40 scale-150 transition-all duration-1000"
+          />
+          <div className="absolute inset-0 bg-black/10" />
+        </div>
+
         <div
-          className="relative w-11 h-11 shrink-0 cursor-pointer"
+          className="relative w-9 h-9 shrink-0 shadow-lg"
           onClick={(e) => {
             e.stopPropagation()
             if (!isDragging) handlePlayPause()
           }}
         >
-          <ProgressRing progress={progress} size={44} strokeWidth={2.5} />
-          <div className="absolute inset-[3px] rounded-full overflow-hidden">
+          <ProgressRing progress={progress} size={36} strokeWidth={2} />
+          <div className="absolute inset-[2px] rounded-full overflow-hidden border border-white/10">
             <img
               src={songImage}
               alt=""
-              className={`w-full h-full object-cover ${isPlaying ? "rotate-animation" : ""}`}
+              className="w-full h-full object-cover"
+              style={{
+                animation: isPlaying ? "album-spin 10s linear infinite" : "none",
+              }}
+              draggable={false}
             />
           </div>
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 hover:opacity-100 transition-opacity">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             {isPlaying ? (
-              <Pause size={14} className="text-white" fill="currentColor" />
+              <Pause size={12} className="text-white fill-white" />
             ) : (
-              <Play size={14} className="text-white ml-0.5" fill="currentColor" />
+              <Play size={12} className="text-white fill-white ml-0.5" />
             )}
           </div>
         </div>
@@ -110,19 +148,28 @@ const DraggableButton = memo(({ position, onMaximize, currentSong, isDragging })
             e.stopPropagation()
             if (!isDragging) onMaximize()
           }}
-          className="flex items-center gap-2 cursor-pointer"
+          className="flex flex-col min-w-0 max-w-[120px] cursor-pointer"
         >
-          {isPlaying && <AudioWaveVisual />}
-          <span className="text-sm text-white font-medium max-w-[80px] truncate">
-            {he.decode(currentSong?.name || "")}
+          <span className="text-[12.5px] text-white font-bold truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+            {he.decode(currentSong?.name || "Unknown")}
+          </span>
+          <span className="text-[10.5px] text-white/70 truncate font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+            {artists}
           </span>
         </div>
+      </div>
+      
+      {/* Dynamic Glow */}
+      <div className="absolute -inset-4 pointer-events-none -z-20 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-700">
+         <img
+            src={songImage}
+            alt=""
+            className="w-full h-full object-cover blur-3xl opacity-30 scale-150"
+          />
       </div>
     </div>
   )
 })
 
-ProgressRing.displayName = "ProgressRing"
-AudioWaveVisual.displayName = "AudioWaveVisual"
 DraggableButton.displayName = "DraggableButton"
 export default DraggableButton

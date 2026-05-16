@@ -5,9 +5,23 @@ import DraggableButton from "./DraggableButton"
 const BUTTON_SIZE = 56
 
 const MinimizedPlayer = memo(({ isMinimized, onMaximize, currentSong, isMobile }) => {
-  const [position, setPosition] = useState({
-    x: isMobile ? window.innerWidth - 180 : 23,
-    y: isMobile ? window.innerHeight - 100 : window.innerHeight - 120,
+  const [position, setPosition] = useState(() => {
+    const saved = localStorage.getItem("minimized-player-position")
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        return {
+          x: Math.min(parsed.x, window.innerWidth - BUTTON_SIZE),
+          y: Math.min(parsed.y, window.innerHeight - BUTTON_SIZE),
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    return {
+      x: isMobile ? window.innerWidth - 180 : 23,
+      y: isMobile ? window.innerHeight - 100 : window.innerHeight - 120,
+    }
   })
   const [isDragging, setIsDragging] = useState(false)
 
@@ -45,10 +59,14 @@ const MinimizedPlayer = memo(({ isMinimized, onMaximize, currentSong, isMobile }
     const { delta } = event
 
     if (delta) {
-      setPosition((prev) => ({
-        x: Math.min(Math.max(0, prev.x + delta.x), window.innerWidth - BUTTON_SIZE),
-        y: Math.min(Math.max(0, prev.y + delta.y), window.innerHeight - BUTTON_SIZE),
-      }))
+      setPosition((prev) => {
+        const newPos = {
+          x: Math.min(Math.max(0, prev.x + delta.x), window.innerWidth - BUTTON_SIZE),
+          y: Math.min(Math.max(0, prev.y + delta.y), window.innerHeight - BUTTON_SIZE),
+        }
+        localStorage.setItem("minimized-player-position", JSON.stringify(newPos))
+        return newPos
+      })
     }
 
     setIsDragging(false)

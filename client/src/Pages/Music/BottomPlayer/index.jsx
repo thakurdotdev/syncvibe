@@ -21,7 +21,10 @@ const BottomPlayer = () => {
   const isMobile = useIsMobile()
   const appMode = useAppModeStore((s) => s.mode)
   const hasMobileNav = isMobile && appMode === "music"
-  const [isMinimized, setIsMinimized] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(() => {
+    const saved = localStorage.getItem("bottom-player-minimized")
+    return saved ? JSON.parse(saved) : false
+  })
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const lastFetchedForId = useRef(null)
@@ -46,20 +49,36 @@ const BottomPlayer = () => {
     }
   }, [recommendations, shouldFetch, currentSong?.id, addToQueue])
 
+  useEffect(() => {
+    localStorage.setItem("bottom-player-minimized", JSON.stringify(isMinimized))
+  }, [isMinimized])
+
+
   if (!currentSong) return null
+
+  const songImage = currentSong?.image?.[2]?.link || currentSong?.image?.[1]?.link
 
   return (
     <>
       <Card
         className={cn(
-          "fixed left-0 w-full border-0 bg-background/95 backdrop-blur-md z-50 transition-all duration-300 ease-out",
+          "fixed left-0 w-full border-0 bg-background/90 backdrop-blur-xl z-50 transition-all duration-300 ease-out overflow-hidden shadow-[0_-8px_30px_rgba(0,0,0,0.1)]",
           hasMobileNav ? "bottom-14" : "bottom-0",
           isMinimized
             ? "translate-y-full opacity-0 pointer-events-none"
             : "translate-y-0 opacity-100",
         )}
       >
-        <CardContent className="p-0">
+        {/* Ambient Background Layer */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none opacity-20">
+          <img
+            src={songImage}
+            alt=""
+            className="w-full h-full object-cover blur-3xl scale-150 transition-all duration-1000"
+          />
+        </div>
+
+        <CardContent className="p-0 relative">
           <div className="absolute top-0 left-0 right-0">
             <ProgressBarMusic />
           </div>

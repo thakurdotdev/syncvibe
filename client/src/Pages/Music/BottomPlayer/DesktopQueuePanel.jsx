@@ -40,7 +40,7 @@ const DesktopQueuePanel = memo(({ ready }) => {
           top: 0;
           right: 0;
           bottom: 0;
-          width: 300px;
+          width: 350px;
           background: transparent;
           // border-left: 1px solid rgba(255, 255, 255, 0.04);
           display: flex;

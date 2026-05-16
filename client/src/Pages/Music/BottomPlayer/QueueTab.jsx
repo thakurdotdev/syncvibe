@@ -201,6 +201,25 @@ const QueueSongItem = memo(
             </div>
           )}
 
+          {!isCurrentSong && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              whileHover={{ opacity: 1 }}
+              className="opacity-0 group-hover:opacity-100"
+            >
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                  onClick={handleRemove}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </motion.div>
+            </motion.div>
+          )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
