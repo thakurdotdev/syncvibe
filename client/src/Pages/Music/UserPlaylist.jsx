@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, Plus } from "lucide-react"
+import { Loader2, Plus, ListMusic, Sparkles } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { UserPlaylistCard } from "./Cards"
@@ -19,6 +19,7 @@ import {
   useUpdatePlaylistMutation,
   useDeletePlaylistMutation,
 } from "@/hooks/mutations/usePlaylistMutations"
+import { motion, AnimatePresence } from "framer-motion"
 
 const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading }) => {
   const [formData, setFormData] = useState({
@@ -48,37 +49,59 @@ const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{initialData?.id ? "Edit Playlist" : "Create New Playlist"}</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="sm:max-max-w-[400px] rounded-2xl p-0 overflow-hidden border-none shadow-2xl">
+        <div className="bg-primary/5 p-5 pb-3">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="p-1.5 rounded-lg bg-primary text-white">
+              <ListMusic className="w-4 h-4" />
+            </div>
+            <DialogTitle className="text-lg font-bold tracking-tight">
+              {initialData?.id ? "Edit Playlist" : "Create New Playlist"}
+            </DialogTitle>
+          </div>
+          <DialogDescription className="text-xs text-muted-foreground/80 font-medium">
             {initialData?.id
               ? "Update your playlist details below."
-              : "Fill in the details for your new playlist."}
+              : "Give your new playlist a name and description."}
           </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Input
-              placeholder="Playlist Name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Textarea
-              placeholder="Add a description..."
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="resize-none"
-              rows={3}
-            />
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-5 space-y-5">
+          <div className="space-y-3.5">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 ml-1">Name</label>
+              <Input
+                placeholder="My Awesome Playlist"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+                className="h-10 rounded-lg bg-accent/20 border-none focus-visible:ring-primary/20 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 ml-1">Description</label>
+              <Textarea
+                placeholder="A collection of my favorite tracks..."
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="resize-none rounded-lg bg-accent/20 border-none focus-visible:ring-primary/20 min-h-[80px] text-sm"
+                rows={3}
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {initialData?.id ? "Save Changes" : "Create Playlist"}
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full h-10 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-md cursor-pointer active:scale-95 transition-all"
+            >
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : initialData?.id ? (
+                "Save Changes"
+              ) : (
+                "Create Playlist"
+              )}
             </Button>
           </DialogFooter>
         </form>
@@ -88,7 +111,7 @@ const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading
 }
 
 const UserPlaylist = () => {
-  const { data: userPlaylist = [] } = useUserPlaylistsQuery()
+  const { data: userPlaylist = [], isLoading: isDataLoading } = useUserPlaylistsQuery()
   const [playlistDialog, setPlaylistDialog] = useState({
     isOpen: false,
     data: null,
@@ -138,25 +161,66 @@ const UserPlaylist = () => {
   }
 
   return (
-    <div className="p-5 space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">My Playlists</h2>
-        <Button onClick={() => setPlaylistDialog({ isOpen: true, data: null })} className="gap-2">
+    <div className="p-4 md:p-6 max-w-[1400px] mx-auto w-full space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="space-y-0.5">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">My Playlists</h2>
+          <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+            Manage your personal music collections
+            <Sparkles className="w-3.5 h-3.5 text-primary/70" />
+          </p>
+        </div>
+        <Button 
+          onClick={() => setPlaylistDialog({ isOpen: true, data: null })} 
+          className="gap-2 h-10 rounded-xl px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md cursor-pointer transition-all active:scale-95"
+        >
           <Plus className="h-4 w-4" />
-          Create Playlist
+          New Playlist
         </Button>
       </div>
 
-      <div className="flex flex-wrap">
-        {userPlaylist.map((playlist) => (
-          <UserPlaylistCard
-            key={playlist.id}
-            playlist={playlist}
-            onDelete={handleDeletePlaylist}
-            onEdit={(playlist) => setPlaylistDialog({ isOpen: true, data: playlist })}
-          />
-        ))}
-      </div>
+      {isDataLoading ? (
+        <div className="flex items-center justify-center py-40">
+          <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        </div>
+      ) : userPlaylist.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-32 bg-accent/5 rounded-[32px] border border-dashed border-border/40">
+          <div className="p-6 rounded-full bg-accent/10 mb-6">
+            <ListMusic className="w-16 h-16 text-muted-foreground/50" />
+          </div>
+          <h3 className="text-xl font-bold mb-2 text-foreground">No playlists found</h3>
+          <p className="text-muted-foreground font-medium mb-8 max-w-sm text-center">
+            Create your first playlist and start building your collection!
+          </p>
+          <Button 
+            variant="outline" 
+            onClick={() => setPlaylistDialog({ isOpen: true, data: null })}
+            className="rounded-xl px-8 h-12 border-primary/20 hover:bg-primary/5 text-primary font-bold"
+          >
+            Create Playlist
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-4 md:gap-8 justify-items-center">
+          <AnimatePresence mode="popLayout">
+            {userPlaylist.map((playlist, index) => (
+              <motion.div
+                key={playlist.id}
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+              >
+                <UserPlaylistCard
+                  playlist={playlist}
+                  onDelete={handleDeletePlaylist}
+                  onEdit={(playlist) => setPlaylistDialog({ isOpen: true, data: playlist })}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
 
       <PlaylistDialog
         isOpen={playlistDialog.isOpen}

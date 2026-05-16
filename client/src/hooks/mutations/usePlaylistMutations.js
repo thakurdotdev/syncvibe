@@ -4,54 +4,79 @@ import {
   createPlaylist,
   deletePlaylist,
   playlistKeys,
+  removeSongFromPlaylist,
   updatePlaylist,
 } from "@/api/music/playlist"
 
 export const useCreatePlaylistMutation = (options = {}) => {
   const queryClient = useQueryClient()
+  const { onSuccess: userOnSuccess, ...restOptions } = options
 
   return useMutation({
     mutationFn: createPlaylist,
-    onSuccess: () => {
+    onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: playlistKeys.lists() })
+      userOnSuccess?.(data, variables, context)
     },
-    ...options,
+    ...restOptions,
   })
 }
 
 export const useUpdatePlaylistMutation = (options = {}) => {
   const queryClient = useQueryClient()
+  const { onSuccess: userOnSuccess, ...restOptions } = options
 
   return useMutation({
     mutationFn: updatePlaylist,
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: playlistKeys.lists() })
       queryClient.invalidateQueries({ queryKey: playlistKeys.detail(variables.id) })
+      userOnSuccess?.(data, variables, context)
     },
-    ...options,
+    ...restOptions,
   })
 }
 
 export const useDeletePlaylistMutation = (options = {}) => {
   const queryClient = useQueryClient()
+  const { onSuccess: userOnSuccess, ...restOptions } = options
 
   return useMutation({
     mutationFn: deletePlaylist,
-    onSuccess: () => {
+    onSuccess: (data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: playlistKeys.lists() })
+      userOnSuccess?.(data, variables, context)
     },
-    ...options,
+    ...restOptions,
   })
 }
 
 export const useAddSongToPlaylistMutation = (options = {}) => {
   const queryClient = useQueryClient()
+  const { onSuccess: userOnSuccess, ...restOptions } = options
 
   return useMutation({
     mutationFn: addSongToPlaylist,
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: playlistKeys.lists() })
       queryClient.invalidateQueries({ queryKey: playlistKeys.detail(variables.playlistId) })
+      userOnSuccess?.(data, variables, context)
     },
-    ...options,
+    ...restOptions,
+  })
+}
+
+export const useRemoveSongFromPlaylistMutation = (options = {}) => {
+  const queryClient = useQueryClient()
+  const { onSuccess: userOnSuccess, ...restOptions } = options
+
+  return useMutation({
+    mutationFn: removeSongFromPlaylist,
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: playlistKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: playlistKeys.detail(variables.playlistId) })
+      userOnSuccess?.(data, variables, context)
+    },
+    ...restOptions,
   })
 }

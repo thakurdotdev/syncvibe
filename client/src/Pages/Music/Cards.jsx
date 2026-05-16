@@ -86,7 +86,7 @@ export const ArtistCard = memo(({ artist }) => {
   )
 })
 
-export const SongCard = memo(({ song }) => {
+export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
   const navigate = useNavigate()
   const currentSongId = usePlayerStore((s) => s.currentSong?.id)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
@@ -274,6 +274,7 @@ export const SongCard = memo(({ song }) => {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
+                  className="rounded-lg cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation()
                     setIsModalOpen(true)
@@ -281,6 +282,17 @@ export const SongCard = memo(({ song }) => {
                 >
                   Add to playlist
                 </DropdownMenuItem>
+                {onRemoveFromPlaylist && (
+                  <DropdownMenuItem
+                    className="rounded-lg cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRemoveFromPlaylist(song.id)
+                    }}
+                  >
+                    Remove from this playlist
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -667,7 +679,7 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
 
   if (!playlist?.name) return null
 
-  const subtitle = playlist.description || `${playlist.songs?.length || 0} songs`
+  const subtitle = `${playlist.songCount || 0} songs`
 
   const handleCardClick = useCallback(
     (e) => {
@@ -685,87 +697,77 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
   return (
     <>
       <MotionCard
-        className="w-[180px] group cursor-pointer rounded-lg p-2"
+        className="w-[160px] sm:w-[180px] group cursor-pointer rounded-xl p-2 bg-accent/10 border border-transparent hover:border-primary/20 hover:bg-accent/20 transition-all duration-200"
         onClick={handleCardClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        whileHover={{ backgroundColor: "rgba(255,255,255,0.05)" }}
         whileTap={{ scale: 0.98 }}
       >
-        <div className="relative mb-2 overflow-hidden rounded-lg">
+        <div className="relative mb-2 aspect-square overflow-hidden rounded-lg shadow-sm">
           <motion.div
+            className="h-full w-full"
             animate={{ scale: isHovered ? 1.05 : 1 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
+            transition={{ duration: 0.3 }}
           >
-            <Avatar className="w-full h-auto aspect-square rounded-lg">
+            <Avatar className="w-full h-full rounded-none">
               <AvatarImage
-                src={playlist?.image?.[2]?.link}
+                src={playlist?.image?.[2]?.link || playlist?.image?.[1]?.link}
                 alt={playlist.name}
-                className="object-cover rounded-lg"
+                className="object-cover"
               />
-              <AvatarFallback className="rounded-lg aspect-square flex items-center justify-center bg-muted">
-                <ListMusic className="w-8 h-8 text-muted-foreground" />
+              <AvatarFallback className="rounded-none flex items-center justify-center bg-accent/30">
+                <ListMusic className="w-8 h-8 text-muted-foreground/50" />
               </AvatarFallback>
             </Avatar>
           </motion.div>
+
           <AnimatePresence>
             {isHovered && (
               <motion.div
-                className="absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center"
+                className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
               >
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.05 }}
-                >
-                  <ListMusic className="w-8 h-8 text-white" />
-                </motion.div>
+                <div className="p-2.5 rounded-full bg-primary text-white shadow-lg cursor-pointer">
+                  <Play className="w-5 h-5 fill-current" />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
-          <AnimatePresence>
-            {isHovered && (
-              <motion.div
-                className="action-buttons absolute bottom-2 right-2 flex gap-1"
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 5 }}
-                transition={{ duration: 0.15 }}
-              >
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="h-7 w-7 bg-white/90 hover:bg-white"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onEdit?.(playlist)
-                  }}
-                >
-                  <Pencil className="w-3.5 h-3.5 text-foreground" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="h-7 w-7 bg-white/90 hover:bg-destructive hover:text-white"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowDeleteAlert(true)
-                  }}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+
+          <div className="action-buttons absolute top-1.5 right-1.5 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+            <Button
+              size="icon"
+              variant="secondary"
+              className="h-7 w-7 rounded-lg bg-background/80 backdrop-blur-md text-foreground hover:bg-background shadow-sm cursor-pointer border border-border/20"
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit?.(playlist)
+              }}
+            >
+              <Pencil className="w-3 h-3" />
+            </Button>
+            <Button
+              size="icon"
+              variant="secondary"
+              className="h-7 w-7 rounded-lg bg-background/80 backdrop-blur-md text-destructive hover:bg-destructive hover:text-destructive-foreground shadow-sm cursor-pointer border border-border/20"
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowDeleteAlert(true)
+              }}
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
         </div>
-        <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-          {playlist.name}
-        </p>
-        <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+
+        <div className="space-y-0.5 px-0.5">
+          <p className="font-semibold text-[13px] truncate group-hover:text-primary transition-colors">
+            {playlist.name}
+          </p>
+          <p className="text-[11px] text-muted-foreground/60 font-medium">{subtitle}</p>
+        </div>
       </MotionCard>
 
       <DeleteConfirmDialog

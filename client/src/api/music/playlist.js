@@ -61,3 +61,11 @@ export const addSongToPlaylist = async ({ playlistId, songId, songData }) => {
   )
   return data
 }
+export const removeSongFromPlaylist = async ({ playlistId, songId }) => {
+  const { data } = await axios.post(
+    `${API_URL}/api/playlist/remove-song`,
+    { playlistId, songId },
+    { withCredentials: true },
+  )
+  return data
+}
