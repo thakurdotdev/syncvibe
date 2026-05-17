@@ -13,7 +13,7 @@ const ProgressRing = memo(({ progress, size = 44, strokeWidth = 2.5 }) => {
   return (
     <svg className="absolute inset-0 -rotate-90" width={size} height={size}>
       <circle
-        className="text-white/5"
+        className="text-muted-foreground/10"
         strokeWidth={strokeWidth}
         stroke="currentColor"
         fill="transparent"
@@ -123,7 +123,7 @@ const DraggableButton = memo(({ position, onMaximize, currentSong, isDragging })
           }}
         >
           <ProgressRing progress={progress} size={36} strokeWidth={2} />
-          <div className="absolute inset-[2px] rounded-full overflow-hidden border border-white/10">
+          <div className="absolute inset-[2px] rounded-full overflow-hidden border border-border/30">
             <img
               src={songImage}
               alt=""
@@ -134,7 +134,7 @@ const DraggableButton = memo(({ position, onMaximize, currentSong, isDragging })
               draggable={false}
             />
           </div>
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             {isPlaying ? (
               <Pause size={12} className="text-white fill-white" />
             ) : (
@@ -150,22 +150,22 @@ const DraggableButton = memo(({ position, onMaximize, currentSong, isDragging })
           }}
           className="flex flex-col min-w-0 max-w-[120px] cursor-pointer"
         >
-          <span className="text-[12.5px] text-white font-bold truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+          <span className="text-[12.5px] text-foreground font-bold truncate leading-tight">
             {he.decode(currentSong?.name || "Unknown")}
           </span>
-          <span className="text-[10.5px] text-white/70 truncate font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+          <span className="text-[10.5px] text-muted-foreground truncate font-semibold">
             {artists}
           </span>
         </div>
       </div>
-      
+
       {/* Dynamic Glow */}
       <div className="absolute -inset-4 pointer-events-none -z-20 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-700">
-         <img
-            src={songImage}
-            alt=""
-            className="w-full h-full object-cover blur-3xl opacity-30 scale-150"
-          />
+        <img
+          src={songImage}
+          alt=""
+          className="w-full h-full object-cover blur-3xl opacity-30 scale-150"
+        />
       </div>
     </div>
   )

@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,14 +48,15 @@ const SongItem = memo(({ song, onPlayNow, onAddToQueue, onPlayNext, onSaveToPlay
     <div
       className={cn(
         "group flex items-center gap-3 rounded-xl w-full",
-        "hover:bg-accent/60 active:bg-accent/80 transition-all duration-200",
+        "liquid-hover-row",
         compact ? "p-1.5" : "px-2.5 py-2",
       )}
     >
       <div
         onClick={handlePlayNow}
         className={cn(
-          "relative rounded-lg overflow-hidden shrink-0 cursor-pointer shadow-sm",
+          "relative rounded-xl overflow-hidden shrink-0 cursor-pointer",
+          "ring-1 ring-border/30",
           compact ? "h-9 w-9" : "h-11 w-11",
         )}
       >
@@ -68,7 +68,7 @@ const SongItem = memo(({ song, onPlayNow, onAddToQueue, onPlayNext, onSaveToPlay
         />
         <div
           className={cn(
-            "absolute inset-0 bg-black/50 flex items-center justify-center",
+            "absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center",
             "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
           )}
         >
@@ -80,7 +80,7 @@ const SongItem = memo(({ song, onPlayNow, onAddToQueue, onPlayNext, onSaveToPlay
         <p className="font-medium truncate text-sm group-hover:text-primary transition-colors duration-200">
           {song.name}
         </p>
-        <p className="text-xs text-muted-foreground/80 truncate mt-0.5">{artistName}</p>
+        <p className="text-xs text-muted-foreground/70 truncate mt-0.5">{artistName}</p>
       </div>
 
       <div className="flex items-center gap-1 shrink-0 ml-auto">
@@ -88,41 +88,39 @@ const SongItem = memo(({ song, onPlayNow, onAddToQueue, onPlayNext, onSaveToPlay
           <span className="text-[11px] text-muted-foreground/60 tabular-nums font-mono mr-1">{duration}</span>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon"
+        <button
           onClick={handleAddToQueue}
-          className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 cursor-pointer transition-colors duration-200"
+          className="h-8 w-8 rounded-xl flex items-center justify-center text-muted-foreground/70 hover:text-primary hover:bg-accent/50 cursor-pointer transition-all duration-200"
           title="Add to queue"
         >
           <ListPlus className="h-4 w-4" />
-        </Button>
+        </button>
 
         <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground cursor-pointer">
+            <button className="h-8 w-8 rounded-xl flex items-center justify-center text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 cursor-pointer transition-all duration-200">
               <MoreVertical className="h-4 w-4" />
-            </Button>
+            </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 rounded-xl">
-            <DropdownMenuItem onClick={handlePlayNow} className="gap-2.5 cursor-pointer rounded-lg">
+          <DropdownMenuContent align="end" className="w-48 rounded-2xl border-white/[0.08] bg-background/95 backdrop-blur-xl">
+            <DropdownMenuItem onClick={handlePlayNow} className="gap-2.5 cursor-pointer rounded-xl">
               <Play className="h-4 w-4" />
               Play Now
             </DropdownMenuItem>
             {onPlayNext && (
-              <DropdownMenuItem onClick={handlePlayNext} className="gap-2.5 cursor-pointer rounded-lg">
+              <DropdownMenuItem onClick={handlePlayNext} className="gap-2.5 cursor-pointer rounded-xl">
                 <SkipForward className="h-4 w-4" />
                 Play Next
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={handleAddToQueue} className="gap-2.5 cursor-pointer rounded-lg">
+            <DropdownMenuItem onClick={handleAddToQueue} className="gap-2.5 cursor-pointer rounded-xl">
               <ListPlus className="h-4 w-4" />
               Add to Queue
             </DropdownMenuItem>
             {onSaveToPlaylist && (
               <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSave} className="gap-2.5 cursor-pointer rounded-lg">
+                <DropdownMenuSeparator className="bg-border/30" />
+                <DropdownMenuItem onClick={handleSave} className="gap-2.5 cursor-pointer rounded-xl">
                   <Bookmark className="h-4 w-4" />
                   Save to Playlist
                 </DropdownMenuItem>

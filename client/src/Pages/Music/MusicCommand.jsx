@@ -33,8 +33,7 @@ const MusicCommand = () => {
       >
         <Search className="music-search-icon" />
         <span className="music-search-placeholder">
-          <span className="hidden sm:inline">Search songs, artists, albums...</span>
-          <span className="sm:hidden">Search songs...</span>
+          <span className="">Search songs, artists, albums...</span>
         </span>
         <kbd className="music-search-kbd">
           <span className="music-search-kbd-key">{isMac ? "⌘" : "Ctrl"}</span>

@@ -26,8 +26,10 @@ const MobileBottomBar = () => {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden">
-      <div className="h-[1px] bg-border/60" />
-      <div className="bg-background/95 backdrop-blur-md">
+      <div
+        className="liquid-glass border-t-0"
+        style={{ borderRadius: 0 }}
+      >
         <div className="flex items-center justify-around h-14 px-2">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path
@@ -37,7 +39,7 @@ const MobileBottomBar = () => {
                 key={item.name}
                 onClick={() => navigate(item.path)}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors",
+                  "flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors cursor-pointer",
                   isActive ? "text-primary" : "text-muted-foreground active:text-foreground",
                 )}
               >

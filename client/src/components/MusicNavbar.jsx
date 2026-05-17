@@ -8,7 +8,7 @@ const MusicNavbar = () => {
   const isMobile = useIsMobile()
 
   return (
-    <nav className="fixed top-0 w-full z-10 h-14 border-b border-border/40 bg-background/80 backdrop-blur-md">
+    <nav className="fixed top-0 w-full z-10 h-14 liquid-glass border-t-0 border-x-0" style={{ borderRadius: 0 }}>
       <div className="h-full mx-auto px-4">
         <div className="flex items-center justify-between h-full sm:ml-64">
           {isMobile ? (

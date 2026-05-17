@@ -89,13 +89,24 @@ layer(base);
 @layer utilities {
   :root {
     text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
     color-scheme: light;
   }
 
+  .dark {
+    color-scheme: dark;
+  }
+
   .liquid-glass {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl ring-1 ring-inset ring-white/20;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+      inset 0 1px 0 0 var(--glass-highlight),
+      var(--glass-shadow);
   }
 
   html,
@@ -108,90 +119,128 @@ layer(base);
 
 @layer base {
   :root {
-    /* Light Mode - Clean & Minimal */
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* ═══ Light Mode — Crisp & Refined ═══ */
+    --background: 220 20% 97%;
+    --foreground: 224 30% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 224 30% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 45%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --popover-foreground: 224 30% 10%;
+    --primary: 224 65% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 16% 93%;
+    --secondary-foreground: 224 20% 18%;
+    --muted: 220 16% 93%;
+    --muted-foreground: 220 10% 46%;
+    --accent: 220 16% 93%;
+    --accent-foreground: 224 20% 18%;
     --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --chart-1: 173 58% 39%;
-    --chart-2: 12 76% 61%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
-    --color-1: 173 58% 39%;
-    --color-2: 12 76% 61%;
-    --color-3: 197 37% 24%;
-    --color-4: 43 74% 66%;
-    --color-5: 27 87% 67%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 224 65% 48%;
+    --chart-1: 224 65% 48%;
+    --chart-2: 160 55% 42%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 60% 55%;
+    --chart-5: 340 70% 52%;
+    --radius: 0.625rem;
+    --color-1: 224 65% 48%;
+    --color-2: 160 55% 42%;
+    --color-3: 30 80% 55%;
+    --color-4: 280 60% 55%;
+    --color-5: 340 70% 52%;
 
-    /* Sidebar Colors */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 240 5.9% 90%;
-    --sidebar-ring: 240 5.9% 10%;
+    /* Glass System — Light */
+    --glass-bg: rgba(255, 255, 255, 0.65);
+    --glass-bg-elevated: rgba(255, 255, 255, 0.72);
+    --glass-bg-subtle: rgba(255, 255, 255, 0.45);
+    --glass-border: rgba(0, 0, 0, 0.06);
+    --glass-border-strong: rgba(0, 0, 0, 0.1);
+    --glass-highlight: rgba(255, 255, 255, 0.8);
+    --glass-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.08);
+    --glass-shadow-elevated: 0 8px 40px -8px rgba(0, 0, 0, 0.12);
+    --glass-hover: rgba(0, 0, 0, 0.03);
+    --glass-active: rgba(0, 0, 0, 0.06);
+    --glass-separator: rgba(0, 0, 0, 0.05);
+    --glass-input-bg: rgba(0, 0, 0, 0.03);
+    --glass-input-focus: rgba(0, 0, 0, 0.05);
+    --glass-inset: rgba(255, 255, 255, 0.6);
+    --glass-message-own: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0.06));
+    --glass-message-other: rgba(0, 0, 0, 0.03);
+    --glass-sheet-bg: rgba(255, 255, 255, 0.92);
+
+    /* Sidebar */
+    --sidebar-background: 220 20% 97%;
+    --sidebar-foreground: 224 20% 28%;
+    --sidebar-primary: 224 65% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 16% 93%;
+    --sidebar-accent-foreground: 224 20% 18%;
+    --sidebar-border: 220 13% 88%;
+    --sidebar-ring: 224 65% 48%;
   }
 
   .dark {
-    /* Dark Mode - Rich & Elegant */
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    /* ═══ Dark Mode — Deep & Immersive ═══ */
+    --background: 228 25% 5%;
+    --foreground: 210 20% 96%;
+    --card: 228 20% 7%;
+    --card-foreground: 210 20% 96%;
+    --popover: 228 20% 7%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 210 20% 96%;
+    --primary-foreground: 228 25% 8%;
+    --secondary: 225 15% 13%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 225 15% 13%;
+    --muted-foreground: 220 12% 62%;
+    --accent: 225 15% 13%;
+    --accent-foreground: 210 20% 96%;
+    --destructive: 0 62% 35%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --color-1: 220 70% 50%;
-    --color-2: 160 60% 45%;
-    --color-3: 30 80% 55%;
-    --color-4: 280 65% 60%;
-    --color-5: 340 75% 55%;
+    --border: 225 12% 14%;
+    --input: 225 12% 14%;
+    --ring: 210 20% 80%;
+    --chart-1: 220 70% 55%;
+    --chart-2: 165 60% 48%;
+    --chart-3: 32 80% 55%;
+    --chart-4: 280 65% 62%;
+    --chart-5: 340 75% 58%;
+    --color-1: 220 70% 55%;
+    --color-2: 165 60% 48%;
+    --color-3: 32 80% 55%;
+    --color-4: 280 65% 62%;
+    --color-5: 340 75% 58%;
 
-    /* Sidebar Colors */
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 0 0% 98%;
-    --sidebar-primary-foreground: 240 5.9% 10%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 240 4.9% 83.9%;
+    /* Glass System — Dark */
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-bg-elevated: rgba(255, 255, 255, 0.045);
+    --glass-bg-subtle: rgba(255, 255, 255, 0.02);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border-strong: rgba(255, 255, 255, 0.12);
+    --glass-highlight: rgba(255, 255, 255, 0.05);
+    --glass-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.3);
+    --glass-shadow-elevated: 0 8px 40px -8px rgba(0, 0, 0, 0.45);
+    --glass-hover: rgba(255, 255, 255, 0.04);
+    --glass-active: rgba(255, 255, 255, 0.08);
+    --glass-separator: rgba(255, 255, 255, 0.04);
+    --glass-input-bg: rgba(255, 255, 255, 0.04);
+    --glass-input-focus: rgba(255, 255, 255, 0.06);
+    --glass-inset: rgba(255, 255, 255, 0.05);
+    --glass-message-own: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+    --glass-message-other: rgba(255, 255, 255, 0.04);
+    --glass-sheet-bg: rgba(10, 12, 18, 0.88);
+
+    /* Sidebar */
+    --sidebar-background: 228 20% 7%;
+    --sidebar-foreground: 210 15% 90%;
+    --sidebar-primary: 210 20% 96%;
+    --sidebar-primary-foreground: 228 25% 8%;
+    --sidebar-accent: 225 15% 13%;
+    --sidebar-accent-foreground: 210 15% 90%;
+    --sidebar-border: 225 12% 14%;
+    --sidebar-ring: 210 20% 80%;
   }
 }
 

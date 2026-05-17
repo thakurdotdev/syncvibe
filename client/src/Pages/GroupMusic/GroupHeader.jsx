@@ -11,7 +11,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const GroupHeader = ({
@@ -47,7 +46,7 @@ const GroupHeader = ({
   if (!currentGroup) {
     return (
       <div className="flex items-center gap-2.5 pb-1">
-        <div className="p-1.5 rounded-lg bg-accent/50">
+        <div className="liquid-badge p-1.5 rounded-xl">
           <Music className="h-4 w-4 text-muted-foreground/60" />
         </div>
         <h1 className="text-base font-semibold">Group Session</h1>
@@ -59,13 +58,13 @@ const GroupHeader = ({
     <>
       <div className="flex items-center justify-between gap-3 pb-1">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="p-2 rounded-xl bg-primary/10 shrink-0">
+          <div className="liquid-badge p-2 rounded-xl shrink-0">
             <Music className="h-5 w-5 text-primary" />
           </div>
 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold truncate">
+              <h1 className="text-lg font-bold truncate tracking-tight">
                 {currentGroup.name}
               </h1>
               {isRejoining && (
@@ -74,17 +73,17 @@ const GroupHeader = ({
             </div>
           </div>
 
-          <div className="items-center gap-1 px-2.5 py-1.5 rounded-lg bg-accent/50 border border-border/30 shrink-0 hidden md:flex">
+          <div className="items-center gap-1 px-2.5 py-1.5 rounded-xl liquid-badge shrink-0 hidden md:flex">
             <span className="text-xs font-mono text-muted-foreground">{shortId}</span>
             <button
               onClick={handleCopy}
-              className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-accent/80 transition-colors cursor-pointer"
+              className="p-1 rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 transition-all duration-200 cursor-pointer"
             >
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
             </button>
             <button
               onClick={onQRCodeOpen}
-              className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-accent/80 transition-colors cursor-pointer"
+              className="p-1 rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 transition-all duration-200 cursor-pointer"
             >
               <QrCode className="h-3.5 w-3.5" />
             </button>
@@ -95,48 +94,42 @@ const GroupHeader = ({
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
+                <button
                   onClick={onQueueOpen}
-                  variant="outline"
-                  size="sm"
-                  className="h-9 rounded-lg gap-2 px-3 text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="liquid-btn h-9 rounded-xl gap-2 px-3 flex items-center text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   <Search className="h-4 w-4" />
-                  <span className="text-xs">Queue</span>
+                  <span className="text-xs font-medium hidden sm:inline">Queue</span>
                   {queueCount > 0 && (
                     <span className="h-5 min-w-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
                       {queueCount}
                     </span>
                   )}
-                </Button>
+                </button>
               </TooltipTrigger>
               <TooltipContent>Queue & Search</TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
+                <button
                   onClick={onInviteOpen}
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="liquid-btn h-9 w-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   <UserPlus className="h-4 w-4" />
-                </Button>
+                </button>
               </TooltipTrigger>
               <TooltipContent>Invite</TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
+                <button
                   onClick={() => setShowLeaveDialog(true)}
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 rounded-lg text-muted-foreground hover:text-destructive hover:border-destructive/30 hover:bg-destructive/10 cursor-pointer"
+                  className="liquid-btn h-9 w-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-rose-400 hover:border-rose-500/20 cursor-pointer"
                 >
                   <LogOut className="h-4 w-4" />
-                </Button>
+                </button>
               </TooltipTrigger>
               <TooltipContent>Leave Group</TooltipContent>
             </Tooltip>

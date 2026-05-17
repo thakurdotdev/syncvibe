@@ -14,18 +14,24 @@ import {
   WelcomeView,
   QueueSheet,
   InviteSheet,
-} from "./GroupMusic/index"
+} from "./index"
 
-import "./music.css"
+import "../Music/music.css"
 
 const AmbientGlow = memo(({ imageUrl }) => {
   if (!imageUrl) return null
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      <img
-        src={imageUrl}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover scale-150 blur-[80px] opacity-[0.12]"
+      <div
+        className="absolute inset-0 opacity-[0.08]"
+        style={{
+          backgroundImage: `url(${imageUrl})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          filter: "blur(80px) saturate(1.5)",
+          transform: "scale(1.4)",
+          willChange: "transform",
+        }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
     </div>
@@ -105,9 +111,9 @@ const GroupMusic = () => {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
       >
-        <div className="relative rounded-2xl border border-border/30 bg-background overflow-hidden">
+        <div className="relative rounded-2xl md:rounded-3xl overflow-hidden liquid-panel-elevated">
           <AmbientGlow imageUrl={albumArt} />
 
           <div className="relative z-10">
@@ -143,7 +149,7 @@ const GroupMusic = () => {
                     </div>
                     <div className="text-center space-y-1.5">
                       <p className="text-sm font-semibold text-foreground">Reconnecting to your session</p>
-                      <p className="text-xs text-muted-foreground">Syncing playback state...</p>
+                      <p className="text-xs text-muted-foreground/60">Syncing playback state...</p>
                     </div>
                   </motion.div>
                 ) : !currentGroup ? (
@@ -154,7 +160,7 @@ const GroupMusic = () => {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -12 }}
-                    transition={{ duration: 0.3 }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                     className="space-y-4 md:space-y-5"
                   >
                     <NowPlayingCard
@@ -180,7 +186,7 @@ const GroupMusic = () => {
                       sendReaction={sendReaction}
                     />
 
-                    <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex flex-col lg:flex-row gap-4">
                       <div className="flex-1 min-w-0">
                         <GroupChat
                           messages={messages}
@@ -189,7 +195,7 @@ const GroupMusic = () => {
                           locked={!canChat}
                         />
                       </div>
-                      <div className="w-full md:w-[260px] md:shrink-0 md:max-h-[340px]">
+                      <div className="w-full lg:w-[280px] lg:shrink-0 lg:max-h-[380px]">
                         <MembersList
                           members={groupMembers}
                           currentUserId={userId}

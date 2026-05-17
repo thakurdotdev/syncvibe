@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ListPlus, Loader2, Music, Sparkles } from "lucide-react"
 import { memo } from "react"
@@ -30,15 +29,14 @@ const Recommendations = memo(
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-64 gap-6">
             <div className="relative">
-              {/* Magic sparkles surrounding the loader */}
               <motion.div
                 animate={{
                   scale: [1, 1.2, 1],
                   rotate: [0, 90, 180, 270, 360],
-                  opacity: [0.3, 0.6, 0.3]
+                  opacity: [0.15, 0.3, 0.15]
                 }}
                 transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                className="absolute -inset-8 border border-dashed border-primary/20 rounded-full"
+                className="absolute -inset-8 border border-dashed border-white/[0.08] rounded-full"
               />
 
               {[...Array(3)].map((_, i) => (
@@ -59,14 +57,14 @@ const Recommendations = memo(
                     ease: "easeInOut"
                   }}
                 >
-                  <Sparkles className="h-3 w-3 text-primary shadow-lg shadow-primary/20" />
+                  <Sparkles className="h-3 w-3 text-primary drop-shadow-lg" />
                 </motion.div>
               ))}
 
-              <div className="relative p-4 rounded-3xl bg-primary/5 border border-primary/10 shadow-inner">
+              <div className="relative p-4 rounded-3xl liquid-badge">
                 <Loader2 className="h-8 w-8 animate-spin text-primary relative z-10" />
                 <motion.div
-                  className="absolute inset-0 rounded-3xl bg-primary/10"
+                  className="absolute inset-0 rounded-3xl bg-primary/5"
                   animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.2, 0.5] }}
                   transition={{ duration: 2, repeat: Infinity }}
                 />
@@ -85,7 +83,7 @@ const Recommendations = memo(
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-[11px] text-muted-foreground/60 font-medium px-4 py-1 rounded-full bg-accent/30 inline-block truncate max-w-full"
+                  className="text-[11px] text-muted-foreground/60 font-medium px-4 py-1 rounded-full liquid-badge inline-block truncate max-w-full"
                 >
                   Analyzing <span className="text-primary/70 italic">"{sourceName}"</span>
                 </motion.p>
@@ -94,12 +92,12 @@ const Recommendations = memo(
           </div>
         ) : !hasRecommendations ? (
           <div className="flex flex-col items-center justify-center h-52 gap-3">
-            <div className="p-4 rounded-2xl bg-accent/40">
-              <Music className="h-8 w-8 text-muted-foreground/40" />
+            <div className="p-4 rounded-2xl liquid-badge">
+              <Music className="h-8 w-8 text-muted-foreground/25" />
             </div>
             <div className="text-center">
-              <p className="text-muted-foreground text-sm font-medium">No recommendations yet</p>
-              <p className="text-muted-foreground/60 text-xs mt-1">
+              <p className="text-muted-foreground/70 text-sm font-medium">No recommendations yet</p>
+              <p className="text-muted-foreground/50 text-xs mt-1">
                 Play a song to get tailored recommendations
               </p>
             </div>
@@ -110,25 +108,23 @@ const Recommendations = memo(
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-3.5 w-3.5 text-primary" />
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <p className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider">
                     Recommended
                   </p>
                 </div>
                 {sourceName && (
-                  <p className="text-[10px] text-muted-foreground/40 mt-0.5 truncate max-w-[180px]">
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5 truncate max-w-[180px]">
                     Inspired by {sourceName}
                   </p>
                 )}
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
+              <button
                 onClick={onAddAll}
-                className="h-8 px-3 text-xs gap-2 text-primary hover:text-primary hover:bg-primary/10 rounded-lg cursor-pointer"
+                className="liquid-btn h-8 px-3 text-xs gap-2 rounded-xl cursor-pointer flex items-center font-medium text-primary hover:text-primary"
               >
                 <ListPlus className="h-4 w-4" />
                 Add All
-              </Button>
+              </button>
             </div>
 
             <div className="space-y-0.5">

@@ -1,7 +1,5 @@
 import { memo, useRef, useEffect, useCallback, useState, useMemo } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { MessageCircle, Send, Lock, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -23,7 +21,7 @@ const ActivityMessage = memo(({ msg }) => {
   return (
     <div className="flex justify-center py-1.5">
       <p className={cn(
-        "text-[11px] px-3.5 py-1 rounded-full leading-relaxed border border-border/10 bg-accent/20",
+        "text-[11px] px-3.5 py-1 rounded-full leading-relaxed liquid-badge",
         meta.accent,
       )}>
         <span className="mr-1.5">{meta.icon}</span>
@@ -38,7 +36,7 @@ const ChatMessage = memo(({ msg, isOwn, showAvatar }) => (
     {!isOwn && (
       <div className="w-7 shrink-0">
         {showAvatar ? (
-          <Avatar className="h-7 w-7">
+          <Avatar className="h-7 w-7 ring-1 ring-border/40">
             <AvatarImage src={msg.profilePic} />
             <AvatarFallback className="text-[10px] bg-accent font-medium">
               {msg.userName?.charAt(0)?.toUpperCase()}
@@ -52,12 +50,12 @@ const ChatMessage = memo(({ msg, isOwn, showAvatar }) => (
       className={cn(
         "max-w-[75%] px-3.5 py-2",
         isOwn
-          ? "bg-primary text-primary-foreground rounded-2xl rounded-br-md"
-          : "bg-accent/50 rounded-2xl rounded-bl-md",
+          ? "liquid-message-own rounded-2xl rounded-br-md text-foreground"
+          : "liquid-message-other rounded-2xl rounded-bl-md",
       )}
     >
       {!isOwn && showAvatar && (
-        <p className="text-[10px] font-semibold mb-0.5 opacity-60">{msg.userName}</p>
+        <p className="text-[10px] font-semibold mb-0.5 text-muted-foreground/60">{msg.userName}</p>
       )}
       <p className="text-[13px] leading-relaxed wrap-break-word">{msg.message}</p>
     </div>
@@ -66,23 +64,23 @@ const ChatMessage = memo(({ msg, isOwn, showAvatar }) => (
 
 const EmptyState = memo(() => (
   <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-2">
-    <div className="p-3 rounded-full bg-accent/30">
-      <MessageCircle className="h-6 w-6 text-muted-foreground/20" />
+    <div className="p-3 rounded-full liquid-badge">
+      <MessageCircle className="h-6 w-6 text-muted-foreground/25" />
     </div>
     <div>
-      <p className="text-xs font-medium text-muted-foreground/40">No messages yet</p>
-      <p className="text-[11px] text-muted-foreground/25 mt-0.5">Say something to the group!</p>
+      <p className="text-xs font-medium text-muted-foreground/50">No messages yet</p>
+      <p className="text-[11px] text-muted-foreground/35 mt-0.5">Say something to the group!</p>
     </div>
   </div>
 ))
 
 const ChatLockedOverlay = memo(({ onUpgrade }) => (
   <div
-    className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm rounded-xl cursor-pointer"
+    className="absolute inset-0 z-10 flex flex-col items-center justify-center liquid-panel rounded-xl cursor-pointer"
     onClick={onUpgrade}
   >
     <div className="flex flex-col items-center gap-3 p-6 text-center">
-      <div className="p-3 rounded-full bg-accent/50">
+      <div className="p-3 rounded-full liquid-badge">
         <Lock className="h-5 w-5 text-muted-foreground/60" />
       </div>
       <div>
@@ -91,13 +89,12 @@ const ChatLockedOverlay = memo(({ onUpgrade }) => (
           Tap to upgrade and chat with your group
         </p>
       </div>
-      <Button
-        size="sm"
-        className="gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0 cursor-pointer"
+      <button
+        className="gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0 cursor-pointer px-4 py-2 text-sm font-medium flex items-center transition-all duration-200 hover:scale-105 active:scale-95"
       >
         <Sparkles className="h-3.5 w-3.5" />
         Upgrade to PRO
-      </Button>
+      </button>
     </div>
   </div>
 ))
@@ -165,7 +162,7 @@ const GroupChat = ({ messages, currentUserId, onSendMessage, locked = false }) =
   )
 
   return (
-    <div className="rounded-xl border border-border/30 bg-accent/5 overflow-hidden flex flex-col h-full relative">
+    <div className="rounded-2xl liquid-panel overflow-hidden flex flex-col h-full relative">
       {locked && <ChatLockedOverlay onUpgrade={() => setShowUpgrade(true)} />}
 
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/20">
@@ -180,21 +177,20 @@ const GroupChat = ({ messages, currentUserId, onSendMessage, locked = false }) =
 
       <div className="p-2.5 border-t border-border/20">
         <div className="flex gap-2">
-          <Input
+          <input
             ref={inputRef}
             placeholder={locked ? "PRO feature" : "Type a message..."}
             onKeyPress={handleKeyPress}
             disabled={locked}
-            className="rounded-full bg-accent/30 border-border/20 h-9 text-sm placeholder:text-muted-foreground/25 focus-visible:ring-primary/20"
+            className="flex-1 rounded-full h-9 px-4 text-sm liquid-input placeholder:text-muted-foreground/35 outline-none text-foreground disabled:opacity-40"
           />
-          <Button
+          <button
             onClick={handleSend}
-            size="icon"
             disabled={locked}
-            className="rounded-full shrink-0 h-9 w-9 cursor-pointer shadow-sm"
+            className="liquid-btn rounded-full shrink-0 h-9 w-9 cursor-pointer flex items-center justify-center disabled:opacity-40 disabled:pointer-events-none"
           >
             <Send className="h-3.5 w-3.5" />
-          </Button>
+          </button>
         </div>
       </div>
 

@@ -62,19 +62,20 @@ const BottomPlayer = () => {
     <>
       <Card
         className={cn(
-          "fixed left-0 w-full border-0 bg-background/90 backdrop-blur-xl z-50 transition-all duration-300 ease-out overflow-hidden shadow-[0_-8px_30px_rgba(0,0,0,0.1)]",
+          "fixed left-0 w-full border-0 liquid-glass z-50 transition-all duration-300 ease-out overflow-hidden",
           hasMobileNav ? "bottom-14" : "bottom-0",
           isMinimized
             ? "translate-y-full opacity-0 pointer-events-none"
             : "translate-y-0 opacity-100",
         )}
+        style={{ borderRadius: 0 }}
       >
         {/* Ambient Background Layer */}
-        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none opacity-20">
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none opacity-40">
           <img
             src={songImage}
             alt=""
-            className="w-full h-full object-cover blur-3xl scale-150 transition-all duration-1000"
+            className="w-full h-full object-cover blur-2xl scale-150 transition-all duration-1000"
           />
         </div>
 

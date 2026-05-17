@@ -210,7 +210,7 @@ const InviteSheet = ({ isOpen, onClose, groupMembers, sendInvite }) => {
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-sm p-0 flex flex-col">
+      <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
 
         {/* Header */}
         <SheetHeader className="px-6 pt-7 pb-5 space-y-0">

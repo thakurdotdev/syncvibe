@@ -652,18 +652,18 @@ export const PlaylistCard = memo(({ playlist }) => {
 
 const DeleteConfirmDialog = ({ isOpen, onClose, onConfirm, playlistName }) => (
   <AlertDialog open={isOpen} onOpenChange={onClose}>
-    <AlertDialogContent>
-      <AlertDialogHeader>
-        <AlertDialogTitle>Delete Playlist</AlertDialogTitle>
-        <AlertDialogDescription>
-          Delete "{playlistName}"? This can't be undone.
+    <AlertDialogContent className="liquid-glass border border-border/30 rounded-2xl shadow-2xl p-5 md:p-6 space-y-4">
+      <AlertDialogHeader className="space-y-2">
+        <AlertDialogTitle className="text-lg font-bold text-foreground">Delete Playlist</AlertDialogTitle>
+        <AlertDialogDescription className="text-sm text-muted-foreground font-medium">
+          Are you sure you want to delete <span className="font-bold text-foreground">"{playlistName}"</span>? This action cannot be undone and all local playlist data will be lost.
         </AlertDialogDescription>
       </AlertDialogHeader>
-      <AlertDialogFooter>
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
+      <AlertDialogFooter className="gap-2 sm:gap-0">
+        <AlertDialogCancel className="rounded-xl border border-border/30 hover:bg-accent/50 cursor-pointer active:scale-95 transition-all">Cancel</AlertDialogCancel>
         <AlertDialogAction
           onClick={onConfirm}
-          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl font-bold cursor-pointer active:scale-95 transition-all"
         >
           Delete
         </AlertDialogAction>
@@ -697,7 +697,7 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
   return (
     <>
       <MotionCard
-        className="w-[160px] sm:w-[180px] group cursor-pointer rounded-xl p-2 bg-accent/10 border border-transparent hover:border-primary/20 hover:bg-accent/20 transition-all duration-200"
+        className="w-full group cursor-pointer rounded-xl p-2 bg-accent/10 border border-transparent hover:border-primary/20 hover:bg-accent/20 transition-all duration-200"
         onClick={handleCardClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -736,7 +736,7 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
             )}
           </AnimatePresence>
 
-          <div className="action-buttons absolute top-1.5 right-1.5 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+          <div className="action-buttons absolute top-1.5 right-1.5 flex flex-col gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200">
             <Button
               size="icon"
               variant="secondary"

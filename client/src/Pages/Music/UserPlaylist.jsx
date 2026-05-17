@@ -49,51 +49,55 @@ const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-max-w-[400px] rounded-2xl p-0 overflow-hidden border-none shadow-2xl">
-        <div className="bg-primary/5 p-5 pb-3">
+      <DialogContent className="sm:max-w-[400px] rounded-2xl p-0 overflow-hidden liquid-glass border border-border/30 shadow-2xl">
+        <div className="bg-gradient-to-b from-primary/10 via-primary/5 to-transparent p-5 pb-4 border-b border-border/10">
           <div className="flex items-center gap-3 mb-1">
-            <div className="p-1.5 rounded-lg bg-primary text-white">
-              <ListMusic className="w-4 h-4" />
+            <div className="p-2 rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+              <ListMusic className="w-5 h-5" />
             </div>
             <DialogTitle className="text-lg font-bold tracking-tight">
               {initialData?.id ? "Edit Playlist" : "Create New Playlist"}
             </DialogTitle>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground/80 font-medium">
+          <DialogDescription className="text-xs text-muted-foreground/75 font-medium ml-1">
             {initialData?.id
               ? "Update your playlist details below."
               : "Give your new playlist a name and description."}
           </DialogDescription>
         </div>
-        
-        <form onSubmit={handleSubmit} className="p-5 space-y-5">
-          <div className="space-y-3.5">
+
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 ml-1">Name</label>
+              <label className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/60 ml-1">
+                Playlist Name
+              </label>
               <Input
-                placeholder="My Awesome Playlist"
+                placeholder="e.g. Late Night Vibes"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
-                className="h-10 rounded-lg bg-accent/20 border-none focus-visible:ring-primary/20 text-sm"
+                className="h-11 rounded-xl bg-background/30 border border-border/30 focus-visible:ring-1 focus-visible:ring-primary/50 text-sm placeholder:text-muted-foreground/40 transition-all"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 ml-1">Description</label>
+              <label className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/60 ml-1">
+                Description
+              </label>
               <Textarea
-                placeholder="A collection of my favorite tracks..."
+                placeholder="Add an optional description for this collection..."
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="resize-none rounded-lg bg-accent/20 border-none focus-visible:ring-primary/20 min-h-[80px] text-sm"
+                className="resize-none rounded-xl bg-background/30 border border-border/30 focus-visible:ring-1 focus-visible:ring-primary/50 min-h-[90px] text-sm placeholder:text-muted-foreground/40 transition-all"
                 rows={3}
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button 
-              type="submit" 
+          <DialogFooter className="pt-2">
+            <Button
+              type="submit"
               disabled={isLoading}
-              className="w-full h-10 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-md cursor-pointer active:scale-95 transition-all"
+              className="w-full h-11 rounded-xl bg-primary hover:bg-primary/95 hover:shadow-lg hover:shadow-primary/20 text-primary-foreground font-bold shadow-md cursor-pointer active:scale-[0.98] transition-all"
             >
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -161,17 +165,13 @@ const UserPlaylist = () => {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-[1400px] mx-auto w-full space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="space-y-0.5">
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">My Playlists</h2>
-          <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
-            Manage your personal music collections
-            <Sparkles className="w-3.5 h-3.5 text-primary/70" />
-          </p>
-        </div>
-        <Button 
-          onClick={() => setPlaylistDialog({ isOpen: true, data: null })} 
+    <div className="p-4 md:p-6 max-w-350 mx-auto w-full space-y-6">
+      <div className="flex flex-row justify-between items-start sm:items-center gap-4">
+
+        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">My Playlists</h2>
+
+        <Button
+          onClick={() => setPlaylistDialog({ isOpen: true, data: null })}
           className="gap-2 h-10 rounded-xl px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md cursor-pointer transition-all active:scale-95"
         >
           <Plus className="h-4 w-4" />
@@ -192,8 +192,8 @@ const UserPlaylist = () => {
           <p className="text-muted-foreground font-medium mb-8 max-w-sm text-center">
             Create your first playlist and start building your collection!
           </p>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => setPlaylistDialog({ isOpen: true, data: null })}
             className="rounded-xl px-8 h-12 border-primary/20 hover:bg-primary/5 text-primary font-bold"
           >
@@ -201,7 +201,7 @@ const UserPlaylist = () => {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-4 md:gap-8 justify-items-center">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-5">
           <AnimatePresence mode="popLayout">
             {userPlaylist.map((playlist, index) => (
               <motion.div

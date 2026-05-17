@@ -43,7 +43,7 @@ const Chat = () => {
 
   const usersWithStatus = users.map((user) => ({
     ...user,
-    isOnline: onlineStatuses[user.otherUser.userid] || false,
+    isOnline: onlineStatuses[user?.otherUser?.userid] || false,
   }))
 
   if (isMobile) {

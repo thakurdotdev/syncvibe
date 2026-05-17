@@ -1,5 +1,3 @@
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Sheet,
@@ -165,109 +163,91 @@ const QueueSheet = () => {
   return (
     <>
       <Sheet open={isQueueOpen} onOpenChange={handleClose}>
-        <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col border-l border-border/30">
+        <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col border-l border-border/30 liquid-sheet">
           <SheetHeader className="px-4 pt-4 pb-3 border-b border-border/30 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="p-1.5 rounded-lg bg-primary/10">
+                <div className="p-1.5 rounded-xl liquid-badge">
                   <ListMusic className="h-4 w-4 text-primary" />
                 </div>
-                <SheetTitle className="text-lg font-semibold">Queue</SheetTitle>
+                <SheetTitle className="text-lg font-bold tracking-tight">Queue</SheetTitle>
                 {queue.length > 0 && (
-                  <Badge variant="secondary" className="text-[11px] px-2 py-0 h-5 font-mono">{queue.length}</Badge>
+                  <span className="text-[11px] px-2 py-0.5 h-5 font-mono liquid-badge rounded-full flex items-center justify-center text-muted-foreground">
+                    {queue.length}
+                  </span>
                 )}
               </div>
               <div className="flex items-center gap-1.5">
                 {currentQueueItem && upcomingQueue.length > 0 && (
-                  <Button variant="outline" size="sm" onClick={skipSong} className="gap-1.5 cursor-pointer h-8 rounded-lg text-xs">
+                  <button
+                    onClick={skipSong}
+                    className="liquid-btn h-8 rounded-xl gap-1.5 cursor-pointer flex items-center px-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+                  >
                     <SkipForward className="h-3.5 w-3.5" />
                     Skip
-                  </Button>
+                  </button>
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <button
                   onClick={() => handleClose(false)}
-                  className="h-8 w-8 rounded-full cursor-pointer hover:bg-accent"
+                  className="liquid-btn h-8 w-8 rounded-full cursor-pointer flex items-center justify-center text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
-                </Button>
+                </button>
               </div>
             </div>
             <SheetDescription className="sr-only">View queue and search for songs</SheetDescription>
 
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
-              <Input
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+              <input
                 ref={inputRef}
                 placeholder="Search songs to add..."
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="pl-10 pr-9 h-10 rounded-xl bg-accent/40 border-border/30 text-sm placeholder:text-muted-foreground/40 focus-visible:ring-primary/30"
+                className="w-full pl-10 pr-9 h-10 rounded-xl liquid-input text-sm placeholder:text-muted-foreground/40 outline-none text-foreground"
               />
               {isSearching && (
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <button
                   onClick={handleClearSearch}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full cursor-pointer hover:bg-accent"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full cursor-pointer flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
                 >
                   <X className="h-3.5 w-3.5" />
-                </Button>
+                </button>
               )}
             </div>
 
             <div className="flex gap-1">
-              <button
-                onClick={() => setActiveTab("search")}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer",
-                  activeTab === "search"
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/60",
-                )}
-              >
-                <Search className="h-3 w-3" />
-                Search
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab("playlists")
-                  setSearchQuery("")
-                  useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false })
-                }}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer",
-                  activeTab === "playlists"
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/60",
-                )}
-              >
-                <Library className="h-3 w-3" />
-                My Playlists
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab("recommendations")
-                  setSearchQuery("")
-                  useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false })
-                }}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer relative",
-                  activeTab === "recommendations"
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/60",
-                )}
-              >
-                <Sparkles className={cn("h-3 w-3", recsLoading && "animate-pulse")} />
-                Recommendations
-                {recommendations.length > 0 && activeTab !== "recommendations" && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                  </span>
-                )}
-              </button>
+              {[
+                { id: "search", icon: Search, label: "Search" },
+                { id: "playlists", icon: Library, label: "My Playlists" },
+                { id: "recommendations", icon: Sparkles, label: "Recommendations" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id)
+                    if (tab.id !== "search") {
+                      setSearchQuery("")
+                      useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false })
+                    }
+                  }}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium cursor-pointer relative",
+                    activeTab === tab.id
+                      ? "liquid-tab-active text-foreground"
+                      : "liquid-tab text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <tab.icon className={cn("h-3 w-3", tab.id === "recommendations" && recsLoading && "animate-pulse")} />
+                  {tab.label}
+                  {tab.id === "recommendations" && recommendations.length > 0 && activeTab !== "recommendations" && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           </SheetHeader>
 
