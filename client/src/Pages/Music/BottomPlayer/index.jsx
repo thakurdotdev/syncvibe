@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import { usePlayerStore } from "@/stores/playerStore"
 import { useAppModeStore } from "@/stores/appModeStore"
+import { useGroupPlaybackStore } from "@/stores/groupMusic/playbackStore"
 import AddToPlaylist from "../AddToPlaylist"
 import { ProgressBarMusic } from "../Common"
 import MinimizedPlayer from "./MinimizedPlayer"
@@ -17,6 +18,15 @@ const BottomPlayer = () => {
   const playlist = usePlayerStore((s) => s.playlist)
   const addToQueue = usePlayerStore((s) => s.addToQueue)
   const autoFetchRecommendations = usePlayerStore((s) => s.autoFetchRecommendations)
+  const isSoloPlaying = usePlayerStore((s) => s.isPlaying)
+  const handlePlayPause = usePlayerStore((s) => s.handlePlayPause)
+  const isGroupPlaying = useGroupPlaybackStore((s) => s.isPlaying)
+
+  useEffect(() => {
+    if (isGroupPlaying && isSoloPlaying) {
+      handlePlayPause()
+    }
+  }, [isGroupPlaying, isSoloPlaying, handlePlayPause])
 
   const isMobile = useIsMobile()
   const appMode = useAppModeStore((s) => s.mode)
@@ -60,40 +70,47 @@ const BottomPlayer = () => {
 
   return (
     <>
-      <Card
+      <div
         className={cn(
-          "fixed left-0 w-full border-0 liquid-glass z-50 transition-all duration-300 ease-out overflow-hidden",
-          hasMobileNav ? "bottom-14" : "bottom-0",
+          "fixed left-0 w-full transition-all duration-300 ease-out",
+          hasMobileNav ? "bottom-0 z-40" : "bottom-0 z-50",
           isMinimized
             ? "translate-y-full opacity-0 pointer-events-none"
             : "translate-y-0 opacity-100",
         )}
-        style={{ borderRadius: 0 }}
       >
-        {/* Ambient Background Layer */}
-        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none opacity-40">
-          <img
-            src={songImage}
-            alt=""
-            className="w-full h-full object-cover blur-2xl scale-150 transition-all duration-1000"
-          />
+        <div className="absolute -top-1 left-0 right-0 z-50">
+          <ProgressBarMusic />
         </div>
 
-        <CardContent className="p-0 relative">
-          <div className="absolute top-0 left-0 right-0">
-            <ProgressBarMusic />
-          </div>
-
-          <div className="flex items-center justify-between px-4 py-3 pt-4">
-            <SongInfo currentSong={currentSong} onOpenSheet={() => setIsSheetOpen(true)} />
-            <PlayerControls
-              onMinimize={() => setIsMinimized(true)}
-              onOpenModal={() => setIsModalOpen(true)}
-              isMobile={isMobile}
+        <Card
+          className="w-full border-0 liquid-glass overflow-hidden"
+          style={{
+            borderRadius: 0,
+            background: hasMobileNav ? "rgba(10, 12, 18, 0.9)" : undefined,
+          }}
+        >
+          {/* Ambient Background Layer */}
+          <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none opacity-40">
+            <img
+              src={songImage}
+              alt=""
+              className="w-full h-full object-cover blur-2xl scale-150 transition-all duration-1000"
             />
           </div>
-        </CardContent>
-      </Card>
+
+          <CardContent className={cn("p-0 relative pt-1.5", hasMobileNav && "pb-14")}>
+            <div className="flex items-center justify-between px-4 py-3">
+              <SongInfo currentSong={currentSong} onOpenSheet={() => setIsSheetOpen(true)} />
+              <PlayerControls
+                onMinimize={() => setIsMinimized(true)}
+                onOpenModal={() => setIsModalOpen(true)}
+                isMobile={isMobile}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <MinimizedPlayer
         isMinimized={isMinimized}

@@ -54,6 +54,28 @@ export function GroupMusicProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    const handleKeyDown = (e) => {
+      const activeGroup = useGroupSessionStore.getState().currentGroup
+      if (!activeGroup) return
+
+      if (
+        e.key === " " &&
+        document.activeElement &&
+        !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)
+      ) {
+        e.preventDefault()
+        playback.handlePlayPause(socket, activeGroup.id)
+      }
+      if (e.key === "ArrowRight") {
+        session.skipSong(socket, user)
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [socket, user, playback, session])
+
+  useEffect(() => {
     if (!socket) return
 
     const syncWithServer = () => {

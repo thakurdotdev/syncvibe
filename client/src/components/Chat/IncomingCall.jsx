@@ -110,8 +110,8 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
       <style>{`
         .incoming-call-card {
           background: rgba(0, 0, 0, 0.7);
-          backdrop-filter: blur(24px);
           -webkit-backdrop-filter: blur(24px);
+          backdrop-filter: blur(24px);
           border: 1px solid rgba(255, 255, 255, 0.08);
         }
         @keyframes call-progress {

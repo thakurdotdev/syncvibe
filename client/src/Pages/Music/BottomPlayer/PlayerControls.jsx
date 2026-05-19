@@ -4,6 +4,7 @@ import { memo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { usePlayerStore } from "@/stores/playerStore"
+import { useGroupSessionStore } from "@/stores/groupMusic/sessionStore"
 import { MusicControls, VolumeControl } from "../Common"
 import SleepTimerModal from "../SleepTimer"
 
@@ -11,9 +12,12 @@ const PlayerControls = memo(({ onMinimize, onOpenModal, isMobile }) => {
   const handlePlayPause = usePlayerStore((s) => s.handlePlayPause)
   const handleNextSong = usePlayerStore((s) => s.handleNextSong)
   const handlePrevSong = usePlayerStore((s) => s.handlePrevSong)
+  const isGroupActive = useGroupSessionStore((s) => !!s.currentGroup)
 
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (isGroupActive) return
+
       if (
         e.key === " " &&
         document.activeElement &&
@@ -28,7 +32,7 @@ const PlayerControls = memo(({ onMinimize, onOpenModal, isMobile }) => {
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [handlePlayPause, handleNextSong, handlePrevSong])
+  }, [isGroupActive, handlePlayPause, handleNextSong, handlePrevSong])
 
   return (
     <div className="flex items-center gap-1 sm:gap-2">

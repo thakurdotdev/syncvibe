@@ -77,7 +77,7 @@ const DraggableButton = memo(({ position, onMaximize, currentSong, isDragging })
     top: transform ? position.y + transform.y : position.y,
     left: transform ? position.x + transform.x : position.x,
     touchAction: "none",
-    zIndex: 9999,
+    zIndex: 10,
   }
 
   const artists = useMemo(() => {
