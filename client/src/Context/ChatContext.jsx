@@ -32,10 +32,10 @@ const getMediaConstraints = (facingMode) => {
       default:
         return isMobile
           ? {
-              width: { min: 320, ideal: 640, max: 1280 },
-              height: { min: 240, ideal: 480, max: 720 },
-              frameRate: { min: 15, ideal: 24, max: 30 },
-            }
+            width: { min: 320, ideal: 640, max: 1280 },
+            height: { min: 240, ideal: 480, max: 720 },
+            frameRate: { min: 15, ideal: 24, max: 30 },
+          }
           : baseSettings
     }
   }
@@ -490,7 +490,7 @@ export const ChatProvider = ({ children }) => {
 
       setUsers((prevUsers) =>
         prevUsers.map((user) =>
-          user.otherUser.userid === senderid ? { ...user, lastmessage: messageData.content } : user,
+          user?.otherUser?.userid === senderid ? { ...user, lastmessage: messageData.content } : user,
         ),
       )
 
@@ -525,7 +525,7 @@ export const ChatProvider = ({ children }) => {
       const updateTypingStatus = (status) => {
         setUsers((prevUsers) =>
           prevUsers.map((user) =>
-            user.otherUser.userid === userId ? { ...user, isTyping: status } : user,
+            user?.otherUser?.userid === userId ? { ...user, isTyping: status } : user,
           ),
         )
         setCurrentChat((prevChat) =>
