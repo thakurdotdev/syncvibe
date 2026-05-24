@@ -195,7 +195,8 @@
 }
 
 @keyframes ambient-breathe {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1) translateY(0);
     opacity: 0.12;
   }
@@ -210,7 +211,8 @@
 }
 
 @keyframes ambient-breathe-alt {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1.1) translateX(2%);
     opacity: 0.08;
   }
@@ -235,7 +237,7 @@
 }
 
 .glass-shimmer::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(
@@ -289,8 +291,14 @@
 }
 
 @keyframes float-up {
-  0% { opacity: 0; transform: translateY(8px) scale(0.95); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .animate-float-up {
@@ -614,7 +622,8 @@
 }
 
 @keyframes search-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.5;
     transform: scale(1);
   }

@@ -77,7 +77,9 @@ export function PlayerProvider({ children }) {
       if (retryCountRef.current < MAX_RETRIES) {
         retryCountRef.current += 1
         const delay = Math.pow(2, retryCountRef.current) * 500
-        console.warn(`Audio error, retrying (${retryCountRef.current}/${MAX_RETRIES}) in ${delay}ms`)
+        console.warn(
+          `Audio error, retrying (${retryCountRef.current}/${MAX_RETRIES}) in ${delay}ms`,
+        )
         setLoading(true)
 
         const savedTime = audio.currentTime || 0

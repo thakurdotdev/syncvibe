@@ -47,10 +47,7 @@ const GroupInvite = sequelize.define(
     modelName: "GroupInvite",
     tableName: "group_invites",
     timestamps: true,
-    indexes: [
-      { fields: ["inviteeId", "status"] },
-      { fields: ["groupId", "inviteeId"] },
-    ],
+    indexes: [{ fields: ["inviteeId", "status"] }, { fields: ["groupId", "inviteeId"] }],
   },
 )
 

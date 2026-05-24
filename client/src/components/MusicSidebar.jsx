@@ -1,12 +1,4 @@
-import {
-  Check,
-  Crown,
-  History,
-  Home,
-  ListMusic,
-  Users,
-  ArrowLeftRight,
-} from "lucide-react"
+import { Check, Crown, History, Home, ListMusic, Users, ArrowLeftRight } from "lucide-react"
 import { useLocation, useNavigate } from "react-router-dom"
 import {
   Sidebar,

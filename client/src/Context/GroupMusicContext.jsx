@@ -178,17 +178,31 @@ export function GroupMusicProvider({ children }) {
     socket.on("group-joined", async (data) => {
       ss.getState().handleGroupJoined(data)
       const offset = pb.getState().serverTimeOffset
-      await pb.getState().syncPlaybackFromServer(
-        data.playbackState, data.queue, data.currentQueueIndex, socket, data.group.id, offset,
-      )
+      await pb
+        .getState()
+        .syncPlaybackFromServer(
+          data.playbackState,
+          data.queue,
+          data.currentQueueIndex,
+          socket,
+          data.group.id,
+          offset,
+        )
     })
 
     socket.on("group-rejoined", async (data) => {
       ss.getState().handleGroupRejoined(data)
       const offset = pb.getState().serverTimeOffset
-      await pb.getState().syncPlaybackFromServer(
-        data.playbackState, data.queue, data.currentQueueIndex, socket, data.group.id, offset,
-      )
+      await pb
+        .getState()
+        .syncPlaybackFromServer(
+          data.playbackState,
+          data.queue,
+          data.currentQueueIndex,
+          socket,
+          data.group.id,
+          offset,
+        )
     })
 
     socket.on("group-not-found", () => {
@@ -249,7 +263,9 @@ export function GroupMusicProvider({ children }) {
 
     socket.on("invite-sent", () => toast.success("Invite sent!"))
     socket.on("invite-error", ({ error }) => toast.error(error))
-    socket.on("invite-accepted", ({ userName }) => toast.success(`${userName} accepted the invite!`))
+    socket.on("invite-accepted", ({ userName }) =>
+      toast.success(`${userName} accepted the invite!`),
+    )
     socket.on("group-invite-declined", () => toast.info("Invite was declined"))
 
     socket.on("song-reaction", (data) => {
@@ -260,20 +276,45 @@ export function GroupMusicProvider({ children }) {
 
     return () => {
       const events = [
-        "sync-state", "queue-updated", "queue-error", "queue-ended",
-        "playback-update", "music-update", "group-created", "group-joined",
-        "group-rejoined", "group-not-found", "member-joined", "member-left",
-        "group-disbanded", "new-message", "group-full", "feature-locked",
-        "group-invite-received", "invite-sent", "invite-error",
-        "invite-accepted", "group-invite-declined", "song-reaction",
+        "sync-state",
+        "queue-updated",
+        "queue-error",
+        "queue-ended",
+        "playback-update",
+        "music-update",
+        "group-created",
+        "group-joined",
+        "group-rejoined",
+        "group-not-found",
+        "member-joined",
+        "member-left",
+        "group-disbanded",
+        "new-message",
+        "group-full",
+        "feature-locked",
+        "group-invite-received",
+        "invite-sent",
+        "invite-error",
+        "invite-accepted",
+        "group-invite-declined",
+        "song-reaction",
       ]
       events.forEach((e) => socket.off(e))
     }
   }, [socket, user])
 
-  const currentQueueItem = useMemo(() => session.getCurrentQueueItem(), [session.queue, session.currentQueueIndex])
-  const upcomingQueue = useMemo(() => session.getUpcomingQueue(), [session.queue, session.currentQueueIndex])
-  const playedQueue = useMemo(() => session.getPlayedQueue(), [session.queue, session.currentQueueIndex])
+  const currentQueueItem = useMemo(
+    () => session.getCurrentQueueItem(),
+    [session.queue, session.currentQueueIndex],
+  )
+  const upcomingQueue = useMemo(
+    () => session.getUpcomingQueue(),
+    [session.queue, session.currentQueueIndex],
+  )
+  const playedQueue = useMemo(
+    () => session.getPlayedQueue(),
+    [session.queue, session.currentQueueIndex],
+  )
 
   const wrappedHandlePlayPause = useCallback(
     (forceState) => playback.handlePlayPause(socket, session.currentGroup?.id, forceState),
@@ -315,10 +356,7 @@ export function GroupMusicProvider({ children }) {
     [socket, user],
   )
 
-  const wrappedPlayNow = useCallback(
-    (song) => session.playNow(socket, user, song),
-    [socket, user],
-  )
+  const wrappedPlayNow = useCallback((song) => session.playNow(socket, user, song), [socket, user])
 
   const wrappedPlayNext = useCallback(
     (song) => session.playNext(socket, user, song),
@@ -330,10 +368,7 @@ export function GroupMusicProvider({ children }) {
     [socket, user],
   )
 
-  const wrappedSkipSong = useCallback(
-    () => session.skipSong(socket, user),
-    [socket, user],
-  )
+  const wrappedSkipSong = useCallback(() => session.skipSong(socket, user), [socket, user])
 
   const wrappedReorderQueue = useCallback(
     (from, to) => session.reorderQueue(socket, from, to),
@@ -350,10 +385,7 @@ export function GroupMusicProvider({ children }) {
     [socket, user, navigate],
   )
 
-  const wrappedDeclineInvite = useCallback(
-    (inv) => invite.declineInvite(socket, inv),
-    [socket],
-  )
+  const wrappedDeclineInvite = useCallback((inv) => invite.declineInvite(socket, inv), [socket])
 
   const wrappedSendInvite = useCallback(
     (userId) => invite.sendInvite(socket, user, session.currentGroup, userId),
@@ -370,10 +402,13 @@ export function GroupMusicProvider({ children }) {
       }
       socket.emit("song-reaction", reactionData)
       useGroupSessionStore.setState((state) => ({
-        floatingReactions: [...state.floatingReactions.slice(-20), {
-          ...reactionData,
-          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-        }],
+        floatingReactions: [
+          ...state.floatingReactions.slice(-20),
+          {
+            ...reactionData,
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          },
+        ],
       }))
     },
     [socket, session.currentGroup?.id, user],

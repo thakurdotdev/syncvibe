@@ -17,7 +17,9 @@ const ModeChooser = () => {
             width={48}
           />
           <h1 className="text-2xl font-bold tracking-tight">Choose your experience</h1>
-          <p className="text-sm text-muted-foreground">You can switch anytime from your profile menu.</p>
+          <p className="text-sm text-muted-foreground">
+            You can switch anytime from your profile menu.
+          </p>
         </div>
 
         <div className="flex flex-col gap-3 w-full">

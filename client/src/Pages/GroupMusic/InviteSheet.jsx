@@ -33,7 +33,9 @@ const UserItem = memo(({ user, isOnline, onInvite, isInvited, isInGroup }) => {
       transition={{ duration: 0.2 }}
       className={cn(
         "flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group",
-        !isInvited && !isInGroup ? "cursor-pointer hover:bg-muted/80 active:scale-[0.98]" : "cursor-default",
+        !isInvited && !isInGroup
+          ? "cursor-pointer hover:bg-muted/80 active:scale-[0.98]"
+          : "cursor-default",
       )}
       onClick={handleInvite}
     >
@@ -68,16 +70,17 @@ const UserItem = memo(({ user, isOnline, onInvite, isInvited, isInGroup }) => {
         </div>
         <p className="text-xs text-muted-foreground/70 font-medium truncate mt-0.5">
           @{user.username}
-          {isOnline && (
-            <span className="ml-2 text-emerald-500 font-bold">· online</span>
-          )}
+          {isOnline && <span className="ml-2 text-emerald-500 font-bold">· online</span>}
         </p>
       </div>
 
       {/* Action with better states */}
       <div className="shrink-0 ml-2">
         {isInGroup ? (
-          <Badge variant="outline" className="text-[10px] font-bold h-6 px-2 text-muted-foreground/60 border-muted/50">
+          <Badge
+            variant="outline"
+            className="text-[10px] font-bold h-6 px-2 text-muted-foreground/60 border-muted/50"
+          >
             In group
           </Badge>
         ) : isInvited ? (
@@ -87,7 +90,10 @@ const UserItem = memo(({ user, isOnline, onInvite, isInvited, isInGroup }) => {
           </div>
         ) : (
           <Button
-            onClick={(e) => { e.stopPropagation(); handleInvite() }}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleInvite()
+            }}
             variant="outline"
             size="sm"
             className="h-8 px-4 text-xs font-bold rounded-full hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all cursor-pointer shadow-sm active:scale-95"
@@ -128,9 +134,7 @@ const NoResultsState = memo(() => (
     </div>
     <div>
       <p className="text-sm font-medium">No results</p>
-      <p className="text-xs text-muted-foreground mt-1">
-        Try a different name or username
-      </p>
+      <p className="text-xs text-muted-foreground mt-1">Try a different name or username</p>
     </div>
   </div>
 ))
@@ -143,10 +147,7 @@ const InviteSheet = ({ isOpen, onClose, groupMembers, sendInvite }) => {
   const [invitedUsers, setInvitedUsers] = useState(new Set())
   const [hasSearched, setHasSearched] = useState(false)
 
-  const memberIds = useMemo(
-    () => new Set(groupMembers?.map((m) => m.userId) || []),
-    [groupMembers],
-  )
+  const memberIds = useMemo(() => new Set(groupMembers?.map((m) => m.userId) || []), [groupMembers])
 
   const fetchUsers = useCallback(async (query) => {
     try {
@@ -174,10 +175,7 @@ const InviteSheet = ({ isOpen, onClose, groupMembers, sendInvite }) => {
     }
   }, [isOpen, fetchUsers])
 
-  const debouncedSearch = useMemo(
-    () => _.debounce((query) => fetchUsers(query), 400),
-    [fetchUsers],
-  )
+  const debouncedSearch = useMemo(() => _.debounce((query) => fetchUsers(query), 400), [fetchUsers])
 
   const handleSearchChange = useCallback(
     (e) => {
@@ -211,7 +209,6 @@ const InviteSheet = ({ isOpen, onClose, groupMembers, sendInvite }) => {
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
-
         {/* Header */}
         <SheetHeader className="px-6 pt-7 pb-5 space-y-0">
           <div className="flex items-center justify-between">

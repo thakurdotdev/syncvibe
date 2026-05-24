@@ -9,7 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { usePlayerStore } from "@/stores/playerStore"
@@ -57,10 +57,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent
-        side="bottom"
-        className="h-full w-full p-0 overflow-hidden border-0 bg-black"
-      >
+      <SheetContent side="bottom" className="h-full w-full p-0 overflow-hidden border-0 bg-black">
         <div className="h-full w-full relative">
           <NowPlayingTab currentSong={currentSong} onOpenModal={onOpenModal} isDesktop />
 
@@ -97,10 +94,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                     <MoreHorizontal className="h-5 w-5 text-white" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-56 bg-[#111] border-white/10"
-                >
+                <DropdownMenuContent align="end" className="w-56 bg-[#111] border-white/10">
                   <DropdownMenuItem onClick={onOpenModal} className="cursor-pointer">
                     <ListMusic className="mr-2 h-4 w-4" />
                     Add to Playlist

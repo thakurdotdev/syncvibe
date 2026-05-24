@@ -33,7 +33,7 @@ const Recommendations = memo(
                 animate={{
                   scale: [1, 1.2, 1],
                   rotate: [0, 90, 180, 270, 360],
-                  opacity: [0.15, 0.3, 0.15]
+                  opacity: [0.15, 0.3, 0.15],
                 }}
                 transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
                 className="absolute -inset-8 border border-dashed border-white/[0.08] rounded-full"
@@ -47,14 +47,14 @@ const Recommendations = memo(
                   animate={{
                     opacity: [0, 1, 0],
                     scale: [0, 1, 0],
-                    x: Math.cos(i * 120 * Math.PI / 180) * 30,
-                    y: Math.sin(i * 120 * Math.PI / 180) * 30,
+                    x: Math.cos((i * 120 * Math.PI) / 180) * 30,
+                    y: Math.sin((i * 120 * Math.PI) / 180) * 30,
                   }}
                   transition={{
                     duration: 1.5,
                     repeat: Infinity,
                     delay: i * 0.4,
-                    ease: "easeInOut"
+                    ease: "easeInOut",
                   }}
                 >
                   <Sparkles className="h-3 w-3 text-primary drop-shadow-lg" />

@@ -27,10 +27,13 @@ const useImageColors = (imageSrc) => {
 
       const buckets = {}
       for (let i = 0; i < data.length; i += 4) {
-        const r = data[i], g = data[i + 1], b = data[i + 2]
-        const max = Math.max(r, g, b), min = Math.min(r, g, b)
+        const r = data[i],
+          g = data[i + 1],
+          b = data[i + 2]
+        const max = Math.max(r, g, b),
+          min = Math.min(r, g, b)
         if ((r + g + b) / 3 < 20 || (r + g + b) / 3 > 235) continue
-        if ((max - min) < 12) continue
+        if (max - min < 12) continue
         const key = `${Math.round(r / 24) * 24},${Math.round(g / 24) * 24},${Math.round(b / 24) * 24}`
         buckets[key] = (buckets[key] || 0) + 1
       }
@@ -90,7 +93,9 @@ const useBlurredBg = (imageSrc) => {
       }, 800)
     }
     img.src = imageSrc
-    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current) }
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
   }, [imageSrc])
 
   return bgUrls
@@ -108,7 +113,9 @@ const useCrossfadeImage = (src) => {
         setImages((prev) => ({ ...prev, previous: null, transitioning: false }))
       }, 600)
     }
-    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current) }
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
   }, [src])
 
   return images
@@ -144,8 +151,12 @@ const UpNextHint = memo(({ nextSong }) => {
         </AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0 text-left">
-        <p className="text-[10px] uppercase tracking-[0.15em] text-white/30 mb-0.5 font-medium">Next</p>
-        <p className="text-sm text-white/55 truncate group-hover:text-white/80 transition-colors duration-200">{nextName}</p>
+        <p className="text-[10px] uppercase tracking-[0.15em] text-white/30 mb-0.5 font-medium">
+          Next
+        </p>
+        <p className="text-sm text-white/55 truncate group-hover:text-white/80 transition-colors duration-200">
+          {nextName}
+        </p>
       </div>
       <ChevronRight className="w-3.5 h-3.5 text-white/15 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all duration-200 shrink-0" />
     </button>
@@ -154,7 +165,10 @@ const UpNextHint = memo(({ nextSong }) => {
 UpNextHint.displayName = "UpNextHint"
 
 const CrossfadeAvatar = memo(({ images, size, shadow, name }) => (
-  <div className="relative np-img-hover overflow-hidden rounded-2xl" style={{ width: size, height: size, boxShadow: shadow }}>
+  <div
+    className="relative np-img-hover overflow-hidden rounded-2xl"
+    style={{ width: size, height: size, boxShadow: shadow }}
+  >
     <div className="absolute inset-0 flex items-center justify-center bg-white/5">
       <Music className="w-24 h-24 text-white/20" />
     </div>
@@ -214,27 +228,42 @@ const NowPlayingTab = memo(({ currentSong }) => {
   const imgShadowDesktop = `0 30px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05), 0 0 80px -20px rgba(${c1[0]},${c1[1]},${c1[2]},0.25)`
   const imgShadowMobile = `0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05), 0 0 60px -15px rgba(${c1[0]},${c1[1]},${c1[2]},0.25)`
 
-  const orbStyle = useMemo(() => ({
-    o1: { background: `rgba(${c1[0]},${c1[1]},${c1[2]},0.18)`, transition: "background 2s ease-out" },
-    o2: { background: `rgba(${c2[0]},${c2[1]},${c2[2]},0.14)`, transition: "background 2s ease-out" },
-  }), [c1, c2])
+  const orbStyle = useMemo(
+    () => ({
+      o1: {
+        background: `rgba(${c1[0]},${c1[1]},${c1[2]},0.18)`,
+        transition: "background 2s ease-out",
+      },
+      o2: {
+        background: `rgba(${c2[0]},${c2[1]},${c2[2]},0.14)`,
+        transition: "background 2s ease-out",
+      },
+    }),
+    [c1, c2],
+  )
 
-  const overlayStyle = useMemo(() => ({
-    background: [
-      "radial-gradient(ellipse 70% 50% at 25% 20%, rgba(255,255,255,0.08) 0%, transparent 50%)",
-      "radial-gradient(ellipse 50% 35% at 75% 75%, rgba(255,255,255,0.04) 0%, transparent 40%)",
-      "radial-gradient(ellipse 120% 80% at 50% 40%, rgba(255,255,255,0.03) 0%, transparent 50%)",
-      "radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(5,5,8,0.3) 60%, rgba(5,5,8,0.85) 100%)",
-    ].join(", "),
-  }), [])
+  const overlayStyle = useMemo(
+    () => ({
+      background: [
+        "radial-gradient(ellipse 70% 50% at 25% 20%, rgba(255,255,255,0.08) 0%, transparent 50%)",
+        "radial-gradient(ellipse 50% 35% at 75% 75%, rgba(255,255,255,0.04) 0%, transparent 40%)",
+        "radial-gradient(ellipse 120% 80% at 50% 40%, rgba(255,255,255,0.03) 0%, transparent 50%)",
+        "radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(5,5,8,0.3) 60%, rgba(5,5,8,0.85) 100%)",
+      ].join(", "),
+    }),
+    [],
+  )
 
-  const mobileVignette = useMemo(() => ({
-    background: "radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(5,5,8,0.3) 60%, rgba(5,5,8,0.85) 100%)",
-  }), [])
+  const mobileVignette = useMemo(
+    () => ({
+      background:
+        "radial-gradient(ellipse at 50% 45%, transparent 30%, rgba(5,5,8,0.3) 60%, rgba(5,5,8,0.85) 100%)",
+    }),
+    [],
+  )
 
   return (
     <div className="w-full h-full relative overflow-hidden bg-[#050508] lg:pr-[300px]">
-
       {/* === MOBILE BG: Pre-blurred canvas, zero CSS filter cost === */}
       {blurredBg.previous && (
         <div
@@ -253,12 +282,21 @@ const NowPlayingTab = memo(({ currentSong }) => {
       {images.previous && (
         <div
           className="hidden lg:block absolute inset-0 bg-cover bg-center np-bg-fade-out"
-          style={{ backgroundImage: `url(${images.previous})`, filter: "blur(100px) saturate(1.3) brightness(0.6)", transform: "scale(1.5) translateZ(0)", willChange: "opacity" }}
+          style={{
+            backgroundImage: `url(${images.previous})`,
+            filter: "blur(100px) saturate(1.3) brightness(0.6)",
+            transform: "scale(1.5) translateZ(0)",
+            willChange: "opacity",
+          }}
         />
       )}
       <div
         className={`hidden lg:block absolute inset-0 bg-cover bg-center ${images.transitioning ? "np-bg-fade-in" : ""}`}
-        style={{ backgroundImage: `url(${images.current})`, filter: "blur(100px) saturate(1.3) brightness(0.6)", transform: "scale(1.5) translateZ(0)" }}
+        style={{
+          backgroundImage: `url(${images.current})`,
+          filter: "blur(100px) saturate(1.3) brightness(0.6)",
+          transform: "scale(1.5) translateZ(0)",
+        }}
       />
 
       {/* Desktop: glass effects */}
@@ -304,11 +342,11 @@ const NowPlayingTab = memo(({ currentSong }) => {
             <SheetTitle className="text-3xl xl:text-[2rem] font-bold line-clamp-1 text-white tracking-tight leading-[1.15]">
               {he.decode(currentSong.name)}
             </SheetTitle>
-            <p className="text-base xl:text-lg text-white/50 line-clamp-1">{he.decode(artistName)}</p>
+            <p className="text-base xl:text-lg text-white/50 line-clamp-1">
+              {he.decode(artistName)}
+            </p>
             {currentSong?.album?.name && (
-              <p className="text-sm text-white/25 mt-1">
-                {he.decode(currentSong.album.name)}
-              </p>
+              <p className="text-sm text-white/25 mt-1">{he.decode(currentSong.album.name)}</p>
             )}
           </div>
 
@@ -357,9 +395,7 @@ const NowPlayingTab = memo(({ currentSong }) => {
               </SheetTitle>
               <p className="text-sm text-white/50 line-clamp-1">{he.decode(artistName)}</p>
               {currentSong?.album?.name && (
-                <p className="text-xs text-white/25">
-                  {he.decode(currentSong.album.name)}
-                </p>
+                <p className="text-xs text-white/25">{he.decode(currentSong.album.name)}</p>
               )}
             </div>
 

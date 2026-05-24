@@ -63,8 +63,9 @@ export const PlaylistActions = ({ onPlayAll, onShuffle, disabled, showShare = tr
 
 export const LoadingState = ({ message, height }) => (
   <div
-    className={`flex ${height ? height : "h-full"
-      } items-center justify-center bg-background/50 backdrop-blur-xs`}
+    className={`flex ${
+      height ? height : "h-full"
+    } items-center justify-center bg-background/50 backdrop-blur-xs`}
   >
     <div className="flex flex-col items-center gap-4">
       <Loader2 className="w-10 h-10 animate-spin text-emerald-500" />
@@ -92,100 +93,163 @@ export const MusicControls = memo(({ size = "default", showExtras = true }) => {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className={cn("flex items-center justify-center", isLarge ? "gap-3 sm:gap-5" : "gap-1 sm:gap-2")}>
+      <div
+        className={cn(
+          "flex items-center justify-center",
+          isLarge ? "gap-3 sm:gap-5" : "gap-1 sm:gap-2",
+        )}
+      >
         {showExtras && (
           <Tooltip>
             <TooltipTrigger asChild>
               <motion.div variants={btnAnim} whileHover="hover" whileTap="tap">
-                <Button variant="ghost" size="icon" onClick={toggleShuffle}
-                  className={cn("relative transition-colors duration-200",
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleShuffle}
+                  className={cn(
+                    "relative transition-colors duration-200",
                     isLarge ? "h-11 w-11" : "h-9 w-9",
-                    shuffleMode ? "text-white" : "text-white/50 hover:text-white/80"
-                  )}>
+                    shuffleMode ? "text-white" : "text-white/50 hover:text-white/80",
+                  )}
+                >
                   <Shuffle className={isLarge ? "h-[18px] w-[18px]" : "h-4 w-4"} />
                   {shuffleMode && (
-                    <motion.span layoutId="shuffle-indicator"
+                    <motion.span
+                      layoutId="shuffle-indicator"
                       className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white"
-                      initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} />
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                    />
                   )}
                 </Button>
               </motion.div>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">{shuffleMode ? "Shuffle: On" : "Shuffle: Off"}</TooltipContent>
+            <TooltipContent side="top" className="text-xs">
+              {shuffleMode ? "Shuffle: On" : "Shuffle: Off"}
+            </TooltipContent>
           </Tooltip>
         )}
 
         <Tooltip>
           <TooltipTrigger asChild>
             <motion.div variants={btnAnim} whileHover="hover" whileTap="tap">
-              <Button variant="ghost" size="icon" onClick={handlePrevSong}
-                className={cn("transition-colors duration-200 text-white/70 hover:text-white",
-                  isLarge ? "h-12 w-12" : "h-9 w-9")}>
-                <SkipBack className={isLarge ? "h-[22px] w-[22px]" : "h-4 w-4"} fill="currentColor" />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handlePrevSong}
+                className={cn(
+                  "transition-colors duration-200 text-white/70 hover:text-white",
+                  isLarge ? "h-12 w-12" : "h-9 w-9",
+                )}
+              >
+                <SkipBack
+                  className={isLarge ? "h-[22px] w-[22px]" : "h-4 w-4"}
+                  fill="currentColor"
+                />
               </Button>
             </motion.div>
           </TooltipTrigger>
-          <TooltipContent side="top" className="text-xs">Previous</TooltipContent>
+          <TooltipContent side="top" className="text-xs">
+            Previous
+          </TooltipContent>
         </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
             <motion.div variants={playAnim} whileHover="hover" whileTap="tap">
-              <Button size="icon" onClick={handlePlayPause}
+              <Button
+                size="icon"
+                onClick={handlePlayPause}
                 className={cn(
                   "bg-white hover:bg-white/90 text-black transition-all duration-200",
-                  isLarge ? "h-16 w-16 rounded-full shadow-[0_4px_24px_rgba(255,255,255,0.15)]" : "h-10 w-10 rounded-full shadow-lg",
-                )}>
+                  isLarge
+                    ? "h-16 w-16 rounded-full shadow-[0_4px_24px_rgba(255,255,255,0.15)]"
+                    : "h-10 w-10 rounded-full shadow-lg",
+                )}
+              >
                 <AnimatePresence mode="wait" initial={false}>
-                  <motion.span key={isPlaying ? "pause" : "play"}
-                    initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.5, opacity: 0 }} transition={{ duration: 0.15 }}
-                    className="flex items-center justify-center">
+                  <motion.span
+                    key={isPlaying ? "pause" : "play"}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex items-center justify-center"
+                  >
                     {isPlaying ? (
                       <Pause className={isLarge ? "h-7 w-7" : "h-4 w-4"} fill="currentColor" />
                     ) : (
-                      <Play className={cn(isLarge ? "h-7 w-7" : "h-4 w-4", "ml-0.5")} fill="currentColor" />
+                      <Play
+                        className={cn(isLarge ? "h-7 w-7" : "h-4 w-4", "ml-0.5")}
+                        fill="currentColor"
+                      />
                     )}
                   </motion.span>
                 </AnimatePresence>
               </Button>
             </motion.div>
           </TooltipTrigger>
-          <TooltipContent side="top" className="text-xs">{isPlaying ? "Pause" : "Play"}</TooltipContent>
+          <TooltipContent side="top" className="text-xs">
+            {isPlaying ? "Pause" : "Play"}
+          </TooltipContent>
         </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
             <motion.div variants={btnAnim} whileHover="hover" whileTap="tap">
-              <Button variant="ghost" size="icon" onClick={() => handleNextSong(false)}
-                className={cn("transition-colors duration-200 text-white/70 hover:text-white",
-                  isLarge ? "h-12 w-12" : "h-9 w-9")}>
-                <SkipForward className={isLarge ? "h-[22px] w-[22px]" : "h-4 w-4"} fill="currentColor" />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleNextSong(false)}
+                className={cn(
+                  "transition-colors duration-200 text-white/70 hover:text-white",
+                  isLarge ? "h-12 w-12" : "h-9 w-9",
+                )}
+              >
+                <SkipForward
+                  className={isLarge ? "h-[22px] w-[22px]" : "h-4 w-4"}
+                  fill="currentColor"
+                />
               </Button>
             </motion.div>
           </TooltipTrigger>
-          <TooltipContent side="top" className="text-xs">Next</TooltipContent>
+          <TooltipContent side="top" className="text-xs">
+            Next
+          </TooltipContent>
         </Tooltip>
 
         {showExtras && (
           <Tooltip>
             <TooltipTrigger asChild>
               <motion.div variants={btnAnim} whileHover="hover" whileTap="tap">
-                <Button variant="ghost" size="icon" onClick={toggleRepeat}
-                  className={cn("relative transition-colors duration-200",
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleRepeat}
+                  className={cn(
+                    "relative transition-colors duration-200",
                     isLarge ? "h-11 w-11" : "h-9 w-9",
-                    repeatMode !== "off" ? "text-white" : "text-white/50 hover:text-white/80"
-                  )}>
+                    repeatMode !== "off" ? "text-white" : "text-white/50 hover:text-white/80",
+                  )}
+                >
                   <RepeatIcon className={isLarge ? "h-[18px] w-[18px]" : "h-4 w-4"} />
                   {repeatMode !== "off" && (
-                    <motion.span layoutId="repeat-indicator"
+                    <motion.span
+                      layoutId="repeat-indicator"
                       className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white"
-                      initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} />
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                    />
                   )}
                 </Button>
               </motion.div>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">{repeatLabel[repeatMode]}</TooltipContent>
+            <TooltipContent side="top" className="text-xs">
+              {repeatLabel[repeatMode]}
+            </TooltipContent>
           </Tooltip>
         )}
       </div>
@@ -335,8 +399,12 @@ export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
       />
       {isTimeVisible && (
         <div className="flex justify-between px-0.5">
-          <span className="text-[11px] text-white/40 tabular-nums font-medium">{formatTime(currentTime)}</span>
-          <span className="text-[11px] text-white/40 tabular-nums font-medium">{formatTime(duration)}</span>
+          <span className="text-[11px] text-white/40 tabular-nums font-medium">
+            {formatTime(currentTime)}
+          </span>
+          <span className="text-[11px] text-white/40 tabular-nums font-medium">
+            {formatTime(duration)}
+          </span>
         </div>
       )}
     </div>
@@ -348,32 +416,32 @@ export const ensureHttpsForDownloadUrls = (song) => {
 
   const updatedDownloadUrls = Array.isArray(song.download_url)
     ? song.download_url.map((item) => {
-      if (!item || typeof item !== "object") return item
-      return {
-        ...item,
-        link:
-          item.link && typeof item.link === "string"
-            ? item.link.startsWith("http://")
-              ? item.link.replace("http://", "https://")
-              : item.link
-            : item.link,
-      }
-    })
+        if (!item || typeof item !== "object") return item
+        return {
+          ...item,
+          link:
+            item.link && typeof item.link === "string"
+              ? item.link.startsWith("http://")
+                ? item.link.replace("http://", "https://")
+                : item.link
+              : item.link,
+        }
+      })
     : song.download_url
 
   const updatedArtworkUrls = Array.isArray(song.image)
     ? song.image.map((item) => {
-      if (!item || typeof item !== "object") return item
-      return {
-        ...item,
-        link:
-          item.link && typeof item.link === "string"
-            ? item.link.startsWith("http://")
-              ? item.link.replace("http://", "https://")
-              : item.link
-            : item.link,
-      }
-    })
+        if (!item || typeof item !== "object") return item
+        return {
+          ...item,
+          link:
+            item.link && typeof item.link === "string"
+              ? item.link.startsWith("http://")
+                ? item.link.replace("http://", "https://")
+                : item.link
+              : item.link,
+        }
+      })
     : song.image
 
   return {

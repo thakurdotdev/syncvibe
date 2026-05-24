@@ -154,7 +154,9 @@ const SearchDialog = ({ open, setOpen }) => {
                       <Search className="w-8 h-8" />
                     </div>
                     <p className="text-base font-medium mb-1">Start typing to search</p>
-                    <p className="text-sm text-muted-foreground">Find your favorite songs & albums</p>
+                    <p className="text-sm text-muted-foreground">
+                      Find your favorite songs & albums
+                    </p>
                   </div>
                 )}
               </div>
@@ -163,7 +165,7 @@ const SearchDialog = ({ open, setOpen }) => {
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body
+    document.body,
   )
 }
 

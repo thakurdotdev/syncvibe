@@ -37,8 +37,9 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
       style={{ zIndex: 9999 }}
     >
       <div
-        className={`transition-all duration-500 ease-out ${isVisible ? "translate-y-0 opacity-100 scale-100" : "translate-y-4 opacity-0 scale-95"
-          }`}
+        className={`transition-all duration-500 ease-out ${
+          isVisible ? "translate-y-0 opacity-100 scale-100" : "translate-y-4 opacity-0 scale-95"
+        }`}
       >
         <div className="incoming-call-card rounded-2xl overflow-hidden shadow-2xl">
           <div className="p-4 flex items-center gap-3.5 relative">
@@ -59,15 +60,14 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
                 </div>
               )}
               <div
-                className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-background ${isRinging ? "animate-pulse" : ""
-                  }`}
+                className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-background ${
+                  isRinging ? "animate-pulse" : ""
+                }`}
               />
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate">
-                {incomingCall.name}
-              </p>
+              <p className="text-sm font-semibold text-foreground truncate">{incomingCall.name}</p>
               <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                 <span className="relative flex h-2 w-2">
                   {isRinging && (

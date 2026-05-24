@@ -281,12 +281,14 @@ export const useGroupSessionStore = create((set, get) => ({
     const { saveSession } = get()
     set({
       currentGroup: group,
-      groupMembers: [{
-        groupId: group.id,
-        userId: user.userid,
-        userName: user.name,
-        profilePic: user.profilepic,
-      }],
+      groupMembers: [
+        {
+          groupId: group.id,
+          userId: user.userid,
+          userName: user.name,
+          profilePic: user.profilepic,
+        },
+      ],
       queue: [],
       currentQueueIndex: -1,
     })

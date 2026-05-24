@@ -15,9 +15,7 @@ const WelcomeView = ({ onOpenModal }) => {
           </div>
         </div>
 
-        <h2 className="text-2xl sm:text-3xl font-bold mb-3">
-          Group Music Session
-        </h2>
+        <h2 className="text-2xl sm:text-3xl font-bold mb-3">Group Music Session</h2>
         <p className="text-muted-foreground text-sm sm:text-base mb-10 max-w-sm leading-relaxed">
           Create or join a group to listen together, perfectly synchronized across all devices.
         </p>

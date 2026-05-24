@@ -26,11 +26,7 @@ const MusicCommand = () => {
 
   return (
     <>
-      <button
-        onClick={toggleOpen}
-        className="music-search-trigger"
-        type="button"
-      >
+      <button onClick={toggleOpen} className="music-search-trigger" type="button">
         <Search className="music-search-icon" />
         <span className="music-search-placeholder">
           <span className="">Search songs, artists, albums...</span>

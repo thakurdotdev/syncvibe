@@ -134,10 +134,7 @@ const ProfileDropdownMenu = ({ fromSidebar = true }) => {
             <BadgeCheck />
             Account
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={resetMode}
-            className="cursor-pointer"
-          >
+          <DropdownMenuItem onClick={resetMode} className="cursor-pointer">
             <ArrowLeftRight />
             Switch Mode
           </DropdownMenuItem>

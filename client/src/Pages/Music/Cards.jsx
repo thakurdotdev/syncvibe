@@ -586,34 +586,19 @@ export const AlbumCard = memo(({ album }) => {
 
 export const PlaylistCard = memo(({ playlist }) => {
   const navigate = useNavigate()
-  const [isHovered, setIsHovered] = useState(false)
 
   if (!playlist?.name || !playlist?.image) return null
 
-  const subtitle = useMemo(
-    () => playlist.subtitle || playlist.description || "Playlist",
-    [playlist],
-  )
-
-  const imageUrl = useMemo(
-    () => (Array.isArray(playlist.image) ? playlist.image[2].link : playlist.image),
-    [playlist.image],
-  )
+  const subtitle = playlist.subtitle || playlist.description || "Playlist"
+  const imageUrl = Array.isArray(playlist.image) ? playlist.image[2].link : playlist.image
 
   return (
-    <MotionCard
-      className="w-[150px] group cursor-pointer rounded-lg p-2"
+    <div
+      className="w-[150px] group cursor-pointer rounded-lg p-2 transition-all duration-200 hover:bg-white/5 active:scale-98"
       onClick={() => navigate(`/music/playlist/${playlist.id}`, { state: playlist.id })}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      whileHover={{ backgroundColor: "rgba(255,255,255,0.05)" }}
-      whileTap={{ scale: 0.98 }}
     >
-      <div className="relative mb-2 overflow-hidden rounded-lg">
-        <motion.div
-          animate={{ scale: isHovered ? 1.05 : 1 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-        >
+      <div className="relative mb-2 overflow-hidden rounded-lg aspect-square">
+        <div className="w-full h-full transition-transform duration-300 ease-out group-hover:scale-105 [will-change:transform]">
           <LazyImage
             src={imageUrl}
             alt={playlist.name}
@@ -621,32 +606,18 @@ export const PlaylistCard = memo(({ playlist }) => {
             width={140}
             className="w-full aspect-square rounded-lg object-cover"
           />
-        </motion.div>
-        <AnimatePresence>
-          {isHovered && (
-            <motion.div
-              className="absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.05 }}
-              >
-                <ListMusic className="w-8 h-8 text-white" />
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        </div>
+        <div className="absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <div className="transition-transform duration-200 ease-out scale-75 group-hover:scale-100">
+            <ListMusic className="w-8 h-8 text-white" />
+          </div>
+        </div>
       </div>
       <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
         {playlist.name}
       </p>
       <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
-    </MotionCard>
+    </div>
   )
 })
 
@@ -654,13 +625,19 @@ const DeleteConfirmDialog = ({ isOpen, onClose, onConfirm, playlistName }) => (
   <AlertDialog open={isOpen} onOpenChange={onClose}>
     <AlertDialogContent className="liquid-glass border border-border/30 rounded-2xl shadow-2xl p-5 md:p-6 space-y-4">
       <AlertDialogHeader className="space-y-2">
-        <AlertDialogTitle className="text-lg font-bold text-foreground">Delete Playlist</AlertDialogTitle>
+        <AlertDialogTitle className="text-lg font-bold text-foreground">
+          Delete Playlist
+        </AlertDialogTitle>
         <AlertDialogDescription className="text-sm text-muted-foreground font-medium">
-          Are you sure you want to delete <span className="font-bold text-foreground">"{playlistName}"</span>? This action cannot be undone and all local playlist data will be lost.
+          Are you sure you want to delete{" "}
+          <span className="font-bold text-foreground">"{playlistName}"</span>? This action cannot be
+          undone and all local playlist data will be lost.
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter className="gap-2 sm:gap-0">
-        <AlertDialogCancel className="rounded-xl border border-border/30 hover:bg-accent/50 cursor-pointer active:scale-95 transition-all">Cancel</AlertDialogCancel>
+        <AlertDialogCancel className="rounded-xl border border-border/30 hover:bg-accent/50 cursor-pointer active:scale-95 transition-all">
+          Cancel
+        </AlertDialogCancel>
         <AlertDialogAction
           onClick={onConfirm}
           className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl font-bold cursor-pointer active:scale-95 transition-all"
@@ -674,7 +651,6 @@ const DeleteConfirmDialog = ({ isOpen, onClose, onConfirm, playlistName }) => (
 
 export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
   const navigate = useNavigate()
-  const [isHovered, setIsHovered] = useState(false)
   const [showDeleteAlert, setShowDeleteAlert] = useState(false)
 
   if (!playlist?.name) return null
@@ -696,19 +672,12 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
 
   return (
     <>
-      <MotionCard
-        className="w-full group cursor-pointer rounded-xl p-2 bg-accent/10 border border-transparent hover:border-primary/20 hover:bg-accent/20 transition-all duration-200"
+      <div
+        className="w-full group cursor-pointer rounded-xl p-2 bg-accent/10 border border-transparent hover:border-primary/20 hover:bg-accent/20 transition-all duration-200 active:scale-98"
         onClick={handleCardClick}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        whileTap={{ scale: 0.98 }}
       >
         <div className="relative mb-2 aspect-square overflow-hidden rounded-lg shadow-sm">
-          <motion.div
-            className="h-full w-full"
-            animate={{ scale: isHovered ? 1.05 : 1 }}
-            transition={{ duration: 0.3 }}
-          >
+          <div className="h-full w-full transition-transform duration-300 ease-out group-hover:scale-105 [will-change:transform]">
             <Avatar className="w-full h-full rounded-none">
               <AvatarImage
                 src={playlist?.image?.[2]?.link || playlist?.image?.[1]?.link}
@@ -719,22 +688,13 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
                 <ListMusic className="w-8 h-8 text-muted-foreground/50" />
               </AvatarFallback>
             </Avatar>
-          </motion.div>
+          </div>
 
-          <AnimatePresence>
-            {isHovered && (
-              <motion.div
-                className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <div className="p-2.5 rounded-full bg-primary text-white shadow-lg cursor-pointer">
-                  <Play className="w-5 h-5 fill-current" />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <div className="p-2.5 rounded-full shadow-lg cursor-pointer transition-transform duration-200 scale-75 group-hover:scale-100">
+              <Play className="w-5 h-5 fill-current" />
+            </div>
+          </div>
 
           <div className="action-buttons absolute top-1.5 right-1.5 flex flex-col gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200">
             <Button
@@ -768,7 +728,7 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
           </p>
           <p className="text-[11px] text-muted-foreground/60 font-medium">{subtitle}</p>
         </div>
-      </MotionCard>
+      </div>
 
       <DeleteConfirmDialog
         isOpen={showDeleteAlert}

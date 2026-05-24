@@ -50,7 +50,7 @@ const ClipboardGroupDetector = () => {
             },
           },
         )
-      } catch { }
+      } catch {}
     }
 
     const timer = setTimeout(checkClipboard, 1000)

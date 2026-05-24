@@ -6,7 +6,15 @@ const { Op } = require("sequelize")
 const SONG_API_URL = process.env.SONG_API_URL || "https://song.thakur.dev"
 const CACHE_PREFIX = "pn:v3:"
 const CACHE_TTL = 30 * 24 * 60 * 60
-const SONG_ATTRS = ["songId", "name", "artistNames", "albumName", "language", "duration", "songData"]
+const SONG_ATTRS = [
+  "songId",
+  "name",
+  "artistNames",
+  "albumName",
+  "language",
+  "duration",
+  "songData",
+]
 
 const MIN_SCORE_THRESHOLD = 30
 
@@ -25,9 +33,27 @@ const buildArtistILike = (name) => {
 }
 
 const VARIANT_TAGS = [
-  "remix", "dubstep", "edm", "lofi", "lo-fi", "slowed", "reverb", "8d",
-  "mashup", "nightcore", "bass boosted", "phonk", "trap", "instrumental",
-  "karaoke", "cover", "unplugged", "acoustic", "reprise", "jhankar", "jhankar beats",
+  "remix",
+  "dubstep",
+  "edm",
+  "lofi",
+  "lo-fi",
+  "slowed",
+  "reverb",
+  "8d",
+  "mashup",
+  "nightcore",
+  "bass boosted",
+  "phonk",
+  "trap",
+  "instrumental",
+  "karaoke",
+  "cover",
+  "unplugged",
+  "acoustic",
+  "reprise",
+  "jhankar",
+  "jhankar beats",
 ]
 
 const normalize = (str) => (str || "").toLowerCase().trim()
@@ -197,9 +223,7 @@ const computeForSong = async (baseSongId) => {
     .slice(0, 5)
     .map((singer) => buildArtistILike(singer))
 
-  const albumCondition = baseSongRow.albumName
-    ? [{ albumName: baseSongRow.albumName }]
-    : []
+  const albumCondition = baseSongRow.albumName ? [{ albumName: baseSongRow.albumName }] : []
 
   const primaryConditions = [...singerConditions, ...albumCondition]
 
@@ -228,12 +252,12 @@ const computeForSong = async (baseSongId) => {
 
     if (mdConditions.length > 0 && baseSong.language) {
       const { sequelize } = Song
-      const yearFilter = baseSong.year > 0
-        ? sequelize.where(
-            sequelize.cast(sequelize.json("songData.year"), "integer"),
-            { [Op.between]: [baseSong.year - 10, baseSong.year + 10] },
-          )
-        : undefined
+      const yearFilter =
+        baseSong.year > 0
+          ? sequelize.where(sequelize.cast(sequelize.json("songData.year"), "integer"), {
+              [Op.between]: [baseSong.year - 10, baseSong.year + 10],
+            })
+          : undefined
 
       const supplementary = await Song.findAll({
         where: {

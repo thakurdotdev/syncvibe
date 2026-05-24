@@ -8,7 +8,8 @@ import UpgradeDialog from "@/components/UpgradeDialog"
 const getActivityMeta = (message) => {
   const lower = message?.toLowerCase() || ""
   if (lower.includes("now playing")) return { icon: "▶️", accent: "text-emerald-400/70" }
-  if (lower.includes("added") && lower.includes("queue")) return { icon: "🎵", accent: "text-blue-400/70" }
+  if (lower.includes("added") && lower.includes("queue"))
+    return { icon: "🎵", accent: "text-blue-400/70" }
   if (lower.includes("skipped")) return { icon: "⏭️", accent: "text-amber-400/70" }
   if (lower.includes("joined")) return { icon: "👋", accent: "text-emerald-400/70" }
   if (lower.includes("left")) return { icon: "👋", accent: "text-rose-400/70" }
@@ -20,10 +21,12 @@ const ActivityMessage = memo(({ msg }) => {
 
   return (
     <div className="flex justify-center py-1.5">
-      <p className={cn(
-        "text-[11px] px-3.5 py-1 rounded-full leading-relaxed liquid-badge",
-        meta.accent,
-      )}>
+      <p
+        className={cn(
+          "text-[11px] px-3.5 py-1 rounded-full leading-relaxed liquid-badge",
+          meta.accent,
+        )}
+      >
         <span className="mr-1.5">{meta.icon}</span>
         {msg.message}
       </p>
@@ -89,9 +92,7 @@ const ChatLockedOverlay = memo(({ onUpgrade }) => (
           Tap to upgrade and chat with your group
         </p>
       </div>
-      <button
-        className="gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0 cursor-pointer px-4 py-2 text-sm font-medium flex items-center transition-all duration-200 hover:scale-105 active:scale-95"
-      >
+      <button className="gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0 cursor-pointer px-4 py-2 text-sm font-medium flex items-center transition-all duration-200 hover:scale-105 active:scale-95">
         <Sparkles className="h-3.5 w-3.5" />
         Upgrade to PRO
       </button>
@@ -111,18 +112,10 @@ const MessagesList = memo(({ messages, currentUserId }) => {
 
         const isOwn = msg.senderId === currentUserId
         const prev = messages[i - 1]
-        const showAvatar = !isOwn && (
-          !prev || prev.type === "activity" || prev.senderId !== msg.senderId
-        )
+        const showAvatar =
+          !isOwn && (!prev || prev.type === "activity" || prev.senderId !== msg.senderId)
 
-        return (
-          <ChatMessage
-            key={msg.id || i}
-            msg={msg}
-            isOwn={isOwn}
-            showAvatar={showAvatar}
-          />
-        )
+        return <ChatMessage key={msg.id || i} msg={msg} isOwn={isOwn} showAvatar={showAvatar} />
       })}
     </div>
   )

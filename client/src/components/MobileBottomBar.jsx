@@ -23,9 +23,10 @@ const MobileBottomBar = () => {
   const location = useLocation()
   const mode = useAppModeStore((s) => s.mode)
   const currentSong = usePlayerStore((s) => s.currentSong)
+  const isMinimized = usePlayerStore((s) => s.isMinimized)
 
   const menuItems = mode === "music" ? musicMenuItems : normalMenuItems
-  const isPlayerVisible = !!currentSong && mode === "music"
+  const isPlayerVisible = !!currentSong && mode === "music" && !isMinimized
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 sm:hidden">
@@ -33,7 +34,7 @@ const MobileBottomBar = () => {
         className={cn(
           isPlayerVisible
             ? "bg-transparent border-0 shadow-none backdrop-blur-none"
-            : "liquid-glass border-t-0"
+            : "liquid-glass border-t-0",
         )}
         style={{ borderRadius: 0 }}
       >
@@ -50,9 +51,7 @@ const MobileBottomBar = () => {
                   isActive ? "text-primary" : "text-muted-foreground active:text-foreground",
                 )}
               >
-                <item.icon
-                  className={cn("h-5 w-5", isActive && "stroke-[2.5px]")}
-                />
+                <item.icon className={cn("h-5 w-5", isActive && "stroke-[2.5px]")} />
                 <span className={cn("text-[10px]", isActive ? "font-semibold" : "font-medium")}>
                   {item.name}
                 </span>

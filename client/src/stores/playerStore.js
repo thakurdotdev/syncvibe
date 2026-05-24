@@ -34,6 +34,19 @@ export const usePlayerStore = create(
       },
       sleepTimerInterval: null,
       _hasRestoredTime: false,
+      isMinimized: (() => {
+        try {
+          const saved = localStorage.getItem("bottom-player-minimized")
+          return saved ? JSON.parse(saved) : false
+        } catch {
+          return false
+        }
+      })(),
+
+      setIsMinimized: (isMinimized) => {
+        localStorage.setItem("bottom-player-minimized", JSON.stringify(isMinimized))
+        set({ isMinimized })
+      },
 
       setAudioRefs: (audio, nextAudio) => {
         audioElement = audio
@@ -374,6 +387,7 @@ export const usePlayerStore = create(
         volume: state.volume,
         shuffleMode: state.shuffleMode,
         repeatMode: state.repeatMode,
+        isMinimized: state.isMinimized,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {

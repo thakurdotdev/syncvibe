@@ -198,9 +198,10 @@ const forgotPassword = async (req, res) => {
       { where: { userid: user.userid } },
     )
 
-    const clientUrl = process.env.NODE_ENV === "production"
-      ? "https://syncvibe.thakur.dev"
-      : "http://localhost:5173"
+    const clientUrl =
+      process.env.NODE_ENV === "production"
+        ? "https://syncvibe.thakur.dev"
+        : "http://localhost:5173"
 
     const resetUrl = `${clientUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`
 

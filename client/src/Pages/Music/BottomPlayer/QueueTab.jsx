@@ -138,11 +138,7 @@ const QueueSongItem = memo(
       [onFetchRecommendations, song.id, song.name, song.title],
     )
 
-    const desktopClasses = isDesktop
-      ? isCurrentSong
-        ? "dqp-item-active"
-        : "dqp-item"
-      : ""
+    const desktopClasses = isDesktop ? (isCurrentSong ? "dqp-item-active" : "dqp-item") : ""
 
     if (isDesktop) {
       return (
@@ -453,7 +449,16 @@ QueueSongItem.displayName = "QueueSongItem"
 
 // Sortable wrapper
 const SortableSongItem = memo(
-  ({ song, isCurrentSong, isPlaying, onPlay, onRemove, onFetchRecommendations, isLoadingRecs, variant }) => {
+  ({
+    song,
+    isCurrentSong,
+    isPlaying,
+    onPlay,
+    onRemove,
+    onFetchRecommendations,
+    isLoadingRecs,
+    variant,
+  }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
       id: song.id,
     })

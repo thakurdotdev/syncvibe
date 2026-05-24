@@ -8,7 +8,13 @@ import { GroupMusicProvider } from "./Context/GroupMusicContext"
 import { PlayerProvider } from "./Context/PlayerContext"
 import { ThemeProvider } from "./Context/ThemeProvider"
 import { Toaster } from "./components/ui/sonner"
-import { ProtectedRoutes, PublicRoutes, privateRoutes, publicRoutes, musicOnlyRoutes } from "./Routes"
+import {
+  ProtectedRoutes,
+  PublicRoutes,
+  privateRoutes,
+  publicRoutes,
+  musicOnlyRoutes,
+} from "./Routes"
 import { setQueryClient } from "./stores/uploadStore"
 import { useAppModeStore } from "./stores/appModeStore"
 import ClipboardGroupDetector from "./components/ClipboardGroupDetector"

@@ -37,12 +37,16 @@ const PlaylistSongItem = memo(({ song, onPlayNow, onPlayNext, onAddToQueue }) =>
       </div>
 
       <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onPlayNow(song)}>
-        <p className="font-medium truncate text-sm group-hover:text-primary transition-colors">{song.name}</p>
+        <p className="font-medium truncate text-sm group-hover:text-primary transition-colors">
+          {song.name}
+        </p>
         <p className="text-xs text-muted-foreground/70 truncate mt-0.5">{artistName}</p>
       </div>
 
       {duration && (
-        <span className="text-[11px] text-muted-foreground/60 tabular-nums font-mono">{duration}</span>
+        <span className="text-[11px] text-muted-foreground/60 tabular-nums font-mono">
+          {duration}
+        </span>
       )}
 
       <div className="flex items-center gap-0.5 shrink-0">
@@ -65,86 +69,86 @@ const PlaylistSongItem = memo(({ song, onPlayNow, onPlayNext, onAddToQueue }) =>
   )
 })
 
-const PlaylistDetail = memo(({ playlistId, playlistName, onBack, onPlayNow, onPlayNext, onAddToQueue, onAddAll }) => {
-  const { data: playlist, isLoading } = usePlaylistDetailsQuery(playlistId)
+const PlaylistDetail = memo(
+  ({ playlistId, playlistName, onBack, onPlayNow, onPlayNext, onAddToQueue, onAddAll }) => {
+    const { data: playlist, isLoading } = usePlaylistDetailsQuery(playlistId)
 
-  const songs = useMemo(() => {
-    if (!playlist?.songs) return []
-    return playlist.songs
-      .map((item) => item.songData || item)
-      .filter((s) => s?.id)
-  }, [playlist])
+    const songs = useMemo(() => {
+      if (!playlist?.songs) return []
+      return playlist.songs.map((item) => item.songData || item).filter((s) => s?.id)
+    }, [playlist])
 
-  const handleAddAll = useCallback(() => {
-    if (songs.length > 0) onAddAll(songs)
-  }, [songs, onAddAll])
+    const handleAddAll = useCallback(() => {
+      if (songs.length > 0) onAddAll(songs)
+    }, [songs, onAddAll])
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-52 gap-3">
-        <div className="relative">
-          <motion.div
-            animate={{ scale: [1, 1.3], opacity: [0.15, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-            className="absolute inset-0 rounded-full border border-border/30"
-            style={{ margin: "-8px" }}
-          />
-          <div className="p-3 rounded-full liquid-badge">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+    if (isLoading) {
+      return (
+        <div className="flex flex-col items-center justify-center h-52 gap-3">
+          <div className="relative">
+            <motion.div
+              animate={{ scale: [1, 1.3], opacity: [0.15, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="absolute inset-0 rounded-full border border-border/30"
+              style={{ margin: "-8px" }}
+            />
+            <div className="p-3 rounded-full liquid-badge">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
           </div>
+          <p className="text-muted-foreground/60 text-sm font-medium">Loading songs...</p>
         </div>
-        <p className="text-muted-foreground/60 text-sm font-medium">Loading songs...</p>
-      </div>
-    )
-  }
+      )
+    }
 
-  return (
-    <div>
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/20">
-        <button
-          onClick={onBack}
-          className="h-8 w-8 rounded-xl flex items-center justify-center liquid-btn cursor-pointer"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm truncate">{playlistName}</p>
-          <p className="text-xs text-muted-foreground/50">{songs.length} songs</p>
-        </div>
-        {songs.length > 0 && (
+    return (
+      <div>
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border/20">
           <button
-            onClick={handleAddAll}
-            className="liquid-btn gap-1.5 h-8 rounded-xl text-xs cursor-pointer flex items-center px-3 font-medium hover:bg-primary/10 hover:text-primary transition-colors"
+            onClick={onBack}
+            className="h-8 w-8 rounded-xl flex items-center justify-center liquid-btn cursor-pointer"
           >
-            <ListPlus className="h-3.5 w-3.5" />
-            Add All
+            <ArrowLeft className="h-4 w-4" />
           </button>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm truncate">{playlistName}</p>
+            <p className="text-xs text-muted-foreground/50">{songs.length} songs</p>
+          </div>
+          {songs.length > 0 && (
+            <button
+              onClick={handleAddAll}
+              className="liquid-btn gap-1.5 h-8 rounded-xl text-xs cursor-pointer flex items-center px-3 font-medium hover:bg-primary/10 hover:text-primary transition-colors"
+            >
+              <ListPlus className="h-3.5 w-3.5" />
+              Add All
+            </button>
+          )}
+        </div>
+
+        {songs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-52 gap-3">
+            <div className="p-4 rounded-2xl liquid-badge">
+              <Music className="h-8 w-8 text-muted-foreground/25" />
+            </div>
+            <p className="text-muted-foreground/60 text-sm">This playlist is empty</p>
+          </div>
+        ) : (
+          <div className="py-2 space-y-0.5 px-1">
+            {songs.map((song) => (
+              <PlaylistSongItem
+                key={song.id}
+                song={song}
+                onPlayNow={onPlayNow}
+                onPlayNext={onPlayNext}
+                onAddToQueue={onAddToQueue}
+              />
+            ))}
+          </div>
         )}
       </div>
-
-      {songs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-52 gap-3">
-          <div className="p-4 rounded-2xl liquid-badge">
-            <Music className="h-8 w-8 text-muted-foreground/25" />
-          </div>
-          <p className="text-muted-foreground/60 text-sm">This playlist is empty</p>
-        </div>
-      ) : (
-        <div className="py-2 space-y-0.5 px-1">
-          {songs.map((song) => (
-            <PlaylistSongItem
-              key={song.id}
-              song={song}
-              onPlayNow={onPlayNow}
-              onPlayNext={onPlayNext}
-              onAddToQueue={onAddToQueue}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-})
+    )
+  },
+)
 
 const PlaylistBrowser = memo(({ onPlayNow, onPlayNext, onAddToQueue, onAddAll }) => {
   const { data: playlists = [], isLoading } = useUserPlaylistsQuery()
@@ -213,7 +217,9 @@ const PlaylistBrowser = memo(({ onPlayNow, onPlayNext, onAddToQueue, onAddAll })
                 </div>
                 <div className="text-center">
                   <p className="text-muted-foreground/70 text-sm font-medium">No playlists yet</p>
-                  <p className="text-muted-foreground/50 text-xs mt-1">Create playlists from your music library</p>
+                  <p className="text-muted-foreground/50 text-xs mt-1">
+                    Create playlists from your music library
+                  </p>
                 </div>
               </div>
             ) : (
@@ -231,7 +237,12 @@ const PlaylistBrowser = memo(({ onPlayNow, onPlayNext, onAddToQueue, onAddAll })
                     )}
                   >
                     <Avatar className="h-11 w-11 rounded-xl shrink-0 ring-1 ring-border/30">
-                      <AvatarImage src={playlist.image?.[1]?.link || playlist.image?.[0]?.link || playlist.image} className="object-cover" />
+                      <AvatarImage
+                        src={
+                          playlist.image?.[1]?.link || playlist.image?.[0]?.link || playlist.image
+                        }
+                        className="object-cover"
+                      />
                       <AvatarFallback className="bg-accent/30 rounded-xl">
                         <Music className="h-5 w-5 text-muted-foreground/30" />
                       </AvatarFallback>

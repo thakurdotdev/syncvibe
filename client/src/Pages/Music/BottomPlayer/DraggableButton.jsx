@@ -81,10 +81,11 @@ const DraggableButton = memo(({ position, onMaximize, currentSong, isDragging })
   }
 
   const artists = useMemo(() => {
-    const artistData = currentSong?.artist_map?.artists
-      ?.slice(0, 2)
-      ?.map((artist) => artist.name)
-      .join(", ") ||
+    const artistData =
+      currentSong?.artist_map?.artists
+        ?.slice(0, 2)
+        ?.map((artist) => artist.name)
+        .join(", ") ||
       currentSong?.primaryArtists ||
       currentSong?.artist
 
@@ -102,7 +103,9 @@ const DraggableButton = memo(({ position, onMaximize, currentSong, isDragging })
       <div
         className={cn(
           "liquid-glass flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full transition-all duration-500 overflow-hidden relative",
-          isDragging ? "scale-110 cursor-grabbing brightness-110" : "cursor-grab hover:scale-105 hover:brightness-110",
+          isDragging
+            ? "scale-110 cursor-grabbing brightness-110"
+            : "cursor-grab hover:scale-105 hover:brightness-110",
         )}
       >
         {/* Dynamic Ambient Background */}

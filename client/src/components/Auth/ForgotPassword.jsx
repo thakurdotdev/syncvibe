@@ -29,10 +29,9 @@ const ForgotPassword = () => {
 
     setLoading(true)
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/forgot-password`,
-        { email: email.trim() },
-      )
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/forgot-password`, {
+        email: email.trim(),
+      })
       setSent(true)
       toast.success(response.data.message)
     } catch (error) {

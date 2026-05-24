@@ -309,9 +309,9 @@ const skipToNext = (group, expectedSongId = null) => {
 }
 
 const prunePlayedSongs = (group) => {
-  const playedCount = group.queue.filter(item => item.status === "played").length
+  const playedCount = group.queue.filter((item) => item.status === "played").length
   if (playedCount === 0) return
-  group.queue = group.queue.filter(item => item.status !== "played")
+  group.queue = group.queue.filter((item) => item.status !== "played")
   if (group.currentQueueIndex >= 0) {
     group.currentQueueIndex = Math.max(0, group.currentQueueIndex - playedCount)
   }
@@ -483,7 +483,9 @@ const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
             group.features.realtimeChat = planLimits.realtimeChatEnabled || false
             group.features.realtimeSync = planLimits.realtimeSyncEnabled || false
             group.maxMembers = planLimits.maxGroupMembers || group.maxMembers
-            group.settings.maxQueueSize = planLimits.realtimeSyncEnabled ? 50 : group.settings.maxQueueSize
+            group.settings.maxQueueSize = planLimits.realtimeSyncEnabled
+              ? 50
+              : group.settings.maxQueueSize
           }
         } catch (err) {
           console.error("Failed to refresh plan limits on rejoin:", err)

@@ -105,7 +105,10 @@ export const useGroupPlaybackStore = create((set, get) => ({
 
     navigator.mediaSession.metadata = new MediaMetadata({
       title: song.name,
-      artist: song?.artist_map?.artists?.slice(0, 3)?.map((a) => a.name).join(", "),
+      artist: song?.artist_map?.artists
+        ?.slice(0, 3)
+        ?.map((a) => a.name)
+        .join(", "),
       album: song?.album,
       artwork: song.image?.[2]?.link
         ? [{ src: song.image[2].link, sizes: "500x500", type: "image/jpeg" }]
@@ -150,9 +153,12 @@ export const useGroupPlaybackStore = create((set, get) => ({
 
     if (!audioElement) return
 
-    const serverNow = playbackState.serverTime || (Date.now() + get().serverTimeOffset)
+    const serverNow = playbackState.serverTime || Date.now() + get().serverTimeOffset
     const clientNow = Date.now() + get().serverTimeOffset
-    const timeSinceUpdate = Math.max(0, (clientNow - (playbackState.lastUpdate || serverNow)) / 1000)
+    const timeSinceUpdate = Math.max(
+      0,
+      (clientNow - (playbackState.lastUpdate || serverNow)) / 1000,
+    )
     const expectedTime = playbackState.currentTime + (playbackState.isPlaying ? timeSinceUpdate : 0)
     const actualTime = audioElement.currentTime
     const drift = Math.abs(expectedTime - actualTime)
@@ -194,7 +200,7 @@ export const useGroupPlaybackStore = create((set, get) => ({
     }
 
     if (newIsPlaying) {
-      audioElement.play().catch(() => { })
+      audioElement.play().catch(() => {})
       set({ isPlaying: true })
     } else {
       audioElement.pause()
@@ -204,7 +210,11 @@ export const useGroupPlaybackStore = create((set, get) => ({
     set({ currentTime: adjustedTime })
   },
 
-  handleMusicUpdate: async ({ song, currentTime, queueItem, autoPlay, scheduledPlayTime, serverTime }, socket, groupId) => {
+  handleMusicUpdate: async (
+    { song, currentTime, queueItem, autoPlay, scheduledPlayTime, serverTime },
+    socket,
+    groupId,
+  ) => {
     if (syncTimerRef) clearInterval(syncTimerRef)
     lastPlaybackActionAt = Date.now()
 
@@ -268,7 +278,14 @@ export const useGroupPlaybackStore = create((set, get) => ({
     }
   },
 
-  syncPlaybackFromServer: async (playbackState, serverQueue, serverQueueIndex, socket, groupId, serverTimeOffset) => {
+  syncPlaybackFromServer: async (
+    playbackState,
+    serverQueue,
+    serverQueueIndex,
+    socket,
+    groupId,
+    serverTimeOffset,
+  ) => {
     if (!playbackState?.currentTrack) return
 
     set({ currentSong: playbackState.currentTrack })

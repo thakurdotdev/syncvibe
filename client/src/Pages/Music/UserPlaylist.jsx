@@ -49,56 +49,46 @@ const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[400px] rounded-2xl p-0 overflow-hidden liquid-glass border border-border/30 shadow-2xl">
-        <div className="bg-gradient-to-b from-primary/10 via-primary/5 to-transparent p-5 pb-4 border-b border-border/10">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="p-2 rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
-              <ListMusic className="w-5 h-5" />
-            </div>
-            <DialogTitle className="text-lg font-bold tracking-tight">
-              {initialData?.id ? "Edit Playlist" : "Create New Playlist"}
-            </DialogTitle>
-          </div>
-          <DialogDescription className="text-xs text-muted-foreground/75 font-medium ml-1">
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>
+            {initialData?.id ? "Edit Playlist" : "Create Playlist"}
+          </DialogTitle>
+          <DialogDescription>
             {initialData?.id
               ? "Update your playlist details below."
               : "Give your new playlist a name and description."}
           </DialogDescription>
-        </div>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/60 ml-1">
-                Playlist Name
-              </label>
-              <Input
-                placeholder="e.g. Late Night Vibes"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-                className="h-11 rounded-xl bg-background/30 border border-border/30 focus-visible:ring-1 focus-visible:ring-primary/50 text-sm placeholder:text-muted-foreground/40 transition-all"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/60 ml-1">
-                Description
-              </label>
-              <Textarea
-                placeholder="Add an optional description for this collection..."
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="resize-none rounded-xl bg-background/30 border border-border/30 focus-visible:ring-1 focus-visible:ring-primary/50 min-h-[90px] text-sm placeholder:text-muted-foreground/40 transition-all"
-                rows={3}
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div className="space-y-2">
+            <label htmlFor="playlist-name" className="text-sm font-medium leading-none">
+              Playlist Name
+            </label>
+            <Input
+              id="playlist-name"
+              placeholder="e.g. Late Night Vibes"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
           </div>
-          <DialogFooter className="pt-2">
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full h-11 rounded-xl bg-primary hover:bg-primary/95 hover:shadow-lg hover:shadow-primary/20 text-primary-foreground font-bold shadow-md cursor-pointer active:scale-[0.98] transition-all"
-            >
+          <div className="space-y-2">
+            <label htmlFor="playlist-desc" className="text-sm font-medium leading-none">
+              Description
+            </label>
+            <Textarea
+              id="playlist-desc"
+              placeholder="Add an optional description for this collection..."
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={3}
+              className="resize-none"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : initialData?.id ? (
@@ -167,7 +157,6 @@ const UserPlaylist = () => {
   return (
     <div className="p-4 md:p-6 max-w-350 mx-auto w-full space-y-6">
       <div className="flex flex-row justify-between items-start sm:items-center gap-4">
-
         <h2 className="text-2xl md:text-3xl font-bold tracking-tight">My Playlists</h2>
 
         <Button

@@ -83,8 +83,7 @@ const renderLayout = (content) => `<!DOCTYPE html>
 </body>
 </html>`
 
-const renderVerificationCode = (code) =>
-  `<div style="${inlineStyles.code}">${code}</div>`
+const renderVerificationCode = (code) => `<div style="${inlineStyles.code}">${code}</div>`
 
 const renderButton = (text, href) =>
   `<div style="${inlineStyles.buttonWrapper}"><a href="${href}" target="_blank" style="${inlineStyles.button}">${text}</a></div>`
@@ -92,11 +91,9 @@ const renderButton = (text, href) =>
 const renderText = (str, extraStyle = "") =>
   `<p style="${inlineStyles.text}${extraStyle}">${str}</p>`
 
-const renderHeading = (str) =>
-  `<h1 style="${inlineStyles.heading}">${str}</h1>`
+const renderHeading = (str) => `<h1 style="${inlineStyles.heading}">${str}</h1>`
 
-const renderDivider = () =>
-  `<hr style="${inlineStyles.divider}">`
+const renderDivider = () => `<hr style="${inlineStyles.divider}">`
 
 const sendEmail = async (to, subject, html) => {
   const { data, error } = await resend.emails.send({
@@ -119,64 +116,82 @@ const sendEmail = async (to, subject, html) => {
 }
 
 const resendOtp = async (email, otp) => {
-  const html = renderLayout([
-    renderHeading("Verify your email"),
-    renderText("Enter this verification code to get started with SyncVibe."),
-    renderVerificationCode(otp),
-    renderText("This code expires in 1 hour. If you didn't request this, you can safely ignore this email."),
-  ].join(""))
+  const html = renderLayout(
+    [
+      renderHeading("Verify your email"),
+      renderText("Enter this verification code to get started with SyncVibe."),
+      renderVerificationCode(otp),
+      renderText(
+        "This code expires in 1 hour. If you didn't request this, you can safely ignore this email.",
+      ),
+    ].join(""),
+  )
 
   return sendEmail(email, "Your verification code", html)
 }
 
 const verifiedMailSender = async (email, username) => {
-  const html = renderLayout([
-    renderHeading("Welcome to SyncVibe"),
-    renderText(`Hi ${username}, your email has been verified. You're all set.`),
-    renderButton("Get Started", `${APP_URL}/login`),
-    renderDivider(),
-    renderText("Here's what you can do next:"),
-    `<ul style="padding-left:20px;margin:0 0 16px;">
+  const html = renderLayout(
+    [
+      renderHeading("Welcome to SyncVibe"),
+      renderText(`Hi ${username}, your email has been verified. You're all set.`),
+      renderButton("Get Started", `${APP_URL}/login`),
+      renderDivider(),
+      renderText("Here's what you can do next:"),
+      `<ul style="padding-left:20px;margin:0 0 16px;">
       <li style="${inlineStyles.listItem}">Complete your profile</li>
       <li style="${inlineStyles.listItem}">Find and connect with friends</li>
       <li style="${inlineStyles.listItem}">Share your first post</li>
       <li style="${inlineStyles.listItem}">Explore trending content</li>
     </ul>`,
-  ].join(""))
+    ].join(""),
+  )
 
   return sendEmail(email, "Welcome to SyncVibe", html)
 }
 
 const passwordResetMailSender = async (email, resetUrl) => {
-  const html = renderLayout([
-    renderHeading("Reset your password"),
-    renderText("We received a request to reset your password. Click the button below to choose a new one."),
-    renderButton("Reset Password", resetUrl),
-    renderText("This link expires in 1 hour for security reasons."),
-    renderDivider(),
-    `<p style="${inlineStyles.urlFallback}">If the button doesn't work, copy and paste this URL into your browser:<br>${resetUrl}</p>`,
-  ].join(""))
+  const html = renderLayout(
+    [
+      renderHeading("Reset your password"),
+      renderText(
+        "We received a request to reset your password. Click the button below to choose a new one.",
+      ),
+      renderButton("Reset Password", resetUrl),
+      renderText("This link expires in 1 hour for security reasons."),
+      renderDivider(),
+      `<p style="${inlineStyles.urlFallback}">If the button doesn't work, copy and paste this URL into your browser:<br>${resetUrl}</p>`,
+    ].join(""),
+  )
 
   return sendEmail(email, "Reset your password", html)
 }
 
 const otpForDeleteMailSender = async (email, otp) => {
-  const html = renderLayout([
-    renderHeading("Confirm account deletion"),
-    renderText("We received a request to delete your account. Use the code below to confirm."),
-    renderVerificationCode(otp),
-    renderText("This code is valid for 10 minutes. If you didn't request this, change your password immediately."),
-  ].join(""))
+  const html = renderLayout(
+    [
+      renderHeading("Confirm account deletion"),
+      renderText("We received a request to delete your account. Use the code below to confirm."),
+      renderVerificationCode(otp),
+      renderText(
+        "This code is valid for 10 minutes. If you didn't request this, change your password immediately.",
+      ),
+    ].join(""),
+  )
 
   return sendEmail(email, "Confirm account deletion", html)
 }
 
 const accountDeletedMailSender = async (email) => {
-  const html = renderLayout([
-    renderHeading("Account deleted"),
-    renderText("Your SyncVibe account has been permanently deleted. All your data has been removed."),
-    renderText("If you didn't request this, please contact us immediately."),
-  ].join(""))
+  const html = renderLayout(
+    [
+      renderHeading("Account deleted"),
+      renderText(
+        "Your SyncVibe account has been permanently deleted. All your data has been removed.",
+      ),
+      renderText("If you didn't request this, please contact us immediately."),
+    ].join(""),
+  )
 
   return sendEmail(email, "Your account has been deleted", html)
 }

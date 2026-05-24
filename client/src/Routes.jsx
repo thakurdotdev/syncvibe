@@ -152,8 +152,9 @@ export const ProtectedRoutes = () => {
       <Navbar />
       <AppSidebar />
       <main
-        className={`${open && !isMobile ? "w-full max-w-[calc(100%-260px)]" : "w-full"
-          } transition-all duration-300`}
+        className={`${
+          open && !isMobile ? "w-full max-w-[calc(100%-260px)]" : "w-full"
+        } transition-all duration-300`}
       >
         <div className="mt-[60px] h-[calc(100vh-60px)]">
           <Suspense fallback={<Fallback />}>
@@ -184,8 +185,9 @@ const MusicLayout = () => {
       <MusicNavbar />
       {!isMobile && <MusicSidebar />}
       <main
-        className={`${open && !isMobile ? "w-full max-w-[calc(100%-260px)]" : "w-full"
-          } transition-all duration-300`}
+        className={`${
+          open && !isMobile ? "w-full max-w-[calc(100%-260px)]" : "w-full"
+        } transition-all duration-300`}
       >
         <div className={`mt-[56px] h-[calc(100vh-56px)] ${isMobile ? "pb-16" : ""}`}>
           <Suspense fallback={<Fallback />}>

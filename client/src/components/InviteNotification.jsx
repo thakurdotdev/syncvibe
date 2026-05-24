@@ -62,10 +62,10 @@ const InviteNotification = ({ invite, onAccept, onDecline }) => {
                         {invite.inviterName?.charAt(0)?.toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <motion.span 
+                    <motion.span
                       animate={{ scale: [1, 1.2, 1] }}
                       transition={{ duration: 2, repeat: Infinity }}
-                      className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-card" 
+                      className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-card"
                     />
                   </div>
 
@@ -75,7 +75,9 @@ const InviteNotification = ({ invite, onAccept, onDecline }) => {
                     </p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className="flex h-1.5 w-1.5 rounded-full bg-primary/40" />
-                      <p className="text-xs text-muted-foreground font-medium">Invited you to sync</p>
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Invited you to sync
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -96,8 +98,12 @@ const InviteNotification = ({ invite, onAccept, onDecline }) => {
                   <Music2 className="h-4 w-4 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground/80 font-bold leading-tight">Syncing with</p>
-                  <p className="text-sm font-semibold truncate text-foreground/90 mt-0.5">{invite.groupName}</p>
+                  <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground/80 font-bold leading-tight">
+                    Syncing with
+                  </p>
+                  <p className="text-sm font-semibold truncate text-foreground/90 mt-0.5">
+                    {invite.groupName}
+                  </p>
                 </div>
               </div>
 
@@ -132,7 +138,8 @@ const InviteNotification = ({ invite, onAccept, onDecline }) => {
                   ))}
                 </div>
                 <p className="text-[11px] text-muted-foreground font-medium italic">
-                  Expires in <span className="text-foreground tabular-nums font-bold">{timeLeft}s</span>
+                  Expires in{" "}
+                  <span className="text-foreground tabular-nums font-bold">{timeLeft}s</span>
                 </p>
               </div>
             </div>

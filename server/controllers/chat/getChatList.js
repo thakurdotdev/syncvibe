@@ -21,12 +21,14 @@ const getChatList = async (req, res) => {
 
         return {
           ...chat.dataValues,
-          otherUser: otherUser ? {
-            userid: otherUser.userid,
-            username: otherUser.username,
-            name: otherUser.name,
-            profilepic: otherUser.profilepic,
-          } : null,
+          otherUser: otherUser
+            ? {
+                userid: otherUser.userid,
+                username: otherUser.username,
+                name: otherUser.name,
+                profilepic: otherUser.profilepic,
+              }
+            : null,
         }
       }),
     )

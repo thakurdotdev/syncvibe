@@ -84,22 +84,25 @@ const GroupMusic = () => {
     [currentQueueItem, upcomingQueue.length],
   )
 
-  const albumArt = useMemo(
-    () => currentSong?.image?.[2]?.link,
-    [currentSong?.image],
-  )
+  const albumArt = useMemo(() => currentSong?.image?.[2]?.link, [currentSong?.image])
 
   const handleOpenSearch = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen])
   const handleOpenQrCode = useCallback(() => setQrCodeOpen(true), [])
   const handleCloseQrCode = useCallback(() => setQrCodeOpen(false), [])
-  const handleOpenGroupModal = useCallback((tab = "join") => {
-    setModalDefaultTab(tab)
-    setIsGroupModalOpen(true)
-  }, [setIsGroupModalOpen])
+  const handleOpenGroupModal = useCallback(
+    (tab = "join") => {
+      setModalDefaultTab(tab)
+      setIsGroupModalOpen(true)
+    },
+    [setIsGroupModalOpen],
+  )
   const handleCloseGroupModal = useCallback(() => setIsGroupModalOpen(false), [setIsGroupModalOpen])
-  const handleClipboardJoin = useCallback((code) => {
-    joinGroup(code)
-  }, [joinGroup])
+  const handleClipboardJoin = useCallback(
+    (code) => {
+      joinGroup(code)
+    },
+    [joinGroup],
+  )
   const handleOpenQueue = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen])
   const handleOpenInvite = useCallback(() => setIsInviteSheetOpen(true), [setIsInviteSheetOpen])
 
@@ -148,12 +151,18 @@ const GroupMusic = () => {
                       </div>
                     </div>
                     <div className="text-center space-y-1.5">
-                      <p className="text-sm font-semibold text-foreground">Reconnecting to your session</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        Reconnecting to your session
+                      </p>
                       <p className="text-xs text-muted-foreground/60">Syncing playback state...</p>
                     </div>
                   </motion.div>
                 ) : !currentGroup ? (
-                  <WelcomeView key="welcome" onOpenModal={handleOpenGroupModal} onClipboardJoin={handleClipboardJoin} />
+                  <WelcomeView
+                    key="welcome"
+                    onOpenModal={handleOpenGroupModal}
+                    onClipboardJoin={handleClipboardJoin}
+                  />
                 ) : (
                   <motion.div
                     key="group-content"

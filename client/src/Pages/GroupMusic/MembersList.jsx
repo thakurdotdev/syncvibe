@@ -38,7 +38,10 @@ const MemberCard = memo(({ member, isCreator, isCurrentUser, index }) => (
           {member.userName?.charAt(0)?.toUpperCase()}
         </AvatarFallback>
       </Avatar>
-      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-background" style={{ boxShadow: "0 0 6px rgba(16,185,129,0.4)" }} />
+      <span
+        className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-background"
+        style={{ boxShadow: "0 0 6px rgba(16,185,129,0.4)" }}
+      />
     </div>
 
     <div className="flex-1 min-w-0">
@@ -83,7 +86,8 @@ const MembersList = ({ members, currentUserId, createdBy, maxMembers }) => {
             <span className="text-[11px] text-emerald-400 font-medium">Live</span>
           </div>
           <span className="text-[10px] font-mono font-normal h-5 px-2 liquid-badge rounded-full flex items-center justify-center text-muted-foreground">
-            {memberCount}{maxMembers ? `/${maxMembers}` : ""}
+            {memberCount}
+            {maxMembers ? `/${maxMembers}` : ""}
           </span>
         </div>
       </div>

@@ -64,9 +64,7 @@ const GroupHeader = ({
 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold truncate tracking-tight">
-                {currentGroup.name}
-              </h1>
+              <h1 className="text-lg font-bold truncate tracking-tight">{currentGroup.name}</h1>
               {isRejoining && (
                 <RefreshCw className="h-3.5 w-3.5 text-muted-foreground/50 animate-spin shrink-0" />
               )}
@@ -79,7 +77,11 @@ const GroupHeader = ({
               onClick={handleCopy}
               className="p-1 rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 transition-all duration-200 cursor-pointer"
             >
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
             </button>
             <button
               onClick={onQRCodeOpen}
@@ -149,7 +151,10 @@ const GroupHeader = ({
           <AlertDialogFooter>
             <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => { setShowLeaveDialog(false); onLeaveGroup() }}
+              onClick={() => {
+                setShowLeaveDialog(false)
+                onLeaveGroup()
+              }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
             >
               Leave Group

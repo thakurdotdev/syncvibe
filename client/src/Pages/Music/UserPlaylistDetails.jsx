@@ -81,7 +81,7 @@ const UserPlaylistDetails = () => {
     },
     onError: (err) => {
       toast.error(err.message || "Failed to remove song")
-    }
+    },
   })
 
   useEffect(() => {
@@ -108,16 +108,24 @@ const UserPlaylistDetails = () => {
     }
   }
 
-  const handleRemoveSong = useCallback((songId) => {
-    removeMutation.mutate({ playlistId: id, songId })
-  }, [id, removeMutation])
+  const handleRemoveSong = useCallback(
+    (songId) => {
+      removeMutation.mutate({ playlistId: id, songId })
+    },
+    [id, removeMutation],
+  )
 
   if (isLoading) return <LoadingState />
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 max-w-[1400px] mx-auto w-full">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full h-8 w-8 cursor-pointer">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate(-1)}
+          className="rounded-full h-8 w-8 cursor-pointer"
+        >
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <h2 className="text-sm font-semibold text-muted-foreground">Back to Playlists</h2>
@@ -126,9 +134,9 @@ const UserPlaylistDetails = () => {
       <PlaylistHeader playlistData={playlistData} />
 
       <div className="flex items-center gap-3">
-        <Button 
-          onClick={handlePlayAll} 
-          disabled={!playlistData?.songs?.length} 
+        <Button
+          onClick={handlePlayAll}
+          disabled={!playlistData?.songs?.length}
           size="sm"
           className="rounded-lg h-9 px-6 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold cursor-pointer shadow-sm active:scale-95 transition-all"
         >
@@ -136,10 +144,10 @@ const UserPlaylistDetails = () => {
           Play All
         </Button>
 
-        <Button 
-          variant="outline" 
-          onClick={handleShuffle} 
-          disabled={!playlistData?.songs?.length} 
+        <Button
+          variant="outline"
+          onClick={handleShuffle}
+          disabled={!playlistData?.songs?.length}
           size="sm"
           className="rounded-lg h-9 px-6 gap-2 border-border/50 hover:bg-accent font-semibold cursor-pointer active:scale-95 transition-all"
         >
@@ -151,7 +159,9 @@ const UserPlaylistDetails = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between border-b border-border/10 pb-3">
           <h3 className="text-lg font-bold tracking-tight">Tracks</h3>
-          <span className="text-xs font-medium text-muted-foreground">{playlistData?.songs?.length || 0} songs</span>
+          <span className="text-xs font-medium text-muted-foreground">
+            {playlistData?.songs?.length || 0} songs
+          </span>
         </div>
 
         {playlistData?.songs?.length === 0 ? (
@@ -173,10 +183,7 @@ const UserPlaylistDetails = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
               >
-                <SongCard 
-                  song={song.songData} 
-                  onRemoveFromPlaylist={handleRemoveSong}
-                />
+                <SongCard song={song.songData} onRemoveFromPlaylist={handleRemoveSong} />
               </motion.div>
             ))}
           </div>

@@ -75,38 +75,44 @@ const QueueSheet = () => {
     inputRef.current?.focus()
   }, [setSearchQuery])
 
-  const handleClose = useCallback((open) => {
-    if (!open) {
-      setSearchQuery("")
-      useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false })
-      setIsQueueOpen(false)
-      setActiveTab("search")
-    }
-  }, [setSearchQuery, setIsQueueOpen])
+  const handleClose = useCallback(
+    (open) => {
+      if (!open) {
+        setSearchQuery("")
+        useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false })
+        setIsQueueOpen(false)
+        setActiveTab("search")
+      }
+    },
+    [setSearchQuery, setIsQueueOpen],
+  )
 
   const handleSaveToPlaylist = useCallback((song) => {
     setSaveDialogSong(song)
     setSaveDialogOpen(true)
   }, [])
 
-  const fetchRecs = useCallback(async (songId) => {
-    if (!songId) return
-    lastRecsSongIdRef.current = songId
-    setRecsLoading(true)
-    setRecommendations([])
-    const song = queue.find((q) => q.song?.id === songId)
-    setRecsSourceName(song?.song?.name || "")
-    try {
-      const data = await fetchSongRecommendations(songId)
-      const existingIds = new Set(queue.map((q) => q.song?.id))
-      const filtered = (data || []).filter((s) => !existingIds.has(s.id))
-      setRecommendations(filtered.slice(0, 15))
-    } catch {
-      toast.error("Failed to fetch recommendations")
-    } finally {
-      setRecsLoading(false)
-    }
-  }, [queue])
+  const fetchRecs = useCallback(
+    async (songId) => {
+      if (!songId) return
+      lastRecsSongIdRef.current = songId
+      setRecsLoading(true)
+      setRecommendations([])
+      const song = queue.find((q) => q.song?.id === songId)
+      setRecsSourceName(song?.song?.name || "")
+      try {
+        const data = await fetchSongRecommendations(songId)
+        const existingIds = new Set(queue.map((q) => q.song?.id))
+        const filtered = (data || []).filter((s) => !existingIds.has(s.id))
+        setRecommendations(filtered.slice(0, 15))
+      } catch {
+        toast.error("Failed to fetch recommendations")
+      } finally {
+        setRecsLoading(false)
+      }
+    },
+    [queue],
+  )
 
   useEffect(() => {
     const currentSongId = currentQueueItem?.song?.id
@@ -144,7 +150,9 @@ const QueueSheet = () => {
     toAdd.forEach((song) => addToQueue(song))
 
     if (toAdd.length < recommendations.length) {
-      toast.success(`Added ${toAdd.length} of ${recommendations.length} songs (queue limit reached)`)
+      toast.success(
+        `Added ${toAdd.length} of ${recommendations.length} songs (queue limit reached)`,
+      )
     } else {
       toast.success(`Added ${toAdd.length} songs to queue`)
     }
@@ -238,14 +246,21 @@ const QueueSheet = () => {
                       : "liquid-tab text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <tab.icon className={cn("h-3 w-3", tab.id === "recommendations" && recsLoading && "animate-pulse")} />
+                  <tab.icon
+                    className={cn(
+                      "h-3 w-3",
+                      tab.id === "recommendations" && recsLoading && "animate-pulse",
+                    )}
+                  />
                   {tab.label}
-                  {tab.id === "recommendations" && recommendations.length > 0 && activeTab !== "recommendations" && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
-                    </span>
-                  )}
+                  {tab.id === "recommendations" &&
+                    recommendations.length > 0 &&
+                    activeTab !== "recommendations" && (
+                      <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                      </span>
+                    )}
                 </button>
               ))}
             </div>
