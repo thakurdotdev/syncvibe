@@ -1,4 +1,4 @@
-const { musicGroups } = require("./state");
+const { musicGroups, getScheduledDelay } = require("./state");
 const {
   prunePlayedSongs,
   getQueueState,
@@ -38,7 +38,7 @@ const setupPlaybackHandlers = (io, socket) => {
     prunePlayedSongs(group);
 
     const serverTime = Date.now();
-    const scheduledPlayTime = serverTime + 2000;
+    const scheduledPlayTime = serverTime + getScheduledDelay(group);
 
     group.playbackState = {
       ...group.playbackState,

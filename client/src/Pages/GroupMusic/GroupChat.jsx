@@ -121,10 +121,19 @@ const MessagesList = memo(({ messages, currentUserId }) => {
   )
 })
 
-const GroupChat = ({ messages, currentUserId, onSendMessage, locked = false }) => {
+const GroupChat = ({
+  messages,
+  currentUserId,
+  onSendMessage,
+  locked = false,
+  typingUsers = {},
+  onTypingStart,
+  onTypingStop,
+}) => {
   const inputRef = useRef(null)
   const scrollRef = useRef(null)
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const typingTimeoutRef = useRef(null)
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -141,8 +150,13 @@ const GroupChat = ({ messages, currentUserId, onSendMessage, locked = false }) =
     if (message) {
       onSendMessage(message)
       inputRef.current.value = ""
+      onTypingStop?.()
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+        typingTimeoutRef.current = null
+      }
     }
-  }, [onSendMessage, locked])
+  }, [onSendMessage, locked, onTypingStop])
 
   const handleKeyPress = useCallback(
     (e) => {
@@ -153,6 +167,24 @@ const GroupChat = ({ messages, currentUserId, onSendMessage, locked = false }) =
     },
     [handleSend],
   )
+
+  const handleInputChange = useCallback(() => {
+    if (locked) return
+    onTypingStart?.()
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    typingTimeoutRef.current = setTimeout(() => {
+      onTypingStop?.()
+      typingTimeoutRef.current = null
+    }, 2000)
+  }, [locked, onTypingStart, onTypingStop])
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    }
+  }, [])
+
+  const typingNames = Object.values(typingUsers).filter(Boolean)
 
   return (
     <div className="rounded-2xl liquid-panel overflow-hidden flex flex-col h-full relative">
@@ -169,11 +201,30 @@ const GroupChat = ({ messages, currentUserId, onSendMessage, locked = false }) =
       </ScrollArea>
 
       <div className="p-2.5 border-t border-border/20">
+        {typingNames.length > 0 && (
+          <div className="px-3 pb-1.5 flex items-center gap-1.5">
+            <div className="flex gap-[3px] items-center">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="h-1 w-1 rounded-full bg-muted-foreground/40 animate-bounce"
+                  style={{ animationDelay: `${i * 0.15}s`, animationDuration: "0.8s" }}
+                />
+              ))}
+            </div>
+            <span className="text-[11px] text-muted-foreground/50 truncate">
+              {typingNames.length === 1
+                ? `${typingNames[0]} is typing`
+                : `${typingNames.slice(0, 2).join(", ")} are typing`}
+            </span>
+          </div>
+        )}
         <div className="flex gap-2">
           <input
             ref={inputRef}
             placeholder={locked ? "PRO feature" : "Type a message..."}
             onKeyPress={handleKeyPress}
+            onInput={handleInputChange}
             disabled={locked}
             className="flex-1 rounded-full h-9 px-4 text-sm liquid-input placeholder:text-muted-foreground/35 outline-none text-foreground disabled:opacity-40"
           />

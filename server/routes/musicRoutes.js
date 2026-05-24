@@ -38,6 +38,9 @@ const {
   rebuildAllPlayNext,
   invalidateSong,
 } = require("../services/playNextService")
+const {
+  getLastSessionSongs,
+} = require("../controllers/music/groupHistoryController.js")
 
 const musicRoutes = express.Router()
 
@@ -54,6 +57,7 @@ musicRoutes.get("/music/recommendations", authMiddleware, getPersonalizedRecomme
 musicRoutes.post("/history/like", authMiddleware, updateLikeStatus)
 musicRoutes.get("/music/latestHistory", authMiddleware, getHistorySongs)
 musicRoutes.get("/music/search", searchSongs)
+musicRoutes.get("/music/group-history", authMiddleware, getLastSessionSongs)
 
 musicRoutes.post("/sync", async (req, res) => {
   try {

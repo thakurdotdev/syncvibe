@@ -7,6 +7,7 @@ const Song = require("./Song")
 const HistorySong = require("./HistorySong")
 const PlaylistSong = require("./playlistSong")
 const Playlist = require("./playlist")
+const GroupSessionHistory = require("./GroupSessionHistory")
 
 // Song -> HistorySong (one-to-many)
 Song.hasMany(HistorySong, {
@@ -33,9 +34,30 @@ PlaylistSong.belongsTo(Song, {
 // Playlist -> PlaylistSong associations are already in playlist.js
 // Just re-export for convenience
 
+Song.hasMany(GroupSessionHistory, {
+  foreignKey: "songRefId",
+  as: "groupSessionEntries",
+})
+
+GroupSessionHistory.belongsTo(Song, {
+  foreignKey: "songRefId",
+  as: "song",
+})
+
+const User = require("../auth/userModel")
+
+GroupSessionHistory.belongsTo(User, {
+  foreignKey: "addedByUserId",
+  targetKey: "userid",
+  as: "addedBy",
+})
+
+GroupSessionHistory.sync({ alter: true }).then(() => console.log("GroupSessionHistory synced")).catch((err) => console.log(err))
+
 module.exports = {
   Song,
   HistorySong,
   PlaylistSong,
   Playlist,
+  GroupSessionHistory,
 }

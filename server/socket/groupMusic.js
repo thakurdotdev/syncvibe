@@ -11,6 +11,13 @@ const { setupInviteHandlers } = require("./groupMusic/inviteHandlers");
 
 const setupGroupMusicHandlers = (io, socket, userId, userSockets) => {
   socket.on("time-sync-request", (data) => {
+    const rtt = Date.now() - data.clientTime;
+    const userGroupSet = getUserGroups(userId);
+    userGroupSet.forEach((groupId) => {
+      const group = musicGroups.get(groupId);
+      if (group) group.memberRTT.set(userId, rtt);
+    });
+
     socket.emit("time-sync-response", {
       clientTime: data.clientTime,
       serverTime: Date.now(),

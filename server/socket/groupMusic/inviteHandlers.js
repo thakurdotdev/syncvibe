@@ -186,6 +186,27 @@ const setupInviteHandlers = (io, socket, userId) => {
     io.to(`music-group-${groupId}`).emit("new-message", data);
   });
 
+  socket.on("typing-start", (data) => {
+    const { groupId, userName } = data;
+    const group = musicGroups.get(groupId);
+    if (!group || !group.features.realtimeChat) return;
+    socket.to(`music-group-${groupId}`).emit("user-typing", {
+      userId,
+      userName,
+      isTyping: true,
+    });
+  });
+
+  socket.on("typing-stop", (data) => {
+    const { groupId } = data;
+    const group = musicGroups.get(groupId);
+    if (!group) return;
+    socket.to(`music-group-${groupId}`).emit("user-typing", {
+      userId,
+      isTyping: false,
+    });
+  });
+
   socket.on("send-group-invite", async (data) => {
     const { groupId, inviteeUserId, inviterName, inviterPic } = data;
     const group = musicGroups.get(groupId);

@@ -76,6 +76,14 @@ export function GroupMusicProvider({ children }) {
   }, [socket, user, playback, session])
 
   useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+        Notification.requestPermission()
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     if (!socket) return
 
     const syncWithServer = () => {
@@ -84,20 +92,22 @@ export function GroupMusicProvider({ children }) {
     }
 
     socket.on("time-sync-response", (data) => {
-      const endTime = Date.now()
-      const roundTripTime = endTime - data.clientTime
-      const serverTime = data.serverTime + roundTripTime / 2
-      useGroupPlaybackStore.setState({
-        serverTimeOffset: serverTime - endTime,
-        lastSync: endTime,
-      })
+      useGroupPlaybackStore.getState().processTimeSyncResponse(data.clientTime, data.serverTime)
     })
 
     syncWithServer()
-    syncIntervalRef.current = setInterval(syncWithServer, 5000)
+    const fastInterval = setInterval(syncWithServer, 3000)
+
+    const settleTimeout = setTimeout(() => {
+      clearInterval(fastInterval)
+      syncIntervalRef.current = setInterval(syncWithServer, 5000)
+    }, 15000)
 
     return () => {
+      clearInterval(fastInterval)
+      clearTimeout(settleTimeout)
       if (syncIntervalRef.current) clearInterval(syncIntervalRef.current)
+      socket.off("time-sync-response")
     }
   }, [socket])
 
@@ -151,6 +161,7 @@ export function GroupMusicProvider({ children }) {
     socket.on("queue-updated", (data) => {
       const { queue, currentQueueIndex, action, item } = data
       ss.setState({ queue, currentQueueIndex })
+      pb.getState().preloadUpcoming(queue, currentQueueIndex)
 
       if (action === "remove") toast.info("Song removed from queue")
       else if (action === "skip") toast.info("Skipped to next song")
@@ -234,6 +245,24 @@ export function GroupMusicProvider({ children }) {
 
     socket.on("new-message", (message) => {
       ss.setState((state) => ({ messages: [...state.messages, message] }))
+      if (
+        message.type !== "activity" &&
+        message.senderId !== user?.userid &&
+        typeof window !== "undefined" &&
+        "Notification" in window &&
+        Notification.permission === "granted"
+      ) {
+        try {
+          new Notification(message.userName || "SyncVibe Chat", {
+            body: message.message,
+            icon: message.profilePic || "/favicon.ico",
+            tag: "syncvibe-group-chat",
+            renotify: true,
+          })
+        } catch (err) {
+          console.error("Error displaying notification:", err)
+        }
+      }
     })
 
     socket.on("group-full", ({ maxMembers, message }) => {
@@ -274,6 +303,35 @@ export function GroupMusicProvider({ children }) {
       }))
     })
 
+    const typingTimers = {}
+    socket.on("user-typing", (data) => {
+      const { userId: typingUserId, userName, isTyping } = data
+      if (!isTyping) {
+        ss.setState((state) => {
+          const next = { ...state.typingUsers }
+          delete next[typingUserId]
+          return { typingUsers: next }
+        })
+        if (typingTimers[typingUserId]) {
+          clearTimeout(typingTimers[typingUserId])
+          delete typingTimers[typingUserId]
+        }
+        return
+      }
+      ss.setState((state) => ({
+        typingUsers: { ...state.typingUsers, [typingUserId]: userName },
+      }))
+      if (typingTimers[typingUserId]) clearTimeout(typingTimers[typingUserId])
+      typingTimers[typingUserId] = setTimeout(() => {
+        ss.setState((state) => {
+          const next = { ...state.typingUsers }
+          delete next[typingUserId]
+          return { typingUsers: next }
+        })
+        delete typingTimers[typingUserId]
+      }, 3000)
+    })
+
     return () => {
       const events = [
         "sync-state",
@@ -298,8 +356,10 @@ export function GroupMusicProvider({ children }) {
         "invite-accepted",
         "group-invite-declined",
         "song-reaction",
+        "user-typing",
       ]
       events.forEach((e) => socket.off(e))
+      Object.values(typingTimers).forEach(clearTimeout)
     }
   }, [socket, user])
 
@@ -458,6 +518,7 @@ export function GroupMusicProvider({ children }) {
     setServerTimeOffset: (v) => useGroupPlaybackStore.setState({ serverTimeOffset: v }),
     lastSync: playback.lastSync,
     setLastSync: (v) => useGroupPlaybackStore.setState({ lastSync: v }),
+    connectionQuality: playback.connectionQuality,
 
     isGroupModalOpen: session.isGroupModalOpen,
     setIsGroupModalOpen: (v) => useGroupSessionStore.setState({ isGroupModalOpen: v }),
@@ -495,6 +556,15 @@ export function GroupMusicProvider({ children }) {
 
     selectSong: wrappedPlayNow,
     sendReaction: wrappedSendReaction,
+    typingUsers: session.typingUsers,
+    onTypingStart: () => {
+      if (!socket || !session.currentGroup?.id) return
+      socket.emit("typing-start", { groupId: session.currentGroup.id, userName: user?.name })
+    },
+    onTypingStop: () => {
+      if (!socket || !session.currentGroup?.id) return
+      socket.emit("typing-stop", { groupId: session.currentGroup.id })
+    },
   }
 
   return (

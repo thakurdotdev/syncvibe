@@ -5,6 +5,70 @@ let audioElement = null
 let syncTimerRef = null
 let lastPlaybackActionAt = 0
 
+const TIME_SYNC_WINDOW_SIZE = 5
+const timeSyncSamples = []
+let preloadedAudios = new Map()
+let seekDebounceTimer = null
+
+const computeMedianOffset = () => {
+  if (timeSyncSamples.length === 0) return 0
+  if (timeSyncSamples.length === 1) return timeSyncSamples[0].offset
+
+  const rtts = timeSyncSamples.map((s) => s.rtt).sort((a, b) => a - b)
+  const medianRTT = rtts[Math.floor(rtts.length / 2)]
+  const threshold = medianRTT * 2.5
+
+  const filtered = timeSyncSamples.filter((s) => s.rtt <= threshold)
+  if (filtered.length === 0) return timeSyncSamples[timeSyncSamples.length - 1].offset
+
+  const offsets = filtered.map((s) => s.offset).sort((a, b) => a - b)
+  return offsets[Math.floor(offsets.length / 2)]
+}
+
+const addTimeSyncSample = (clientSendTime, serverTime, clientReceiveTime) => {
+  const rtt = clientReceiveTime - clientSendTime
+  const offset = serverTime + rtt / 2 - clientReceiveTime
+
+  timeSyncSamples.push({ rtt, offset, timestamp: clientReceiveTime })
+  if (timeSyncSamples.length > TIME_SYNC_WINDOW_SIZE) {
+    timeSyncSamples.shift()
+  }
+
+  return computeMedianOffset()
+}
+
+const getConnectionQuality = () => {
+  if (timeSyncSamples.length === 0) return "good"
+  const rtts = timeSyncSamples.map((s) => s.rtt).sort((a, b) => a - b)
+  const medianRTT = rtts[Math.floor(rtts.length / 2)]
+  if (medianRTT < 100) return "good"
+  if (medianRTT < 300) return "fair"
+  return "poor"
+}
+
+const getHighQualityUrl = (song) =>
+  song?.download_url?.find((u) => u.quality === "320kbps")?.link ||
+  song?.download_url?.[3]?.link
+
+const preloadSong = (song) => {
+  if (!song) return
+  const url = getHighQualityUrl(song)
+  if (!url || preloadedAudios.has(song.id)) return
+
+  const audio = new Audio()
+  audio.preload = "auto"
+  audio.src = url
+
+  if (preloadedAudios.size >= 2) {
+    const oldest = preloadedAudios.keys().next().value
+    const oldAudio = preloadedAudios.get(oldest)
+    oldAudio.src = ""
+    preloadedAudios.delete(oldest)
+  }
+
+  preloadedAudios.set(song.id, audio)
+}
+
 export const useGroupPlaybackStore = create((set, get) => ({
   isPlaying: false,
   currentTime: 0,
@@ -16,6 +80,7 @@ export const useGroupPlaybackStore = create((set, get) => ({
   syncCountdown: 0,
   serverTimeOffset: 0,
   lastSync: 0,
+  connectionQuality: "good",
 
   setAudioRef: (el) => {
     audioElement = el
@@ -25,11 +90,25 @@ export const useGroupPlaybackStore = create((set, get) => ({
 
   getServerTime: () => Date.now() + get().serverTimeOffset,
 
+  processTimeSyncResponse: (clientSendTime, serverTime) => {
+    const clientReceiveTime = Date.now()
+    const offset = addTimeSyncSample(clientSendTime, serverTime, clientReceiveTime)
+    set({ serverTimeOffset: offset, lastSync: clientReceiveTime, connectionQuality: getConnectionQuality() })
+    return offset
+  },
+
   formatTime: (seconds) => {
     if (!seconds) return "0:00"
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins}:${secs.toString().padStart(2, "0")}`
+  },
+
+  preloadUpcoming: (queue, currentQueueIndex) => {
+    const next1 = queue[currentQueueIndex + 1]?.song
+    const next2 = queue[currentQueueIndex + 2]?.song
+    if (next1) preloadSong(next1)
+    if (next2) preloadSong(next2)
   },
 
   loadAudio: async (url, queueItemId, socket, groupId) => {
@@ -87,11 +166,18 @@ export const useGroupPlaybackStore = create((set, get) => ({
     const { isPlaying } = get()
     const newTime = value[0]
 
-    socket.emit("music-seek", {
-      groupId,
-      currentTime: newTime,
-      isPlaying,
-    })
+    audioElement.currentTime = newTime
+    set({ currentTime: newTime })
+
+    if (seekDebounceTimer) clearTimeout(seekDebounceTimer)
+    seekDebounceTimer = setTimeout(() => {
+      socket.emit("music-seek", {
+        groupId,
+        currentTime: newTime,
+        isPlaying,
+      })
+      seekDebounceTimer = null
+    }, 150)
   },
 
   handleVolumeChange: (value) => {
@@ -145,10 +231,14 @@ export const useGroupPlaybackStore = create((set, get) => ({
     const { currentSong } = get()
     if (!currentSong || currentSong.id !== serverTrack.id) {
       set({ currentSong: serverTrack })
-      const url = serverTrack.download_url?.find((u) => u.quality === "320kbps")?.link
+      const url = getHighQualityUrl(serverTrack)
       if (url && audioElement) {
         await get().loadAudio(url, currentItem?.id, socket, groupId)
       }
+    }
+
+    if (serverQueue) {
+      get().preloadUpcoming(serverQueue, serverQueueIndex)
     }
 
     if (!audioElement) return
@@ -219,7 +309,9 @@ export const useGroupPlaybackStore = create((set, get) => ({
     lastPlaybackActionAt = Date.now()
 
     set({ currentSong: song })
-    const url = song.download_url.find((u) => u.quality === "320kbps")?.link
+
+    const preloaded = preloadedAudios.get(song.id)
+    const url = getHighQualityUrl(song)
     const { loadAudio } = get()
 
     if (scheduledPlayTime) {
@@ -238,7 +330,30 @@ export const useGroupPlaybackStore = create((set, get) => ({
         }
       }, 200)
 
-      if (url) await loadAudio(url, queueItem?.id, socket, groupId)
+      if (preloaded && audioElement) {
+        audioElement.onended = null
+        audioElement.ontimeupdate = null
+        audioElement.onloadedmetadata = null
+        audioElement.src = preloaded.src
+        audioElement.onloadedmetadata = () => {
+          set({ currentTime: 0, duration: audioElement.duration, isLoading: false })
+        }
+        audioElement.ontimeupdate = () => {
+          set({ currentTime: audioElement.currentTime })
+        }
+        audioElement.onended = () => {
+          if (audioElement.currentTime < 1) return
+          set({ isPlaying: false })
+          if (groupId && socket) {
+            socket.emit("song-ended", { groupId, songId: queueItem?.id })
+          }
+        }
+        audioElement.volume = get().volume
+        set({ isLoading: false })
+        preloadedAudios.delete(song.id)
+      } else if (url) {
+        await loadAudio(url, queueItem?.id, socket, groupId)
+      }
 
       const nowAfterLoad = Date.now() + get().serverTimeOffset
       const remainingDelay = Math.max(0, scheduledPlayTime - nowAfterLoad)
@@ -289,9 +404,7 @@ export const useGroupPlaybackStore = create((set, get) => ({
     if (!playbackState?.currentTrack) return
 
     set({ currentSong: playbackState.currentTrack })
-    const url =
-      playbackState.currentTrack.download_url?.find((u) => u.quality === "320kbps")?.link ||
-      playbackState.currentTrack.download_url?.[3]?.link
+    const url = getHighQualityUrl(playbackState.currentTrack)
 
     if (url) {
       await get().loadAudio(url, serverQueue?.[serverQueueIndex]?.id, socket, groupId)
@@ -313,6 +426,10 @@ export const useGroupPlaybackStore = create((set, get) => ({
         }
       }
     }
+
+    if (serverQueue) {
+      get().preloadUpcoming(serverQueue, serverQueueIndex)
+    }
   },
 
   reset: () => {
@@ -325,6 +442,15 @@ export const useGroupPlaybackStore = create((set, get) => ({
       clearInterval(syncTimerRef)
       syncTimerRef = null
     }
+    if (seekDebounceTimer) {
+      clearTimeout(seekDebounceTimer)
+      seekDebounceTimer = null
+    }
+    for (const audio of preloadedAudios.values()) {
+      audio.src = ""
+    }
+    preloadedAudios.clear()
+    timeSyncSamples.length = 0
     set({
       isPlaying: false,
       currentTime: 0,

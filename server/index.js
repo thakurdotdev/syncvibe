@@ -7,9 +7,11 @@ const { socketManager } = require("./socket")
 const server = http.createServer(app)
 
 const io = new Server(server, {
-  pingTimeout: 60000,
-  connectTimeout: 45000,
+  pingTimeout: 30000,
+  pingInterval: 10000,
+  connectTimeout: 20000,
   maxHttpBufferSize: 2e6,
+  transports: ["websocket", "polling"],
   cors: {
     origin: [
       "https://syncvibe.thakur.dev",

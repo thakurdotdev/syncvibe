@@ -20,6 +20,7 @@ export const useGroupSessionStore = create((set, get) => ({
   isRejoining: false,
   upgradeDialog: { open: false, feature: "default", message: "" },
   floatingReactions: [],
+  typingUsers: {},
 
   searchResults: [],
   searchQuery: "",

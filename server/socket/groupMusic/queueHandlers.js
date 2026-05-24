@@ -1,4 +1,4 @@
-const { musicGroups, emitActivityMessage } = require("./state");
+const { musicGroups, emitActivityMessage, getScheduledDelay } = require("./state");
 const {
   addToQueue,
   addPlayNext,
@@ -8,6 +8,26 @@ const {
   reorderQueue,
   getQueueState,
 } = require("./queue");
+const { Song, GroupSessionHistory } = require("../../models/music");
+
+const persistSongHistory = async (group, queueItem) => {
+  if (!queueItem?.song?.id) return;
+  try {
+    const songRecord = await Song.getOrCreate(queueItem.song);
+    if (!songRecord) return;
+    await GroupSessionHistory.create({
+      sessionId: group.id,
+      groupId: group.id,
+      songRefId: songRecord.id,
+      addedByUserId: queueItem.addedBy?.userId
+        ? parseInt(queueItem.addedBy.userId, 10) || null
+        : null,
+      playedAt: new Date(),
+    });
+  } catch (err) {
+    console.error("[GroupHistory] Failed to persist:", err.message);
+  }
+};
 
 const setupQueueHandlers = (io, socket) => {
   socket.on("add-to-queue", (data) => {
@@ -31,7 +51,7 @@ const setupQueueHandlers = (io, socket) => {
 
       if (result.autoPlay && group.queue.length === 1) {
         const serverTime = Date.now();
-        const scheduledPlayTime = serverTime + 2000;
+        const scheduledPlayTime = serverTime + getScheduledDelay(group);
         io.to(`music-group-${groupId}`).emit("music-update", {
           song: result.queueItem.song,
           currentTime: 0,
@@ -75,7 +95,7 @@ const setupQueueHandlers = (io, socket) => {
 
       if (result.autoPlay) {
         const serverTime = Date.now();
-        const scheduledPlayTime = serverTime + 2000;
+        const scheduledPlayTime = serverTime + getScheduledDelay(group);
         io.to(`music-group-${groupId}`).emit("music-update", {
           song: result.queueItem.song,
           currentTime: 0,
@@ -112,7 +132,7 @@ const setupQueueHandlers = (io, socket) => {
         addedCount++;
         if (result.autoPlay && addedCount === 1) {
           const serverTime = Date.now();
-          const scheduledPlayTime = serverTime + 2000;
+          const scheduledPlayTime = serverTime + getScheduledDelay(group);
           io.to(`music-group-${groupId}`).emit("music-update", {
             song: result.queueItem.song,
             currentTime: 0,
@@ -171,9 +191,14 @@ const setupQueueHandlers = (io, socket) => {
     const group = musicGroups.get(groupId);
     if (!group) return;
 
+    const completedItem = group.currentQueueIndex >= 0
+      ? group.queue[group.currentQueueIndex]
+      : null;
+
     const result = skipToNext(group);
 
     if (result.success) {
+      if (completedItem) persistSongHistory(group, completedItem);
       prunePlayedSongs(group);
 
       io.to(`music-group-${groupId}`).emit("queue-updated", {
@@ -185,7 +210,7 @@ const setupQueueHandlers = (io, socket) => {
 
       if (result.hasNext) {
         const serverTime = Date.now();
-        const scheduledPlayTime = serverTime + 2000;
+        const scheduledPlayTime = serverTime + getScheduledDelay(group);
         io.to(`music-group-${groupId}`).emit("music-update", {
           song: result.currentItem.song,
           currentTime: 0,
@@ -213,6 +238,10 @@ const setupQueueHandlers = (io, socket) => {
     const group = musicGroups.get(groupId);
     if (!group) return;
 
+    const completedItem = group.currentQueueIndex >= 0
+      ? group.queue[group.currentQueueIndex]
+      : null;
+
     const result = skipToNext(group, songId);
 
     if (result.alreadyAdvanced) {
@@ -222,6 +251,7 @@ const setupQueueHandlers = (io, socket) => {
 
     if (!result.success) return;
 
+    if (completedItem) persistSongHistory(group, completedItem);
     prunePlayedSongs(group);
 
     io.to(`music-group-${groupId}`).emit("queue-updated", {
@@ -231,7 +261,7 @@ const setupQueueHandlers = (io, socket) => {
 
     if (result.hasNext) {
       const serverTime = Date.now();
-      const scheduledPlayTime = serverTime + 2000;
+      const scheduledPlayTime = serverTime + getScheduledDelay(group);
       io.to(`music-group-${groupId}`).emit("music-update", {
         song: result.currentItem.song,
         currentTime: 0,

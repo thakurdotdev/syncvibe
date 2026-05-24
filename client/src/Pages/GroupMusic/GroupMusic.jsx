@@ -74,6 +74,10 @@ const GroupMusic = () => {
     setIsInviteSheetOpen,
     sendInvite,
     sendReaction,
+    typingUsers,
+    onTypingStart,
+    onTypingStop,
+    connectionQuality,
   } = useGroupMusic()
 
   const [isQrCodeOpen, setQrCodeOpen] = useState(false)
@@ -130,6 +134,7 @@ const GroupMusic = () => {
                 onQueueOpen={handleOpenQueue}
                 onInviteOpen={handleOpenInvite}
                 queueCount={activeQueueCount}
+                connectionQuality={connectionQuality}
               />
             </div>
 
@@ -202,6 +207,9 @@ const GroupMusic = () => {
                           currentUserId={userId}
                           onSendMessage={sendMessage}
                           locked={!canChat}
+                          typingUsers={typingUsers}
+                          onTypingStart={onTypingStart}
+                          onTypingStop={onTypingStop}
                         />
                       </div>
                       <div className="w-full lg:w-[280px] lg:shrink-0 lg:max-h-[380px]">

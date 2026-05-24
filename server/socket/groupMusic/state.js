@@ -40,6 +40,15 @@ const emitActivityMessage = (io, groupId, activityType, data) => {
 
 const getGroup = (groupId) => musicGroups.get(groupId);
 
+const getScheduledDelay = (group) => {
+  if (!group || group.memberRTT.size === 0) return 1500;
+  let maxRTT = 0;
+  for (const rtt of group.memberRTT.values()) {
+    if (rtt > maxRTT) maxRTT = rtt;
+  }
+  return Math.max(800, Math.min(2500, maxRTT * 2 + 300));
+};
+
 const trackUserGroup = (userId, groupId) => {
   if (!userGroups.has(userId)) {
     userGroups.set(userId, new Set());
@@ -82,6 +91,7 @@ const createGroupState = (data) => ({
     currentTrack: null,
     lastUpdate: Date.now(),
   },
+  memberRTT: new Map(),
   settings: {
     allowAnyoneToAdd: true,
     maxQueueSize: data.planLimits?.realtimeSyncEnabled ? 50 : 3,
@@ -102,6 +112,7 @@ module.exports = {
   generateMessageId,
   emitActivityMessage,
   getGroup,
+  getScheduledDelay,
   trackUserGroup,
   untrackUserGroup,
   getUserGroups,
