@@ -33,6 +33,7 @@ const BottomPlayer = () => {
   const hasMobileNav = isMobile && appMode === "music"
   const isMinimized = usePlayerStore((s) => s.isMinimized)
   const setIsMinimized = usePlayerStore((s) => s.setIsMinimized)
+  const isClosed = usePlayerStore((s) => s.isClosed)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const lastFetchedForId = useRef(null)
@@ -57,7 +58,7 @@ const BottomPlayer = () => {
     }
   }, [recommendations, shouldFetch, currentSong?.id, addToQueue])
 
-  if (!currentSong) return null
+  if (!currentSong || isClosed) return null
 
   const songImage = currentSong?.image?.[2]?.link || currentSong?.image?.[1]?.link
 

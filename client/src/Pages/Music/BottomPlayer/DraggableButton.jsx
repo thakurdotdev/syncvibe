@@ -1,6 +1,6 @@
 import { useDraggable } from "@dnd-kit/core"
 import he from "he"
-import { Pause, Play, Maximize2 } from "lucide-react"
+import { Pause, Play, Maximize2, X } from "lucide-react"
 import { memo, useMemo } from "react"
 import { usePlayerStore } from "@/stores/playerStore"
 import { cn } from "@/lib/utils"
@@ -54,6 +54,7 @@ const DraggableButton = memo(({ position, onMaximize, currentSong, isDragging })
   const currentTime = usePlayerStore((s) => s.currentTime)
   const duration = usePlayerStore((s) => s.duration)
   const handlePlayPause = usePlayerStore((s) => s.handlePlayPause)
+  const closePlayer = usePlayerStore((s) => s.closePlayer)
 
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: "minimized-player",
@@ -160,6 +161,16 @@ const DraggableButton = memo(({ position, onMaximize, currentSong, isDragging })
             {artists}
           </span>
         </div>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            if (!isDragging) closePlayer()
+          }}
+          className="ml-1 p-0.5 rounded-full text-muted-foreground hover:text-white hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
+        >
+          <X size={12} />
+        </button>
       </div>
 
       {/* Dynamic Glow */}

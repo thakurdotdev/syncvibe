@@ -19,6 +19,7 @@ import {
 } from "@/hooks/queries/useHomepageQueries"
 import { cn } from "@/lib/utils"
 import { AlbumCard, ArtistCard, NewSongCard, PlaylistCard } from "@/Pages/Music/Cards"
+import { ResumeSession } from "./History"
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -143,6 +144,7 @@ const HomePage = () => {
   return (
     <div className="min-h-screen pb-24">
       <div className="px-4 md:px-6 py-6 space-y-6">
+        <ResumeSession />
         {reccLoading ? (
           <SectionSkeleton type="song" />
         ) : (

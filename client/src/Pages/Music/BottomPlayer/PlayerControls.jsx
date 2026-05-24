@@ -1,5 +1,5 @@
 import { motion } from "framer-motion"
-import { ChevronDown, ListMusic } from "lucide-react"
+import { ChevronDown, ListMusic, X } from "lucide-react"
 import { memo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -12,6 +12,7 @@ const PlayerControls = memo(({ onMinimize, onOpenModal, isMobile }) => {
   const handlePlayPause = usePlayerStore((s) => s.handlePlayPause)
   const handleNextSong = usePlayerStore((s) => s.handleNextSong)
   const handlePrevSong = usePlayerStore((s) => s.handlePrevSong)
+  const closePlayer = usePlayerStore((s) => s.closePlayer)
   const isGroupActive = useGroupSessionStore((s) => !!s.currentGroup)
 
   useEffect(() => {
@@ -61,6 +62,12 @@ const PlayerControls = memo(({ onMinimize, onOpenModal, isMobile }) => {
       <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
         <Button variant="ghost" size="icon" className={cn("h-9 w-9 ")} onClick={onMinimize}>
           <ChevronDown size={18} />
+        </Button>
+      </motion.div>
+
+      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+        <Button variant="ghost" size="icon" className={cn("h-9 w-9 text-white/50 hover:text-white hover:bg-white/10")} onClick={closePlayer}>
+          <X size={18} />
         </Button>
       </motion.div>
     </div>

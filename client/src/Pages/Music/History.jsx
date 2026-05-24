@@ -1,10 +1,12 @@
 import { AnimatePresence, motion } from "framer-motion"
+import he from "he"
 import {
   ChevronLeft,
   ChevronRight,
   Filter,
   History as HistoryIcon,
   Music2,
+  Play,
   RotateCcw,
   Search,
   X,
@@ -22,6 +24,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { useHistoryQuery } from "@/hooks/queries/useHistoryQuery"
 import { SongCard } from "./Cards"
+import { usePlayerStore } from "@/stores/playerStore"
 
 const SORT_OPTIONS = [
   { value: "lastPlayedAt", label: "Recently Played" },
@@ -182,6 +185,99 @@ const Pagination = ({ currentPage, totalPages, onPageChange, disabled }) => {
   )
 }
 
+export const ResumeSession = () => {
+  const currentSong = usePlayerStore((s) => s.currentSong)
+  const isClosed = usePlayerStore((s) => s.isClosed)
+  const playSong = usePlayerStore((s) => s.playSong)
+  const stopSong = usePlayerStore((s) => s.stopSong)
+  const currentTime = usePlayerStore((s) => s.currentTime) || 0
+  const duration = usePlayerStore((s) => s.duration) || parseFloat(currentSong?.duration) || 0
+
+  if (!isClosed || !currentSong) return null
+
+  const songImage = currentSong?.image?.[2]?.link || currentSong?.image?.[1]?.link
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0
+
+  const formatTime = (time) => {
+    if (isNaN(time) || time <= 0) return "0:00"
+    const mins = Math.floor(time / 60)
+    const secs = Math.floor(time % 60)
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -15 }}
+      animate={{ opacity: 1, y: 0 }}
+      onClick={() => playSong(currentSong)}
+      className="relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] p-4 sm:p-5 pb-5 sm:pb-6 flex flex-col sm:flex-row items-center justify-between gap-4 w-full group/resume transition-all duration-300 backdrop-blur-md cursor-pointer"
+    >
+      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        <img
+          src={songImage}
+          alt=""
+          className="w-full h-full object-cover blur-3xl opacity-[0.08] scale-150 transition-all duration-700 group-hover/resume:opacity-[0.12]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-background via-transparent to-background/50" />
+      </div>
+
+      <div className="flex items-center gap-4 w-full sm:w-auto">
+        <div className="relative shrink-0 w-16 h-16 rounded-xl overflow-hidden shadow-2xl border border-white/10 group-hover/resume:scale-[1.02] transition-transform duration-300">
+          <img
+            src={songImage}
+            alt={currentSong.name}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/resume:opacity-100 transition-opacity duration-300 cursor-pointer" onClick={(e) => { e.stopPropagation(); playSong(currentSong); }}>
+            <Play fill="white" className="w-5 h-5 text-white" />
+          </div>
+        </div>
+
+        <div className="min-w-0 pr-4">
+          <h3 className="text-sm sm:text-base font-bold text-foreground truncate max-w-[200px] sm:max-w-[400px]">
+            {he.decode(currentSong.name || currentSong.title || "")}
+          </h3>
+          <p className="text-xs text-muted-foreground truncate font-medium mt-0.5 flex flex-wrap items-center gap-2">
+            <span>
+              {currentSong.artist_map?.artists?.map((a) => a.name).join(", ") || currentSong.primaryArtists || currentSong.artist || "Unknown Artist"}
+            </span>
+            {currentTime > 0 && (
+              <>
+                <span className="text-muted-foreground/30">•</span>
+                <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.2 rounded font-bold">
+                  Paused at {formatTime(currentTime)}
+                </span>
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+
+      <div className="shrink-0 w-full sm:w-auto flex items-center gap-2">
+        <Button
+          onClick={(e) => {
+            e.stopPropagation()
+            playSong(currentSong)
+          }}
+          className="w-full sm:w-auto gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 h-10 rounded-full shadow-lg shadow-primary/15 cursor-pointer active:scale-95 transition-all duration-200"
+        >
+          <Play fill="currentColor" className="w-3.5 h-3.5" />
+          Resume
+        </Button>
+      </div>
+
+      {progressPercent > 0 && (
+        <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/5 overflow-hidden">
+          <div
+            className="h-full bg-primary transition-all duration-300"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
 const HistoryPage = () => {
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
@@ -275,6 +371,8 @@ const HistoryPage = () => {
                 {hasActiveFilters && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
               </Button>
             </div>
+
+            <ResumeSession />
 
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

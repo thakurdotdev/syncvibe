@@ -48,6 +48,19 @@ export const usePlayerStore = create(
         set({ isMinimized })
       },
 
+      isClosed: false,
+
+      closePlayer: () => {
+        const { currentSong, currentTime } = get()
+        if (audioElement) {
+          audioElement.pause()
+        }
+        set({ isPlaying: false, isClosed: true })
+        if (currentSong) {
+          addToHistory(currentSong, currentTime, "manual_close")
+        }
+      },
+
       setAudioRefs: (audio, nextAudio) => {
         audioElement = audio
         nextAudioElement = nextAudio
@@ -55,7 +68,7 @@ export const usePlayerStore = create(
 
       playSong: (song) => {
         if (!song?.id) return
-        set({ isLoading: true })
+        set({ isLoading: true, isClosed: false })
         const secureAudio = ensureHttpsForDownloadUrls(song)
         const { playlist } = get()
         const isInQueue = playlist.some((item) => item.id === song.id)
@@ -76,8 +89,11 @@ export const usePlayerStore = create(
       },
 
       handlePlayPause: () => {
-        const { isPlaying } = get()
+        const { isPlaying, isClosed } = get()
         if (!audioElement) return
+        if (isClosed) {
+          set({ isClosed: false })
+        }
         if (isPlaying) {
           audioElement.pause()
           set({ isPlaying: false })
@@ -346,9 +362,9 @@ export const usePlayerStore = create(
       },
 
       loadAndPlayCurrentSong: async (prevSongId) => {
-        const { currentSong, currentTime, updateMediaSession, preloadNextTrack, _hasRestoredTime } =
+        const { currentSong, currentTime, updateMediaSession, preloadNextTrack, _hasRestoredTime, isClosed } =
           get()
-        if (!audioElement || !currentSong || currentSong.id === prevSongId) {
+        if (!audioElement || !currentSong || currentSong.id === prevSongId || isClosed) {
           return prevSongId
         }
         try {
@@ -388,6 +404,7 @@ export const usePlayerStore = create(
         shuffleMode: state.shuffleMode,
         repeatMode: state.repeatMode,
         isMinimized: state.isMinimized,
+        isClosed: state.isClosed,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {

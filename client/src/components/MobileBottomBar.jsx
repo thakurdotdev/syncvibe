@@ -24,9 +24,10 @@ const MobileBottomBar = () => {
   const mode = useAppModeStore((s) => s.mode)
   const currentSong = usePlayerStore((s) => s.currentSong)
   const isMinimized = usePlayerStore((s) => s.isMinimized)
+  const isClosed = usePlayerStore((s) => s.isClosed)
 
   const menuItems = mode === "music" ? musicMenuItems : normalMenuItems
-  const isPlayerVisible = !!currentSong && mode === "music" && !isMinimized
+  const isPlayerVisible = !!currentSong && mode === "music" && !isMinimized && !isClosed
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 sm:hidden">
