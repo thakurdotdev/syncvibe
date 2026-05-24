@@ -62,8 +62,6 @@ const MemberCard = memo(({ member, isCreator, isCurrentUser, index }) => (
         <span className="text-[10px] text-muted-foreground/50">Listening</span>
       )}
     </div>
-
-    <MiniEqualizer className="h-3.5 shrink-0" />
   </motion.div>
 ))
 
