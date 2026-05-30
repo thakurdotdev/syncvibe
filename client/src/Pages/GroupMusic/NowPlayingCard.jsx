@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useMemo, useRef } from "react"
 import { Slider } from "@/components/ui/slider"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
@@ -21,13 +21,22 @@ import { useGroupSessionStore } from "@/stores/groupMusic/sessionStore"
 
 const REACTIONS = ["🔥", "❤️", "👏", "😍", "🎵"]
 
+const SONG_FADE = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.15 },
+}
+
+const TAP_SPRING = { scale: 0.92, transition: { duration: 0.12 } }
+
 const FloatingReaction = memo(({ emoji, id }) => {
   const cfg = useMemo(
     () => ({
       x: Math.random() * 70 + 15,
       drift: (Math.random() - 0.5) * 30,
       scale: 0.9 + Math.random() * 0.5,
-      dur: 2 + Math.random() * 0.6,
+      dur: 1.6 + Math.random() * 0.4,
     }),
     [],
   )
@@ -43,7 +52,7 @@ const FloatingReaction = memo(({ emoji, id }) => {
       }}
       transition={{ duration: cfg.dur, ease: "easeOut" }}
       className="absolute bottom-4 pointer-events-none select-none"
-      style={{ left: `${cfg.x}%`, transform: "translateX(-50%)" }}
+      style={{ left: `${cfg.x}%`, transform: "translateX(-50%)", willChange: "transform" }}
       onAnimationComplete={() => {
         useGroupSessionStore.setState((s) => ({
           floatingReactions: s.floatingReactions.filter((r) => r.id !== id),
@@ -84,7 +93,6 @@ const NowPlayingCard = ({
   const addedBy = currentQueueItem?.addedBy
   const reactions = useGroupSessionStore((s) => s.floatingReactions)
   const cooldownRef = useRef({})
-  const [tapped, setTapped] = useState(null)
 
   const handleReact = useCallback(
     (emoji) => {
@@ -92,8 +100,6 @@ const NowPlayingCard = ({
       if (cooldownRef.current[emoji] && now - cooldownRef.current[emoji] < 500) return
       cooldownRef.current[emoji] = now
       sendReaction?.(emoji)
-      setTapped(emoji)
-      setTimeout(() => setTapped(null), 300)
     },
     [sendReaction],
   )
@@ -109,7 +115,7 @@ const NowPlayingCard = ({
           <p className="text-sm text-muted-foreground/50 mt-1">Search for songs to get started</p>
           <button
             onClick={onSearchOpen}
-            className="mt-5 liquid-btn rounded-full px-6 py-2.5 gap-2 cursor-pointer flex items-center text-sm font-medium"
+            className="mt-5 liquid-btn rounded-full px-6 py-2.5 gap-2 cursor-pointer flex items-center text-sm font-medium press-scale"
           >
             <Search className="h-3.5 w-3.5" />
             Find a Song
@@ -133,7 +139,6 @@ const NowPlayingCard = ({
 
       {/* ═══ MOBILE ═══ */}
       <div className="md:hidden p-4 space-y-3">
-        {/* Song info row */}
         <div className="flex gap-3">
           <div
             className={cn(
@@ -167,8 +172,12 @@ const NowPlayingCard = ({
           </div>
 
           <div className="flex-1 min-w-0 flex flex-col justify-center">
-            <h3 className="text-sm font-bold line-clamp-2 leading-snug">{currentSong.name}</h3>
-            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{artist}</p>
+            <AnimatePresence mode="wait">
+              <motion.div key={currentSong.id} {...SONG_FADE}>
+                <h3 className="text-sm font-bold line-clamp-2 leading-snug">{currentSong.name}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{artist}</p>
+              </motion.div>
+            </AnimatePresence>
             {addedBy && (
               <p className="text-[10px] text-muted-foreground/50 mt-0.5 flex items-center gap-1">
                 <Avatar className="h-3 w-3">
@@ -183,7 +192,6 @@ const NowPlayingCard = ({
           </div>
         </div>
 
-        {/* Seek bar */}
         <div className="space-y-0.5">
           <Slider
             onValueChange={onSeek}
@@ -198,13 +206,13 @@ const NowPlayingCard = ({
           </div>
         </div>
 
-        {/* Controls */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <button
+            <motion.button
               onClick={() => onPlayPause()}
               disabled={disabled}
-              className="h-10 w-10 rounded-full liquid-panel-elevated flex items-center justify-center hover:scale-105 active:scale-95 transition-transform cursor-pointer disabled:opacity-50"
+              whileTap={!disabled ? TAP_SPRING : undefined}
+              className="h-10 w-10 rounded-full liquid-panel-elevated flex items-center justify-center cursor-pointer disabled:opacity-50"
             >
               {disabled ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -213,32 +221,30 @@ const NowPlayingCard = ({
               ) : (
                 <Play className="h-4 w-4 ml-0.5" />
               )}
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={() => onSkip?.()}
               disabled={disabled}
+              whileTap={!disabled ? TAP_SPRING : undefined}
               className="h-8 w-8 rounded-full liquid-btn flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer disabled:opacity-50"
             >
               <SkipForward className="h-3.5 w-3.5" />
-            </button>
+            </motion.button>
           </div>
           <div className="flex items-center gap-0.5">
             {REACTIONS.map((e) => (
-              <button
+              <motion.button
                 key={e}
                 onClick={() => handleReact(e)}
-                className={cn(
-                  "h-7 w-7 flex items-center justify-center rounded-full cursor-pointer text-sm transition-transform duration-150",
-                  tapped === e ? "scale-125 bg-accent" : "hover:bg-accent/50 active:scale-90",
-                )}
+                whileTap={{ scale: 1.15, transition: { duration: 0.1 } }}
+                className="h-7 w-7 flex items-center justify-center rounded-full cursor-pointer text-sm hover:bg-accent/50 active:scale-90"
               >
                 {e}
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
 
-        {/* Status bar */}
         <div className="flex items-center justify-between pt-2 border-t border-border/15">
           <div className="flex items-center gap-1.5">
             <div className="flex -space-x-1">
@@ -270,7 +276,6 @@ const NowPlayingCard = ({
 
       {/* ═══ DESKTOP ═══ */}
       <div className="hidden md:block">
-        {/* Zone 1: Art + Info */}
         <div className="flex gap-5 p-5 lg:p-6 pb-0 lg:pb-0">
           <div
             className={cn(
@@ -317,24 +322,28 @@ const NowPlayingCard = ({
           </div>
 
           <div className="flex-1 min-w-0 flex flex-col justify-center">
-            <h3 className="text-2xl lg:text-3xl font-bold tracking-tight line-clamp-1">
-              {currentSong.name}
-            </h3>
-            <div className="flex items-center gap-2 mt-1">
-              <p className="text-sm text-muted-foreground line-clamp-1">{artist}</p>
-              {addedBy && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/50">
-                  ·{" "}
-                  <Avatar className="h-3.5 w-3.5">
-                    <AvatarImage src={addedBy.profilePic} />
-                    <AvatarFallback className="text-[6px] bg-accent">
-                      {addedBy.userName?.[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  {addedBy.userName}
-                </span>
-              )}
-            </div>
+            <AnimatePresence mode="wait">
+              <motion.div key={currentSong.id} {...SONG_FADE}>
+                <h3 className="text-2xl lg:text-3xl font-bold tracking-tight line-clamp-1">
+                  {currentSong.name}
+                </h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm text-muted-foreground line-clamp-1">{artist}</p>
+                  {addedBy && (
+                    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/50">
+                      ·{" "}
+                      <Avatar className="h-3.5 w-3.5">
+                        <AvatarImage src={addedBy.profilePic} />
+                        <AvatarFallback className="text-[6px] bg-accent">
+                          {addedBy.userName?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      {addedBy.userName}
+                    </span>
+                  )}
+                </div>
+              </motion.div>
+            </AnimatePresence>
             {currentSong.album && (
               <p className="text-xs text-muted-foreground/50 mt-0.5 line-clamp-1">
                 {currentSong.album}
@@ -351,7 +360,6 @@ const NowPlayingCard = ({
           </div>
         </div>
 
-        {/* Zone 2: Seek bar */}
         <div className="px-5 lg:px-6 pt-4 space-y-0.5">
           <Slider
             onValueChange={onSeek}
@@ -366,13 +374,13 @@ const NowPlayingCard = ({
           </div>
         </div>
 
-        {/* Zone 3: Controls */}
         <div className="flex items-center justify-between px-5 lg:px-6 pt-3 pb-4">
           <div className="flex items-center gap-2">
-            <button
+            <motion.button
               onClick={() => onPlayPause()}
               disabled={disabled}
-              className="h-11 w-11 rounded-full liquid-panel-elevated flex items-center justify-center hover:scale-105 active:scale-95 transition-transform cursor-pointer disabled:opacity-50"
+              whileTap={!disabled ? TAP_SPRING : undefined}
+              className="h-11 w-11 rounded-full liquid-panel-elevated flex items-center justify-center cursor-pointer disabled:opacity-50"
             >
               {disabled ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -381,29 +389,28 @@ const NowPlayingCard = ({
               ) : (
                 <Play className="h-5 w-5 ml-0.5" />
               )}
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={() => onSkip?.()}
               disabled={disabled}
+              whileTap={!disabled ? TAP_SPRING : undefined}
               className="h-9 w-9 rounded-full liquid-btn flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer disabled:opacity-50"
             >
               <SkipForward className="h-4 w-4" />
-            </button>
+            </motion.button>
 
             <div className="h-5 w-px bg-border/20 mx-1" />
 
             <div className="flex items-center gap-0.5">
               {REACTIONS.map((e) => (
-                <button
+                <motion.button
                   key={e}
                   onClick={() => handleReact(e)}
-                  className={cn(
-                    "h-8 w-8 flex items-center justify-center rounded-full cursor-pointer text-base transition-transform duration-150",
-                    tapped === e ? "scale-125 bg-accent" : "hover:bg-accent/50 active:scale-90",
-                  )}
+                  whileTap={{ scale: 1.15, transition: { duration: 0.1 } }}
+                  className="h-8 w-8 flex items-center justify-center rounded-full cursor-pointer text-base hover:bg-accent/50"
                 >
                   {e}
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
@@ -443,7 +450,6 @@ const NowPlayingCard = ({
           </div>
         </div>
 
-        {/* Zone 4: Footer */}
         <div className="flex items-center justify-between px-5 lg:px-6 py-2.5 border-t border-border/15">
           <div className="flex items-center gap-2">
             <div className="flex -space-x-1.5">

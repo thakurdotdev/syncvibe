@@ -18,7 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { Bookmark, GripVertical, ListMusic, Play, Sparkles, Trash2 } from "lucide-react"
 import { memo, useCallback, useMemo, useState } from "react"
-import { motion } from "framer-motion"
+import { AnimatePresence, motion } from "framer-motion"
 
 const SortableQueueItem = memo(({ item, isPlaying, onRemove, onFetchRecs, onSaveToPlaylist }) => {
   const {
@@ -42,11 +42,16 @@ const SortableQueueItem = memo(({ item, isPlaying, onRemove, onFetchRecs, onSave
   const handleSave = useCallback(() => onSaveToPlaylist?.(item.song), [item.song, onSaveToPlaylist])
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
       style={style}
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -30 }}
+      transition={{ duration: 0.18 }}
       className={cn(
-        "flex items-center gap-2.5 p-2 rounded-xl transition-all duration-200 w-full overflow-hidden group",
+        "flex items-center gap-2.5 p-2 rounded-xl transition-colors duration-200 w-full overflow-hidden group",
         isPlaying ? "liquid-panel border-primary/15" : "liquid-hover-row border border-transparent",
         isItemDragging && "liquid-panel-elevated",
       )}
@@ -136,12 +141,15 @@ const SortableQueueItem = memo(({ item, isPlaying, onRemove, onFetchRecs, onSave
           </>
         )}
       </div>
-    </div>
+    </motion.div>
   )
 })
 
 const DragOverlayItem = memo(({ item }) => (
-  <div className="flex items-center gap-2.5 p-2 rounded-xl liquid-panel-elevated w-full max-w-md">
+  <div
+    className="flex items-center gap-2.5 p-2 rounded-xl liquid-panel-elevated w-full max-w-md"
+    style={{ willChange: "transform" }}
+  >
     <div className="p-1 shrink-0">
       <GripVertical className="h-4 w-4 text-muted-foreground" />
     </div>
@@ -272,18 +280,20 @@ const QueueList = memo(
                 onDragCancel={handleDragCancel}
               >
                 <SortableContext items={upcomingIds} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-1">
-                    {upcomingQueue.map((item) => (
-                      <SortableQueueItem
-                        key={item.id}
-                        item={item}
-                        isPlaying={false}
-                        onRemove={removeFromQueue}
-                        onFetchRecs={onFetchRecs}
-                        onSaveToPlaylist={onSaveToPlaylist}
-                      />
-                    ))}
-                  </div>
+                  <AnimatePresence initial={false}>
+                    <div className="space-y-1">
+                      {upcomingQueue.map((item) => (
+                        <SortableQueueItem
+                          key={item.id}
+                          item={item}
+                          isPlaying={false}
+                          onRemove={removeFromQueue}
+                          onFetchRecs={onFetchRecs}
+                          onSaveToPlaylist={onSaveToPlaylist}
+                        />
+                      ))}
+                    </div>
+                  </AnimatePresence>
                 </SortableContext>
                 <DragOverlay>{activeId ? <DragOverlayItem item={activeItem} /> : null}</DragOverlay>
               </DndContext>

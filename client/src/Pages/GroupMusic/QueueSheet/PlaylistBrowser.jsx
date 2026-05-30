@@ -2,9 +2,38 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useUserPlaylistsQuery, usePlaylistDetailsQuery } from "@/hooks/queries/usePlaylistQueries"
 import { cn } from "@/lib/utils"
-import { ArrowLeft, ChevronRight, ListPlus, Loader2, Music, Play, SkipForward } from "lucide-react"
+import { ArrowLeft, ChevronRight, ListPlus, Music, Play, SkipForward } from "lucide-react"
 import { memo, useCallback, useMemo, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+
+const PlaylistSkeleton = memo(() => (
+  <div className="space-y-0.5 py-2 px-2">
+    {[0, 1, 2, 3].map((i) => (
+      <div key={i} className="flex items-center gap-3 p-2.5">
+        <div className="skeleton-block h-11 w-11 rounded-xl shrink-0" />
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="skeleton-line h-3.5 w-3/5" />
+          <div className="skeleton-line h-2.5 w-1/4" />
+        </div>
+      </div>
+    ))}
+  </div>
+))
+
+const SongSkeleton = memo(() => (
+  <div className="space-y-0.5 py-2 px-1">
+    {[0, 1, 2, 3, 4].map((i) => (
+      <div key={i} className="flex items-center gap-3 px-2.5 py-2">
+        <div className="skeleton-block h-10 w-10 rounded-xl shrink-0" />
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="skeleton-line h-3.5 w-3/4" />
+          <div className="skeleton-line h-2.5 w-1/2" />
+        </div>
+        <div className="skeleton-line h-3 w-8 shrink-0" />
+      </div>
+    ))}
+  </div>
+))
 
 const PlaylistSongItem = memo(({ song, onPlayNow, onPlayNext, onAddToQueue }) => {
   const artistName = useMemo(
@@ -83,22 +112,7 @@ const PlaylistDetail = memo(
     }, [songs, onAddAll])
 
     if (isLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center h-52 gap-3">
-          <div className="relative">
-            <motion.div
-              animate={{ scale: [1, 1.3], opacity: [0.15, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="absolute inset-0 rounded-full border border-border/30"
-              style={{ margin: "-8px" }}
-            />
-            <div className="p-3 rounded-full liquid-badge">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-          </div>
-          <p className="text-muted-foreground/60 text-sm font-medium">Loading songs...</p>
-        </div>
-      )
+      return <SongSkeleton />
     }
 
     return (
@@ -196,20 +210,7 @@ const PlaylistBrowser = memo(({ onPlayNow, onPlayNext, onAddToQueue, onAddAll })
             transition={{ duration: 0.15 }}
           >
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center h-52 gap-3">
-                <div className="relative">
-                  <motion.div
-                    animate={{ scale: [1, 1.3], opacity: [0.15, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                    className="absolute inset-0 rounded-full border border-border/30"
-                    style={{ margin: "-8px" }}
-                  />
-                  <div className="p-3 rounded-full liquid-badge">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  </div>
-                </div>
-                <p className="text-muted-foreground/70 text-sm font-medium">Loading playlists...</p>
-              </div>
+              <PlaylistSkeleton />
             ) : playlists.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-52 gap-3">
                 <div className="p-4 rounded-2xl liquid-badge">

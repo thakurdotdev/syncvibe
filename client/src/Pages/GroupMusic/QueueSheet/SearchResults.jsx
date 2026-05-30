@@ -3,6 +3,17 @@ import { memo } from "react"
 import { motion } from "framer-motion"
 import SongItem from "./SongItem"
 
+const SongSkeleton = memo(() => (
+  <div className="flex items-center gap-3 px-2.5 py-2">
+    <div className="skeleton-block h-11 w-11 shrink-0" />
+    <div className="flex-1 min-w-0 space-y-2">
+      <div className="skeleton-line h-3.5 w-3/4" />
+      <div className="skeleton-line h-2.5 w-1/2" />
+    </div>
+    <div className="skeleton-line h-3 w-8 shrink-0" />
+  </div>
+))
+
 const SearchResults = memo(
   ({
     searchQuery,
@@ -25,19 +36,10 @@ const SearchResults = memo(
         className="px-2 py-3"
       >
         {isSearchLoading ? (
-          <div className="flex flex-col items-center justify-center h-52 gap-3">
-            <div className="relative">
-              <motion.div
-                animate={{ scale: [1, 1.3], opacity: [0.2, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className="absolute inset-0 rounded-full border border-border/30"
-                style={{ margin: "-8px" }}
-              />
-              <div className="p-3 rounded-full liquid-badge">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              </div>
-            </div>
-            <p className="text-muted-foreground/70 text-sm font-medium">Searching...</p>
+          <div className="space-y-1">
+            {[0, 1, 2, 3].map((i) => (
+              <SongSkeleton key={i} />
+            ))}
           </div>
         ) : !searchQuery ? (
           <div className="flex flex-col items-center justify-center h-52 gap-3">
@@ -62,15 +64,21 @@ const SearchResults = memo(
               {searchResults.length} result{searchResults.length !== 1 ? "s" : ""}
             </p>
             <div className="space-y-0.5">
-              {searchResults.map((song) => (
-                <SongItem
+              {searchResults.map((song, i) => (
+                <motion.div
                   key={song.id}
-                  song={song}
-                  onPlayNow={onPlayNow}
-                  onAddToQueue={onAddToQueue}
-                  onPlayNext={onPlayNext}
-                  onSaveToPlaylist={onSaveToPlaylist}
-                />
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18, delay: i < 5 ? i * 0.03 : 0 }}
+                >
+                  <SongItem
+                    song={song}
+                    onPlayNow={onPlayNow}
+                    onAddToQueue={onAddToQueue}
+                    onPlayNext={onPlayNext}
+                    onSaveToPlaylist={onSaveToPlaylist}
+                  />
+                </motion.div>
               ))}
             </div>
           </>

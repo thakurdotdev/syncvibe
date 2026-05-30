@@ -19,20 +19,22 @@ import {
 import "../Music/music.css"
 
 const AmbientGlow = memo(({ imageUrl }) => {
+  const bgStyle = useMemo(
+    () => ({
+      backgroundImage: `url(${imageUrl})`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      filter: "blur(80px) saturate(1.5)",
+      transform: "scale(1.4)",
+      willChange: "transform",
+    }),
+    [imageUrl],
+  )
+
   if (!imageUrl) return null
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      <div
-        className="absolute inset-0 opacity-[0.08]"
-        style={{
-          backgroundImage: `url(${imageUrl})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          filter: "blur(80px) saturate(1.5)",
-          transform: "scale(1.4)",
-          willChange: "transform",
-        }}
-      />
+      <div className="absolute inset-0 opacity-[0.08]" style={bgStyle} />
       <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
     </div>
   )
@@ -118,7 +120,7 @@ const GroupMusic = () => {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
       >
         <div className="relative rounded-2xl md:rounded-3xl overflow-hidden liquid-panel-elevated">
           <AmbientGlow imageUrl={albumArt} />
@@ -139,7 +141,7 @@ const GroupMusic = () => {
             </div>
 
             <div className="px-3 md:px-6 pb-5 md:pb-6">
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="popLayout">
                 {isRejoining && !currentGroup ? (
                   <motion.div
                     key="rejoining"

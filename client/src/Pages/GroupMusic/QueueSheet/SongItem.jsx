@@ -93,7 +93,7 @@ const SongItem = memo(
 
           <button
             onClick={handleAddToQueue}
-            className="h-8 w-8 rounded-xl flex items-center justify-center text-muted-foreground/70 hover:text-primary hover:bg-accent/50 cursor-pointer transition-all duration-200"
+            className="h-8 w-8 rounded-xl flex items-center justify-center text-muted-foreground/70 hover:text-primary hover:bg-accent/50 cursor-pointer transition-all duration-200 press-scale"
             title="Add to queue"
           >
             <ListPlus className="h-4 w-4" />

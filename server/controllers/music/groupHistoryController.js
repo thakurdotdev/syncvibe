@@ -1,5 +1,6 @@
 const { GroupSessionHistory, Song } = require("../../models/music");
 const User = require("../../models/auth/userModel");
+const GroupInvite = require("../../models/music/groupInviteModel");
 const { Op } = require("sequelize");
 
 const getLastSessionSongs = async (req, res) => {
@@ -9,19 +10,45 @@ const getLastSessionSongs = async (req, res) => {
       return res.status(400).json({ success: false, error: "userId is required" });
     }
 
-    const latestEntry = await GroupSessionHistory.findOne({
+    // 1. Get latest session where the user added a song
+    const latestAddedEntry = await GroupSessionHistory.findOne({
       where: { addedByUserId: userId },
       order: [["playedAt", "DESC"]],
-      attributes: ["sessionId"],
+      attributes: ["sessionId", "playedAt"],
       raw: true,
     });
 
-    if (!latestEntry) {
+    // 2. Get latest group invite where the user participated
+    const latestInvite = await GroupInvite.findOne({
+      where: {
+        [Op.or]: [
+          { inviterId: userId },
+          { inviteeId: userId, status: "accepted" }
+        ]
+      },
+      order: [["updatedAt", "DESC"]],
+      attributes: ["groupId", "updatedAt"],
+      raw: true,
+    });
+
+    // Determine the active sessionId
+    let targetSessionId = null;
+    if (latestAddedEntry && latestInvite) {
+      const addedTime = new Date(latestAddedEntry.playedAt).getTime();
+      const inviteTime = new Date(latestInvite.updatedAt).getTime();
+      targetSessionId = addedTime >= inviteTime ? latestAddedEntry.sessionId : latestInvite.groupId;
+    } else if (latestAddedEntry) {
+      targetSessionId = latestAddedEntry.sessionId;
+    } else if (latestInvite) {
+      targetSessionId = latestInvite.groupId;
+    }
+
+    if (!targetSessionId) {
       return res.json({ success: true, data: [] });
     }
 
     const songs = await GroupSessionHistory.findAll({
-      where: { sessionId: latestEntry.sessionId },
+      where: { sessionId: targetSessionId },
       include: [
         {
           model: Song,

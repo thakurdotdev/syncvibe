@@ -3,7 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Crown, Headphones, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { motion } from "framer-motion"
+import { AnimatePresence, motion } from "framer-motion"
 
 const MiniEqualizer = memo(({ className }) => (
   <div className={cn("flex items-end gap-[2px]", className)}>
@@ -19,14 +19,16 @@ const MiniEqualizer = memo(({ className }) => (
   </div>
 ))
 
-const MemberCard = memo(({ member, isCreator, isCurrentUser, index }) => (
+const MemberCard = memo(({ member, isCreator, isCurrentUser }) => (
   <motion.div
-    initial={{ opacity: 0, y: 6 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.25, delay: index * 0.04 }}
+    layout
+    initial={{ opacity: 0, height: 0 }}
+    animate={{ opacity: 1, height: "auto" }}
+    exit={{ opacity: 0, height: 0 }}
+    transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
     className={cn(
       "flex items-center gap-3 px-3 py-2 rounded-xl",
-      "transition-all duration-200",
+      "transition-colors duration-200",
       "liquid-hover-row",
       isCurrentUser && "bg-accent/20",
     )}
@@ -92,15 +94,16 @@ const MembersList = ({ members, currentUserId, createdBy, maxMembers }) => {
 
       <ScrollArea className="flex-1 max-h-75">
         <div className="p-1.5 space-y-0.5">
-          {members.map((member, index) => (
-            <MemberCard
-              key={member.userId}
-              member={member}
-              isCreator={member.userId === createdBy}
-              isCurrentUser={member.userId === currentUserId}
-              index={index}
-            />
-          ))}
+          <AnimatePresence initial={false}>
+            {members.map((member) => (
+              <MemberCard
+                key={member.userId}
+                member={member}
+                isCreator={member.userId === createdBy}
+                isCurrentUser={member.userId === currentUserId}
+              />
+            ))}
+          </AnimatePresence>
         </div>
       </ScrollArea>
     </div>

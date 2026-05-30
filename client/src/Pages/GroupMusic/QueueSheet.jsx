@@ -1,4 +1,6 @@
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Sheet,
   SheetContent,
@@ -8,19 +10,23 @@ import {
 } from "@/components/ui/sheet"
 import { useGroupMusic } from "@/Context/GroupMusicContext"
 import { useGroupSessionStore } from "@/stores/groupMusic/sessionStore"
+import { useProfile } from "@/Context/Context"
 import { fetchSongRecommendations } from "@/api/music/songs"
+import { fetchGroupHistory, fetchHistory } from "@/api/music/history"
+import { fetchHomepageModules } from "@/api/music/homepage"
 import { cn } from "@/lib/utils"
-import { Library, ListMusic, Search, SkipForward, Sparkles, X } from "lucide-react"
+import { Library, ListMusic, Search, SkipForward, Sparkles, X, Loader2 } from "lucide-react"
 import { memo, useCallback, useEffect, useRef, useState } from "react"
 import { AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 import SearchResults from "./QueueSheet/SearchResults"
 import QueueList from "./QueueSheet/QueueList"
-import Recommendations from "./QueueSheet/Recommendations"
 import PlaylistBrowser from "./QueueSheet/PlaylistBrowser"
+import Discovery from "./QueueSheet/Discovery"
 import AddToPlaylist from "@/Pages/Music/AddToPlaylist"
 
 const QueueSheet = () => {
+  const { user } = useProfile()
   const {
     isQueueOpen,
     setIsQueueOpen,
@@ -45,12 +51,18 @@ const QueueSheet = () => {
 
   const inputRef = useRef(null)
   const lastRecsSongIdRef = useRef(null)
+  const queueRef = useRef(queue)
   const [recommendations, setRecommendations] = useState([])
   const [recsLoading, setRecsLoading] = useState(false)
   const [recsSourceName, setRecsSourceName] = useState("")
-  const [activeTab, setActiveTab] = useState("search")
+  const [activeTab, setActiveTab] = useState("queue")
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [saveDialogSong, setSaveDialogSong] = useState(null)
+  const [recsLockedSongId, setRecsLockedSongId] = useState(null)
+
+  useEffect(() => {
+    queueRef.current = queue
+  }, [queue])
 
   const isSearching = searchQuery.length > 0
 
@@ -60,7 +72,7 @@ const QueueSheet = () => {
       setSearchQuery(val)
       if (val.trim()) {
         useGroupSessionStore.setState({ searchResults: [], isSearchLoading: true })
-        setActiveTab("search")
+        setActiveTab("queue")
       } else {
         useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false })
       }
@@ -81,7 +93,7 @@ const QueueSheet = () => {
         setSearchQuery("")
         useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false })
         setIsQueueOpen(false)
-        setActiveTab("search")
+        setActiveTab("queue")
       }
     },
     [setSearchQuery, setIsQueueOpen],
@@ -93,16 +105,17 @@ const QueueSheet = () => {
   }, [])
 
   const fetchRecs = useCallback(
-    async (songId) => {
+    async (songId, force = false) => {
       if (!songId) return
+      if (!force && lastRecsSongIdRef.current === songId) return
       lastRecsSongIdRef.current = songId
       setRecsLoading(true)
-      setRecommendations([])
-      const song = queue.find((q) => q.song?.id === songId)
+      const currentQueue = queueRef.current || []
+      const song = currentQueue.find((q) => q.song?.id === songId)
       setRecsSourceName(song?.song?.name || "")
       try {
         const data = await fetchSongRecommendations(songId)
-        const existingIds = new Set(queue.map((q) => q.song?.id))
+        const existingIds = new Set(currentQueue.map((q) => q.song?.id))
         const filtered = (data || []).filter((s) => !existingIds.has(s.id))
         setRecommendations(filtered.slice(0, 15))
       } catch {
@@ -111,27 +124,108 @@ const QueueSheet = () => {
         setRecsLoading(false)
       }
     },
-    [queue],
+    [],
+  )
+
+  const fetchSmartFallbackRecs = useCallback(
+    async (force = false) => {
+      if (!force && lastRecsSongIdRef.current === "fallback") return
+      lastRecsSongIdRef.current = "fallback"
+      setRecsLoading(true)
+      
+      try {
+        if (user?.userid) {
+          const groupHist = await fetchGroupHistory(user.userid)
+          if (groupHist && groupHist.length > 0) {
+            const lastSong = groupHist[groupHist.length - 1]?.songData
+            if (lastSong?.id) {
+              setRecsSourceName(`Last Session: ${lastSong.name}`)
+              const data = await fetchSongRecommendations(lastSong.id)
+              if (data && data.length > 0) {
+                const currentQueue = queueRef.current || []
+                const existingIds = new Set(currentQueue.map((q) => q.song?.id))
+                const filtered = data.filter((s) => !existingIds.has(s.id))
+                setRecommendations(filtered.slice(0, 15))
+                return
+              }
+            }
+          }
+        }
+
+        const musicHist = await fetchHistory({ limit: 5 })
+        if (musicHist && musicHist.length > 0) {
+          const lastSong = musicHist[0]?.songData || musicHist[0]
+          if (lastSong?.id) {
+            setRecsSourceName(`Music History: ${lastSong.name}`)
+            const data = await fetchSongRecommendations(lastSong.id)
+            if (data && data.length > 0) {
+              const currentQueue = queueRef.current || []
+              const existingIds = new Set(currentQueue.map((q) => q.song?.id))
+              const filtered = data.filter((s) => !existingIds.has(s.id))
+              setRecommendations(filtered.slice(0, 15))
+              return
+            }
+          }
+        }
+
+        const modules = await fetchHomepageModules()
+        if (modules?.trending && modules.trending.length > 0) {
+          setRecsSourceName("Trending Now")
+          const currentQueue = queueRef.current || []
+          const existingIds = new Set(currentQueue.map((q) => q.song?.id))
+          const filtered = modules.trending.filter((s) => !existingIds.has(s.id))
+          setRecommendations(filtered.slice(0, 15))
+        }
+      } catch (err) {
+        console.error("Failed to load fallback recommendations:", err)
+      } finally {
+        setRecsLoading(false)
+      }
+    },
+    [user?.userid],
+  )
+
+  const handleManualFetchRecs = useCallback(
+    (songId) => {
+      if (!songId) return
+      setRecsLockedSongId(songId)
+      setActiveTab("discovery")
+      fetchRecs(songId, true)
+    },
+    [fetchRecs],
   )
 
   useEffect(() => {
-    const currentSongId = currentQueueItem?.song?.id
-    if (currentSongId && currentSongId !== lastRecsSongIdRef.current) {
-      fetchRecs(currentSongId)
+    if (queue.length === 0 && recsLockedSongId) {
+      setRecsLockedSongId(null)
     }
-  }, [currentQueueItem?.song?.id])
+  }, [queue.length, recsLockedSongId])
+
+  useEffect(() => {
+    if (recsLockedSongId) return
+
+    const currentSongId = currentQueueItem?.song?.id
+    if (currentSongId) {
+      if (currentSongId !== lastRecsSongIdRef.current) {
+        fetchRecs(currentSongId)
+      }
+    } else {
+      fetchSmartFallbackRecs()
+    }
+  }, [currentQueueItem?.song?.id, recsLockedSongId, fetchRecs, fetchSmartFallbackRecs])
 
   const handleAddToQueueWithRecs = useCallback(
     (song) => {
       addToQueue(song)
-      fetchRecs(song.id)
+      setRecommendations((prev) => prev.filter((s) => s.id !== song.id))
     },
-    [addToQueue, fetchRecs],
+    [addToQueue],
   )
 
   const handleAddRecToQueue = useCallback(
     (song) => {
       addToQueue(song)
+      setRecommendations((prev) => prev.filter((s) => s.id !== song.id))
     },
     [addToQueue],
   )
@@ -224,50 +318,45 @@ const QueueSheet = () => {
               )}
             </div>
 
-            <div className="flex gap-1">
-              {[
-                { id: "search", icon: Search, label: "Search" },
-                { id: "playlists", icon: Library, label: "My Playlists" },
-                { id: "recommendations", icon: Sparkles, label: "Recommendations" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id)
-                    if (tab.id !== "search") {
-                      setSearchQuery("")
-                      useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false })
-                    }
-                  }}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium cursor-pointer relative",
-                    activeTab === tab.id
-                      ? "liquid-tab-active text-foreground"
-                      : "liquid-tab text-muted-foreground hover:text-foreground",
-                  )}
+            <Tabs
+              value={activeTab}
+              onValueChange={(val) => {
+                setActiveTab(val)
+                if (val !== "queue") {
+                  setSearchQuery("")
+                  useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false })
+                }
+              }}
+              className="w-full mt-1.5"
+            >
+              <TabsList className="grid w-full grid-cols-3 h-9 bg-accent/40 rounded-xl p-1">
+                <TabsTrigger
+                  value="queue"
+                  className="flex items-center justify-center gap-1 px-1 py-1 text-[11px] font-medium rounded-lg transition-all cursor-pointer data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
                 >
-                  <tab.icon
-                    className={cn(
-                      "h-3 w-3",
-                      tab.id === "recommendations" && recsLoading && "animate-pulse",
-                    )}
-                  />
-                  {tab.label}
-                  {tab.id === "recommendations" &&
-                    recommendations.length > 0 &&
-                    activeTab !== "recommendations" && (
-                      <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
-                      </span>
-                    )}
-                </button>
-              ))}
-            </div>
+                  <ListMusic className="h-3.5 w-3.5" />
+                  Queue
+                </TabsTrigger>
+                <TabsTrigger
+                  value="playlists"
+                  className="flex items-center justify-center gap-1 px-1 py-1 text-[11px] font-medium rounded-lg transition-all cursor-pointer data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+                >
+                  <Library className="h-3.5 w-3.5" />
+                  Playlists
+                </TabsTrigger>
+                <TabsTrigger
+                  value="discovery"
+                  className="flex items-center justify-center gap-1 px-1 py-1 text-[11px] font-medium rounded-lg transition-all cursor-pointer data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Recommended
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto scrollbar-thin">
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="popLayout">
               {activeTab === "playlists" && !isSearching ? (
                 <PlaylistBrowser
                   onPlayNow={playNow}
@@ -275,16 +364,25 @@ const QueueSheet = () => {
                   onAddToQueue={handleAddToQueueWithRecs}
                   onAddAll={handlePlaylistAddAll}
                 />
-              ) : activeTab === "recommendations" && !isSearching ? (
-                <Recommendations
+              ) : activeTab === "discovery" && !isSearching ? (
+                <Discovery
+                  userId={user?.userid}
                   recommendations={recommendations}
-                  isLoading={recsLoading}
-                  sourceName={recsSourceName}
-                  onPlayNow={playNow}
-                  onPlayNext={playNext}
+                  recsLoading={recsLoading}
+                  recsSourceName={recsSourceName}
                   onAddToQueue={handleAddRecToQueue}
-                  onAddAll={handleAddAllRecs}
+                  playNow={playNow}
+                  playNext={playNext}
                   onSaveToPlaylist={handleSaveToPlaylist}
+                  onRefresh={() => {
+                    const currentSongId = currentQueueItem?.song?.id
+                    if (currentSongId) {
+                      fetchRecs(currentSongId, true)
+                    } else {
+                      fetchSmartFallbackRecs(true)
+                    }
+                  }}
+                  queue={queue}
                 />
               ) : isSearching ? (
                 <SearchResults
@@ -304,7 +402,7 @@ const QueueSheet = () => {
                   upcomingQueue={upcomingQueue}
                   removeFromQueue={removeFromQueue}
                   reorderQueue={reorderQueue}
-                  onFetchRecs={fetchRecs}
+                  onFetchRecs={handleManualFetchRecs}
                   onSaveToPlaylist={handleSaveToPlaylist}
                   user={null}
                   currentGroup={currentGroup}

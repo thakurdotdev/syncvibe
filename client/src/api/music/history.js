@@ -44,3 +44,13 @@ export const addToHistory = async ({ songData, playedTime, trackingType }) => {
   )
   return data
 }
+
+export const fetchGroupHistory = async (userId) => {
+  if (!userId) return []
+  const { data } = await axios.get(
+    `${API_URL}/api/music/group-history?userId=${userId}`,
+    { withCredentials: true },
+  )
+  return data?.data || []
+}
+

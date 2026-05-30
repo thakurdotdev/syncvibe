@@ -3,6 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { MessageCircle, Send, Lock, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { AnimatePresence, motion } from "framer-motion"
 import UpgradeDialog from "@/components/UpgradeDialog"
 
 const getActivityMeta = (message) => {
@@ -34,36 +35,52 @@ const ActivityMessage = memo(({ msg }) => {
   )
 })
 
-const ChatMessage = memo(({ msg, isOwn, showAvatar }) => (
-  <div className={cn("flex gap-2.5", isOwn ? "justify-end" : "justify-start")}>
-    {!isOwn && (
-      <div className="w-7 shrink-0">
-        {showAvatar ? (
-          <Avatar className="h-7 w-7 ring-1 ring-border/40">
-            <AvatarImage src={msg.profilePic} />
-            <AvatarFallback className="text-[10px] bg-accent font-medium">
-              {msg.userName?.charAt(0)?.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        ) : null}
-      </div>
-    )}
+const ChatMessage = memo(({ msg, isOwn, showAvatar, isNew }) => {
+  const content = (
+    <div className={cn("flex gap-2.5", isOwn ? "justify-end" : "justify-start")}>
+      {!isOwn && (
+        <div className="w-7 shrink-0">
+          {showAvatar ? (
+            <Avatar className="h-7 w-7 ring-1 ring-border/40">
+              <AvatarImage src={msg.profilePic} />
+              <AvatarFallback className="text-[10px] bg-accent font-medium">
+                {msg.userName?.charAt(0)?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          ) : null}
+        </div>
+      )}
 
-    <div
-      className={cn(
-        "max-w-[75%] px-3.5 py-2",
-        isOwn
-          ? "liquid-message-own rounded-2xl rounded-br-md text-foreground"
-          : "liquid-message-other rounded-2xl rounded-bl-md",
-      )}
-    >
-      {!isOwn && showAvatar && (
-        <p className="text-[10px] font-semibold mb-0.5 text-muted-foreground/60">{msg.userName}</p>
-      )}
-      <p className="text-[13px] leading-relaxed wrap-break-word">{msg.message}</p>
+      <div
+        className={cn(
+          "max-w-[75%] px-3.5 py-2",
+          isOwn
+            ? "liquid-message-own rounded-2xl rounded-br-md text-foreground"
+            : "liquid-message-other rounded-2xl rounded-bl-md",
+        )}
+      >
+        {!isOwn && showAvatar && (
+          <p className="text-[10px] font-semibold mb-0.5 text-muted-foreground/60">{msg.userName}</p>
+        )}
+        <p className="text-[13px] leading-relaxed wrap-break-word">{msg.message}</p>
+      </div>
     </div>
-  </div>
-))
+  )
+
+  if (isNew) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.15 }}
+      >
+        {content}
+      </motion.div>
+    )
+  }
+
+  return content
+})
 
 const EmptyState = memo(() => (
   <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-2">
@@ -100,8 +117,10 @@ const ChatLockedOverlay = memo(({ onUpgrade }) => (
   </div>
 ))
 
-const MessagesList = memo(({ messages, currentUserId }) => {
+const MessagesList = memo(({ messages, currentUserId, prevCountRef }) => {
   if (messages.length === 0) return <EmptyState />
+
+  const prevCount = prevCountRef.current
 
   return (
     <div className="space-y-1 p-1">
@@ -114,8 +133,17 @@ const MessagesList = memo(({ messages, currentUserId }) => {
         const prev = messages[i - 1]
         const showAvatar =
           !isOwn && (!prev || prev.type === "activity" || prev.senderId !== msg.senderId)
+        const isNew = i >= prevCount
 
-        return <ChatMessage key={msg.id || i} msg={msg} isOwn={isOwn} showAvatar={showAvatar} />
+        return (
+          <ChatMessage
+            key={msg.id || i}
+            msg={msg}
+            isOwn={isOwn}
+            showAvatar={showAvatar}
+            isNew={isNew}
+          />
+        )
       })}
     </div>
   )
@@ -134,14 +162,16 @@ const GroupChat = ({
   const scrollRef = useRef(null)
   const [showUpgrade, setShowUpgrade] = useState(false)
   const typingTimeoutRef = useRef(null)
+  const prevCountRef = useRef(0)
 
   useEffect(() => {
     if (scrollRef.current) {
       const scrollContainer = scrollRef.current.querySelector("[data-radix-scroll-area-viewport]")
       if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight
+        scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: "smooth" })
       }
     }
+    prevCountRef.current = messages.length
   }, [messages.length])
 
   const handleSend = useCallback(() => {
@@ -197,28 +227,44 @@ const GroupChat = ({
       </div>
 
       <ScrollArea ref={scrollRef} className="flex-1 px-3 py-2 max-h-75">
-        <MessagesList messages={messages} currentUserId={currentUserId} />
+        <MessagesList
+          messages={messages}
+          currentUserId={currentUserId}
+          prevCountRef={prevCountRef}
+        />
       </ScrollArea>
 
       <div className="p-2.5 border-t border-border/20">
-        {typingNames.length > 0 && (
-          <div className="px-3 pb-1.5 flex items-center gap-1.5">
-            <div className="flex gap-[3px] items-center">
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className="h-1 w-1 rounded-full bg-muted-foreground/40 animate-bounce"
-                  style={{ animationDelay: `${i * 0.15}s`, animationDuration: "0.8s" }}
-                />
-              ))}
-            </div>
-            <span className="text-[11px] text-muted-foreground/50 truncate">
-              {typingNames.length === 1
-                ? `${typingNames[0]} is typing`
-                : `${typingNames.slice(0, 2).join(", ")} are typing`}
-            </span>
-          </div>
-        )}
+        <AnimatePresence>
+          {typingNames.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.15 }}
+              className="overflow-hidden"
+            >
+              <div className="px-3 pb-1.5 flex items-center gap-1.5">
+                <div className="flex gap-[3px] items-center">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="h-1 w-1 rounded-full bg-muted-foreground/40"
+                      style={{
+                        animation: `typing-dot 0.8s ease-in-out ${i * 0.15}s infinite`,
+                      }}
+                    />
+                  ))}
+                </div>
+                <span className="text-[11px] text-muted-foreground/50 truncate">
+                  {typingNames.length === 1
+                    ? `${typingNames[0]} is typing`
+                    : `${typingNames.slice(0, 2).join(", ")} are typing`}
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div className="flex gap-2">
           <input
             ref={inputRef}
@@ -228,13 +274,14 @@ const GroupChat = ({
             disabled={locked}
             className="flex-1 rounded-full h-9 px-4 text-sm liquid-input placeholder:text-muted-foreground/35 outline-none text-foreground disabled:opacity-40"
           />
-          <button
+          <motion.button
             onClick={handleSend}
             disabled={locked}
+            whileTap={{ scale: 0.9, transition: { duration: 0.1 } }}
             className="liquid-btn rounded-full shrink-0 h-9 w-9 cursor-pointer flex items-center justify-center disabled:opacity-40 disabled:pointer-events-none"
           >
             <Send className="h-3.5 w-3.5" />
-          </button>
+          </motion.button>
         </div>
       </div>
 

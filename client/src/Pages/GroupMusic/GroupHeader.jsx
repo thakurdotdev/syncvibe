@@ -1,6 +1,7 @@
 import { Check, Copy, LogOut, Music, QrCode, RefreshCw, Search, UserPlus, Wifi, WifiOff } from "lucide-react"
 import { memo, useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
+import { motion } from "framer-motion"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -151,12 +152,13 @@ const GroupHeader = ({
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <motion.button
                   onClick={() => setShowLeaveDialog(true)}
+                  whileTap={{ scale: 0.93, transition: { duration: 0.1 } }}
                   className="liquid-btn h-9 w-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-rose-400 hover:border-rose-500/20 cursor-pointer"
                 >
                   <LogOut className="h-4 w-4" />
-                </button>
+                </motion.button>
               </TooltipTrigger>
               <TooltipContent>Leave Group</TooltipContent>
             </Tooltip>

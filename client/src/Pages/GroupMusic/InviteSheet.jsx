@@ -89,17 +89,19 @@ const UserItem = memo(({ user, isOnline, onInvite, isInvited, isInGroup }) => {
             <span className="text-[11px] font-bold">Sent</span>
           </div>
         ) : (
-          <Button
-            onClick={(e) => {
-              e.stopPropagation()
-              handleInvite()
-            }}
-            variant="outline"
-            size="sm"
-            className="h-8 px-4 text-xs font-bold rounded-full hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all cursor-pointer shadow-sm active:scale-95"
-          >
-            Invite
-          </Button>
+          <motion.div whileTap={{ scale: 0.95, transition: { duration: 0.1 } }}>
+            <Button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleInvite()
+              }}
+              variant="outline"
+              size="sm"
+              className="h-8 px-4 text-xs font-bold rounded-full hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all cursor-pointer shadow-sm active:scale-95"
+            >
+              Invite
+            </Button>
+          </motion.div>
         )}
       </div>
     </motion.div>
@@ -107,9 +109,17 @@ const UserItem = memo(({ user, isOnline, onInvite, isInvited, isInGroup }) => {
 })
 
 const LoadingState = memo(() => (
-  <div className="flex flex-col items-center justify-center py-16 gap-3">
-    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-    <p className="text-sm text-muted-foreground">Looking for friends…</p>
+  <div className="px-3 py-4 space-y-1">
+    {[0, 1, 2, 3].map((i) => (
+      <div key={i} className="flex items-center gap-3 px-3 py-3">
+        <div className="skeleton-block h-10 w-10 rounded-full shrink-0" />
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="skeleton-line h-3.5 w-2/5" />
+          <div className="skeleton-line h-2.5 w-1/4" />
+        </div>
+        <div className="skeleton-line h-8 w-16 rounded-full shrink-0" />
+      </div>
+    ))}
   </div>
 ))
 
