@@ -26,6 +26,7 @@ export const useGroupSessionStore = create((set, get) => ({
   searchQuery: "",
   isSearchOpen: false,
   isSearchLoading: false,
+  quickPickRecs: [],
 
   getCurrentQueueItem: () => {
     const { queue, currentQueueIndex } = get()

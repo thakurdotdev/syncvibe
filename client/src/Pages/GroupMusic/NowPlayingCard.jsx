@@ -85,6 +85,8 @@ const NowPlayingCard = ({
   queueCount = 0,
   groupMembers = [],
   sendReaction,
+  onPlayNow,
+  onAddToQueue,
 }) => {
   const isMuted = volume === 0
   const disabled = isLoading || isSyncing
@@ -92,6 +94,7 @@ const NowPlayingCard = ({
   const artist = currentSong?.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"
   const addedBy = currentQueueItem?.addedBy
   const reactions = useGroupSessionStore((s) => s.floatingReactions)
+  const quickPicks = useGroupSessionStore((s) => s.quickPickRecs)
   const cooldownRef = useRef({})
 
   const handleReact = useCallback(
@@ -104,22 +107,96 @@ const NowPlayingCard = ({
     [sendReaction],
   )
 
+  const displayPicks = useMemo(() => quickPicks.slice(0, 6), [quickPicks])
+
   if (!currentSong) {
+    const hasPicks = displayPicks.length > 0
+
     return (
       <div className="rounded-2xl liquid-panel overflow-hidden">
-        <div className="flex flex-col items-center justify-center py-16 md:py-20 px-4">
-          <div className="p-5 rounded-full liquid-badge mb-5">
-            <AudioLines className="h-9 w-9 text-muted-foreground/30" />
+        <div className={cn("px-4 md:px-6", hasPicks ? "pt-6 md:pt-8 pb-4 md:pb-5" : "py-16 md:py-20")}>
+          <div className={cn("flex flex-col items-center text-center", hasPicks ? "mb-5" : "")}>
+            <div className="p-4 rounded-full liquid-badge mb-3">
+              <AudioLines className="h-7 w-7 text-muted-foreground/30" />
+            </div>
+            <p className="text-base font-semibold text-muted-foreground/70">No song playing</p>
+            <p className="text-sm text-muted-foreground/50 mt-1">Pick a song to get started</p>
           </div>
-          <p className="text-base font-semibold text-muted-foreground/70">No song playing</p>
-          <p className="text-sm text-muted-foreground/50 mt-1">Search for songs to get started</p>
-          <button
-            onClick={onSearchOpen}
-            className="mt-5 liquid-btn rounded-full px-6 py-2.5 gap-2 cursor-pointer flex items-center text-sm font-medium press-scale"
-          >
-            <Search className="h-3.5 w-3.5" />
-            Find a Song
-          </button>
+
+          {hasPicks && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="text-[11px] font-semibold text-muted-foreground/50 uppercase tracking-wider">
+                  Quick Picks
+                </p>
+                <button
+                  onClick={onQueueOpen}
+                  className="text-[11px] text-muted-foreground/40 hover:text-primary font-medium transition-colors cursor-pointer"
+                >
+                  Browse more
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {displayPicks.map((song) => {
+                  const songArtist = song.artist_map?.primary_artists?.[0]?.name || ""
+                  return (
+                    <div
+                      key={song.id}
+                      onClick={() => onPlayNow?.(song)}
+                      className="group flex items-center gap-2.5 p-2 rounded-xl bg-accent/20 hover:bg-accent/40 transition-colors duration-150 cursor-pointer"
+                    >
+                      <div className="relative h-10 w-10 rounded-lg overflow-hidden shrink-0 ring-1 ring-border/20">
+                        <img
+                          src={song.image?.[1]?.link || song.image?.[0]?.link}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center justify-center">
+                          <Play className="h-3.5 w-3.5 text-white fill-white" />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium truncate group-hover:text-primary transition-colors leading-snug">{song.name}</p>
+                        {songArtist && (
+                          <p className="text-[11px] text-muted-foreground/50 truncate leading-snug">{songArtist}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onAddToQueue?.(song)
+                        }}
+                        className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/30 hover:text-primary hover:bg-accent/60 opacity-0 group-hover:opacity-100 transition-all duration-150 cursor-pointer press-scale shrink-0"
+                        title="Add to queue"
+                      >
+                        <ListMusic className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-center gap-2.5">
+            <button
+              onClick={onSearchOpen}
+              className="liquid-btn rounded-full px-5 py-2.5 gap-2 cursor-pointer flex items-center text-sm font-medium press-scale"
+            >
+              <Search className="h-3.5 w-3.5" />
+              Search
+            </button>
+            {!hasPicks && (
+              <button
+                onClick={onQueueOpen}
+                className="liquid-btn rounded-full px-5 py-2.5 gap-2 cursor-pointer flex items-center text-sm font-medium press-scale text-muted-foreground hover:text-foreground"
+              >
+                <ListMusic className="h-3.5 w-3.5" />
+                Queue
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )

@@ -52,7 +52,17 @@ const QueueSheet = () => {
   const inputRef = useRef(null)
   const lastRecsSongIdRef = useRef(null)
   const queueRef = useRef(queue)
-  const [recommendations, setRecommendations] = useState([])
+  const recommendations = useGroupSessionStore((s) => s.quickPickRecs)
+  const setRecommendations = useCallback(
+    (updater) => {
+      if (typeof updater === "function") {
+        useGroupSessionStore.setState((s) => ({ quickPickRecs: updater(s.quickPickRecs) }))
+      } else {
+        useGroupSessionStore.setState({ quickPickRecs: updater })
+      }
+    },
+    [],
+  )
   const [recsLoading, setRecsLoading] = useState(false)
   const [recsSourceName, setRecsSourceName] = useState("")
   const [activeTab, setActiveTab] = useState("queue")
@@ -132,7 +142,7 @@ const QueueSheet = () => {
       if (!force && lastRecsSongIdRef.current === "fallback") return
       lastRecsSongIdRef.current = "fallback"
       setRecsLoading(true)
-      
+
       try {
         if (user?.userid) {
           const groupHist = await fetchGroupHistory(user.userid)

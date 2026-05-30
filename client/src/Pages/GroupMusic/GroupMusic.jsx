@@ -80,6 +80,8 @@ const GroupMusic = () => {
     onTypingStart,
     onTypingStop,
     connectionQuality,
+    playNow,
+    addToQueue,
   } = useGroupMusic()
 
   const [isQrCodeOpen, setQrCodeOpen] = useState(false)
@@ -200,6 +202,8 @@ const GroupMusic = () => {
                       queueCount={activeQueueCount}
                       groupMembers={groupMembers}
                       sendReaction={sendReaction}
+                      onPlayNow={playNow}
+                      onAddToQueue={addToQueue}
                     />
 
                     <div className="flex flex-col lg:flex-row gap-4">
