@@ -407,7 +407,7 @@ export function GroupMusicProvider({ children }) {
   )
 
   const wrappedSendMessage = useCallback(
-    (msg) => session.sendMessage(socket, user, msg),
+    (msg, messageType) => session.sendMessage(socket, user, msg, messageType),
     [socket, user],
   )
 

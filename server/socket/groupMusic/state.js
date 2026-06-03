@@ -17,12 +17,12 @@ const emitActivityMessage = (io, groupId, activityType, data) => {
   if (!group?.features?.realtimeChat) return;
 
   const activityMessages = {
-    "song-added": `🎵 ${data.userName} added "${data.songName}" to the queue`,
-    "song-playing": `▶️ Now playing "${data.songName}"${data.addedBy ? ` (added by ${data.addedBy})` : ""}`,
-    "song-skipped": `⏭️ ${data.userName || "Someone"} skipped to the next song`,
-    "queue-ended": `🎶 Queue ended - add more songs!`,
-    "user-joined": `👋 ${data.userName} joined the session`,
-    "user-left": `👋 ${data.userName} left the session`,
+    "song-added": `${data.userName} added "${data.songName}" to the queue`,
+    "song-playing": `Now playing "${data.songName}"${data.addedBy ? ` (added by ${data.addedBy})` : ""}`,
+    "song-skipped": `${data.userName || "Someone"} skipped to the next song`,
+    "queue-ended": `Queue ended — add more songs!`,
+    "user-joined": `${data.userName} joined the session`,
+    "user-left": `${data.userName} left the session`,
   };
 
   const message = activityMessages[activityType];

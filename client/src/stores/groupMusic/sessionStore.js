@@ -122,16 +122,23 @@ export const useGroupSessionStore = create((set, get) => ({
     toast.info(`Left group ${currentGroup.name}`)
   },
 
-  sendMessage: (socket, user, message) => {
+  sendMessage: (socket, user, message, messageType = "text") => {
     if (!message.trim()) return
     const { currentGroup } = get()
-    socket.emit("chat-message", {
+    const payload = {
       groupId: currentGroup?.id,
       senderId: user.userid,
       profilePic: user.profilepic,
       userName: user.name,
-      message,
-    })
+      messageType,
+    }
+    if (messageType === "gif") {
+      payload.gifUrl = message
+      payload.message = ""
+    } else {
+      payload.message = message
+    }
+    socket.emit("chat-message", payload)
   },
 
   addToQueue: (socket, user, song) => {

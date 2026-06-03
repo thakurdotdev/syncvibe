@@ -16,7 +16,7 @@ const MusicNavbar = () => {
         <div className="flex items-center justify-between h-full sm:ml-64">
           {isMobile ? (
             <LazyImage
-              src="https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp"
+              src="https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1780513349/profiles/profiles_130_1780513347_dcd92b7ad4653080.jpg"
               alt="SyncVibe"
               className="h-7 w-7 shrink-0"
               height={28}

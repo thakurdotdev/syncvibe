@@ -4,7 +4,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 const FROM_EMAIL = `SyncVibe <${process.env.RESEND_EMAIL ?? "noreply@thakur.dev"}>`
 const LOGO_URL =
-  "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp"
+  "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1780513349/profiles/profiles_130_1780513347_dcd92b7ad4653080.jpg"
 const APP_URL = "https://syncvibe.thakur.dev"
 const CURRENT_YEAR = new Date().getFullYear()
 

@@ -22,10 +22,7 @@ const WelcomeView = ({ onOpenModal }) => {
       <div className="max-w-lg w-full flex flex-col items-center text-center">
         <div className="relative mb-8">
           <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-full bg-primary/10 flex items-center justify-center">
-            <Users className="h-10 w-10 sm:h-12 sm:w-12 text-primary" />
-          </div>
-          <div className="absolute -top-1 -right-1 h-7 w-7 rounded-full bg-green-500/20 flex items-center justify-center border-2 border-background">
-            <div className="h-3 w-3 rounded-full bg-green-500" />
+            <Users className="h-10 w-10 sm:h-12 sm:w-12 text-primary animate-rainbow" />
           </div>
         </div>
 

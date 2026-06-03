@@ -4,6 +4,7 @@ const GroupInvite = require("../../models/music/groupInviteModel");
 const {
   musicGroups,
   generateGroupId,
+  generateMessageId,
   createGroupState,
   trackUserGroup,
   untrackUserGroup,
@@ -173,7 +174,7 @@ const setupInviteHandlers = (io, socket, userId) => {
   });
 
   socket.on("chat-message", (data) => {
-    const { groupId } = data;
+    const { groupId, messageType, gifUrl } = data;
     const group = musicGroups.get(groupId);
 
     if (group && !group.features.realtimeChat) {
@@ -183,7 +184,19 @@ const setupInviteHandlers = (io, socket, userId) => {
       });
     }
 
-    io.to(`music-group-${groupId}`).emit("new-message", data);
+    const enrichedMessage = {
+      ...data,
+      id: generateMessageId(),
+      timestamp: Date.now(),
+      messageType: messageType || "text",
+    };
+
+    if (messageType === "gif" && gifUrl) {
+      enrichedMessage.gifUrl = gifUrl;
+      enrichedMessage.message = "";
+    }
+
+    io.to(`music-group-${groupId}`).emit("new-message", enrichedMessage);
   });
 
   socket.on("typing-start", (data) => {
