@@ -240,7 +240,7 @@ const GifPreviewCard = memo(({ still, animated, title, onSelect }) => {
   )
 })
 
-const GIPHY_KEY = import.meta.env.VITE_GIPHY_KEY || "GlVGYHkr3WSBnllca54iNt0yFbjz7L65"
+const GIPHY_KEY = "fNEK945T8rNeZZKqkghYw1zFKWV0Se1M"
 
 const GifPicker = memo(({ anchorRef, toggleRef, onSelect, onClose }) => {
   const [query, setQuery] = useState("")
