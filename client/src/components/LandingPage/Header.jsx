@@ -17,7 +17,7 @@ const Header = memo(() => {
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2.5">
           <LazyImage
-            src="https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1780513349/profiles/profiles_130_1780513347_dcd92b7ad4653080.jpg"
+            src="https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/r_max/f_auto/v1780744511/profiles/profiles_130_1780744510_4a18b0ed9043cc21.jpg"
             height={36}
             width={36}
             alt="SyncVibe"
