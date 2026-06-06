@@ -5,13 +5,14 @@ const {
 const { setSocketIO } = require("../utils/socketEmitter");
 const { setupChatHandlers } = require("./chat");
 const { setupOnlineHandlers } = require("./online");
-const { createCallHandlers, cleanupCall } = require("./call");
+const { createCallHandlers, handleCallDisconnect } = require("./call");
 
 const socketManager = (io) => {
   const userSockets = new Map();
   const onlineUsers = new Set();
   const activeVideoCalls = new Map();
   const callTimeouts = new Map();
+  const callStartTimes = new Map();
 
   setSocketIO(io, userSockets);
 
@@ -20,32 +21,24 @@ const socketManager = (io) => {
     onlineUsers,
     activeVideoCalls,
     callTimeouts,
-  };
-
-  const handleCallError = (socket, error, code) => {
-    console.error(`Call error (${code}):`, error);
-    socket.emit("call-error", {
-      message: error.message || "An error occurred during the call",
-      code,
-    });
-  };
-
-  const notifyUserOffline = (userId) => {
-    userSockets.delete(userId);
-    onlineUsers.delete(userId);
-    io.emit("user_offline", userId);
+    callStartTimes,
   };
 
   io.on("connection", (socket) => {
-    let userId;
-
     socket.on("setup", (userData) => {
       try {
-        userId = userData.userid;
+        if (!userData?.userid) {
+          socket.emit("socket-error", {
+            message: "Invalid setup data",
+            code: "SETUP_FAILED",
+          });
+          return;
+        }
+
+        const userId = userData.userid;
         socket.userId = userId;
         socket.join(userId);
         userSockets.set(userId, socket);
-        console.log(`User ${userId} connected`);
 
         if (!socket.musicHandlersSetup) {
           setupGroupMusicHandlers(io, socket, userId, userSockets);
@@ -54,7 +47,11 @@ const socketManager = (io) => {
 
         socket.emit("setup-complete");
       } catch (error) {
-        handleCallError(socket, error, "SETUP_FAILED");
+        console.error("Setup error:", error);
+        socket.emit("socket-error", {
+          message: "Setup failed",
+          code: "SETUP_FAILED",
+        });
       }
     });
 
@@ -63,21 +60,22 @@ const socketManager = (io) => {
     createCallHandlers(io, socket, context);
 
     socket.on("disconnect", () => {
-      if (userId) {
-        console.log(`User ${userId} disconnected`);
+      const userId = socket.userId;
+      if (!userId) return;
 
-        handleUserDisconnect(io, userId, userSockets);
+      handleUserDisconnect(io, userId, userSockets);
 
-        const otherUser = cleanupCall(userId, context);
-        if (otherUser) {
-          socket.to(otherUser).emit("call-ended", {
-            from: userId,
-            reason: "user_disconnected",
-          });
-        }
-
-        notifyUserOffline(userId);
+      const otherUser = handleCallDisconnect(io, userId, context);
+      if (otherUser) {
+        io.to(otherUser).emit("call-ended", {
+          from: userId,
+          reason: "user_disconnected",
+        });
       }
+
+      userSockets.delete(userId);
+      onlineUsers.delete(userId);
+      io.emit("user_offline", userId);
     });
   });
 };

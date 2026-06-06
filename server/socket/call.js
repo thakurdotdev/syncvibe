@@ -1,156 +1,297 @@
 const { sendPushNotification } = require("./notification");
+const { saveCallEvent } = require("../services/callLogService");
 
 const CALL_TIMEOUT = 30000;
 
+const emitCallLog = (io, { callerId, receiverId, messagetype, duration }) => {
+  saveCallEvent({ callerId, receiverId, messagetype, duration })
+    .then((result) => {
+      if (!result) return;
+      io.to(callerId).emit("call-log", result);
+      io.to(receiverId).emit("call-log", result);
+    })
+    .catch((err) => console.error("Call log save failed:", err));
+};
+
 const cleanupCall = (userId, context) => {
   const { activeVideoCalls, callTimeouts } = context;
-  if (activeVideoCalls.has(userId)) {
-    const otherUser = activeVideoCalls.get(userId);
-    activeVideoCalls.delete(userId);
-    activeVideoCalls.delete(otherUser);
+  if (!activeVideoCalls.has(userId)) return null;
 
-    if (callTimeouts.has(userId)) {
-      clearTimeout(callTimeouts.get(userId));
-      callTimeouts.delete(userId);
-    }
-    if (callTimeouts.has(otherUser)) {
-      clearTimeout(callTimeouts.get(otherUser));
-      callTimeouts.delete(otherUser);
-    }
+  const otherUser = activeVideoCalls.get(userId);
+  activeVideoCalls.delete(userId);
+  activeVideoCalls.delete(otherUser);
 
-    return otherUser;
-  }
-  return null;
+  [userId, otherUser].forEach((id) => {
+    if (callTimeouts.has(id)) {
+      clearTimeout(callTimeouts.get(id));
+      callTimeouts.delete(id);
+    }
+  });
+
+  return otherUser;
 };
 
 const createCallHandlers = (io, socket, context) => {
-  const { activeVideoCalls, callTimeouts, userSockets, onlineUsers } = context;
+  const { activeVideoCalls, callTimeouts, callStartTimes, userSockets, onlineUsers } = context;
 
-  const handleCallError = (error, code) => {
-    console.error(`Call error (${code}):`, error);
+  const emitError = (code, message) => {
     socket.emit("call-error", {
-      message: error.message || "An error occurred during the call",
+      message: message || "An error occurred during the call",
       code,
     });
   };
 
+  const requireSetup = () => {
+    if (!socket.userId) {
+      emitError("NOT_AUTHENTICATED", "Socket not authenticated");
+      return false;
+    }
+    return true;
+  };
+
   socket.on("call-user", async (data) => {
+    if (!requireSetup()) return;
+
     try {
-      const { to, from, name, profilepic, offer } = data;
+      const { to, offer } = data;
+
+      if (!to || !offer) {
+        return emitError("INVALID_DATA", "Missing required call data");
+      }
+
+      if (activeVideoCalls.has(socket.userId)) {
+        return emitError("ALREADY_IN_CALL", "You are already in a call");
+      }
+
       const recipientSocket = userSockets.get(to);
       if (!recipientSocket) {
-        throw new Error("User is offline");
+        return emitError("USER_OFFLINE", "User is offline");
       }
 
       if (activeVideoCalls.has(to)) {
-        throw new Error("User is busy");
+        return emitError("USER_BUSY", "User is busy on another call");
       }
 
-      activeVideoCalls.set(from, to);
-      activeVideoCalls.set(to, from);
+      activeVideoCalls.set(socket.userId, to);
+      activeVideoCalls.set(to, socket.userId);
 
       const timeoutId = setTimeout(() => {
-        if (activeVideoCalls.has(from)) {
-          cleanupCall(from, context);
-          socket.emit("call-error", {
-            message: "Call not answered",
-            code: "CALL_TIMEOUT",
-          });
-          socket.to(to).emit("call-ended", {
-            from,
+        if (activeVideoCalls.has(socket.userId)) {
+          cleanupCall(socket.userId, context);
+          emitError("CALL_TIMEOUT", "Call not answered");
+          io.to(to).emit("call-ended", {
+            from: socket.userId,
             reason: "timeout",
+          });
+
+          emitCallLog(io, {
+            callerId: socket.userId,
+            receiverId: to,
+            messagetype: "missed_call",
+            duration: null,
           });
         }
       }, CALL_TIMEOUT);
 
-      callTimeouts.set(from, timeoutId);
+      callTimeouts.set(socket.userId, timeoutId);
 
       socket.to(to).emit("incoming-call", {
-        from,
-        name,
-        profilepic,
+        from: socket.userId,
+        name: data.name,
+        profilepic: data.profilepic,
         offer,
       });
 
       if (!onlineUsers.has(to)) {
-        sendPushNotification(to, { name, from }, "call");
+        sendPushNotification(
+          to,
+          { name: data.name, from: socket.userId },
+          "call"
+        );
       }
     } catch (error) {
-      handleCallError(error, "CALL_INITIATION_FAILED");
+      console.error("call-user error:", error);
+      emitError("CALL_INITIATION_FAILED", error.message);
     }
   });
 
   socket.on("call-accepted", (data) => {
+    if (!requireSetup()) return;
+
     try {
-      const { to, name, profilepic, answer } = data;
+      const { to, answer } = data;
+
+      if (!to || !answer) {
+        return emitError("INVALID_DATA", "Missing required answer data");
+      }
+
+      if (
+        !activeVideoCalls.has(socket.userId) ||
+        activeVideoCalls.get(socket.userId) !== to
+      ) {
+        return emitError("NO_ACTIVE_CALL", "No active call to accept");
+      }
 
       if (callTimeouts.has(to)) {
         clearTimeout(callTimeouts.get(to));
         callTimeouts.delete(to);
       }
 
+      const callKey = [socket.userId, to].sort().join("-");
+      callStartTimes.set(callKey, Date.now());
+
       socket.to(to).emit("call-accepted", {
         from: socket.userId,
-        name,
-        profilepic,
+        name: data.name,
+        profilepic: data.profilepic,
         answer,
       });
     } catch (error) {
-      handleCallError(error, "CALL_ACCEPT_FAILED");
+      console.error("call-accepted error:", error);
+      emitError("CALL_ACCEPT_FAILED", error.message);
     }
   });
 
   socket.on("call-rejected", (data) => {
-    try {
-      const { to, reason } = data;
-      const otherUser = cleanupCall(socket.userId, context);
+    if (!requireSetup()) return;
 
+    try {
+      const otherUser = cleanupCall(socket.userId, context);
       if (otherUser) {
-        socket.to(to).emit("call-rejected", {
+        socket.to(otherUser).emit("call-rejected", {
           from: socket.userId,
-          reason,
+          reason: data?.reason,
+        });
+
+        emitCallLog(io, {
+          callerId: otherUser,
+          receiverId: socket.userId,
+          messagetype: "rejected_call",
+          duration: null,
         });
       }
     } catch (error) {
-      handleCallError(error, "CALL_REJECT_FAILED");
+      console.error("call-rejected error:", error);
+      emitError("CALL_REJECT_FAILED", error.message);
     }
   });
 
   socket.on("ice-candidate", (data) => {
-    try {
-      const { to, candidate } = data;
+    if (!requireSetup()) return;
 
-      if (
-        activeVideoCalls.has(socket.userId) &&
-        activeVideoCalls.get(socket.userId) === to
-      ) {
-        socket.to(to).emit("ice-candidate", {
+    try {
+      const { candidate } = data;
+      if (!candidate) return;
+
+      const targetUser = activeVideoCalls.get(socket.userId);
+      if (targetUser) {
+        socket.to(targetUser).emit("ice-candidate", {
           from: socket.userId,
           candidate,
         });
       }
     } catch (error) {
-      handleCallError(error, "ICE_CANDIDATE_FAILED");
+      console.error("ice-candidate error:", error);
     }
   });
 
-  socket.on("end-call", (data) => {
+  socket.on("ice-restart", (data) => {
+    if (!requireSetup()) return;
+
     try {
-      const { to } = data;
-      const otherUser = cleanupCall(socket.userId, context);
+      const { offer } = data;
+      if (!offer) return;
+
+      const targetUser = activeVideoCalls.get(socket.userId);
+      if (!targetUser) return;
+
+      socket.to(targetUser).emit("ice-restart", {
+        from: socket.userId,
+        offer,
+      });
+    } catch (error) {
+      console.error("ice-restart error:", error);
+      emitError("ICE_RESTART_FAILED", error.message);
+    }
+  });
+
+  socket.on("ice-restart-accept", (data) => {
+    if (!requireSetup()) return;
+
+    try {
+      const { answer } = data;
+      if (!answer) return;
+
+      const targetUser = activeVideoCalls.get(socket.userId);
+      if (!targetUser) return;
+
+      socket.to(targetUser).emit("ice-restart-accept", {
+        from: socket.userId,
+        answer,
+      });
+    } catch (error) {
+      console.error("ice-restart-accept error:", error);
+    }
+  });
+
+  socket.on("end-call", () => {
+    if (!requireSetup()) return;
+
+    try {
+      const otherUser = activeVideoCalls.get(socket.userId);
+      cleanupCall(socket.userId, context);
 
       if (otherUser) {
-        socket.to(to).emit("call-ended", {
+        socket.to(otherUser).emit("call-ended", {
           from: socket.userId,
+          reason: "ended",
+        });
+
+        const callKey = [socket.userId, otherUser].sort().join("-");
+        const startTime = callStartTimes.get(callKey);
+        callStartTimes.delete(callKey);
+
+        const duration = startTime ? Math.round((Date.now() - startTime) / 1000) : null;
+
+        emitCallLog(io, {
+          callerId: socket.userId,
+          receiverId: otherUser,
+          messagetype: duration ? "completed_call" : "missed_call",
+          duration,
         });
       }
     } catch (error) {
-      handleCallError(error, "END_CALL_FAILED");
+      console.error("end-call error:", error);
+      emitError("END_CALL_FAILED", error.message);
     }
   });
+};
+
+const handleCallDisconnect = (io, userId, context) => {
+  const { activeVideoCalls, callStartTimes } = context;
+  const otherUser = activeVideoCalls.get(userId);
+  if (!otherUser) return null;
+
+  cleanupCall(userId, context);
+
+  const callKey = [userId, otherUser].sort().join("-");
+  const startTime = callStartTimes.get(callKey);
+  callStartTimes.delete(callKey);
+
+  const duration = startTime ? Math.round((Date.now() - startTime) / 1000) : null;
+
+  emitCallLog(io, {
+    callerId: userId,
+    receiverId: otherUser,
+    messagetype: duration ? "completed_call" : "missed_call",
+    duration,
+  });
+
+  return otherUser;
 };
 
 module.exports = {
   cleanupCall,
   createCallHandlers,
+  handleCallDisconnect,
 };

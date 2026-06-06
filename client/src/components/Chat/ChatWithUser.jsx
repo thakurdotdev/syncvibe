@@ -9,8 +9,13 @@ import {
   Loader2,
   MoreHorizontal,
   Paperclip,
+  Phone,
+  PhoneIncoming,
+  PhoneMissed,
+  PhoneOff,
   SendHorizontal,
   Trash,
+  Video,
   X,
 } from "lucide-react"
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
@@ -18,6 +23,7 @@ import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { ChatContext } from "../../Context/ChatContext"
 import { Context } from "../../Context/Context"
+import { useVideoCallStore } from "../../stores/videoCallStore"
 import { getAllMessages } from "../../Utils/ChatUtils"
 import {
   AlertDialog,
@@ -159,6 +165,51 @@ const DateSeparator = ({ date }) => (
   </div>
 )
 
+const formatCallDuration = (seconds) => {
+  if (!seconds || seconds <= 0) return null
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  if (mins === 0) return `${secs}s`
+  return `${mins}m ${secs}s`
+}
+
+const CallMessageBubble = ({ message, isOwnMessage }) => {
+  const isMissed = message.messagetype === "missed_call"
+  const isRejected = message.messagetype === "rejected_call"
+  const isCompleted = message.messagetype === "completed_call"
+
+  const getIcon = () => {
+    if (isMissed) return <PhoneMissed className="h-4 w-4" />
+    if (isRejected) return <PhoneOff className="h-4 w-4" />
+    if (isCompleted) return <Video className="h-4 w-4" />
+    return <Phone className="h-4 w-4" />
+  }
+
+  const getLabel = () => {
+    if (isMissed) return isOwnMessage ? "No answer" : "Missed call"
+    if (isRejected) return isOwnMessage ? "Call declined" : "Declined"
+    if (isCompleted) {
+      const dur = formatCallDuration(parseInt(message.content, 10))
+      return dur ? `Video call · ${dur}` : "Video call"
+    }
+    return "Call"
+  }
+
+  const iconColor = isMissed || isRejected
+    ? "text-red-500"
+    : "text-green-500"
+
+  return (
+    <div className="flex justify-center mb-2">
+      <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-muted/60 text-sm text-muted-foreground">
+        <span className={iconColor}>{getIcon()}</span>
+        <span>{getLabel()}</span>
+        <span className="text-xs opacity-70">{formatTime(message.createdat)}</span>
+      </div>
+    </div>
+  )
+}
+
 const MessageActions = ({ message, isOwnMessage, handleCopy, deleteMessage }) => {
   // Check if message has only image/file without text content
   const isMediaOnly = message.fileurl && !message.content?.trim()
@@ -242,7 +293,7 @@ const MessageBubble = ({
           className={`relative ${
             isMediaOnly
               ? ""
-              : `p-3 rounded-2xl ${
+              : `px-3 py-2 rounded-lg ${
                   isOwnMessage
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted dark:bg-muted/70 text-foreground"
@@ -354,18 +405,34 @@ const MessageList = ({
 
             {dateMessages
               .sort((a, b) => new Date(a.createdat) - new Date(b.createdat))
-              .map((message, index) => (
-                <MessageBubble
-                  key={message.messageid || index}
-                  message={message}
-                  isOwnMessage={message.senderid === loggedInUserId}
-                  handleCopy={handleCopy}
-                  deleteMessage={deleteMessage}
-                  chatImages={chatImages}
-                  setSelectedImageIndex={setSelectedImageIndex}
-                  setShowGallery={setShowGallery}
-                />
-              ))}
+              .map((message, index) => {
+                const isCallMessage = ["missed_call", "completed_call", "rejected_call"].includes(
+                  message.messagetype,
+                )
+
+                if (isCallMessage) {
+                  return (
+                    <CallMessageBubble
+                      key={message.messageid || index}
+                      message={message}
+                      isOwnMessage={message.senderid === loggedInUserId}
+                    />
+                  )
+                }
+
+                return (
+                  <MessageBubble
+                    key={message.messageid || index}
+                    message={message}
+                    isOwnMessage={message.senderid === loggedInUserId}
+                    handleCopy={handleCopy}
+                    deleteMessage={deleteMessage}
+                    chatImages={chatImages}
+                    setSelectedImageIndex={setSelectedImageIndex}
+                    setShowGallery={setShowGallery}
+                  />
+                )
+              })}
           </div>
         ))}
         <div ref={messageEndRef} />
@@ -546,7 +613,8 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
   const { user } = useContext(Context)
   const isMobile = useIsMobile()
   const navigate = useNavigate()
-  const { setUsers, isInCall, incomingCall, startCall } = useContext(ChatContext)
+  const { setUsers } = useContext(ChatContext)
+  const { isInCall, incomingCall, startCall } = useVideoCallStore()
 
   // State
   const [messages, setMessages] = useState([])
@@ -612,14 +680,22 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
       }
     }
 
+    const handleCallLog = (callMessage) => {
+      if (callMessage.chatid === currentChat.chatid) {
+        setMessages((prevMessages) => [...prevMessages, callMessage])
+      }
+    }
+
     socket.on("message-received", handleNewMessage)
     socket.on("message-deleted", handleMessageDeleted)
     socket.on("messages-read-status", handleReadStatus)
+    socket.on("call-log", handleCallLog)
 
     return () => {
       socket.off("message-received", handleNewMessage)
       socket.off("message-deleted", handleMessageDeleted)
       socket.off("messages-read-status", handleReadStatus)
+      socket.off("call-log", handleCallLog)
     }
   }, [socket, currentChat?.chatid])
 

@@ -1,8 +1,8 @@
 import { Loader2 } from "lucide-react"
 import { lazy, Suspense, useContext } from "react"
 import { Navigate, Outlet, useLocation } from "react-router-dom"
-import { ChatContext } from "./Context/ChatContext"
 import { Context } from "./Context/Context"
+import { useVideoCallStore } from "./stores/videoCallStore"
 import BottomPlayer from "./Pages/Music/BottomPlayer"
 import GroupMusic from "./Pages/GroupMusic/GroupMusic"
 import { AppSidebar } from "./components/AppSidebar"
@@ -122,7 +122,7 @@ export const ProtectedRoutes = () => {
   const { user, loading } = useContext(Context)
   const { open } = useSidebar()
   const isMobile = useIsMobile()
-  const { incomingCall, isInCall, answerCall, rejectCall } = useContext(ChatContext)
+  const { incomingCall, isInCall, answerCall, rejectCall } = useVideoCallStore()
   const location = useLocation()
   const mode = useAppModeStore((s) => s.mode)
   const hasChosen = useAppModeStore((s) => s.hasChosen)

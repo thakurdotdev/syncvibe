@@ -16,6 +16,7 @@ const musicRoutes = require("./routes/musicRoutes")
 const uploadRoutes = require("./routes/uploadRoutes")
 const webhookRoutes = require("./routes/webhookRoutes")
 const paymentRoutes = require("./routes/paymentRoutes")
+const turnRoutes = require("./routes/turnRoutes")
 
 require("./passport")
 
@@ -86,6 +87,7 @@ app.use(
   musicRoutes,
   uploadRoutes,
   paymentRoutes,
+  turnRoutes,
 )
 
 app.use((err, req, res, next) => {

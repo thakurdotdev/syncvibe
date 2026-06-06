@@ -17,11 +17,11 @@ import {
   WifiOff,
 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useSocket } from "../../Context/ChatContext"
+import { useVideoCallStore } from "../../stores/videoCallStore"
 import { useProfile } from "../../Context/Context"
 
 const VideoCallUI = () => {
-  const { connectionState, localStream, remoteStream, endCall, currentCall } = useSocket()
+  const { connectionState, localStream, remoteStream, endCall, currentCall } = useVideoCallStore()
   const { user } = useProfile()
 
   const [callState, setCallState] = useState({

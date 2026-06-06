@@ -4,23 +4,20 @@ const setupChatHandlers = (io, socket, context) => {
   const { userSockets, onlineUsers } = context;
 
   socket.on("join-chat", (room) => {
-    try {
-      socket.join(room);
-    } catch (error) {
-      console.error("Join chat failed:", error);
-      socket.emit("call-error", {
-        message: error.message || "An error occurred during the call",
-        code: "JOIN_CHAT_FAILED",
-      });
-    }
+    if (!room || !socket.userId) return;
+    socket.join(room);
   });
 
   socket.on("new-message", (messageData) => {
+    if (!socket.userId) return;
+
     try {
       const { senderid, participants } = messageData;
-      const recipientId = participants.find(
-        (participant) => participant !== senderid,
-      );
+      if (!senderid || !participants?.length) return;
+
+      const recipientId = participants.find((p) => p !== senderid);
+      if (!recipientId) return;
+
       const recipientSocket = userSockets.get(recipientId);
       const isRecipientOnline = recipientSocket && onlineUsers.has(recipientId);
 
@@ -28,56 +25,55 @@ const setupChatHandlers = (io, socket, context) => {
         sendPushNotification(recipientId, messageData);
         return;
       }
+
       socket.to(recipientId).emit("message-received", messageData);
     } catch (error) {
-      console.error("Message failed:", error);
-      socket.emit("call-error", {
-        message: error.message || "An error occurred during the call",
-        code: "MESSAGE_FAILED",
-      });
+      console.error("new-message error:", error);
     }
   });
 
   socket.on("delete-message", (messageData) => {
+    if (!socket.userId) return;
+
     try {
       const { recipientId } = messageData;
+      if (!recipientId) return;
+
       socket.to(recipientId).emit("message-deleted", messageData);
     } catch (error) {
-      console.error("Delete message failed:", error);
-      socket.emit("call-error", {
-        message: error.message || "An error occurred during the call",
-        code: "DELETE_MESSAGE_FAILED",
-      });
+      console.error("delete-message error:", error);
     }
   });
 
   socket.on("typing", (data) => {
+    if (!socket.userId) return;
+
     try {
-      const { userId, recipientId, isTyping } = data;
-      socket.to(recipientId).emit("typing_status", { userId, isTyping });
+      const { recipientId, isTyping } = data;
+      if (!recipientId) return;
+
+      socket
+        .to(recipientId)
+        .emit("typing_status", { userId: socket.userId, isTyping });
     } catch (error) {
-      console.error("Typing status failed:", error);
-      socket.emit("call-error", {
-        message: error.message || "An error occurred during the call",
-        code: "TYPING_STATUS_FAILED",
-      });
+      console.error("typing error:", error);
     }
   });
 
   socket.on("messages-read", (data) => {
+    if (!socket.userId) return;
+
     try {
-      const { messageIds, chatid, readerId, senderId } = data;
+      const { messageIds, chatid, senderId } = data;
+      if (!messageIds?.length || !chatid || !senderId) return;
+
       socket.to(senderId).emit("messages-read-status", {
         messageIds,
         chatid,
-        readerId,
+        readerId: socket.userId,
       });
     } catch (error) {
-      console.error("Message read status failed:", error);
-      socket.emit("call-error", {
-        message: error.message || "An error occurred during the call",
-        code: "MESSAGE_READ_STATUS_FAILED",
-      });
+      console.error("messages-read error:", error);
     }
   });
 };

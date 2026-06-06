@@ -48,6 +48,11 @@ ChatMessage.init(
       allowNull: false,
       defaultValue: false,
     },
+    messagetype: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "text",
+    },
     createdat: {
       type: DataTypes.DATE,
       allowNull: false,

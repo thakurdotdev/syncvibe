@@ -1,9 +1,10 @@
 const setupOnlineHandlers = (io, socket, context) => {
   const { onlineUsers } = context;
 
-  socket.on("user_online", (userId) => {
-    onlineUsers.add(userId);
-    io.emit("user_online", userId);
+  socket.on("user_online", () => {
+    if (!socket.userId) return;
+    onlineUsers.add(socket.userId);
+    io.emit("user_online", socket.userId);
   });
 
   socket.on("get_initial_online_users", () => {
