@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "885959778004",
+    "project_id": "syncvibeapp",
+    "storage_bucket": "syncvibeapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:885959778004:android:21885142bc9f99df44a541",
+        "android_client_info": {
+          "package_name": "com.thakurdotdev.syncvibe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA90wvaZ1Uq3N35C8dCTQnc_HcS2S1hhyo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
