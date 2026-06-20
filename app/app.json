@@ -1,0 +1,98 @@
+{
+  "expo": {
+    "name": "SyncVibe",
+    "slug": "syncvibe",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/syncvibe.png",
+    "scheme": "syncvibe",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.thakurdotdev.syncvibe"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/syncvibe.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.thakurdotdev.syncvibe",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "syncvibe"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/icon.jpg"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/syncvibe.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "default",
+          "enableBackgroundRemoteNotifications": true
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow SyncVibe to access your camera to capture and share moments."
+        }
+      ],
+      "expo-media-library",
+      "expo-system-ui",
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "b578a8f2-2ffd-443b-a957-f8043828d5fe"
+      }
+    },
+    "owner": "thakurdotdev"
+  }
+}
