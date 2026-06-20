@@ -4,6 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r --parallel run build",
     "format": "biome format .",
     "format:fix": "biome format --write .",
     "lint:biome": "biome lint ."
