@@ -1,10 +1,57 @@
-const crypto = require("crypto")
-const fs = require("fs")
-const path = require("path")
-const { Readable } = require("stream")
-const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3")
-const AppUpdate = require("../../models/appUpdateModel")
-const { getRedis, cache } = require("../../utils/redis")
+const crypto = require("node:crypto")
+const fs = require("node:fs")
+const path = require("node:path")
+const { Readable } = require("node:stream")
+const { S3Client } = require("@aws-sdk/client-s3")
+const { Upload } = require("@aws-sdk/lib-storage")
+const { NodeHttpHandler } = require("@smithy/node-http-handler")
+const AppUpdate = require("../models/appUpdateModel")
+const { getRedis, cache } = require("../utils/redis")
+
+const s3Client = new S3Client({
+  region: "auto",
+  endpoint: process.env.R2_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+  },
+  maxAttempts: 5,
+  requestHandler: new NodeHttpHandler({
+    connectionTimeout: 10_000,
+    socketTimeout: 120_000,
+  }),
+})
+
+const MAX_UPLOAD_ATTEMPTS = 3
+
+const uploadToR2WithRetry = async (tempFilePath, fileKey, attempt = 1) => {
+  try {
+    const upload = new Upload({
+      client: s3Client,
+      params: {
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: fileKey,
+        Body: fs.createReadStream(tempFilePath),
+        ContentType: "application/vnd.android.package-archive",
+      },
+      queueSize: 4,
+      partSize: 10 * 1024 * 1024, // 10MB parts
+      leavePartsOnError: false,
+    })
+
+    await upload.done()
+  } catch (error) {
+    if (attempt < MAX_UPLOAD_ATTEMPTS) {
+      const backoffMs = attempt * 2000
+      console.warn(
+        `R2 upload attempt ${attempt} failed (${error.message}), retrying in ${backoffMs}ms...`
+      )
+      await new Promise((resolve) => setTimeout(resolve, backoffMs))
+      return uploadToR2WithRetry(tempFilePath, fileKey, attempt + 1)
+    }
+    throw error
+  }
+}
 
 const processUpdateInBackground = async (version, artifacts, metadata, releaseNotes) => {
   let tempFilePath = null
@@ -31,30 +78,12 @@ const processUpdateInBackground = async (version, artifacts, metadata, releaseNo
         .on("error", reject)
     })
 
-    console.log(`Uploaded app update v${version} to temp file: ${tempFilePath}`)
-
-    const stats = fs.statSync(tempFilePath)
-    const readStream = fs.createReadStream(tempFilePath)
-
-    const s3Client = new S3Client({
-      region: "auto",
-      endpoint: process.env.R2_ENDPOINT,
-      credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-      },
-    })
+    console.log(`Downloaded app update v${version} to temp file: ${tempFilePath}`)
 
     console.log(`Uploading app update v${version} to R2`)
 
     const fileKey = `updates/syncvibe-v${version}.apk`
-    await s3Client.send(new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME,
-      Key: fileKey,
-      Body: readStream,
-      ContentLength: stats.size,
-      ContentType: "application/vnd.android.package-archive",
-    }))
+    await uploadToR2WithRetry(tempFilePath, fileKey)
 
     console.log(`Uploaded app update v${version} to R2 at key: ${fileKey}`)
 

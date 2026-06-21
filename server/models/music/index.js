@@ -52,8 +52,6 @@ GroupSessionHistory.belongsTo(User, {
   as: "addedBy",
 })
 
-GroupSessionHistory.sync({ alter: true }).then(() => console.log("GroupSessionHistory synced")).catch((err) => console.log(err))
-
 module.exports = {
   Song,
   HistorySong,
