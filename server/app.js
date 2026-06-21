@@ -17,6 +17,7 @@ const uploadRoutes = require("./routes/uploadRoutes")
 const webhookRoutes = require("./routes/webhookRoutes")
 const paymentRoutes = require("./routes/paymentRoutes")
 const turnRoutes = require("./routes/turnRoutes")
+const appUpdateRoutes = require("./routes/appUpdateRoutes")
 
 require("./passport")
 
@@ -88,6 +89,7 @@ app.use(
   uploadRoutes,
   paymentRoutes,
   turnRoutes,
+  appUpdateRoutes,
 )
 
 app.use((err, req, res, next) => {

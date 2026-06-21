@@ -5,16 +5,16 @@ const getDataUri = require("../../utils/dataUri")
 
 const createMessage = async (req, res) => {
   try {
-    const { chatid, content } = req.body
+    const { chatid, content, fileurl } = req.body
     const { userid: senderid } = req.user
 
-    if (!chatid || !senderid || (!content && !req.file)) {
+    if (!chatid || !senderid || (!content && !req.file && !fileurl)) {
       return res.status(400).json({
         message: "At least one of content or files is required",
       })
     }
 
-    let fileUrl = null
+    let fileUrl = fileurl || null
 
     if (req.file) {
       const dataUri = getDataUri(req.file)

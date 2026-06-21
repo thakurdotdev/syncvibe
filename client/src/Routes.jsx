@@ -57,6 +57,7 @@ const UserPlaylistDetails = lazy(() => import("./Pages/Music/UserPlaylistDetails
 const HistoryPage = lazy(() => import("./Pages/Music/History"))
 const PlansPage = lazy(() => import("./Pages/Plans"))
 const PaymentHistoryPage = lazy(() => import("./Pages/PaymentHistory"))
+const PublishUpdate = lazy(() => import("./Pages/Admin/PublishUpdate"))
 
 // Fallback loader
 const Fallback = () => (
@@ -86,6 +87,7 @@ export const privateRoutes = [
   { path: "/music/history", element: <HistoryPage /> },
   { path: "/music/sync", element: <GroupMusic /> },
   { path: "/payments/history", element: <PaymentHistoryPage /> },
+  { path: "/admin/updates", element: <PublishUpdate /> },
 ]
 
 export const musicOnlyRoutes = [

@@ -181,6 +181,9 @@ exports.getUserProfile = async (req, res) => {
       attributes: { exclude: ["password"] },
       raw: true,
     })
+    if (user) {
+      user.isAdmin = user.email === (process.env.ADMIN_EMAIL)
+    }
     return res.status(200).json({ user })
   } catch (error) {
     if (res.headersSent) return

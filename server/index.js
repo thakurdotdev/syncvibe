@@ -26,7 +26,14 @@ socketManager(io)
 
 const { startBackgroundRecalc } = require("./services/recommendationService")
 
-sequelize.authenticate().then(() => {
+sequelize.authenticate().then(async () => {
+  try {
+    const AppUpdate = require("./models/appUpdateModel")
+    await AppUpdate.sync({ alter: true })
+    console.log("AppUpdate table synchronized")
+  } catch (err) {
+    console.error("AppUpdate sync failed:", err)
+  }
   const port = process.env.PORT || 4000
   server.listen(port, () => {
     console.log(`Server running on port ${port}`)
