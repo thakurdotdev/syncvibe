@@ -4,7 +4,7 @@ import SwipeableModal from '@/components/common/SwipeableModal';
 import { Message, useChat } from '@/context/SocketContext';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
-import { getOptimizedImageUrl } from '@/utils/Cloudinary';
+import { getOptimizedImageUrl, uploadToCloudinary } from '@/utils/Cloudinary';
 import useApi from '@/utils/hooks/useApi';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -435,10 +435,13 @@ const ChatWithUser = () => {
     if (!message.trim() && !file) return;
     if (!currentChat?.chatid) return;
 
+    const currentMsgText = message;
+    const currentFile = file;
+
     try {
       const newMessage = {
         senderid: loggedInUserId,
-        content: message,
+        content: currentMsgText,
         createdat: new Date().toISOString(),
         messageid: Date.now(),
         participants: currentChat?.participants,
@@ -459,7 +462,7 @@ const ChatWithUser = () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       // Send to socket if no file (will be sent after upload otherwise)
-      if (!file) {
+      if (!currentFile) {
         socket?.emit('new-message', newMessage);
       }
 
@@ -475,27 +478,27 @@ const ChatWithUser = () => {
 
       if (!loggedInUserId) return;
 
-      // API call to save message
-      const formData = new FormData();
-      formData.append('chatid', currentChat.chatid.toString());
-      formData.append('senderid', loggedInUserId.toString());
-      formData.append('content', message);
-
-      if (file && file.assets?.[0]) {
-        const fileAsset = file.assets[0];
-        formData.append('file', {
-          uri: fileAsset.uri,
-          type: fileAsset.mimeType,
-          name: fileAsset.fileName || 'image.jpg',
-        } as any);
+      let uploadedUrl: string | undefined = undefined;
+      if (currentFile && currentFile.assets?.[0]) {
+        const fileAsset = currentFile.assets[0];
+        uploadedUrl = await uploadToCloudinary(
+          api,
+          fileAsset.uri,
+          fileAsset.fileName || 'image.jpg',
+          fileAsset.mimeType || 'image/jpeg',
+          'post'
+        );
       }
 
-      const response = await api.post('/api/send/message', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const response = await api.post('/api/send/message', {
+        chatid: currentChat.chatid.toString(),
+        senderid: loggedInUserId.toString(),
+        content: currentMsgText,
+        fileurl: uploadedUrl,
       });
 
       // If we had a file, now we can notify via socket with server data
-      if (file && response?.data?.message) {
+      if (currentFile && response?.data?.message) {
         let serverMessage = response.data.message;
         serverMessage.participants = currentChat.participants;
         socket?.emit('new-message', serverMessage);

@@ -53,16 +53,15 @@ export interface ThemeColors {
   };
 }
 
-// Professional, vibrant music player palette — ember/coral accent variant
-// (the default). Same design system as the rose variant below: true
-// neutral grays for structure, one accent used sparingly (play state,
-// progress, selection), every foreground/background pair checked
-// against WCAG AA (4.5:1+).
+// Professional, vibrant music player palette — ember/coral accent variant.
+// Same design system as the rose variant below: true neutral grays for
+// structure, one accent used sparingly (play state, progress, selection),
+// every foreground/background pair checked against WCAG AA (4.5:1+).
 const emberPalette: ColorPalette = {
   name: 'Ember',
   description: 'Professional, vibrant music player palette with a refined ember accent',
   light: {
-    background: '#FFFFFF',
+    background: '#F3F4F6',
     foreground: '#16161A',
     card: '#FFFFFF',
     cardForeground: '#16161A',
@@ -101,12 +100,10 @@ const emberPalette: ColorPalette = {
 
     gradients: {
       primary: ['#E05A28', '#CC4310', '#99310A'],
-      background: ['#FFFFFF', '#FAFAFA'],
+      background: ['#F3F4F6', '#F3F4F6'],
       card: ['#FFFFFF', '#FCFCFC'],
       accent: ['#FCE8DD', '#FAD9C5'],
       destructive: ['#DB4259', '#C81E3A', '#96162B'],
-      // Hero header backdrop: soft ember wash, visible but quieter than
-      // the full-strength primary gradient.
       header: ['#FDEEE5', '#FBE0D0', '#FDF4EE'],
     },
   },
@@ -154,16 +151,18 @@ const emberPalette: ColorPalette = {
       card: ['#19191B', '#212123'],
       accent: ['#33201A', '#3D2820'],
       destructive: ['#FF8590', '#FF5468', '#E83B50'],
-      // Hero header backdrop: ember glow fading into the page background.
       header: ['#3D2014', '#27160E', '#0B0B0C'],
     },
   },
 };
 
 // Professional, vibrant music player palette — magenta/rose accent variant.
+// This is now the ACTIVE default (see colorPalettes export below).
 // Calibration notes specific to this variant:
 // - Primary is a deepened magenta-rose, not candy/hot pink — reads as
-//   confident and premium rather than playful or "dating app."
+//   confident and premium rather than playful or "dating app." Light
+//   mode primary (#DB2777) is calibrated to 4.60:1 contrast with white
+//   text; dark mode primary (#FF4FA3) hits 6.46:1 with near-black text.
 // - Destructive was deliberately pulled to a true red (not the usual
 //   rose-adjacent red) to keep ~30°+ of hue separation from primary —
 //   with a pink primary, "delete" and "the brand color" sit too close
@@ -173,7 +172,7 @@ const rosePalette: ColorPalette = {
   description: 'Professional, vibrant music player palette with a magenta-rose accent',
   light: {
     // Main palette
-    background: '#FFFFFF',
+    background: '#F3F4F6',
     foreground: '#16161A', // True near-black, zero hue tint
     card: '#FFFFFF',
     cardForeground: '#16161A',
@@ -214,7 +213,7 @@ const rosePalette: ColorPalette = {
     // Gradient colors
     gradients: {
       primary: ['#EC4A93', '#DB2777', '#A1175A'],
-      background: ['#FFFFFF', '#FAFAFA'],
+      background: ['#F3F4F6', '#F3F4F6'],
       card: ['#FFFFFF', '#FCFCFC'],
       accent: ['#FCE4F0', '#F9D2E5'],
       destructive: ['#DC4A3D', '#CC2819', '#991E12'],
@@ -279,10 +278,14 @@ const rosePalette: ColorPalette = {
   },
 };
 
+// `default` now points at the rose palette — this is the active theme
+// your ThemeContext reads via colorPalettes['default'][theme]. Ember
+// stays registered under its own key so it isn't lost if you ever want
+// to switch back or build a palette picker later.
 export const colorPalettes: Record<string, ColorPalette> = {
-  default: emberPalette,
-  ember: emberPalette,
+  default: rosePalette,
   rose: rosePalette,
+  ember: emberPalette,
 };
 
 export type ColorTheme = 'light' | 'dark';

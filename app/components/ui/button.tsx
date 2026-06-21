@@ -1,29 +1,24 @@
-// src/components/ui/button.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  TouchableOpacityProps,
   ActivityIndicator,
-  View,
-  StyleProp,
-  ViewStyle,
-  TextStyle,
+  Animated,
   Platform,
   Pressable,
   PressableProps,
+  StyleProp,
+  StyleSheet,
+  Text,
+  TextStyle,
+  View,
+  ViewStyle,
 } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-// Button variants exactly matching shadcn/ui
 export type ButtonVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
-
-// Button sizes
 export type ButtonSize = 'default' | 'sm' | 'lg' | 'icon';
 
-// Props for the Button component, matching shadcn/ui's API
-export interface ButtonProps extends Omit<TouchableOpacityProps & PressableProps, 'style'> {
+export interface ButtonProps extends Omit<PressableProps, 'style'> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   asChild?: boolean;
@@ -32,7 +27,7 @@ export interface ButtonProps extends Omit<TouchableOpacityProps & PressableProps
   iconPosition?: 'left' | 'right';
   title?: string;
   children?: React.ReactNode;
-  className?: string; // For adding string-based styles (won't actually be used in RN)
+  className?: string;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
 }
@@ -51,9 +46,30 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const { colors, theme } = useTheme();
+  const [isPressed, setIsPressed] = useState(false);
+  const scale = React.useRef(new Animated.Value(1)).current;
 
-  // Generate styles for different button variants (matching shadcn exactly)
-  const getVariantStyles = (): {
+  const handlePressIn = () => {
+    setIsPressed(true);
+    Animated.spring(scale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 5,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    setIsPressed(false);
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 5,
+    }).start();
+  };
+
+  const getVariantStyles = (isPressed: boolean): {
     backgroundColor: string;
     color: string;
     borderColor?: string;
@@ -62,29 +78,49 @@ export const Button: React.FC<ButtonProps> = ({
     switch (variant) {
       case 'default':
         return {
-          backgroundColor: disabled ? colors.primaryDisabled : colors.primary,
+          backgroundColor: disabled
+            ? colors.primaryDisabled
+            : isPressed
+              ? colors.primaryActive
+              : colors.primary,
           color: colors.primaryForeground,
         };
       case 'destructive':
         return {
-          backgroundColor: disabled ? colors.destructiveDisabled : colors.destructive,
+          backgroundColor: disabled
+            ? colors.destructiveDisabled
+            : isPressed
+              ? colors.destructiveActive
+              : colors.destructive,
           color: colors.destructiveForeground,
         };
       case 'outline':
         return {
-          backgroundColor: 'transparent',
+          backgroundColor: isPressed
+            ? theme === 'light'
+              ? 'rgba(0, 0, 0, 0.03)'
+              : 'rgba(255, 255, 255, 0.05)'
+            : 'transparent',
           color: disabled ? colors.mutedForeground : colors.primary,
-          borderColor: colors.border,
+          borderColor: isPressed ? colors.primary : colors.border,
           borderWidth: 1,
         };
       case 'secondary':
         return {
-          backgroundColor: disabled ? colors.secondaryDisabled : colors.secondary,
+          backgroundColor: disabled
+            ? colors.secondaryDisabled
+            : isPressed
+              ? colors.secondaryActive
+              : colors.secondary,
           color: colors.secondaryForeground,
         };
       case 'ghost':
         return {
-          backgroundColor: 'transparent',
+          backgroundColor: isPressed
+            ? theme === 'light'
+              ? 'rgba(0, 0, 0, 0.03)'
+              : 'rgba(255, 255, 255, 0.05)'
+            : 'transparent',
           color: disabled ? colors.mutedForeground : colors.primary,
         };
       case 'link':
@@ -100,7 +136,6 @@ export const Button: React.FC<ButtonProps> = ({
     }
   };
 
-  // Compute styles for different button sizes (matching shadcn sizes)
   const getSizeStyles = (): {
     paddingHorizontal: number;
     paddingVertical: number;
@@ -111,57 +146,56 @@ export const Button: React.FC<ButtonProps> = ({
     switch (size) {
       case 'sm':
         return {
-          paddingHorizontal: 12,
-          paddingVertical: 6,
+          paddingHorizontal: 14,
+          paddingVertical: 0,
           fontSize: 13,
+          height: 36,
         };
       case 'lg':
         return {
-          paddingHorizontal: 24,
-          paddingVertical: 10,
+          paddingHorizontal: 28,
+          paddingVertical: 0,
           fontSize: 16,
+          height: 54,
         };
       case 'icon':
         return {
           paddingHorizontal: 0,
           paddingVertical: 0,
           fontSize: 14,
-          height: 40,
-          width: 40,
+          height: 44,
+          width: 44,
         };
       case 'default':
       default:
         return {
-          paddingHorizontal: 16,
-          paddingVertical: 8,
-          fontSize: 14,
+          paddingHorizontal: 20,
+          paddingVertical: 0,
+          fontSize: 15,
+          height: 46,
         };
     }
   };
 
-  const variantStyles = getVariantStyles();
   const sizeStyles = getSizeStyles();
 
-  // Get ripple color for Android
   const getRippleColor = () => {
     if (variant === 'outline' || variant === 'ghost' || variant === 'link') {
-      // Matching the hover state of button in shadcn
       return Platform.select({
-        android: theme === 'light' ? '#00000010' : '#FFFFFF10', // 10% opacity
+        android: theme === 'light' ? '#00000010' : '#FFFFFF10',
         default: 'transparent',
       });
     }
     return Platform.select({
-      android: theme === 'light' ? '#00000010' : '#FFFFFF20', // Subtle ripple
+      android: theme === 'light' ? '#00000010' : '#FFFFFF20',
       default: 'transparent',
     });
   };
 
-  // Content rendering
-  const renderContent = () => {
+  const renderContent = (isPressed: boolean) => {
+    const variantStyles = getVariantStyles(isPressed);
     const content = title || children;
 
-    // For icon-only button
     if (size === 'icon' && icon) {
       return (
         <View style={styles.iconOnly}>
@@ -170,7 +204,6 @@ export const Button: React.FC<ButtonProps> = ({
       );
     }
 
-    // For text with optional icon
     return (
       <View style={[styles.contentContainer, { height: sizeStyles.height }]}>
         {isLoading ? (
@@ -179,7 +212,7 @@ export const Button: React.FC<ButtonProps> = ({
           <>
             {icon && iconPosition === 'left' && <View style={styles.leftIcon}>{icon}</View>}
 
-            {content && (
+            {content && typeof content === 'string' ? (
               <Text
                 style={[
                   styles.text,
@@ -194,6 +227,8 @@ export const Button: React.FC<ButtonProps> = ({
               >
                 {content}
               </Text>
+            ) : (
+              content
             )}
 
             {icon && iconPosition === 'right' && <View style={styles.rightIcon}>{icon}</View>}
@@ -203,10 +238,6 @@ export const Button: React.FC<ButtonProps> = ({
     );
   };
 
-  // Use Pressable on Android for ripple effect, TouchableOpacity on iOS
-  const ButtonComponent = Platform.OS === 'android' ? Pressable : TouchableOpacity;
-
-  // Common props for both button types
   const commonProps = {
     disabled: disabled || isLoading,
     accessibilityRole: 'button' as 'button',
@@ -214,7 +245,6 @@ export const Button: React.FC<ButtonProps> = ({
     ...props,
   };
 
-  // Android-specific props
   const androidProps =
     Platform.OS === 'android'
       ? {
@@ -226,33 +256,44 @@ export const Button: React.FC<ButtonProps> = ({
         }
       : {};
 
+  const variantStyles = getVariantStyles(isPressed);
+  const buttonStyle = [
+    styles.button,
+    {
+      backgroundColor: variantStyles.backgroundColor,
+      borderColor: variantStyles.borderColor,
+      borderWidth: variantStyles.borderWidth,
+      paddingHorizontal: sizeStyles.paddingHorizontal,
+      height: sizeStyles.height,
+      width: sizeStyles.width,
+      opacity: disabled ? 0.5 : 1,
+      borderRadius: 12,
+      transform: [{ scale }] as any,
+    },
+    style,
+  ];
+
   return (
-    <ButtonComponent
+    <AnimatedPressable
       {...commonProps}
       {...androidProps}
-      style={[
-        styles.button,
-        {
-          backgroundColor: variantStyles.backgroundColor,
-          borderColor: variantStyles.borderColor,
-          borderWidth: variantStyles.borderWidth,
-          paddingHorizontal: sizeStyles.paddingHorizontal,
-          paddingVertical: sizeStyles.paddingVertical,
-          opacity: disabled ? 0.5 : 1,
-          height: sizeStyles.height,
-          width: sizeStyles.width,
-        },
-        style,
-      ]}
+      onPressIn={(e) => {
+        handlePressIn();
+        props.onPressIn && props.onPressIn(e);
+      }}
+      onPressOut={(e) => {
+        handlePressOut();
+        props.onPressOut && props.onPressOut(e);
+      }}
+      style={buttonStyle}
     >
-      {renderContent()}
-    </ButtonComponent>
+      {renderContent(isPressed)}
+    </AnimatedPressable>
   );
 };
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 6, // shadcn uses radius-md which is generally 6px
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -265,7 +306,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   text: {
-    fontWeight: '500', // Medium weight like shadcn
+    fontWeight: '600',
     textAlign: 'center',
   },
   leftIcon: {

@@ -1,75 +1,44 @@
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
+import { useToast } from '@/context/ToastContext';
 import { router } from 'expo-router';
-import { UserIcon, AtSignIcon, FileTextIcon } from 'lucide-react-native';
+import { UserIcon, AtSignIcon } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { View, Text, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import Card from '@/components/ui/card';
 
 export default function EditProfileScreen() {
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const { colors } = useTheme();
+  const { toast } = useToast();
   const insets = useSafeAreaInsets();
 
   const [name, setName] = useState(user?.name || '');
   const [username, setUsername] = useState(user?.username || '');
   const [bio, setBio] = useState(user?.bio || '');
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+
     try {
-      // TODO: Save profile changes to backend
+      await updateUser({ name, username, bio });
+      toast('Profile updated successfully!', { type: 'success' });
       router.back();
     } catch (error) {
       console.error('Error updating profile:', error);
+      toast('Failed to update profile details', { type: 'error' });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const SectionHeader = ({ title }: { title: string }) => (
     <Text style={[styles.sectionHeader, { color: colors.mutedForeground }]}>{title}</Text>
-  );
-
-  const FormField = ({
-    label,
-    value,
-    onChangeText,
-    placeholder,
-    icon: Icon,
-    multiline = false,
-  }: {
-    label: string;
-    value: string;
-    onChangeText: (text: string) => void;
-    placeholder: string;
-    icon: React.ComponentType<any>;
-    multiline?: boolean;
-  }) => (
-    <View style={[styles.fieldContainer, { backgroundColor: colors.card }]}>
-      <View style={styles.fieldHeader}>
-        <View style={[styles.iconContainer, { backgroundColor: colors.primary + '20' }]}>
-          <Icon size={18} color={colors.primary} />
-        </View>
-        <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{label}</Text>
-      </View>
-      <View style={styles.inputWrapper}>
-        <Input
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          variant='filled'
-          multiline={multiline}
-          inputStyle={[
-            styles.input,
-            multiline && styles.multilineInput,
-            {
-              color: colors.foreground,
-              backgroundColor: colors.secondary,
-            },
-          ]}
-        />
-      </View>
-    </View>
   );
 
   return (
@@ -85,48 +54,53 @@ export default function EditProfileScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Personal Information Section */}
         <View style={styles.section}>
           <SectionHeader title='PERSONAL INFORMATION' />
-          <View style={styles.fieldsContainer}>
-            <FormField
-              label='Full Name'
+          <Card style={styles.cardContainer}>
+            <Input
+              labelText='Full Name'
               value={name}
               onChangeText={setName}
               placeholder='Enter your full name'
-              icon={UserIcon}
+              leftIcon={<UserIcon size={18} color={colors.primary} />}
+              variant='filled'
+              editable={!isSaving}
             />
-            <FormField
-              label='Username'
+            <Input
+              labelText='Username'
               value={username}
               onChangeText={setUsername}
               placeholder='Choose a unique username'
-              icon={AtSignIcon}
+              leftIcon={<AtSignIcon size={18} color={colors.primary} />}
+              variant='filled'
+              editable={!isSaving}
             />
-          </View>
+          </Card>
         </View>
 
-        {/* About Section */}
         <View style={styles.section}>
           <SectionHeader title='ABOUT' />
-          <View style={styles.fieldsContainer}>
-            <FormField
-              label='Bio'
+          <Card style={styles.cardContainer}>
+            <Input
+              labelText='Bio'
               value={bio}
               onChangeText={setBio}
               placeholder='Tell others about yourself, your interests, and what you love about music...'
-              icon={FileTextIcon}
+              variant='filled'
               multiline
+              editable={!isSaving}
+              inputStyle={styles.multilineInput}
             />
-          </View>
+          </Card>
         </View>
 
-        {/* Save Button */}
         <View style={styles.buttonContainer}>
           <Button
             onPress={handleSave}
             variant='default'
             size='lg'
+            isLoading={isSaving}
+            disabled={isSaving}
             style={[styles.saveButton, { backgroundColor: colors.primary }]}
           >
             Save Changes
@@ -158,50 +132,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textTransform: 'uppercase',
   },
-  fieldsContainer: {
-    gap: 16,
-  },
-  fieldContainer: {
-    borderRadius: 16,
+  cardContainer: {
     padding: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-  },
-  fieldHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fieldLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  inputWrapper: {
-    flex: 1,
-  },
-  input: {
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    borderWidth: 0,
-    minHeight: 48,
+    gap: 20,
   },
   multilineInput: {
-    minHeight: 200,
+    minHeight: 120,
     textAlignVertical: 'top',
-    paddingTop: 10,
+    paddingTop: 12,
   },
   buttonContainer: {
     marginTop: 20,

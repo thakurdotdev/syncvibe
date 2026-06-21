@@ -1,10 +1,10 @@
 import { API_URL } from '@/constants';
 import { useUser } from '@/context/UserContext';
+import { useTheme } from '@/context/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import * as Google from 'expo-auth-session/providers/google';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
@@ -32,6 +32,7 @@ const { width, height } = Dimensions.get('window');
 
 const LoginScreen = () => {
   const { getProfile } = useUser();
+  const { colors, theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
@@ -174,15 +175,10 @@ const LoginScreen = () => {
 
   if (isLoggingIn) {
     return (
-      <View style={styles.outerContainer}>
-        <LinearGradient
-          colors={['#000000', '#121212', '#1A1A1A']}
-          style={StyleSheet.absoluteFillObject}
-        />
-        <View style={[styles.accentOverlay, styles.accentTopRight]} />
+      <View style={[styles.outerContainer, { backgroundColor: colors.background }]}>
         <View style={styles.centerContainer}>
-          <ActivityIndicator size='large' color='#6366f1' />
-          <Text style={[styles.appTitle, { marginTop: 24, fontSize: 18 }]}>
+          <ActivityIndicator size='large' color={colors.primary} />
+          <Text style={[styles.appTitle, { color: colors.foreground, marginTop: 24, fontSize: 18 }]}>
             Syncing your vibe...
           </Text>
         </View>
@@ -203,15 +199,8 @@ const LoginScreen = () => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.outerContainer}
+      style={[styles.outerContainer, { backgroundColor: colors.background }]}
     >
-      <LinearGradient
-        colors={['#000000', '#121212', '#1A1A1A']}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      <View style={[styles.accentOverlay, styles.accentTopRight]} />
-
       <ScrollView
         contentContainerStyle={[
           styles.scrollContainer,
@@ -224,8 +213,17 @@ const LoginScreen = () => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.logoContainer}>
-          <View style={styles.logoWrapper}>
-            <BlurView intensity={40} tint='dark' style={styles.logoBlur}>
+          <View
+            style={[
+              styles.logoWrapper,
+              {
+                borderColor: colors.border,
+                backgroundColor: theme === 'light' ? '#FFFFFF' : colors.card,
+                shadowColor: colors.primary,
+              },
+            ]}
+          >
+            <BlurView intensity={theme === 'light' ? 10 : 40} tint={theme} style={styles.logoBlur}>
               <Image
                 source={require('../assets/syncvibe-cropped.png')}
                 style={styles.logo}
@@ -235,45 +233,53 @@ const LoginScreen = () => {
           </View>
 
           <View>
-            <Text style={styles.appTitle}>Welcome to SyncVibe</Text>
-            <Text style={styles.appSubtitle}>Sign in to discover music</Text>
+            <Text style={[styles.appTitle, { color: colors.foreground }]}>Welcome to SyncVibe</Text>
+            <Text style={[styles.appSubtitle, { color: colors.mutedForeground }]}>
+              Sign in to discover music
+            </Text>
           </View>
         </View>
 
         <View style={styles.formContainer}>
           <Input
+            variant='outline'
             placeholder='Email'
             value={email}
             onChangeText={setEmail}
             keyboardType='email-address'
             autoCapitalize='none'
             autoCorrect={false}
+            autoComplete='username'
+            textContentType='username'
             error={!!emailError}
             errorText={emailError}
             className='mb-4'
-            inputStyle={{ color: '#FFFFFF' }}
+            inputStyle={{ color: colors.foreground }}
           />
 
           <Input
+            variant='outline'
             placeholder='Password'
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
             autoCapitalize='none'
             autoCorrect={false}
+            autoComplete='password'
+            textContentType='password'
             rightIcon={
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
-                  color='#888888'
+                  color={colors.mutedForeground}
                 />
               </TouchableOpacity>
             }
             error={!!passwordError}
             errorText={passwordError}
             className='mb-6'
-            inputStyle={{ color: '#FFFFFF' }}
+            inputStyle={{ color: colors.foreground }}
           />
 
           <Button
@@ -281,54 +287,65 @@ const LoginScreen = () => {
             isLoading={loading}
             onPress={handleEmailLogin}
             className='w-full py-4 rounded-xl'
+            textStyle={{ fontWeight: '600', fontSize: 16 }}
           >
-            <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 16 }}>Login</Text>
+            Login
           </Button>
         </View>
 
         <View style={styles.dividerContainer}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>or</Text>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
         </View>
 
         <View style={styles.buttonContainer}>
-          <BlurView
-            intensity={20}
-            tint='dark'
-            style={styles.buttonBlurContainer}
-            className='rounded-full'
+          <TouchableOpacity
+            style={[
+              styles.googleButton,
+              {
+                backgroundColor: theme === 'light' ? colors.secondary : colors.card,
+                borderColor: colors.border,
+              },
+              loading && styles.buttonDisabled,
+            ]}
+            onPress={() => {
+              setError('');
+              promptAsync();
+            }}
+            disabled={!request || loading}
+            activeOpacity={0.8}
           >
-            <TouchableOpacity
-              style={[styles.googleButton, loading && styles.buttonDisabled]}
-              onPress={() => {
-                setError('');
-                promptAsync();
-              }}
-              disabled={!request || loading}
-              activeOpacity={0.8}
-            >
-              <Image source={require('../assets/images/google.png')} style={styles.googleIcon} />
-              {loading ? (
-                <ActivityIndicator size='small' color='#5B5B5B' />
-              ) : (
-                <Text style={styles.buttonText}>Continue with Google</Text>
-              )}
-            </TouchableOpacity>
-          </BlurView>
+            <Image source={require('../assets/images/google.png')} style={styles.googleIcon} />
+            {loading ? (
+              <ActivityIndicator size='small' color={colors.mutedForeground} />
+            ) : (
+              <Text style={[styles.buttonText, { color: colors.foreground }]}>
+                Continue with Google
+              </Text>
+            )}
+          </TouchableOpacity>
 
           {error ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
+            <View
+              style={[
+                styles.errorContainer,
+                {
+                  backgroundColor: theme === 'light' ? '#FEE2E2' : 'rgba(239, 68, 68, 0.15)',
+                  borderColor: colors.destructive,
+                },
+              ]}
+            >
+              <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text>
             </View>
           ) : null}
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
             By continuing, you agree to our{' '}
             <Text
-              style={styles.footerLink}
+              style={[styles.footerLink, { color: colors.primary }]}
               onPress={async () => {
                 await WebBrowser.openBrowserAsync('https://syncvibe.thakur.dev/terms-of-services');
               }}
@@ -337,7 +354,7 @@ const LoginScreen = () => {
             </Text>{' '}
             and{' '}
             <Text
-              style={styles.footerLink}
+              style={[styles.footerLink, { color: colors.primary }]}
               onPress={async () => {
                 await WebBrowser.openBrowserAsync('https://syncvibe.thakur.dev/privacy-policy');
               }}
@@ -367,25 +384,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
-  accentOverlay: {
-    position: 'absolute',
-    width: width * 0.8,
-    height: height * 0.4,
-    opacity: 0.15,
-    borderRadius: 300,
-  },
-  accentTopRight: {
-    top: -height * 0.05,
-    right: -width * 0.2,
-    backgroundColor: '#6366f1',
-    transform: [{ rotate: '30deg' }],
-  },
-  accentBottomLeft: {
-    bottom: -height * 0.05,
-    left: -width * 0.2,
-    backgroundColor: '#4f46e5',
-    transform: [{ rotate: '-20deg' }],
-  },
   logoContainer: {
     alignItems: 'center',
     marginTop: 20,
@@ -397,19 +395,8 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     overflow: 'hidden',
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#6366f1',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 10,
   },
   logoBlur: {
     width: '100%',
@@ -420,21 +407,19 @@ const styles = StyleSheet.create({
     borderRadius: 50,
   },
   logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
   },
   appTitle: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 6,
     letterSpacing: 0.3,
   },
   appSubtitle: {
     fontSize: 15,
-    color: '#AAAAAA',
     textAlign: 'center',
     letterSpacing: 0.2,
   },
@@ -451,10 +436,8 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   dividerText: {
-    color: '#888888',
     paddingHorizontal: 12,
     fontSize: 14,
   },
@@ -463,12 +446,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  buttonBlurContainer: {
-    width: '100%',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -476,7 +453,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 12,
+    borderWidth: 1,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -489,19 +467,15 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333333',
   },
   errorContainer: {
-    backgroundColor: 'rgba(255, 59, 48, 0.15)',
     borderRadius: 12,
     padding: 14,
     marginTop: 16,
     width: '100%',
     borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.3)',
   },
   errorText: {
-    color: '#FF3B30',
     fontSize: 14,
   },
   footer: {
@@ -511,13 +485,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   footerText: {
-    color: '#888888',
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 18,
   },
   footerLink: {
-    color: '#6366f1',
     fontWeight: '500',
   },
 });

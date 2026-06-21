@@ -1,5 +1,3 @@
-import { Card } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 import { AlertCircle, Check, CheckCircle, Info } from 'lucide-react-native';
 import React, {
   createContext,
@@ -20,9 +18,10 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Card } from '@/components/ui/card';
 import { useTheme } from './ThemeContext';
 
-// Toast types for different scenarios
 export type ToastType = 'default' | 'success' | 'error' | 'info';
 
 interface ToastOptions {
@@ -32,10 +31,8 @@ interface ToastOptions {
 
 type ToastFunction = (message: string, options?: ToastOptions) => void;
 
-// Define a global toast function that can be called anywhere
 let globalToast: ToastFunction | null = null;
 
-// Simple function to show toast without hooks
 export const toast = (message: string, options?: ToastOptions) => {
   if (globalToast) {
     globalToast(message, options);
@@ -64,14 +61,14 @@ export const useToast = () => {
 
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState<boolean>(false);
   const [message, setMessage] = useState<string>('');
   const [toastType, setToastType] = useState<ToastType>('default');
 
-  // Animation properties
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const translateYAnim = useRef(new Animated.Value(50)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const translateYAnim = useRef(new Animated.Value(-80)).current;
+  const scaleAnim = useRef(new Animated.Value(0.92)).current;
   const swipeAnim = useRef(new Animated.Value(0)).current;
   const iconScaleAnim = useRef(new Animated.Value(0)).current;
 
@@ -96,7 +93,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
 
   const getToastIcon = useCallback(
     (type: ToastType) => {
-      const size = 22;
+      const size = 18;
       const color = getToastColor(type);
       const iconStyle = {
         transform: [
@@ -139,7 +136,41 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     [getToastColor, iconScaleAnim]
   );
 
-  // Enhanced pan responder for better swipe handling
+  const hideToast = useCallback(
+    (withAnimation: boolean = true) => {
+      if (animationInProgressRef.current) return;
+
+      animationInProgressRef.current = true;
+
+      if (withAnimation) {
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(translateYAnim, {
+            toValue: -80,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 0.92,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          setVisible(false);
+          animationInProgressRef.current = false;
+        });
+      } else {
+        setVisible(false);
+        animationInProgressRef.current = false;
+      }
+    },
+    [fadeAnim, translateYAnim, scaleAnim]
+  );
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -179,7 +210,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
           }
         },
       }),
-    [swipeAnim, visible]
+    [swipeAnim, visible, hideToast]
   );
 
   const showToast = useCallback(
@@ -194,6 +225,9 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
 
       swipeAnim.setValue(0);
       iconScaleAnim.setValue(0);
+      translateYAnim.setValue(-80);
+      scaleAnim.setValue(0.92);
+      fadeAnim.setValue(0);
 
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -208,14 +242,14 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
         }),
         Animated.spring(translateYAnim, {
           toValue: 0,
-          tension: 80,
-          friction: 8,
+          tension: 100,
+          friction: 10,
           useNativeDriver: true,
         }),
         Animated.spring(scaleAnim, {
           toValue: 1,
           tension: 120,
-          friction: 8,
+          friction: 9,
           useNativeDriver: true,
         }),
         Animated.spring(iconScaleAnim, {
@@ -232,42 +266,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
         hideToast();
       }, duration);
     },
-    [fadeAnim, translateYAnim, scaleAnim, swipeAnim, iconScaleAnim]
-  );
-
-  const hideToast = useCallback(
-    (withAnimation: boolean = true) => {
-      if (animationInProgressRef.current) return;
-
-      animationInProgressRef.current = true;
-
-      if (withAnimation) {
-        Animated.parallel([
-          Animated.timing(fadeAnim, {
-            toValue: 0,
-            duration: 200,
-            useNativeDriver: true,
-          }),
-          Animated.timing(translateYAnim, {
-            toValue: 20,
-            duration: 200,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scaleAnim, {
-            toValue: 0.95,
-            duration: 200,
-            useNativeDriver: true,
-          }),
-        ]).start(() => {
-          setVisible(false);
-          animationInProgressRef.current = false;
-        });
-      } else {
-        setVisible(false);
-        animationInProgressRef.current = false;
-      }
-    },
-    [fadeAnim, translateYAnim, scaleAnim]
+    [fadeAnim, translateYAnim, scaleAnim, swipeAnim, iconScaleAnim, hideToast]
   );
 
   useEffect(() => {
@@ -279,8 +278,6 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
       }
     };
   }, [showToast]);
-
-  const toastColor = getToastColor(toastType);
 
   const contextValue = useMemo(
     () => ({
@@ -297,6 +294,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
           style={[
             styles.toastContainer,
             {
+              top: insets.top + 8,
               opacity: fadeAnim,
               transform: [
                 { translateY: translateYAnim },
@@ -310,28 +308,25 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
           <TouchableWithoutFeedback onPress={() => hideToast()}>
             <Card
               variant='default'
-              className={cn(
-                'flex-row items-center px-4 py-3',
-                toastType === 'error' && 'border-destructive',
-                toastType === 'success' && 'border-primary',
-                toastType === 'info' && 'border-accent'
-              )}
+              className="flex-row items-center px-4 py-3"
               style={[
                 styles.toastCard,
                 {
-                  borderLeftWidth: 4,
-                  borderLeftColor: getToastColor(toastType),
                   backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  borderWidth: 1,
                 },
               ]}
             >
-              <View style={styles.iconContainer}>{getToastIcon(toastType)}</View>
+              <View style={[styles.iconContainer, { backgroundColor: getToastColor(toastType) + '1A' }]}>
+                {getToastIcon(toastType)}
+              </View>
               <View style={styles.toastContent}>
                 <Text
                   style={[
                     styles.toastText,
                     {
-                      color: colors.cardForeground,
+                      color: colors.foreground,
                     },
                   ]}
                   numberOfLines={2}
@@ -350,34 +345,33 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
 const styles = StyleSheet.create({
   toastContainer: {
     position: 'absolute',
-    bottom: 80,
     alignSelf: 'center',
-    width: Dimensions.get('window').width - 40,
-    maxWidth: 380,
+    width: Dimensions.get('window').width - 32,
+    maxWidth: 360,
     zIndex: 9999,
   },
   toastCard: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
     elevation: 4,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   iconContainer: {
     marginRight: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   toastContent: {
     flex: 1,
   },
   toastText: {
     fontSize: 14,
-    fontWeight: '500',
-    lineHeight: 20,
-    letterSpacing: 0.2,
+    fontWeight: '600',
+    lineHeight: 18,
   },
 });

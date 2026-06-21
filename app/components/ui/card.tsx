@@ -1,20 +1,21 @@
 import React from 'react';
 import {
-  View,
-  Text,
+  Platform,
+  Pressable,
   StyleProp,
-  ViewStyle,
+  StyleSheet,
+  Text,
   TextStyle,
   TouchableOpacity,
   TouchableOpacityProps,
-  Platform,
-  Pressable,
+  View,
+  ViewStyle,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useTheme } from '@/context/ThemeContext';
 import { cn } from '@/lib/utils';
 
-// Card variants
-export type CardVariant = 'default' | 'outline' | 'secondary' | 'ghost';
+export type CardVariant = 'default' | 'outline' | 'secondary' | 'ghost' | 'glass';
 
 export interface CardProps {
   variant?: CardVariant;
@@ -59,18 +60,8 @@ export interface CardActionProps extends TouchableOpacityProps {
   className?: string;
 }
 
-// Main Card Component
-//
-// Elevation model: 'default' and 'secondary' use a soft drop shadow
-// instead of a hairline border, per design direction. Shadow color is
-// derived from the theme's own foreground token (not a flat black) so
-// it reads correctly in both light and dark mode — a pure black shadow
-// on a near-black dark background is invisible, so dark mode falls back
-// to a very subtle border to preserve card separation where shadow
-// alone can't do the job (iOS renders no shadow contrast on black-on-black,
-// Android elevation does still work but looks inconsistent with iOS).
-// 'outline' and 'ghost' remain genuinely border/transparent — some
-// surfaces (nested cards, list rows) want zero elevation by design.
+const CARD_BORDER_RADIUS = 12;
+
 export const Card: React.FC<CardProps> = ({
   variant = 'default',
   style,
@@ -83,36 +74,35 @@ export const Card: React.FC<CardProps> = ({
   const shadowStyles =
     Platform.OS === 'ios'
       ? {
-        shadowColor: colors.foreground,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: theme === 'light' ? 0.08 : 0.4,
-        shadowRadius: 12,
-      }
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: theme === 'light' ? 0.08 : 0.4,
+          shadowRadius: 12,
+        }
       : {
-        elevation: 2,
-        shadowColor: colors.cardForeground,
-      };
-
+          elevation: theme === 'light' ? 3 : 2,
+          shadowColor: '#000000',
+        };
+ 
   const getVariantStyles = (): ViewStyle => {
     switch (variant) {
       case 'default':
         return {
           backgroundColor: colors.card,
-          ...shadowStyles,
-          // Dark mode keeps a faint border alongside the shadow — on a
-          // near-black background, shadow contrast alone is too subtle
-          // to separate the card from the page.
-          ...(theme === 'dark' ? { borderWidth: 1, borderColor: colors.border } : null),
         };
       case 'secondary':
         return {
           backgroundColor: colors.secondary,
-          ...shadowStyles,
-          ...(theme === 'dark' ? { borderWidth: 1, borderColor: colors.border } : null),
         };
       case 'outline':
         return {
           backgroundColor: 'transparent',
+          borderColor: colors.border,
+          borderWidth: 1,
+        };
+      case 'glass':
+        return {
+          backgroundColor: theme === 'light' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(25, 25, 27, 0.5)',
           borderColor: colors.border,
           borderWidth: 1,
         };
@@ -123,48 +113,61 @@ export const Card: React.FC<CardProps> = ({
       default:
         return {
           backgroundColor: colors.card,
-          ...shadowStyles,
         };
     }
   };
 
   const variantStyles = getVariantStyles();
+  const hasShadow = variant === 'glass';
+  const isGlass = variant === 'glass';
 
-  // React Native constraint: iOS shadow props only render when
-  // `overflow` is NOT 'hidden', but rounded-corner content clipping
-  // requires 'hidden'. A single View can't do both at once, so
-  // elevated variants split into an outer shadow-carrying View and an
-  // inner content-clipping View. Bordered/flat variants skip the split
-  // since they have nothing that needs clipping protection beyond what
-  // the single View already does.
-  const hasShadow = variant === 'default' || variant === 'secondary';
+  const flattenedStyle = StyleSheet.flatten(style) || {};
+  const radius = flattenedStyle.borderRadius !== undefined ? (flattenedStyle.borderRadius as number) : CARD_BORDER_RADIUS;
+
+  const innerStyle = {
+    backgroundColor: isGlass ? 'transparent' : variantStyles.backgroundColor,
+    borderColor: variantStyles.borderColor,
+    borderWidth: variantStyles.borderWidth,
+  };
 
   if (hasShadow) {
     return (
       <View
         style={[
           {
-            shadowColor: variantStyles.shadowColor,
-            shadowOffset: variantStyles.shadowOffset,
-            shadowOpacity: variantStyles.shadowOpacity,
-            shadowRadius: variantStyles.shadowRadius,
-            elevation: variantStyles.elevation,
-            borderRadius: 16,
+            shadowColor: shadowStyles.shadowColor,
+            shadowOffset: shadowStyles.shadowOffset,
+            shadowOpacity: shadowStyles.shadowOpacity,
+            shadowRadius: shadowStyles.shadowRadius,
+            elevation: shadowStyles.elevation,
+            borderRadius: radius,
           },
           style,
         ]}
       >
-        <View
-          style={{
-            backgroundColor: variantStyles.backgroundColor,
-            borderColor: variantStyles.borderColor,
-            borderWidth: variantStyles.borderWidth,
-          }}
-          {...props}
-          className={cn('rounded-2xl overflow-hidden', className)}
-        >
-          {children}
-        </View>
+        {isGlass ? (
+          <BlurView
+            intensity={theme === 'light' ? 30 : 60}
+            tint={theme}
+            style={{ borderRadius: radius, overflow: 'hidden' }}
+          >
+            <View
+              style={innerStyle}
+              {...props}
+              className={cn('overflow-hidden', className)}
+            >
+              {children}
+            </View>
+          </BlurView>
+        ) : (
+          <View
+            style={[innerStyle, { borderRadius: radius }]}
+            {...props}
+            className={cn('overflow-hidden', className)}
+          >
+            {children}
+          </View>
+        )}
       </View>
     );
   }
@@ -176,11 +179,12 @@ export const Card: React.FC<CardProps> = ({
           backgroundColor: variantStyles.backgroundColor,
           borderColor: variantStyles.borderColor,
           borderWidth: variantStyles.borderWidth,
+          borderRadius: radius,
         },
         style,
       ]}
       {...props}
-      className={cn('rounded-2xl overflow-hidden', className)}
+      className={cn('overflow-hidden', className)}
     >
       {children}
     </View>
@@ -189,7 +193,7 @@ export const Card: React.FC<CardProps> = ({
 
 export const CardHeader: React.FC<CardHeaderProps> = ({ style, children, className }) => {
   return (
-    <View style={style} className={cn('p-4 pb-0', className)}>
+    <View style={style} className={cn('p-5 pb-0', className)}>
       {children}
     </View>
   );
@@ -201,7 +205,7 @@ export const CardTitle: React.FC<CardTitleProps> = ({ style, children, className
   return (
     <Text
       style={[{ color: colors.cardForeground }, style]}
-      className={cn('text-lg font-semibold mb-1', className)}
+      className={cn('text-xl font-bold mb-1.5', className)}
     >
       {children}
     </Text>
@@ -214,7 +218,7 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({ style, childre
   return (
     <Text
       style={[{ color: colors.mutedForeground }, style]}
-      className={cn('text-sm mb-2', className)}
+      className={cn('text-sm mb-2.5', className)}
     >
       {children}
     </Text>
@@ -223,7 +227,7 @@ export const CardDescription: React.FC<CardDescriptionProps> = ({ style, childre
 
 export const CardContent: React.FC<CardContentProps> = ({ style, children, className }) => {
   return (
-    <View style={style} className={cn('p-4 pt-2', className)}>
+    <View style={style} className={cn('p-5 pt-3', className)}>
       {children}
     </View>
   );
@@ -231,7 +235,7 @@ export const CardContent: React.FC<CardContentProps> = ({ style, children, class
 
 export const CardFooter: React.FC<CardFooterProps> = ({ style, children, className }) => {
   return (
-    <View style={style} className={cn('p-4 pt-0 flex-row justify-end gap-2', className)}>
+    <View style={style} className={cn('p-5 pt-0 flex-row justify-end gap-2', className)}>
       {children}
     </View>
   );
@@ -252,12 +256,12 @@ export const CardAction: React.FC<CardActionProps> = ({ style, children, classNa
   const androidProps =
     Platform.OS === 'android'
       ? {
-        android_ripple: {
-          color: getRippleColor(),
-          borderless: false,
-          foreground: true,
-        },
-      }
+          android_ripple: {
+            color: getRippleColor(),
+            borderless: false,
+            foreground: true,
+          },
+        }
       : {};
 
   return (

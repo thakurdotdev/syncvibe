@@ -529,8 +529,6 @@ export default function Player() {
         {
           bottom: isHomeActive ? 70 : 10,
           backgroundColor: colors.card,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
         },
       ]}
     >

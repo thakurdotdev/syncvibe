@@ -50,7 +50,7 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
   const scrollViewRef = useRef<ScrollView>(null);
 
   const isClosingRef = useRef(false);
-  const prevVisibleRef = useRef(isVisible);
+  const prevVisibleRef = useRef(false);
 
   const closeModal = useCallback(() => {
     if (isClosingRef.current) return;

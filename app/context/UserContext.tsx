@@ -90,12 +90,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateUser = useCallback(async (userData: Partial<User>) => {
     try {
-      const response = await api.put('/api/profile', userData);
+      const response = await api.post('/api/update-profile', userData);
       if (response.status === 200) {
-        setUser((prev) => (prev ? { ...prev, ...userData } : null));
+        setUser(response.data.user);
       }
     } catch (error) {
       console.error('Error updating profile:', error);
+      throw error;
     }
   }, []);
 

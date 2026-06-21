@@ -1,36 +1,26 @@
-import LoginScreen from '@/components/LoginScreen';
-import DeveloperProfileModal from '@/components/DeveloperProfileModal';
-import Card from '@/components/ui/card';
-import { useTheme } from '@/context/ThemeContext';
-import { useUser } from '@/context/UserContext';
-import { ThemeColors } from '@/theme/color';
-import { getOptimizedImageUrl } from '@/utils/Cloudinary';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import {
   ChevronRightIcon,
-  Code2Icon,
-  EditIcon,
-  LanguagesIcon,
   LaptopIcon,
-  LogOutIcon,
   MoonIcon,
-  Music2Icon,
-  ShieldCheckIcon,
   SunIcon,
-  UserIcon,
 } from 'lucide-react-native';
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Image, Pressable, Text, TouchableOpacity, View } from 'react-native';
+import type React from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Image, Pressable, Text, TouchableOpacity, View, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DeveloperProfileModal from '@/components/DeveloperProfileModal';
+import LoginScreen from '@/components/LoginScreen';
+import Card from '@/components/ui/card';
+import { useTheme } from '@/context/ThemeContext';
+import { useUser } from '@/context/UserContext';
+import { useAppUpdate } from '@/context/AppUpdateContext';
+import type { ThemeColors } from '@/theme/color';
+import { getOptimizedImageUrl } from '@/utils/Cloudinary';
 
-// ---------------------------------------------------------------------------
-// SectionHeader — every Card in this screen repeated the same six-line icon
-// wrapper + title block. Extracted once so the screen reads as a list of
-// sections, not five copies of the same markup with the icon swapped.
-// ---------------------------------------------------------------------------
 const SectionHeader = ({
   icon,
   title,
@@ -393,6 +383,7 @@ export default function ProfileScreen() {
   const { user, logout, getProfile, loading } = useUser();
   const { colors, theme } = useTheme();
   const [showDeveloperModal, setShowDeveloperModal] = useState(false);
+  const { updateInfo, isUpdateAvailable, currentVersion } = useAppUpdate();
 
   useEffect(() => {
     const getUser = async () => {
@@ -455,6 +446,45 @@ export default function ProfileScreen() {
         />
 
         <View style={{ paddingHorizontal: 20, paddingBottom: 32, gap: 16 }}>
+          {isUpdateAvailable && updateInfo && (
+            <Card variant='default' style={{ borderColor: colors.primary, borderWidth: 1.5 }}>
+              <Card.Header style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Ionicons name="cloud-download-outline" size={22} color={colors.primary} />
+                  <Card.Title>Update Available (v{updateInfo.version})</Card.Title>
+                </View>
+                {updateInfo.critical && (
+                  <View style={{ backgroundColor: `${colors.destructive}20`, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                    <Text style={{ color: colors.destructive, fontSize: 11, fontWeight: 'bold' }}>CRITICAL</Text>
+                  </View>
+                )}
+              </Card.Header>
+              <Card.Content style={{ gap: 12 }}>
+                {updateInfo.releaseNotes && (
+                  <View>
+                    <Text style={{ color: colors.foreground, fontWeight: '600', fontSize: 14, marginBottom: 4 }}>What's New:</Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 18 }}>{updateInfo.releaseNotes}</Text>
+                  </View>
+                )}
+                {updateInfo.downloadUrl && (
+                  <TouchableOpacity
+                    onPress={() => updateInfo.downloadUrl && Linking.openURL(updateInfo.downloadUrl)}
+                    style={{
+                      backgroundColor: colors.primary,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      alignItems: 'center',
+                      marginTop: 8,
+                    }}
+                  >
+                    <Text style={{ color: colors.primaryForeground, fontWeight: '600', fontSize: 14 }}>
+                      Download & Install Update
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </Card.Content>
+            </Card>
+          )}
           <Card variant='default'>
             <Card.Header>
               <SectionHeader
@@ -475,48 +505,30 @@ export default function ProfileScreen() {
           </Card>
 
           <Card variant='default'>
-            <Card.Header>
-              <SectionHeader icon={<UserIcon size={20} color={colors.primary} />} title='Account' colors={colors} />
-            </Card.Header>
-            <Card.Content>
+            <Card.Content style={{ paddingVertical: 8 }}>
               <SettingItem
-                icon={<EditIcon size={18} color={colors.mutedForeground} />}
+                icon={<Feather name='user' size={18} color={colors.mutedForeground} />}
                 title='Edit profile'
                 subtitle='Update your personal information'
                 onPress={() => router.push('/edit-profile')}
                 colors={colors}
-                isLast
               />
-            </Card.Content>
-          </Card>
-
-          <Card variant='default'>
-            <Card.Header>
-              <SectionHeader icon={<Music2Icon size={20} color={colors.primary} />} title='Music' colors={colors} />
-            </Card.Header>
-            <Card.Content>
               <SettingItem
-                icon={<LanguagesIcon size={18} color={colors.mutedForeground} />}
+                icon={<Feather name='music' size={18} color={colors.mutedForeground} />}
                 title='Language preferences'
                 subtitle='Set your preferred music languages'
                 onPress={() => router.push('/music-language')}
                 colors={colors}
-                isLast
               />
-            </Card.Content>
-          </Card>
-
-          <Card variant='default'>
-            <Card.Header>
-              <SectionHeader
-                icon={<ShieldCheckIcon size={20} color={colors.primary} />}
-                title='Security'
+              <SettingItem
+                icon={<Feather name='code' size={18} color={colors.mutedForeground} />}
+                title='Developer info'
+                subtitle='Meet the developer behind SyncVibe'
+                onPress={() => setShowDeveloperModal(true)}
                 colors={colors}
               />
-            </Card.Header>
-            <Card.Content>
               <SettingItem
-                icon={<LogOutIcon size={18} color={colors.destructive} />}
+                icon={<Feather name='log-out' size={18} color={colors.destructive} />}
                 title='Logout'
                 subtitle='Sign out of your account'
                 onPress={handleLogout}
@@ -527,24 +539,9 @@ export default function ProfileScreen() {
             </Card.Content>
           </Card>
 
-          <Card variant='default'>
-            <Card.Header>
-              <SectionHeader icon={<Feather name='info' size={20} color={colors.primary} />} title='About' colors={colors} />
-            </Card.Header>
-            <Card.Content>
-              <SettingItem
-                icon={<Code2Icon size={18} color={colors.mutedForeground} />}
-                title='Developer info'
-                subtitle='Meet the developer behind SyncVibe'
-                onPress={() => setShowDeveloperModal(true)}
-                colors={colors}
-                isLast
-              />
-              <View style={{ alignItems: 'center', paddingTop: 16 }}>
-                <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>SyncVibe v1.0.0</Text>
-              </View>
-            </Card.Content>
-          </Card>
+          <View style={{ alignItems: 'center', marginTop: 8 }}>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>SyncVibe v{currentVersion}</Text>
+          </View>
         </View>
       </Animated.ScrollView>
 

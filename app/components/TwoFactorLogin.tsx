@@ -12,12 +12,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import axios from 'axios';
 import { API_URL } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useTheme } from '@/context/ThemeContext';
 
 interface TwoFactorLoginProps {
   userId: string | null;
@@ -29,6 +29,7 @@ const { width, height } = Dimensions.get('window');
 
 export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginProps) => {
   const insets = useSafeAreaInsets();
+  const { colors, theme } = useTheme();
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
@@ -69,15 +70,8 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.outerContainer}
+      style={[styles.outerContainer, { backgroundColor: colors.background }]}
     >
-      <LinearGradient
-        colors={['#000000', '#121212', '#1A1A1A']}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      <View style={[styles.accentOverlay, styles.accentTopRight]} />
-
       <ScrollView
         contentContainerStyle={[
           styles.scrollContainer,
@@ -90,20 +84,34 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.logoContainer}>
-          <View style={styles.logoWrapper}>
-            <BlurView intensity={40} tint='dark' style={styles.logoBlur}>
-              <Ionicons name='shield-checkmark-sharp' size={40} color='#6366f1' />
+          <View
+            style={[
+              styles.logoWrapper,
+              {
+                borderColor: colors.border,
+                backgroundColor: theme === 'light' ? '#FFFFFF' : colors.card,
+                shadowColor: colors.primary,
+              },
+            ]}
+          >
+            <BlurView intensity={theme === 'light' ? 10 : 40} tint={theme} style={styles.logoBlur}>
+              <Ionicons name='shield-checkmark-sharp' size={40} color={colors.primary} />
             </BlurView>
           </View>
 
           <View>
-            <Text style={styles.appTitle}>Two-Factor Verification</Text>
-            <Text style={styles.appSubtitle}>Enter the 6-digit code from your authenticator app</Text>
+            <Text style={[styles.appTitle, { color: colors.foreground }]}>
+              Two-Factor Verification
+            </Text>
+            <Text style={[styles.appSubtitle, { color: colors.mutedForeground }]}>
+              Enter the 6-digit code from your authenticator app
+            </Text>
           </View>
         </View>
 
         <View style={styles.formContainer}>
           <Input
+            variant='outline'
             placeholder='000000'
             value={otp}
             onChangeText={handleOtpChange}
@@ -114,7 +122,7 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
             inputStyle={{
               fontSize: 24,
               letterSpacing: 8,
-              color: '#FFFFFF',
+              color: colors.foreground,
             }}
             error={!!error}
             errorText={error}
@@ -126,13 +134,14 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
             disabled={loading || otp.length !== 6 || isVerified}
             onPress={handleVerify}
             className='w-full py-4 rounded-xl'
+            textStyle={{ fontWeight: '600', fontSize: 16 }}
           >
             {loading ? (
-              <ActivityIndicator size='small' color='#FFFFFF' />
+              <ActivityIndicator size='small' color={colors.primaryForeground} />
             ) : isVerified ? (
-              <Ionicons name='checkmark-circle' size={20} color='#FFFFFF' />
+              <Ionicons name='checkmark-circle' size={20} color={colors.primaryForeground} />
             ) : (
-              <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 16 }}>Verify</Text>
+              'Verify'
             )}
           </Button>
 
@@ -141,16 +150,17 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
             disabled={loading}
             onPress={onClose}
             className='w-full py-4 rounded-xl mt-3'
+            textStyle={{ fontWeight: '600', fontSize: 16 }}
           >
-            <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 16 }}>Cancel</Text>
+            Cancel
           </Button>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
             By continuing, you agree to our{' '}
             <Text
-              style={styles.footerLink}
+              style={[styles.footerLink, { color: colors.primary }]}
               onPress={async () => {
                 await WebBrowser.openBrowserAsync('https://syncvibe.thakur.dev/terms-of-services');
               }}
@@ -159,7 +169,7 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
             </Text>{' '}
             and{' '}
             <Text
-              style={styles.footerLink}
+              style={[styles.footerLink, { color: colors.primary }]}
               onPress={async () => {
                 await WebBrowser.openBrowserAsync('https://syncvibe.thakur.dev/privacy-policy');
               }}
@@ -184,19 +194,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
-  accentOverlay: {
-    position: 'absolute',
-    width: width * 0.8,
-    height: height * 0.4,
-    opacity: 0.15,
-    borderRadius: 300,
-  },
-  accentTopRight: {
-    top: -height * 0.05,
-    right: -width * 0.2,
-    backgroundColor: '#6366f1',
-    transform: [{ rotate: '30deg' }],
-  },
   logoContainer: {
     alignItems: 'center',
     marginTop: 20,
@@ -209,18 +206,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#6366f1',
     shadowOffset: {
       width: 0,
       height: 8,
     },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 16,
-    elevation: 10,
+    elevation: 6,
   },
   logoBlur: {
     width: '100%',
@@ -233,14 +227,12 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 6,
     letterSpacing: 0.3,
   },
   appSubtitle: {
     fontSize: 15,
-    color: '#AAAAAA',
     textAlign: 'center',
     letterSpacing: 0.2,
   },
@@ -255,13 +247,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   footerText: {
-    color: '#888888',
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 18,
   },
   footerLink: {
-    color: '#6366f1',
     fontWeight: '500',
   },
 });

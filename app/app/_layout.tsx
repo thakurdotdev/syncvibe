@@ -1,26 +1,25 @@
-import { Stack } from 'expo-router';
-import React from 'react';
-import { StatusBar } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-
-import ErrorBoundary from '@/components/ErrorBoundary';
-import Player from '@/components/music/Player';
-import CallScreen from '@/components/video/CallScreen';
-import IncomingCallModal from '@/components/video/IncomingCall';
-import { GroupMusicProvider } from '@/context/GroupMusicContext';
-import PlayerInitializer from '@/components/music/PlayerInitializer';
-import { NotificationProvider } from '@/context/NotificationContext';
-import { ChatProvider } from '@/context/SocketContext';
-import { ThemeProvider, useTheme } from '@/context/ThemeContext';
-import { ToastProvider } from '@/context/ToastContext';
-import { UserProvider } from '@/context/UserContext';
-import { useVideoCall, VideoCallProvider } from '@/context/VideoCallContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import * as Notifications from 'expo-notifications';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import TrackPlayer from 'react-native-track-player';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import Player from '@/components/music/Player';
+import PlayerInitializer from '@/components/music/PlayerInitializer';
+import CallScreen from '@/components/video/CallScreen';
+import IncomingCallModal from '@/components/video/IncomingCall';
+import { GroupMusicProvider } from '@/context/GroupMusicContext';
+import { NotificationProvider } from '@/context/NotificationContext';
+import { ChatProvider } from '@/context/SocketContext';
+import { ThemeProvider, useTheme } from '@/context/ThemeContext';
+import { ToastProvider } from '@/context/ToastContext';
+import { UserProvider } from '@/context/UserContext';
+import { AppUpdateProvider } from '@/context/AppUpdateContext';
+import { useVideoCall, VideoCallProvider } from '@/context/VideoCallContext';
 import '../global.css';
 import { PlaybackService } from '../service';
 
@@ -55,25 +54,27 @@ function RootLayout() {
     <ErrorBoundary>
       <ThemeProvider>
         <ToastProvider>
-          <UserProvider>
-            <PersistQueryClientProvider
-              client={queryClient}
-              persistOptions={{ persister: asyncStoragePersister }}
-            >
-              <ChatProvider>
-                <VideoCallProvider>
-                  <NotificationProvider>
-                    <GroupMusicProvider>
-                      <GestureHandlerRootView style={{ flex: 1 }}>
-                        <PlayerInitializer />
-                        <RootLayoutNav />
-                      </GestureHandlerRootView>
-                    </GroupMusicProvider>
-                  </NotificationProvider>
-                </VideoCallProvider>
-              </ChatProvider>
-            </PersistQueryClientProvider>
-          </UserProvider>
+          <AppUpdateProvider>
+            <UserProvider>
+              <PersistQueryClientProvider
+                client={queryClient}
+                persistOptions={{ persister: asyncStoragePersister }}
+              >
+                <ChatProvider>
+                  <VideoCallProvider>
+                    <NotificationProvider>
+                      <GroupMusicProvider>
+                        <GestureHandlerRootView style={{ flex: 1 }}>
+                          <PlayerInitializer />
+                          <RootLayoutNav />
+                        </GestureHandlerRootView>
+                      </GroupMusicProvider>
+                    </NotificationProvider>
+                  </VideoCallProvider>
+                </ChatProvider>
+              </PersistQueryClientProvider>
+            </UserProvider>
+          </AppUpdateProvider>
         </ToastProvider>
       </ThemeProvider>
     </ErrorBoundary>
@@ -172,20 +173,6 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
-          name='followers'
-          options={{
-            navigationBarColor: colors.background,
-            title: 'Followers',
-          }}
-        />
-        <Stack.Screen
-          name='followings'
-          options={{
-            navigationBarColor: colors.background,
-            title: 'Followings',
-          }}
-        />
-        <Stack.Screen
           name='music-language'
           options={{
             title: 'Update Language Preferences',
@@ -224,15 +211,9 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
-          name='favorite-genres'
+          name='update-profile-picture'
           options={{
-            title: 'Favorite Genres',
-          }}
-        />
-        <Stack.Screen
-          name='notification-settings'
-          options={{
-            title: 'Notification Settings',
+            title: 'Profile Picture',
           }}
         />
       </Stack>
