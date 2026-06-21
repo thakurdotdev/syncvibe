@@ -25,7 +25,7 @@ const io = new Server(server, {
 socketManager(io)
 
 const { startBackgroundRecalc } = require("./services/recommendationService")
-const { resumePendingUpdates } = require("./controllers/payment/easWebhookController")
+const { resumePendingUpdates } = require("./controllers/easWebhookController")
 
 sequelize.authenticate().then(async () => {
   const port = process.env.PORT || 4000

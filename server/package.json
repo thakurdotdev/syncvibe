@@ -18,6 +18,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1073.0",
     "@google/generative-ai": "^0.21.0",
     "@simplewebauthn/server": "^11.0.0",
+    "@smithy/node-http-handler": "^4.8.1",
     "bcrypt": "^5.1.1",
     "cloudinary": "^2.8.0",
     "compression": "^1.8.1",
