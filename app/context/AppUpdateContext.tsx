@@ -65,8 +65,7 @@ export const AppUpdateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const lastNotifiedVersion = await AsyncStorage.getItem('last-notified-update-version');
           if (lastNotifiedVersion !== latest.version) {
             await AsyncStorage.setItem('last-notified-update-version', latest.version);
-            const notes = latest.releaseNotes ? `: ${latest.releaseNotes}` : '';
-            toast(`New version ${latest.version} is available${notes}`, { type: 'info', duration: 5000 });
+            toast(`SyncVibe v${latest.version} is available! Check your profile to update.`, { type: 'info', duration: 6000 });
           }
         }
       }

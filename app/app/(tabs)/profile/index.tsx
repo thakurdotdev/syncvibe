@@ -461,9 +461,16 @@ export default function ProfileScreen() {
               </Card.Header>
               <Card.Content style={{ gap: 12 }}>
                 {updateInfo.releaseNotes && (
-                  <View>
-                    <Text style={{ color: colors.foreground, fontWeight: '600', fontSize: 14, marginBottom: 4 }}>What's New:</Text>
-                    <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 18 }}>{updateInfo.releaseNotes}</Text>
+                  <View style={{ gap: 4 }}>
+                    <Text style={{ color: colors.foreground, fontWeight: '600', fontSize: 14, marginBottom: 2 }}>What's New:</Text>
+                    {updateInfo.releaseNotes.split('\n').map(line => line.trim()).filter(line => line.length > 0).map((line, idx) => (
+                      <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+                        <Text style={{ color: colors.primary, fontSize: 13, lineHeight: 18 }}>•</Text>
+                        <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 18, flex: 1 }}>
+                          {line.replace(/^[-\*•\s]+/, '')}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
                 )}
                 {updateInfo.downloadUrl && (
