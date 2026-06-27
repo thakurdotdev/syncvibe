@@ -41,7 +41,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [isPending, startTransition] = useTransition();
 
   const prevThemeRef = useRef<ThemePreference>(themePreference);
-  const pendingThemeUpdate = useRef<NodeJS.Timeout | null>(null);
+  const pendingThemeUpdate = useRef<any>(null);
 
   const updateTheme = useCallback(
     (newTheme: ThemePreference) => {

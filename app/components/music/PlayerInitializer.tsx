@@ -1,36 +1,30 @@
 import { useUser } from '@/context/UserContext';
 import {
   destroyTrackPlayer,
-  handleTrackPlayerEvents,
+  dispatchTrackPlayerEvent,
   initializeTrackPlayer,
-  syncPlaySong,
-  syncPlayPause,
+  setBridgeUserId,
 } from '@/stores/trackPlayerBridge';
 import { usePlayerStore } from '@/stores/playerStore';
 import useApi from '@/utils/hooks/useApi';
-import { useEffect, useRef } from 'react';
-import TrackPlayer, {
-  Event,
-  RepeatMode,
-  useTrackPlayerEvents,
-} from 'react-native-track-player';
+import { useEffect } from 'react';
+import TrackPlayer, { Event } from '@rntp/player';
 
 export default function PlayerInitializer() {
   const { user } = useUser();
   const api = useApi();
-  const initialized = useRef(false);
-  const prevSongIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      initializeTrackPlayer(user?.userid);
-    }
+    initializeTrackPlayer(user?.userid);
 
     return () => {
       destroyTrackPlayer();
     };
   }, []);
+
+  useEffect(() => {
+    setBridgeUserId(user?.userid);
+  }, [user?.userid]);
 
   useEffect(() => {
     if (!user?.userid) return;
@@ -50,69 +44,31 @@ export default function PlayerInitializer() {
   }, [user?.userid]);
 
   useEffect(() => {
-    let prevSongId: string | null = usePlayerStore.getState().currentSong?.id ?? null;
-    const unsubscribe = usePlayerStore.subscribe((state) => {
-      const newSongId = state.currentSong?.id ?? null;
-      if (newSongId && newSongId !== prevSongId) {
-        prevSongId = newSongId;
-        syncPlaySong(state.currentSong!, user?.userid);
-      }
-    });
+    const subscriptions = [
+      TrackPlayer.addEventListener(Event.PlaybackStateChanged, (event) => {
+        dispatchTrackPlayerEvent({ type: Event.PlaybackStateChanged, ...event });
+      }),
+      TrackPlayer.addEventListener(Event.IsPlayingChanged, (event) => {
+        dispatchTrackPlayerEvent({ type: Event.IsPlayingChanged, ...event });
+      }),
+      TrackPlayer.addEventListener(Event.MediaItemTransition, (event) => {
+        dispatchTrackPlayerEvent({ type: Event.MediaItemTransition, ...event });
+      }),
+      TrackPlayer.addEventListener(Event.PlaybackError, (event) => {
+        dispatchTrackPlayerEvent({ type: Event.PlaybackError, ...event });
+      }),
+      TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (event) => {
+        dispatchTrackPlayerEvent({ type: Event.PlaybackProgressUpdated, ...event });
+      }),
+      TrackPlayer.addEventListener(Event.RemoteStop, () => {
+        dispatchTrackPlayerEvent({ type: Event.RemoteStop });
+      }),
+    ];
 
-    return unsubscribe;
-  }, [user?.userid]);
-
-  useEffect(() => {
-    let prevIsPlaying = usePlayerStore.getState().isPlaying;
-    const unsubscribe = usePlayerStore.subscribe((state) => {
-      if (state.isPlaying !== prevIsPlaying) {
-        prevIsPlaying = state.isPlaying;
-        syncPlayPause();
-      }
-    });
-
-    return unsubscribe;
+    return () => {
+      subscriptions.forEach((sub) => sub.remove());
+    };
   }, []);
-
-  useEffect(() => {
-    let prevRepeatMode = usePlayerStore.getState().repeatMode;
-    const unsubscribe = usePlayerStore.subscribe((state) => {
-      if (state.repeatMode !== prevRepeatMode) {
-        prevRepeatMode = state.repeatMode;
-        const rntpRepeatMode =
-          state.repeatMode === 'one'
-            ? RepeatMode.Track
-            : state.repeatMode === 'all'
-              ? RepeatMode.Queue
-              : RepeatMode.Off;
-        TrackPlayer.setRepeatMode(rntpRepeatMode).catch(console.error);
-      }
-    });
-
-    return unsubscribe;
-  }, []);
-
-  useTrackPlayerEvents(
-    [
-      Event.PlaybackState,
-      Event.PlaybackError,
-      Event.PlaybackActiveTrackChanged,
-      Event.PlaybackQueueEnded,
-      Event.RemoteDuck,
-      Event.RemotePlay,
-      Event.RemotePause,
-      Event.RemoteStop,
-      Event.RemoteNext,
-      Event.RemotePrevious,
-      Event.RemoteSeek,
-      Event.RemoteJumpForward,
-      Event.RemoteJumpBackward,
-      Event.PlaybackProgressUpdated,
-    ],
-    async (event) => {
-      await handleTrackPlayerEvents(event, user?.userid);
-    }
-  );
 
   return null;
 }

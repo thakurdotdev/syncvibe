@@ -6,12 +6,10 @@ import * as Notifications from 'expo-notifications';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import TrackPlayer from 'react-native-track-player';
+import TrackPlayer from '@rntp/player';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Player from '@/components/music/Player';
 import PlayerInitializer from '@/components/music/PlayerInitializer';
-import CallScreen from '@/components/video/CallScreen';
-import IncomingCallModal from '@/components/video/IncomingCall';
 import { GroupMusicProvider } from '@/context/GroupMusicContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { ChatProvider } from '@/context/SocketContext';
@@ -19,19 +17,23 @@ import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { UserProvider } from '@/context/UserContext';
 import { AppUpdateProvider } from '@/context/AppUpdateContext';
-import { useVideoCall, VideoCallProvider } from '@/context/VideoCallContext';
 import '../global.css';
-import { PlaybackService } from '../service';
+import { NotificationBehavior } from 'expo-notifications';
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
+  handleNotification: async (): Promise<NotificationBehavior> => ({
+    shouldShowBanner: true,
     shouldShowAlert: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
 });
 
-TrackPlayer.registerPlaybackService(() => PlaybackService);
+TrackPlayer.registerBackgroundEventHandler(() => async (event) => {
+  const { handleBackgroundPlaybackEvent } = await import('../service');
+  await handleBackgroundPlaybackEvent(event);
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,16 +63,14 @@ function RootLayout() {
                 persistOptions={{ persister: asyncStoragePersister }}
               >
                 <ChatProvider>
-                  <VideoCallProvider>
-                    <NotificationProvider>
-                      <GroupMusicProvider>
-                        <GestureHandlerRootView style={{ flex: 1 }}>
-                          <PlayerInitializer />
-                          <RootLayoutNav />
-                        </GestureHandlerRootView>
-                      </GroupMusicProvider>
-                    </NotificationProvider>
-                  </VideoCallProvider>
+                  <NotificationProvider>
+                    <GroupMusicProvider>
+                      <GestureHandlerRootView style={{ flex: 1 }}>
+                        <PlayerInitializer />
+                        <RootLayoutNav />
+                      </GestureHandlerRootView>
+                    </GroupMusicProvider>
+                  </NotificationProvider>
                 </ChatProvider>
               </PersistQueryClientProvider>
             </UserProvider>
@@ -83,7 +83,6 @@ function RootLayout() {
 
 function RootLayoutNav() {
   const { colors, theme } = useTheme();
-  const { incomingCall, isInCall } = useVideoCall();
 
   return (
     <>
@@ -217,8 +216,6 @@ function RootLayoutNav() {
           }}
         />
       </Stack>
-      {incomingCall && <IncomingCallModal />}
-      {!incomingCall && isInCall && <CallScreen />}
       <Player />
     </>
   );

@@ -72,7 +72,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   const [currentChat, setCurrentChat] = useState<ChatUser | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
 
-  const typingTimeouts: Record<string, NodeJS.Timeout> = {};
+  const typingTimeouts: Record<string, any> = {};
 
   const updateCurrentChatStatus = useCallback((userId: number, isOnline: boolean) => {
     setCurrentChat((prevChat) => {

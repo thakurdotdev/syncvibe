@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { Slider } from 'react-native-awesome-slider';
-import { useSharedValue, withTiming, Easing } from 'react-native-reanimated';
+import { CustomSlider } from '../MusicCards';
 import { useTheme } from '@/context/ThemeContext';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
@@ -19,57 +18,19 @@ const GroupProgressBar = React.memo(({ onSeek }: { onSeek: (v: number) => void }
   const currentTime = useGroupPlaybackStore((s) => s.currentTime);
   const duration = useGroupPlaybackStore((s) => s.duration);
   const formatTime = useGroupPlaybackStore((s) => s.formatTime);
-  const currentSong = useGroupPlaybackStore((s) => s.currentSong);
   const { colors } = useTheme();
-
-  const isDragging = useRef(false);
-  const prevSongIdRef = useRef<string | null>(null);
-
-  const progress = useSharedValue(0);
-  const min = useSharedValue(0);
-  const max = useSharedValue(duration || 1);
-
-  useEffect(() => {
-    const isSongChanged = currentSong?.id !== prevSongIdRef.current;
-    prevSongIdRef.current = currentSong?.id ?? null;
-
-    if (isSongChanged) {
-      progress.value = currentTime;
-      max.value = duration || 1;
-    } else {
-      if (!isDragging.current) {
-        progress.value = withTiming(currentTime, { duration: 600, easing: Easing.linear });
-      }
-      max.value = withTiming(duration || 1, { duration: 600, easing: Easing.linear });
-    }
-  }, [currentTime, duration, currentSong?.id]);
 
   return (
     <View style={styles.progressContainer}>
       <View style={styles.sliderWrapper}>
-        <Slider
-          style={styles.slider}
-          progress={progress}
-          minimumValue={min}
-          maximumValue={max}
-          onSlidingStart={() => {
-            isDragging.current = true;
-          }}
-          onValueChange={(value) => {
-            progress.value = value;
-          }}
-          onSlidingComplete={(value) => {
-            onSeek(value);
-            isDragging.current = false;
-          }}
-          thumbWidth={12}
-          sliderHeight={3}
-          containerStyle={styles.sliderContainer}
-          theme={{
-            minimumTrackTintColor: colors.primary,
-            maximumTrackTintColor: colors.mutedForeground + '30',
-            bubbleBackgroundColor: colors.primary,
-          }}
+        <CustomSlider
+          value={currentTime}
+          maxValue={duration || 1}
+          onSeek={onSeek}
+          trackColor={colors.primary}
+          inactiveTrackColor={colors.mutedForeground + '30'}
+          thumbSize={12}
+          trackHeight={3}
         />
       </View>
       <View style={styles.timeRow}>

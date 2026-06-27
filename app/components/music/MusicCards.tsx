@@ -15,10 +15,9 @@ import { router } from 'expo-router';
 import { SkipBackIcon, SkipForwardIcon, Shuffle, Repeat, Repeat1 } from 'lucide-react-native';
 import { memo, default as React, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Slider } from 'react-native-awesome-slider';
-import { TouchableOpacity } from 'react-native-gesture-handler';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
-import TrackPlayer, { State, useProgress } from 'react-native-track-player';
+import { TouchableOpacity, GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming, runOnJS, interpolate, clamp } from 'react-native-reanimated';
+import TrackPlayer, { useProgress } from '@rntp/player';
 import Card from '../ui/card';
 import NewPlayerDrawer from './NewPlayerDrawer';
 
@@ -50,6 +49,123 @@ const formatTime = (time: number) => {
   return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 };
 
+interface CustomSliderProps {
+  value: number;
+  maxValue: number;
+  onSeek: (value: number) => void;
+  trackColor?: string;
+  inactiveTrackColor?: string;
+  thumbSize?: number;
+  trackHeight?: number;
+}
+
+export const CustomSlider = ({
+  value,
+  maxValue,
+  onSeek,
+  trackColor = '#fff',
+  inactiveTrackColor = 'rgba(255, 255, 255, 0.2)',
+  thumbSize = 14,
+  trackHeight = 4,
+}: CustomSliderProps) => {
+  const [sliderWidth, setSliderWidth] = useState(0);
+  const isDragging = useSharedValue(false);
+  const dragX = useSharedValue(0);
+
+  const progressPercent = maxValue > 0 ? value / maxValue : 0;
+
+  const animatedStyle = useAnimatedStyle(() => {
+    if (isDragging.value) {
+      return {
+        width: `${clamp(dragX.value * 100, 0, 100)}%`,
+      };
+    }
+    return {
+      width: `${progressPercent * 100}%`,
+    };
+  });
+
+  const thumbStyle = useAnimatedStyle(() => {
+    const leftPercent = isDragging.value ? dragX.value : progressPercent;
+    return {
+      left: `${clamp(leftPercent * 100, 0, 100)}%`,
+      transform: [
+        { translateX: -thumbSize / 2 },
+        { scale: isDragging.value ? withSpring(1.2) : withSpring(1) },
+      ],
+    };
+  });
+
+  const gesture = Gesture.Pan()
+    .onStart((event) => {
+      isDragging.value = true;
+      dragX.value = event.x / (sliderWidth || 1);
+    })
+    .onChange((event) => {
+      dragX.value = event.x / (sliderWidth || 1);
+    })
+    .onEnd(() => {
+      const finalValue = clamp(dragX.value * maxValue, 0, maxValue);
+      runOnJS(onSeek)(finalValue);
+      isDragging.value = false;
+    });
+
+  const tapGesture = Gesture.Tap()
+    .onEnd((event) => {
+      const finalValue = clamp((event.x / (sliderWidth || 1)) * maxValue, 0, maxValue);
+      runOnJS(onSeek)(finalValue);
+    });
+
+  const composedGesture = Gesture.Exclusive(gesture, tapGesture);
+
+  return (
+    <GestureDetector gesture={composedGesture}>
+      <View
+        style={{
+          width: '100%',
+          height: 40,
+          justifyContent: 'center',
+        }}
+        onLayout={(e) => setSliderWidth(e.nativeEvent.layout.width)}
+      >
+        <View
+          style={{
+            height: trackHeight,
+            backgroundColor: inactiveTrackColor,
+            borderRadius: trackHeight / 2,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          <Animated.View
+            style={[
+              {
+                height: '100%',
+                backgroundColor: trackColor,
+                borderRadius: trackHeight / 2,
+              },
+              animatedStyle,
+            ]}
+          />
+          <Animated.View
+            style={[
+              {
+                position: 'absolute',
+                width: thumbSize,
+                height: thumbSize,
+                borderRadius: thumbSize / 2,
+                backgroundColor: trackColor,
+                top: (trackHeight - thumbSize) / 2,
+              },
+              thumbStyle,
+            ]}
+          />
+        </View>
+      </View>
+    </GestureDetector>
+  );
+};
+
 interface CardContainerProps {
   children: React.ReactNode;
   onPress: () => void | Promise<void>;
@@ -64,7 +180,7 @@ export const CardContainer = ({
   onLongPress,
 }: CardContainerProps) => {
   return (
-    <Card variant='ghost' className='rounded-none border-none bg-none bg-transparent mb-2'>
+    <Card variant='ghost' className='mb-2'>
       <Pressable
         style={{
           width: width,
@@ -86,7 +202,7 @@ export const SongCard = memo(
     onPress: onPressCallback,
   }: SongCardProps & { disableOnLongPress?: boolean }) => {
     const { playSong, handlePlayPause } = usePlayerControls();
-    const { currentSong, isPlaying, isLoading } = usePlaybackState();
+    const { currentSong, isPlaying } = usePlaybackState();
     const { colors } = useTheme();
 
     const securedSong = useMemo(() => ensureHttpsForSongUrls(song), [song]);
@@ -114,7 +230,7 @@ export const SongCard = memo(
     return (
       <Card
         variant={isCurrentSong ? 'secondary' : 'ghost'}
-        className='h-[60px] p-0 rounded-lg bg-transparent border-none mb-2'
+        className='h-[60px] p-0 rounded-lg mb-2'
       >
         <Card.Content className='p-0 rounded-none'>
           <Pressable
@@ -147,19 +263,13 @@ export const SongCard = memo(
 
             {isCurrentSong ? (
               <View className='flex-row items-center justify-center pr-2'>
-                {isLoading ? (
-                  <ActivityIndicator size='small' color={colors.primary} />
-                ) : (
-                  <>
-                    <View className='ml-3'>
-                      <Ionicons
-                        name={isPlaying ? 'pause' : 'play'}
-                        size={24}
-                        color={colors.primary}
-                      />
-                    </View>
-                  </>
-                )}
+                <View className='ml-3'>
+                  <Ionicons
+                    name={isPlaying ? 'pause' : 'play'}
+                    size={24}
+                    color={colors.primary}
+                  />
+                </View>
               </View>
             ) : (
               <View className='justify-center pr-2'>
@@ -415,28 +525,10 @@ export const SongControls = memo(() => {
   const currentSong = useCurrentSong();
   const prevSongIdRef = useRef<string | null>(null);
   const isDragging = useRef(false);
-  const { position, duration } = useProgress();
+  const { position, duration } = useProgress(0.25);
   const { colors } = useTheme();
 
-  const progress = useSharedValue(position);
-  const min = useSharedValue(0);
-  const max = useSharedValue(duration);
   const playScale = useSharedValue(1);
-
-  useEffect(() => {
-    const isSongChanged = currentSong?.id !== prevSongIdRef.current;
-    prevSongIdRef.current = currentSong?.id ?? null;
-
-    if (isSongChanged) {
-      progress.value = position;
-      max.value = duration;
-    } else {
-      if (!isDragging.current) {
-        progress.value = withTiming(position, { duration: 1000, easing: Easing.linear });
-      }
-      max.value = withTiming(duration, { duration: 1000, easing: Easing.linear });
-    }
-  }, [position, duration, currentSong?.id]);
 
   useEffect(() => {
     playScale.value = withSpring(0.85, { damping: 8, stiffness: 400 });
@@ -479,29 +571,14 @@ export const SongControls = memo(() => {
   return (
     <View style={songControlStyles.container}>
       <View style={songControlStyles.sliderRow}>
-        <Slider
-          style={songControlStyles.slider}
-          progress={progress}
-          minimumValue={min}
-          maximumValue={max}
-          onSlidingStart={() => {
-            isDragging.current = true;
-          }}
-          onValueChange={(value) => {
-            progress.value = value;
-          }}
-          onSlidingComplete={(value) => {
-            handleSeek(value);
-            isDragging.current = false;
-          }}
-          thumbWidth={14}
-          sliderHeight={4}
-          containerStyle={songControlStyles.sliderContainer}
-          theme={{
-            minimumTrackTintColor: colors.primary,
-            maximumTrackTintColor: colors.mutedForeground + '30',
-            bubbleBackgroundColor: colors.primary,
-          }}
+        <CustomSlider
+          value={position}
+          maxValue={duration}
+          onSeek={handleSeek}
+          trackColor={colors.primary}
+          inactiveTrackColor={colors.mutedForeground + '30'}
+          thumbSize={14}
+          trackHeight={4}
         />
       </View>
       <View style={songControlStyles.timeRow}>
@@ -639,38 +716,17 @@ const songControlStyles = StyleSheet.create({
 export const ProgressBar = memo(() => {
   const { colors } = useTheme();
   const { position, duration } = useProgress();
-  const currentSong = useCurrentSong();
-  const prevSongIdRef = useRef<string | null>(null);
 
-  const progress = useSharedValue(position);
-  const min = useSharedValue(0);
-  const max = useSharedValue(duration);
-
-  useEffect(() => {
-    const isSongChanged = currentSong?.id !== prevSongIdRef.current;
-    prevSongIdRef.current = currentSong?.id ?? null;
-
-    if (isSongChanged) {
-      progress.value = position;
-      max.value = duration;
-    } else {
-      progress.value = withTiming(position, { duration: 1000, easing: Easing.linear });
-      max.value = withTiming(duration, { duration: 1000, easing: Easing.linear });
-    }
-  }, [position, duration, currentSong?.id]);
+  const progressPercent = duration > 0 ? (position / duration) * 100 : 0;
 
   return (
-    <View style={{ width: '100%', overflow: 'hidden', borderRadius: 2 }}>
-      <Slider
-        progress={progress}
-        minimumValue={min}
-        maximumValue={max}
-        thumbWidth={0}
-        sliderHeight={3}
-        theme={{
-          minimumTrackTintColor: colors.primary,
-          maximumTrackTintColor: 'transparent',
-          bubbleBackgroundColor: colors.primary,
+    <View style={{ width: '100%', overflow: 'hidden', borderRadius: 2, height: 3, backgroundColor: 'transparent' }}>
+      <View
+        style={{
+          height: '100%',
+          width: `${Math.min(100, progressPercent)}%`,
+          backgroundColor: colors.primary,
+          borderRadius: 2,
         }}
       />
     </View>
@@ -678,44 +734,20 @@ export const ProgressBar = memo(() => {
 });
 
 export const GroupSongControls = memo(() => {
-  const isDragging = useRef(false);
   const { position, duration } = useProgress();
   const { handleSeek } = useGroupMusic();
-
-  const progress = useSharedValue(position);
-  const min = useSharedValue(0);
-  const max = useSharedValue(duration);
-
-  useEffect(() => {
-    progress.value = withTiming(position);
-    max.value = withTiming(duration);
-  }, [position, duration]);
 
   return (
     <View className='w-full py-4'>
       <View className='flex-row items-center'>
-        <Slider
-          style={styles.slider}
-          progress={progress}
-          minimumValue={min}
-          maximumValue={max}
-          onSlidingStart={() => {
-            isDragging.current = true;
-          }}
-          onValueChange={(value) => {
-            progress.value = value;
-          }}
-          onSlidingComplete={(value) => {
-            handleSeek(value);
-            isDragging.current = false;
-          }}
-          thumbWidth={12}
-          containerStyle={styles.sliderContainer}
-          theme={{
-            minimumTrackTintColor: '#fff',
-            maximumTrackTintColor: 'rgba(99, 102, 241, 0.2)',
-            bubbleBackgroundColor: '#6366f1',
-          }}
+        <CustomSlider
+          value={position}
+          maxValue={duration}
+          onSeek={handleSeek}
+          trackColor='#fff'
+          inactiveTrackColor='rgba(99, 102, 241, 0.2)'
+          thumbSize={12}
+          trackHeight={4}
         />
       </View>
       <View className='flex-row justify-between'>

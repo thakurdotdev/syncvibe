@@ -72,7 +72,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const swipeAnim = useRef(new Animated.Value(0)).current;
   const iconScaleAnim = useRef(new Animated.Value(0)).current;
 
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<any>(null);
   const animationInProgressRef = useRef<boolean>(false);
 
   const getToastColor = useCallback(

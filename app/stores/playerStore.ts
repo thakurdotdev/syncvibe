@@ -12,6 +12,36 @@ export const setOnReorderPlaylist = (cb: (newOrder: Song[]) => void) => {
   onReorderPlaylist = cb;
 };
 
+export let onPlaySong: ((song: Song) => void) | null = null;
+export const setOnPlaySong = (cb: (song: Song) => void) => {
+  onPlaySong = cb;
+};
+
+export let onStopSong: (() => void) | null = null;
+export const setOnStopSong = (cb: () => void) => {
+  onStopSong = cb;
+};
+
+export let onPlayPause: (() => void) | null = null;
+export const setOnPlayPause = (cb: () => void) => {
+  onPlayPause = cb;
+};
+
+export let onHandleNextSong: ((isAutoPlay?: boolean) => void) | null = null;
+export const setOnHandleNextSong = (cb: (isAutoPlay?: boolean) => void) => {
+  onHandleNextSong = cb;
+};
+
+export let onHandlePrevSong: (() => void) | null = null;
+export const setOnHandlePrevSong = (cb: () => void) => {
+  onHandlePrevSong = cb;
+};
+
+export let onRepeatModeChange: ((mode: RepeatMode) => void) | null = null;
+export const setOnRepeatModeChange = (cb: (mode: RepeatMode) => void) => {
+  onRepeatModeChange = cb;
+};
+
 
 interface PlayerState {
   currentSong: Song | null;
@@ -74,9 +104,11 @@ export const usePlayerStore = create<PlayerStore>()(
 
         set({
           currentSong: secureAudio,
-          isLoading: true,
+          isPlaying: true,
           ...(isInQueue ? {} : { playlist: [secureAudio], originalPlaylist: [secureAudio] }),
         });
+
+        onPlaySong?.(secureAudio);
       },
 
       stopSong: () => {
@@ -85,11 +117,13 @@ export const usePlayerStore = create<PlayerStore>()(
           isPlaying: false,
           isLoading: false,
         });
+        onStopSong?.();
       },
 
       handlePlayPause: () => {
-        const { isPlaying } = get();
-        set({ isPlaying: !isPlaying });
+        const willPlay = !get().isPlaying;
+        set({ isPlaying: willPlay });
+        onPlayPause?.();
       },
 
       setPlaying: (isPlaying: boolean) => set({ isPlaying }),
@@ -97,43 +131,21 @@ export const usePlayerStore = create<PlayerStore>()(
       setCurrentSong: (song: Song | null) => set({ currentSong: song }),
 
       handleNextSong: (isAutoPlay = false) => {
-        const { currentSong, playlist, repeatMode } = get();
-        if (!currentSong || !playlist.length) return;
-
-        if (isAutoPlay && repeatMode === 'one') {
-          return;
-        }
-
-        const currentIndex = playlist.findIndex((song) => song.id === currentSong.id);
-        if (currentIndex === -1) {
-          if (playlist.length > 0) {
-            get().playSong(playlist[0]);
+        if (!isAutoPlay) {
+          const { currentSong, playlist } = get();
+          if (currentSong && playlist.length) {
+            const currentIndex = playlist.findIndex((s) => s.id === currentSong.id);
+            if (currentIndex !== -1) {
+              const nextSong = playlist[(currentIndex + 1) % playlist.length];
+              set({ currentSong: nextSong, isPlaying: true });
+            }
           }
-          return;
         }
-
-        const isLastSong = currentIndex === playlist.length - 1;
-        if (isLastSong && repeatMode === 'off' && isAutoPlay) {
-          set({ isPlaying: false });
-          return;
-        }
-
-        const nextIndex = (currentIndex + 1) % playlist.length;
-        get().playSong(playlist[nextIndex]);
+        onHandleNextSong?.(isAutoPlay);
       },
 
       handlePrevSong: () => {
-        const { currentSong, playlist } = get();
-        if (!playlist.length || !currentSong) return;
-
-        const currentIndex = playlist.findIndex((song) => song.id === currentSong.id);
-        if (currentIndex === -1) return;
-
-        if (currentIndex > 0) {
-          get().playSong(playlist[currentIndex - 1]);
-        } else {
-          get().playSong(playlist[0]);
-        }
+        onHandlePrevSong?.();
       },
 
       setPlaylist: (songs: Song[]) => {
@@ -254,7 +266,9 @@ export const usePlayerStore = create<PlayerStore>()(
         const { repeatMode } = get();
         const modes: RepeatMode[] = ['off', 'all', 'one'];
         const nextIndex = (modes.indexOf(repeatMode) + 1) % modes.length;
-        set({ repeatMode: modes[nextIndex] });
+        const nextMode = modes[nextIndex];
+        set({ repeatMode: nextMode });
+        onRepeatModeChange?.(nextMode);
       },
 
       setAutoFetchRecommendations: (value: boolean) => {

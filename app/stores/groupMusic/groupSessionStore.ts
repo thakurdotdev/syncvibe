@@ -52,7 +52,7 @@ interface GroupSessionActions {
 
 type GroupSessionStore = GroupSessionState & GroupSessionActions;
 
-let searchDebounceTimer: NodeJS.Timeout | null = null;
+let searchDebounceTimer: any = null;
 
 const initialState: GroupSessionState = {
   currentGroup: null,

@@ -25,8 +25,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const [pendingChatId, setPendingChatId] = useState<string | null>(null);
 
-  const notificationListener = useRef<Notifications.EventSubscription>();
-  const responseListener = useRef<Notifications.EventSubscription>();
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
   const appInitialized = useRef(false);
 
   // Handle initial notification (on app launch)
@@ -38,7 +38,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       Notifications.getLastNotificationResponseAsync()
         .then((response) => {
           if (response) {
-            const chatid = response.notification.request.content.data?.chatid;
+            const chatid = response.notification.request.content.data?.chatid as string | undefined;
             if (chatid) {
               setPendingChatId(chatid);
             }
@@ -58,7 +58,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       console.log('Notification response received:', response);
 
-      const chatid = response.notification.request.content.data?.chatid;
+      const chatid = response.notification.request.content.data?.chatid as string | undefined;
 
       // Instead of trying to process immediately, store the chatid
       if (chatid) {
@@ -69,10 +69,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     return () => {
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+        notificationListener.current.remove();
       }
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+        responseListener.current.remove();
       }
     };
   }, []);
@@ -80,7 +80,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // Process pending notifications when users and user are available
   useEffect(() => {
     if (pendingChatId && users.length > 0 && user?.userid) {
-      const chat = users.find((u) => u.chatid === pendingChatId);
+      const chat = users.find((u) => String(u.chatid) === pendingChatId);
       if (chat) {
         setCurrentChat(chat);
         setPendingChatId(null);

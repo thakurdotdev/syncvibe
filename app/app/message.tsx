@@ -1,5 +1,4 @@
 import ImageGallery from '@/components/ImageGallery';
-import StartCall from '@/components/video/StartCall';
 import SwipeableModal from '@/components/common/SwipeableModal';
 import { Message, useChat } from '@/context/SocketContext';
 import { useUser } from '@/context/UserContext';
@@ -71,8 +70,6 @@ const MessageHeader = React.memo(
             )}
           </View>
         </View>
-
-        <StartCall />
       </View>
     );
   }

@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useMemo } from 'react';
 import { Alert } from 'react-native';
-import TrackPlayer, { Event, State, useTrackPlayerEvents } from 'react-native-track-player';
+import TrackPlayer, { Event, PlaybackState } from '@rntp/player';
 import { Song } from '@/types/song';
 import { useChat } from './SocketContext';
 import { useUser } from './UserContext';
@@ -28,7 +28,7 @@ const GroupMusicContext = createContext<GroupMusicContextType | null>(null);
 export function GroupMusicProvider({ children }: { children: ReactNode }) {
   const { socket } = useChat();
   const { user } = useUser();
-  const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const syncIntervalRef = useRef<any>(null);
 
   const pb = useGroupPlaybackStore;
   const ss = useGroupSessionStore;
@@ -49,51 +49,58 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     }
   }, [pb((s) => s.isPlaying)]);
 
-  useTrackPlayerEvents(
-    [Event.PlaybackState, Event.PlaybackError, Event.PlaybackQueueEnded],
-    async (event) => {
+  useEffect(() => {
+    const subIsPlaying = TrackPlayer.addEventListener(Event.IsPlayingChanged, ({ playing }) => {
       try {
-        switch (event.type) {
-          case Event.PlaybackState: {
-            const state = event.state;
-            if (state === State.Playing) {
-              pb.setState({ isPlaying: true });
-              pb.getState().startProgressPolling();
-            } else if (state === State.Paused || state === State.Stopped) {
-              pb.setState({ isPlaying: false });
-              pb.getState().stopProgressPolling();
-            }
-            break;
-          }
-
-          case Event.PlaybackError:
-            console.error('Playback error:', event.message);
-            Alert.alert('Playback Error', 'An error occurred during playback.');
-            pb.setState({ isPlaying: false });
-            pb.getState().stopProgressPolling();
-            break;
-
-          case Event.PlaybackQueueEnded: {
-            const groupId = ss.getState().currentGroup?.id;
-            const currentItem = ss.getState().getCurrentQueueItem();
-
-            if (groupId && currentItem) {
-              socket?.emit('song-ended', {
-                groupId,
-                songId: currentItem.id,
-              });
-            }
-
-            pb.setState({ isPlaying: false });
-            pb.getState().stopProgressPolling();
-            break;
-          }
+        pb.setState({ isPlaying: playing });
+        if (playing) {
+          pb.getState().startProgressPolling();
+        } else {
+          pb.getState().stopProgressPolling();
         }
       } catch (error) {
-        console.error('Error handling TrackPlayer event:', error);
+        console.error('Error handling IsPlayingChanged event:', error);
       }
-    }
-  );
+    });
+
+    const subPlaybackState = TrackPlayer.addEventListener(Event.PlaybackStateChanged, ({ state }) => {
+      try {
+        if (state === PlaybackState.Ended) {
+          const groupId = ss.getState().currentGroup?.id;
+          const currentItem = ss.getState().getCurrentQueueItem();
+
+          if (groupId && currentItem) {
+            socket?.emit('song-ended', {
+              groupId,
+              songId: currentItem.id,
+            });
+          }
+
+          pb.setState({ isPlaying: false });
+          pb.getState().stopProgressPolling();
+        }
+      } catch (error) {
+        console.error('Error handling PlaybackStateChanged event:', error);
+      }
+    });
+
+    const subPlaybackError = TrackPlayer.addEventListener(Event.PlaybackError, (event) => {
+      try {
+        console.error('Playback error:', event.message);
+        Alert.alert('Playback Error', 'An error occurred during playback.');
+        pb.setState({ isPlaying: false });
+        pb.getState().stopProgressPolling();
+      } catch (error) {
+        console.error('Error handling PlaybackError event:', error);
+      }
+    });
+
+    return () => {
+      subIsPlaying.remove();
+      subPlaybackState.remove();
+      subPlaybackError.remove();
+    };
+  }, [socket]);
 
   useEffect(() => {
     if (!socket) return;

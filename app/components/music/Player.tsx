@@ -239,7 +239,7 @@ const QueueTab = React.memo(() => (
 export default function Player() {
   const { colors } = useTheme();
   const { addToQueue, handleNextSong, handlePlayPause } = usePlayerControls();
-  const { currentSong, isPlaying, isLoading } = usePlaybackState();
+  const { currentSong, isPlaying } = usePlaybackState();
   const { playlist } = usePlaylistState();
   const autoFetchRecommendations = usePlayerStore((s) => s.autoFetchRecommendations);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -567,15 +567,11 @@ export default function Player() {
           hitSlop={8}
           style={styles.miniPlayerControl}
         >
-          {isLoading ? (
-            <ActivityIndicator size={20} color={colors.text} />
-          ) : (
-            <Ionicons
-              name={isPlaying ? 'pause' : 'play'}
-              size={22}
-              color={colors.text}
-            />
-          )}
+          <Ionicons
+            name={isPlaying ? 'pause' : 'play'}
+            size={22}
+            color={colors.text}
+          />
         </Pressable>
         <Pressable
           onPress={() => handleNextSong()}
