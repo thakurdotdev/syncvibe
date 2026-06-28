@@ -1,276 +1,294 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useMemo } from 'react';
-import { Alert } from 'react-native';
-import TrackPlayer, { Event, PlaybackState } from '@rntp/player';
-import { Song } from '@/types/song';
-import { useChat } from './SocketContext';
-import { useUser } from './UserContext';
-import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
-import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useMemo,
+} from "react"
+import { Alert } from "react-native"
+import TrackPlayer, { Event, PlaybackState } from "@rntp/player"
+import { Song } from "@/types/song"
+import { useChat } from "./SocketContext"
+import { useUser } from "./UserContext"
+import { useGroupPlaybackStore } from "@/stores/groupMusic/groupPlaybackStore"
+import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
+import { usePlayerStore } from "@/stores/playerStore"
 
 interface GroupMusicContextType {
-  socket: any;
-  user: any;
+  socket: any
+  user: any
 
-  handlePlayPause: (forceState?: boolean) => Promise<void>;
-  handleSeek: (value: number) => Promise<void>;
-  createGroup: (groupName: string) => void;
-  joinGroup: (groupId: string) => void;
-  leaveGroup: () => void;
-  sendMessage: (message: string) => void;
-  addToQueue: (song: Song) => void;
-  playNow: (song: Song) => void;
-  skipSong: () => void;
-  removeFromQueue: (queueItemId: string) => void;
+  handlePlayPause: (forceState?: boolean) => Promise<void>
+  handleSeek: (value: number) => Promise<void>
+  createGroup: (groupName: string) => void
+  joinGroup: (groupId: string) => void
+  leaveGroup: () => void
+  sendMessage: (message: string) => void
+  addToQueue: (song: Song) => void
+  playNow: (song: Song) => void
+  skipSong: () => void
+  removeFromQueue: (queueItemId: string) => void
 }
 
-const GroupMusicContext = createContext<GroupMusicContextType | null>(null);
+const GroupMusicContext = createContext<GroupMusicContextType | null>(null)
 
 export function GroupMusicProvider({ children }: { children: ReactNode }) {
-  const { socket } = useChat();
-  const { user } = useUser();
-  const syncIntervalRef = useRef<any>(null);
+  const { socket } = useChat()
+  const { user } = useUser()
+  const syncIntervalRef = useRef<any>(null)
 
-  const pb = useGroupPlaybackStore;
-  const ss = useGroupSessionStore;
+  const pb = useGroupPlaybackStore
+  const ss = useGroupSessionStore
 
   useEffect(() => {
-    pb.getState().initTrackPlayer();
+    pb.getState().initTrackPlayer()
     return () => {
-      pb.getState().reset();
-    };
-  }, []);
+      pb.getState().reset()
+    }
+  }, [])
 
   useEffect(() => {
-    const { isPlaying } = pb.getState();
+    const { isPlaying } = pb.getState()
     if (isPlaying) {
-      pb.getState().startProgressPolling();
+      pb.getState().startProgressPolling()
     } else {
-      pb.getState().stopProgressPolling();
+      pb.getState().stopProgressPolling()
     }
-  }, [pb((s) => s.isPlaying)]);
+  }, [pb((s) => s.isPlaying)])
 
   useEffect(() => {
     const subIsPlaying = TrackPlayer.addEventListener(Event.IsPlayingChanged, ({ playing }) => {
       try {
-        pb.setState({ isPlaying: playing });
+        const activePlayerMode = usePlayerStore.getState().activePlayerMode
+        if (activePlayerMode !== "group") return
+
+        pb.setState({ isPlaying: playing })
         if (playing) {
-          pb.getState().startProgressPolling();
+          pb.getState().startProgressPolling()
         } else {
-          pb.getState().stopProgressPolling();
+          pb.getState().stopProgressPolling()
         }
       } catch (error) {
-        console.error('Error handling IsPlayingChanged event:', error);
+        console.error("Error handling IsPlayingChanged event:", error)
       }
-    });
+    })
 
-    const subPlaybackState = TrackPlayer.addEventListener(Event.PlaybackStateChanged, ({ state }) => {
-      try {
-        if (state === PlaybackState.Ended) {
-          const groupId = ss.getState().currentGroup?.id;
-          const currentItem = ss.getState().getCurrentQueueItem();
+    const subPlaybackState = TrackPlayer.addEventListener(
+      Event.PlaybackStateChanged,
+      ({ state }) => {
+        try {
+          const activePlayerMode = usePlayerStore.getState().activePlayerMode
+          if (activePlayerMode !== "group") return
 
-          if (groupId && currentItem) {
-            socket?.emit('song-ended', {
-              groupId,
-              songId: currentItem.id,
-            });
+          if (state === PlaybackState.Ended) {
+            const groupId = ss.getState().currentGroup?.id
+            const currentItem = ss.getState().getCurrentQueueItem()
+
+            if (groupId && currentItem) {
+              socket?.emit("song-ended", {
+                groupId,
+                songId: currentItem.id,
+              })
+            }
+
+            pb.setState({ isPlaying: false })
+            pb.getState().stopProgressPolling()
           }
-
-          pb.setState({ isPlaying: false });
-          pb.getState().stopProgressPolling();
+        } catch (error) {
+          console.error("Error handling PlaybackStateChanged event:", error)
         }
-      } catch (error) {
-        console.error('Error handling PlaybackStateChanged event:', error);
-      }
-    });
+      },
+    )
 
     const subPlaybackError = TrackPlayer.addEventListener(Event.PlaybackError, (event) => {
       try {
-        console.error('Playback error:', event.message);
-        Alert.alert('Playback Error', 'An error occurred during playback.');
-        pb.setState({ isPlaying: false });
-        pb.getState().stopProgressPolling();
+        const activePlayerMode = usePlayerStore.getState().activePlayerMode
+        if (activePlayerMode !== "group") return
+
+        console.error("Playback error:", event.message)
+        Alert.alert("Playback Error", "An error occurred during playback.")
+        pb.setState({ isPlaying: false })
+        pb.getState().stopProgressPolling()
       } catch (error) {
-        console.error('Error handling PlaybackError event:', error);
+        console.error("Error handling PlaybackError event:", error)
       }
-    });
+    })
 
     return () => {
-      subIsPlaying.remove();
-      subPlaybackState.remove();
-      subPlaybackError.remove();
-    };
-  }, [socket]);
+      subIsPlaying.remove()
+      subPlaybackState.remove()
+      subPlaybackError.remove()
+    }
+  }, [socket])
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) return
 
     const syncWithServer = () => {
-      socket.emit('time-sync-request', { clientTime: Date.now() });
-    };
+      socket.emit("time-sync-request", { clientTime: Date.now() })
+    }
 
-    socket.on('time-sync-response', (data: { clientTime: number; serverTime: number }) => {
-      pb.getState().processTimeSyncResponse(data.clientTime, data.serverTime);
-    });
+    socket.on("time-sync-response", (data: { clientTime: number; serverTime: number }) => {
+      pb.getState().processTimeSyncResponse(data.clientTime, data.serverTime)
+    })
 
-    syncWithServer();
-    syncIntervalRef.current = setInterval(syncWithServer, 5000);
+    syncWithServer()
+    syncIntervalRef.current = setInterval(syncWithServer, 5000)
 
     return () => {
-      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
-      socket.off('time-sync-response');
-    };
-  }, [socket]);
+      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current)
+      socket.off("time-sync-response")
+    }
+  }, [socket])
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) return
 
-    socket.on('playback-update', async (data: any) => {
-      await pb.getState().handlePlaybackUpdate(data);
-    });
+    socket.on("playback-update", async (data: any) => {
+      await pb.getState().handlePlaybackUpdate(data)
+    })
 
-    socket.on('music-update', async (data: any) => {
-      await pb.getState().handleMusicUpdate(data);
-    });
+    socket.on("music-update", async (data: any) => {
+      await pb.getState().handleMusicUpdate(data)
+    })
 
-    socket.on('queue-updated', (data: any) => {
-      const { queue, currentQueueIndex } = data;
-      ss.setState({ queue, currentQueueIndex });
-    });
+    socket.on("queue-updated", (data: any) => {
+      const { queue, currentQueueIndex } = data
+      ss.setState({ queue, currentQueueIndex })
+    })
 
-    socket.on('queue-error', ({ error }: { error: string }) => {
-      Alert.alert('Queue Error', error);
-    });
+    socket.on("queue-error", ({ error }: { error: string }) => {
+      Alert.alert("Queue Error", error)
+    })
 
-    socket.on('queue-ended', () => {
-      pb.setState({ isPlaying: false });
-      pb.getState().stopProgressPolling();
-    });
+    socket.on("queue-ended", () => {
+      pb.setState({ isPlaying: false })
+      pb.getState().stopProgressPolling()
+    })
 
-    socket.on('sync-state', async (data: any) => {
+    socket.on("sync-state", async (data: any) => {
       if (data.queue) {
-        ss.setState({ queue: data.queue, currentQueueIndex: data.currentQueueIndex });
+        ss.setState({ queue: data.queue, currentQueueIndex: data.currentQueueIndex })
       }
       if (data.playbackState?.currentTrack) {
         await pb.getState().handleMusicUpdate({
           song: data.playbackState.currentTrack,
           currentTime: data.playbackState.currentTime,
           serverTime: data.playbackState.serverTime,
-        });
+        })
       }
-    });
+    })
 
-    socket.on('group-created', (group: any) => {
-      if (!user) return;
-      ss.getState().handleGroupCreated(group, user);
-    });
+    socket.on("group-created", (group: any) => {
+      if (!user) return
+      ss.getState().handleGroupCreated(group, user)
+    })
 
-    socket.on('group-joined', async (data: any) => {
-      ss.getState().handleGroupJoined(data);
+    socket.on("group-joined", async (data: any) => {
+      ss.getState().handleGroupJoined(data)
       if (data.playbackState) {
         await pb
           .getState()
           .syncPlaybackFromServer(
             data.playbackState,
             data.queue || [],
-            data.currentQueueIndex ?? -1
-          );
+            data.currentQueueIndex ?? -1,
+          )
       }
-    });
+    })
 
-    socket.on('member-joined', (member: any) => {
+    socket.on("member-joined", (member: any) => {
       ss.setState((state) => {
-        if (state.groupMembers.find((m) => m.userId === member.userId)) return state;
-        return { groupMembers: [...state.groupMembers, member] };
-      });
-    });
+        if (state.groupMembers.find((m) => m.userId === member.userId)) return state
+        return { groupMembers: [...state.groupMembers, member] }
+      })
+    })
 
-    socket.on('member-left', ({ userId }: { userId: number }) => {
-      if (!userId) return;
+    socket.on("member-left", ({ userId }: { userId: number }) => {
+      if (!userId) return
       ss.setState((state) => ({
         groupMembers: state.groupMembers.filter((m) => m.userId !== userId),
-      }));
-    });
+      }))
+    })
 
-    socket.on('group-disbanded', () => {
-      ss.getState().resetSession(() => pb.getState().reset());
-      Alert.alert('Info', 'Group disbanded');
-    });
+    socket.on("group-disbanded", () => {
+      ss.getState().resetSession(() => pb.getState().reset())
+      Alert.alert("Info", "Group disbanded")
+    })
 
-    socket.on('new-message', (message: any) => {
-      ss.setState((state) => ({ messages: [...state.messages, message] }));
-    });
+    socket.on("new-message", (message: any) => {
+      ss.setState((state) => ({ messages: [...state.messages, message] }))
+    })
 
     return () => {
       const events = [
-        'playback-update',
-        'music-update',
-        'queue-updated',
-        'queue-error',
-        'queue-ended',
-        'sync-state',
-        'group-created',
-        'group-joined',
-        'member-joined',
-        'member-left',
-        'group-disbanded',
-        'new-message',
-      ];
-      events.forEach((e) => socket.off(e));
-    };
-  }, [socket, user]);
+        "playback-update",
+        "music-update",
+        "queue-updated",
+        "queue-error",
+        "queue-ended",
+        "sync-state",
+        "group-created",
+        "group-joined",
+        "member-joined",
+        "member-left",
+        "group-disbanded",
+        "new-message",
+      ]
+      events.forEach((e) => socket.off(e))
+    }
+  }, [socket, user])
 
-  const groupId = ss((s) => s.currentGroup?.id);
+  const groupId = ss((s) => s.currentGroup?.id)
 
   const handlePlayPause = useCallback(
     (forceState?: boolean) => pb.getState().handlePlayPause(socket, groupId, forceState),
-    [socket, groupId]
-  );
+    [socket, groupId],
+  )
 
   const handleSeek = useCallback(
     (value: number) => pb.getState().handleSeek(socket, groupId, value),
-    [socket, groupId]
-  );
+    [socket, groupId],
+  )
 
   const createGroup = useCallback(
     (groupName: string) => ss.getState().createGroup(socket, user, groupName),
-    [socket, user]
-  );
+    [socket, user],
+  )
 
   const joinGroup = useCallback(
     (groupId: string) => ss.getState().joinGroup(socket, user, groupId),
-    [socket, user]
-  );
+    [socket, user],
+  )
 
   const leaveGroup = useCallback(
     () => ss.getState().leaveGroup(socket, user, () => pb.getState().reset()),
-    [socket, user]
-  );
+    [socket, user],
+  )
 
   const sendMessage = useCallback(
     (message: string) => ss.getState().sendMessage(socket, user, message),
-    [socket, user]
-  );
+    [socket, user],
+  )
 
   const addToQueue = useCallback(
     (song: Song) => ss.getState().addToQueue(socket, user, song),
-    [socket, user]
-  );
+    [socket, user],
+  )
 
   const playNow = useCallback(
     (song: Song) => ss.getState().playNow(socket, user, song),
-    [socket, user]
-  );
+    [socket, user],
+  )
 
-  const skipSong = useCallback(
-    () => ss.getState().skipSong(socket, user),
-    [socket, user]
-  );
+  const skipSong = useCallback(() => ss.getState().skipSong(socket, user), [socket, user])
 
   const removeFromQueue = useCallback(
     (queueItemId: string) => ss.getState().removeFromQueue(socket, user, queueItemId),
-    [socket, user]
-  );
+    [socket, user],
+  )
 
   const contextValue = useMemo<GroupMusicContextType>(
     () => ({
@@ -300,16 +318,16 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       playNow,
       skipSong,
       removeFromQueue,
-    ]
-  );
+    ],
+  )
 
-  return <GroupMusicContext.Provider value={contextValue}>{children}</GroupMusicContext.Provider>;
+  return <GroupMusicContext.Provider value={contextValue}>{children}</GroupMusicContext.Provider>
 }
 
 export const useGroupMusic = () => {
-  const context = useContext(GroupMusicContext);
+  const context = useContext(GroupMusicContext)
   if (!context) {
-    throw new Error('useGroupMusic must be used within a GroupMusicProvider');
+    throw new Error("useGroupMusic must be used within a GroupMusicProvider")
   }
-  return context;
-};
+  return context
+}

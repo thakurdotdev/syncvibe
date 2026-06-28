@@ -1,73 +1,70 @@
-import TrackPlayer from '@rntp/player';
-import { create } from 'zustand';
-import { useShallow } from 'zustand/react/shallow';
-import { Song } from '@/types/song';
-import { setupPlayer } from '@/utils/playerSetup';
-import { PlaybackState } from './types';
+import TrackPlayer from "@rntp/player"
+import { create } from "zustand"
+import { useShallow } from "zustand/react/shallow"
+import { Song } from "@/types/song"
+import { setupPlayer } from "@/utils/playerSetup"
+import { PlaybackState } from "./types"
+import { usePlayerStore } from "../playerStore"
 
 interface GroupPlaybackState {
-  currentSong: Song | null;
-  isPlaying: boolean;
-  isLoading: boolean;
-  currentTime: number;
-  duration: number;
-  serverTimeOffset: number;
-  lastSync: number;
-  trackPlayerReady: boolean;
+  currentSong: Song | null
+  isPlaying: boolean
+  isLoading: boolean
+  currentTime: number
+  duration: number
+  serverTimeOffset: number
+  lastSync: number
+  trackPlayerReady: boolean
 }
 
 interface GroupPlaybackActions {
-  getServerTime: () => number;
-  formatTime: (seconds: number) => string;
+  getServerTime: () => number
+  formatTime: (seconds: number) => string
 
-  initTrackPlayer: () => Promise<boolean>;
+  initTrackPlayer: () => Promise<boolean>
   convertSongToTrack: (song: Song) => {
-    id: string;
-    url: string;
-    title: string;
-    artist: string;
-    album: string;
-    artwork: string;
-    duration: number;
-  };
+    id: string
+    url: string
+    title: string
+    artist: string
+    album: string
+    artwork: string
+    duration: number
+  }
 
-  processTimeSyncResponse: (clientTime: number, serverTime: number) => void;
+  processTimeSyncResponse: (clientTime: number, serverTime: number) => void
   handlePlaybackUpdate: (data: {
-    isPlaying: boolean;
-    currentTime: number;
-    scheduledTime?: number;
-    serverTime?: number;
-    isSeeking?: boolean;
-  }) => Promise<void>;
+    isPlaying: boolean
+    currentTime: number
+    scheduledTime?: number
+    serverTime?: number
+    isSeeking?: boolean
+  }) => Promise<void>
   handleMusicUpdate: (data: {
-    song: Song;
-    currentTime: number;
-    scheduledPlayTime?: number;
-    scheduledTime?: number;
-    serverTime?: number;
-    autoPlay?: boolean;
-  }) => Promise<void>;
+    song: Song
+    currentTime: number
+    scheduledPlayTime?: number
+    scheduledTime?: number
+    serverTime?: number
+    autoPlay?: boolean
+  }) => Promise<void>
   syncPlaybackFromServer: (
     playbackState: PlaybackState,
     queue: any[],
-    currentQueueIndex: number
-  ) => Promise<void>;
+    currentQueueIndex: number,
+  ) => Promise<void>
 
-  handlePlayPause: (
-    socket: any,
-    groupId: string | undefined,
-    forceState?: boolean
-  ) => Promise<void>;
-  handleSeek: (socket: any, groupId: string | undefined, value: number) => Promise<void>;
+  handlePlayPause: (socket: any, groupId: string | undefined, forceState?: boolean) => Promise<void>
+  handleSeek: (socket: any, groupId: string | undefined, value: number) => Promise<void>
 
-  startProgressPolling: () => void;
-  stopProgressPolling: () => void;
-  reset: () => void;
+  startProgressPolling: () => void
+  stopProgressPolling: () => void
+  reset: () => void
 }
 
-type GroupPlaybackStore = GroupPlaybackState & GroupPlaybackActions;
+type GroupPlaybackStore = GroupPlaybackState & GroupPlaybackActions
 
-let progressInterval: any = null;
+let progressInterval: any = null
 
 const initialState: GroupPlaybackState = {
   currentSong: null,
@@ -78,7 +75,7 @@ const initialState: GroupPlaybackState = {
   serverTimeOffset: 0,
   lastSync: 0,
   trackPlayerReady: false,
-};
+}
 
 export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => ({
   ...initialState,
@@ -86,223 +83,264 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
   getServerTime: () => Date.now() + get().serverTimeOffset,
 
   formatTime: (seconds: number) => {
-    if (!seconds || isNaN(seconds)) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    if (!seconds || isNaN(seconds)) return "0:00"
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, "0")}`
   },
 
   initTrackPlayer: async () => {
     try {
-      const isSetup = setupPlayer();
-      set({ trackPlayerReady: isSetup });
-      return isSetup;
+      const isSetup = setupPlayer()
+      set({ trackPlayerReady: isSetup })
+      return isSetup
     } catch (error) {
-      console.error('Error initializing TrackPlayer for group music:', error);
-      return false;
+      console.error("Error initializing TrackPlayer for group music:", error)
+      return false
     }
   },
 
   convertSongToTrack: (song: Song) => ({
     id: song.id,
-    url: song.download_url?.find((u) => u.quality === '320kbps')?.link || '',
-    title: song.name || 'Unknown Title',
-    artist: song?.artist_map?.artists?.[0]?.name || 'Unknown Artist',
-    album: song.album || 'Unknown Album',
-    artwork: song.image?.[2]?.link || song.image?.[1]?.link || '',
+    url: song.download_url?.find((u) => u.quality === "320kbps")?.link || "",
+    title: song.name || "Unknown Title",
+    artist: song?.artist_map?.artists?.[0]?.name || "Unknown Artist",
+    album: song.album || "Unknown Album",
+    artwork: song.image?.[2]?.link || song.image?.[1]?.link || "",
     duration: song.duration || 0,
   }),
 
   processTimeSyncResponse: (clientTime: number, serverTime: number) => {
-    const endTime = Date.now();
-    const roundTripTime = endTime - clientTime;
-    const adjustedServerTime = serverTime + roundTripTime / 2;
+    const endTime = Date.now()
+    const roundTripTime = endTime - clientTime
+    const adjustedServerTime = serverTime + roundTripTime / 2
     set({
       serverTimeOffset: adjustedServerTime - endTime,
       lastSync: endTime,
-    });
+    })
   },
 
   handlePlaybackUpdate: async (data) => {
-    const { trackPlayerReady } = get();
-    if (!trackPlayerReady) return;
+    const { trackPlayerReady } = get()
+    if (!trackPlayerReady) return
 
-    const serverNow = get().getServerTime();
-    const timeUntilPlay = Math.max(0, (data.scheduledTime || serverNow) - serverNow);
+    if (data.isPlaying) {
+      const normalStore = usePlayerStore.getState()
+      if (normalStore.activePlayerMode !== "group") {
+        normalStore.setActivePlayerMode("group")
+        normalStore.setPlaying(false)
+      }
+    }
 
-    TrackPlayer.seekTo(data.currentTime);
+    const serverNow = get().getServerTime()
+    const timeUntilPlay = Math.max(0, (data.scheduledTime || serverNow) - serverNow)
+
+    TrackPlayer.seekTo(data.currentTime)
 
     if (data.isPlaying) {
       setTimeout(() => {
-        TrackPlayer.play();
-        set({ isPlaying: true });
-      }, timeUntilPlay);
+        TrackPlayer.play()
+        set({ isPlaying: true })
+      }, timeUntilPlay)
     } else {
-      TrackPlayer.pause();
-      set({ isPlaying: false });
+      TrackPlayer.pause()
+      set({ isPlaying: false })
     }
 
-    set({ lastSync: serverNow });
+    set({ lastSync: serverNow })
   },
 
   handleMusicUpdate: async (data) => {
-    const { trackPlayerReady, convertSongToTrack, getServerTime } = get();
+    const { trackPlayerReady, convertSongToTrack, getServerTime } = get()
 
-    set({ currentSong: data.song, isLoading: true });
+    set({ currentSong: data.song, isLoading: true })
 
     if (!trackPlayerReady) {
-      set({ isLoading: false });
-      return;
+      set({ isLoading: false })
+      return
+    }
+
+    const normalStore = usePlayerStore.getState()
+    if (normalStore.activePlayerMode !== "group") {
+      normalStore.setActivePlayerMode("group")
+      normalStore.setPlaying(false)
     }
 
     try {
-      TrackPlayer.stop();
-      TrackPlayer.clear();
-      const track = convertSongToTrack(data.song);
-      TrackPlayer.setMediaItems([track]);
+      TrackPlayer.stop()
+      TrackPlayer.clear()
+      const track = convertSongToTrack(data.song)
+      TrackPlayer.setMediaItems([track])
 
-      const scheduledTime = data.scheduledPlayTime || data.scheduledTime;
-      const timeUntilPlay = scheduledTime ? scheduledTime - getServerTime() : 0;
+      const scheduledTime = data.scheduledPlayTime || data.scheduledTime
+      const timeUntilPlay = scheduledTime ? scheduledTime - getServerTime() : 0
 
       setTimeout(
         () => {
-          TrackPlayer.seekTo(data.currentTime || 0);
-          TrackPlayer.play();
+          TrackPlayer.seekTo(data.currentTime || 0)
+          TrackPlayer.play()
           set({
             isPlaying: true,
             isLoading: false,
             currentTime: 0,
             duration: data.song.duration || 0,
-          });
+          })
         },
-        Math.max(0, timeUntilPlay)
-      );
+        Math.max(0, timeUntilPlay),
+      )
     } catch (error) {
-      console.error('Error loading song:', error);
-      set({ isLoading: false });
+      console.error("Error loading song:", error)
+      set({ isLoading: false })
     }
   },
 
   syncPlaybackFromServer: async (playbackState, _queue, _currentQueueIndex) => {
-    const { trackPlayerReady, convertSongToTrack, getServerTime } = get();
+    const { trackPlayerReady, convertSongToTrack, getServerTime } = get()
 
-    if (!playbackState?.currentTrack) return;
+    if (!playbackState?.currentTrack) return
 
-    set({ currentSong: playbackState.currentTrack });
+    set({ currentSong: playbackState.currentTrack })
 
-    if (!trackPlayerReady) return;
+    if (!trackPlayerReady) return
+
+    const normalStore = usePlayerStore.getState()
+    if (normalStore.activePlayerMode !== "group") {
+      normalStore.setActivePlayerMode("group")
+      normalStore.setPlaying(false)
+    }
 
     try {
-      TrackPlayer.stop();
-      TrackPlayer.clear();
-      const track = convertSongToTrack(playbackState.currentTrack);
-      TrackPlayer.setMediaItems([track]);
+      TrackPlayer.stop()
+      TrackPlayer.clear()
+      const track = convertSongToTrack(playbackState.currentTrack)
+      TrackPlayer.setMediaItems([track])
 
-      const serverNow = getServerTime();
-      const timePassed = (serverNow - playbackState.lastUpdate) / 1000;
+      const serverNow = getServerTime()
+      const timePassed = (serverNow - playbackState.lastUpdate) / 1000
       const syncedTime = playbackState.isPlaying
         ? playbackState.currentTime + timePassed
-        : playbackState.currentTime;
+        : playbackState.currentTime
 
-      TrackPlayer.seekTo(syncedTime);
+      TrackPlayer.seekTo(syncedTime)
 
       if (playbackState.isPlaying) {
-        TrackPlayer.play();
-        set({ isPlaying: true });
+        TrackPlayer.play()
+        set({ isPlaying: true })
       }
 
       set({
         currentTime: syncedTime,
         duration: playbackState.currentTrack.duration || 0,
-      });
+      })
     } catch (error) {
-      console.error('Error syncing playback:', error);
+      console.error("Error syncing playback:", error)
     }
   },
 
   handlePlayPause: async (socket, groupId, forceState) => {
-    const { trackPlayerReady, currentSong, isPlaying, getServerTime } = get();
-    if (!trackPlayerReady || !currentSong || !groupId) return;
+    const { trackPlayerReady, currentSong, isPlaying, getServerTime } = get()
+    if (!trackPlayerReady || !currentSong || !groupId) return
 
-    const newIsPlaying = typeof forceState === 'boolean' ? forceState : !isPlaying;
-    const currentAudioTime = TrackPlayer.getProgress().position;
+    const normalStore = usePlayerStore.getState()
+    if (normalStore.activePlayerMode !== "group") {
+      normalStore.setActivePlayerMode("group")
+      normalStore.setPlaying(false)
+    }
+
+    const newIsPlaying = typeof forceState === "boolean" ? forceState : !isPlaying
+    const currentAudioTime = TrackPlayer.getProgress().position
+
+    const activeItem = TrackPlayer.getActiveMediaItem()
+    const isActiveSongMatched = activeItem?.mediaId === currentSong.id
 
     try {
-      const scheduledTime = getServerTime() + 300;
+      const scheduledTime = getServerTime() + 300
 
-      socket?.emit('music-playback', {
+      socket?.emit("music-playback", {
         groupId,
         isPlaying: newIsPlaying,
         currentTime: currentAudioTime,
         scheduledTime,
-      });
+      })
 
-      const delay = Math.max(0, scheduledTime - getServerTime());
+      const delay = Math.max(0, scheduledTime - getServerTime())
       setTimeout(() => {
-        if (newIsPlaying) {
-          TrackPlayer.play();
-        } else {
-          TrackPlayer.pause();
+        if (!isActiveSongMatched) {
+          TrackPlayer.stop()
+          TrackPlayer.clear()
+          const track = get().convertSongToTrack(currentSong)
+          TrackPlayer.setMediaItems([track])
+          TrackPlayer.seekTo(currentAudioTime)
         }
-        set({ isPlaying: newIsPlaying });
-      }, delay);
+        if (newIsPlaying) {
+          TrackPlayer.play()
+        } else {
+          TrackPlayer.pause()
+        }
+        set({ isPlaying: newIsPlaying })
+      }, delay)
     } catch (error) {
-      console.error('Playback control error:', error);
+      console.error("Playback control error:", error)
     }
   },
 
   handleSeek: async (socket, groupId, value) => {
-    const { trackPlayerReady, isPlaying, getServerTime } = get();
-    if (!trackPlayerReady || !groupId) return;
+    const { trackPlayerReady, isPlaying, getServerTime } = get()
+    if (!trackPlayerReady || !groupId) return
 
-    socket?.emit('music-seek', {
+    socket?.emit("music-seek", {
       groupId,
       currentTime: value,
       scheduledTime: getServerTime() + 300,
       isPlaying,
-    });
+    })
 
-    TrackPlayer.seekTo(value);
-    set({ currentTime: value });
+    TrackPlayer.seekTo(value)
+    set({ currentTime: value })
   },
 
   startProgressPolling: () => {
-    if (progressInterval) clearInterval(progressInterval);
+    if (progressInterval) clearInterval(progressInterval)
 
     progressInterval = setInterval(() => {
-      const { trackPlayerReady } = get();
-      if (!trackPlayerReady) return;
+      const { trackPlayerReady } = get()
+      if (!trackPlayerReady) return
 
       try {
-        const { position, duration } = TrackPlayer.getProgress();
-        set({ currentTime: position, duration: duration || get().duration });
+        const { position, duration } = TrackPlayer.getProgress()
+        set({ currentTime: position, duration: duration || get().duration })
       } catch {
         // TrackPlayer not ready
       }
-    }, 500);
+    }, 500)
   },
 
   stopProgressPolling: () => {
     if (progressInterval) {
-      clearInterval(progressInterval);
-      progressInterval = null;
+      clearInterval(progressInterval)
+      progressInterval = null
     }
   },
 
   reset: () => {
-    const { stopProgressPolling, trackPlayerReady } = get();
-    stopProgressPolling();
+    const { stopProgressPolling, trackPlayerReady } = get()
+    stopProgressPolling()
 
     if (trackPlayerReady) {
       try {
-        TrackPlayer.stop();
-        TrackPlayer.clear();
+        TrackPlayer.stop()
+        TrackPlayer.clear()
       } catch {}
     }
 
-    set({ ...initialState, trackPlayerReady: get().trackPlayerReady });
+    const normalStore = usePlayerStore.getState()
+    if (normalStore.activePlayerMode === "group") {
+      normalStore.setActivePlayerMode("normal")
+    }
+
+    set({ ...initialState, trackPlayerReady: get().trackPlayerReady })
   },
-}));
+}))
 
 export const useGroupPlayback = () =>
   useGroupPlaybackStore(
@@ -315,8 +353,8 @@ export const useGroupPlayback = () =>
       formatTime: s.formatTime,
       handlePlayPause: s.handlePlayPause,
       handleSeek: s.handleSeek,
-    }))
-  );
+    })),
+  )
 
 export const useGroupProgress = () =>
   useGroupPlaybackStore(
@@ -324,5 +362,5 @@ export const useGroupProgress = () =>
       currentTime: s.currentTime,
       duration: s.duration,
       formatTime: s.formatTime,
-    }))
-  );
+    })),
+  )
