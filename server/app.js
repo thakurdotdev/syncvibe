@@ -95,6 +95,7 @@ app.use(
 )
 
 app.use((err, req, res, next) => {
+  console.error(err)
   if (req.timedout) {
     return res.status(408).json({ message: "Request timeout" })
   }
