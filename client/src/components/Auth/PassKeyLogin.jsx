@@ -1,14 +1,6 @@
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
   Form,
   FormControl,
   FormField,
@@ -18,17 +10,15 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Context } from "@/Context/Context"
-import { cn } from "@/lib/utils"
 import { yupResolver } from "@hookform/resolvers/yup"
 import { startAuthentication } from "@simplewebauthn/browser"
 import axios from "axios"
-import { KeyRound, Loader2, AlertCircle, ShieldCheck } from "lucide-react"
-import { useContext, useState, useEffect } from "react"
+import { AlertCircle, KeyRound, Loader2, ShieldCheck } from "lucide-react"
+import { useContext, useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import * as yup from "yup"
-import DotPattern from "../ui/dot-pattern"
 
 const schema = yup
   .object({
@@ -146,85 +136,86 @@ export const PasskeyLogin = () => {
   }
 
   return (
-    <div className="flex items-center justify-center max-h-svh h-svh overflow-hidden relative bg-[#050505]">
-      {/* Subtle glow */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-[120px]" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500/5 rounded-full blur-[120px]" />
-      <Card className="w-full max-w-md mx-auto z-10 bg-white/3 border-white/8 backdrop-blur-xs">
-        <CardHeader className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <KeyRound className="w-6 h-6 text-primary" />
-            </div>
-            <CardTitle>Login with Passkey</CardTitle>
+    <>
+      <div className="mb-8">
+        <div className="flex items-center gap-2.5 mb-2">
+          <div className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+            <KeyRound className="w-5 h-5 text-zinc-900 dark:text-zinc-50" />
           </div>
-          <CardDescription className="mt-2">
-            Use your device's biometric authentication (Face ID, Touch ID, Windows Hello) or
-            security key to sign in securely.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleLogin)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter your email"
-                        type="email"
-                        autoComplete="email webauthn"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Login with Passkey
+          </h1>
+        </div>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">
+          Use your device's biometric authentication (Face ID, Touch ID, Windows Hello) or security key to sign in securely.
+        </p>
+      </div>
 
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+      {/* Login Form */}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleLogin)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Email Address</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Enter your email"
+                    type="email"
+                    autoComplete="email webauthn"
+                    className="h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-650 focus-visible:border-transparent transition-all"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {error && (
+            <Alert variant="destructive" className="rounded-xl border-red-200/50 bg-red-50/50 dark:bg-red-950/20 dark:border-red-900/50">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-3 pt-2">
+            <Button
+              type="submit"
+              className="w-full h-12 rounded-xl bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 hover:bg-zinc-900 dark:hover:bg-zinc-200 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Authenticating...
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-5 h-5 mr-2" />
+                  Continue with Passkey
+                </>
               )}
+            </Button>
 
-              <div className="space-y-3">
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Authenticating...
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="w-5 h-5 mr-2" />
-                      Continue with Passkey
-                    </>
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full"
-                  onClick={() => navigate("/login")}
-                >
-                  Login with Password
-                </Button>
-              </div>
-            </form>
-          </Form>
-          <CardFooter className="flex flex-col mt-3 px-0">
-            <p className="text-xs text-muted-foreground text-center">
-              Passkeys provide a more secure, phishing-resistant way to sign in without passwords.
-            </p>
-          </CardFooter>
-        </CardContent>
-      </Card>
-    </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+              onClick={() => navigate("/login")}
+            >
+              Login with Password
+            </Button>
+          </div>
+        </form>
+      </Form>
+
+      <p className="text-xs text-zinc-400 dark:text-zinc-500 text-center mt-6">
+        Passkeys provide a more secure, phishing-resistant way to sign in without passwords.
+      </p>
+    </>
   )
 }
 

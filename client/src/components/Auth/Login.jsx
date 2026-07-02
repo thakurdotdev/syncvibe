@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useProfile } from "@/Context/Context"
 import { yupResolver } from "@hookform/resolvers/yup"
 import { startAuthentication, browserSupportsWebAuthnAutofill } from "@simplewebauthn/browser"
 import axios from "axios"
-import { Eye, EyeOff, KeyRound, Loader2Icon } from "lucide-react"
+import { Eye, EyeOff, KeyRound, Loader2Icon, ArrowRight } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
@@ -173,29 +172,6 @@ const Login = () => {
     }
   }
 
-  const handleLoginGuest = async () => {
-    setLoading(true)
-    try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/guestLogin`,
-        {
-          userData: userData,
-        },
-        { withCredentials: true },
-      )
-
-      if (response.status === 200) {
-        getProfile()
-        navigate(returnPath)
-        toast.success("Logged in as guest")
-      }
-    } catch (error) {
-      handleError(error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleError = (error) => {
     const errorMessage =
       error.response?.data?.message || error.message || "An error occurred. Please try again."
@@ -220,127 +196,146 @@ const Login = () => {
   // Show 2FA step if required
   if (show2FA) {
     return (
-      <div className="min-h-svh flex flex-col justify-center items-center p-6 bg-[#050505] relative overflow-hidden">
-        {/* Subtle glow */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500/5 rounded-full blur-[120px]" />
-        <TwoFactorLogin
-          userId={twoFactorUserId}
-          onSuccess={handle2FASuccess}
-          onClose={handle2FAClose}
-        />
-      </div>
+      <TwoFactorLogin
+        userId={twoFactorUserId}
+        onSuccess={handle2FASuccess}
+        onClose={handle2FAClose}
+      />
     )
   }
 
   return (
-    <div className="min-h-svh flex flex-col justify-center items-center p-6 bg-[#050505] relative overflow-hidden">
-      {/* Subtle glow */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-[120px]" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500/5 rounded-full blur-[120px]" />
+    <>
+      <div className="mb-8">
+        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 mb-2">
+          Welcome back
+        </h1>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Welcome back! Please enter your details.
+        </p>
+      </div>
 
-      <Card className="w-full max-w-sm z-10 bg-white/3 border-white/8 backdrop-blur-xs">
-        <CardHeader>
-          <CardTitle className="text-2xl text-center">Login to SyncVibe</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="email"
-                        placeholder="Email"
-                        autoComplete="username webauthn"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      {/* Social Sign-in Buttons */}
+      <div className="space-y-3">
+        <Button
+          variant="outline"
+          onClick={() => {
+            window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google?client=${window.location.origin}`
+          }}
+          className="w-full h-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium transition-all shadow-xs flex items-center justify-center gap-2.5 cursor-pointer"
+          disabled={loading}
+        >
+          <img src={googleIcon} alt="Google" className="w-5 h-5 object-contain" />
+          Sign in with Google
+        </Button>
 
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          {...field}
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Password"
-                          autoComplete="current-password"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-2 top-1/2 -translate-y-1/2"
-                          onClick={togglePasswordVisibility}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        <Button
+          variant="outline"
+          onClick={() => navigate("/passkey-login")}
+          className="w-full h-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium transition-all shadow-xs flex items-center justify-center gap-2.5 cursor-pointer"
+          disabled={loading}
+        >
+          <KeyRound className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
+          Sign in with Passkey
+        </Button>
+      </div>
 
-              <div className="flex justify-end">
-                <ForgotPassword />
-              </div>
+      {/* Or Separator */}
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-zinc-200 dark:border-zinc-800" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-zinc-50/40 dark:bg-[#050505] px-2.5 text-zinc-400 dark:text-zinc-500 font-medium">
+            or
+          </span>
+        </div>
+      </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading && <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />}
-                {loading ? "Logging in..." : "Login"}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="text-sm text-center text-muted-foreground">
-            Don't have an account?{" "}
-            <Link
-              to={`/register?returnTo=${encodeURIComponent(returnPath)}`}
-              className="text-primary underline-offset-4 hover:underline"
-            >
-              Register
-            </Link>
+      {/* Login Form */}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="email"
+                    placeholder="Email"
+                    autoComplete="username webauthn"
+                    className="h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-650 focus-visible:border-transparent transition-all"
+                    disabled={loading}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      {...field}
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Password"
+                      autoComplete="current-password"
+                      className="h-12 pl-4 pr-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-650 focus-visible:border-transparent transition-all"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors focus:outline-hidden"
+                      onClick={togglePasswordVisibility}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="flex justify-end pt-1">
+            <ForgotPassword />
           </div>
+
           <Button
-            variant="outline"
-            onClick={() => {
-              window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google?client=${window.location.origin}`
-            }}
-            className="w-full"
+            type="submit"
+            className="w-full h-12 rounded-xl bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 hover:bg-zinc-900 dark:hover:bg-zinc-200 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer mt-2"
             disabled={loading}
           >
-            <img src={googleIcon} alt="Google" className="w-4 h-4 mr-2" />
-            Login with Google
+            {loading && <Loader2Icon className="h-4 w-4 animate-spin" />}
+            <span>{loading ? "Logging in..." : "Sign in"}</span>
+            {!loading && <ArrowRight className="h-4 w-4" />}
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => navigate("/passkey-login")}
-            className="w-full mt-2"
-            disabled={loading}
-          >
-            <KeyRound className="w-4 h-4 mr-2" />
-            Login with Passkey
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
+        </form>
+      </Form>
+
+      {/* Bottom Link for mobile/fallback */}
+      <div className="text-sm text-center text-zinc-500 dark:text-zinc-400 mt-6">
+        New to SyncVibe?{" "}
+        <Link
+          to={`/register?returnTo=${encodeURIComponent(returnPath)}`}
+          className="text-zinc-950 dark:text-zinc-50 font-semibold underline-offset-4 hover:underline transition-all"
+        >
+          Create an account
+        </Link>
+      </div>
+    </>
   )
 }
 

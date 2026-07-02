@@ -2,6 +2,7 @@ import { Loader2 } from "lucide-react"
 import { lazy, Suspense, useContext } from "react"
 import { Navigate, Outlet, useLocation } from "react-router-dom"
 import { Context } from "./Context/Context"
+import AuthLayout from "./components/Auth/AuthLayout"
 import { useVideoCallStore } from "./stores/videoCallStore"
 import BottomPlayer from "./Pages/Music/BottomPlayer"
 import GroupMusic from "./Pages/GroupMusic/GroupMusic"
@@ -18,6 +19,11 @@ import { useSidebar } from "./components/ui/sidebar"
 import { useProfileSuspenseQuery } from "./hooks/queries/useProfileQuery"
 import { useIsMobile } from "./hooks/use-mobile"
 import { useAppModeStore } from "./stores/appModeStore"
+import Login from "./components/Auth/Login"
+import PasskeyLogin from "./components/Auth/PassKeyLogin"
+import Register from "./components/Auth/Register"
+import VerifyUser from "./components/Auth/VerifyUser"
+import ResetPassword from "./components/Auth/ResetPassword"
 
 const Header = lazy(() => import("./components/LandingPage/Header"))
 const Footer = lazy(() => import("./components/LandingPage/Footer"))
@@ -28,19 +34,14 @@ const ProfileLoader = ({ children }) => {
 }
 
 // Lazy-load components
-const Login = lazy(() => import("./components/Auth/Login"))
-const PasskeyLogin = lazy(() => import("./components/Auth/PassKeyLogin"))
 const Profile = lazy(() => import("./components/Auth/Profile"))
-const Register = lazy(() => import("./components/Auth/Register"))
 const SeeUserProfile = lazy(() => import("./components/Auth/SeeUserProfile"))
-const VerifyUser = lazy(() => import("./components/Auth/VerifyUser"))
 const Chat = lazy(() => import("./components/Chat/Chat"))
 const Home = lazy(() => import("./components/LandingPage/Home"))
 const PrivacyPolicy = lazy(() => import("./components/LandingPage/PrivacyPolicy"))
 const TermsOfService = lazy(() => import("./components/LandingPage/TermOfService"))
 const RefundPolicy = lazy(() => import("./components/LandingPage/RefundPolicy"))
 const NotFoundPage = lazy(() => import("./components/NotFound"))
-const ResetPassword = lazy(() => import("./components/Auth/ResetPassword"))
 const Dashboard = lazy(() => import("./components/Posts/Dashboard"))
 const PostDetail = lazy(() => import("./components/Posts/PostDetail"))
 const SearchPost = lazy(() => import("./components/Posts/SearchPost"))
@@ -205,7 +206,22 @@ const MusicLayout = () => {
   )
 }
 
+
 export const PublicRoutes = () => {
+  const location = useLocation()
+  const noHeaderFooterRoutes = [
+    "/login",
+    "/register",
+    "/verify",
+    "/passkey-login",
+    "/reset-password",
+  ]
+  const hideHeaderFooter = noHeaderFooterRoutes.includes(location.pathname)
+
+  if (hideHeaderFooter) {
+    return <AuthLayout />
+  }
+
   return (
     <main className="w-full">
       <Header />

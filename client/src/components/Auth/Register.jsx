@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { yupResolver } from "@hookform/resolvers/yup"
@@ -10,6 +9,7 @@ import { Link, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import * as yup from "yup"
 import googleIcon from "/google.png?url"
+import { Eye, EyeOff, Loader2Icon, ArrowRight } from "lucide-react"
 
 const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
 
@@ -47,6 +47,7 @@ const api = axios.create({
 })
 
 const RegisterForm = memo(({ onSubmit, loading }) => {
+  const [showPassword, setShowPassword] = useState(false)
   const form = useForm({
     resolver: yupResolver(validationSchema),
     defaultValues: {
@@ -66,7 +67,13 @@ const RegisterForm = memo(({ onSubmit, loading }) => {
           render={({ field }) => (
             <FormItem>
               <FormControl>
-                <Input placeholder="Name" {...field} autoComplete="name" disabled={loading} />
+                <Input
+                  placeholder="Name"
+                  {...field}
+                  autoComplete="name"
+                  disabled={loading}
+                  className="h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-600 focus-visible:border-transparent transition-all"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -85,6 +92,7 @@ const RegisterForm = memo(({ onSubmit, loading }) => {
                   {...field}
                   autoComplete="email"
                   disabled={loading}
+                  className="h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-600 focus-visible:border-transparent transition-all"
                 />
               </FormControl>
               <FormMessage />
@@ -98,21 +106,42 @@ const RegisterForm = memo(({ onSubmit, loading }) => {
           render={({ field }) => (
             <FormItem>
               <FormControl>
-                <Input
-                  type="password"
-                  placeholder="Password"
-                  {...field}
-                  autoComplete="new-password"
-                  disabled={loading}
-                />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password"
+                    {...field}
+                    autoComplete="new-password"
+                    disabled={loading}
+                    className="h-12 pl-4 pr-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-600 focus-visible:border-transparent transition-all"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors focus:outline-hidden"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Registering..." : "Register"}
+        <Button
+          type="submit"
+          className="w-full h-12 rounded-xl bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 hover:bg-zinc-900 dark:hover:bg-zinc-200 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer mt-2"
+          disabled={loading}
+        >
+          {loading && <Loader2Icon className="h-4 w-4 animate-spin" />}
+          <span>{loading ? "Registering..." : "Register"}</span>
+          {!loading && <ArrowRight className="h-4 w-4" />}
         </Button>
       </form>
     </Form>
@@ -160,52 +189,55 @@ const Register = () => {
   }, [])
 
   return (
-    <div className="min-h-dvh flex flex-col justify-center items-center p-6 bg-[#050505] relative overflow-hidden">
-      {/* Subtle glow */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-[120px]" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500/5 rounded-full blur-[120px]" />
+    <>
+      <div className="mb-8">
+        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 mb-2">
+          Create your account
+        </h1>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Join SyncVibe today! Please enter your details.
+        </p>
+      </div>
 
-      <Card className="w-full max-w-md z-10 bg-white/3 border-white/8 backdrop-blur-xs">
-        <CardHeader>
-          <CardTitle className="text-2xl text-center font-bold">Create your account</CardTitle>
-        </CardHeader>
+      {/* Social Sign-in Buttons */}
+      <div className="space-y-3">
+        <Button
+          variant="outline"
+          onClick={handleGoogleLogin}
+          className="w-full h-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium transition-all shadow-xs flex items-center justify-center gap-2.5 cursor-pointer"
+          disabled={loading}
+        >
+          <img src={googleIcon} alt="Google" className="w-5 h-5 object-contain" />
+          Sign in with Google
+        </Button>
+      </div>
 
-        <CardContent>
-          <RegisterForm onSubmit={handleFormSubmit} loading={loading} />
-        </CardContent>
+      {/* Or Separator */}
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-zinc-200 dark:border-zinc-800" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-zinc-50/40 dark:bg-[#050505] px-2.5 text-zinc-400 dark:text-zinc-500 font-medium">
+            or
+          </span>
+        </div>
+      </div>
 
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="text-sm text-center text-muted-foreground">
-            Already have an account?{" "}
-            <Link
-              to="/login"
-              className="text-primary underline-offset-4 hover:underline font-medium"
-            >
-              Login
-            </Link>
-          </div>
+      {/* Register Form */}
+      <RegisterForm onSubmit={handleFormSubmit} loading={loading} />
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-            </div>
-          </div>
-
-          <Button
-            variant="outline"
-            onClick={handleGoogleLogin}
-            className="w-full"
-            disabled={loading}
-          >
-            <img src={googleIcon} alt="Google" className="w-4 h-4 mr-2" />
-            Login with Google
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
+      {/* Bottom Link for mobile/fallback */}
+      <div className="text-sm text-center text-zinc-500 dark:text-zinc-400 mt-6">
+        Already have an account?{" "}
+        <Link
+          to="/login"
+          className="text-zinc-950 dark:text-zinc-50 font-semibold underline-offset-4 hover:underline transition-all"
+        >
+          Login
+        </Link>
+      </div>
+    </>
   )
 }
 

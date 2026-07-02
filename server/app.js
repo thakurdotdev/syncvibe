@@ -77,7 +77,9 @@ app.use("/api/upload", uploadLimiter, timeout("60s"))
 
 app.use(passport.initialize())
 
-app.get("/health", (_, res) => res.json({ status: "ok" }))
+app.get("/health", (_, res) =>
+  res.json({ status: "ok", message: "SyncVibe is running", timestamp: Date.now() }),
+)
 
 app.use(
   "/api",
