@@ -5,14 +5,17 @@ import {
   initializeTrackPlayer,
   setBridgeUserId,
 } from '@/stores/trackPlayerBridge';
-import { usePlayerStore } from '@/stores/playerStore';
+import { usePlayerStore, setOnAfterSongTransition } from '@/stores/playerStore';
+import { addToHistory } from '@/api/music';
 import useApi from '@/utils/hooks/useApi';
 import { useEffect } from 'react';
 import TrackPlayer, { Event } from '@rntp/player';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function PlayerInitializer() {
   const { user } = useUser();
   const api = useApi();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     initializeTrackPlayer(user?.userid);
@@ -42,6 +45,21 @@ export default function PlayerInitializer() {
 
     fetchPlaylists();
   }, [user?.userid]);
+
+  useEffect(() => {
+    if (!user?.userid) {
+      setOnAfterSongTransition(null);
+      return;
+    }
+
+    setOnAfterSongTransition((song) => {
+      addToHistory(api, song, 10)
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ['recentMusic'] });
+        })
+        .catch(console.error);
+    });
+  }, [user?.userid, api, queryClient]);
 
   useEffect(() => {
     const subscriptions = [

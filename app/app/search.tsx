@@ -4,30 +4,20 @@ import SearchHistory from '@/components/music/SearchHistory';
 import { useTheme } from '@/context/ThemeContext';
 import { Song } from '@/types/song';
 import { searchSongs } from '@/utils/api/getSongs';
-import { useDebounce } from '@/utils/hooks/useDebounce';
 import { SearchHistoryItem, searchHistoryManager } from '@/utils/searchHistory';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Keyboard,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Animated as RNAnimated,
   StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, {
-  FadeIn,
-  FadeOut,
-  LinearTransition,
-  SlideInRight,
-  SlideOutLeft,
-} from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SearchMusic() {
@@ -37,60 +27,76 @@ export default function SearchMusic() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showHistory, setShowHistory] = useState(true);
-  const [historyKey, setHistoryKey] = useState(0); // For refreshing history component
+  const [historyKey, setHistoryKey] = useState(0);
   const [searchSuggestions, setSearchSuggestions] = useState<SearchHistoryItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const scrollY = new RNAnimated.Value(0);
   const inputRef = useRef<TextInput>(null);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const debouncedSearch = useDebounce(async (query: string) => {
+  const executeSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
       setSongs([]);
+      setIsLoading(false);
       setShowHistory(true);
+      setError('');
       return;
     }
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
 
     setIsLoading(true);
     setError('');
     setShowHistory(false);
+    setShowSuggestions(false);
 
     try {
       const results = await searchSongs(query);
       setSongs(results);
-    } catch (err) {
-      setError('Failed to search songs');
-      setSongs([]);
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        setError('Failed to search songs. Please try again.');
+        setSongs([]);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, 500);
+  }, []);
+
   const handleSearch = useCallback(
     (text: string) => {
       setSearchQuery(text);
 
-      // Show suggestions while typing (but not for empty queries)
+      if (text.trim().length === 0) {
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        abortRef.current?.abort();
+        setSongs([]);
+        setIsLoading(false);
+        setError('');
+        setShowHistory(true);
+        setShowSuggestions(false);
+        return;
+      }
+
       if (text.trim().length > 0 && text.trim().length < 3) {
         setShowSuggestions(true);
         setShowHistory(false);
         loadSearchSuggestions(text.trim());
       } else {
         setShowSuggestions(false);
-        if (text.trim().length === 0) {
-          setShowHistory(true);
-        }
       }
 
-      debouncedSearch(text);
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      debounceTimer.current = setTimeout(() => executeSearch(text), 450);
     },
-    [debouncedSearch]
+    [executeSearch],
   );
 
   const loadSearchSuggestions = useCallback(async (query: string) => {
     try {
       const filtered = await searchHistoryManager.getHistory(query);
       setSearchSuggestions(filtered.slice(0, 5));
-    } catch (error) {
-      console.error('Error loading search suggestions:', error);
+    } catch {
       setSearchSuggestions([]);
     }
   }, []);
@@ -99,194 +105,148 @@ export default function SearchMusic() {
     (query: string) => {
       setSearchQuery(query);
       setShowSuggestions(false);
-      inputRef.current?.blur(); // Hide keyboard
-      debouncedSearch(query);
+      inputRef.current?.blur();
+      executeSearch(query);
     },
-    [debouncedSearch]
+    [executeSearch],
   );
 
   const clearSearch = useCallback(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    abortRef.current?.abort();
     setSearchQuery('');
     setSongs([]);
+    setIsLoading(false);
+    setError('');
     setShowHistory(true);
     setShowSuggestions(false);
-    setError('');
-    setHistoryKey((prev) => prev + 1); // Refresh history
+    setHistoryKey((prev) => prev + 1);
     inputRef.current?.focus();
   }, []);
 
-  // Handle input focus to show history
   const handleInputFocus = useCallback(() => {
-    if (!searchQuery.trim()) {
-      setShowHistory(true);
-    }
+    if (!searchQuery.trim()) setShowHistory(true);
   }, [searchQuery]);
 
-  // Handle keyboard dismiss
   useEffect(() => {
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+    const sub = Keyboard.addListener('keyboardDidHide', () => {
       if (!searchQuery.trim()) {
         setShowHistory(true);
         setShowSuggestions(false);
       }
     });
-
-    return () => {
-      keyboardDidHideListener.remove();
-    };
+    return () => sub.remove();
   }, [searchQuery]);
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    scrollY.setValue(event.nativeEvent.contentOffset.y);
-  };
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      abortRef.current?.abort();
+    };
+  }, []);
 
-  const renderHeader = () => {
-    const headerOpacity = scrollY.interpolate({
-      inputRange: [0, 80, 120],
-      outputRange: [1, 0.8, 0.8],
-      extrapolate: 'clamp',
-    });
-
-    const searchScale = scrollY.interpolate({
-      inputRange: [0, 100],
-      outputRange: [1, 0.98],
-      extrapolate: 'clamp',
-    });
-
-    return (
-      <RNAnimated.View
+  const renderHeader = () => (
+    <View style={[styles.header, { backgroundColor: colors.background }]}>
+      <View
         style={[
-          styles.header,
+          styles.searchContainer,
           {
-            backgroundColor: colors.background,
-            opacity: headerOpacity,
+            backgroundColor:
+              theme === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)',
           },
         ]}
       >
-        <RNAnimated.View
-          style={[
-            styles.searchContainer,
-            {
-              transform: [{ scale: searchScale }],
-              backgroundColor:
-                theme === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)',
-            },
-          ]}
-        >
-          <Feather
-            name='search'
-            size={20}
-            color={colors.mutedForeground}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            ref={inputRef}
-            className='flex-1'
-            style={[styles.searchInput, { color: colors.foreground }]}
-            placeholder='Search for songs...'
-            placeholderTextColor={colors.mutedForeground}
-            value={searchQuery}
-            onChangeText={handleSearch}
-            onFocus={handleInputFocus}
-            returnKeyType='search'
-            autoCapitalize='none'
-            autoFocus
-          />
-          {searchQuery ? (
-            <Animated.View
-              entering={SlideInRight.duration(200)}
-              exiting={SlideOutLeft.duration(200)}
+        <Feather name='search' size={20} color={colors.mutedForeground} style={styles.searchIcon} />
+        <TextInput
+          ref={inputRef}
+          className='flex-1'
+          style={[styles.searchInput, { color: colors.foreground }]}
+          placeholder='Search for songs...'
+          placeholderTextColor={colors.mutedForeground}
+          value={searchQuery}
+          onChangeText={handleSearch}
+          onFocus={handleInputFocus}
+          returnKeyType='search'
+          autoCapitalize='none'
+          autoCorrect={false}
+          autoFocus
+        />
+        {isLoading && searchQuery.length > 0 && (
+          <ActivityIndicator size='small' color={colors.primary} style={{ marginRight: 6 }} />
+        )}
+        {searchQuery && !isLoading ? (
+          <TouchableOpacity
+            onPress={clearSearch}
+            style={styles.clearButton}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <View
+              style={[
+                styles.clearButtonInner,
+                {
+                  backgroundColor:
+                    theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
+                },
+              ]}
             >
-              <TouchableOpacity
-                onPress={clearSearch}
-                style={[styles.clearButton]}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <View
-                  style={[
-                    styles.clearButtonInner,
-                    {
-                      backgroundColor:
-                        theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
-                    },
-                  ]}
+              <Feather name='x' size={16} color={colors.foreground} />
+            </View>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
+  );
+
+  const renderSuggestions = () => {
+    if (!showSuggestions || searchSuggestions.length === 0) return null;
+    return (
+      <View style={[styles.historyContainer, { flex: 1 }]}>
+        <View style={styles.historySection}>
+          <View style={styles.historySectionHeader}>
+            <Text style={[styles.historySectionTitle, { color: colors.foreground }]}>
+              Suggestions
+            </Text>
+          </View>
+          {searchSuggestions.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={[
+                styles.historyItem,
+                {
+                  backgroundColor:
+                    theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)',
+                },
+              ]}
+              onPress={() => handleHistoryItemPress(item.query)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.historyItemContent}>
+                <Feather
+                  name='search'
+                  size={16}
+                  color={colors.mutedForeground}
+                  style={styles.historyItemIcon}
+                />
+                <Text
+                  style={[styles.historyItemText, { color: colors.foreground }]}
+                  numberOfLines={1}
                 >
-                  <Feather name='x' size={16} color={colors.foreground} />
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-          ) : null}
-        </RNAnimated.View>
-      </RNAnimated.View>
+                  {item.query}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
     );
   };
 
-  const renderEmptyState = () => {
-    if (showSuggestions) {
+  const renderEmptyState = useCallback(() => {
+    if (isLoading) return null;
+    if (searchQuery.trim()) {
       return (
-        <Animated.View
-          style={styles.historyContainer}
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(200)}
-        >
-          <View style={styles.historySection}>
-            <View style={styles.historySectionHeader}>
-              <Text style={[styles.historySectionTitle, { color: colors.foreground }]}>
-                Suggestions
-              </Text>
-            </View>
-            {searchSuggestions.map((item, index) => (
-              <Animated.View key={item.id} entering={FadeIn.delay(index * 50)}>
-                <TouchableOpacity
-                  style={[
-                    styles.historyItem,
-                    {
-                      backgroundColor:
-                        theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)',
-                    },
-                  ]}
-                  onPress={() => handleHistoryItemPress(item.query)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.historyItemContent}>
-                    <Feather
-                      name='search'
-                      size={16}
-                      color={colors.mutedForeground}
-                      style={styles.historyItemIcon}
-                    />
-                    <Text
-                      style={[styles.historyItemText, { color: colors.foreground }]}
-                      numberOfLines={1}
-                    >
-                      {item.query}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              </Animated.View>
-            ))}
-          </View>
-        </Animated.View>
-      );
-    }
-
-    if (showHistory) {
-      return (
-        <SearchHistory
-          key={historyKey}
-          onHistoryItemPress={handleHistoryItemPress}
-          currentQuery={searchQuery}
-        />
-      );
-    }
-
-    if (searchQuery) {
-      return (
-        <Animated.View
-          style={styles.emptyContainer}
-          entering={FadeIn.duration(300)}
-          exiting={FadeOut.duration(200)}
-        >
+        <View style={styles.emptyContainer}>
           <View style={[styles.emptyIconContainer, { backgroundColor: colors.secondary }]}>
             <Feather name='search' size={32} color={colors.primary} />
           </View>
@@ -296,16 +256,11 @@ export default function SearchMusic() {
           <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
             Try different keywords or check your spelling
           </Text>
-        </Animated.View>
+        </View>
       );
     }
-
     return (
-      <Animated.View
-        style={styles.emptyContainer}
-        entering={FadeIn.duration(300)}
-        exiting={FadeOut.duration(200)}
-      >
+      <View style={styles.emptyContainer}>
         <View style={[styles.emptyIconContainer, { backgroundColor: colors.secondary }]}>
           <Ionicons name='musical-notes' size={32} color={colors.primary} />
         </View>
@@ -313,27 +268,25 @@ export default function SearchMusic() {
         <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
           Find artists, songs, and albums
         </Text>
-      </Animated.View>
+      </View>
     );
-  };
+  }, [isLoading, searchQuery, colors]);
 
-  const renderItem = ({ item, index }: { item: Song; index: number }) => (
-    <Animated.View
-      entering={FadeIn.delay(index * 50)}
-      exiting={FadeOut.delay(index * 50)}
-      layout={LinearTransition.springify()}
-    >
+  const renderItem = useCallback(
+    ({ item }: { item: Song }) => (
       <SongCard
         song={item}
         onPress={async () => {
-          // Track that user clicked on a song from this search query
           if (searchQuery.trim()) {
             await searchHistoryManager.addToHistoryOnSongClick(searchQuery.trim());
           }
         }}
       />
-    </Animated.View>
+    ),
+    [searchQuery],
   );
+
+  const Separator = useCallback(() => <View style={{ height: 10 }} />, []);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -345,23 +298,8 @@ export default function SearchMusic() {
 
       {renderHeader()}
 
-      {isLoading ? (
-        <Animated.View
-          style={styles.loadingContainer}
-          entering={FadeIn.duration(300)}
-          exiting={FadeOut.duration(200)}
-        >
-          <ActivityIndicator size='small' color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
-            Searching for "{searchQuery}"...
-          </Text>
-        </Animated.View>
-      ) : error ? (
-        <Animated.View
-          style={styles.errorContainer}
-          entering={FadeIn.duration(300)}
-          exiting={FadeOut.duration(200)}
-        >
+      {error ? (
+        <View style={styles.errorContainer}>
           <View style={[styles.errorIconContainer, { backgroundColor: colors.secondary }]}>
             <Ionicons name='alert-circle' size={32} color={colors.primary} />
           </View>
@@ -374,33 +312,43 @@ export default function SearchMusic() {
                   theme === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)',
               },
             ]}
-            onPress={() => handleSearch(searchQuery)}
+            onPress={() => executeSearch(searchQuery)}
           >
             <Text style={[styles.retryButtonText, { color: colors.foreground }]}>Try Again</Text>
           </TouchableOpacity>
+        </View>
+      ) : showSuggestions ? (
+        renderSuggestions()
+      ) : showHistory ? (
+        <SearchHistory
+          key={historyKey}
+          onHistoryItemPress={handleHistoryItemPress}
+          currentQuery={searchQuery}
+        />
+      ) : isLoading ? (
+        <Animated.View style={styles.loadingContainer} entering={FadeIn.duration(120)}>
+          <ActivityIndicator size='large' color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
+            Searching...
+          </Text>
         </Animated.View>
       ) : (
-        <>
-          {showHistory || showSuggestions ? (
-            renderEmptyState()
-          ) : (
-            <FlatList
-              data={songs}
-              renderItem={renderItem}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-              ListEmptyComponent={renderEmptyState}
-              onScroll={handleScroll}
-              scrollEventThrottle={16}
-              removeClippedSubviews={true}
-              initialNumToRender={10}
-              maxToRenderPerBatch={5}
-              windowSize={10}
-              ItemSeparatorComponent={() => <View className='h-3' />}
-            />
-          )}
-        </>
+        <FlatList
+          data={songs}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={renderEmptyState}
+          scrollEventThrottle={16}
+          ItemSeparatorComponent={Separator}
+          removeClippedSubviews
+          initialNumToRender={12}
+          maxToRenderPerBatch={8}
+          windowSize={8}
+          keyboardShouldPersistTaps='handled'
+          keyboardDismissMode='on-drag'
+        />
       )}
     </SafeAreaView>
   );

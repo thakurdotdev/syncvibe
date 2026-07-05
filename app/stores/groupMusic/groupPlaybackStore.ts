@@ -5,6 +5,7 @@ import { Song } from "@/types/song"
 import { setupPlayer } from "@/utils/playerSetup"
 import { PlaybackState } from "./types"
 import { usePlayerStore } from "../playerStore"
+import { isTrackPlayerReady } from "../trackPlayerBridge"
 
 interface GroupPlaybackState {
   currentSong: Song | null
@@ -91,6 +92,11 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
 
   initTrackPlayer: async () => {
     try {
+      const alreadyReady = isTrackPlayerReady()
+      if (alreadyReady) {
+        set({ trackPlayerReady: true })
+        return true
+      }
       const isSetup = setupPlayer()
       set({ trackPlayerReady: isSetup })
       return isSetup
@@ -100,15 +106,24 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     }
   },
 
-  convertSongToTrack: (song: Song) => ({
-    id: song.id,
-    url: song.download_url?.find((u) => u.quality === "320kbps")?.link || "",
-    title: song.name || "Unknown Title",
-    artist: song?.artist_map?.artists?.[0]?.name || "Unknown Artist",
-    album: song.album || "Unknown Album",
-    artwork: song.image?.[2]?.link || song.image?.[1]?.link || "",
-    duration: song.duration || 0,
-  }),
+  convertSongToTrack: (song: Song) => {
+    const qualities = ["320kbps", "128kbps", "48kbps", "12kbps"] as const
+    let audioUrl = ""
+    for (const q of qualities) {
+      const link = song.download_url?.find((u) => u.quality === q)?.link
+      if (link) { audioUrl = link; break }
+    }
+    if (!audioUrl) audioUrl = song.download_url?.[0]?.link || ""
+    return {
+      id: song.id,
+      url: audioUrl,
+      title: song.name || "Unknown Title",
+      artist: song?.artist_map?.artists?.[0]?.name || "Unknown Artist",
+      album: song.album || "Unknown Album",
+      artwork: song.image?.[2]?.link || song.image?.[1]?.link || "",
+      duration: song.duration || 0,
+    }
+  },
 
   processTimeSyncResponse: (clientTime: number, serverTime: number) => {
     const endTime = Date.now()
@@ -121,7 +136,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
   },
 
   handlePlaybackUpdate: async (data) => {
-    const { trackPlayerReady } = get()
+    const { trackPlayerReady, currentSong } = get()
     if (!trackPlayerReady) return
 
     if (data.isPlaying) {
@@ -135,7 +150,12 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     const serverNow = get().getServerTime()
     const timeUntilPlay = Math.max(0, (data.scheduledTime || serverNow) - serverNow)
 
-    TrackPlayer.seekTo(data.currentTime)
+    const activeItem = TrackPlayer.getActiveMediaItem()
+    const correctTrackLoaded = currentSong && activeItem?.mediaId === currentSong.id
+
+    if (correctTrackLoaded) {
+      TrackPlayer.seekTo(data.currentTime)
+    }
 
     if (data.isPlaying) {
       setTimeout(() => {
@@ -330,7 +350,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
       try {
         TrackPlayer.stop()
         TrackPlayer.clear()
-      } catch {}
+      } catch { }
     }
 
     const normalStore = usePlayerStore.getState()

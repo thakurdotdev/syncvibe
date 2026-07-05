@@ -1,12 +1,12 @@
 import { Song } from "@/types/song"
 import { playbackHistory } from "@/utils/playbackHistory"
 import streamingManager from "@/utils/streamingManager"
-import { addToHistory } from "@/utils/api/addToHistory"
 import { AppState, AppStateStatus } from "react-native"
 import TrackPlayer, { Event, RepeatMode } from "@rntp/player"
 import { setupPlayer } from "@/utils/playerSetup"
 import {
   usePlayerStore,
+  onAfterSongTransition,
   setOnReorderPlaylist,
   setOnPlaySong,
   setOnStopSong,
@@ -14,6 +14,8 @@ import {
   setOnHandleNextSong,
   setOnHandlePrevSong,
   setOnRepeatModeChange,
+  setOnAddToQueue,
+  setOnRemoveFromQueue,
   type RepeatMode as StoreRepeatMode,
 } from "./playerStore"
 import { useGroupPlaybackStore } from "./groupMusic/groupPlaybackStore"
@@ -124,6 +126,18 @@ let appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = 
 
 const MAX_PLAYBACK_ERROR_RETRIES = 2
 const PLAYBACK_ERROR_COOLDOWN_MS = 8000
+
+const lastEventTimestamps = new Map<string, number>()
+const EVENT_DEDUP_MS = 80
+
+const isDuplicateEvent = (type: string, key = ''): boolean => {
+  const mapKey = key ? `${type}:${key}` : type
+  const now = Date.now()
+  const last = lastEventTimestamps.get(mapKey) ?? 0
+  if (now - last < EVENT_DEDUP_MS) return true
+  lastEventTimestamps.set(mapKey, now)
+  return false
+}
 
 const resetPlaybackErrorState = () => {
   playbackErrorRetries = 0
@@ -449,6 +463,24 @@ export const bridgeSetRepeatMode = (mode: StoreRepeatMode) => {
   TrackPlayer.setRepeatMode(getNativeRepeatMode(mode))
 }
 
+export const bridgeRemoveFromQueue = (songId: string) => {
+  if (!trackPlayerInitialized) return
+
+  const queue = TrackPlayer.getQueue()
+  const trackIndex = queue.findIndex((t) => t.mediaId === songId)
+  if (trackIndex < 0) return
+
+  // Never remove the currently-playing item from the native queue
+  const activeIndex = TrackPlayer.getActiveMediaItemIndex()
+  if (activeIndex !== null && trackIndex === activeIndex) return
+
+  try {
+    TrackPlayer.removeMediaItems(trackIndex, trackIndex + 1)
+  } catch (error) {
+    console.error('Error removing track from RNTP queue:', error)
+  }
+}
+
 let reorderTimeout: ReturnType<typeof setTimeout> | null = null
 
 export const syncReorderPlaylist = (newOrder: Song[]) => {
@@ -614,7 +646,7 @@ const setupAppStateListener = () => {
   )
 }
 
-export const dispatchTrackPlayerEvent = async (event: { type: string; [key: string]: unknown }) => {
+export const dispatchTrackPlayerEvent = async (event: { type: string;[key: string]: unknown }) => {
   if (!trackPlayerInitialized) return
 
   const store = getStore()
@@ -640,6 +672,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
         const playerState = event.state as string
 
         if (playerState === "ended") {
+          if (isDuplicateEvent(Event.PlaybackStateChanged, 'ended')) break
           if (isSwitchingTracks || isRecoveringFromError || hasExceededPlaybackErrorRetries()) break
           isSwitchingTracks = true
           bridgeHandleNextSong(true, userId)
@@ -649,6 +682,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
 
       case Event.IsPlayingChanged: {
         const playing = event.playing as boolean
+        if (isDuplicateEvent(Event.IsPlayingChanged, String(playing))) break
 
         if (playing) {
           isSwitchingTracks = false
@@ -670,6 +704,9 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
       }
 
       case Event.MediaItemTransition: {
+        const transitionId = event.item ? ((event.item as MediaItem).mediaId ?? '') : ''
+        if (isDuplicateEvent(Event.MediaItemTransition, transitionId)) break
+
         if (event.item && event.index !== undefined) {
           const trackId = (event.item as MediaItem).mediaId
           if (trackId) {
@@ -685,7 +722,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
                   playbackHistory
                     .updatePlaybackProgress(song, 0, song.duration || 0, true)
                     .catch(console.error)
-                  addToHistory(song, 10).catch(console.error)
+                  onAfterSongTransition?.(song)
                 }
               }
             }
@@ -798,3 +835,5 @@ setOnPlayPause(() => bridgePlayPause())
 setOnHandleNextSong((isAutoPlay) => bridgeHandleNextSong(isAutoPlay, bridgeUserId))
 setOnHandlePrevSong(() => bridgeHandlePrevSong(bridgeUserId))
 setOnRepeatModeChange((mode) => bridgeSetRepeatMode(mode))
+setOnAddToQueue(() => appendUpcomingTracks())
+setOnRemoveFromQueue((songId) => bridgeRemoveFromQueue(songId))

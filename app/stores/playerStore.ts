@@ -42,6 +42,21 @@ export const setOnRepeatModeChange = (cb: (mode: RepeatMode) => void) => {
   onRepeatModeChange = cb
 }
 
+export let onAddToQueue: ((songs: Song[]) => void) | null = null
+export const setOnAddToQueue = (cb: (songs: Song[]) => void) => {
+  onAddToQueue = cb
+}
+
+export let onRemoveFromQueue: ((songId: string) => void) | null = null
+export const setOnRemoveFromQueue = (cb: (songId: string) => void) => {
+  onRemoveFromQueue = cb
+}
+
+export let onAfterSongTransition: ((song: Song) => void) | null = null
+export const setOnAfterSongTransition = (cb: ((song: Song) => void) | null) => {
+  onAfterSongTransition = cb
+}
+
 interface PlayerState {
   currentSong: Song | null
   isPlaying: boolean
@@ -183,6 +198,7 @@ export const usePlayerStore = create<PlayerStore>()(
             playlist: [...playlist, ...uniqueNewSongs],
             originalPlaylist: [...originalPlaylist, ...uniqueNewSongs],
           })
+          onAddToQueue?.(uniqueNewSongs)
         }
       },
 
@@ -194,6 +210,7 @@ export const usePlayerStore = create<PlayerStore>()(
           playlist: playlist.filter((s) => s.id !== songId),
           originalPlaylist: originalPlaylist.filter((s) => s.id !== songId),
         })
+        onRemoveFromQueue?.(songId)
       },
 
       removeFromQueueBelow: (songId: string) => {
@@ -201,10 +218,12 @@ export const usePlayerStore = create<PlayerStore>()(
         const index = playlist.findIndex((s) => s.id === songId)
         if (index === -1) return
         const newPlaylist = playlist.slice(0, index + 1)
+        const removedSongs = playlist.slice(index + 1)
         set({
           playlist: newPlaylist,
           originalPlaylist: newPlaylist.filter((s) => originalPlaylist.some((o) => o.id === s.id)),
         })
+        removedSongs.forEach((s) => onRemoveFromQueue?.(s.id))
       },
 
       clearQueue: () => {
@@ -261,7 +280,7 @@ export const usePlayerStore = create<PlayerStore>()(
 
           for (let i = songsToShuffle.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1))
-            ;[songsToShuffle[i], songsToShuffle[j]] = [songsToShuffle[j], songsToShuffle[i]]
+              ;[songsToShuffle[i], songsToShuffle[j]] = [songsToShuffle[j], songsToShuffle[i]]
           }
 
           const shuffled =

@@ -17,7 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useChat } from '@/context/SocketContext';
 import useApi from '@/utils/hooks/useApi';
-import { useDebounce } from '@/utils/hooks/useDebounce';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
@@ -80,21 +79,6 @@ const SearchUser: React.FC = () => {
     [api, setLoading]
   );
 
-  // Make sure debouncedSearch is properly memoized
-  const debouncedSearch = useCallback(
-    useDebounce((query: string) => searchUsers(query), 400),
-    [searchUsers]
-  );
-
-  useEffect(() => {
-    // Only run this effect when searchQuery changes
-    if (searchQuery) {
-      debouncedSearch(searchQuery);
-    } else {
-      setSearchResults([]);
-    }
-  }, [searchQuery]);
-
   // Chat actions
   const createChat = useCallback(
     async (userid: string) => {
@@ -134,25 +118,20 @@ const SearchUser: React.FC = () => {
     [createChat, setCurrentChat]
   );
 
-  const clearSearch = () => {
+  const clearSearch = useCallback(() => {
     setSearchQuery('');
     setSearchResults([]);
     Keyboard.dismiss();
     flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, []);
 
-    setTimeout(() => {
-      // This is a hack to force a re-render
-      setRefreshing(true);
-      setTimeout(() => setRefreshing(false), 50);
-    }, 50);
-  };
-
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await getAllExistingChats();
     setRefreshing(false);
-  };
+  }, [getAllExistingChats]);
 
+  // Single debounced search effect
   useEffect(() => {
     const handler = setTimeout(() => {
       if (searchQuery.trim()) {

@@ -1,34 +1,44 @@
 import { useTheme } from '@/context/ThemeContext';
-import { router, Tabs, usePathname } from 'expo-router';
+import { router, Tabs, useSegments } from 'expo-router';
 import { Home, ListMusic, LucideProps, MessageCircle, Music, User } from 'lucide-react-native';
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const TabButton = ({
-  isFocused,
-  onPress,
-  label,
-  icon: Icon,
-}: {
+type TabBarProps = {
+  colors: ReturnType<typeof useTheme>['colors'];
+  insets: ReturnType<typeof useSafeAreaInsets>;
+  activeSegment: string;
+};
+
+type TabButtonProps = {
   isFocused: boolean;
   onPress: () => void;
   label: string;
   icon: React.ComponentType<LucideProps>;
-}) => {
-  const { colors } = useTheme();
-  const color = isFocused ? colors.primary : colors.mutedForeground;
+  activeColor: string;
+  inactiveColor: string;
+};
+
+const TabButton = memo(function TabButton({
+  isFocused,
+  onPress,
+  label,
+  icon: Icon,
+  activeColor,
+  inactiveColor,
+}: TabButtonProps) {
+  const color = isFocused ? activeColor : inactiveColor;
 
   return (
     <Pressable
       onPress={onPress}
-      className='flex-1 items-center justify-center relative'
-      style={{ paddingVertical: 12 }}
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 }}
+      accessibilityRole='tab'
+      accessibilityState={{ selected: isFocused }}
     >
-      <View className='items-center justify-center rounded-full px-4 py-1'>
+      <View style={{ alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 4 }}>
         <Icon size={22} color={color} strokeWidth={isFocused ? 2.5 : 1.8} />
-
         <Text
           style={{
             color,
@@ -36,7 +46,6 @@ const TabButton = ({
             marginTop: 6,
             fontSize: 12,
           }}
-          className='text-xs'
           numberOfLines={1}
           ellipsizeMode='tail'
         >
@@ -45,114 +54,108 @@ const TabButton = ({
       </View>
     </Pressable>
   );
-};
+});
+
+const CustomTabBar = memo(function CustomTabBar({ colors, insets, activeSegment }: TabBarProps) {
+  const activeColor = colors.primary;
+  const inactiveColor = colors.mutedForeground;
+
+  const goHome = useCallback(() => router.navigate('/home'), []);
+  const goGroup = useCallback(() => router.navigate('/group-music'), []);
+  const goPlaylist = useCallback(() => router.navigate('/playlist'), []);
+  const goChat = useCallback(() => router.navigate('/chat'), []);
+  const goProfile = useCallback(() => router.navigate('/profile'), []);
+
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 75 + insets.bottom,
+        paddingBottom: insets.bottom,
+        backgroundColor: colors.card,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        zIndex: 1000,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 5,
+        flexDirection: 'row',
+      }}
+    >
+      <TabButton
+        onPress={goHome}
+        label='Home'
+        icon={Home}
+        isFocused={activeSegment === 'home'}
+        activeColor={activeColor}
+        inactiveColor={inactiveColor}
+      />
+      <TabButton
+        onPress={goGroup}
+        label='Group'
+        icon={Music}
+        isFocused={activeSegment === 'group-music'}
+        activeColor={activeColor}
+        inactiveColor={inactiveColor}
+      />
+      <TabButton
+        onPress={goPlaylist}
+        label='Playlist'
+        icon={ListMusic}
+        isFocused={activeSegment === 'playlist'}
+        activeColor={activeColor}
+        inactiveColor={inactiveColor}
+      />
+      <TabButton
+        onPress={goChat}
+        label='Chat'
+        icon={MessageCircle}
+        isFocused={activeSegment === 'chat'}
+        activeColor={activeColor}
+        inactiveColor={inactiveColor}
+      />
+      <TabButton
+        onPress={goProfile}
+        label='Profile'
+        icon={User}
+        isFocused={activeSegment === 'profile'}
+        activeColor={activeColor}
+        inactiveColor={inactiveColor}
+      />
+    </View>
+  );
+});
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const pathname = usePathname();
+  const segments = useSegments();
   const { colors } = useTheme();
 
-  // Determine active tab based on pathname
-  const isHomeActive = pathname.includes('/home');
-  const isGroupMusicActive = pathname.includes('/group-music');
-  const isProfileActive = pathname.includes('/profile');
-  const isPlaylistActive = pathname.includes('/playlist');
-  const isChatActive = pathname.includes('/chat');
+  // segments[1] is the tab segment name e.g. 'home', 'chat', etc.
+  const activeSegment = segments[1] ?? 'home';
 
   return (
-    <View className='flex-1' style={{ backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Tabs
         screenOptions={{
           headerShown: false,
           animation: 'none',
         }}
+        tabBar={() => null}
       >
-        <Tabs.Screen
-          name='home/index'
-          options={{
-            title: 'Home',
-          }}
-        />
-        <Tabs.Screen
-          name='group-music/index'
-          options={{
-            title: 'Group Music',
-          }}
-        />
-        <Tabs.Screen
-          name='playlist/index'
-          options={{
-            title: 'Playlist',
-          }}
-        />
-        <Tabs.Screen
-          name='chat/index'
-          options={{
-            title: 'Message',
-          }}
-        />
-        <Tabs.Screen
-          name='profile/index'
-          options={{
-            title: 'Profile',
-          }}
-        />
+        <Tabs.Screen name='home/index' options={{ title: 'Home' }} />
+        <Tabs.Screen name='group-music/index' options={{ title: 'Group Music' }} />
+        <Tabs.Screen name='playlist/index' options={{ title: 'Playlist' }} />
+        <Tabs.Screen name='chat/index' options={{ title: 'Message' }} />
+        <Tabs.Screen name='profile/index' options={{ title: 'Profile' }} />
       </Tabs>
 
-      <Animated.View
-        style={[
-          {
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 75 + insets.bottom,
-            paddingBottom: insets.bottom,
-            backgroundColor: colors.card,
-            borderTopWidth: 1,
-            borderTopColor: colors.border,
-            zIndex: 1000,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 5,
-          },
-        ]}
-      >
-        <View className='flex-row h-full'>
-          <TabButton
-            onPress={() => router.push('/home')}
-            label='Home'
-            icon={Home}
-            isFocused={isHomeActive}
-          />
-          <TabButton
-            onPress={() => router.push('/group-music')}
-            label='Group'
-            icon={Music}
-            isFocused={isGroupMusicActive}
-          />
-          <TabButton
-            onPress={() => router.push('/playlist')}
-            label='Playlist'
-            icon={ListMusic}
-            isFocused={isPlaylistActive}
-          />
-          <TabButton
-            onPress={() => router.push('/chat')}
-            label='Chat'
-            icon={MessageCircle}
-            isFocused={isChatActive}
-          />
-          <TabButton
-            onPress={() => router.push('/profile')}
-            label='Profile'
-            icon={User}
-            isFocused={isProfileActive}
-          />
-        </View>
-      </Animated.View>
+      <CustomTabBar colors={colors} insets={insets} activeSegment={activeSegment} />
     </View>
   );
 }
