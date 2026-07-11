@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react"
 import {
   ActivityIndicator,
   Animated,
@@ -11,33 +11,33 @@ import {
   TextStyle,
   View,
   ViewStyle,
-} from 'react-native';
-import { useTheme } from '@/context/ThemeContext';
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+} from "react-native"
+import { useTheme } from "@/context/ThemeContext"
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 
-export type ButtonVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
-export type ButtonSize = 'default' | 'sm' | 'lg' | 'icon';
+export type ButtonVariant = "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
+export type ButtonSize = "default" | "sm" | "lg" | "icon"
 
-export interface ButtonProps extends Omit<PressableProps, 'style'> {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  asChild?: boolean;
-  isLoading?: boolean;
-  icon?: React.ReactNode;
-  iconPosition?: 'left' | 'right';
-  title?: string;
-  children?: React.ReactNode;
-  className?: string;
-  style?: StyleProp<ViewStyle>;
-  textStyle?: StyleProp<TextStyle>;
+export interface ButtonProps extends Omit<PressableProps, "style"> {
+  variant?: ButtonVariant
+  size?: ButtonSize
+  asChild?: boolean
+  isLoading?: boolean
+  icon?: React.ReactNode
+  iconPosition?: "left" | "right"
+  title?: string
+  children?: React.ReactNode
+  className?: string
+  style?: StyleProp<ViewStyle>
+  textStyle?: StyleProp<TextStyle>
 }
 
 export const Button: React.FC<ButtonProps> = ({
-  variant = 'default',
-  size = 'default',
+  variant = "default",
+  size = "default",
   isLoading = false,
   icon,
-  iconPosition = 'left',
+  iconPosition = "left",
   title,
   children,
   disabled = false,
@@ -45,38 +45,40 @@ export const Button: React.FC<ButtonProps> = ({
   textStyle,
   ...props
 }) => {
-  const { colors, theme } = useTheme();
-  const [isPressed, setIsPressed] = useState(false);
-  const scale = React.useRef(new Animated.Value(1)).current;
+  const { colors, theme } = useTheme()
+  const [isPressed, setIsPressed] = useState(false)
+  const scale = React.useRef(new Animated.Value(1)).current
 
   const handlePressIn = () => {
-    setIsPressed(true);
+    setIsPressed(true)
     Animated.spring(scale, {
       toValue: 0.96,
       useNativeDriver: true,
       tension: 100,
       friction: 5,
-    }).start();
-  };
+    }).start()
+  }
 
   const handlePressOut = () => {
-    setIsPressed(false);
+    setIsPressed(false)
     Animated.spring(scale, {
       toValue: 1,
       useNativeDriver: true,
       tension: 100,
       friction: 5,
-    }).start();
-  };
+    }).start()
+  }
 
-  const getVariantStyles = (isPressed: boolean): {
-    backgroundColor: string;
-    color: string;
-    borderColor?: string;
-    borderWidth?: number;
+  const getVariantStyles = (
+    isPressed: boolean,
+  ): {
+    backgroundColor: string
+    color: string
+    borderColor?: string
+    borderWidth?: number
   } => {
     switch (variant) {
-      case 'default':
+      case "default":
         return {
           backgroundColor: disabled
             ? colors.primaryDisabled
@@ -84,8 +86,8 @@ export const Button: React.FC<ButtonProps> = ({
               ? colors.primaryActive
               : colors.primary,
           color: colors.primaryForeground,
-        };
-      case 'destructive':
+        }
+      case "destructive":
         return {
           backgroundColor: disabled
             ? colors.destructiveDisabled
@@ -93,19 +95,19 @@ export const Button: React.FC<ButtonProps> = ({
               ? colors.destructiveActive
               : colors.destructive,
           color: colors.destructiveForeground,
-        };
-      case 'outline':
+        }
+      case "outline":
         return {
           backgroundColor: isPressed
-            ? theme === 'light'
-              ? 'rgba(0, 0, 0, 0.03)'
-              : 'rgba(255, 255, 255, 0.05)'
-            : 'transparent',
+            ? theme === "light"
+              ? "rgba(0, 0, 0, 0.03)"
+              : "rgba(255, 255, 255, 0.05)"
+            : "transparent",
           color: disabled ? colors.mutedForeground : colors.primary,
           borderColor: isPressed ? colors.primary : colors.border,
           borderWidth: 1,
-        };
-      case 'secondary':
+        }
+      case "secondary":
         return {
           backgroundColor: disabled
             ? colors.secondaryDisabled
@@ -113,113 +115,113 @@ export const Button: React.FC<ButtonProps> = ({
               ? colors.secondaryActive
               : colors.secondary,
           color: colors.secondaryForeground,
-        };
-      case 'ghost':
+        }
+      case "ghost":
         return {
           backgroundColor: isPressed
-            ? theme === 'light'
-              ? 'rgba(0, 0, 0, 0.03)'
-              : 'rgba(255, 255, 255, 0.05)'
-            : 'transparent',
+            ? theme === "light"
+              ? "rgba(0, 0, 0, 0.03)"
+              : "rgba(255, 255, 255, 0.05)"
+            : "transparent",
           color: disabled ? colors.mutedForeground : colors.primary,
-        };
-      case 'link':
+        }
+      case "link":
         return {
-          backgroundColor: 'transparent',
+          backgroundColor: "transparent",
           color: disabled ? colors.mutedForeground : colors.primary,
-        };
+        }
       default:
         return {
           backgroundColor: colors.primary,
           color: colors.primaryForeground,
-        };
+        }
     }
-  };
+  }
 
   const getSizeStyles = (): {
-    paddingHorizontal: number;
-    paddingVertical: number;
-    fontSize: number;
-    height?: number;
-    width?: number;
+    paddingHorizontal: number
+    paddingVertical: number
+    fontSize: number
+    height?: number
+    width?: number
   } => {
     switch (size) {
-      case 'sm':
+      case "sm":
         return {
           paddingHorizontal: 14,
           paddingVertical: 0,
           fontSize: 13,
           height: 36,
-        };
-      case 'lg':
+        }
+      case "lg":
         return {
           paddingHorizontal: 28,
           paddingVertical: 0,
           fontSize: 16,
           height: 54,
-        };
-      case 'icon':
+        }
+      case "icon":
         return {
           paddingHorizontal: 0,
           paddingVertical: 0,
           fontSize: 14,
           height: 44,
           width: 44,
-        };
-      case 'default':
+        }
+      case "default":
       default:
         return {
           paddingHorizontal: 20,
           paddingVertical: 0,
           fontSize: 15,
           height: 46,
-        };
+        }
     }
-  };
+  }
 
-  const sizeStyles = getSizeStyles();
+  const sizeStyles = getSizeStyles()
 
   const getRippleColor = () => {
-    if (variant === 'outline' || variant === 'ghost' || variant === 'link') {
+    if (variant === "outline" || variant === "ghost" || variant === "link") {
       return Platform.select({
-        android: theme === 'light' ? '#00000010' : '#FFFFFF10',
-        default: 'transparent',
-      });
+        android: theme === "light" ? "#00000010" : "#FFFFFF10",
+        default: "transparent",
+      })
     }
     return Platform.select({
-      android: theme === 'light' ? '#00000010' : '#FFFFFF20',
-      default: 'transparent',
-    });
-  };
+      android: theme === "light" ? "#00000010" : "#FFFFFF20",
+      default: "transparent",
+    })
+  }
 
   const renderContent = (isPressed: boolean) => {
-    const variantStyles = getVariantStyles(isPressed);
-    const content = title || children;
+    const variantStyles = getVariantStyles(isPressed)
+    const content = title || children
 
-    if (size === 'icon' && icon) {
+    if (size === "icon" && icon) {
       return (
         <View style={styles.iconOnly}>
-          {isLoading ? <ActivityIndicator size='small' color={variantStyles.color} /> : icon}
+          {isLoading ? <ActivityIndicator size="small" color={variantStyles.color} /> : icon}
         </View>
-      );
+      )
     }
 
     return (
       <View style={[styles.contentContainer, { height: sizeStyles.height }]}>
         {isLoading ? (
-          <ActivityIndicator size='small' color={variantStyles.color} style={styles.loader} />
+          <ActivityIndicator size="small" color={variantStyles.color} style={styles.loader} />
         ) : (
           <>
-            {icon && iconPosition === 'left' && <View style={styles.leftIcon}>{icon}</View>}
+            {icon && iconPosition === "left" && <View style={styles.leftIcon}>{icon}</View>}
 
-            {content && typeof content === 'string' ? (
+            {content && typeof content === "string" ? (
               <Text
                 style={[
                   styles.text,
                   {
                     color: variantStyles.color,
                     fontSize: sizeStyles.fontSize,
-                    textDecorationLine: variant === 'link' ? 'underline' : 'none',
+                    textDecorationLine: variant === "link" ? "underline" : "none",
                   },
                   textStyle,
                 ]}
@@ -231,22 +233,22 @@ export const Button: React.FC<ButtonProps> = ({
               content
             )}
 
-            {icon && iconPosition === 'right' && <View style={styles.rightIcon}>{icon}</View>}
+            {icon && iconPosition === "right" && <View style={styles.rightIcon}>{icon}</View>}
           </>
         )}
       </View>
-    );
-  };
+    )
+  }
 
   const commonProps = {
     disabled: disabled || isLoading,
-    accessibilityRole: 'button' as 'button',
+    accessibilityRole: "button" as "button",
     accessibilityState: { disabled: disabled || isLoading },
     ...props,
-  };
+  }
 
   const androidProps =
-    Platform.OS === 'android'
+    Platform.OS === "android"
       ? {
           android_ripple: {
             color: getRippleColor(),
@@ -254,9 +256,9 @@ export const Button: React.FC<ButtonProps> = ({
             foreground: true,
           },
         }
-      : {};
+      : {}
 
-  const variantStyles = getVariantStyles(isPressed);
+  const variantStyles = getVariantStyles(isPressed)
   const buttonStyle = [
     styles.button,
     {
@@ -271,43 +273,43 @@ export const Button: React.FC<ButtonProps> = ({
       transform: [{ scale }] as any,
     },
     style,
-  ];
+  ]
 
   return (
     <AnimatedPressable
       {...commonProps}
       {...androidProps}
       onPressIn={(e) => {
-        handlePressIn();
-        props.onPressIn && props.onPressIn(e);
+        handlePressIn()
+        props.onPressIn && props.onPressIn(e)
       }}
       onPressOut={(e) => {
-        handlePressOut();
-        props.onPressOut && props.onPressOut(e);
+        handlePressOut()
+        props.onPressOut && props.onPressOut(e)
       }}
       style={buttonStyle}
     >
       {renderContent(isPressed)}
     </AnimatedPressable>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   button: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
     minWidth: 32,
   },
   contentContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   text: {
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
   },
   leftIcon: {
     marginRight: 8,
@@ -316,14 +318,14 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   loader: {
-    alignSelf: 'center',
+    alignSelf: "center",
   },
   iconOnly: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    height: '100%',
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+    height: "100%",
   },
-});
+})
 
-export default Button;
+export default Button

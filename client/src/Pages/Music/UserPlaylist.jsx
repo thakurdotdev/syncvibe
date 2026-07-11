@@ -51,9 +51,7 @@ const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>
-            {initialData?.id ? "Edit Playlist" : "Create Playlist"}
-          </DialogTitle>
+          <DialogTitle>{initialData?.id ? "Edit Playlist" : "Create Playlist"}</DialogTitle>
           <DialogDescription>
             {initialData?.id
               ? "Update your playlist details below."

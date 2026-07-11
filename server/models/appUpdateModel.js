@@ -44,7 +44,7 @@ AppUpdate.init(
     modelName: "AppUpdate",
     tableName: "app_updates",
     timestamps: true,
-  }
+  },
 )
 
 module.exports = AppUpdate

@@ -44,7 +44,7 @@ const uploadToR2WithRetry = async (tempFilePath, fileKey, attempt = 1) => {
     if (attempt < MAX_UPLOAD_ATTEMPTS) {
       const backoffMs = attempt * 2000
       console.warn(
-        `R2 upload attempt ${attempt} failed (${error.message}), retrying in ${backoffMs}ms...`
+        `R2 upload attempt ${attempt} failed (${error.message}), retrying in ${backoffMs}ms...`,
       )
       await new Promise((resolve) => setTimeout(resolve, backoffMs))
       return uploadToR2WithRetry(tempFilePath, fileKey, attempt + 1)
@@ -72,10 +72,7 @@ const processUpdateInBackground = async (version, artifacts, metadata, releaseNo
     const fileStream = fs.createWriteStream(tempFilePath)
 
     await new Promise((resolve, reject) => {
-      Readable.fromWeb(response.body)
-        .pipe(fileStream)
-        .on("finish", resolve)
-        .on("error", reject)
+      Readable.fromWeb(response.body).pipe(fileStream).on("finish", resolve).on("error", reject)
     })
 
     console.log(`Downloaded app update v${version} to temp file: ${tempFilePath}`)
@@ -148,7 +145,9 @@ exports.handleEasWebhook = async (req, res) => {
 
       const isQueued = await cache.get(`pending-update:${version}`)
       if (isQueued) {
-        return res.status(202).json({ success: true, message: "Update processing already in progress" })
+        return res
+          .status(202)
+          .json({ success: true, message: "Update processing already in progress" })
       }
 
       await cache.set(`pending-update:${version}`, { artifacts, metadata, releaseNotes }, 86400)

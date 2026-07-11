@@ -1,14 +1,14 @@
-import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { Card, CardContent, CardTitle } from '@/components/ui/card';
-import { useTheme } from '@/context/ThemeContext';
+import React from "react"
+import { Text, TouchableOpacity, View } from "react-native"
+import { Feather } from "@expo/vector-icons"
+import { Card, CardContent, CardTitle } from "@/components/ui/card"
+import { useTheme } from "@/context/ThemeContext"
 
 interface GroupInfoCardProps {
-  groupName: string;
-  groupId: string;
-  onCopyId: () => void;
-  onShowQRCode: () => void;
+  groupName: string
+  groupId: string
+  onCopyId: () => void
+  onShowQRCode: () => void
 }
 
 export const GroupInfoCard: React.FC<GroupInfoCardProps> = ({
@@ -17,18 +17,18 @@ export const GroupInfoCard: React.FC<GroupInfoCardProps> = ({
   onCopyId,
   onShowQRCode,
 }) => {
-  const { colors } = useTheme();
+  const { colors } = useTheme()
 
   return (
-    <Card variant='outline' className='m-4'>
-      <CardContent className='flex-row justify-between items-center'>
+    <Card variant="outline" className="m-4">
+      <CardContent className="flex-row justify-between items-center">
         <CardTitle>{groupName}</CardTitle>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flexDirection: "row", gap: 8 }}>
           <TouchableOpacity
             onPress={onCopyId}
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
+              flexDirection: "row",
+              alignItems: "center",
               backgroundColor: colors.secondary,
               paddingHorizontal: 12,
               paddingVertical: 8,
@@ -45,20 +45,20 @@ export const GroupInfoCard: React.FC<GroupInfoCardProps> = ({
             >
               ID: {groupId.substring(0, 8)}...
             </Text>
-            <Feather name='copy' size={14} color={colors.mutedForeground} />
+            <Feather name="copy" size={14} color={colors.mutedForeground} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={onShowQRCode}
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
+              flexDirection: "row",
+              alignItems: "center",
               backgroundColor: colors.secondary,
               paddingHorizontal: 12,
               paddingVertical: 8,
               borderRadius: 12,
             }}
           >
-            <Feather name='grid' size={14} color={colors.mutedForeground} />
+            <Feather name="grid" size={14} color={colors.mutedForeground} />
             <Text
               style={{
                 color: colors.mutedForeground,
@@ -73,5 +73,5 @@ export const GroupInfoCard: React.FC<GroupInfoCardProps> = ({
         </View>
       </CardContent>
     </Card>
-  );
-};
+  )
+}

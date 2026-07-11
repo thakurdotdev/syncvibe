@@ -20,7 +20,8 @@ import { AnimatePresence, motion } from "framer-motion"
 import UpgradeDialog from "@/components/UpgradeDialog"
 import ReactDOM from "react-dom"
 
-const EMOJI_ONLY_REGEX = /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\s*(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)){0,2}$/u
+const EMOJI_ONLY_REGEX =
+  /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\s*(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)){0,2}$/u
 
 const isEmojiOnly = (text) => {
   if (!text || text.length > 20) return false
@@ -30,12 +31,42 @@ const isEmojiOnly = (text) => {
 const isGifMessage = (msg) => msg.messageType === "gif" && msg.gifUrl
 
 const ACTIVITY_MAP = {
-  "now playing": { Icon: Play, color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-500/15" },
-  "queue": { Icon: ListMusic, color: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-500/15" },
-  "skipped": { Icon: SkipForward, color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-500/15" },
-  "joined": { Icon: UserPlus, color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-500/15" },
-  "left": { Icon: UserMinus, color: "text-rose-400", bg: "bg-rose-400/10", border: "border-rose-500/15" },
-  "queue ended": { Icon: Music, color: "text-purple-400", bg: "bg-purple-400/10", border: "border-purple-500/15" },
+  "now playing": {
+    Icon: Play,
+    color: "text-emerald-400",
+    bg: "bg-emerald-400/10",
+    border: "border-emerald-500/15",
+  },
+  queue: {
+    Icon: ListMusic,
+    color: "text-blue-400",
+    bg: "bg-blue-400/10",
+    border: "border-blue-500/15",
+  },
+  skipped: {
+    Icon: SkipForward,
+    color: "text-amber-400",
+    bg: "bg-amber-400/10",
+    border: "border-amber-500/15",
+  },
+  joined: {
+    Icon: UserPlus,
+    color: "text-emerald-400",
+    bg: "bg-emerald-400/10",
+    border: "border-emerald-500/15",
+  },
+  left: {
+    Icon: UserMinus,
+    color: "text-rose-400",
+    bg: "bg-rose-400/10",
+    border: "border-rose-500/15",
+  },
+  "queue ended": {
+    Icon: Music,
+    color: "text-purple-400",
+    bg: "bg-purple-400/10",
+    border: "border-purple-500/15",
+  },
 }
 
 const getActivityMeta = (message) => {
@@ -43,7 +74,12 @@ const getActivityMeta = (message) => {
   for (const [keyword, meta] of Object.entries(ACTIVITY_MAP)) {
     if (lower.includes(keyword)) return meta
   }
-  return { Icon: MessageCircle, color: "text-muted-foreground/50", bg: "bg-muted/20", border: "border-border/10" }
+  return {
+    Icon: MessageCircle,
+    color: "text-muted-foreground/50",
+    bg: "bg-muted/20",
+    border: "border-border/10",
+  }
 }
 
 const ActivityMessage = memo(({ msg }) => {
@@ -56,7 +92,8 @@ const ActivityMessage = memo(({ msg }) => {
         className={cn(
           "inline-flex items-center gap-1.5 text-[10.5px] px-3 py-1 rounded-full",
           "border backdrop-blur-sm",
-          meta.bg, meta.border,
+          meta.bg,
+          meta.border,
         )}
       >
         <IconComponent className={cn("h-3 w-3 shrink-0", meta.color)} />
@@ -191,11 +228,18 @@ const MessagesList = memo(({ messages, currentUserId, prevCountRef }) => {
         }
         const isOwn = msg.senderId === currentUserId
         const prev = messages[i - 1]
-        const showAvatar = !isOwn && (!prev || prev.type === "activity" || prev.senderId !== msg.senderId)
+        const showAvatar =
+          !isOwn && (!prev || prev.type === "activity" || prev.senderId !== msg.senderId)
         const isNew = i >= prevCount
 
         return (
-          <ChatMessage key={msg.id || i} msg={msg} isOwn={isOwn} showAvatar={showAvatar} isNew={isNew} />
+          <ChatMessage
+            key={msg.id || i}
+            msg={msg}
+            isOwn={isOwn}
+            showAvatar={showAvatar}
+            isNew={isNew}
+          />
         )
       })}
     </div>
@@ -220,21 +264,30 @@ const GifPreviewCard = memo(({ still, animated, title, onSelect }) => {
       className="relative w-full rounded-lg overflow-hidden cursor-pointer border-0 p-0 bg-transparent block aspect-[4/3]"
     >
       <img
-        src={hovered ? animated : (still || animated)}
+        src={hovered ? animated : still || animated}
         alt={title || "GIF"}
         loading="lazy"
         className="w-full h-full object-cover rounded-lg block"
         style={{ background: "hsl(var(--muted) / 0.2)" }}
       />
       {!hovered && (
-        <div className="absolute inset-0 flex items-center justify-center rounded-lg" style={{ background: "rgba(0,0,0,0.3)" }}>
-          <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}>
+        <div
+          className="absolute inset-0 flex items-center justify-center rounded-lg"
+          style={{ background: "rgba(0,0,0,0.3)" }}
+        >
+          <div
+            className="h-8 w-8 rounded-full flex items-center justify-center"
+            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+          >
             <Play className="h-3.5 w-3.5 text-white ml-0.5" fill="white" />
           </div>
         </div>
       )}
       {hovered && (
-        <div className="absolute inset-0 rounded-lg" style={{ boxShadow: "inset 0 0 0 2px hsl(var(--primary) / 0.5)" }} />
+        <div
+          className="absolute inset-0 rounded-lg"
+          style={{ boxShadow: "inset 0 0 0 2px hsl(var(--primary) / 0.5)" }}
+        />
       )}
     </button>
   )
@@ -265,7 +318,7 @@ const GifPicker = memo(({ anchorRef, toggleRef, onSelect, onClose }) => {
     fetch(`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=30&rating=g`)
       .then((r) => r.json())
       .then((d) => setTrending(d.data || []))
-      .catch(() => { })
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
@@ -284,7 +337,9 @@ const GifPicker = memo(({ anchorRef, toggleRef, onSelect, onClose }) => {
   }, [onClose, toggleRef])
 
   useEffect(() => {
-    const handleEsc = (e) => { if (e.key === "Escape") onClose() }
+    const handleEsc = (e) => {
+      if (e.key === "Escape") onClose()
+    }
     document.addEventListener("keydown", handleEsc)
     return () => document.removeEventListener("keydown", handleEsc)
   }, [onClose])
@@ -301,17 +356,19 @@ const GifPicker = memo(({ anchorRef, toggleRef, onSelect, onClose }) => {
     searchTimeout.current = setTimeout(async () => {
       try {
         const res = await fetch(
-          `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(value)}&limit=30&rating=g`
+          `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(value)}&limit=30&rating=g`,
         )
         const data = await res.json()
         setGifs(data.data || [])
-      } catch { }
+      } catch {}
       setLoading(false)
     }, 350)
   }, [])
 
   useEffect(() => {
-    return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current) }
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current)
+    }
   }, [])
 
   const displayGifs = query.trim() ? gifs : trending
@@ -353,7 +410,10 @@ const GifPicker = memo(({ anchorRef, toggleRef, onSelect, onClose }) => {
           />
           {query ? (
             <button
-              onClick={() => { setQuery(""); setGifs([]) }}
+              onClick={() => {
+                setQuery("")
+                setGifs([])
+              }}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 h-5 w-5 rounded flex items-center justify-center cursor-pointer border-0 bg-transparent text-muted-foreground/50 hover:text-foreground transition-colors"
             >
               <X className="h-3.5 w-3.5" />
@@ -406,7 +466,9 @@ const GifPicker = memo(({ anchorRef, toggleRef, onSelect, onClose }) => {
       </div>
 
       <div className="shrink-0 flex items-center justify-center py-1.5 border-t border-border/10">
-        <span className="text-[9px] text-muted-foreground/25 tracking-wider uppercase">Powered by GIPHY</span>
+        <span className="text-[9px] text-muted-foreground/25 tracking-wider uppercase">
+          Powered by GIPHY
+        </span>
       </div>
     </motion.div>,
     document.body,
@@ -484,7 +546,9 @@ const GroupChat = ({
   )
 
   useEffect(() => {
-    return () => { if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current) }
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    }
   }, [])
 
   const typingNames = Object.values(typingUsers).filter(Boolean)
@@ -550,7 +614,9 @@ const GroupChat = ({
             className={cn(
               "shrink-0 h-9 w-9 rounded-full flex items-center justify-center cursor-pointer border-0 transition-colors duration-200",
               "hover:bg-accent/50 disabled:opacity-30 disabled:pointer-events-none",
-              showGifPicker ? "bg-accent text-foreground" : "text-muted-foreground/50 bg-transparent",
+              showGifPicker
+                ? "bg-accent text-foreground"
+                : "text-muted-foreground/50 bg-transparent",
             )}
           >
             <ImageIcon className="h-4 w-4" />

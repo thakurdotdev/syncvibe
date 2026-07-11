@@ -1,24 +1,24 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { QueryClient } from '@tanstack/react-query';
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import * as Notifications from 'expo-notifications';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import TrackPlayer from '@rntp/player';
-import ErrorBoundary from '@/components/ErrorBoundary';
-import Player from '@/components/music/Player';
-import PlayerInitializer from '@/components/music/PlayerInitializer';
-import { GroupMusicProvider } from '@/context/GroupMusicContext';
-import { NotificationProvider } from '@/context/NotificationContext';
-import { ChatProvider } from '@/context/SocketContext';
-import { ThemeProvider, useTheme } from '@/context/ThemeContext';
-import { ToastProvider } from '@/context/ToastContext';
-import { UserProvider } from '@/context/UserContext';
-import { AppUpdateProvider } from '@/context/AppUpdateContext';
-import '../global.css';
-import { NotificationBehavior } from 'expo-notifications';
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister"
+import { QueryClient } from "@tanstack/react-query"
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client"
+import * as Notifications from "expo-notifications"
+import { Stack } from "expo-router"
+import { StatusBar } from "react-native"
+import { GestureHandlerRootView } from "react-native-gesture-handler"
+import TrackPlayer from "@rntp/player"
+import ErrorBoundary from "@/components/ErrorBoundary"
+import Player from "@/components/music/Player"
+import PlayerInitializer from "@/components/music/PlayerInitializer"
+import { GroupMusicProvider } from "@/context/GroupMusicContext"
+import { NotificationProvider } from "@/context/NotificationContext"
+import { ChatProvider } from "@/context/SocketContext"
+import { ThemeProvider, useTheme } from "@/context/ThemeContext"
+import { ToastProvider } from "@/context/ToastContext"
+import { UserProvider } from "@/context/UserContext"
+import { AppUpdateProvider } from "@/context/AppUpdateContext"
+import "../global.css"
+import { NotificationBehavior } from "expo-notifications"
 
 Notifications.setNotificationHandler({
   handleNotification: async (): Promise<NotificationBehavior> => ({
@@ -28,12 +28,12 @@ Notifications.setNotificationHandler({
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
-});
+})
 
 TrackPlayer.registerBackgroundEventHandler(() => async (event) => {
-  const { handleBackgroundPlaybackEvent } = await import('../service');
-  await handleBackgroundPlaybackEvent(event);
-});
+  const { handleBackgroundPlaybackEvent } = await import("../service")
+  await handleBackgroundPlaybackEvent(event)
+})
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,11 +45,11 @@ const queryClient = new QueryClient({
       staleTime: Infinity,
     },
   },
-});
+})
 
 const asyncStoragePersister = createAsyncStoragePersister({
   storage: AsyncStorage,
-});
+})
 
 function RootLayout() {
   return (
@@ -78,29 +78,29 @@ function RootLayout() {
         </ToastProvider>
       </ThemeProvider>
     </ErrorBoundary>
-  );
+  )
 }
 
 function RootLayoutNav() {
-  const { colors, theme } = useTheme();
+  const { colors, theme } = useTheme()
 
   return (
     <>
       <StatusBar
-        barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+        barStyle={theme === "dark" ? "light-content" : "dark-content"}
         backgroundColor={colors.background}
-        showHideTransition='none'
+        showHideTransition="none"
       />
       <Stack
         screenOptions={{
-          animation: 'none',
-          presentation: 'card',
+          animation: "none",
+          presentation: "card",
           headerStyle: {
             backgroundColor: colors.background,
           },
           headerTintColor: colors.text,
           headerTitleStyle: {
-            fontWeight: '600',
+            fontWeight: "600",
             fontSize: 18,
           },
           headerShadowVisible: false,
@@ -108,117 +108,117 @@ function RootLayoutNav() {
         }}
       >
         <Stack.Screen
-          name='index'
+          name="index"
           options={{
             headerShown: false,
           }}
         />
         <Stack.Screen
-          name='login'
+          name="login"
           options={{
             navigationBarColor: colors.background,
-            title: 'Login',
-            presentation: 'modal',
+            title: "Login",
+            presentation: "modal",
             headerShown: false,
             gestureEnabled: false,
           }}
         />
         <Stack.Screen
-          name='(tabs)'
+          name="(tabs)"
           options={{
             headerShown: false,
             gestureEnabled: false,
           }}
         />
         <Stack.Screen
-          name='playlists'
+          name="playlists"
           options={{
             navigationBarColor: colors.background,
-            title: 'Playlist',
+            title: "Playlist",
           }}
         />
         <Stack.Screen
-          name='search'
+          name="search"
           options={{
             headerShown: false,
           }}
         />
         <Stack.Screen
-          name='albums'
+          name="albums"
           options={{
             navigationBarColor: colors.background,
-            title: 'Album',
+            title: "Album",
           }}
         />
         <Stack.Screen
-          name='artist'
+          name="artist"
           options={{
             navigationBarColor: colors.background,
-            title: 'Artist',
+            title: "Artist",
           }}
         />
         <Stack.Screen
-          name='user-playlist'
+          name="user-playlist"
           options={{
             navigationBarColor: colors.background,
-            title: 'User Playlist',
+            title: "User Playlist",
           }}
         />
         <Stack.Screen
-          name='message'
+          name="message"
           options={{
             headerShown: false,
-            title: 'Message',
+            title: "Message",
           }}
         />
         <Stack.Screen
-          name='music-language'
+          name="music-language"
           options={{
-            title: 'Update Language Preferences',
+            title: "Update Language Preferences",
           }}
         />
         <Stack.Screen
-          name='song-history'
-          options={{
-            headerShown: false,
-            title: 'Your Listening History',
-          }}
-        />
-        <Stack.Screen
-          name='qr-scanner'
+          name="song-history"
           options={{
             headerShown: false,
-            title: 'QR Scanner',
+            title: "Your Listening History",
           }}
         />
         <Stack.Screen
-          name='oauthredirect'
+          name="qr-scanner"
           options={{
             headerShown: false,
+            title: "QR Scanner",
           }}
         />
         <Stack.Screen
-          name='[...unmatched]'
+          name="oauthredirect"
           options={{
             headerShown: false,
           }}
         />
         <Stack.Screen
-          name='edit-profile'
+          name="[...unmatched]"
           options={{
-            title: 'Edit Profile',
+            headerShown: false,
           }}
         />
         <Stack.Screen
-          name='update-profile-picture'
+          name="edit-profile"
           options={{
-            title: 'Profile Picture',
+            title: "Edit Profile",
+          }}
+        />
+        <Stack.Screen
+          name="update-profile-picture"
+          options={{
+            title: "Profile Picture",
           }}
         />
       </Stack>
       <Player />
     </>
-  );
+  )
 }
 
-export default RootLayout;
+export default RootLayout

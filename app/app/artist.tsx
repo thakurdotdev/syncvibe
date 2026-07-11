@@ -1,112 +1,105 @@
-import { SongCard } from '@/components/music/MusicCards';
-import Button from '@/components/ui/button';
-import { SONG_URL } from '@/constants';
-import { usePlayerControls } from '@/stores/playerStore';
-import { useTheme } from '@/context/ThemeContext';
-import { Song } from '@/types/song';
-import { convertToHttps, ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
-import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams } from 'expo-router';
-import { Music2Icon } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { SongCard } from "@/components/music/MusicCards"
+import Button from "@/components/ui/button"
+import { SONG_URL } from "@/constants"
+import { usePlayerControls } from "@/stores/playerStore"
+import { useTheme } from "@/context/ThemeContext"
+import { Song } from "@/types/song"
+import { convertToHttps, ensureHttpsForSongUrls } from "@/utils/getHttpsUrls"
+import { Ionicons } from "@expo/vector-icons"
+import axios from "axios"
+import { BlurView } from "expo-blur"
+import { LinearGradient } from "expo-linear-gradient"
+import { useLocalSearchParams } from "expo-router"
+import { Music2Icon } from "lucide-react-native"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { ActivityIndicator, Image, StyleSheet, Text, useWindowDimensions, View } from "react-native"
 import Animated, {
   Extrapolation,
   interpolate,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-} from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native-reanimated"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 interface ImageData {
-  link: string;
+  link: string
 }
 
 interface Artist {
-  id: string;
-  name: string;
-  image: Image[];
+  id: string
+  name: string
+  image: Image[]
 }
 
 interface ArtistData {
-  id: string;
-  name: string;
-  header_desc: string;
-  image: string | ImageData[];
-  list_count: number;
-  follower_count: number;
-  top_songs: Song[];
-  top_albums: any[];
-  dedicated_artist_playlist: any[];
-  similar_artists: Artist[];
+  id: string
+  name: string
+  header_desc: string
+  image: string | ImageData[]
+  list_count: number
+  follower_count: number
+  top_songs: Song[]
+  top_albums: any[]
+  dedicated_artist_playlist: any[]
+  similar_artists: Artist[]
 }
 
 export default function ArtistScreen() {
-  const { colors, theme } = useTheme();
-  const { id } = useLocalSearchParams();
-  const [artistData, setArtistData] = useState<ArtistData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const { width } = useWindowDimensions();
-  const { addToPlaylist, playSong } = usePlayerControls();
+  const { colors, theme } = useTheme()
+  const { id } = useLocalSearchParams()
+  const [artistData, setArtistData] = useState<ArtistData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const { width } = useWindowDimensions()
+  const { addToPlaylist, playSong } = usePlayerControls()
 
-  const scrollY = useSharedValue(0);
+  const scrollY = useSharedValue(0)
 
   const fetchArtistData = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await axios.get(`${SONG_URL}/artist?id=${id}`);
-      const data = response.data;
-      setArtistData(data.data);
+      setLoading(true)
+      const response = await axios.get(`${SONG_URL}/artist?id=${id}`)
+      const data = response.data
+      setArtistData(data.data)
     } catch (error) {
-      console.error('Error fetching artist data:', error);
+      console.error("Error fetching artist data:", error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [id]);
+  }, [id])
 
   useEffect(() => {
     if (id) {
-      fetchArtistData();
+      fetchArtistData()
     }
-  }, [id, fetchArtistData]);
+  }, [id, fetchArtistData])
 
   const formatCount = useCallback((count: any) => {
-    if (count === undefined || count === null) return 'N/A';
-    if (count >= 1000000000) return (count / 1000000000).toFixed(1) + 'B';
-    if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
-    if (count >= 1000) return (count / 1000).toFixed(1) + 'K';
-    return count.toString();
-  }, []);
+    if (count === undefined || count === null) return "N/A"
+    if (count >= 1000000000) return (count / 1000000000).toFixed(1) + "B"
+    if (count >= 1000000) return (count / 1000000).toFixed(1) + "M"
+    if (count >= 1000) return (count / 1000).toFixed(1) + "K"
+    return count.toString()
+  }, [])
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
+      scrollY.value = event.contentOffset.y
     },
-  });
+  })
 
-  const headerHeight = useMemo(() => Math.min(width * 0.8, 250), [width]);
-  const imageSize = useMemo(() => Math.min(width * 0.4, 200), [width]);
+  const headerHeight = useMemo(() => Math.min(width * 0.8, 250), [width])
+  const imageSize = useMemo(() => Math.min(width * 0.4, 200), [width])
 
   const headerAnimatedStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       scrollY.value,
       [0, headerHeight * 0.5, headerHeight],
       [1, 0.8, 0],
-      Extrapolation.CLAMP
-    );
+      Extrapolation.CLAMP,
+    )
 
-    const scale = interpolate(scrollY.value, [0, headerHeight], [1, 0.85], Extrapolation.CLAMP);
+    const scale = interpolate(scrollY.value, [0, headerHeight], [1, 0.85], Extrapolation.CLAMP)
 
     return {
       opacity,
@@ -116,8 +109,8 @@ export default function ArtistScreen() {
           translateY: interpolate(scrollY.value, [0, headerHeight], [0, -50], Extrapolation.CLAMP),
         },
       ],
-    };
-  });
+    }
+  })
 
   const imageAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -126,15 +119,15 @@ export default function ArtistScreen() {
           scale: interpolate(scrollY.value, [0, headerHeight], [1, 0.9], Extrapolation.CLAMP),
         },
       ],
-    };
-  });
+    }
+  })
 
-  const bgUrl = Array.isArray(artistData?.image) ? artistData?.image[2]?.link : artistData?.image;
+  const bgUrl = Array.isArray(artistData?.image) ? artistData?.image[2]?.link : artistData?.image
 
   const newSongs = useMemo(() => {
-    if (!artistData?.top_songs) return [];
-    return artistData?.top_songs?.map(ensureHttpsForSongUrls) || [];
-  }, [artistData?.top_songs]);
+    if (!artistData?.top_songs) return []
+    return artistData?.top_songs?.map(ensureHttpsForSongUrls) || []
+  }, [artistData?.top_songs])
 
   const handlePlayAll = () => {
     if (newSongs?.length) {
@@ -142,11 +135,11 @@ export default function ArtistScreen() {
         ...song,
         isPlaylist: true,
         playlistId: artistData?.id,
-      }));
-      addToPlaylist(songsWithPlaylistInfo);
-      playSong(songsWithPlaylistInfo[0]);
+      }))
+      addToPlaylist(songsWithPlaylistInfo)
+      playSong(songsWithPlaylistInfo[0])
     }
-  };
+  }
 
   const handleShuffle = () => {
     if (newSongs?.length) {
@@ -156,26 +149,26 @@ export default function ArtistScreen() {
           ...song,
           isPlaylist: true,
           playlistId: artistData?.id,
-        }));
-      addToPlaylist(shuffledSongs);
-      playSong(shuffledSongs[0]);
+        }))
+      addToPlaylist(shuffledSongs)
+      playSong(shuffledSongs[0])
     }
-  };
+  }
 
   // Get gradient colors based on theme
   const getGradientColors = useMemo(() => {
-    return theme === 'dark'
+    return theme === "dark"
       ? colors.gradients.background
-      : ['rgba(30, 30, 30, 0.9)', 'rgba(18, 18, 18, 0.95)'];
-  }, [theme, colors]);
+      : ["rgba(30, 30, 30, 0.9)", "rgba(18, 18, 18, 0.95)"]
+  }, [theme, colors])
 
   if (loading) {
     return (
       <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size='large' color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.loadingText, { color: colors.text }]}>Loading artist...</Text>
       </SafeAreaView>
-    );
+    )
   }
 
   if (!artistData) {
@@ -183,9 +176,9 @@ export default function ArtistScreen() {
       <SafeAreaView style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
         <Music2Icon size={100} color={colors.primary} />
         <Text style={[styles.emptyText, { color: colors.text }]}>No artist data available</Text>
-        <Button variant='default' title='Retry' onPress={fetchArtistData} />
+        <Button variant="default" title="Retry" onPress={fetchArtistData} />
       </SafeAreaView>
-    );
+    )
   }
 
   return (
@@ -216,7 +209,7 @@ export default function ArtistScreen() {
                 />
                 <BlurView
                   intensity={80}
-                  tint={theme === 'dark' ? 'dark' : 'light'}
+                  tint={theme === "dark" ? "dark" : "light"}
                   style={styles.blurOverlay}
                 >
                   <View style={styles.headerContent}>
@@ -231,7 +224,7 @@ export default function ArtistScreen() {
                             borderRadius: imageSize / 2,
                           },
                         ]}
-                        resizeMode='cover'
+                        resizeMode="cover"
                       />
                     </Animated.View>
                     <View style={styles.infoContainer}>
@@ -263,20 +256,20 @@ export default function ArtistScreen() {
               <Button
                 onPress={handlePlayAll}
                 disabled={!artistData?.top_songs?.length}
-                title='Play All'
-                icon={<Ionicons name='play' size={22} color={colors.primaryForeground} />}
-                iconPosition='left'
-                variant='default'
-                size='default'
+                title="Play All"
+                icon={<Ionicons name="play" size={22} color={colors.primaryForeground} />}
+                iconPosition="left"
+                variant="default"
+                size="default"
               />
               <Button
                 onPress={handleShuffle}
                 disabled={!artistData?.top_songs?.length}
-                title='Shuffle'
-                icon={<Ionicons name='shuffle' size={22} color={colors.text} />}
-                iconPosition='left'
-                variant='outline'
-                size='default'
+                title="Shuffle"
+                icon={<Ionicons name="shuffle" size={22} color={colors.text} />}
+                iconPosition="left"
+                variant="outline"
+                size="default"
               />
             </View>
 
@@ -288,7 +281,7 @@ export default function ArtistScreen() {
         }
       />
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -297,8 +290,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   loadingText: {
     marginTop: 16,
@@ -306,8 +299,8 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: 20,
   },
   emptyText: {
@@ -316,37 +309,37 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   headerContainer: {
-    width: '100%',
-    position: 'relative',
-    overflow: 'hidden',
+    width: "100%",
+    position: "relative",
+    overflow: "hidden",
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
   headerGradient: {
-    width: '100%',
-    position: 'relative',
-    overflow: 'hidden',
+    width: "100%",
+    position: "relative",
+    overflow: "hidden",
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
   backgroundImage: {
-    position: 'absolute',
-    width: '100%',
+    position: "absolute",
+    width: "100%",
     opacity: 0.6,
   },
   blurOverlay: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'flex-end',
+    width: "100%",
+    height: "100%",
+    justifyContent: "flex-end",
     padding: 20,
   },
   headerContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    flexDirection: "row",
+    alignItems: "flex-end",
     gap: 16,
   },
   artistImage: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
@@ -354,14 +347,14 @@ const styles = StyleSheet.create({
   },
   infoContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
     paddingBottom: 4,
   },
   artistName: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
@@ -370,7 +363,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   statsContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 16,
     marginTop: 4,
   },
@@ -378,9 +371,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   actionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 24,
     gap: 16,
@@ -391,7 +384,7 @@ const styles = StyleSheet.create({
   },
   songsHeaderText: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   separator: {
     height: 1,
@@ -400,4 +393,4 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 120,
   },
-});
+})

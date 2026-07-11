@@ -1,30 +1,26 @@
-import React from 'react';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
-import SwipeableModal from '@/components/common/SwipeableModal';
-import { useTheme } from '@/context/ThemeContext';
+import React from "react"
+import { Image, Text, TouchableOpacity, View } from "react-native"
+import SwipeableModal from "@/components/common/SwipeableModal"
+import { useTheme } from "@/context/ThemeContext"
 
 interface QRCodeModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  qrCode: string;
+  isOpen: boolean
+  onClose: () => void
+  qrCode: string
 }
 
-export const QRCodeModal: React.FC<QRCodeModalProps> = ({
-  isOpen,
-  onClose,
-  qrCode,
-}) => {
-  const { colors } = useTheme();
+export const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, qrCode }) => {
+  const { colors } = useTheme()
 
   return (
     <SwipeableModal isVisible={isOpen} onClose={onClose}>
-      <View style={{ padding: 24, alignItems: 'center' }}>
+      <View style={{ padding: 24, alignItems: "center" }}>
         <Text
           style={{
             color: colors.foreground,
             fontSize: 20,
-            fontWeight: '700',
-            textAlign: 'center',
+            fontWeight: "700",
+            textAlign: "center",
             marginTop: 8,
             marginBottom: 24,
           }}
@@ -36,7 +32,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
             backgroundColor: colors.card,
             padding: 16,
             borderRadius: 12,
-            shadowColor: '#000',
+            shadowColor: "#000",
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.1,
             shadowRadius: 12,
@@ -48,7 +44,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
               uri: `data:image/png;base64,${qrCode}`,
             }}
             style={{ width: 250, height: 250 }}
-            resizeMode='contain'
+            resizeMode="contain"
           />
         </View>
         <Text
@@ -56,22 +52,19 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
             color: colors.mutedForeground,
             fontSize: 14,
             marginTop: 20,
-            textAlign: 'center',
+            textAlign: "center",
             lineHeight: 20,
           }}
         >
           Share this QR code with others to join your group
         </Text>
-        <TouchableOpacity
-          onPress={onClose}
-          style={{ marginTop: 24, paddingVertical: 12 }}
-        >
+        <TouchableOpacity onPress={onClose} style={{ marginTop: 24, paddingVertical: 12 }}>
           <Text
             style={{
               color: colors.mutedForeground,
-              textAlign: 'center',
+              textAlign: "center",
               fontSize: 15,
-              fontWeight: '500',
+              fontWeight: "500",
             }}
           >
             Close
@@ -79,5 +72,5 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
         </TouchableOpacity>
       </View>
     </SwipeableModal>
-  );
-};
+  )
+}

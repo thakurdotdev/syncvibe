@@ -52,22 +52,25 @@ export const ChatProvider = ({ children }) => {
     })
   }, [])
 
-  const showNotification = useCallback((message) => {
-    if (!("Notification" in window) || Notification.permission !== "granted") return
-    if (document.hasFocus()) return
+  const showNotification = useCallback(
+    (message) => {
+      if (!("Notification" in window) || Notification.permission !== "granted") return
+      if (document.hasFocus()) return
 
-    const notification = new Notification(`${message?.senderName} sent you a message`, {
-      body: message?.content ? message.content : "Sent an attachment",
-      icon: "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/r_max/f_auto/v1780744511/profiles/profiles_130_1780744510_4a18b0ed9043cc21.jpg",
-      tag: `msg-${message?.chatid}`,
-    })
+      const notification = new Notification(`${message?.senderName} sent you a message`, {
+        body: message?.content ? message.content : "Sent an attachment",
+        icon: "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/r_max/f_auto/v1780744511/profiles/profiles_130_1780744510_4a18b0ed9043cc21.jpg",
+        tag: `msg-${message?.chatid}`,
+      })
 
-    notification.onclick = () => {
-      window.focus()
-      navigate("/chat", { state: { chatData: message } })
-      notification.close()
-    }
-  }, [navigate])
+      notification.onclick = () => {
+        window.focus()
+        navigate("/chat", { state: { chatData: message } })
+        notification.close()
+      }
+    },
+    [navigate],
+  )
 
   const handleMessageReceived = useCallback(
     (messageData) => {
@@ -120,9 +123,7 @@ export const ChatProvider = ({ children }) => {
 
       const updateTypingStatus = (status) => {
         setUsers((prevUsers) =>
-          prevUsers.map((u) =>
-            u?.otherUser?.userid === userId ? { ...u, isTyping: status } : u,
-          ),
+          prevUsers.map((u) => (u?.otherUser?.userid === userId ? { ...u, isTyping: status } : u)),
         )
         setCurrentChat((prevChat) =>
           prevChat && prevChat?.otherUser?.userid === userId

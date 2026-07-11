@@ -20,11 +20,11 @@ import { useProfile } from "../../Context/Context"
 
 const CallTimer = ({ remoteStream }) => {
   const [duration, setDuration] = useState("00:00")
-  
+
   useEffect(() => {
     if (!remoteStream) return
     const startTime = Date.now()
-    
+
     const updateDuration = () => {
       const elapsed = Date.now() - startTime
       const seconds = Math.floor(elapsed / 1000)
@@ -36,7 +36,7 @@ const CallTimer = ({ remoteStream }) => {
       setDuration(
         hrs > 0
           ? `${hrs}:${remainingMins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
-          : `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+          : `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`,
       )
     }
 
@@ -70,18 +70,40 @@ const VideoCallUI = () => {
 
   const getConnectionStatus = useCallback(() => {
     const statusMap = {
-      connected: { icon: <Wifi className="w-3.5 h-3.5" />, text: "Connected", variant: "secondary", className: "text-emerald-400 border-emerald-500/20 bg-emerald-500/10" },
-      connecting: { icon: <Wifi className="w-3.5 h-3.5 animate-pulse" />, text: "Connecting", variant: "secondary", className: "text-amber-400 border-amber-500/20 bg-amber-500/10" },
-      disconnected: { icon: <WifiOff className="w-3.5 h-3.5" />, text: "Connection Lost", variant: "secondary", className: "text-red-400 border-red-500/20 bg-red-500/10" },
-      failed: { icon: <WifiOff className="w-3.5 h-3.5" />, text: "Connection Failed", variant: "secondary", className: "text-red-400 border-red-500/20 bg-red-500/10" },
+      connected: {
+        icon: <Wifi className="w-3.5 h-3.5" />,
+        text: "Connected",
+        variant: "secondary",
+        className: "text-emerald-400 border-emerald-500/20 bg-emerald-500/10",
+      },
+      connecting: {
+        icon: <Wifi className="w-3.5 h-3.5 animate-pulse" />,
+        text: "Connecting",
+        variant: "secondary",
+        className: "text-amber-400 border-amber-500/20 bg-amber-500/10",
+      },
+      disconnected: {
+        icon: <WifiOff className="w-3.5 h-3.5" />,
+        text: "Connection Lost",
+        variant: "secondary",
+        className: "text-red-400 border-red-500/20 bg-red-500/10",
+      },
+      failed: {
+        icon: <WifiOff className="w-3.5 h-3.5" />,
+        text: "Connection Failed",
+        variant: "secondary",
+        className: "text-red-400 border-red-500/20 bg-red-500/10",
+      },
     }
 
-    return statusMap[connectionState] || {
-      icon: <Wifi className="w-3.5 h-3.5 animate-pulse" />,
-      text: "Initializing",
-      variant: "secondary",
-      className: "text-zinc-400 border-zinc-500/20 bg-zinc-500/10"
-    }
+    return (
+      statusMap[connectionState] || {
+        icon: <Wifi className="w-3.5 h-3.5 animate-pulse" />,
+        text: "Initializing",
+        variant: "secondary",
+        className: "text-zinc-400 border-zinc-500/20 bg-zinc-500/10",
+      }
+    )
   }, [connectionState])
 
   useEffect(() => {
@@ -197,7 +219,7 @@ const VideoCallUI = () => {
             playsInline
             muted={!isRemotePrimary}
           />
-          
+
           {/* Connecting / No Video State */}
           {!remoteStream && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-zinc-900 to-black">
@@ -214,7 +236,7 @@ const VideoCallUI = () => {
                 <p className="text-white text-xl font-medium mb-2">{currentCall?.name}</p>
                 <p className="text-zinc-400 text-sm flex items-center gap-2 justify-center">
                   <span className="w-2 h-2 bg-primary rounded-full animate-bounce"></span>
-                  {connectionState === 'connected' ? 'Starting video...' : 'Connecting...'}
+                  {connectionState === "connected" ? "Starting video..." : "Connecting..."}
                 </p>
               </div>
             </div>
@@ -237,7 +259,7 @@ const VideoCallUI = () => {
         </div>
 
         {/* Secondary Video (Picture-in-Picture) */}
-        <div 
+        <div
           onClick={swapVideos}
           className="group absolute top-20 md:top-6 right-4 md:right-6 w-28 sm:w-44 md:w-56 aspect-video rounded-xl overflow-hidden ring-1 ring-white/10 shadow-2xl transition-all hover:ring-white/40 cursor-pointer bg-black/50 z-20"
         >
@@ -248,11 +270,14 @@ const VideoCallUI = () => {
             playsInline
             muted={isRemotePrimary}
           />
-          
+
           {/* Secondary Participant Info */}
           <div className="absolute bottom-2 left-2 z-10 flex items-center gap-2 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-md text-white text-xs font-medium pointer-events-none">
             <Avatar className="h-5 w-5 border border-white/20">
-              <AvatarImage src={secondaryParticipant?.profilepic} alt={secondaryParticipant?.name} />
+              <AvatarImage
+                src={secondaryParticipant?.profilepic}
+                alt={secondaryParticipant?.name}
+              />
               <AvatarFallback className="bg-muted text-foreground text-[10px]">
                 {secondaryParticipant?.name?.[0]}
               </AvatarFallback>
@@ -271,16 +296,16 @@ const VideoCallUI = () => {
 
         {/* Top Status Bar */}
         <div className="absolute top-4 left-4 md:left-6 flex items-center gap-2 z-30">
-          <Badge 
-            variant="secondary" 
+          <Badge
+            variant="secondary"
             className="bg-black/50 backdrop-blur-md text-white border-white/10 hover:bg-black/50 gap-1.5 px-3 py-1.5 font-mono"
           >
             <Video className="w-3.5 h-3.5" />
             <CallTimer remoteStream={remoteStream} />
           </Badge>
 
-          <Badge 
-            variant="secondary" 
+          <Badge
+            variant="secondary"
             className={`${status.className} backdrop-blur-md border hover:bg-black/50 gap-1.5 px-3 py-1.5 hidden sm:flex`}
           >
             {status.icon}
@@ -300,10 +325,16 @@ const VideoCallUI = () => {
                   onClick={toggleVideo}
                   aria-label={callState.isVideoEnabled ? "Turn off camera" : "Turn on camera"}
                 >
-                  {callState.isVideoEnabled ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+                  {callState.isVideoEnabled ? (
+                    <Video className="h-5 w-5" />
+                  ) : (
+                    <VideoOff className="h-5 w-5" />
+                  )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{callState.isVideoEnabled ? "Turn off camera" : "Turn on camera"}</TooltipContent>
+              <TooltipContent>
+                {callState.isVideoEnabled ? "Turn off camera" : "Turn on camera"}
+              </TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -315,10 +346,16 @@ const VideoCallUI = () => {
                   onClick={toggleAudio}
                   aria-label={callState.isAudioEnabled ? "Mute microphone" : "Unmute microphone"}
                 >
-                  {callState.isAudioEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+                  {callState.isAudioEnabled ? (
+                    <Mic className="h-5 w-5" />
+                  ) : (
+                    <MicOff className="h-5 w-5" />
+                  )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{callState.isAudioEnabled ? "Mute microphone" : "Unmute microphone"}</TooltipContent>
+              <TooltipContent>
+                {callState.isAudioEnabled ? "Mute microphone" : "Unmute microphone"}
+              </TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -345,10 +382,16 @@ const VideoCallUI = () => {
                   className="h-12 w-12 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white shrink-0 hidden sm:inline-flex transition-transform active:scale-95"
                   aria-label={callState.isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
                 >
-                  {callState.isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+                  {callState.isFullscreen ? (
+                    <Minimize2 className="h-5 w-5" />
+                  ) : (
+                    <Maximize2 className="h-5 w-5" />
+                  )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{callState.isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}</TooltipContent>
+              <TooltipContent>
+                {callState.isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              </TooltipContent>
             </Tooltip>
 
             <div className="w-px h-8 bg-white/10 mx-1 hidden sm:block"></div>

@@ -13,9 +13,7 @@ const authMiddleware = require("../middleware/authMiddleware")
 const {
   addToHistory,
   getPersonalizedRecommendations,
-  updateLikeStatus,
   getHistorySongs,
-  batchAddToHistory,
 } = require("../controllers/music/historyController.js")
 const { searchSongs } = require("../controllers/music/searchController.js")
 const {
@@ -36,11 +34,8 @@ const {
 const {
   getPlayNextSongs,
   rebuildAllPlayNext,
-  invalidateSong,
 } = require("../services/playNextService")
-const {
-  getLastSessionSongs,
-} = require("../controllers/music/groupHistoryController.js")
+const { getLastSessionSongs } = require("../controllers/music/groupHistoryController.js")
 
 const musicRoutes = express.Router()
 
@@ -52,9 +47,7 @@ musicRoutes.post("/playlist/remove-song", authMiddleware, removeSongFromPlaylist
 musicRoutes.get("/playlist/get", authMiddleware, getPlaylists)
 musicRoutes.get("/playlist/details", authMiddleware, getPlaylistSongs)
 musicRoutes.post("/history/add", authMiddleware, addToHistory)
-musicRoutes.post("/history/batch", authMiddleware, batchAddToHistory)
 musicRoutes.get("/music/recommendations", authMiddleware, getPersonalizedRecommendations)
-musicRoutes.post("/history/like", authMiddleware, updateLikeStatus)
 musicRoutes.get("/music/latestHistory", authMiddleware, getHistorySongs)
 musicRoutes.get("/music/search", searchSongs)
 musicRoutes.get("/music/group-history", authMiddleware, getLastSessionSongs)

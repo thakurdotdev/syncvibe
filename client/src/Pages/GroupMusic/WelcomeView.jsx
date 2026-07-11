@@ -69,7 +69,9 @@ const WelcomeView = ({ onOpenModal }) => {
               </div>
               <div>
                 <p className="text-xs sm:text-sm font-medium">{card.title}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">{card.subtitle}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+                  {card.subtitle}
+                </p>
               </div>
             </motion.div>
           ))}

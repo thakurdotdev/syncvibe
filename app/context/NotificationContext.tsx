@@ -1,117 +1,117 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import * as Notifications from 'expo-notifications';
-import { registerForPushNotificationsAsync } from '@/utils/registerForPushNotificationsAsync';
-import { useChat } from './SocketContext';
-import { useUser } from './UserContext';
-import useApi from '@/utils/hooks/useApi';
-import { router } from 'expo-router';
+import React, { createContext, useContext, useState, useEffect, useRef } from "react"
+import * as Notifications from "expo-notifications"
+import { registerForPushNotificationsAsync } from "@/utils/registerForPushNotificationsAsync"
+import { useChat } from "./SocketContext"
+import { useUser } from "./UserContext"
+import useApi from "@/utils/hooks/useApi"
+import { router } from "expo-router"
 
 type NotificationContextType = {
-  expoPushToken: string | null;
-  notification: Notifications.Notification | null;
-};
+  expoPushToken: string | null
+  notification: Notifications.Notification | null
+}
 
 const NotificationContext = createContext<NotificationContextType>({
   expoPushToken: null,
   notification: null,
-});
+})
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const api = useApi();
-  const { user } = useUser();
-  const { users, setCurrentChat } = useChat();
-  const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
-  const [notification, setNotification] = useState<Notifications.Notification | null>(null);
+  const api = useApi()
+  const { user } = useUser()
+  const { users, setCurrentChat } = useChat()
+  const [expoPushToken, setExpoPushToken] = useState<string | null>(null)
+  const [notification, setNotification] = useState<Notifications.Notification | null>(null)
 
-  const [pendingChatId, setPendingChatId] = useState<string | null>(null);
+  const [pendingChatId, setPendingChatId] = useState<string | null>(null)
 
-  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
-  const responseListener = useRef<Notifications.EventSubscription | null>(null);
-  const appInitialized = useRef(false);
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null)
+  const responseListener = useRef<Notifications.EventSubscription | null>(null)
+  const appInitialized = useRef(false)
 
   // Handle initial notification (on app launch)
   useEffect(() => {
     if (!appInitialized.current) {
-      appInitialized.current = true;
+      appInitialized.current = true
 
       // Check if app was opened from a notification
       Notifications.getLastNotificationResponseAsync()
         .then((response) => {
           if (response) {
-            const chatid = response.notification.request.content.data?.chatid as string | undefined;
+            const chatid = response.notification.request.content.data?.chatid as string | undefined
             if (chatid) {
-              setPendingChatId(chatid);
+              setPendingChatId(chatid)
             }
           }
         })
-        .catch((err) => console.error('Error checking last notification:', err));
+        .catch((err) => console.error("Error checking last notification:", err))
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
-    registerForPushNotificationsAsync().then((token) => setExpoPushToken(token || null));
+    registerForPushNotificationsAsync().then((token) => setExpoPushToken(token || null))
 
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      setNotification(notification);
-    });
+      setNotification(notification)
+    })
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('Notification response received:', response);
+      console.log("Notification response received:", response)
 
-      const chatid = response.notification.request.content.data?.chatid as string | undefined;
+      const chatid = response.notification.request.content.data?.chatid as string | undefined
 
       // Instead of trying to process immediately, store the chatid
       if (chatid) {
-        console.log('Setting pending chat ID from notification tap:', chatid);
-        setPendingChatId(chatid);
+        console.log("Setting pending chat ID from notification tap:", chatid)
+        setPendingChatId(chatid)
       }
-    });
+    })
 
     return () => {
       if (notificationListener.current) {
-        notificationListener.current.remove();
+        notificationListener.current.remove()
       }
       if (responseListener.current) {
-        responseListener.current.remove();
+        responseListener.current.remove()
       }
-    };
-  }, []);
+    }
+  }, [])
 
   // Process pending notifications when users and user are available
   useEffect(() => {
     if (pendingChatId && users.length > 0 && user?.userid) {
-      const chat = users.find((u) => String(u.chatid) === pendingChatId);
+      const chat = users.find((u) => String(u.chatid) === pendingChatId)
       if (chat) {
-        setCurrentChat(chat);
-        setPendingChatId(null);
+        setCurrentChat(chat)
+        setPendingChatId(null)
 
         // Slight delay to ensure context updates before navigation
         setTimeout(() => {
-          router.push('/message');
-        }, 100);
+          router.push("/message")
+        }, 100)
       } else {
-        console.log('No matching chat found for ID:', pendingChatId);
+        console.log("No matching chat found for ID:", pendingChatId)
       }
     }
-  }, [pendingChatId, users, user, setCurrentChat]);
+  }, [pendingChatId, users, user, setCurrentChat])
 
   useEffect(() => {
     if (expoPushToken) {
-      if (user && (!user?.expoPushToken || user.expoPushToken !== expoPushToken)) setPushToken();
+      if (user && (!user?.expoPushToken || user.expoPushToken !== expoPushToken)) setPushToken()
     }
-  }, [expoPushToken, user]);
+  }, [expoPushToken, user])
 
   const setPushToken = async () => {
     if (expoPushToken) {
       try {
-        const response = await api.post('/api/mobile/pushToken', {
+        const response = await api.post("/api/mobile/pushToken", {
           expoPushToken,
-        });
+        })
       } catch (error) {
-        console.error('Error saving push token:', error);
+        console.error("Error saving push token:", error)
       }
     }
-  };
+  }
 
   return (
     <NotificationContext.Provider
@@ -122,13 +122,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     >
       {children}
     </NotificationContext.Provider>
-  );
+  )
 }
 
 export const useNotification = () => {
-  const context = useContext(NotificationContext);
+  const context = useContext(NotificationContext)
   if (context === undefined) {
-    throw new Error('useNotification must be used within a NotificationProvider');
+    throw new Error("useNotification must be used within a NotificationProvider")
   }
-  return context;
-};
+  return context
+}

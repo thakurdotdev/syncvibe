@@ -20,14 +20,7 @@ import {
 } from "./playerStore"
 import { useGroupPlaybackStore } from "./groupMusic/groupPlaybackStore"
 
-const pauseGroupPlaybackLocally = () => {
-  const groupStore = useGroupPlaybackStore.getState()
-  if (groupStore.isPlaying) {
-    TrackPlayer.pause()
-    groupStore.stopProgressPolling()
-    useGroupPlaybackStore.setState({ isPlaying: false })
-  }
-}
+// ─── Types ───────────────────────────────────────────
 
 interface MediaItem {
   mediaId?: string
@@ -42,246 +35,224 @@ interface MediaItem {
   extras?: Record<string, unknown>
 }
 
-const trackCache = new Map<string, MediaItem>()
-const MAX_TRACK_CACHE_SIZE = 50
+// ─── Configuration ───────────────────────────────────
+
 const QUEUE_LOOKAHEAD = 3
 const QUEUE_APPEND_THRESHOLD = 2
+const MAX_TRACK_CACHE_SIZE = 50
+const MAX_ERROR_RETRIES = 2
+const ERROR_COOLDOWN_MS = 8000
 
-const addToTrackCache = (songId: string, track: MediaItem) => {
-  if (trackCache.size >= MAX_TRACK_CACHE_SIZE) {
-    const oldestKey = trackCache.keys().next().value
-    if (oldestKey !== undefined) {
-      trackCache.delete(oldestKey)
-    }
-  }
-  trackCache.set(songId, track)
-}
+// ─── Module State ────────────────────────────────────
+// Minimal flags — no shadow copies of native player state.
 
-const resolveStreamUrl = (song: Song): string => {
-  const qualities = ["320kbps", "128kbps", "48kbps", "12kbps"]
-  for (const quality of qualities) {
-    const link = song.download_url?.find((u) => u.quality === quality)?.link
-    if (link) return link
-  }
-  return song.download_url?.[0]?.link || ""
-}
+let initialized = false
+let userId: number | undefined
+let appStateSub: ReturnType<typeof AppState.addEventListener> | null = null
 
-const buildMediaItem = (song: Song, audioUrl: string): MediaItem => {
-  const artwork = song.image[2]?.link || song.image[1]?.link || song.image[0]?.link
-  return {
-    mediaId: song.id,
-    url: {
-      uri: audioUrl,
-      headers: {
-        "User-Agent": "SyncVibe/1.0",
-        Accept: "audio/*",
-      },
-    },
-    title: song.name || "Unknown Title",
-    artist: song?.artist_map?.primary_artists?.[0]?.name || "Unknown Artist",
-    albumTitle: song.album || "Unknown Album",
-    artworkUrl: artwork,
-    duration: song.duration || 0,
-  }
-}
+// Error recovery
+let errorRetries = 0
+let lastErrorTime = 0
+let recovering = false
 
-const convertSongToTrackSync = (song: Song): MediaItem | null => {
-  if (trackCache.has(song.id)) {
-    return trackCache.get(song.id)!
-  }
+// Track cache for fast song→MediaItem conversion
+const trackCache = new Map<string, MediaItem>()
 
-  const audioUrl = resolveStreamUrl(song)
-  if (!audioUrl) return null
+// ─── Helpers ─────────────────────────────────────────
 
-  const track = buildMediaItem(song, audioUrl)
-  addToTrackCache(song.id, track)
-  return track
-}
+const store = () => usePlayerStore.getState()
 
-export const convertSongToTrack = async (song: Song): Promise<MediaItem> => {
-  const cached = convertSongToTrackSync(song)
-  if (cached) return cached
-
-  try {
-    const streamingTrack = await streamingManager.convertSongToStreamingTrack(song)
-    addToTrackCache(song.id, streamingTrack)
-    return streamingTrack
-  } catch (error) {
-    console.error(`Failed to get streaming track for ${song.name}:`, error)
-    const audioUrl = resolveStreamUrl(song)
-    if (!audioUrl) throw error
-    const track = buildMediaItem(song, audioUrl)
-    addToTrackCache(song.id, track)
-    return track
-  }
-}
-
-let trackPlayerInitialized = false
-let isSwitchingTracks = false
-let isRecoveringFromError = false
-let playbackErrorRetries = 0
-let lastPlaybackErrorTime = 0
-let bridgeUserId: number | undefined
-let appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null
-
-const MAX_PLAYBACK_ERROR_RETRIES = 2
-const PLAYBACK_ERROR_COOLDOWN_MS = 8000
-
-const lastEventTimestamps = new Map<string, number>()
-const EVENT_DEDUP_MS = 80
-
-const isDuplicateEvent = (type: string, key = ''): boolean => {
-  const mapKey = key ? `${type}:${key}` : type
-  const now = Date.now()
-  const last = lastEventTimestamps.get(mapKey) ?? 0
-  if (now - last < EVENT_DEDUP_MS) return true
-  lastEventTimestamps.set(mapKey, now)
-  return false
-}
-
-const resetPlaybackErrorState = () => {
-  playbackErrorRetries = 0
-  isRecoveringFromError = false
-  lastPlaybackErrorTime = 0
-}
-
-const hasExceededPlaybackErrorRetries = () => {
-  const withinCooldown = Date.now() - lastPlaybackErrorTime < PLAYBACK_ERROR_COOLDOWN_MS
-  return withinCooldown && playbackErrorRetries >= MAX_PLAYBACK_ERROR_RETRIES
-}
-
-const pausePlaybackAfterError = (store: ReturnType<typeof getStore>) => {
-  isRecoveringFromError = false
-  store.setPlaying(false)
-  try {
-    TrackPlayer.pause()
-  } catch {
-    // Player may already be stopped after a fatal error.
-  }
-}
-
-const getStore = () => usePlayerStore.getState()
-
-export const setBridgeUserId = (userId?: number) => {
-  bridgeUserId = userId
-}
-
-const getNativeRepeatMode = (mode: StoreRepeatMode) => {
+const toNativeRepeatMode = (mode: StoreRepeatMode): RepeatMode => {
   if (mode === "one") return RepeatMode.One
   if (mode === "all") return RepeatMode.All
   return RepeatMode.Off
 }
 
-const convertSongsBatch = (songs: Song[]): MediaItem[] => {
-  return songs
-    .map(convertSongToTrackSync)
-    .filter((track): track is MediaItem => track != null && !!track.url)
+const addToTrackCache = (songId: string, track: MediaItem) => {
+  if (trackCache.size >= MAX_TRACK_CACHE_SIZE) {
+    const oldest = trackCache.keys().next().value
+    if (oldest !== undefined) trackCache.delete(oldest)
+  }
+  trackCache.set(songId, track)
 }
 
-const appendUpcomingTracks = () => {
-  if (!trackPlayerInitialized) return
+/**
+ * Convert a Song to a MediaItem synchronously.
+ * Uses cached streaming URLs when available.
+ */
+const toMediaItem = (song: Song): MediaItem | null => {
+  if (!song?.id) return null
 
-  const store = getStore()
-  const { playlist } = store
+  const cached = trackCache.get(song.id)
+  if (cached) return cached
+
+  const downloadUrl =
+    song.download_url?.find((u) => u.quality === "320kbps") ??
+    song.download_url?.find((u) => u.quality === "128kbps") ??
+    song.download_url?.[0]
+
+  if (!downloadUrl?.link) return null
+
+  const track: MediaItem = {
+    mediaId: song.id,
+    url: {
+      uri: downloadUrl.link,
+      headers: { "User-Agent": "SyncVibe/1.0", Accept: "audio/*" },
+    },
+    title: song.name || "Unknown Title",
+    artist: song.artist_map?.primary_artists?.[0]?.name || "Unknown Artist",
+    albumTitle: song.album || "Unknown Album",
+    artworkUrl: song.image?.[2]?.link || song.image?.[1]?.link || song.image?.[0]?.link,
+    duration: song.duration || 0,
+  }
+
+  addToTrackCache(song.id, track)
+  return track
+}
+
+/** Convert multiple songs, filtering out failures. */
+const toMediaItems = (songs: Song[]): MediaItem[] =>
+  songs.map(toMediaItem).filter((t): t is MediaItem => t != null && !!t.url)
+
+/** Stop group playback if active (state only, don't touch native player). */
+const stopGroupPlayback = () => {
+  const group = useGroupPlaybackStore.getState()
+  if (group.isPlaying) {
+    group.stopProgressPolling()
+    useGroupPlaybackStore.setState({ isPlaying: false })
+  }
+}
+
+const switchToNormalMode = () => {
+  const s = store()
+  if (s.activePlayerMode !== "normal") {
+    s.setActivePlayerMode("normal")
+  }
+}
+
+const resetErrors = () => {
+  errorRetries = 0
+  recovering = false
+  lastErrorTime = 0
+}
+
+const hasExceededRetries = (): boolean =>
+  Date.now() - lastErrorTime < ERROR_COOLDOWN_MS && errorRetries >= MAX_ERROR_RETRIES
+
+// ─── Queue Management ────────────────────────────────
+
+/**
+ * Ensure upcoming tracks are loaded in the native queue.
+ * Called after play, skip, and transition events.
+ */
+const fillQueue = () => {
+  if (!initialized) return
+
+  const { playlist } = store()
   if (!playlist.length) return
 
   const queue = TrackPlayer.getQueue()
-  const activeIndex = TrackPlayer.getActiveMediaItemIndex() ?? 0
-  const tracksRemainingInQueue = queue.length - activeIndex - 1
+  const activeIdx = TrackPlayer.getActiveMediaItemIndex() ?? 0
+  const remaining = queue.length - activeIdx - 1
 
-  if (tracksRemainingInQueue >= QUEUE_APPEND_THRESHOLD) return
+  if (remaining >= QUEUE_APPEND_THRESHOLD) return
 
-  const lastQueueItem = queue[queue.length - 1]
-  if (!lastQueueItem?.mediaId) return
+  const lastItem = queue[queue.length - 1]
+  if (!lastItem?.mediaId) return
 
-  const lastInPlaylistIndex = playlist.findIndex((s) => s.id === lastQueueItem.mediaId)
-  if (lastInPlaylistIndex < 0 || lastInPlaylistIndex >= playlist.length - 1) return
+  const lastPlaylistIdx = playlist.findIndex((s) => s.id === lastItem.mediaId)
+  if (lastPlaylistIdx < 0 || lastPlaylistIdx >= playlist.length - 1) return
 
-  const appendStart = lastInPlaylistIndex + 1
-  const appendEnd = Math.min(appendStart + QUEUE_LOOKAHEAD, playlist.length)
-  const queueIds = new Set(queue.map((t) => t.mediaId))
-  const newSongs = playlist.slice(appendStart, appendEnd).filter((s) => !queueIds.has(s.id))
+  const start = lastPlaylistIdx + 1
+  const end = Math.min(start + QUEUE_LOOKAHEAD, playlist.length)
+  const existingIds = new Set(queue.map((t) => t.mediaId))
+  const newSongs = playlist.slice(start, end).filter((s) => !existingIds.has(s.id))
 
-  if (newSongs.length === 0) return
-
-  const tracks = convertSongsBatch(newSongs)
-  if (tracks.length > 0) {
-    TrackPlayer.addMediaItems(tracks)
+  if (newSongs.length > 0) {
+    const tracks = toMediaItems(newSongs)
+    if (tracks.length > 0) TrackPlayer.addMediaItems(tracks)
   }
 }
 
-const syncQueueFromPlaylist = (playlist: Song[], startIndex: number, userId?: number) => {
-  if (!trackPlayerInitialized || !playlist.length) return
+/**
+ * Load a playlist into the native queue starting at `startIndex` and play.
+ */
+const loadPlaylist = (playlist: Song[], startIndex: number) => {
+  if (!initialized || !playlist.length) return
 
-  isSwitchingTracks = true
-  const store = getStore()
+  const s = store()
+  const end = Math.min(startIndex + QUEUE_LOOKAHEAD, playlist.length)
+  const tracks = toMediaItems(playlist.slice(startIndex, end))
 
-  const endIndex = Math.min(startIndex + QUEUE_LOOKAHEAD, playlist.length)
-  const tracks = convertSongsBatch(playlist.slice(startIndex, endIndex))
+  if (tracks.length === 0) return
 
-  if (tracks.length === 0) {
-    isSwitchingTracks = false
-    return
-  }
-
-  TrackPlayer.setRepeatMode(getNativeRepeatMode(store.repeatMode))
+  TrackPlayer.setRepeatMode(toNativeRepeatMode(s.repeatMode))
   TrackPlayer.setMediaItems(tracks, 0)
   TrackPlayer.play()
 
   const song = playlist[startIndex]
-  if (song && song.id !== store.currentSong?.id) {
-    store.setCurrentSong(song)
+  if (song && song.id !== s.currentSong?.id) {
+    s.setCurrentSong(song)
   }
-
-  store.setPlaying(true)
+  s.setPlaying(true)
 
   if (userId && song?.id) {
     playbackHistory.updatePlaybackProgress(song, 0, song.duration || 0, true).catch(console.error)
+    onAfterSongTransition?.(song)
   }
 }
 
-export const bridgePlaySong = (song: Song, userId?: number) => {
-  if (!trackPlayerInitialized || !song?.id) return
+// ─── Public Bridge Functions ─────────────────────────
 
-  pauseGroupPlaybackLocally()
-  resetPlaybackErrorState()
-  const store = getStore()
-  if (store.activePlayerMode !== "normal") {
-    store.setActivePlayerMode("normal")
-  }
-  const playlist = store.playlist.length ? store.playlist : [song]
+export const setBridgeUserId = (id?: number) => {
+  userId = id
+}
+
+export const bridgePlaySong = (song: Song, uid?: number) => {
+  if (!initialized || !song?.id) return
+
+  stopGroupPlayback()
+  resetErrors()
+  switchToNormalMode()
+
+  const s = store()
+  const playlist = s.playlist.length ? s.playlist : [song]
+
+  // If the song is already in the native queue, just skip to it
   const queue = TrackPlayer.getQueue()
-  const trackIndex = queue.findIndex((t) => t.mediaId === song.id)
+  const queueIdx = queue.findIndex((t) => t.mediaId === song.id)
 
-  if (trackIndex >= 0) {
-    isSwitchingTracks = true
+  if (queueIdx >= 0) {
+    const activeIdx = TrackPlayer.getActiveMediaItemIndex()
 
-    const activeIndex = TrackPlayer.getActiveMediaItemIndex()
-    if (trackIndex === activeIndex) {
-      if (!TrackPlayer.isPlaying()) {
-        TrackPlayer.play()
-      }
+    if (queueIdx === activeIdx) {
+      // Already on this track — resume if paused
+      if (!TrackPlayer.isPlaying()) TrackPlayer.play()
     } else {
-      TrackPlayer.skipToIndex(trackIndex)
+      TrackPlayer.skipToIndex(queueIdx)
       TrackPlayer.play()
     }
 
-    store.setPlaying(true)
-    appendUpcomingTracks()
+    if (song.id !== s.currentSong?.id) {
+      s.setCurrentSong(song)
+      if (userId) onAfterSongTransition?.(song)
+    }
+    s.setPlaying(true)
+    fillQueue()
     return
   }
 
-  const startIndex = Math.max(
+  // Song not in queue — rebuild from playlist
+  const startIdx = Math.max(
     0,
     playlist.findIndex((s) => s.id === song.id),
   )
-  syncQueueFromPlaylist(playlist, startIndex, userId)
-  appendUpcomingTracks()
+  loadPlaylist(playlist, startIdx)
+  fillQueue()
 }
 
 export const bridgeStopSong = async () => {
-  if (!trackPlayerInitialized) return
-
+  if (!initialized) return
   try {
     await playbackHistory.stopPlayback().catch(console.error)
     TrackPlayer.stop()
@@ -292,233 +263,213 @@ export const bridgeStopSong = async () => {
 }
 
 export const bridgePlayPause = () => {
-  if (!trackPlayerInitialized) return
+  if (!initialized) return
 
-  pauseGroupPlaybackLocally()
-  const store = getStore()
-  if (store.activePlayerMode !== "normal") {
-    store.setActivePlayerMode("normal")
-  }
+  stopGroupPlayback()
+  switchToNormalMode()
 
+  const s = store()
   const activeItem = TrackPlayer.getActiveMediaItem()
-  const isActiveSongMatched = activeItem?.mediaId === store.currentSong?.id
 
-  if (!isActiveSongMatched) {
-    if (store.currentSong) {
-      bridgePlaySong(store.currentSong, bridgeUserId)
+  // If native player doesn't match the store, re-load the song
+  if (activeItem?.mediaId !== s.currentSong?.id) {
+    if (s.currentSong) {
+      bridgePlaySong(s.currentSong, userId)
     } else {
-      store.setPlaying(false)
+      s.setPlaying(false)
     }
     return
   }
 
-  const currentlyPlaying = TrackPlayer.isPlaying()
-
-  if (currentlyPlaying) {
+  if (TrackPlayer.isPlaying()) {
     TrackPlayer.pause()
-    store.setPlaying(false)
-    return
-  }
-
-  if (!store.currentSong) {
-    store.setPlaying(false)
-    return
-  }
-
-  resetPlaybackErrorState()
-
-  const playerState = TrackPlayer.getPlaybackState()
-  if (playerState === "idle") {
-    bridgePlaySong(store.currentSong, bridgeUserId)
+    s.setPlaying(false)
+  } else if (s.currentSong) {
+    resetErrors()
+    const state = TrackPlayer.getPlaybackState()
+    if (state === "idle") {
+      bridgePlaySong(s.currentSong, userId)
+    } else {
+      TrackPlayer.play()
+      s.setPlaying(true)
+    }
   } else {
-    TrackPlayer.play()
-    store.setPlaying(true)
+    s.setPlaying(false)
   }
 }
 
-export const bridgeHandleNextSong = (isAutoPlay = false, userId?: number) => {
-  if (!trackPlayerInitialized) return
+export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
+  if (!initialized) return
 
-  pauseGroupPlaybackLocally()
-  const store = getStore()
-  if (store.activePlayerMode !== "normal") {
-    store.setActivePlayerMode("normal")
-  }
-  const { currentSong, playlist, repeatMode } = store
+  stopGroupPlayback()
+  switchToNormalMode()
+
+  const s = store()
+  const { currentSong, playlist, repeatMode } = s
   if (!currentSong || !playlist.length) return
 
   const activeItem = TrackPlayer.getActiveMediaItem()
-  const isActiveSongMatched = activeItem?.mediaId === currentSong.id
+  const nativeMatchesSong = activeItem?.mediaId === currentSong.id
 
+  // Repeat one: restart current track (manual skip only)
   if (repeatMode === "one" && !isAutoPlay) {
-    isSwitchingTracks = true
     TrackPlayer.seekTo(0)
     TrackPlayer.play()
-    store.setPlaying(true)
+    s.setPlaying(true)
     return
   }
 
+  // Repeat one auto-play: native handles this via RepeatMode.One
   if (isAutoPlay && repeatMode === "one") return
 
-  const currentIndex = playlist.findIndex((s) => s.id === currentSong.id)
-  if (currentIndex === -1) {
+  const currentIdx = playlist.findIndex((song) => song.id === currentSong.id)
+  if (currentIdx === -1) {
     if (playlist.length > 0) {
-      store.setCurrentSong(playlist[0])
-      bridgePlaySong(playlist[0], userId)
+      s.setCurrentSong(playlist[0])
+      bridgePlaySong(playlist[0], uid)
     }
     return
   }
 
-  const isLastSong = currentIndex === playlist.length - 1
-  if (isAutoPlay && isLastSong && repeatMode === "off") {
-    store.setPlaying(false)
-    isSwitchingTracks = false
+  const isLast = currentIdx === playlist.length - 1
+
+  // End of playlist with repeat off
+  if (isAutoPlay && isLast && repeatMode === "off") {
+    s.setPlaying(false)
     return
   }
 
+  // Can we use native skip?
   const queue = TrackPlayer.getQueue()
-  const activeIndex = TrackPlayer.getActiveMediaItemIndex()
+  const activeIdx = TrackPlayer.getActiveMediaItemIndex()
   const canSkipNative =
-    isActiveSongMatched && activeIndex != null && activeIndex >= 0 && activeIndex < queue.length - 1
+    nativeMatchesSong && activeIdx != null && activeIdx >= 0 && activeIdx < queue.length - 1
 
   if (canSkipNative) {
-    isSwitchingTracks = true
-    const nextSong = playlist[currentIndex + 1]
+    const nextSong = playlist[currentIdx + 1]
     if (nextSong) {
-      store.setCurrentSong(nextSong)
+      s.setCurrentSong(nextSong)
+      if (uid) onAfterSongTransition?.(nextSong)
     }
-    store.setPlaying(true)
+    s.setPlaying(true)
     TrackPlayer.skipToNext()
-    appendUpcomingTracks()
+    fillQueue()
     return
   }
 
-  if (isAutoPlay && isLastSong && repeatMode === "all") {
-    store.setCurrentSong(playlist[0])
-    syncQueueFromPlaylist(playlist, 0, userId)
-    appendUpcomingTracks()
+  // Repeat all: wrap around
+  if (isAutoPlay && isLast && repeatMode === "all") {
+    s.setCurrentSong(playlist[0])
+    loadPlaylist(playlist, 0)
+    fillQueue()
     return
   }
 
-  const nextIndex = (currentIndex + 1) % playlist.length
-  const nextSong = playlist[nextIndex]
-  store.setCurrentSong(nextSong)
-  store.setPlaying(true)
-  bridgePlaySong(nextSong, userId)
+  // Default: play next song
+  const nextIdx = (currentIdx + 1) % playlist.length
+  const nextSong = playlist[nextIdx]
+  s.setCurrentSong(nextSong)
+  s.setPlaying(true)
+  bridgePlaySong(nextSong, uid)
 }
 
-export const bridgeHandlePrevSong = (userId?: number) => {
-  if (!trackPlayerInitialized) return
+export const bridgeHandlePrevSong = (uid?: number) => {
+  if (!initialized) return
 
-  pauseGroupPlaybackLocally()
-  const store = getStore()
-  if (store.activePlayerMode !== "normal") {
-    store.setActivePlayerMode("normal")
-  }
+  stopGroupPlayback()
+  switchToNormalMode()
 
+  // If past 3 seconds, restart current track
   const position = TrackPlayer.getProgress().position
   if (position > 3) {
     TrackPlayer.seekTo(0)
     return
   }
 
-  const { currentSong, playlist } = store
+  const s = store()
+  const { currentSong, playlist } = s
   if (!currentSong || !playlist.length) return
 
   const activeItem = TrackPlayer.getActiveMediaItem()
-  const isActiveSongMatched = activeItem?.mediaId === currentSong.id
-
+  const nativeMatchesSong = activeItem?.mediaId === currentSong.id
   const queue = TrackPlayer.getQueue()
-  const activeIndex = TrackPlayer.getActiveMediaItemIndex()
+  const activeIdx = TrackPlayer.getActiveMediaItemIndex()
 
-  if (isActiveSongMatched && activeIndex != null && activeIndex > 0) {
-    isSwitchingTracks = true
-    const prevTrack = queue[activeIndex - 1]
+  // Try native skip
+  if (nativeMatchesSong && activeIdx != null && activeIdx > 0) {
+    const prevTrack = queue[activeIdx - 1]
     const prevSong = prevTrack?.mediaId
       ? playlist.find((s) => s.id === prevTrack.mediaId)
       : undefined
-    if (prevSong) {
-      store.setCurrentSong(prevSong)
-    }
-    store.setPlaying(true)
+    if (prevSong) s.setCurrentSong(prevSong)
+    s.setPlaying(true)
     TrackPlayer.skipToPrevious()
     return
   }
 
-  const currentIndex = playlist.findIndex((s) => s.id === currentSong.id)
-  if (currentIndex > 0) {
-    const prevSong = playlist[currentIndex - 1]
-    store.setCurrentSong(prevSong)
-    store.setPlaying(true)
-    bridgePlaySong(prevSong, userId)
-  } else {
-    store.setCurrentSong(playlist[0])
-    store.setPlaying(true)
-    bridgePlaySong(playlist[0], userId)
-  }
+  // Fallback: play from playlist
+  const currentIdx = playlist.findIndex((s) => s.id === currentSong.id)
+  const prevIdx = currentIdx > 0 ? currentIdx - 1 : 0
+  const prevSong = playlist[prevIdx]
+  s.setCurrentSong(prevSong)
+  s.setPlaying(true)
+  bridgePlaySong(prevSong, uid)
 }
 
 export const bridgeSetRepeatMode = (mode: StoreRepeatMode) => {
-  if (!trackPlayerInitialized) return
-  TrackPlayer.setRepeatMode(getNativeRepeatMode(mode))
+  if (!initialized) return
+  TrackPlayer.setRepeatMode(toNativeRepeatMode(mode))
 }
 
 export const bridgeRemoveFromQueue = (songId: string) => {
-  if (!trackPlayerInitialized) return
+  if (!initialized) return
 
   const queue = TrackPlayer.getQueue()
-  const trackIndex = queue.findIndex((t) => t.mediaId === songId)
-  if (trackIndex < 0) return
+  const idx = queue.findIndex((t) => t.mediaId === songId)
+  if (idx < 0) return
 
-  // Never remove the currently-playing item from the native queue
-  const activeIndex = TrackPlayer.getActiveMediaItemIndex()
-  if (activeIndex !== null && trackIndex === activeIndex) return
+  const activeIdx = TrackPlayer.getActiveMediaItemIndex()
+  if (activeIdx !== null && idx === activeIdx) return
 
   try {
-    TrackPlayer.removeMediaItems(trackIndex, trackIndex + 1)
+    TrackPlayer.removeMediaItems(idx, idx + 1)
   } catch (error) {
-    console.error('Error removing track from RNTP queue:', error)
+    console.error("Error removing track from queue:", error)
   }
 }
+
+// ─── Playlist Reorder ────────────────────────────────
 
 let reorderTimeout: ReturnType<typeof setTimeout> | null = null
 
 export const syncReorderPlaylist = (newOrder: Song[]) => {
-  if (!trackPlayerInitialized) return
+  if (!initialized) return
 
-  if (reorderTimeout) {
-    clearTimeout(reorderTimeout)
-  }
+  if (reorderTimeout) clearTimeout(reorderTimeout)
 
-  reorderTimeout = setTimeout(async () => {
+  reorderTimeout = setTimeout(() => {
     try {
-      const currentTrackIndex = TrackPlayer.getActiveMediaItemIndex()
-      const currentQueue = TrackPlayer.getQueue()
-      const currentTrack =
-        currentTrackIndex != null && currentTrackIndex >= 0
-          ? currentQueue[currentTrackIndex]
-          : undefined
-
-      if (!currentTrack?.mediaId) return
-
-      const newCurrentIndex = newOrder.findIndex((song) => song.id === currentTrack.mediaId)
-      if (newCurrentIndex < 0) return
-
+      const activeIdx = TrackPlayer.getActiveMediaItemIndex()
       const queue = TrackPlayer.getQueue()
-      if (queue.length > newCurrentIndex + 1) {
-        TrackPlayer.removeMediaItems(newCurrentIndex + 1, queue.length)
+      const activeTrack = activeIdx != null && activeIdx >= 0 ? queue[activeIdx] : undefined
+      if (!activeTrack?.mediaId) return
+
+      const newIdx = newOrder.findIndex((song) => song.id === activeTrack.mediaId)
+      if (newIdx < 0) return
+
+      const currentQueue = TrackPlayer.getQueue()
+      if (currentQueue.length > newIdx + 1) {
+        TrackPlayer.removeMediaItems(newIdx + 1, currentQueue.length)
       }
 
-      const queueIds = new Set(TrackPlayer.getQueue().map((t) => t.mediaId))
-      const songsToAdd = newOrder
-        .slice(newCurrentIndex + 1, newCurrentIndex + 1 + QUEUE_LOOKAHEAD)
-        .filter((s) => !queueIds.has(s.id))
+      const existingIds = new Set(TrackPlayer.getQueue().map((t) => t.mediaId))
+      const toAdd = newOrder
+        .slice(newIdx + 1, newIdx + 1 + QUEUE_LOOKAHEAD)
+        .filter((s) => !existingIds.has(s.id))
 
-      if (songsToAdd.length > 0) {
-        const tracks = convertSongsBatch(songsToAdd)
-        if (tracks.length > 0) {
-          TrackPlayer.addMediaItems(tracks)
-        }
+      if (toAdd.length > 0) {
+        const tracks = toMediaItems(toAdd)
+        if (tracks.length > 0) TrackPlayer.addMediaItems(tracks)
       }
     } catch (error) {
       console.error("Error syncing reorder:", error)
@@ -526,31 +477,40 @@ export const syncReorderPlaylist = (newOrder: Song[]) => {
   }, 500)
 }
 
-const syncStoreFromActiveTrack = () => {
-  const store = getStore()
+// ─── State Sync ──────────────────────────────────────
+
+/**
+ * Sync zustand store from native player state.
+ * Called on app foreground to pick up changes that happened in background.
+ */
+const syncStoreFromNative = () => {
+  const s = store()
   const activeItem = TrackPlayer.getActiveMediaItem()
 
   if (activeItem?.mediaId) {
-    const song = store.playlist.find((s) => s.id === activeItem.mediaId)
-    if (song && song.id !== store.currentSong?.id) {
-      store.setCurrentSong(song)
+    const song = s.playlist.find((p) => p.id === activeItem.mediaId)
+    if (song && song.id !== s.currentSong?.id) {
+      s.setCurrentSong(song)
     }
   }
 
-  store.setPlaying(TrackPlayer.isPlaying())
+  // Sync playing state from native — this is the source of truth
+  s.setPlaying(TrackPlayer.isPlaying())
 }
 
-export const initializeTrackPlayer = async (userId?: number): Promise<boolean> => {
+// ─── Initialization ──────────────────────────────────
+
+export const initializeTrackPlayer = async (uid?: number): Promise<boolean> => {
   try {
-    setBridgeUserId(userId)
+    setBridgeUserId(uid)
     await playbackHistory.preloadHistoryData().catch(console.error)
 
     const isSetup = setupPlayer()
-    trackPlayerInitialized = isSetup
+    initialized = isSetup
 
     if (isSetup) {
       setupAppStateListener()
-      bridgeSetRepeatMode(getStore().repeatMode)
+      bridgeSetRepeatMode(store().repeatMode)
       await restoreLastPlayedSong()
     }
 
@@ -562,102 +522,105 @@ export const initializeTrackPlayer = async (userId?: number): Promise<boolean> =
 }
 
 const restoreLastPlayedSong = async () => {
-  const store = getStore()
-
+  const s = store()
   try {
-    const lastPlayedData = await playbackHistory.getLastPlayedSong()
-    const song = store.currentSong ?? lastPlayedData?.song
-
+    const lastPlayed = await playbackHistory.getLastPlayedSong()
+    const song = s.currentSong ?? lastPlayed?.song
     if (!song) return
 
-    if (!store.currentSong) {
-      store.setCurrentSong(song)
-    }
+    if (!s.currentSong) s.setCurrentSong(song)
 
-    const track = convertSongToTrackSync(song)
+    const track = toMediaItem(song)
     if (!track?.url) return
 
-    TrackPlayer.setRepeatMode(getNativeRepeatMode(store.repeatMode))
+    TrackPlayer.setRepeatMode(toNativeRepeatMode(s.repeatMode))
     TrackPlayer.setMediaItems([track])
     TrackPlayer.pause()
 
-    const position = lastPlayedData?.position ?? 0
-    if (position > 0) {
-      TrackPlayer.seekTo(position)
-    }
+    const position = lastPlayed?.position ?? 0
+    if (position > 0) TrackPlayer.seekTo(position)
 
-    appendUpcomingTracks()
+    fillQueue()
   } catch (error) {
     console.error("Error restoring last played song:", error)
-    getStore().stopSong()
+    store().stopSong()
   }
 }
 
 const setupAppStateListener = () => {
-  if (appStateSubscription) return
+  if (appStateSub) return
 
-  appStateSubscription = AppState.addEventListener(
-    "change",
-    async (nextAppState: AppStateStatus) => {
-      const store = getStore()
+  appStateSub = AppState.addEventListener("change", async (state: AppStateStatus) => {
+    const s = store()
 
-      if (nextAppState === "background") {
-        if (trackCache.size > MAX_TRACK_CACHE_SIZE / 2) {
-          trackCache.clear()
-        }
+    if (state === "background") {
+      // Trim cache on background
+      if (trackCache.size > MAX_TRACK_CACHE_SIZE / 2) trackCache.clear()
 
-        if (store.currentSong?.id && trackPlayerInitialized) {
-          try {
-            const { position, duration } = TrackPlayer.getProgress()
-            if (position > 0 && duration > 0) {
-              await playbackHistory.updatePlaybackProgress(
-                store.currentSong,
-                position,
-                duration,
-                TrackPlayer.isPlaying(),
-              )
-            }
-          } catch (error) {
-            console.error("Error saving position on background:", error)
-          }
-        }
-      }
-
-      if (nextAppState === "active" && trackPlayerInitialized) {
+      // Save progress
+      if (s.currentSong?.id && initialized) {
         try {
-          syncStoreFromActiveTrack()
-
-          if (store.currentSong) {
-            const { position, duration } = TrackPlayer.getProgress()
-            if (position > 0) {
-              playbackHistory.updatePlaybackProgress(
-                store.currentSong,
-                position,
-                duration,
-                TrackPlayer.isPlaying(),
-              )
-            }
+          const { position, duration } = TrackPlayer.getProgress()
+          if (position > 0 && duration > 0) {
+            await playbackHistory.updatePlaybackProgress(
+              s.currentSong,
+              position,
+              duration,
+              TrackPlayer.isPlaying(),
+            )
           }
         } catch (error) {
-          console.error("Error resyncing on foreground:", error)
+          console.error("Error saving position on background:", error)
         }
       }
-    },
-  )
+    }
+
+    if (state === "active" && initialized) {
+      // Re-sync store with native state on foreground
+      try {
+        syncStoreFromNative()
+
+        if (s.currentSong) {
+          const { position, duration } = TrackPlayer.getProgress()
+          if (position > 0) {
+            playbackHistory.updatePlaybackProgress(
+              s.currentSong,
+              position,
+              duration,
+              TrackPlayer.isPlaying(),
+            )
+          }
+        }
+      } catch (error) {
+        console.error("Error resyncing on foreground:", error)
+      }
+    }
+  })
 }
 
-export const dispatchTrackPlayerEvent = async (event: { type: string;[key: string]: unknown }) => {
-  if (!trackPlayerInitialized) return
+// ─── Event Handling ──────────────────────────────────
+// Minimal event handling — only for things the native player doesn't handle:
+// 1. Track ended → auto-advance to next song
+// 2. Track transition → update zustand current song + playback history
+// 3. Playback errors → retry or skip
+// 4. Progress updates → save to playback history
+//
+// We do NOT mirror IsPlayingChanged into the store on every fire.
+// The UI uses RNTP's useIsPlaying() hook which reads native state directly.
+// We only update store.isPlaying on explicit user actions (play/pause/stop/skip).
 
-  const store = getStore()
-  const userId = bridgeUserId
+export const dispatchTrackPlayerEvent = async (event: { type: string; [key: string]: unknown }) => {
+  if (!initialized) return
 
-  if (store.activePlayerMode === "group") {
+  const s = store()
+
+  // In group mode, only handle RemoteStop
+  if (s.activePlayerMode === "group") {
     if (event.type === Event.RemoteStop) {
-      const groupStore = useGroupPlaybackStore.getState()
-      if (groupStore.isPlaying) {
+      const group = useGroupPlaybackStore.getState()
+      if (group.isPlaying) {
         TrackPlayer.pause()
-        groupStore.stopProgressPolling()
+        group.stopProgressPolling()
         useGroupPlaybackStore.setState({ isPlaying: false })
       }
       TrackPlayer.stop()
@@ -668,129 +631,119 @@ export const dispatchTrackPlayerEvent = async (event: { type: string;[key: strin
 
   try {
     switch (event.type) {
+      // ── Track ended → play next ──
       case Event.PlaybackStateChanged: {
-        const playerState = event.state as string
-
-        if (playerState === "ended") {
-          if (isDuplicateEvent(Event.PlaybackStateChanged, 'ended')) break
-          if (isSwitchingTracks || isRecoveringFromError || hasExceededPlaybackErrorRetries()) break
-          isSwitchingTracks = true
+        const state = event.state as string
+        if (state === "ended") {
           bridgeHandleNextSong(true, userId)
         }
         break
       }
 
+      // ── Playing state changed → sync store only on genuine transitions ──
       case Event.IsPlayingChanged: {
         const playing = event.playing as boolean
-        if (isDuplicateEvent(Event.IsPlayingChanged, String(playing))) break
 
-        if (playing) {
-          isSwitchingTracks = false
-        }
+        // Skip during error recovery — we'll sync once recovery succeeds
+        if (recovering) break
 
-        if (isRecoveringFromError) {
-          break
-        }
-
-        store.setPlaying(playing)
-
-        if (store.currentSong) {
-          const { position, duration } = TrackPlayer.getProgress()
-          playbackHistory
-            .updatePlaybackProgress(store.currentSong, position, duration, playing)
-            .catch(console.error)
-        }
+        // Sync store playing state from native
+        s.setPlaying(playing)
         break
       }
 
+      // ── Track transition → update current song + history ──
       case Event.MediaItemTransition: {
-        const transitionId = event.item ? ((event.item as MediaItem).mediaId ?? '') : ''
-        if (isDuplicateEvent(Event.MediaItemTransition, transitionId)) break
-
         if (event.item && event.index !== undefined) {
           const trackId = (event.item as MediaItem).mediaId
           if (trackId) {
-            const playlist = store.playlist
-            const songIndex = playlist.findIndex((song) => song.id === trackId)
+            const playlist = s.playlist
+            const songIdx = playlist.findIndex((song) => song.id === trackId)
 
-            if (songIndex >= 0) {
-              const song = playlist[songIndex]
-              if (song.id !== store.currentSong?.id) {
-                store.setCurrentSong(song)
+            if (songIdx >= 0) {
+              const song = playlist[songIdx]
+              const isNewSong = song.id !== s.currentSong?.id
+              if (isNewSong) s.setCurrentSong(song)
 
-                if (userId) {
-                  playbackHistory
-                    .updatePlaybackProgress(song, 0, song.duration || 0, true)
-                    .catch(console.error)
-                  onAfterSongTransition?.(song)
-                }
+              // Always record history on native transitions (auto-next, native skip)
+              if (userId) {
+                playbackHistory
+                  .updatePlaybackProgress(song, 0, song.duration || 0, true)
+                  .catch(console.error)
+                if (isNewSong) onAfterSongTransition?.(song)
               }
             }
           }
         }
 
-        isSwitchingTracks = false
-        resetPlaybackErrorState()
-        appendUpcomingTracks()
+        resetErrors()
+        fillQueue()
         break
       }
 
+      // ── Playback error → retry or skip ──
       case Event.PlaybackError: {
         console.error(`Playback error: ${event.code} - ${event.message}`)
-        isSwitchingTracks = false
-        lastPlaybackErrorTime = Date.now()
+        lastErrorTime = Date.now()
 
-        if (isRecoveringFromError || hasExceededPlaybackErrorRetries()) {
-          pausePlaybackAfterError(store)
+        if (recovering || hasExceededRetries()) {
+          recovering = false
+          s.setPlaying(false)
+          TrackPlayer.pause()
           break
         }
 
-        if (store.currentSong) {
-          playbackErrorRetries += 1
-          isRecoveringFromError = true
+        // Use RNTP v5's retry() for clean error recovery
+        errorRetries += 1
+        recovering = true
 
-          try {
-            trackCache.delete(store.currentSong.id)
-            const fallbackTrack = convertSongToTrackSync(store.currentSong)
-            if (fallbackTrack?.url) {
-              isSwitchingTracks = true
+        try {
+          TrackPlayer.retry()
+          TrackPlayer.play()
+        } catch {
+          // retry() failed — try rebuilding with fresh URL
+          if (s.currentSong) {
+            trackCache.delete(s.currentSong.id)
+            const fresh = toMediaItem(s.currentSong)
+            if (fresh?.url) {
               TrackPlayer.stop()
               TrackPlayer.clear()
-              TrackPlayer.setMediaItems([fallbackTrack])
+              TrackPlayer.setMediaItems([fresh])
               TrackPlayer.play()
-              store.setPlaying(true)
-              return
+              s.setPlaying(true)
+              break
             }
-          } catch (fallbackError) {
-            console.error("Fallback URL also failed:", fallbackError)
           }
-
-          pausePlaybackAfterError(store)
-        } else {
-          pausePlaybackAfterError(store)
+          // Everything failed
+          recovering = false
+          s.setPlaying(false)
         }
         break
       }
 
+      // ── Remote stop ──
       case Event.RemoteStop: {
-        store.stopSong()
+        s.stopSong()
         await bridgeStopSong()
         break
       }
 
+      // ── Progress updates → save to playback history ──
       case Event.PlaybackProgressUpdated: {
         const position = event.position as number
         const duration = event.duration as number
 
-        if (position > 1 && isRecoveringFromError) {
-          resetPlaybackErrorState()
-          store.setPlaying(TrackPlayer.isPlaying())
+        // Clear recovery flag once we're actually playing
+        if (position > 1 && recovering) {
+          resetErrors()
+          s.setPlaying(TrackPlayer.isPlaying())
         }
 
-        if (position > 0 && store.currentSong && store.isPlaying) {
+        // Periodic history save (every ~10 seconds)
+        if (position > 0 && s.currentSong && s.isPlaying) {
           if (position > 5 && duration - position > 5 && Math.floor(position) % 10 === 0) {
             playbackHistory
-              .updatePlaybackProgress(store.currentSong, position, duration, store.isPlaying)
+              .updatePlaybackProgress(s.currentSong, position, duration, true)
               .catch(console.error)
           }
         }
@@ -799,41 +752,48 @@ export const dispatchTrackPlayerEvent = async (event: { type: string;[key: strin
     }
   } catch (error) {
     console.error("Error handling TrackPlayer event:", error)
-    isSwitchingTracks = false
   }
 }
 
 export const handleTrackPlayerEvents = dispatchTrackPlayerEvent
 
+// ─── Cleanup ─────────────────────────────────────────
+
 export const destroyTrackPlayer = async () => {
-  if (appStateSubscription) {
-    appStateSubscription.remove()
-    appStateSubscription = null
+  if (appStateSub) {
+    appStateSub.remove()
+    appStateSub = null
+  }
+  if (reorderTimeout) {
+    clearTimeout(reorderTimeout)
+    reorderTimeout = null
   }
 
   playbackHistory.destroy()
   trackCache.clear()
-  resetPlaybackErrorState()
+  resetErrors()
 
-  if (trackPlayerInitialized) {
+  if (initialized) {
     try {
       TrackPlayer.stop()
       TrackPlayer.clear()
     } catch (error) {
       console.error("Error resetting TrackPlayer:", error)
     }
-    trackPlayerInitialized = false
+    initialized = false
   }
 }
 
-export const isTrackPlayerReady = () => trackPlayerInitialized
+export const isTrackPlayerReady = () => initialized
+
+// ─── Wire up store callbacks ─────────────────────────
 
 setOnReorderPlaylist(syncReorderPlaylist)
-setOnPlaySong((song) => bridgePlaySong(song, bridgeUserId))
+setOnPlaySong((song) => bridgePlaySong(song, userId))
 setOnStopSong(() => bridgeStopSong())
 setOnPlayPause(() => bridgePlayPause())
-setOnHandleNextSong((isAutoPlay) => bridgeHandleNextSong(isAutoPlay, bridgeUserId))
-setOnHandlePrevSong(() => bridgeHandlePrevSong(bridgeUserId))
+setOnHandleNextSong((isAutoPlay) => bridgeHandleNextSong(isAutoPlay, userId))
+setOnHandlePrevSong(() => bridgeHandlePrevSong(userId))
 setOnRepeatModeChange((mode) => bridgeSetRepeatMode(mode))
-setOnAddToQueue(() => appendUpcomingTracks())
+setOnAddToQueue(() => fillQueue())
 setOnRemoveFromQueue((songId) => bridgeRemoveFromQueue(songId))

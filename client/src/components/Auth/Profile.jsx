@@ -202,7 +202,7 @@ const Profile = () => {
                   className={cn(
                     "w-48 h-48 rounded-full overflow-hidden shadow-lg relative transition-all duration-300",
                     loading &&
-                    "ring-4 ring-blue-500/50 ring-offset-2 ring-offset-background animate-pulse",
+                      "ring-4 ring-blue-500/50 ring-offset-2 ring-offset-background animate-pulse",
                   )}
                 >
                   <AvatarImage

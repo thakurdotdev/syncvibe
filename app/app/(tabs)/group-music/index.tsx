@@ -1,22 +1,22 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
-import Animated from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import LoginScreen from '@/components/LoginScreen';
-import QRScannerScreen from '@/app/qr-scanner';
-import { useGroupMusic } from '@/context/GroupMusicContext';
-import { useUser } from '@/context/UserContext';
-import { useTheme } from '@/context/ThemeContext';
-import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
-import { GroupInfoCard } from '@/components/music/group/GroupInfoCard';
-import { CurrentSongCard } from '@/components/music/group/CurrentSongCard';
-import { GroupMembersCard } from '@/components/music/group/GroupMembersCard';
-import { CreateOrJoinModal } from '@/components/music/group/CreateOrJoinModal';
-import { SearchModal } from '@/components/music/group/SearchModal';
-import { QRCodeModal } from '@/components/music/group/QRCodeModal';
-import { QueueSheet } from '@/components/music/group/QueueSheet';
+import React, { useCallback, useMemo, useState } from "react"
+import { Text, TouchableOpacity, View, StyleSheet } from "react-native"
+import Animated from "react-native-reanimated"
+import { SafeAreaView } from "react-native-safe-area-context"
+import { LinearGradient } from "expo-linear-gradient"
+import { Feather, Ionicons } from "@expo/vector-icons"
+import LoginScreen from "@/components/LoginScreen"
+import QRScannerScreen from "@/app/qr-scanner"
+import { useGroupMusic } from "@/context/GroupMusicContext"
+import { useUser } from "@/context/UserContext"
+import { useTheme } from "@/context/ThemeContext"
+import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
+import { GroupInfoCard } from "@/components/music/group/GroupInfoCard"
+import { CurrentSongCard } from "@/components/music/group/CurrentSongCard"
+import { GroupMembersCard } from "@/components/music/group/GroupMembersCard"
+import { CreateOrJoinModal } from "@/components/music/group/CreateOrJoinModal"
+import { SearchModal } from "@/components/music/group/SearchModal"
+import { QRCodeModal } from "@/components/music/group/QRCodeModal"
+import { QueueSheet } from "@/components/music/group/QueueSheet"
 
 const HeaderActions = React.memo(
   ({
@@ -24,19 +24,19 @@ const HeaderActions = React.memo(
     onOpenSearch,
     onLeave,
   }: {
-    onOpenQueue: () => void;
-    onOpenSearch: () => void;
-    onLeave: () => void;
+    onOpenQueue: () => void
+    onOpenSearch: () => void
+    onLeave: () => void
   }) => {
-    const { colors } = useTheme();
-    const queue = useGroupSessionStore((s) => s.queue);
-    const currentQueueIndex = useGroupSessionStore((s) => s.currentQueueIndex);
+    const { colors } = useTheme()
+    const queue = useGroupSessionStore((s) => s.queue)
+    const currentQueueIndex = useGroupSessionStore((s) => s.currentQueueIndex)
 
     const activeQueueCount = useMemo(() => {
-      const currentItem = currentQueueIndex >= 0 && queue[currentQueueIndex] ? 1 : 0;
-      const upcoming = queue.filter((_, idx) => idx > currentQueueIndex).length;
-      return currentItem + upcoming;
-    }, [queue, currentQueueIndex]);
+      const currentItem = currentQueueIndex >= 0 && queue[currentQueueIndex] ? 1 : 0
+      const upcoming = queue.filter((_, idx) => idx > currentQueueIndex).length
+      return currentItem + upcoming
+    }, [queue, currentQueueIndex])
 
     return (
       <View style={styles.headerRight}>
@@ -44,7 +44,7 @@ const HeaderActions = React.memo(
           onPress={onOpenQueue}
           style={[styles.headerButton, { backgroundColor: colors.secondary }]}
         >
-          <Feather name='list' size={18} color={colors.foreground} />
+          <Feather name="list" size={18} color={colors.foreground} />
           {activeQueueCount > 0 && (
             <View style={[styles.headerBadge, { backgroundColor: colors.primary }]}>
               <Text style={[styles.headerBadgeText, { color: colors.primaryForeground }]}>
@@ -57,65 +57,65 @@ const HeaderActions = React.memo(
           onPress={onOpenSearch}
           style={[styles.headerButton, { backgroundColor: colors.secondary }]}
         >
-          <Feather name='search' size={18} color={colors.foreground} />
+          <Feather name="search" size={18} color={colors.foreground} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={onLeave}
           style={[styles.headerButton, { backgroundColor: colors.secondary }]}
         >
-          <Feather name='log-out' size={18} color={colors.foreground} />
+          <Feather name="log-out" size={18} color={colors.foreground} />
         </TouchableOpacity>
       </View>
-    );
-  }
-);
+    )
+  },
+)
 
 export default function GroupMusicMobile() {
   const { handlePlayPause, handleSeek, createGroup, joinGroup, leaveGroup, skipSong } =
-    useGroupMusic();
+    useGroupMusic()
 
-  const { user } = useUser();
-  const { colors } = useTheme();
+  const { user } = useUser()
+  const { colors } = useTheme()
 
-  const currentGroup = useGroupSessionStore((s) => s.currentGroup);
-  const groupMembers = useGroupSessionStore((s) => s.groupMembers);
-  const isGroupModalOpen = useGroupSessionStore((s) => s.isGroupModalOpen);
+  const currentGroup = useGroupSessionStore((s) => s.currentGroup)
+  const groupMembers = useGroupSessionStore((s) => s.groupMembers)
+  const isGroupModalOpen = useGroupSessionStore((s) => s.isGroupModalOpen)
 
-  const [showSearchModal, setShowSearchModal] = useState(false);
-  const [showQRCodeModal, setShowQRCodeModal] = useState(false);
-  const [scanQrCode, setScanQrCode] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false)
+  const [showQRCodeModal, setShowQRCodeModal] = useState(false)
+  const [scanQrCode, setScanQrCode] = useState(false)
 
   const handleOpenQueue = useCallback(() => {
-    useGroupSessionStore.setState({ isQueueOpen: true });
-  }, []);
+    useGroupSessionStore.setState({ isQueueOpen: true })
+  }, [])
 
   const handleOpenSearch = useCallback(() => {
-    setShowSearchModal(true);
-  }, []);
+    setShowSearchModal(true)
+  }, [])
 
   const handleCloseSearch = useCallback(() => {
-    setShowSearchModal(false);
-  }, []);
+    setShowSearchModal(false)
+  }, [])
 
   const handleCopyGroupId = useCallback(() => {
     if (currentGroup?.id) {
-      alert(`Group ID: ${currentGroup.id}\nCopy from here.`);
+      alert(`Group ID: ${currentGroup.id}\nCopy from here.`)
     }
-  }, [currentGroup?.id]);
+  }, [currentGroup?.id])
 
-  if (!user) return <LoginScreen />;
+  if (!user) return <LoginScreen />
 
   return (
     <>
       {scanQrCode ? (
         <QRScannerScreen
           onScanComplete={(qrCode) => {
-            joinGroup(qrCode);
-            setScanQrCode(false);
+            joinGroup(qrCode)
+            setScanQrCode(false)
           }}
           onClose={() => {
-            setScanQrCode(false);
-            useGroupSessionStore.setState({ isGroupModalOpen: false });
+            setScanQrCode(false)
+            useGroupSessionStore.setState({ isGroupModalOpen: false })
           }}
         />
       ) : (
@@ -131,7 +131,7 @@ export default function GroupMusicMobile() {
 
           <SafeAreaView style={styles.header}>
             <View style={styles.headerLeft}>
-              <Ionicons name='musical-notes-outline' size={24} color={colors.foreground} />
+              <Ionicons name="musical-notes-outline" size={24} color={colors.foreground} />
               <Text style={[styles.headerTitle, { color: colors.foreground }]}>Group Music</Text>
             </View>
             {currentGroup && (
@@ -145,7 +145,7 @@ export default function GroupMusicMobile() {
 
           {!currentGroup ? (
             <View style={styles.welcomeContainer}>
-              <Ionicons name='people-outline' size={72} color={colors.foreground} />
+              <Ionicons name="people-outline" size={72} color={colors.foreground} />
               <Text style={[styles.welcomeTitle, { color: colors.foreground }]}>
                 Sync Your Vibe with Friends
               </Text>
@@ -157,7 +157,7 @@ export default function GroupMusicMobile() {
                 onPress={() => useGroupSessionStore.setState({ isGroupModalOpen: true })}
                 style={[styles.createButton, { backgroundColor: colors.primary }]}
               >
-                <Feather name='plus-circle' size={18} color={colors.primaryForeground} />
+                <Feather name="plus-circle" size={18} color={colors.primaryForeground} />
                 <Text style={[styles.createButtonText, { color: colors.primaryForeground }]}>
                   Create or Join Group
                 </Text>
@@ -180,10 +180,7 @@ export default function GroupMusicMobile() {
                 onSkip={skipSong}
               />
 
-              <GroupMembersCard
-                groupMembers={groupMembers}
-                hostId={currentGroup.createdBy}
-              />
+              <GroupMembersCard groupMembers={groupMembers} hostId={currentGroup.createdBy} />
             </View>
           )}
 
@@ -209,7 +206,7 @@ export default function GroupMusicMobile() {
         </View>
       )}
     </>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -217,74 +214,74 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   gradientContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    height: '100%',
+    height: "100%",
     zIndex: 0,
   },
   gradient: {
-    height: '100%',
-    width: '100%',
+    height: "100%",
+    width: "100%",
   },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     zIndex: 1,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: "600",
     marginLeft: 10,
   },
   headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
     zIndex: 1,
   },
   headerButton: {
     padding: 10,
     borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   headerBadge: {
     minWidth: 16,
     height: 16,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 4,
     marginLeft: 4,
   },
   headerBadgeText: {
     fontSize: 9,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   welcomeContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 32,
   },
   welcomeTitle: {
     fontSize: 26,
-    fontWeight: '700',
+    fontWeight: "700",
     marginTop: 32,
-    textAlign: 'center',
+    textAlign: "center",
   },
   welcomeSubtitle: {
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 12,
     marginBottom: 40,
     fontSize: 16,
@@ -294,17 +291,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
   },
   createButtonText: {
-    fontWeight: '700',
+    fontWeight: "700",
     marginLeft: 8,
     fontSize: 16,
   },
   contentContainer: {
     flex: 1,
   },
-});
+})

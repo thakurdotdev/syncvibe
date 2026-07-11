@@ -362,8 +362,14 @@ export const usePlayerStore = create(
       },
 
       loadAndPlayCurrentSong: async (prevSongId) => {
-        const { currentSong, currentTime, updateMediaSession, preloadNextTrack, _hasRestoredTime, isClosed } =
-          get()
+        const {
+          currentSong,
+          currentTime,
+          updateMediaSession,
+          preloadNextTrack,
+          _hasRestoredTime,
+          isClosed,
+        } = get()
         if (!audioElement || !currentSong || currentSong.id === prevSongId || isClosed) {
           return prevSongId
         }

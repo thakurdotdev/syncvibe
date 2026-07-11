@@ -147,7 +147,8 @@ export const PasskeyLogin = () => {
           </h1>
         </div>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">
-          Use your device's biometric authentication (Face ID, Touch ID, Windows Hello) or security key to sign in securely.
+          Use your device's biometric authentication (Face ID, Touch ID, Windows Hello) or security
+          key to sign in securely.
         </p>
       </div>
 
@@ -159,7 +160,9 @@ export const PasskeyLogin = () => {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Email Address</FormLabel>
+                <FormLabel className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                  Email Address
+                </FormLabel>
                 <FormControl>
                   <Input
                     placeholder="Enter your email"
@@ -175,7 +178,10 @@ export const PasskeyLogin = () => {
           />
 
           {error && (
-            <Alert variant="destructive" className="rounded-xl border-red-200/50 bg-red-50/50 dark:bg-red-950/20 dark:border-red-900/50">
+            <Alert
+              variant="destructive"
+              className="rounded-xl border-red-200/50 bg-red-50/50 dark:bg-red-950/20 dark:border-red-900/50"
+            >
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-xs">{error}</AlertDescription>
             </Alert>

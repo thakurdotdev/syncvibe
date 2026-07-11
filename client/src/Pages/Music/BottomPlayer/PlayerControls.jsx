@@ -66,7 +66,12 @@ const PlayerControls = memo(({ onMinimize, onOpenModal, isMobile }) => {
       </motion.div>
 
       <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-        <Button variant="ghost" size="icon" className={cn("h-9 w-9 text-white/50 hover:text-white hover:bg-white/10")} onClick={closePlayer}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn("h-9 w-9 text-white/50 hover:text-white hover:bg-white/10")}
+          onClick={closePlayer}
+        >
           <X size={18} />
         </Button>
       </motion.div>

@@ -114,7 +114,9 @@ const NowPlayingCard = ({
 
     return (
       <div className="rounded-2xl liquid-panel overflow-hidden">
-        <div className={cn("px-4 md:px-6", hasPicks ? "pt-6 md:pt-8 pb-4 md:pb-5" : "py-16 md:py-20")}>
+        <div
+          className={cn("px-4 md:px-6", hasPicks ? "pt-6 md:pt-8 pb-4 md:pb-5" : "py-16 md:py-20")}
+        >
           <div className={cn("flex flex-col items-center text-center", hasPicks ? "mb-5" : "")}>
             <div className="p-4 rounded-full liquid-badge mb-3">
               <AudioLines className="h-7 w-7 text-muted-foreground/30" />
@@ -157,9 +159,13 @@ const NowPlayingCard = ({
                         </div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-medium truncate group-hover:text-primary transition-colors leading-snug">{song.name}</p>
+                        <p className="text-[13px] font-medium truncate group-hover:text-primary transition-colors leading-snug">
+                          {song.name}
+                        </p>
                         {songArtist && (
-                          <p className="text-[11px] text-muted-foreground/50 truncate leading-snug">{songArtist}</p>
+                          <p className="text-[11px] text-muted-foreground/50 truncate leading-snug">
+                            {songArtist}
+                          </p>
                         )}
                       </div>
                       <button

@@ -16,7 +16,6 @@
 }
 
 @keyframes wave {
-
   0%,
   100% {
     transform: scaleY(0.3);
@@ -71,7 +70,6 @@
 }
 
 @keyframes pulse-glow {
-
   0%,
   100% {
     opacity: 0.4;
@@ -201,7 +199,6 @@
 }
 
 @keyframes ambient-breathe {
-
   0%,
   100% {
     transform: scale(1) translateY(0);
@@ -220,7 +217,6 @@
 }
 
 @keyframes ambient-breathe-alt {
-
   0%,
   100% {
     transform: scale(1.1) translateX(2%);
@@ -253,12 +249,14 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(105deg,
-      transparent 30%,
-      var(--glass-hover) 45%,
-      var(--glass-active) 50%,
-      var(--glass-hover) 55%,
-      transparent 70%);
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    var(--glass-hover) 45%,
+    var(--glass-active) 50%,
+    var(--glass-hover) 55%,
+    transparent 70%
+  );
   animation: glass-shimmer 1.8s ease-out forwards;
   pointer-events: none;
   border-radius: inherit;
@@ -277,7 +275,7 @@
 }
 
 .progress-glow .slider-track-fill,
-.progress-glow [data-orientation="horizontal"]>span:first-child {
+.progress-glow [data-orientation="horizontal"] > span:first-child {
   box-shadow: 0 0 8px 1px hsl(var(--primary) / 0.3);
 }
 
@@ -634,7 +632,6 @@
 }
 
 @keyframes search-pulse {
-
   0%,
   100% {
     opacity: 0.5;
@@ -654,10 +651,12 @@
 }
 
 .player-gradient {
-  background: linear-gradient(135deg,
-      rgba(16, 185, 129, 0.1) 0%,
-      rgba(20, 184, 166, 0.05) 50%,
-      rgba(6, 182, 212, 0.1) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.1) 0%,
+    rgba(20, 184, 166, 0.05) 50%,
+    rgba(6, 182, 212, 0.1) 100%
+  );
 }
 
 .glow-emerald {
@@ -673,7 +672,6 @@
 }
 
 @keyframes audio-wave {
-
   0%,
   100% {
     height: 4px;
@@ -721,20 +719,24 @@
 
 .skeleton-line {
   border-radius: 6px;
-  background: linear-gradient(90deg,
-      hsl(var(--muted) / 0.4) 25%,
-      hsl(var(--muted) / 0.7) 50%,
-      hsl(var(--muted) / 0.4) 75%);
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted) / 0.4) 25%,
+    hsl(var(--muted) / 0.7) 50%,
+    hsl(var(--muted) / 0.4) 75%
+  );
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.5s ease-in-out infinite;
 }
 
 .skeleton-block {
   border-radius: 12px;
-  background: linear-gradient(90deg,
-      hsl(var(--muted) / 0.4) 25%,
-      hsl(var(--muted) / 0.7) 50%,
-      hsl(var(--muted) / 0.4) 75%);
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted) / 0.4) 25%,
+    hsl(var(--muted) / 0.7) 50%,
+    hsl(var(--muted) / 0.4) 75%
+  );
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.5s ease-in-out infinite;
 }
@@ -752,7 +754,6 @@
 /* ─── Typing Indicator ─── */
 
 @keyframes typing-dot {
-
   0%,
   60%,
   100% {
@@ -810,7 +811,6 @@
 /* ─── Reduced Motion ─── */
 
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {

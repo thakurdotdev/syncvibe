@@ -21,7 +21,9 @@ const AuthLayout = () => {
                 alt="SyncVibe"
                 className="w-8 h-8 rounded-xl object-cover shadow-sm transition-transform group-hover:scale-105"
               />
-              <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">SyncVibe</span>
+              <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+                SyncVibe
+              </span>
             </Link>
             <Link
               to={headerLinkPath}
@@ -40,8 +42,18 @@ const AuthLayout = () => {
           <footer className="flex items-center justify-between w-full text-xs text-zinc-400 dark:text-zinc-500">
             <span>© 2026 SyncVibe</span>
             <div className="flex gap-4">
-              <Link to="/privacy" className="hover:text-zinc-600 dark:hover:text-zinc-350 transition-colors">Privacy</Link>
-              <Link to="/terms" className="hover:text-zinc-600 dark:hover:text-zinc-350 transition-colors">Terms</Link>
+              <Link
+                to="/privacy"
+                className="hover:text-zinc-600 dark:hover:text-zinc-350 transition-colors"
+              >
+                Privacy
+              </Link>
+              <Link
+                to="/terms"
+                className="hover:text-zinc-600 dark:hover:text-zinc-350 transition-colors"
+              >
+                Terms
+              </Link>
             </div>
           </footer>
         </div>

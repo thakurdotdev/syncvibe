@@ -1,88 +1,93 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import useApi from '@/utils/hooks/useApi';
-import Constants from 'expo-constants';
-import { toast } from '@/context/ToastContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useEffect, useState } from "react"
+import useApi from "@/utils/hooks/useApi"
+import Constants from "expo-constants"
+import { toast } from "@/context/ToastContext"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 interface AppUpdate {
-  id: number;
-  version: string;
-  releaseNotes: string | null;
-  downloadUrl: string | null;
-  critical: boolean;
-  createdAt: string;
+  id: number
+  version: string
+  releaseNotes: string | null
+  downloadUrl: string | null
+  critical: boolean
+  createdAt: string
 }
 
 interface AppUpdateContextType {
-  updateInfo: AppUpdate | null;
-  isUpdateAvailable: boolean;
-  currentVersion: string;
-  checkUpdates: () => Promise<void>;
-  loading: boolean;
+  updateInfo: AppUpdate | null
+  isUpdateAvailable: boolean
+  currentVersion: string
+  checkUpdates: () => Promise<void>
+  loading: boolean
 }
 
-const AppUpdateContext = createContext<AppUpdateContextType | null>(null);
+const AppUpdateContext = createContext<AppUpdateContextType | null>(null)
 
 export const useAppUpdate = () => {
-  const context = useContext(AppUpdateContext);
+  const context = useContext(AppUpdateContext)
   if (!context) {
-    throw new Error('useAppUpdate must be used within an AppUpdateProvider');
+    throw new Error("useAppUpdate must be used within an AppUpdateProvider")
   }
-  return context;
-};
+  return context
+}
 
 const isNewerVersion = (current: string, latest: string): boolean => {
-  const currentParts = current.split('.').map(Number);
-  const latestParts = latest.split('.').map(Number);
+  const currentParts = current.split(".").map(Number)
+  const latestParts = latest.split(".").map(Number)
   for (let i = 0; i < Math.max(currentParts.length, latestParts.length); i++) {
-    const curr = currentParts[i] || 0;
-    const lat = latestParts[i] || 0;
-    if (lat > curr) return true;
-    if (curr > lat) return false;
+    const curr = currentParts[i] || 0
+    const lat = latestParts[i] || 0
+    if (lat > curr) return true
+    if (curr > lat) return false
   }
-  return false;
-};
+  return false
+}
 
 export const AppUpdateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const api = useApi();
-  const [updateInfo, setUpdateInfo] = useState<AppUpdate | null>(null);
-  const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
+  const api = useApi()
+  const [updateInfo, setUpdateInfo] = useState<AppUpdate | null>(null)
+  const [isUpdateAvailable, setIsUpdateAvailable] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(false)
 
-  const currentVersion = Constants.expoConfig?.version || '1.0.0';
+  const currentVersion = Constants.expoConfig?.version || "1.0.0"
 
   const checkUpdates = async () => {
-    setLoading(true);
+    setLoading(true)
     try {
-      const response = await api.get('/api/app-update/latest');
+      const response = await api.get("/api/app-update/latest")
       if (response.status === 200 && response.data.success && response.data.latest) {
-        const latest = response.data.latest;
-        setUpdateInfo(latest);
-        const hasUpdate = isNewerVersion(currentVersion, latest.version);
-        setIsUpdateAvailable(hasUpdate);
+        const latest = response.data.latest
+        setUpdateInfo(latest)
+        const hasUpdate = isNewerVersion(currentVersion, latest.version)
+        setIsUpdateAvailable(hasUpdate)
 
         if (hasUpdate) {
-          const lastNotifiedVersion = await AsyncStorage.getItem('last-notified-update-version');
+          const lastNotifiedVersion = await AsyncStorage.getItem("last-notified-update-version")
           if (lastNotifiedVersion !== latest.version) {
-            await AsyncStorage.setItem('last-notified-update-version', latest.version);
-            toast(`SyncVibe v${latest.version} is available! Check your profile to update.`, { type: 'info', duration: 6000 });
+            await AsyncStorage.setItem("last-notified-update-version", latest.version)
+            toast(`SyncVibe v${latest.version} is available! Check your profile to update.`, {
+              type: "info",
+              duration: 6000,
+            })
           }
         }
       }
     } catch (error) {
-      console.error('Failed to check for updates:', error);
+      console.error("Failed to check for updates:", error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    checkUpdates();
-  }, []);
+    checkUpdates()
+  }, [])
 
   return (
-    <AppUpdateContext.Provider value={{ updateInfo, isUpdateAvailable, currentVersion, checkUpdates, loading }}>
+    <AppUpdateContext.Provider
+      value={{ updateInfo, isUpdateAvailable, currentVersion, checkUpdates, loading }}
+    >
       {children}
     </AppUpdateContext.Provider>
-  );
-};
+  )
+}

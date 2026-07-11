@@ -1,4 +1,4 @@
-const { musicGroups, emitActivityMessage, getScheduledDelay } = require("./state");
+const { musicGroups, emitActivityMessage, getScheduledDelay } = require("./state")
 const {
   addToQueue,
   addPlayNext,
@@ -7,14 +7,14 @@ const {
   prunePlayedSongs,
   reorderQueue,
   getQueueState,
-} = require("./queue");
-const { Song, GroupSessionHistory } = require("../../models/music");
+} = require("./queue")
+const { Song, GroupSessionHistory } = require("../../models/music")
 
 const persistSongHistory = async (group, queueItem) => {
-  if (!queueItem?.song?.id) return;
+  if (!queueItem?.song?.id) return
   try {
-    const songRecord = await Song.getOrCreate(queueItem.song);
-    if (!songRecord) return;
+    const songRecord = await Song.getOrCreate(queueItem.song)
+    if (!songRecord) return
     await GroupSessionHistory.create({
       sessionId: group.id,
       groupId: group.id,
@@ -23,135 +23,135 @@ const persistSongHistory = async (group, queueItem) => {
         ? parseInt(queueItem.addedBy.userId, 10) || null
         : null,
       playedAt: new Date(),
-    });
+    })
   } catch (err) {
-    console.error("[GroupHistory] Failed to persist:", err.message);
+    console.error("[GroupHistory] Failed to persist:", err.message)
   }
-};
+}
 
 const setupQueueHandlers = (io, socket) => {
   socket.on("add-to-queue", (data) => {
-    const { groupId, song, addedBy } = data;
-    const group = musicGroups.get(groupId);
-    if (!group) return;
+    const { groupId, song, addedBy } = data
+    const group = musicGroups.get(groupId)
+    if (!group) return
 
-    const result = addToQueue(group, song, addedBy);
+    const result = addToQueue(group, song, addedBy)
 
     if (result.success) {
       io.to(`music-group-${groupId}`).emit("queue-updated", {
         ...getQueueState(group),
         action: "add",
         item: result.queueItem,
-      });
+      })
 
       emitActivityMessage(io, groupId, "song-added", {
         userName: addedBy.userName,
         songName: song.name,
-      });
+      })
 
       if (result.autoPlay && group.queue.length === 1) {
-        const serverTime = Date.now();
-        const scheduledPlayTime = serverTime + getScheduledDelay(group);
+        const serverTime = Date.now()
+        const scheduledPlayTime = serverTime + getScheduledDelay(group)
         io.to(`music-group-${groupId}`).emit("music-update", {
           song: result.queueItem.song,
           currentTime: 0,
           queueItem: result.queueItem,
           scheduledPlayTime,
           serverTime,
-        });
+        })
 
-        group.playbackState.isPlaying = true;
-        group.playbackState.currentTime = 0;
-        group.playbackState.lastUpdate = scheduledPlayTime;
+        group.playbackState.isPlaying = true
+        group.playbackState.currentTime = 0
+        group.playbackState.lastUpdate = scheduledPlayTime
 
         emitActivityMessage(io, groupId, "song-playing", {
           songName: song.name,
           addedBy: addedBy.userName,
-        });
+        })
       }
     } else {
-      socket.emit("queue-error", { error: result.error });
+      socket.emit("queue-error", { error: result.error })
     }
-  });
+  })
 
   socket.on("play-next", (data) => {
-    const { groupId, song, addedBy } = data;
-    const group = musicGroups.get(groupId);
-    if (!group) return;
+    const { groupId, song, addedBy } = data
+    const group = musicGroups.get(groupId)
+    if (!group) return
 
-    const result = addPlayNext(group, song, addedBy);
+    const result = addPlayNext(group, song, addedBy)
 
     if (result.success) {
       io.to(`music-group-${groupId}`).emit("queue-updated", {
         ...getQueueState(group),
         action: "play-next",
         item: result.queueItem,
-      });
+      })
 
       emitActivityMessage(io, groupId, "song-added", {
         userName: addedBy.userName,
         songName: song.name,
-      });
+      })
 
       if (result.autoPlay) {
-        const serverTime = Date.now();
-        const scheduledPlayTime = serverTime + getScheduledDelay(group);
+        const serverTime = Date.now()
+        const scheduledPlayTime = serverTime + getScheduledDelay(group)
         io.to(`music-group-${groupId}`).emit("music-update", {
           song: result.queueItem.song,
           currentTime: 0,
           queueItem: result.queueItem,
           scheduledPlayTime,
           serverTime,
-        });
+        })
 
-        group.playbackState.isPlaying = true;
-        group.playbackState.currentTime = 0;
-        group.playbackState.lastUpdate = scheduledPlayTime;
+        group.playbackState.isPlaying = true
+        group.playbackState.currentTime = 0
+        group.playbackState.lastUpdate = scheduledPlayTime
 
         emitActivityMessage(io, groupId, "song-playing", {
           songName: song.name,
           addedBy: addedBy.userName,
-        });
+        })
       }
     } else {
-      socket.emit("queue-error", { error: result.error });
+      socket.emit("queue-error", { error: result.error })
     }
-  });
+  })
 
   socket.on("add-playlist-to-queue", (data) => {
-    const { groupId, songs, addedBy } = data;
-    const group = musicGroups.get(groupId);
-    if (!group) return;
+    const { groupId, songs, addedBy } = data
+    const group = musicGroups.get(groupId)
+    if (!group) return
 
-    let addedCount = 0;
-    const errors = [];
+    let addedCount = 0
+    const errors = []
 
     for (const song of songs) {
-      const result = addToQueue(group, song, addedBy);
+      const result = addToQueue(group, song, addedBy)
       if (result.success) {
-        addedCount++;
+        addedCount++
         if (result.autoPlay && addedCount === 1) {
-          const serverTime = Date.now();
-          const scheduledPlayTime = serverTime + getScheduledDelay(group);
+          const serverTime = Date.now()
+          const scheduledPlayTime = serverTime + getScheduledDelay(group)
           io.to(`music-group-${groupId}`).emit("music-update", {
             song: result.queueItem.song,
             currentTime: 0,
             queueItem: result.queueItem,
             scheduledPlayTime,
             serverTime,
-          });
-          group.playbackState.isPlaying = true;
-          group.playbackState.currentTime = 0;
-          group.playbackState.lastUpdate = scheduledPlayTime;
+          })
+          group.playbackState.isPlaying = true
+          group.playbackState.currentTime = 0
+          group.playbackState.lastUpdate = scheduledPlayTime
 
           emitActivityMessage(io, groupId, "song-playing", {
             songName: song.name,
             addedBy: addedBy.userName,
-          });
+          })
         }
       } else {
-        if (result.error === "Queue is full") break;
-        errors.push(result.error);
+        if (result.error === "Queue is full") break
+        errors.push(result.error)
       }
     }
 
@@ -160,108 +160,104 @@ const setupQueueHandlers = (io, socket) => {
         ...getQueueState(group),
         action: "playlist-added",
         addedCount,
-      });
+      })
     }
 
     if (addedCount === 0 && errors.length > 0) {
-      socket.emit("queue-error", { error: errors[0] });
+      socket.emit("queue-error", { error: errors[0] })
     }
-  });
+  })
 
   socket.on("remove-from-queue", (data) => {
-    const { groupId, queueItemId, userId } = data;
-    const group = musicGroups.get(groupId);
-    if (!group) return;
+    const { groupId, queueItemId, userId } = data
+    const group = musicGroups.get(groupId)
+    if (!group) return
 
-    const result = removeFromQueue(group, queueItemId, userId);
+    const result = removeFromQueue(group, queueItemId, userId)
 
     if (result.success) {
       io.to(`music-group-${groupId}`).emit("queue-updated", {
         ...getQueueState(group),
         action: "remove",
         removedId: queueItemId,
-      });
+      })
     } else {
-      socket.emit("queue-error", { error: result.error });
+      socket.emit("queue-error", { error: result.error })
     }
-  });
+  })
 
   socket.on("skip-song", (data) => {
-    const { groupId, userName } = data;
-    const group = musicGroups.get(groupId);
-    if (!group) return;
+    const { groupId, userName } = data
+    const group = musicGroups.get(groupId)
+    if (!group) return
 
-    const completedItem = group.currentQueueIndex >= 0
-      ? group.queue[group.currentQueueIndex]
-      : null;
+    const completedItem = group.currentQueueIndex >= 0 ? group.queue[group.currentQueueIndex] : null
 
-    const result = skipToNext(group);
+    const result = skipToNext(group)
 
     if (result.success) {
-      if (completedItem) persistSongHistory(group, completedItem);
-      prunePlayedSongs(group);
+      if (completedItem) persistSongHistory(group, completedItem)
+      prunePlayedSongs(group)
 
       io.to(`music-group-${groupId}`).emit("queue-updated", {
         ...getQueueState(group),
         action: "skip",
-      });
+      })
 
-      emitActivityMessage(io, groupId, "song-skipped", { userName });
+      emitActivityMessage(io, groupId, "song-skipped", { userName })
 
       if (result.hasNext) {
-        const serverTime = Date.now();
-        const scheduledPlayTime = serverTime + getScheduledDelay(group);
+        const serverTime = Date.now()
+        const scheduledPlayTime = serverTime + getScheduledDelay(group)
         io.to(`music-group-${groupId}`).emit("music-update", {
           song: result.currentItem.song,
           currentTime: 0,
           queueItem: result.currentItem,
           scheduledPlayTime,
           serverTime,
-        });
+        })
 
-        group.playbackState.currentTime = 0;
-        group.playbackState.lastUpdate = scheduledPlayTime;
+        group.playbackState.currentTime = 0
+        group.playbackState.lastUpdate = scheduledPlayTime
 
         emitActivityMessage(io, groupId, "song-playing", {
           songName: result.currentItem.song.name,
           addedBy: result.currentItem.addedBy?.userName,
-        });
+        })
       } else {
-        io.to(`music-group-${groupId}`).emit("queue-ended");
-        emitActivityMessage(io, groupId, "queue-ended", {});
+        io.to(`music-group-${groupId}`).emit("queue-ended")
+        emitActivityMessage(io, groupId, "queue-ended", {})
       }
     }
-  });
+  })
 
   socket.on("song-ended", (data) => {
-    const { groupId, songId } = data;
-    const group = musicGroups.get(groupId);
-    if (!group) return;
+    const { groupId, songId } = data
+    const group = musicGroups.get(groupId)
+    if (!group) return
 
-    const completedItem = group.currentQueueIndex >= 0
-      ? group.queue[group.currentQueueIndex]
-      : null;
+    const completedItem = group.currentQueueIndex >= 0 ? group.queue[group.currentQueueIndex] : null
 
-    const result = skipToNext(group, songId);
+    const result = skipToNext(group, songId)
 
     if (result.alreadyAdvanced) {
-      console.log(`Ignoring duplicate song-ended for song ${songId}`);
-      return;
+      console.log(`Ignoring duplicate song-ended for song ${songId}`)
+      return
     }
 
-    if (!result.success) return;
+    if (!result.success) return
 
-    if (completedItem) persistSongHistory(group, completedItem);
-    prunePlayedSongs(group);
+    if (completedItem) persistSongHistory(group, completedItem)
+    prunePlayedSongs(group)
 
     io.to(`music-group-${groupId}`).emit("queue-updated", {
       ...getQueueState(group),
       action: "song-ended",
-    });
+    })
 
     if (result.hasNext) {
-      const serverTime = Date.now();
-      const scheduledPlayTime = serverTime + getScheduledDelay(group);
+      const serverTime = Date.now()
+      const scheduledPlayTime = serverTime + getScheduledDelay(group)
       io.to(`music-group-${groupId}`).emit("music-update", {
         song: result.currentItem.song,
         currentTime: 0,
@@ -269,39 +265,39 @@ const setupQueueHandlers = (io, socket) => {
         autoPlay: true,
         scheduledPlayTime,
         serverTime,
-      });
+      })
 
-      group.playbackState.currentTime = 0;
-      group.playbackState.lastUpdate = scheduledPlayTime;
+      group.playbackState.currentTime = 0
+      group.playbackState.lastUpdate = scheduledPlayTime
 
       emitActivityMessage(io, groupId, "song-playing", {
         songName: result.currentItem.song.name,
         addedBy: result.currentItem.addedBy?.userName,
-      });
+      })
     } else {
-      io.to(`music-group-${groupId}`).emit("queue-ended");
-      emitActivityMessage(io, groupId, "queue-ended", {});
+      io.to(`music-group-${groupId}`).emit("queue-ended")
+      emitActivityMessage(io, groupId, "queue-ended", {})
     }
-  });
+  })
 
   socket.on("reorder-queue", (data) => {
-    const { groupId, fromIndex, toIndex } = data;
-    const group = musicGroups.get(groupId);
-    if (!group) return;
+    const { groupId, fromIndex, toIndex } = data
+    const group = musicGroups.get(groupId)
+    if (!group) return
 
-    const result = reorderQueue(group, fromIndex, toIndex);
+    const result = reorderQueue(group, fromIndex, toIndex)
 
     if (result.success) {
       io.to(`music-group-${groupId}`).emit("queue-updated", {
         ...getQueueState(group),
         action: "reorder",
-      });
+      })
     } else {
-      socket.emit("queue-error", { error: result.error });
+      socket.emit("queue-error", { error: result.error })
     }
-  });
-};
+  })
+}
 
 module.exports = {
   setupQueueHandlers,
-};
+}

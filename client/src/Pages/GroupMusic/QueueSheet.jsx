@@ -53,16 +53,13 @@ const QueueSheet = () => {
   const lastRecsSongIdRef = useRef(null)
   const queueRef = useRef(queue)
   const recommendations = useGroupSessionStore((s) => s.quickPickRecs)
-  const setRecommendations = useCallback(
-    (updater) => {
-      if (typeof updater === "function") {
-        useGroupSessionStore.setState((s) => ({ quickPickRecs: updater(s.quickPickRecs) }))
-      } else {
-        useGroupSessionStore.setState({ quickPickRecs: updater })
-      }
-    },
-    [],
-  )
+  const setRecommendations = useCallback((updater) => {
+    if (typeof updater === "function") {
+      useGroupSessionStore.setState((s) => ({ quickPickRecs: updater(s.quickPickRecs) }))
+    } else {
+      useGroupSessionStore.setState({ quickPickRecs: updater })
+    }
+  }, [])
   const [recsLoading, setRecsLoading] = useState(false)
   const [recsSourceName, setRecsSourceName] = useState("")
   const [activeTab, setActiveTab] = useState("queue")
@@ -114,28 +111,25 @@ const QueueSheet = () => {
     setSaveDialogOpen(true)
   }, [])
 
-  const fetchRecs = useCallback(
-    async (songId, force = false) => {
-      if (!songId) return
-      if (!force && lastRecsSongIdRef.current === songId) return
-      lastRecsSongIdRef.current = songId
-      setRecsLoading(true)
-      const currentQueue = queueRef.current || []
-      const song = currentQueue.find((q) => q.song?.id === songId)
-      setRecsSourceName(song?.song?.name || "")
-      try {
-        const data = await fetchSongRecommendations(songId)
-        const existingIds = new Set(currentQueue.map((q) => q.song?.id))
-        const filtered = (data || []).filter((s) => !existingIds.has(s.id))
-        setRecommendations(filtered.slice(0, 15))
-      } catch {
-        toast.error("Failed to fetch recommendations")
-      } finally {
-        setRecsLoading(false)
-      }
-    },
-    [],
-  )
+  const fetchRecs = useCallback(async (songId, force = false) => {
+    if (!songId) return
+    if (!force && lastRecsSongIdRef.current === songId) return
+    lastRecsSongIdRef.current = songId
+    setRecsLoading(true)
+    const currentQueue = queueRef.current || []
+    const song = currentQueue.find((q) => q.song?.id === songId)
+    setRecsSourceName(song?.song?.name || "")
+    try {
+      const data = await fetchSongRecommendations(songId)
+      const existingIds = new Set(currentQueue.map((q) => q.song?.id))
+      const filtered = (data || []).filter((s) => !existingIds.has(s.id))
+      setRecommendations(filtered.slice(0, 15))
+    } catch {
+      toast.error("Failed to fetch recommendations")
+    } finally {
+      setRecsLoading(false)
+    }
+  }, [])
 
   const fetchSmartFallbackRecs = useCallback(
     async (force = false) => {

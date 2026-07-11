@@ -1,9 +1,9 @@
-import { usePlaylistState } from '@/stores/playerStore';
-import { Song } from '@/types/song';
-import useApi from '@/utils/hooks/useApi';
-import { useTheme } from '@/context/ThemeContext';
-import { MaterialIcons } from '@expo/vector-icons';
-import React, { useState, useEffect, useRef } from 'react';
+import { usePlaylistState } from "@/stores/playerStore"
+import { Song } from "@/types/song"
+import useApi from "@/utils/hooks/useApi"
+import { useTheme } from "@/context/ThemeContext"
+import { MaterialIcons } from "@expo/vector-icons"
+import React, { useState, useEffect, useRef } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -14,44 +14,44 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import SwipeableModal from '../common/SwipeableModal';
+} from "react-native"
+import SwipeableModal from "../common/SwipeableModal"
 
 export interface Playlist {
-  id: string;
-  name: string;
-  image?: any[];
-  songCount: number;
+  id: string
+  name: string
+  image?: any[]
+  songCount: number
 }
 
 interface AddToPlaylistProps {
-  dialogOpen: boolean;
-  setDialogOpen: (open: boolean) => void;
-  song: Song | undefined;
+  dialogOpen: boolean
+  setDialogOpen: (open: boolean) => void
+  song: Song | undefined
 }
 
 const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen, song }) => {
-  const { colors } = useTheme();
-  const { userPlaylist, setUserPlaylist } = usePlaylistState();
-  const api = useApi();
+  const { colors } = useTheme()
+  const { userPlaylist, setUserPlaylist } = usePlaylistState()
+  const api = useApi()
 
-  const [newPlaylistDialog, setNewPlaylistDialog] = useState(false);
-  const [newPlaylistName, setNewPlaylistName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [addingSong, setAddingSong] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
-  const [addingSuccess, setAddingSuccess] = useState(false);
+  const [newPlaylistDialog, setNewPlaylistDialog] = useState(false)
+  const [newPlaylistName, setNewPlaylistName] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [addingSong, setAddingSong] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null)
+  const [addingSuccess, setAddingSuccess] = useState(false)
 
-  const successOpacity = useRef(new Animated.Value(0)).current;
+  const successOpacity = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     if (!dialogOpen) {
-      setSearchQuery('');
-      setSelectedPlaylistId(null);
-      setAddingSuccess(false);
+      setSearchQuery("")
+      setSelectedPlaylistId(null)
+      setAddingSuccess(false)
     }
-  }, [dialogOpen]);
+  }, [dialogOpen])
 
   useEffect(() => {
     if (addingSuccess) {
@@ -60,93 +60,93 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
         Animated.delay(900),
         Animated.timing(successOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
       ]).start(() => {
-        setDialogOpen(false);
-        setAddingSuccess(false);
-        setSelectedPlaylistId(null);
-      });
+        setDialogOpen(false)
+        setAddingSuccess(false)
+        setSelectedPlaylistId(null)
+      })
     } else {
-      successOpacity.setValue(0);
+      successOpacity.setValue(0)
     }
-  }, [addingSuccess]);
+  }, [addingSuccess])
 
   const getPlaylists = async () => {
     try {
-      const { data } = await api.get('/api/playlist/get');
-      if (data?.data) setUserPlaylist(data.data);
+      const { data } = await api.get("/api/playlist/get")
+      if (data?.data) setUserPlaylist(data.data)
     } catch (error) {
-      console.error('Error fetching playlists:', error);
+      console.error("Error fetching playlists:", error)
     }
-  };
+  }
 
   const handleCreatePlaylist = async () => {
-    if (!newPlaylistName.trim()) return;
-    setLoading(true);
+    if (!newPlaylistName.trim()) return
+    setLoading(true)
     try {
       const response = await api.post(
         `/api/playlist/create`,
         { name: newPlaylistName },
-        { withCredentials: true }
-      );
+        { withCredentials: true },
+      )
       if (response.status === 200) {
-        await getPlaylists();
-        setNewPlaylistDialog(false);
-        setNewPlaylistName('');
+        await getPlaylists()
+        setNewPlaylistDialog(false)
+        setNewPlaylistName("")
       }
     } catch (error: any) {
-      Alert.alert(error.response?.data.message || 'Failed to create playlist');
+      Alert.alert(error.response?.data.message || "Failed to create playlist")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleAddToPlaylist = async (playlistId: string) => {
-    if (!playlistId || !song || addingSong) return;
-    setSelectedPlaylistId(playlistId);
-    setAddingSong(true);
+    if (!playlistId || !song || addingSong) return
+    setSelectedPlaylistId(playlistId)
+    setAddingSong(true)
     try {
       const response = await api.post(
         `/api/playlist/add-song`,
         { playlistId, songId: song.id, songData: JSON.stringify(song) },
-        { withCredentials: true }
-      );
+        { withCredentials: true },
+      )
       if (response.status === 201) {
-        setAddingSuccess(true);
-        await getPlaylists();
+        setAddingSuccess(true)
+        await getPlaylists()
       }
     } catch (error: any) {
-      Alert.alert(error.response?.data.message || 'Failed to add song to playlist');
-      setSelectedPlaylistId(null);
+      Alert.alert(error.response?.data.message || "Failed to add song to playlist")
+      setSelectedPlaylistId(null)
     } finally {
-      setAddingSong(false);
+      setAddingSong(false)
     }
-  };
+  }
 
   const getImageUrl = (images: any[]) => {
-    if (images && images.length > 0) return images[1]?.link || images[0]?.link;
-    return '';
-  };
+    if (images && images.length > 0) return images[1]?.link || images[0]?.link
+    return ""
+  }
 
   const filteredPlaylists = userPlaylist.filter((p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  )
 
   const renderPlaylistItem = ({ item }: { item: Playlist }) => {
-    const isSelected = selectedPlaylistId === item.id;
-    const isDisabled = addingSong && !isSelected;
+    const isSelected = selectedPlaylistId === item.id
+    const isDisabled = addingSong && !isSelected
 
     return (
       <TouchableOpacity
         onPress={() => !addingSong && handleAddToPlaylist(item.id)}
         style={[
           {
-            flexDirection: 'row',
-            alignItems: 'center',
+            flexDirection: "row",
+            alignItems: "center",
             backgroundColor: isSelected ? colors.accent : colors.secondary,
             borderRadius: 12,
             padding: 12,
             marginBottom: 8,
             borderWidth: isSelected ? 1 : 0,
-            borderColor: isSelected ? colors.primary : 'transparent',
+            borderColor: isSelected ? colors.primary : "transparent",
             opacity: isDisabled ? 0.45 : 1,
           },
         ]}
@@ -156,19 +156,19 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
           source={
             item.image && getImageUrl(item.image)
               ? { uri: getImageUrl(item.image) }
-              : require('../../assets/icon.jpg')
+              : require("../../assets/icon.jpg")
           }
           style={{ width: 48, height: 48, borderRadius: 8, marginRight: 14 }}
         />
         <View style={{ flex: 1 }}>
           <Text
-            style={{ color: colors.foreground, fontWeight: '600', fontSize: 15 }}
+            style={{ color: colors.foreground, fontWeight: "600", fontSize: 15 }}
             numberOfLines={1}
           >
             {item.name}
           </Text>
           <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 2 }}>
-            {item.songCount || 0} {item.songCount === 1 ? 'song' : 'songs'}
+            {item.songCount || 0} {item.songCount === 1 ? "song" : "songs"}
           </Text>
         </View>
         {isSelected && (
@@ -178,8 +178,8 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
               height: 34,
               borderRadius: 17,
               backgroundColor: addingSuccess ? colors.primary : colors.primary,
-              justifyContent: 'center',
-              alignItems: 'center',
+              justifyContent: "center",
+              alignItems: "center",
             }}
           >
             {addingSuccess ? (
@@ -192,8 +192,8 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
           </View>
         )}
       </TouchableOpacity>
-    );
-  };
+    )
+  }
 
   return (
     <>
@@ -208,8 +208,8 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
         <View style={{ padding: 16 }}>
           <View
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
+              flexDirection: "row",
+              alignItems: "center",
               marginBottom: 20,
               paddingHorizontal: 4,
             }}
@@ -219,7 +219,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
               style={{
                 color: colors.foreground,
                 fontSize: 18,
-                fontWeight: '700',
+                fontWeight: "700",
                 marginLeft: 10,
                 flex: 1,
                 letterSpacing: -0.3,
@@ -242,8 +242,8 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
 
           <View
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
+              flexDirection: "row",
+              alignItems: "center",
               backgroundColor: colors.secondary,
               borderRadius: 12,
               paddingHorizontal: 12,
@@ -253,7 +253,12 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
               borderColor: colors.border,
             }}
           >
-            <MaterialIcons name="search" size={18} color={colors.mutedForeground} style={{ marginRight: 8 }} />
+            <MaterialIcons
+              name="search"
+              size={18}
+              color={colors.mutedForeground}
+              style={{ marginRight: 8 }}
+            />
             <TextInput
               placeholder="Search playlists..."
               placeholderTextColor={colors.mutedForeground}
@@ -263,7 +268,10 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
               selectionColor={colors.primary}
             />
             {searchQuery ? (
-              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity
+                onPress={() => setSearchQuery("")}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <MaterialIcons name="close" size={16} color={colors.mutedForeground} />
               </TouchableOpacity>
             ) : null}
@@ -271,9 +279,9 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
 
           <TouchableOpacity
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
               backgroundColor: colors.primary,
               borderRadius: 12,
               paddingVertical: 13,
@@ -287,7 +295,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
             <Text
               style={{
                 color: colors.primaryForeground,
-                fontWeight: '600',
+                fontWeight: "600",
                 marginLeft: 8,
                 fontSize: 15,
               }}
@@ -297,9 +305,11 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
           </TouchableOpacity>
 
           {loading ? (
-            <View style={{ alignItems: 'center', paddingVertical: 32, gap: 10 }}>
+            <View style={{ alignItems: "center", paddingVertical: 32, gap: 10 }}>
               <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>Loading playlists…</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>
+                Loading playlists…
+              </Text>
             </View>
           ) : (
             <FlatList
@@ -307,10 +317,14 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
               renderItem={renderPlaylistItem}
               keyExtractor={(item) => item.id}
               ListEmptyComponent={
-                <View style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
+                <View style={{ alignItems: "center", paddingVertical: 40, gap: 12 }}>
                   <MaterialIcons name="queue-music" size={44} color={colors.border} />
-                  <Text style={{ color: colors.mutedForeground, textAlign: 'center', fontSize: 14 }}>
-                    {searchQuery ? 'No matching playlists found' : 'No playlists yet. Create one to get started!'}
+                  <Text
+                    style={{ color: colors.mutedForeground, textAlign: "center", fontSize: 14 }}
+                  >
+                    {searchQuery
+                      ? "No matching playlists found"
+                      : "No playlists yet. Create one to get started!"}
                   </Text>
                 </View>
               }
@@ -334,7 +348,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
             style={{
               color: colors.foreground,
               fontSize: 18,
-              fontWeight: '700',
+              fontWeight: "700",
               marginBottom: 18,
               letterSpacing: -0.3,
             }}
@@ -361,24 +375,26 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
             selectionColor={colors.primary}
           />
 
-          <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ flexDirection: "row", gap: 10 }}>
             <TouchableOpacity
               style={{
                 flex: 1,
                 backgroundColor: colors.secondary,
                 borderRadius: 12,
                 padding: 13,
-                alignItems: 'center',
+                alignItems: "center",
                 borderWidth: 1,
                 borderColor: colors.border,
               }}
               onPress={() => {
-                setNewPlaylistDialog(false);
-                setNewPlaylistName('');
+                setNewPlaylistDialog(false)
+                setNewPlaylistName("")
               }}
               activeOpacity={0.7}
             >
-              <Text style={{ color: colors.foreground, fontWeight: '500', fontSize: 15 }}>Cancel</Text>
+              <Text style={{ color: colors.foreground, fontWeight: "500", fontSize: 15 }}>
+                Cancel
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -387,7 +403,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
                 backgroundColor: colors.primary,
                 borderRadius: 12,
                 padding: 13,
-                alignItems: 'center',
+                alignItems: "center",
                 opacity: !newPlaylistName.trim() || loading ? 0.5 : 1,
               }}
               onPress={handleCreatePlaylist}
@@ -397,14 +413,16 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
               {loading ? (
                 <ActivityIndicator size="small" color={colors.primaryForeground} />
               ) : (
-                <Text style={{ color: colors.primaryForeground, fontWeight: '600', fontSize: 15 }}>Create</Text>
+                <Text style={{ color: colors.primaryForeground, fontWeight: "600", fontSize: 15 }}>
+                  Create
+                </Text>
               )}
             </TouchableOpacity>
           </View>
         </View>
       </SwipeableModal>
     </>
-  );
-};
+  )
+}
 
-export default AddToPlaylist;
+export default AddToPlaylist

@@ -1,52 +1,52 @@
-import React, { useState } from 'react';
-import { Dimensions, Image, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '@/context/ThemeContext';
-import SwipeableModal from './common/SwipeableModal';
+import React, { useState } from "react"
+import { Dimensions, Image, Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { Feather } from "@expo/vector-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import { useTheme } from "@/context/ThemeContext"
+import SwipeableModal from "./common/SwipeableModal"
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window")
 
 interface DeveloperProfileModalProps {
-  isVisible: boolean;
-  onClose: () => void;
+  isVisible: boolean
+  onClose: () => void
 }
 
 const DeveloperProfileModal: React.FC<DeveloperProfileModalProps> = ({ isVisible, onClose }) => {
-  const { colors } = useTheme();
-  const [showEasterEgg, setShowEasterEgg] = useState(false);
+  const { colors } = useTheme()
+  const [showEasterEgg, setShowEasterEgg] = useState(false)
 
   const handleSocialLink = (url: string) => {
-    Linking.openURL(url);
-  };
+    Linking.openURL(url)
+  }
 
   const handleLongPress = () => {
-    setShowEasterEgg(true);
-    setTimeout(() => setShowEasterEgg(false), 2000);
-  };
+    setShowEasterEgg(true)
+    setTimeout(() => setShowEasterEgg(false), 2000)
+  }
 
   const socialLinks = [
     {
-      name: 'GitHub',
-      icon: 'github' as const,
-      url: 'https://github.com/thakurdotdev',
+      name: "GitHub",
+      icon: "github" as const,
+      url: "https://github.com/thakurdotdev",
     },
     {
-      name: 'LinkedIn',
-      icon: 'linkedin' as const,
-      url: 'https://linkedin.com/in/thakurdotdev',
+      name: "LinkedIn",
+      icon: "linkedin" as const,
+      url: "https://linkedin.com/in/thakurdotdev",
     },
     {
-      name: 'Twitter',
-      icon: 'twitter' as const,
-      url: 'https://twitter.com/thakurdotdev',
+      name: "Twitter",
+      icon: "twitter" as const,
+      url: "https://twitter.com/thakurdotdev",
     },
     {
-      name: 'Instagram',
-      icon: 'instagram' as const,
-      url: 'https://instagram.com/thakurdotdev',
+      name: "Instagram",
+      icon: "instagram" as const,
+      url: "https://instagram.com/thakurdotdev",
     },
-  ];
+  ]
 
   return (
     <SwipeableModal isVisible={isVisible} onClose={onClose} hideHandle>
@@ -59,7 +59,7 @@ const DeveloperProfileModal: React.FC<DeveloperProfileModalProps> = ({ isVisible
             style={styles.banner}
           />
           <TouchableOpacity
-            style={[styles.closeButton, { backgroundColor: 'rgba(0, 0, 0, 0.3)' }]}
+            style={[styles.closeButton, { backgroundColor: "rgba(0, 0, 0, 0.3)" }]}
             onPress={onClose}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
@@ -76,12 +76,17 @@ const DeveloperProfileModal: React.FC<DeveloperProfileModalProps> = ({ isVisible
           >
             <Image
               source={{
-                uri: 'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1745152151/lmdhpag0p6ubockyjs1q.jpg',
+                uri: "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1745152151/lmdhpag0p6ubockyjs1q.jpg",
               }}
               style={[styles.avatar, { borderColor: colors.card }]}
             />
             {showEasterEgg && (
-              <View style={[styles.easterEgg, { backgroundColor: colors.card, borderColor: colors.primary }]}>
+              <View
+                style={[
+                  styles.easterEgg,
+                  { backgroundColor: colors.card, borderColor: colors.primary },
+                ]}
+              >
                 <Text style={[styles.easterEggText, { color: colors.foreground }]}>
                   🚀 Keep building amazing things!
                 </Text>
@@ -91,7 +96,7 @@ const DeveloperProfileModal: React.FC<DeveloperProfileModalProps> = ({ isVisible
 
           <Text style={[styles.name, { color: colors.foreground }]}>Pankaj Thakur</Text>
 
-          <View style={[styles.badge, { backgroundColor: colors.primary + '15' }]}>
+          <View style={[styles.badge, { backgroundColor: colors.primary + "15" }]}>
             <Text style={[styles.badgeText, { color: colors.primary }]}>SOFTWARE ENGINEER</Text>
           </View>
 
@@ -115,13 +120,18 @@ const DeveloperProfileModal: React.FC<DeveloperProfileModalProps> = ({ isVisible
 
           <TouchableOpacity
             style={[styles.portfolioLink, { backgroundColor: colors.primary }]}
-            onPress={() => handleSocialLink('https://thakur.dev')}
+            onPress={() => handleSocialLink("https://thakur.dev")}
             activeOpacity={0.9}
           >
             <Text style={[styles.portfolioText, { color: colors.primaryForeground }]}>
               Visit my portfolio
             </Text>
-            <Feather name="external-link" size={16} color={colors.primaryForeground} style={styles.linkIcon} />
+            <Feather
+              name="external-link"
+              size={16}
+              color={colors.primaryForeground}
+              style={styles.linkIcon}
+            />
           </TouchableOpacity>
 
           <View style={styles.footer}>
@@ -132,17 +142,17 @@ const DeveloperProfileModal: React.FC<DeveloperProfileModalProps> = ({ isVisible
         </View>
       </View>
     </SwipeableModal>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
+    width: "100%",
   },
   bannerContainer: {
-    position: 'relative',
+    position: "relative",
     height: 120,
-    width: '100%',
+    width: "100%",
   },
   banner: {
     ...StyleSheet.absoluteFillObject,
@@ -150,26 +160,26 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
   },
   closeButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 16,
     right: 16,
     width: 30,
     height: 30,
     borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 20,
   },
   content: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingHorizontal: 24,
     paddingBottom: 32,
   },
   avatarContainer: {
     marginTop: -50,
     marginBottom: 16,
-    position: 'relative',
-    shadowColor: '#000',
+    position: "relative",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -182,23 +192,23 @@ const styles = StyleSheet.create({
     borderWidth: 4,
   },
   easterEgg: {
-    position: 'absolute',
+    position: "absolute",
     top: -45,
-    alignSelf: 'center',
+    alignSelf: "center",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1.5,
     width: 220,
-    alignItems: 'center',
+    alignItems: "center",
   },
   easterEggText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   name: {
     fontSize: 24,
-    fontWeight: '800',
+    fontWeight: "800",
     marginBottom: 8,
     letterSpacing: -0.5,
   },
@@ -210,19 +220,19 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 1.2,
   },
   bio: {
     fontSize: 15,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 22,
     marginBottom: 24,
     maxWidth: width - 80,
   },
   socialLinks: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     gap: 16,
     marginBottom: 28,
   },
@@ -230,18 +240,18 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   portfolioLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 14,
-    width: '100%',
-    shadowColor: '#000',
+    width: "100%",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
@@ -249,7 +259,7 @@ const styles = StyleSheet.create({
   },
   portfolioText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   linkIcon: {
     marginLeft: 8,
@@ -259,8 +269,8 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: "500",
   },
-});
+})
 
-export default DeveloperProfileModal;
+export default DeveloperProfileModal

@@ -1,111 +1,104 @@
-import { SongCard } from '@/components/music/MusicCards';
-import Button from '@/components/ui/button';
-import { usePlayerControls } from '@/stores/playerStore';
-import { useTheme } from '@/context/ThemeContext';
-import { convertToHttps } from '@/utils/getHttpsUrls';
-import useApi from '@/utils/hooks/useApi';
-import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { SongCard } from "@/components/music/MusicCards"
+import Button from "@/components/ui/button"
+import { usePlayerControls } from "@/stores/playerStore"
+import { useTheme } from "@/context/ThemeContext"
+import { convertToHttps } from "@/utils/getHttpsUrls"
+import useApi from "@/utils/hooks/useApi"
+import { Ionicons } from "@expo/vector-icons"
+import { BlurView } from "expo-blur"
+import { LinearGradient } from "expo-linear-gradient"
+import { useLocalSearchParams } from "expo-router"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
+import { ActivityIndicator, Image, StyleSheet, Text, useWindowDimensions, View } from "react-native"
 import Animated, {
   Extrapolation,
   interpolate,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-} from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native-reanimated"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 type PlaylistSong = {
-  id: string;
-  songData: any; // Your song type
-};
+  id: string
+  songData: any // Your song type
+}
 
 type PlaylistData = {
-  id: string;
-  name: string;
-  description: string;
-  userId: number;
-  createdat: string;
-  image: { link: string }[] | string;
-  songs: PlaylistSong[];
-};
+  id: string
+  name: string
+  description: string
+  userId: number
+  createdat: string
+  image: { link: string }[] | string
+  songs: PlaylistSong[]
+}
 
 export default function UserPlaylistDetails() {
-  const api = useApi();
-  const { colors, theme } = useTheme();
-  const { id } = useLocalSearchParams();
-  const [playlistData, setPlaylistData] = useState<PlaylistData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { addToPlaylist, playSong } = usePlayerControls();
-  const { width } = useWindowDimensions();
-  const scrollY = useSharedValue(0);
+  const api = useApi()
+  const { colors, theme } = useTheme()
+  const { id } = useLocalSearchParams()
+  const [playlistData, setPlaylistData] = useState<PlaylistData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const { addToPlaylist, playSong } = usePlayerControls()
+  const { width } = useWindowDimensions()
+  const scrollY = useSharedValue(0)
 
   const fetchPlaylistData = useCallback(async () => {
     try {
-      setIsLoading(true);
+      setIsLoading(true)
       const response = await api.get(`/api/playlist/details`, {
         params: { id },
-      });
-      setPlaylistData(response.data.data);
+      })
+      setPlaylistData(response.data.data)
     } catch (error) {
-      console.error('Error fetching playlist data:', error);
+      console.error("Error fetching playlist data:", error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [id]);
+  }, [id])
 
   useEffect(() => {
     if (id) {
-      fetchPlaylistData();
+      fetchPlaylistData()
     }
-  }, [id, fetchPlaylistData]);
+  }, [id, fetchPlaylistData])
 
   const handlePlayAll = useCallback(() => {
     if (playlistData?.songs?.length) {
-      addToPlaylist(playlistData.songs.map((s) => s.songData));
-      playSong(playlistData.songs[0].songData);
+      addToPlaylist(playlistData.songs.map((s) => s.songData))
+      playSong(playlistData.songs[0].songData)
     }
-  }, [playlistData, addToPlaylist, playSong]);
+  }, [playlistData, addToPlaylist, playSong])
 
   const handleShuffle = useCallback(() => {
     if (playlistData?.songs?.length) {
       const shuffledSongs = [...playlistData.songs]
         .map((s) => s.songData)
-        .sort(() => Math.random() - 0.5);
-      addToPlaylist(shuffledSongs);
-      playSong(shuffledSongs[0]);
+        .sort(() => Math.random() - 0.5)
+      addToPlaylist(shuffledSongs)
+      playSong(shuffledSongs[0])
     }
-  }, [playlistData, addToPlaylist, playSong]);
+  }, [playlistData, addToPlaylist, playSong])
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
+      scrollY.value = event.contentOffset.y
     },
-  });
+  })
 
-  const headerHeight = useMemo(() => Math.min(width * 0.8, 250), [width]);
-  const imageSize = useMemo(() => Math.min(width * 0.4, 160), [width]);
+  const headerHeight = useMemo(() => Math.min(width * 0.8, 250), [width])
+  const imageSize = useMemo(() => Math.min(width * 0.4, 160), [width])
 
   const headerAnimatedStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       scrollY.value,
       [0, headerHeight * 0.5, headerHeight],
       [1, 0.8, 0],
-      Extrapolation.CLAMP
-    );
+      Extrapolation.CLAMP,
+    )
 
-    const scale = interpolate(scrollY.value, [0, headerHeight], [1, 0.85], Extrapolation.CLAMP);
+    const scale = interpolate(scrollY.value, [0, headerHeight], [1, 0.85], Extrapolation.CLAMP)
 
     return {
       opacity,
@@ -115,8 +108,8 @@ export default function UserPlaylistDetails() {
           translateY: interpolate(scrollY.value, [0, headerHeight], [0, -50], Extrapolation.CLAMP),
         },
       ],
-    };
-  });
+    }
+  })
 
   const imageAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -125,28 +118,28 @@ export default function UserPlaylistDetails() {
           scale: interpolate(scrollY.value, [0, headerHeight], [1, 0.9], Extrapolation.CLAMP),
         },
       ],
-    };
-  });
+    }
+  })
 
   const getBgUrl = useMemo(() => {
-    if (!playlistData?.image) return '';
-    return Array.isArray(playlistData.image) ? playlistData.image[2]?.link : playlistData.image;
-  }, [playlistData]);
+    if (!playlistData?.image) return ""
+    return Array.isArray(playlistData.image) ? playlistData.image[2]?.link : playlistData.image
+  }, [playlistData])
 
   // Get gradient colors based on theme
   const getGradientColors = useMemo(() => {
-    return theme === 'dark'
+    return theme === "dark"
       ? colors.gradients.background
-      : ['rgba(30, 30, 30, 0.9)', 'rgba(18, 18, 18, 0.95)'];
-  }, [theme, colors]);
+      : ["rgba(30, 30, 30, 0.9)", "rgba(18, 18, 18, 0.95)"]
+  }, [theme, colors])
 
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size='large' color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.loadingText, { color: colors.text }]}>Loading playlist...</Text>
       </SafeAreaView>
-    );
+    )
   }
 
   return (
@@ -177,7 +170,7 @@ export default function UserPlaylistDetails() {
                 />
                 <BlurView
                   intensity={80}
-                  tint={theme === 'dark' ? 'dark' : 'light'}
+                  tint={theme === "dark" ? "dark" : "light"}
                   style={styles.blurOverlay}
                 >
                   <View style={styles.headerContent}>
@@ -185,7 +178,7 @@ export default function UserPlaylistDetails() {
                       <Image
                         source={{ uri: convertToHttps(getBgUrl) }}
                         style={[styles.playlistImage, { width: imageSize, height: imageSize }]}
-                        resizeMode='cover'
+                        resizeMode="cover"
                       />
                     </Animated.View>
                     <View style={styles.infoContainer}>
@@ -196,7 +189,7 @@ export default function UserPlaylistDetails() {
                         style={[styles.description, { color: colors.mutedForeground }]}
                         numberOfLines={3}
                       >
-                        {playlistData?.description || 'No description'}
+                        {playlistData?.description || "No description"}
                       </Text>
                       <View style={styles.statsContainer}>
                         <Text style={[styles.statText, { color: colors.mutedForeground }]}>
@@ -206,7 +199,7 @@ export default function UserPlaylistDetails() {
                           style={[styles.statDivider, { backgroundColor: colors.mutedForeground }]}
                         />
                         <Text style={[styles.statText, { color: colors.mutedForeground }]}>
-                          {new Date(playlistData?.createdat || '').toLocaleDateString()}
+                          {new Date(playlistData?.createdat || "").toLocaleDateString()}
                         </Text>
                       </View>
                     </View>
@@ -220,20 +213,20 @@ export default function UserPlaylistDetails() {
               <Button
                 onPress={handlePlayAll}
                 disabled={!playlistData?.songs?.length}
-                title='Play All'
-                icon={<Ionicons name='play' size={22} color={colors.primaryForeground} />}
-                iconPosition='left'
-                variant='default'
-                size='default'
+                title="Play All"
+                icon={<Ionicons name="play" size={22} color={colors.primaryForeground} />}
+                iconPosition="left"
+                variant="default"
+                size="default"
               />
               <Button
                 onPress={handleShuffle}
                 disabled={!playlistData?.songs?.length}
-                title='Shuffle'
-                icon={<Ionicons name='shuffle' size={22} color={colors.text} />}
-                iconPosition='left'
-                variant='outline'
-                size='default'
+                title="Shuffle"
+                icon={<Ionicons name="shuffle" size={22} color={colors.text} />}
+                iconPosition="left"
+                variant="outline"
+                size="default"
               />
             </View>
 
@@ -244,7 +237,7 @@ export default function UserPlaylistDetails() {
               </View>
             ) : (
               <View style={styles.emptySongsContainer}>
-                <Ionicons name='musical-note' size={48} color={colors.mutedForeground} />
+                <Ionicons name="musical-note" size={48} color={colors.mutedForeground} />
                 <Text style={[styles.emptySongsText, { color: colors.mutedForeground }]}>
                   No songs in this playlist yet
                 </Text>
@@ -254,7 +247,7 @@ export default function UserPlaylistDetails() {
         }
         ListEmptyComponent={
           <View style={styles.emptySongsContainer}>
-            <Ionicons name='musical-note' size={48} color={colors.mutedForeground} />
+            <Ionicons name="musical-note" size={48} color={colors.mutedForeground} />
             <Text style={[styles.emptySongsText, { color: colors.mutedForeground }]}>
               No songs in this playlist yet
             </Text>
@@ -262,7 +255,7 @@ export default function UserPlaylistDetails() {
         }
       />
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -271,46 +264,46 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
   },
   headerContainer: {
-    width: '100%',
-    position: 'relative',
-    overflow: 'hidden',
+    width: "100%",
+    position: "relative",
+    overflow: "hidden",
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
   headerGradient: {
-    width: '100%',
-    position: 'relative',
-    overflow: 'hidden',
+    width: "100%",
+    position: "relative",
+    overflow: "hidden",
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
   backgroundImage: {
-    position: 'absolute',
-    width: '100%',
+    position: "absolute",
+    width: "100%",
     opacity: 0.6,
   },
   blurOverlay: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'flex-end',
+    width: "100%",
+    height: "100%",
+    justifyContent: "flex-end",
     padding: 20,
   },
   headerContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    flexDirection: "row",
+    alignItems: "flex-end",
     gap: 16,
   },
   playlistImage: {
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
@@ -318,14 +311,14 @@ const styles = StyleSheet.create({
   },
   infoContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
     paddingBottom: 4,
   },
   playlistName: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
@@ -334,8 +327,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   statsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 4,
   },
   statText: {
@@ -348,9 +341,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   actionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     paddingVertical: 24,
     gap: 16,
   },
@@ -359,7 +352,7 @@ const styles = StyleSheet.create({
   },
   songsHeaderText: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   separator: {
     height: 1,
@@ -369,12 +362,12 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   emptySongsContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 60,
   },
   emptySongsText: {
     fontSize: 16,
     marginTop: 12,
   },
-});
+})

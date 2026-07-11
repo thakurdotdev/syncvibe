@@ -195,9 +195,7 @@ const CallMessageBubble = ({ message, isOwnMessage }) => {
     return "Call"
   }
 
-  const iconColor = isMissed || isRejected
-    ? "text-red-500"
-    : "text-green-500"
+  const iconColor = isMissed || isRejected ? "text-red-500" : "text-green-500"
 
   return (
     <div className="flex justify-center mb-2">

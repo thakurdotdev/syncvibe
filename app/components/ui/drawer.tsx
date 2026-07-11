@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useEffect, useState } from 'react';
+import React, { ReactNode, useCallback, useEffect, useState } from "react"
 import {
   Dimensions,
   StyleSheet,
@@ -6,8 +6,8 @@ import {
   useColorScheme,
   View,
   ViewStyle,
-} from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+} from "react-native"
+import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   Easing,
   runOnJS,
@@ -15,26 +15,26 @@ import Animated, {
   useSharedValue,
   withSpring,
   withTiming,
-} from 'react-native-reanimated';
+} from "react-native-reanimated"
 
 export interface BottomDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
-  children: ReactNode;
-  drawerHeight?: number | string;
-  drawerStyle?: ViewStyle;
-  overlayStyle?: ViewStyle;
-  contentContainerStyle?: ViewStyle;
-  animationDuration?: number;
-  overlayOpacity?: number;
-  borderRadius?: number;
-  handleIndicator?: boolean;
-  darkMode?: boolean | 'auto';
-  closeOnBackdropPress?: boolean;
+  isOpen: boolean
+  onClose: () => void
+  children: ReactNode
+  drawerHeight?: number | string
+  drawerStyle?: ViewStyle
+  overlayStyle?: ViewStyle
+  contentContainerStyle?: ViewStyle
+  animationDuration?: number
+  overlayOpacity?: number
+  borderRadius?: number
+  handleIndicator?: boolean
+  darkMode?: boolean | "auto"
+  closeOnBackdropPress?: boolean
 }
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SWIPE_THRESHOLD = 80;
+const { height: SCREEN_HEIGHT } = Dimensions.get("window")
+const SWIPE_THRESHOLD = 80
 
 export const Drawer: React.FC<BottomDrawerProps> = ({
   isOpen,
@@ -51,26 +51,26 @@ export const Drawer: React.FC<BottomDrawerProps> = ({
   darkMode = true,
   closeOnBackdropPress = true,
 }) => {
-  const systemColorScheme = useColorScheme();
-  const isDarkMode = darkMode === 'auto' ? systemColorScheme === 'dark' : Boolean(darkMode);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const systemColorScheme = useColorScheme()
+  const isDarkMode = darkMode === "auto" ? systemColorScheme === "dark" : Boolean(darkMode)
+  const [isAnimating, setIsAnimating] = useState(false)
 
   // Calculate actual drawer height
   const getDrawerHeight = useCallback((): number => {
-    if (typeof drawerHeight === 'string') {
-      return SCREEN_HEIGHT * (parseInt(drawerHeight, 10) / 100);
+    if (typeof drawerHeight === "string") {
+      return SCREEN_HEIGHT * (parseInt(drawerHeight, 10) / 100)
     }
-    return drawerHeight as number;
-  }, [drawerHeight]);
+    return drawerHeight as number
+  }, [drawerHeight])
 
   // Animation values
-  const translateY = useSharedValue(SCREEN_HEIGHT);
-  const gestureTranslateY = useSharedValue(0);
-  const overlayOpacityValue = useSharedValue(0);
+  const translateY = useSharedValue(SCREEN_HEIGHT)
+  const gestureTranslateY = useSharedValue(0)
+  const overlayOpacityValue = useSharedValue(0)
 
   // Open drawer animation - YouTube-like animation
   const openDrawer = useCallback(() => {
-    setIsAnimating(true);
+    setIsAnimating(true)
 
     translateY.value = withTiming(
       0,
@@ -79,19 +79,19 @@ export const Drawer: React.FC<BottomDrawerProps> = ({
         easing: Easing.bezier(0.17, 0.67, 0.23, 0.96),
       },
       () => {
-        runOnJS(setIsAnimating)(false);
-      }
-    );
+        runOnJS(setIsAnimating)(false)
+      },
+    )
 
     overlayOpacityValue.value = withTiming(overlayOpacity, {
       duration: animationDuration,
       easing: Easing.bezier(0.17, 0.67, 0.23, 0.96),
-    });
-  }, [animationDuration, overlayOpacity]);
+    })
+  }, [animationDuration, overlayOpacity])
 
   // Close drawer animation - YouTube-like dismissal
   const closeDrawer = useCallback(() => {
-    setIsAnimating(true);
+    setIsAnimating(true)
 
     translateY.value = withTiming(
       SCREEN_HEIGHT,
@@ -100,31 +100,31 @@ export const Drawer: React.FC<BottomDrawerProps> = ({
         easing: Easing.bezier(0.33, 0.01, 0.66, 1),
       },
       () => {
-        runOnJS(setIsAnimating)(false);
-        runOnJS(onClose)();
-        gestureTranslateY.value = 0;
-      }
-    );
+        runOnJS(setIsAnimating)(false)
+        runOnJS(onClose)()
+        gestureTranslateY.value = 0
+      },
+    )
 
     overlayOpacityValue.value = withTiming(0, {
       duration: animationDuration,
       easing: Easing.bezier(0.33, 0.01, 0.66, 1),
-    });
-  }, [animationDuration, onClose]);
+    })
+  }, [animationDuration, onClose])
 
   // Handle external isOpen prop change
   useEffect(() => {
     if (!isAnimating) {
       if (isOpen) {
-        openDrawer();
+        openDrawer()
       } else {
         // If already closed, don't animate
         if (translateY.value !== SCREEN_HEIGHT) {
-          closeDrawer();
+          closeDrawer()
         }
       }
     }
-  }, [isOpen, isAnimating, openDrawer, closeDrawer]);
+  }, [isOpen, isAnimating, openDrawer, closeDrawer])
 
   // New Gesture API implementation
   const panGesture = Gesture.Pan()
@@ -135,41 +135,41 @@ export const Drawer: React.FC<BottomDrawerProps> = ({
       if (event.translationY > 0) {
         // Only allow downward swipes
         // Add some resistance to the drag
-        const dampenedDrag = event.translationY * 0.8;
-        gestureTranslateY.value = dampenedDrag;
+        const dampenedDrag = event.translationY * 0.8
+        gestureTranslateY.value = dampenedDrag
       }
     })
     .onEnd((event) => {
       if (event.translationY > SWIPE_THRESHOLD || event.velocityY > 500) {
-        runOnJS(onClose)();
+        runOnJS(onClose)()
       } else {
         gestureTranslateY.value = withSpring(0, {
           damping: 20,
           stiffness: 300,
           mass: 0.8,
-        });
+        })
       }
-    });
+    })
 
   // Animated styles
   const drawerAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value + gestureTranslateY.value }],
-  }));
+  }))
 
   const overlayAnimatedStyle = useAnimatedStyle(() => ({
     opacity: overlayOpacityValue.value,
-  }));
+  }))
 
   // Theme colors
   const colors = {
-    background: isDarkMode ? '#121212' : '#FFFFFF',
-    overlay: '#000000',
-    handle: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.3)',
-    shadow: isDarkMode ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.2)',
-  };
+    background: isDarkMode ? "#121212" : "#FFFFFF",
+    overlay: "#000000",
+    handle: isDarkMode ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.3)",
+    shadow: isDarkMode ? "rgba(0, 0, 0, 0.5)" : "rgba(0, 0, 0, 0.2)",
+  }
 
   return (
-    <View style={styles.container} pointerEvents={isOpen ? 'auto' : 'none'}>
+    <View style={styles.container} pointerEvents={isOpen ? "auto" : "none"}>
       {/* Backdrop/Overlay */}
       <TouchableWithoutFeedback onPress={closeOnBackdropPress ? closeDrawer : undefined}>
         <Animated.View
@@ -209,8 +209,8 @@ export const Drawer: React.FC<BottomDrawerProps> = ({
         </Animated.View>
       </GestureDetector>
     </View>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   drawer: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   handleContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 12,
   },
   handle: {
@@ -244,4 +244,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 34,
   },
-});
+})

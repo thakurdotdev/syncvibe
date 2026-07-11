@@ -223,12 +223,14 @@ export const ResumeSession = () => {
 
       <div className="flex items-center gap-4 w-full sm:w-auto">
         <div className="relative shrink-0 w-16 h-16 rounded-xl overflow-hidden shadow-2xl border border-white/10 group-hover/resume:scale-[1.02] transition-transform duration-300">
-          <img
-            src={songImage}
-            alt={currentSong.name}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/resume:opacity-100 transition-opacity duration-300 cursor-pointer" onClick={(e) => { e.stopPropagation(); playSong(currentSong); }}>
+          <img src={songImage} alt={currentSong.name} className="w-full h-full object-cover" />
+          <div
+            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/resume:opacity-100 transition-opacity duration-300 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation()
+              playSong(currentSong)
+            }}
+          >
             <Play fill="white" className="w-5 h-5 text-white" />
           </div>
         </div>
@@ -239,7 +241,10 @@ export const ResumeSession = () => {
           </h3>
           <p className="text-xs text-muted-foreground truncate font-medium mt-0.5 flex flex-wrap items-center gap-2">
             <span>
-              {currentSong.artist_map?.artists?.map((a) => a.name).join(", ") || currentSong.primaryArtists || currentSong.artist || "Unknown Artist"}
+              {currentSong.artist_map?.artists?.map((a) => a.name).join(", ") ||
+                currentSong.primaryArtists ||
+                currentSong.artist ||
+                "Unknown Artist"}
             </span>
             {currentTime > 0 && (
               <>

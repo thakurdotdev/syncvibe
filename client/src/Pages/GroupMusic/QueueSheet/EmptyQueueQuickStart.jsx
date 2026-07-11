@@ -35,16 +35,14 @@ const EmptyQueueQuickStart = memo(({ userId, onAddToQueue, playNow }) => {
     (e) => {
       e.stopPropagation()
       if (!historyItems.length) return
-      const songsToEnqueue = historyItems
-        .map((item) => item.songData)
-        .filter(Boolean)
-      
+      const songsToEnqueue = historyItems.map((item) => item.songData).filter(Boolean)
+
       if (songsToEnqueue.length > 0) {
         songsToEnqueue.slice(0, 5).forEach((song) => onAddToQueue(song))
         toast.success("Loaded last session's vibe into the queue!")
       }
     },
-    [historyItems, onAddToQueue]
+    [historyItems, onAddToQueue],
   )
 
   if (isLoading || !historyItems.length) return null
@@ -67,9 +65,7 @@ const EmptyQueueQuickStart = memo(({ userId, onAddToQueue, playNow }) => {
               <History className="h-4 w-4" />
             </div>
             <div className="min-w-0 text-left">
-              <h3 className="text-xs font-semibold tracking-wide">
-                Last Session Vibe
-              </h3>
+              <h3 className="text-xs font-semibold tracking-wide">Last Session Vibe</h3>
               <p className="text-[10px] text-muted-foreground truncate mt-0.5">
                 {displaySongs.map((s) => s.name).join(", ")}
               </p>
@@ -88,11 +84,11 @@ const EmptyQueueQuickStart = memo(({ userId, onAddToQueue, playNow }) => {
                 Resume
               </Button>
             </motion.div>
-            
+
             <ChevronDown
               className={cn(
                 "h-4 w-4 text-muted-foreground transition-transform duration-300",
-                isExpanded && "rotate-180"
+                isExpanded && "rotate-180",
               )}
             />
           </div>
@@ -141,9 +137,7 @@ const EmptyQueueQuickStart = memo(({ userId, onAddToQueue, playNow }) => {
                   <p className="text-[11px] font-semibold truncate group-hover:text-primary transition-colors">
                     {song.name}
                   </p>
-                  <p className="text-[9px] text-muted-foreground truncate">
-                    {artist}
-                  </p>
+                  <p className="text-[9px] text-muted-foreground truncate">{artist}</p>
                 </div>
               </div>
             )

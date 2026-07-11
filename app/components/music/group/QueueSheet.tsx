@@ -1,24 +1,16 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import {
-  Dimensions,
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import SwipeableModal from '@/components/common/SwipeableModal';
-import { useTheme } from '@/context/ThemeContext';
-import { useGroupMusic } from '@/context/GroupMusicContext';
-import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
-import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
-import { QueueItem } from '@/stores/groupMusic/types';
+import React, { useCallback, useMemo, useState } from "react"
+import { Dimensions, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
+import { Feather, Ionicons } from "@expo/vector-icons"
+import SwipeableModal from "@/components/common/SwipeableModal"
+import { useTheme } from "@/context/ThemeContext"
+import { useGroupMusic } from "@/context/GroupMusicContext"
+import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
+import { useGroupPlaybackStore } from "@/stores/groupMusic/groupPlaybackStore"
+import { QueueItem } from "@/stores/groupMusic/types"
 
 interface QueueSheetProps {
-  onOpenSearch: () => void;
+  onOpenSearch: () => void
 }
 
 const QueueItemRow = React.memo(
@@ -27,11 +19,11 @@ const QueueItemRow = React.memo(
     onRemove,
     colors,
   }: {
-    item: QueueItem;
-    onRemove: (id: string) => void;
-    colors: any;
+    item: QueueItem
+    onRemove: (id: string) => void
+    colors: any
   }) => {
-    const artist = item.song?.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
+    const artist = item.song?.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"
 
     return (
       <View style={[styles.queueItem, { borderBottomColor: colors.border }]}>
@@ -65,60 +57,59 @@ const QueueItemRow = React.memo(
           style={[styles.removeButton, { backgroundColor: colors.secondary }]}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Feather name='x' size={14} color={colors.mutedForeground} />
+          <Feather name="x" size={14} color={colors.mutedForeground} />
         </TouchableOpacity>
       </View>
-    );
-  }
-);
+    )
+  },
+)
 
 export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
-  const { colors } = useTheme();
-  const { removeFromQueue } = useGroupMusic();
+  const { colors } = useTheme()
+  const { removeFromQueue } = useGroupMusic()
 
-  const isQueueOpen = useGroupSessionStore((s) => s.isQueueOpen);
-  const queue = useGroupSessionStore((s) => s.queue);
-  const currentQueueIndex = useGroupSessionStore((s) => s.currentQueueIndex);
-  const currentSong = useGroupPlaybackStore((s) => s.currentSong);
-  const isPlaying = useGroupPlaybackStore((s) => s.isPlaying);
+  const isQueueOpen = useGroupSessionStore((s) => s.isQueueOpen)
+  const queue = useGroupSessionStore((s) => s.queue)
+  const currentQueueIndex = useGroupSessionStore((s) => s.currentQueueIndex)
+  const currentSong = useGroupPlaybackStore((s) => s.currentSong)
+  const isPlaying = useGroupPlaybackStore((s) => s.isPlaying)
 
   const currentQueueItem = useMemo(
     () => (currentQueueIndex >= 0 && queue[currentQueueIndex] ? queue[currentQueueIndex] : null),
-    [queue, currentQueueIndex]
-  );
+    [queue, currentQueueIndex],
+  )
 
   const upcomingQueue = useMemo(
     () => queue.filter((_, idx) => idx > currentQueueIndex),
-    [queue, currentQueueIndex]
-  );
+    [queue, currentQueueIndex],
+  )
 
   const handleClose = useCallback(() => {
-    useGroupSessionStore.setState({ isQueueOpen: false });
-  }, []);
+    useGroupSessionStore.setState({ isQueueOpen: false })
+  }, [])
 
   const handleRemove = useCallback(
     (queueItemId: string) => {
-      removeFromQueue(queueItemId);
+      removeFromQueue(queueItemId)
     },
-    [removeFromQueue]
-  );
+    [removeFromQueue],
+  )
 
   const handleAddSongs = useCallback(() => {
-    handleClose();
-    onOpenSearch();
-  }, [handleClose, onOpenSearch]);
+    handleClose()
+    onOpenSearch()
+  }, [handleClose, onOpenSearch])
 
   const renderItem = useCallback(
     ({ item }: { item: QueueItem }) => (
       <QueueItemRow item={item} onRemove={handleRemove} colors={colors} />
     ),
-    [handleRemove, colors]
-  );
+    [handleRemove, colors],
+  )
 
-  const keyExtractor = useCallback((item: QueueItem) => item.id, []);
+  const keyExtractor = useCallback((item: QueueItem) => item.id, [])
 
-  const currentArtist =
-    currentSong?.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
+  const currentArtist = currentSong?.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"
 
   const renderHeader = useCallback(() => {
     if (!currentSong || !currentQueueItem) {
@@ -127,28 +118,22 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
           <View style={styles.listHeader}>
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>UP NEXT</Text>
           </View>
-        );
+        )
       }
-      return null;
+      return null
     }
 
     return (
       <View>
         <View style={[styles.nowPlaying, { backgroundColor: colors.secondary }]}>
           <View style={styles.nowPlayingLabel}>
-            <Ionicons name='musical-note' size={12} color={colors.primary} />
+            <Ionicons name="musical-note" size={12} color={colors.primary} />
             <Text style={[styles.nowPlayingText, { color: colors.primary }]}>NOW PLAYING</Text>
           </View>
           <View style={styles.nowPlayingSong}>
-            <Image
-              source={{ uri: currentSong.image?.[1]?.link }}
-              style={styles.nowPlayingArt}
-            />
+            <Image source={{ uri: currentSong.image?.[1]?.link }} style={styles.nowPlayingArt} />
             <View style={styles.nowPlayingInfo}>
-              <Text
-                style={[styles.nowPlayingName, { color: colors.foreground }]}
-                numberOfLines={1}
-              >
+              <Text style={[styles.nowPlayingName, { color: colors.foreground }]} numberOfLines={1}>
                 {currentSong.name}
               </Text>
               <Text
@@ -161,10 +146,7 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
             {isPlaying && (
               <View style={styles.playingIndicator}>
                 {[0, 1, 2].map((i) => (
-                  <View
-                    key={i}
-                    style={[styles.playingBar, { backgroundColor: colors.primary }]}
-                  />
+                  <View key={i} style={[styles.playingBar, { backgroundColor: colors.primary }]} />
                 ))}
               </View>
             )}
@@ -176,24 +158,24 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
           </View>
         )}
       </View>
-    );
-  }, [currentSong, currentQueueItem, upcomingQueue.length, colors, currentArtist, isPlaying]);
+    )
+  }, [currentSong, currentQueueItem, upcomingQueue.length, colors, currentArtist, isPlaying])
 
   return (
     <SwipeableModal
       isVisible={isQueueOpen}
       onClose={handleClose}
-      maxHeight={Dimensions.get('screen').height}
+      maxHeight={Dimensions.get("screen").height}
       scrollable={true}
       hideHandle={true}
       style={styles.modalStyle}
     >
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={styles.container}>
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
             <View style={styles.headerLeft}>
               <TouchableOpacity onPress={handleClose} style={styles.backButton}>
-                <Ionicons name='arrow-back' size={24} color={colors.foreground} />
+                <Ionicons name="arrow-back" size={24} color={colors.foreground} />
               </TouchableOpacity>
               <Text style={[styles.headerTitle, { color: colors.foreground }]}>Queue</Text>
               {upcomingQueue.length > 0 && (
@@ -208,7 +190,7 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
               onPress={handleAddSongs}
               style={[styles.addButton, { backgroundColor: colors.primary }]}
             >
-              <Feather name='plus' size={14} color={colors.primaryForeground} />
+              <Feather name="plus" size={14} color={colors.primaryForeground} />
               <Text style={[styles.addButtonText, { color: colors.primaryForeground }]}>
                 Add Songs
               </Text>
@@ -222,8 +204,10 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
             ListHeaderComponent={renderHeader}
             ListEmptyComponent={
               <View style={styles.emptyQueue}>
-                <Feather name='music' size={32} color={colors.mutedForeground} />
-                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Queue is empty</Text>
+                <Feather name="music" size={32} color={colors.mutedForeground} />
+                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                  Queue is empty
+                </Text>
                 <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
                   Search and add songs to keep the music going
                 </Text>
@@ -231,7 +215,7 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
                   onPress={handleAddSongs}
                   style={[styles.emptyButton, { backgroundColor: colors.primary }]}
                 >
-                  <Feather name='search' size={16} color={colors.primaryForeground} />
+                  <Feather name="search" size={16} color={colors.primaryForeground} />
                   <Text style={[styles.emptyButtonText, { color: colors.primaryForeground }]}>
                     Search Songs
                   </Text>
@@ -244,13 +228,13 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
         </View>
       </SafeAreaView>
     </SwipeableModal>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   modalStyle: {
-    height: Dimensions.get('screen').height,
-    position: 'absolute',
+    height: Dimensions.get("screen").height,
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
@@ -271,16 +255,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
   },
   headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   backButton: {
@@ -288,23 +272,23 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   countBadge: {
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 6,
   },
   countText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -312,7 +296,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   nowPlaying: {
     marginHorizontal: 16,
@@ -321,19 +305,19 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   nowPlayingLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     marginBottom: 8,
   },
   nowPlayingText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 1,
   },
   nowPlayingSong: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   nowPlayingArt: {
     width: 44,
@@ -346,15 +330,15 @@ const styles = StyleSheet.create({
   },
   nowPlayingName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   nowPlayingArtist: {
     fontSize: 12,
     marginTop: 1,
   },
   playingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    flexDirection: "row",
+    alignItems: "flex-end",
     gap: 2,
     height: 14,
     marginLeft: 8,
@@ -362,7 +346,7 @@ const styles = StyleSheet.create({
   playingBar: {
     width: 2.5,
     borderRadius: 1,
-    height: '60%',
+    height: "60%",
   },
   upNextSection: {
     marginTop: 12,
@@ -370,14 +354,14 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 1,
     paddingHorizontal: 4,
     marginBottom: 6,
   },
   queueItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -393,15 +377,15 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   itemArtist: {
     fontSize: 12,
     marginTop: 1,
   },
   itemAddedBy: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 3,
     gap: 4,
   },
@@ -417,30 +401,30 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginLeft: 8,
   },
   emptyQueue: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 48,
     paddingHorizontal: 32,
   },
   emptyTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     marginTop: 12,
   },
   emptySubtitle: {
     fontSize: 13,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 4,
     lineHeight: 18,
   },
   emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -449,6 +433,6 @@ const styles = StyleSheet.create({
   },
   emptyButtonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
-});
+})

@@ -58,12 +58,17 @@ const ResetPassword = () => {
         <div className="rounded-2xl bg-red-500/10 p-4 mb-6">
           <XCircle className="h-10 w-10 text-red-500" />
         </div>
-        <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 mb-3">Invalid reset link</h2>
+        <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 mb-3">
+          Invalid reset link
+        </h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
           This password reset link is invalid or has expired. Please try requesting a new one.
         </p>
         <Link to="/login" className="w-full">
-          <Button variant="outline" className="w-full h-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold cursor-pointer">
+          <Button
+            variant="outline"
+            className="w-full h-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold cursor-pointer"
+          >
             Back to Login
           </Button>
         </Link>
@@ -78,7 +83,9 @@ const ResetPassword = () => {
         <div className="rounded-2xl bg-emerald-500/10 p-4 mb-6">
           <CheckCircle2 className="h-10 w-10 text-emerald-500" />
         </div>
-        <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 mb-3">Password updated</h2>
+        <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 mb-3">
+          Password updated
+        </h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
           Your password has been successfully reset. You can now log in with your new password.
         </p>
@@ -120,11 +127,7 @@ const ResetPassword = () => {
             onClick={() => setShowPassword(!showPassword)}
             tabIndex={-1}
           >
-            {showPassword ? (
-              <EyeOff className="h-5 w-5" />
-            ) : (
-              <Eye className="h-5 w-5" />
-            )}
+            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
           </button>
         </div>
 
@@ -143,18 +146,17 @@ const ResetPassword = () => {
             onClick={() => setShowConfirm(!showConfirm)}
             tabIndex={-1}
           >
-            {showConfirm ? (
-              <EyeOff className="h-5 w-5" />
-            ) : (
-              <Eye className="h-5 w-5" />
-            )}
+            {showConfirm ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
           </button>
         </div>
 
         {status === "error" && (
           <p className="text-sm text-red-500 text-center">
             This reset link may have expired.{" "}
-            <Link to="/login" className="underline underline-offset-4 font-semibold text-zinc-900 dark:text-zinc-50">
+            <Link
+              to="/login"
+              className="underline underline-offset-4 font-semibold text-zinc-900 dark:text-zinc-50"
+            >
               Request a new one
             </Link>
           </p>
@@ -171,7 +173,10 @@ const ResetPassword = () => {
         </Button>
 
         <div className="text-sm text-center text-zinc-500 dark:text-zinc-400 mt-6 pt-2">
-          <Link to="/login" className="text-zinc-950 dark:text-zinc-50 font-semibold underline-offset-4 hover:underline transition-all">
+          <Link
+            to="/login"
+            className="text-zinc-950 dark:text-zinc-50 font-semibold underline-offset-4 hover:underline transition-all"
+          >
             Back to Login
           </Link>
         </div>

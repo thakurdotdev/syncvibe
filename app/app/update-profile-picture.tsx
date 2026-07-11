@@ -1,28 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, ActivityIndicator, Alert, Animated } from 'react-native';
-import { router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import * as Haptics from 'expo-haptics';
-import { Camera, Image as ImageIcon, Check } from 'lucide-react-native';
-import { useUser } from '@/context/UserContext';
-import { useTheme } from '@/context/ThemeContext';
-import { useToast } from '@/context/ToastContext';
-import useApi from '@/utils/hooks/useApi';
-import { Button } from '@/components/ui/button';
-import { getOptimizedImageUrl, uploadToCloudinary } from '@/utils/Cloudinary';
+import React, { useState, useEffect } from "react"
+import { StyleSheet, Text, View, Image, ActivityIndicator, Alert, Animated } from "react-native"
+import { router } from "expo-router"
+import * as ImagePicker from "expo-image-picker"
+import * as Haptics from "expo-haptics"
+import { Camera, Image as ImageIcon, Check } from "lucide-react-native"
+import { useUser } from "@/context/UserContext"
+import { useTheme } from "@/context/ThemeContext"
+import { useToast } from "@/context/ToastContext"
+import useApi from "@/utils/hooks/useApi"
+import { Button } from "@/components/ui/button"
+import { getOptimizedImageUrl, uploadToCloudinary } from "@/utils/Cloudinary"
 
 export default function UpdateProfilePictureScreen() {
-  const { user, setUser } = useUser();
-  const { colors } = useTheme();
-  const { toast } = useToast();
-  const api = useApi();
+  const { user, setUser } = useUser()
+  const { colors } = useTheme()
+  const { toast } = useToast()
+  const api = useApi()
 
-  const [selectedUri, setSelectedUri] = useState<string | null>(null);
-  const [fileDetails, setFileDetails] = useState<{ name: string; type: string } | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [selectedUri, setSelectedUri] = useState<string | null>(null)
+  const [fileDetails, setFileDetails] = useState<{ name: string; type: string } | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
-  const imageScale = React.useRef(new Animated.Value(0.9)).current;
-  const opacity = React.useRef(new Animated.Value(0)).current;
+  const imageScale = React.useRef(new Animated.Value(0.9)).current
+  const opacity = React.useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     Animated.parallel([
@@ -37,15 +37,15 @@ export default function UpdateProfilePictureScreen() {
         duration: 350,
         useNativeDriver: true,
       }),
-    ]).start();
-  }, [selectedUri]);
+    ]).start()
+  }, [selectedUri])
 
   const handlePickImage = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Please allow gallery access to select a profile picture.');
-        return;
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (status !== "granted") {
+        Alert.alert("Permission Denied", "Please allow gallery access to select a profile picture.")
+        return
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -53,29 +53,29 @@ export default function UpdateProfilePictureScreen() {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-      });
+      })
 
       if (!result.canceled && result.assets?.[0]) {
-        const asset = result.assets[0];
-        setSelectedUri(asset.uri);
+        const asset = result.assets[0]
+        setSelectedUri(asset.uri)
         setFileDetails({
-          name: asset.fileName || 'profile.jpg',
-          type: asset.mimeType || 'image/jpeg',
-        });
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          name: asset.fileName || "profile.jpg",
+          type: asset.mimeType || "image/jpeg",
+        })
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
       }
     } catch (error) {
-      console.error(error);
-      toast('Failed to open gallery', { type: 'error' });
+      console.error(error)
+      toast("Failed to open gallery", { type: "error" })
     }
-  };
+  }
 
   const handleTakePhoto = async () => {
     try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Please allow camera access to take a profile picture.');
-        return;
+      const { status } = await ImagePicker.requestCameraPermissionsAsync()
+      if (status !== "granted") {
+        Alert.alert("Permission Denied", "Please allow camera access to take a profile picture.")
+        return
       }
 
       const result = await ImagePicker.launchCameraAsync({
@@ -83,28 +83,28 @@ export default function UpdateProfilePictureScreen() {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-      });
+      })
 
       if (!result.canceled && result.assets?.[0]) {
-        const asset = result.assets[0];
-        setSelectedUri(asset.uri);
+        const asset = result.assets[0]
+        setSelectedUri(asset.uri)
         setFileDetails({
-          name: asset.fileName || 'camera.jpg',
-          type: asset.mimeType || 'image/jpeg',
-        });
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          name: asset.fileName || "camera.jpg",
+          type: asset.mimeType || "image/jpeg",
+        })
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
       }
     } catch (error) {
-      console.error(error);
-      toast('Failed to open camera', { type: 'error' });
+      console.error(error)
+      toast("Failed to open camera", { type: "error" })
     }
-  };
+  }
 
   const handleSave = async () => {
-    if (!selectedUri || !fileDetails) return;
+    if (!selectedUri || !fileDetails) return
 
-    setIsUploading(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setIsUploading(true)
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
 
     try {
       const secureUrl = await uploadToCloudinary(
@@ -112,29 +112,29 @@ export default function UpdateProfilePictureScreen() {
         selectedUri,
         fileDetails.name,
         fileDetails.type,
-        'profile'
-      );
+        "profile",
+      )
 
-      const response = await api.post('/api/update-profilepic', {
+      const response = await api.post("/api/update-profilepic", {
         profilepic: secureUrl,
-      });
+      })
 
       if (response.status === 200) {
-        setUser((prev) => (prev ? { ...prev, profilepic: response.data.profilepic } : null));
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        toast('Profile picture updated!', { type: 'success' });
-        router.back();
+        setUser((prev) => (prev ? { ...prev, profilepic: response.data.profilepic } : null))
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+        toast("Profile picture updated!", { type: "success" })
+        router.back()
       }
     } catch (error: any) {
-      console.error(error);
-      const message = error.response?.data?.message || 'Failed to update profile picture';
-      toast(message, { type: 'error' });
+      console.error(error)
+      const message = error.response?.data?.message || "Failed to update profile picture"
+      toast(message, { type: "error" })
     } finally {
-      setIsUploading(false);
+      setIsUploading(false)
     }
-  };
+  }
 
-  const imageSourceUri = selectedUri || getOptimizedImageUrl(user?.profilepic);
+  const imageSourceUri = selectedUri || getOptimizedImageUrl(user?.profilepic)
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -147,9 +147,14 @@ export default function UpdateProfilePictureScreen() {
               resizeMode="cover"
             />
           ) : (
-            <View style={[styles.avatarFallback, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+            <View
+              style={[
+                styles.avatarFallback,
+                { backgroundColor: colors.secondary, borderColor: colors.border },
+              ]}
+            >
               <Text style={[styles.avatarFallbackText, { color: colors.mutedForeground }]}>
-                {user?.name?.charAt(0).toUpperCase() || 'U'}
+                {user?.name?.charAt(0).toUpperCase() || "U"}
               </Text>
             </View>
           )}
@@ -202,25 +207,25 @@ export default function UpdateProfilePictureScreen() {
         </View>
       </Animated.View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 24,
   },
   content: {
-    width: '100%',
+    width: "100%",
     maxWidth: 400,
-    alignItems: 'center',
+    alignItems: "center",
   },
   imageContainer: {
-    position: 'relative',
+    position: "relative",
     marginBottom: 28,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.15,
     shadowRadius: 15,
@@ -237,37 +242,37 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 100,
     borderWidth: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarFallbackText: {
     fontSize: 72,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   loaderOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
     borderRadius: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontWeight: "700",
+    textAlign: "center",
     marginBottom: 8,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 32,
     paddingHorizontal: 16,
   },
   pickerButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 16,
-    width: '100%',
+    width: "100%",
     marginBottom: 32,
   },
   pickerButton: {
@@ -276,11 +281,11 @@ const styles = StyleSheet.create({
     height: 48,
   },
   actionContainer: {
-    width: '100%',
+    width: "100%",
   },
   saveButton: {
-    width: '100%',
+    width: "100%",
     borderRadius: 14,
     height: 52,
   },
-});
+})

@@ -21,12 +21,7 @@
       },
       "package": "com.thakurdotdev.syncvibe",
       "googleServicesFile": "./google-services.json",
-      "permissions": [
-        "CAMERA",
-        "RECORD_AUDIO",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ],
+      "permissions": ["CAMERA", "RECORD_AUDIO", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -36,10 +31,7 @@
               "scheme": "syncvibe"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },

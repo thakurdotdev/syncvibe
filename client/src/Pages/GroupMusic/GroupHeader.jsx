@@ -1,4 +1,15 @@
-import { Check, Copy, LogOut, Music, QrCode, RefreshCw, Search, UserPlus, Wifi, WifiOff } from "lucide-react"
+import {
+  Check,
+  Copy,
+  LogOut,
+  Music,
+  QrCode,
+  RefreshCw,
+  Search,
+  UserPlus,
+  Wifi,
+  WifiOff,
+} from "lucide-react"
 import { memo, useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { motion } from "framer-motion"
@@ -70,27 +81,30 @@ const GroupHeader = ({
               {isRejoining ? (
                 <RefreshCw className="h-3.5 w-3.5 text-muted-foreground/50 animate-spin shrink-0" />
               ) : (
-                <div className="flex items-center gap-[2px] shrink-0" title={`Connection: ${connectionQuality}`}>
+                <div
+                  className="flex items-center gap-[2px] shrink-0"
+                  title={`Connection: ${connectionQuality}`}
+                >
                   {[0, 1, 2].map((i) => {
                     const active =
                       connectionQuality === "good"
                         ? true
                         : connectionQuality === "fair"
                           ? i < 2
-                          : i < 1;
+                          : i < 1
                     const color =
                       connectionQuality === "good"
                         ? "bg-emerald-400"
                         : connectionQuality === "fair"
                           ? "bg-amber-400"
-                          : "bg-rose-400";
+                          : "bg-rose-400"
                     return (
                       <span
                         key={i}
                         className={`w-[3px] rounded-full transition-all ${active ? color : "bg-muted-foreground/15"}`}
                         style={{ height: `${6 + i * 3}px` }}
                       />
-                    );
+                    )
                   })}
                 </div>
               )}

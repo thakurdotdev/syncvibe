@@ -111,7 +111,10 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     let audioUrl = ""
     for (const q of qualities) {
       const link = song.download_url?.find((u) => u.quality === q)?.link
-      if (link) { audioUrl = link; break }
+      if (link) {
+        audioUrl = link
+        break
+      }
     }
     if (!audioUrl) audioUrl = song.download_url?.[0]?.link || ""
     return {
@@ -350,7 +353,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
       try {
         TrackPlayer.stop()
         TrackPlayer.clear()
-      } catch { }
+      } catch {}
     }
 
     const normalStore = usePlayerStore.getState()

@@ -1,55 +1,55 @@
-import { usePlayerControls, usePlaybackState, usePlaylistState } from '@/stores/playerStore';
-import { useTheme } from '@/context/ThemeContext';
-import { toast } from '@/context/ToastContext';
-import { Song } from '@/types/song';
-import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import SwipeableModal from '../common/SwipeableModal';
-import AddToPlaylist from './AddToPlaylist';
+import { usePlayerControls, usePlaybackState, usePlaylistState } from "@/stores/playerStore"
+import { useTheme } from "@/context/ThemeContext"
+import { toast } from "@/context/ToastContext"
+import { Song } from "@/types/song"
+import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons"
+import { router } from "expo-router"
+import React, { useState } from "react"
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import SwipeableModal from "../common/SwipeableModal"
+import AddToPlaylist from "./AddToPlaylist"
 
 interface PlayerDrawerProps {
-  isVisible: boolean;
-  onClose: () => void;
-  song: Song;
+  isVisible: boolean
+  onClose: () => void
+  song: Song
 }
 
 const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song }) => {
-  const { colors } = useTheme();
-  const [playlistModal, setPlaylistModal] = useState(false);
-  const { addToQueue, removeFromQueue } = usePlayerControls();
-  const { currentSong } = usePlaybackState();
-  const { playlist } = usePlaylistState();
+  const { colors } = useTheme()
+  const [playlistModal, setPlaylistModal] = useState(false)
+  const { addToQueue, removeFromQueue } = usePlayerControls()
+  const { currentSong } = usePlaybackState()
+  const { playlist } = usePlaylistState()
 
-  const artistName = song.artist_map?.artists || [{ name: 'Unknown Artist', id: null }];
-  const albumArt = song.image?.[2]?.link || song.image?.[1]?.link;
+  const artistName = song.artist_map?.artists || [{ name: "Unknown Artist", id: null }]
+  const albumArt = song.image?.[2]?.link || song.image?.[1]?.link
 
   const handlePress = (id: string, path: string) => {
-    onClose();
+    onClose()
     router.push({
       pathname: path as any,
       params: { id },
-    });
-  };
+    })
+  }
 
   const paths = {
-    artist: '/artist',
-    albums: '/albums',
-  };
+    artist: "/artist",
+    albums: "/albums",
+  }
 
-  const isSongInQueue = playlist.some((item) => item.id === song.id);
+  const isSongInQueue = playlist.some((item) => item.id === song.id)
 
   const handleAddToQueue = () => {
     if (isSongInQueue) {
-      removeFromQueue(song.id);
-      toast('Removed from Queue');
+      removeFromQueue(song.id)
+      toast("Removed from Queue")
     } else {
-      addToQueue(song);
-      toast('Added to Queue');
+      addToQueue(song)
+      toast("Added to Queue")
     }
-    onClose();
-  };
+    onClose()
+  }
 
   return (
     <>
@@ -57,7 +57,7 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
         <View style={styles.container}>
           <View style={styles.headerContainer}>
             <View style={styles.albumArtContainer}>
-              <Image source={{ uri: albumArt }} style={styles.albumArt} resizeMode='cover' />
+              <Image source={{ uri: albumArt }} style={styles.albumArt} resizeMode="cover" />
             </View>
             <View style={styles.songInfoContainer}>
               <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>
@@ -82,10 +82,10 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
                 activeOpacity={0.7}
               >
                 <View style={styles.iconContainer}>
-                  <MaterialIcons name='queue-music' size={22} color={colors.foreground} />
+                  <MaterialIcons name="queue-music" size={22} color={colors.foreground} />
                 </View>
                 <Text style={[styles.optionText, { color: colors.foreground }]}>
-                  {isSongInQueue ? 'Remove from Queue' : 'Add to Queue'}
+                  {isSongInQueue ? "Remove from Queue" : "Add to Queue"}
                 </Text>
               </TouchableOpacity>
             )}
@@ -96,7 +96,7 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
               activeOpacity={0.7}
             >
               <View style={styles.iconContainer}>
-                <MaterialIcons name='playlist-add' size={22} color={colors.foreground} />
+                <MaterialIcons name="playlist-add" size={22} color={colors.foreground} />
               </View>
               <Text style={[styles.optionText, { color: colors.foreground }]}>Add to Playlist</Text>
             </TouchableOpacity>
@@ -108,7 +108,7 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
                 activeOpacity={0.7}
               >
                 <View style={styles.iconContainer}>
-                  <Ionicons name='person-outline' size={20} color={colors.foreground} />
+                  <Ionicons name="person-outline" size={20} color={colors.foreground} />
                 </View>
                 <Text style={[styles.optionText, { color: colors.foreground }]}>View Artist</Text>
               </TouchableOpacity>
@@ -121,7 +121,7 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
                 activeOpacity={0.7}
               >
                 <View style={styles.iconContainer}>
-                  <Ionicons name='disc-outline' size={20} color={colors.foreground} />
+                  <Ionicons name="disc-outline" size={20} color={colors.foreground} />
                 </View>
                 <Text style={[styles.optionText, { color: colors.foreground }]}>View Album</Text>
               </TouchableOpacity>
@@ -137,16 +137,16 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
         />
       )}
     </>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   container: {
     paddingBottom: 24,
   },
   headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 24,
     paddingVertical: 18,
   },
@@ -154,11 +154,11 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 8,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   albumArt: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   songInfoContainer: {
     flex: 1,
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   songTitle: {
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 2,
   },
   artistName: {
@@ -182,8 +182,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   optionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 14,
     paddingHorizontal: 12,
     borderRadius: 12,
@@ -191,14 +191,14 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 24,
     height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 16,
   },
   optionText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
-});
+})
 
-export default NewPlayerDrawer;
+export default NewPlayerDrawer

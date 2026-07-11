@@ -1,4 +1,4 @@
-import { AlertCircle, Check, CheckCircle, Info } from 'lucide-react-native';
+import { AlertCircle, Check, CheckCircle, Info } from "lucide-react-native"
 import React, {
   createContext,
   ReactNode,
@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from 'react';
+} from "react"
 import {
   Animated,
   Dimensions,
@@ -17,84 +17,84 @@ import {
   Text,
   TouchableWithoutFeedback,
   View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Card } from '@/components/ui/card';
-import { useTheme } from './ThemeContext';
+} from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { Card } from "@/components/ui/card"
+import { useTheme } from "./ThemeContext"
 
-export type ToastType = 'default' | 'success' | 'error' | 'info';
+export type ToastType = "default" | "success" | "error" | "info"
 
 interface ToastOptions {
-  type?: ToastType;
-  duration?: number;
+  type?: ToastType
+  duration?: number
 }
 
-type ToastFunction = (message: string, options?: ToastOptions) => void;
+type ToastFunction = (message: string, options?: ToastOptions) => void
 
-let globalToast: ToastFunction | null = null;
+let globalToast: ToastFunction | null = null
 
 export const toast = (message: string, options?: ToastOptions) => {
   if (globalToast) {
-    globalToast(message, options);
+    globalToast(message, options)
   } else {
-    console.warn('Toast not initialized yet. Make sure ToastProvider is mounted.');
+    console.warn("Toast not initialized yet. Make sure ToastProvider is mounted.")
   }
-};
+}
 
 interface ToastContextType {
-  toast: ToastFunction;
+  toast: ToastFunction
 }
 
 interface ToastProviderProps {
-  children: ReactNode;
+  children: ReactNode
 }
 
-const ToastContext = createContext<ToastContextType | undefined>(undefined);
+const ToastContext = createContext<ToastContextType | undefined>(undefined)
 
 export const useToast = () => {
-  const context = useContext(ToastContext);
+  const context = useContext(ToastContext)
   if (context === undefined) {
-    throw new Error('useToast must be used within a ToastProvider');
+    throw new Error("useToast must be used within a ToastProvider")
   }
-  return context;
-};
+  return context
+}
 
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const [visible, setVisible] = useState<boolean>(false);
-  const [message, setMessage] = useState<string>('');
-  const [toastType, setToastType] = useState<ToastType>('default');
+  const { colors } = useTheme()
+  const insets = useSafeAreaInsets()
+  const [visible, setVisible] = useState<boolean>(false)
+  const [message, setMessage] = useState<string>("")
+  const [toastType, setToastType] = useState<ToastType>("default")
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const translateYAnim = useRef(new Animated.Value(-80)).current;
-  const scaleAnim = useRef(new Animated.Value(0.92)).current;
-  const swipeAnim = useRef(new Animated.Value(0)).current;
-  const iconScaleAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current
+  const translateYAnim = useRef(new Animated.Value(-80)).current
+  const scaleAnim = useRef(new Animated.Value(0.92)).current
+  const swipeAnim = useRef(new Animated.Value(0)).current
+  const iconScaleAnim = useRef(new Animated.Value(0)).current
 
-  const timeoutRef = useRef<any>(null);
-  const animationInProgressRef = useRef<boolean>(false);
+  const timeoutRef = useRef<any>(null)
+  const animationInProgressRef = useRef<boolean>(false)
 
   const getToastColor = useCallback(
     (type: ToastType) => {
       switch (type) {
-        case 'success':
-          return colors.primary;
-        case 'error':
-          return colors.destructive;
-        case 'info':
-          return colors.accent;
+        case "success":
+          return colors.primary
+        case "error":
+          return colors.destructive
+        case "info":
+          return colors.accent
         default:
-          return colors.primary;
+          return colors.primary
       }
     },
-    [colors]
-  );
+    [colors],
+  )
 
   const getToastIcon = useCallback(
     (type: ToastType) => {
-      const size = 18;
-      const color = getToastColor(type);
+      const size = 18
+      const color = getToastColor(type)
       const iconStyle = {
         transform: [
           {
@@ -104,43 +104,43 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
             }),
           },
         ],
-      };
+      }
 
       switch (type) {
-        case 'success':
+        case "success":
           return (
             <Animated.View style={iconStyle}>
               <CheckCircle size={size} color={color} strokeWidth={2.5} />
             </Animated.View>
-          );
-        case 'error':
+          )
+        case "error":
           return (
             <Animated.View style={iconStyle}>
               <AlertCircle size={size} color={color} strokeWidth={2.5} />
             </Animated.View>
-          );
-        case 'info':
+          )
+        case "info":
           return (
             <Animated.View style={iconStyle}>
               <Info size={size} color={color} strokeWidth={2.5} />
             </Animated.View>
-          );
+          )
         default:
           return (
             <Animated.View style={iconStyle}>
               <Check size={size} color={color} strokeWidth={2.5} />
             </Animated.View>
-          );
+          )
       }
     },
-    [getToastColor, iconScaleAnim]
-  );
+    [getToastColor, iconScaleAnim],
+  )
 
   const hideToast = useCallback(
     (withAnimation: boolean = true) => {
-      if (animationInProgressRef.current) return;
+      if (animationInProgressRef.current) return
 
-      animationInProgressRef.current = true;
+      animationInProgressRef.current = true
 
       if (withAnimation) {
         Animated.parallel([
@@ -160,27 +160,27 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
             useNativeDriver: true,
           }),
         ]).start(() => {
-          setVisible(false);
-          animationInProgressRef.current = false;
-        });
+          setVisible(false)
+          animationInProgressRef.current = false
+        })
       } else {
-        setVisible(false);
-        animationInProgressRef.current = false;
+        setVisible(false)
+        animationInProgressRef.current = false
       }
     },
-    [fadeAnim, translateYAnim, scaleAnim]
-  );
+    [fadeAnim, translateYAnim, scaleAnim],
+  )
 
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: (_, gestureState) => {
-          return Math.abs(gestureState.dx) > Math.abs(gestureState.dy * 2);
+          return Math.abs(gestureState.dx) > Math.abs(gestureState.dy * 2)
         },
         onPanResponderGrant: () => {
           if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
+            clearTimeout(timeoutRef.current)
           }
         },
         onPanResponderMove: Animated.event([null, { dx: swipeAnim }], {
@@ -188,49 +188,49 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
         }),
         onPanResponderRelease: (_, gestureState) => {
           if (Math.abs(gestureState.dx) > 80) {
-            const velocity = Math.sign(gestureState.dx) * Math.min(Math.abs(gestureState.vx), 5);
+            const velocity = Math.sign(gestureState.dx) * Math.min(Math.abs(gestureState.vx), 5)
             Animated.decay(swipeAnim, {
               velocity: velocity,
               deceleration: 0.997,
               useNativeDriver: true,
-            }).start(() => hideToast(false));
+            }).start(() => hideToast(false))
           } else {
             Animated.spring(swipeAnim, {
               toValue: 0,
               tension: 120,
               friction: 8,
               useNativeDriver: true,
-            }).start();
+            }).start()
 
             if (visible && !animationInProgressRef.current) {
               timeoutRef.current = setTimeout(() => {
-                hideToast();
-              }, 2000);
+                hideToast()
+              }, 2000)
             }
           }
         },
       }),
-    [swipeAnim, visible, hideToast]
-  );
+    [swipeAnim, visible, hideToast],
+  )
 
   const showToast = useCallback(
     (msg: string, options?: ToastOptions) => {
-      const type = options?.type || 'default';
-      const duration = options?.duration || 3000;
+      const type = options?.type || "default"
+      const duration = options?.duration || 3000
 
-      setMessage(msg);
-      setToastType(type);
-      setVisible(true);
-      animationInProgressRef.current = true;
+      setMessage(msg)
+      setToastType(type)
+      setVisible(true)
+      animationInProgressRef.current = true
 
-      swipeAnim.setValue(0);
-      iconScaleAnim.setValue(0);
-      translateYAnim.setValue(-80);
-      scaleAnim.setValue(0.92);
-      fadeAnim.setValue(0);
+      swipeAnim.setValue(0)
+      iconScaleAnim.setValue(0)
+      translateYAnim.setValue(-80)
+      scaleAnim.setValue(0.92)
+      fadeAnim.setValue(0)
 
       if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+        clearTimeout(timeoutRef.current)
       }
 
       Animated.parallel([
@@ -259,32 +259,32 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        animationInProgressRef.current = false;
-      });
+        animationInProgressRef.current = false
+      })
 
       timeoutRef.current = setTimeout(() => {
-        hideToast();
-      }, duration);
+        hideToast()
+      }, duration)
     },
-    [fadeAnim, translateYAnim, scaleAnim, swipeAnim, iconScaleAnim, hideToast]
-  );
+    [fadeAnim, translateYAnim, scaleAnim, swipeAnim, iconScaleAnim, hideToast],
+  )
 
   useEffect(() => {
-    globalToast = showToast;
+    globalToast = showToast
     return () => {
-      globalToast = null;
+      globalToast = null
       if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+        clearTimeout(timeoutRef.current)
       }
-    };
-  }, [showToast]);
+    }
+  }, [showToast])
 
   const contextValue = useMemo(
     () => ({
       toast: showToast,
     }),
-    [showToast]
-  );
+    [showToast],
+  )
 
   return (
     <ToastContext.Provider value={contextValue}>
@@ -307,7 +307,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
         >
           <TouchableWithoutFeedback onPress={() => hideToast()}>
             <Card
-              variant='default'
+              variant="default"
               className="flex-row items-center px-4 py-3"
               style={[
                 styles.toastCard,
@@ -318,7 +318,9 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
                 },
               ]}
             >
-              <View style={[styles.iconContainer, { backgroundColor: getToastColor(toastType) + '1A' }]}>
+              <View
+                style={[styles.iconContainer, { backgroundColor: getToastColor(toastType) + "1A" }]}
+              >
                 {getToastIcon(toastType)}
               </View>
               <View style={styles.toastContent}>
@@ -339,19 +341,19 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
         </Animated.View>
       )}
     </ToastContext.Provider>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   toastContainer: {
-    position: 'absolute',
-    alignSelf: 'center',
-    width: Dimensions.get('window').width - 32,
+    position: "absolute",
+    alignSelf: "center",
+    width: Dimensions.get("window").width - 32,
     maxWidth: 360,
     zIndex: 9999,
   },
   toastCard: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -360,8 +362,8 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -371,7 +373,7 @@ const styles = StyleSheet.create({
   },
   toastText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     lineHeight: 18,
   },
-});
+})

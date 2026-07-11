@@ -206,7 +206,6 @@ const MusicLayout = () => {
   )
 }
 
-
 export const PublicRoutes = () => {
   const location = useLocation()
   const noHeaderFooterRoutes = [

@@ -29,10 +29,10 @@ const getMediaConstraints = (facingMode) => {
       default:
         return isMobile
           ? {
-            width: { min: 320, ideal: 640, max: 1280 },
-            height: { min: 240, ideal: 480, max: 720 },
-            frameRate: { min: 15, ideal: 24, max: 30 },
-          }
+              width: { min: 320, ideal: 640, max: 1280 },
+              height: { min: 240, ideal: 480, max: 720 },
+              frameRate: { min: 15, ideal: 24, max: 30 },
+            }
           : baseSettings
     }
   }
@@ -86,10 +86,9 @@ export const useVideoCallStore = create((set, get) => ({
     if (cached) return cached
 
     try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/turn/credentials`,
-        { withCredentials: true }
-      )
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/turn/credentials`, {
+        withCredentials: true,
+      })
       const config = {
         ...response.data,
         iceCandidatePoolSize: 10,

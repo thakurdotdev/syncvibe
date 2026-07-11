@@ -17,7 +17,7 @@ exports.getLatestUpdate = async (req, res) => {
 
 exports.getPresignedUrl = async (req, res) => {
   try {
-    if (!req.user || req.user.email !== (process.env.ADMIN_EMAIL)) {
+    if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
       return res.status(403).json({ success: false, message: "Forbidden" })
     }
 
@@ -59,13 +59,15 @@ exports.getPresignedUrl = async (req, res) => {
 
 exports.createUpdate = async (req, res) => {
   try {
-    if (!req.user || req.user.email !== (process.env.ADMIN_EMAIL)) {
+    if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
       return res.status(403).json({ success: false, message: "Forbidden" })
     }
 
     const { version, releaseNotes, downloadUrl, critical } = req.body
     if (!version || !downloadUrl) {
-      return res.status(400).json({ success: false, message: "Version and download URL are required" })
+      return res
+        .status(400)
+        .json({ success: false, message: "Version and download URL are required" })
     }
 
     const update = await AppUpdate.create({

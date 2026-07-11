@@ -1,28 +1,25 @@
-import React from 'react';
-import { FlatList, Image, Text, View } from 'react-native';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useTheme } from '@/context/ThemeContext';
-import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
+import React from "react"
+import { FlatList, Image, Text, View } from "react-native"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useTheme } from "@/context/ThemeContext"
+import { getProfileCloudinaryUrl } from "@/utils/Cloudinary"
 
 interface Member {
-  userId: string | number;
-  userName: string;
-  profilePic?: string;
+  userId: string | number
+  userName: string
+  profilePic?: string
 }
 
 interface GroupMembersCardProps {
-  groupMembers: Member[];
-  hostId?: string | number;
+  groupMembers: Member[]
+  hostId?: string | number
 }
 
-export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({
-  groupMembers,
-  hostId,
-}) => {
-  const { colors } = useTheme();
+export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({ groupMembers, hostId }) => {
+  const { colors } = useTheme()
 
   return (
-    <Card variant='outline' className='m-4' style={{ flex: 1 }}>
+    <Card variant="outline" className="m-4" style={{ flex: 1 }}>
       <CardHeader>
         <CardTitle>Group Members ({groupMembers.length})</CardTitle>
       </CardHeader>
@@ -33,8 +30,8 @@ export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({
           renderItem={({ item }) => (
             <View
               style={{
-                flexDirection: 'row',
-                alignItems: 'center',
+                flexDirection: "row",
+                alignItems: "center",
                 paddingVertical: 14,
                 borderBottomWidth: 1,
                 borderBottomColor: colors.border,
@@ -42,9 +39,7 @@ export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({
             >
               <Image
                 source={{
-                  uri:
-                    getProfileCloudinaryUrl(item.profilePic) ||
-                    'https://via.placeholder.com/40',
+                  uri: getProfileCloudinaryUrl(item.profilePic) || "https://via.placeholder.com/40",
                 }}
                 style={{
                   width: 40,
@@ -54,9 +49,7 @@ export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({
                 }}
               />
               <View style={{ marginLeft: 16 }}>
-                <Text style={{ color: colors.foreground, fontSize: 15 }}>
-                  {item.userName}
-                </Text>
+                <Text style={{ color: colors.foreground, fontSize: 15 }}>{item.userName}</Text>
                 {hostId && item.userId.toString() === hostId.toString() && (
                   <Text
                     style={{
@@ -76,5 +69,5 @@ export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({
         />
       </CardContent>
     </Card>
-  );
-};
+  )
+}

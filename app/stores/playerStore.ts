@@ -280,7 +280,7 @@ export const usePlayerStore = create<PlayerStore>()(
 
           for (let i = songsToShuffle.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1))
-              ;[songsToShuffle[i], songsToShuffle[j]] = [songsToShuffle[j], songsToShuffle[i]]
+            ;[songsToShuffle[i], songsToShuffle[j]] = [songsToShuffle[j], songsToShuffle[i]]
           }
 
           const shuffled =

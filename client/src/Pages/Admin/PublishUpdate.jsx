@@ -57,7 +57,7 @@ export default function PublishUpdate() {
     try {
       const { data } = await axios.get(
         `${API_URL}/api/app-update/presigned-url?version=${encodeURIComponent(version.trim())}`,
-        { withCredentials: true }
+        { withCredentials: true },
       )
 
       if (!data.success || !data.uploadUrl) {
@@ -82,7 +82,7 @@ export default function PublishUpdate() {
           downloadUrl: data.downloadUrl,
           critical,
         },
-        { withCredentials: true }
+        { withCredentials: true },
       )
 
       if (response.data.success) {
@@ -96,7 +96,9 @@ export default function PublishUpdate() {
       }
     } catch (error) {
       console.error(error)
-      toast.error(error.response?.data?.message || error.message || "An error occurred during publication")
+      toast.error(
+        error.response?.data?.message || error.message || "An error occurred during publication",
+      )
     } finally {
       setUploading(false)
       setUploadProgress(0)
@@ -107,7 +109,10 @@ export default function PublishUpdate() {
     <div className="container max-w-lg mx-auto py-10 px-4">
       <Card className="border border-border/40 bg-card/60 backdrop-blur-md shadow-lg">
         <CardHeader className="space-y-1">
-          <div className="flex items-center gap-2 mb-2 text-muted-foreground hover:text-foreground cursor-pointer text-sm font-medium transition-colors" onClick={() => window.history.back()}>
+          <div
+            className="flex items-center gap-2 mb-2 text-muted-foreground hover:text-foreground cursor-pointer text-sm font-medium transition-colors"
+            onClick={() => window.history.back()}
+          >
             <ArrowLeft className="w-4 h-4" /> Back
           </div>
           <CardTitle className="text-2xl font-bold tracking-tight">Publish App Update</CardTitle>
@@ -118,7 +123,9 @@ export default function PublishUpdate() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1.5">
-              <Label htmlFor="version" className="text-sm font-semibold">App Version</Label>
+              <Label htmlFor="version" className="text-sm font-semibold">
+                App Version
+              </Label>
               <Input
                 id="version"
                 type="text"
@@ -131,7 +138,9 @@ export default function PublishUpdate() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="notes" className="text-sm font-semibold">Release Notes / Features</Label>
+              <Label htmlFor="notes" className="text-sm font-semibold">
+                Release Notes / Features
+              </Label>
               <Textarea
                 id="notes"
                 placeholder="List new features, bug fixes, or improvements..."
@@ -144,7 +153,9 @@ export default function PublishUpdate() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="apk" className="text-sm font-semibold">Select APK File</Label>
+              <Label htmlFor="apk" className="text-sm font-semibold">
+                Select APK File
+              </Label>
               <Input
                 id="apk"
                 type="file"
@@ -164,7 +175,10 @@ export default function PublishUpdate() {
                 disabled={uploading}
                 className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary accent-primary"
               />
-              <Label htmlFor="critical" className="text-sm font-semibold select-none cursor-pointer">
+              <Label
+                htmlFor="critical"
+                className="text-sm font-semibold select-none cursor-pointer"
+              >
                 This is a critical / mandatory update
               </Label>
             </div>
@@ -179,7 +193,11 @@ export default function PublishUpdate() {
               </div>
             )}
 
-            <Button type="submit" disabled={uploading} className="w-full font-bold shadow-md hover:shadow-lg transition-all py-6 mt-2">
+            <Button
+              type="submit"
+              disabled={uploading}
+              className="w-full font-bold shadow-md hover:shadow-lg transition-all py-6 mt-2"
+            >
               {uploading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

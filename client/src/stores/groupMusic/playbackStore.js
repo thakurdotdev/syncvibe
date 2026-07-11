@@ -47,8 +47,7 @@ const getConnectionQuality = () => {
 }
 
 const getHighQualityUrl = (song) =>
-  song?.download_url?.find((u) => u.quality === "320kbps")?.link ||
-  song?.download_url?.[3]?.link
+  song?.download_url?.find((u) => u.quality === "320kbps")?.link || song?.download_url?.[3]?.link
 
 const preloadSong = (song) => {
   if (!song) return
@@ -93,7 +92,11 @@ export const useGroupPlaybackStore = create((set, get) => ({
   processTimeSyncResponse: (clientSendTime, serverTime) => {
     const clientReceiveTime = Date.now()
     const offset = addTimeSyncSample(clientSendTime, serverTime, clientReceiveTime)
-    set({ serverTimeOffset: offset, lastSync: clientReceiveTime, connectionQuality: getConnectionQuality() })
+    set({
+      serverTimeOffset: offset,
+      lastSync: clientReceiveTime,
+      connectionQuality: getConnectionQuality(),
+    })
     return offset
   },
 

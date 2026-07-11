@@ -1,5 +1,9 @@
 const express = require("express")
-const { getLatestUpdate, getPresignedUrl, createUpdate } = require("../controllers/appUpdateController")
+const {
+  getLatestUpdate,
+  getPresignedUrl,
+  createUpdate,
+} = require("../controllers/appUpdateController")
 const authMiddleware = require("../middleware/authMiddleware")
 
 const router = express.Router()

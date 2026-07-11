@@ -29,11 +29,7 @@ const Discovery = memo(
         className="px-4 py-5 space-y-6"
       >
         {/* Section 1: Quick Start / Resume last session (shows horizontal cards) */}
-        <EmptyQueueQuickStart
-          userId={userId}
-          onAddToQueue={onAddToQueue}
-          playNow={playNow}
-        />
+        <EmptyQueueQuickStart userId={userId} onAddToQueue={onAddToQueue} playNow={playNow} />
 
         {/* Section 2: Recommendations / Trending list */}
         <div className="space-y-4">

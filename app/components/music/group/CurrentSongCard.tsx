@@ -1,24 +1,24 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import { CustomSlider } from '../MusicCards';
-import { useTheme } from '@/context/ThemeContext';
-import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
-import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import React, { useCallback, useEffect, useMemo, useRef } from "react"
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { Feather, Ionicons } from "@expo/vector-icons"
+import { CustomSlider } from "../MusicCards"
+import { useTheme } from "@/context/ThemeContext"
+import { useGroupPlaybackStore } from "@/stores/groupMusic/groupPlaybackStore"
+import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
 
 interface CurrentSongCardProps {
-  onChooseSong: () => void;
-  onOpenQueue: () => void;
-  onPlayPause: () => void;
-  onSeek: (value: number) => void;
-  onSkip: () => void;
+  onChooseSong: () => void
+  onOpenQueue: () => void
+  onPlayPause: () => void
+  onSeek: (value: number) => void
+  onSkip: () => void
 }
 
 const GroupProgressBar = React.memo(({ onSeek }: { onSeek: (v: number) => void }) => {
-  const currentTime = useGroupPlaybackStore((s) => s.currentTime);
-  const duration = useGroupPlaybackStore((s) => s.duration);
-  const formatTime = useGroupPlaybackStore((s) => s.formatTime);
-  const { colors } = useTheme();
+  const currentTime = useGroupPlaybackStore((s) => s.currentTime)
+  const duration = useGroupPlaybackStore((s) => s.duration)
+  const formatTime = useGroupPlaybackStore((s) => s.formatTime)
+  const { colors } = useTheme()
 
   return (
     <View style={styles.progressContainer}>
@@ -28,7 +28,7 @@ const GroupProgressBar = React.memo(({ onSeek }: { onSeek: (v: number) => void }
           maxValue={duration || 1}
           onSeek={onSeek}
           trackColor={colors.primary}
-          inactiveTrackColor={colors.mutedForeground + '30'}
+          inactiveTrackColor={colors.mutedForeground + "30"}
           thumbSize={12}
           trackHeight={3}
         />
@@ -42,8 +42,8 @@ const GroupProgressBar = React.memo(({ onSeek }: { onSeek: (v: number) => void }
         </Text>
       </View>
     </View>
-  );
-});
+  )
+})
 
 export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
   onChooseSong,
@@ -52,39 +52,39 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
   onSeek,
   onSkip,
 }) => {
-  const { colors } = useTheme();
+  const { colors } = useTheme()
 
-  const currentSong = useGroupPlaybackStore((s) => s.currentSong);
-  const isPlaying = useGroupPlaybackStore((s) => s.isPlaying);
-  const isLoading = useGroupPlaybackStore((s) => s.isLoading);
+  const currentSong = useGroupPlaybackStore((s) => s.currentSong)
+  const isPlaying = useGroupPlaybackStore((s) => s.isPlaying)
+  const isLoading = useGroupPlaybackStore((s) => s.isLoading)
 
-  const queue = useGroupSessionStore((s) => s.queue);
-  const currentQueueIndex = useGroupSessionStore((s) => s.currentQueueIndex);
+  const queue = useGroupSessionStore((s) => s.queue)
+  const currentQueueIndex = useGroupSessionStore((s) => s.currentQueueIndex)
 
   const currentQueueItem = useMemo(
     () => (currentQueueIndex >= 0 && queue[currentQueueIndex] ? queue[currentQueueIndex] : null),
-    [queue, currentQueueIndex]
-  );
+    [queue, currentQueueIndex],
+  )
 
   const upcomingQueue = useMemo(
     () => queue.filter((_, idx) => idx > currentQueueIndex),
-    [queue, currentQueueIndex]
-  );
+    [queue, currentQueueIndex],
+  )
 
   const queueCount = useMemo(
     () => (currentQueueItem ? 1 : 0) + upcomingQueue.length,
-    [currentQueueItem, upcomingQueue.length]
-  );
+    [currentQueueItem, upcomingQueue.length],
+  )
 
-  const nextSong = useMemo(() => upcomingQueue[0]?.song || null, [upcomingQueue]);
-  const addedBy = currentQueueItem?.addedBy;
-  const artist = currentSong?.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
+  const nextSong = useMemo(() => upcomingQueue[0]?.song || null, [upcomingQueue])
+  const addedBy = currentQueueItem?.addedBy
+  const artist = currentSong?.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"
 
   if (!currentSong) {
     return (
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <TouchableOpacity onPress={onChooseSong} style={styles.emptyState}>
-          <Feather name='music' size={28} color={colors.mutedForeground} />
+          <Feather name="music" size={28} color={colors.mutedForeground} />
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
             Choose a song to play
           </Text>
@@ -93,7 +93,7 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
           </Text>
         </TouchableOpacity>
       </View>
-    );
+    )
   }
 
   return (
@@ -113,10 +113,7 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
           {addedBy && (
             <View style={styles.addedByRow}>
               {addedBy.profilePic ? (
-                <Image
-                  source={{ uri: String(addedBy.profilePic) }}
-                  style={styles.addedByAvatar}
-                />
+                <Image source={{ uri: String(addedBy.profilePic) }} style={styles.addedByAvatar} />
               ) : null}
               <Text style={[styles.addedByText, { color: colors.mutedForeground }]}>
                 {addedBy.userName}
@@ -136,10 +133,10 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
             style={[styles.playButton, { backgroundColor: colors.primary }]}
           >
             {isLoading ? (
-              <Feather name='loader' size={22} color={colors.primaryForeground} />
+              <Feather name="loader" size={22} color={colors.primaryForeground} />
             ) : (
               <Ionicons
-                name={isPlaying ? 'pause' : 'play'}
+                name={isPlaying ? "pause" : "play"}
                 size={22}
                 color={colors.primaryForeground}
                 style={!isPlaying ? { marginLeft: 2 } : undefined}
@@ -152,7 +149,7 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
             disabled={isLoading}
             style={[styles.skipButton, { backgroundColor: colors.secondary }]}
           >
-            <Ionicons name='play-skip-forward' size={18} color={colors.foreground} />
+            <Ionicons name="play-skip-forward" size={18} color={colors.foreground} />
           </TouchableOpacity>
         </View>
 
@@ -160,7 +157,7 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
           onPress={onOpenQueue}
           style={[styles.queueButton, { backgroundColor: colors.secondary }]}
         >
-          <Feather name='list' size={16} color={colors.foreground} />
+          <Feather name="list" size={16} color={colors.foreground} />
           {queueCount > 0 && (
             <View style={[styles.queueBadge, { backgroundColor: colors.primary }]}>
               <Text style={[styles.queueBadgeText, { color: colors.primaryForeground }]}>
@@ -177,18 +174,15 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
           style={[styles.upNextRow, { borderTopColor: colors.border }]}
         >
           <Text style={[styles.upNextLabel, { color: colors.mutedForeground }]}>UP NEXT</Text>
-          <Text
-            style={[styles.upNextSong, { color: colors.mutedForeground }]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.upNextSong, { color: colors.mutedForeground }]} numberOfLines={1}>
             {nextSong.name}
           </Text>
-          <Feather name='chevron-right' size={14} color={colors.mutedForeground} />
+          <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
         </TouchableOpacity>
       )}
     </View>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   card: {
@@ -196,27 +190,27 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     borderRadius: 16,
     borderWidth: 1,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 32,
     paddingHorizontal: 24,
   },
   emptyTitle: {
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 16,
     marginTop: 12,
   },
   emptySubtitle: {
     fontSize: 14,
     marginTop: 4,
-    textAlign: 'center',
+    textAlign: "center",
   },
   songRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     paddingBottom: 8,
   },
@@ -230,7 +224,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   songName: {
-    fontWeight: '700',
+    fontWeight: "700",
     fontSize: 16,
     lineHeight: 20,
   },
@@ -239,8 +233,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   addedByRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 4,
     gap: 4,
   },
@@ -257,8 +251,8 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   sliderWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   slider: {
     flex: 1,
@@ -268,45 +262,45 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   timeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingHorizontal: 2,
     marginTop: -4,
   },
   timeText: {
     fontSize: 11,
-    fontVariant: ['tabular-nums'],
+    fontVariant: ["tabular-nums"],
   },
   controlsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 4,
     paddingBottom: 12,
   },
   playbackControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
   },
   playButton: {
     width: 46,
     height: 46,
     borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   skipButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   queueButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -316,17 +310,17 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 5,
   },
   queueBadgeText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   upNextRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderTopWidth: 1,
@@ -334,11 +328,11 @@ const styles = StyleSheet.create({
   },
   upNextLabel: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 1,
   },
   upNextSong: {
     fontSize: 12,
     flex: 1,
   },
-});
+})

@@ -1,25 +1,25 @@
-import { styles } from '@/assets/styles/search.style';
-import { useTheme } from '@/context/ThemeContext';
-import { Feather } from '@expo/vector-icons';
-import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { styles } from "@/assets/styles/search.style"
+import { useTheme } from "@/context/ThemeContext"
+import { Feather } from "@expo/vector-icons"
+import React from "react"
+import { Text, TouchableOpacity, View } from "react-native"
+import Animated, { FadeIn } from "react-native-reanimated"
 
 interface SearchSuggestionsProps {
-  onSuggestionPress: (suggestion: string) => void;
+  onSuggestionPress: (suggestion: string) => void
 }
 
 const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({ onSuggestionPress }) => {
-  const { colors, theme } = useTheme();
+  const { colors, theme } = useTheme()
 
   const trendingSuggestions = [
-    { text: 'Latest hits', icon: 'trending-up' },
-    { text: 'Bollywood songs', icon: 'music' },
-    { text: 'English pop', icon: 'headphones' },
-    { text: 'Party playlist', icon: 'zap' },
-    { text: 'Romantic songs', icon: 'heart' },
-    { text: 'Workout music', icon: 'activity' },
-  ] as const;
+    { text: "Latest hits", icon: "trending-up" },
+    { text: "Bollywood songs", icon: "music" },
+    { text: "English pop", icon: "headphones" },
+    { text: "Party playlist", icon: "zap" },
+    { text: "Romantic songs", icon: "heart" },
+    { text: "Workout music", icon: "activity" },
+  ] as const
 
   return (
     <View style={styles.historyContainer}>
@@ -39,9 +39,9 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({ onSuggestionPress
                   {
                     borderColor: colors.border,
                     backgroundColor:
-                      theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)',
-                    flexDirection: 'row',
-                    alignItems: 'center',
+                      theme === "light" ? "rgba(0, 0, 0, 0.03)" : "rgba(255, 255, 255, 0.03)",
+                    flexDirection: "row",
+                    alignItems: "center",
                     paddingHorizontal: 16,
                     paddingVertical: 10,
                   },
@@ -63,7 +63,7 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({ onSuggestionPress
         </View>
       </Animated.View>
     </View>
-  );
-};
+  )
+}
 
-export default SearchSuggestions;
+export default SearchSuggestions

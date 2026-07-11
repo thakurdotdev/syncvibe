@@ -1,6 +1,5 @@
 const HistorySong = require("../../models/music/HistorySong")
 const Song = require("../../models/music/Song")
-const { Op } = require("sequelize")
 const sequelize = require("../../utils/sequelize")
 const {
   getRecommendationsForUser,
@@ -22,14 +21,15 @@ const addToHistory = async (req, res) => {
 
     const song = await Song.getOrCreate(songData)
 
-    const completionRate = calculateCompletionRate(playedTime, song.duration)
+    const playedTimeInt = Math.round(Number(playedTime) || 0)
+    const completionRate = calculateCompletionRate(playedTimeInt, song.duration)
     await HistorySong.upsert({
       userId,
       songRefId: song.id,
 
       playedCount: 1,
-      playedTime,
-      totalPlayTime: playedTime,
+      playedTime: playedTimeInt,
+      totalPlayTime: playedTimeInt,
       completionRate,
       timeOfDay: new Date().getHours(),
       deviceType: getDeviceType(req.headers["user-agent"]),
@@ -41,62 +41,6 @@ const addToHistory = async (req, res) => {
   } catch (error) {
     console.error("Error in addToHistory:", error)
     res.status(500).json({ error: "Failed to update history" })
-  }
-}
-
-const batchAddToHistory = async (req, res) => {
-  try {
-    const { updates } = req.body
-    const userId = req.user.userid
-
-    if (!Array.isArray(updates) || updates.length === 0) {
-      return res.status(400).json({ error: "Invalid updates data" })
-    }
-
-    const results = []
-
-    for (const update of updates) {
-      const { songId, position = 0, songData, duration, timestamp } = update
-
-      if (!songId || !songData) {
-        results.push({ songId, status: "failed", error: "Invalid song data" })
-        continue
-      }
-
-      try {
-        const song = await Song.getOrCreate(songData)
-        const completionRate = calculateCompletionRate(position, duration || song.duration)
-
-        await HistorySong.upsert({
-          userId,
-          songRefId: song.id,
-
-          playedCount: 1,
-          playedTime: position,
-          totalPlayTime: position,
-          completionRate,
-          timeOfDay: new Date(timestamp || Date.now()).getHours(),
-          deviceType: getDeviceType(req.headers["user-agent"]),
-          lastPlayedAt: new Date(timestamp || Date.now()),
-        })
-
-        results.push({ songId, status: "success" })
-      } catch (err) {
-        console.error(err)
-        results.push({ songId, status: "failed", error: "Database error" })
-      }
-    }
-
-    queueUserForRecalc(userId)
-    res.json({
-      message: "Batch history updated successfully",
-      results,
-      processed: results.length,
-      successful: results.filter((r) => r.status === "success").length,
-    })
-  } catch (error) {
-    console.error("Error in batchAddToHistory:", error)
-    res.status(500).json({ error: "Failed to update history batch" })
   }
 }
 
@@ -132,7 +76,7 @@ const getHistorySongs = async (req, res) => {
     const offset = (pageNum - 1) * limitNum
 
     let query
-    let replacements = { userId, limit: limitNum, offset }
+    const replacements = { userId, limit: limitNum, offset }
 
     if (searchQuery) {
       query = `
@@ -193,24 +137,6 @@ const getHistorySongs = async (req, res) => {
   }
 }
 
-const updateLikeStatus = async (req, res) => {
-  try {
-    const userId = req.user.userid
-    const { songId, liked } = req.body
-
-    const updated = await HistorySong.update({ likeStatus: liked }, { where: { userId, songId } })
-
-    if (!updated[0]) {
-      return res.status(404).json({ error: "Song not found in history" })
-    }
-
-    res.json({ message: "Like status updated successfully" })
-  } catch (error) {
-    console.error("Error in updateLikeStatus:", error)
-    res.status(500).json({ error: "Failed to update like status" })
-  }
-}
-
 const calculateCompletionRate = (playedTime, duration) =>
   duration ? Math.min((playedTime / duration) * 100, 100) : 0
 
@@ -218,8 +144,6 @@ const getDeviceType = (ua) => (ua?.includes("Mobile") ? "mobile" : "desktop")
 
 module.exports = {
   addToHistory,
-  batchAddToHistory,
   getPersonalizedRecommendations,
-  updateLikeStatus,
   getHistorySongs,
 }

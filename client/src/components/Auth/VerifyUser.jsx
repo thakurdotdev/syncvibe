@@ -127,7 +127,11 @@ const VerifyUser = () => {
               >
                 <InputOTPGroup className="gap-2">
                   {Array.from({ length: 6 }).map((_, i) => (
-                    <InputOTPSlot key={i} index={i} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 h-12 w-12 text-center text-lg focus-visible:ring-zinc-450 focus:border-zinc-500" />
+                    <InputOTPSlot
+                      key={i}
+                      index={i}
+                      className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 h-12 w-12 text-center text-lg focus-visible:ring-zinc-450 focus:border-zinc-500"
+                    />
                   ))}
                 </InputOTPGroup>
               </InputOTP>

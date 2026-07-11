@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react"
 import {
   Dimensions,
   KeyboardAvoidingView,
@@ -6,18 +6,18 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import SwipeableModal from '@/components/common/SwipeableModal';
-import { Input } from '@/components/ui/input';
-import { useTheme } from '@/context/ThemeContext';
+} from "react-native"
+import { Ionicons } from "@expo/vector-icons"
+import SwipeableModal from "@/components/common/SwipeableModal"
+import { Input } from "@/components/ui/input"
+import { useTheme } from "@/context/ThemeContext"
 
 interface CreateOrJoinModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onCreateGroup: (name: string) => void;
-  onJoinGroup: (id: string) => void;
-  onScanQRCode: () => void;
+  isOpen: boolean
+  onClose: () => void
+  onCreateGroup: (name: string) => void
+  onJoinGroup: (id: string) => void
+  onScanQRCode: () => void
 }
 
 export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
@@ -27,43 +27,41 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
   onJoinGroup,
   onScanQRCode,
 }) => {
-  const { colors } = useTheme();
-  const [tabIndex, setTabIndex] = useState(0);
-  const [newGroupName, setNewGroupName] = useState('');
-  const [groupId, setGroupId] = useState('');
+  const { colors } = useTheme()
+  const [tabIndex, setTabIndex] = useState(0)
+  const [newGroupName, setNewGroupName] = useState("")
+  const [groupId, setGroupId] = useState("")
 
   const handleCreate = () => {
     if (newGroupName.trim()) {
-      onCreateGroup(newGroupName.trim());
-      setNewGroupName('');
-      onClose();
+      onCreateGroup(newGroupName.trim())
+      setNewGroupName("")
+      onClose()
     }
-  };
+  }
 
   const handleJoin = () => {
     if (groupId.trim()) {
-      onJoinGroup(groupId.trim());
-      setGroupId('');
-      onClose();
+      onJoinGroup(groupId.trim())
+      setGroupId("")
+      onClose()
     }
-  };
+  }
 
   return (
     <SwipeableModal
       isVisible={isOpen}
       onClose={onClose}
-      maxHeight={Dimensions.get('window').height * 0.85}
+      maxHeight={Dimensions.get("window").height * 0.85}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={{ padding: 24, paddingBottom: 40 }}>
           <Text
             style={{
               color: colors.foreground,
               fontSize: 22,
-              fontWeight: '700',
-              textAlign: 'center',
+              fontWeight: "700",
+              textAlign: "center",
               marginBottom: 24,
             }}
           >
@@ -72,7 +70,7 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
 
           <View
             style={{
-              flexDirection: 'row',
+              flexDirection: "row",
               backgroundColor: colors.secondary,
               borderRadius: 14,
               marginBottom: 28,
@@ -84,15 +82,15 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
               style={{
                 flex: 1,
                 paddingVertical: 12,
-                backgroundColor: tabIndex === 0 ? colors.primary : 'transparent',
+                backgroundColor: tabIndex === 0 ? colors.primary : "transparent",
                 borderRadius: 10,
               }}
             >
               <Text
                 style={{
-                  textAlign: 'center',
+                  textAlign: "center",
                   color: tabIndex === 0 ? colors.primaryForeground : colors.mutedForeground,
-                  fontWeight: '600',
+                  fontWeight: "600",
                   fontSize: 15,
                 }}
               >
@@ -104,15 +102,15 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
               style={{
                 flex: 1,
                 paddingVertical: 12,
-                backgroundColor: tabIndex === 1 ? colors.primary : 'transparent',
+                backgroundColor: tabIndex === 1 ? colors.primary : "transparent",
                 borderRadius: 10,
               }}
             >
               <Text
                 style={{
-                  textAlign: 'center',
+                  textAlign: "center",
                   color: tabIndex === 1 ? colors.primaryForeground : colors.mutedForeground,
-                  fontWeight: '600',
+                  fontWeight: "600",
                   fontSize: 15,
                 }}
               >
@@ -124,12 +122,12 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
           {tabIndex === 0 ? (
             <View>
               <Input
-                labelText='GROUP NAME'
-                placeholder='Enter a name for your group'
+                labelText="GROUP NAME"
+                placeholder="Enter a name for your group"
                 value={newGroupName}
                 onChangeText={setNewGroupName}
-                variant='outline'
-                size='lg'
+                variant="outline"
+                size="lg"
                 containerStyle={{ marginBottom: 12 }}
               />
               <TouchableOpacity
@@ -145,8 +143,8 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
                 <Text
                   style={{
                     color: colors.primaryForeground,
-                    fontWeight: '700',
-                    textAlign: 'center',
+                    fontWeight: "700",
+                    textAlign: "center",
                     fontSize: 16,
                   }}
                 >
@@ -157,12 +155,12 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
           ) : (
             <View>
               <Input
-                labelText='GROUP ID'
-                placeholder='Enter the group ID to join'
+                labelText="GROUP ID"
+                placeholder="Enter the group ID to join"
                 value={groupId}
                 onChangeText={setGroupId}
-                variant='outline'
-                size='lg'
+                variant="outline"
+                size="lg"
                 containerStyle={{ marginBottom: 12 }}
               />
               <TouchableOpacity
@@ -179,8 +177,8 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
                 <Text
                   style={{
                     color: groupId.trim() ? colors.primaryForeground : colors.mutedForeground,
-                    fontWeight: '700',
-                    textAlign: 'center',
+                    fontWeight: "700",
+                    textAlign: "center",
                     fontSize: 16,
                   }}
                 >
@@ -190,8 +188,8 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
 
               <View
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
+                  flexDirection: "row",
+                  alignItems: "center",
                   marginVertical: 20,
                 }}
               >
@@ -201,7 +199,7 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
                     marginHorizontal: 16,
                     color: colors.mutedForeground,
                     fontSize: 13,
-                    fontWeight: '500',
+                    fontWeight: "500",
                   }}
                 >
                   OR
@@ -211,13 +209,13 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
 
               <TouchableOpacity
                 onPress={() => {
-                  onClose();
-                  onScanQRCode();
+                  onClose()
+                  onScanQRCode()
                 }}
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
                   backgroundColor: colors.secondary,
                   borderWidth: 1,
                   borderColor: colors.border,
@@ -226,7 +224,7 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
                 }}
               >
                 <Ionicons
-                  name='qr-code-outline'
+                  name="qr-code-outline"
                   size={20}
                   color={colors.foreground}
                   style={{ marginRight: 8 }}
@@ -234,7 +232,7 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
                 <Text
                   style={{
                     color: colors.foreground,
-                    fontWeight: '600',
+                    fontWeight: "600",
                     fontSize: 16,
                   }}
                 >
@@ -249,14 +247,14 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
             style={{
               marginTop: 32,
               paddingVertical: 12,
-              alignItems: 'center',
+              alignItems: "center",
             }}
           >
             <Text
               style={{
                 color: colors.mutedForeground,
                 fontSize: 15,
-                fontWeight: '500',
+                fontWeight: "500",
               }}
             >
               Cancel
@@ -265,5 +263,5 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
         </View>
       </KeyboardAvoidingView>
     </SwipeableModal>
-  );
-};
+  )
+}

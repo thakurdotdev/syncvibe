@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react"
 import {
   ActivityIndicator,
   Dimensions,
@@ -8,68 +8,68 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import * as WebBrowser from 'expo-web-browser';
-import axios from 'axios';
-import { API_URL } from '@/constants';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useTheme } from '@/context/ThemeContext';
+} from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { Ionicons } from "@expo/vector-icons"
+import { BlurView } from "expo-blur"
+import * as WebBrowser from "expo-web-browser"
+import axios from "axios"
+import { API_URL } from "@/constants"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { useTheme } from "@/context/ThemeContext"
 
 interface TwoFactorLoginProps {
-  userId: string | null;
-  onSuccess: (token: string) => void;
-  onClose: () => void;
+  userId: string | null
+  onSuccess: (token: string) => void
+  onClose: () => void
 }
 
-const { width, height } = Dimensions.get('window');
+const { width, height } = Dimensions.get("window")
 
 export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginProps) => {
-  const insets = useSafeAreaInsets();
-  const { colors, theme } = useTheme();
-  const [otp, setOtp] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
-  const [error, setError] = useState('');
+  const insets = useSafeAreaInsets()
+  const { colors, theme } = useTheme()
+  const [otp, setOtp] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [isVerified, setIsVerified] = useState(false)
+  const [error, setError] = useState("")
 
   const handleVerify = async () => {
     if (!otp || otp.length !== 6) {
-      setError('Please enter a valid 6-digit code');
-      return;
+      setError("Please enter a valid 6-digit code")
+      return
     }
 
     try {
-      setLoading(true);
-      setError('');
+      setLoading(true)
+      setError("")
       const response = await axios.post(`${API_URL}/api/2fa/verify`, {
         userId: userId,
         token: otp,
-      });
+      })
 
       if (response.status === 200) {
-        setIsVerified(true);
+        setIsVerified(true)
         setTimeout(() => {
-          onSuccess(response.data.token);
-        }, 1000);
+          onSuccess(response.data.token)
+        }, 1000)
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid verification code');
+      setError(err.response?.data?.message || "Invalid verification code")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleOtpChange = (text: string) => {
-    const cleaned = text.replace(/\D/g, '').slice(0, 6);
-    setOtp(cleaned);
-  };
+    const cleaned = text.replace(/\D/g, "").slice(0, 6)
+    setOtp(cleaned)
+  }
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={[styles.outerContainer, { backgroundColor: colors.background }]}
     >
       <ScrollView
@@ -80,7 +80,7 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
             paddingBottom: Math.max(insets.bottom + 80, 100),
           },
         ]}
-        keyboardShouldPersistTaps='handled'
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.logoContainer}>
@@ -89,13 +89,13 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
               styles.logoWrapper,
               {
                 borderColor: colors.border,
-                backgroundColor: theme === 'light' ? '#FFFFFF' : colors.card,
+                backgroundColor: theme === "light" ? "#FFFFFF" : colors.card,
                 shadowColor: colors.primary,
               },
             ]}
           >
-            <BlurView intensity={theme === 'light' ? 10 : 40} tint={theme} style={styles.logoBlur}>
-              <Ionicons name='shield-checkmark-sharp' size={40} color={colors.primary} />
+            <BlurView intensity={theme === "light" ? 10 : 40} tint={theme} style={styles.logoBlur}>
+              <Ionicons name="shield-checkmark-sharp" size={40} color={colors.primary} />
             </BlurView>
           </View>
 
@@ -111,14 +111,14 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
 
         <View style={styles.formContainer}>
           <Input
-            variant='outline'
-            placeholder='000000'
+            variant="outline"
+            placeholder="000000"
             value={otp}
             onChangeText={handleOtpChange}
-            keyboardType='number-pad'
+            keyboardType="number-pad"
             maxLength={6}
             editable={!loading && !isVerified}
-            textAlign='center'
+            textAlign="center"
             inputStyle={{
               fontSize: 24,
               letterSpacing: 8,
@@ -126,31 +126,31 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
             }}
             error={!!error}
             errorText={error}
-            className='mb-6'
+            className="mb-6"
           />
 
           <Button
-            variant='default'
+            variant="default"
             disabled={loading || otp.length !== 6 || isVerified}
             onPress={handleVerify}
-            className='w-full py-4 rounded-xl'
-            textStyle={{ fontWeight: '600', fontSize: 16 }}
+            className="w-full py-4 rounded-xl"
+            textStyle={{ fontWeight: "600", fontSize: 16 }}
           >
             {loading ? (
-              <ActivityIndicator size='small' color={colors.primaryForeground} />
+              <ActivityIndicator size="small" color={colors.primaryForeground} />
             ) : isVerified ? (
-              <Ionicons name='checkmark-circle' size={20} color={colors.primaryForeground} />
+              <Ionicons name="checkmark-circle" size={20} color={colors.primaryForeground} />
             ) : (
-              'Verify'
+              "Verify"
             )}
           </Button>
 
           <Button
-            variant='outline'
+            variant="outline"
             disabled={loading}
             onPress={onClose}
-            className='w-full py-4 rounded-xl mt-3'
-            textStyle={{ fontWeight: '600', fontSize: 16 }}
+            className="w-full py-4 rounded-xl mt-3"
+            textStyle={{ fontWeight: "600", fontSize: 16 }}
           >
             Cancel
           </Button>
@@ -158,20 +158,20 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
 
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
-            By continuing, you agree to our{' '}
+            By continuing, you agree to our{" "}
             <Text
               style={[styles.footerLink, { color: colors.primary }]}
               onPress={async () => {
-                await WebBrowser.openBrowserAsync('https://syncvibe.thakur.dev/terms-of-services');
+                await WebBrowser.openBrowserAsync("https://syncvibe.thakur.dev/terms-of-services")
               }}
             >
               Terms of Service
-            </Text>{' '}
-            and{' '}
+            </Text>{" "}
+            and{" "}
             <Text
               style={[styles.footerLink, { color: colors.primary }]}
               onPress={async () => {
-                await WebBrowser.openBrowserAsync('https://syncvibe.thakur.dev/privacy-policy');
+                await WebBrowser.openBrowserAsync("https://syncvibe.thakur.dev/privacy-policy")
               }}
             >
               Privacy Policy
@@ -180,22 +180,22 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
-    width: '100%',
+    width: "100%",
   },
   scrollContainer: {
     flexGrow: 1,
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 24,
   },
   logoContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
     marginBottom: 20,
   },
@@ -203,11 +203,11 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: 16,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     shadowOffset: {
       width: 0,
       height: 8,
@@ -217,43 +217,43 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   logoBlur: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
     borderRadius: 50,
   },
   appTitle: {
     fontSize: 26,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
     marginBottom: 6,
     letterSpacing: 0.3,
   },
   appSubtitle: {
     fontSize: 15,
-    textAlign: 'center',
+    textAlign: "center",
     letterSpacing: 0.2,
   },
   formContainer: {
-    width: '100%',
+    width: "100%",
     marginVertical: 10,
   },
   footer: {
-    alignItems: 'center',
-    width: '100%',
+    alignItems: "center",
+    width: "100%",
     paddingHorizontal: 20,
     marginTop: 10,
   },
   footerText: {
     fontSize: 12,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 18,
   },
   footerLink: {
-    fontWeight: '500',
+    fontWeight: "500",
   },
-});
+})
 
-export default TwoFactorLogin;
+export default TwoFactorLogin
