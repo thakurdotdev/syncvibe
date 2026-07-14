@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 import { createJSONStorage, persist } from "zustand/middleware"
+import { useIsPlaying as useIsPlayingNative } from "@rntp/player"
 
 export type RepeatMode = "off" | "all" | "one"
 
@@ -330,7 +331,7 @@ export const usePlayerStore = create<PlayerStore>()(
 )
 
 export const useCurrentSong = () => usePlayerStore((s) => s.currentSong)
-export const useIsPlaying = () => usePlayerStore((s) => s.isPlaying)
+export const useIsPlaying = () => useIsPlayingNative()
 export const useIsLoading = () => usePlayerStore((s) => s.isLoading)
 export const usePlaylist = () => usePlayerStore((s) => s.playlist)
 export const useShuffleMode = () =>
@@ -360,14 +361,16 @@ export const usePlayerControls = () =>
     })),
   )
 
-export const usePlaybackState = () =>
-  usePlayerStore(
+export const usePlaybackState = () => {
+  const { currentSong, isLoading } = usePlayerStore(
     useShallow((s) => ({
       currentSong: s.currentSong,
-      isPlaying: s.isPlaying,
       isLoading: s.isLoading,
     })),
   )
+  const isPlaying = useIsPlayingNative()
+  return { currentSong, isPlaying, isLoading }
+}
 
 export const usePlaylistState = () =>
   usePlayerStore(

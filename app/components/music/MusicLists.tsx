@@ -57,12 +57,13 @@ interface RecommendationGridProps {
   showMore?: boolean
 }
 
+const ITEM_HEIGHT = 60
+
 const SongCardQueue = memo(
   ({
     song,
     drag,
     isActive,
-    index,
     onMenuPress,
   }: {
     song: Song
@@ -72,14 +73,18 @@ const SongCardQueue = memo(
     onMenuPress: (song: Song) => void
   }) => {
     const { colors } = useTheme()
-    const { playSong, removeFromQueue } = usePlayerControls()
-    const { currentSong } = usePlaybackState()
+    const { playSong, removeFromQueue, handlePlayPause } = usePlayerControls()
+    const { currentSong, isPlaying } = usePlaybackState()
     const isCurrentSong = currentSong?.id === song.id
     const swipeableRef = useRef<Swipeable>(null)
 
     const handlePress = useCallback(() => {
-      playSong(song)
-    }, [song, playSong])
+      if (isCurrentSong) {
+        handlePlayPause()
+      } else {
+        playSong(song)
+      }
+    }, [song, playSong, isCurrentSong, handlePlayPause])
 
     const handleDelete = useCallback(() => {
       removeFromQueue(song.id)
@@ -87,24 +92,29 @@ const SongCardQueue = memo(
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     }, [removeFromQueue, song.id])
 
-    const songImage = useMemo(() => song.image[1]?.link, [song.image])
-    const songName = useMemo(() => song.name, [song.name])
-    const songArtist = useMemo(
-      () => song.subtitle || song.artist_map?.artists?.[0]?.name,
-      [song.subtitle, song.artist_map],
-    )
+    const handleLongPress = useCallback(() => {
+      if (!isCurrentSong) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+        drag()
+      }
+    }, [isCurrentSong, drag])
+
+    const handleMenuPress = useCallback(() => onMenuPress(song), [onMenuPress, song])
+
+    const songImage = song.image[1]?.link
+    const songName = song.name
+    const songArtist = song.subtitle || song.artist_map?.artists?.[0]?.name
 
     const renderRightActions = useCallback(
-      (progress: any, _dragX: any) => {
+      (progress: any) => {
         const opacity = progress.interpolate({
           inputRange: [0, 0.5, 1],
           outputRange: [0, 0, 1],
         })
-
         return (
           <RNAnimated.View style={{ opacity, width: 70, height: "100%" }}>
             <RectButton onPress={handleDelete} style={queueItemStyles.deleteButton}>
-              <View style={{ alignItems: "center", justifyContent: "center" }}>
+              <View style={queueItemStyles.deleteIconWrapper}>
                 <Trash2Icon size={20} color="white" />
               </View>
             </RectButton>
@@ -124,15 +134,10 @@ const SongCardQueue = memo(
             rightThreshold={40}
             overshootRight={false}
             enableTrackpadTwoFingerGesture={false}
-            containerStyle={{ marginVertical: 1, overflow: "hidden" }}
+            containerStyle={queueItemStyles.swipeContainer}
           >
             <Pressable
-              onLongPress={() => {
-                if (!isCurrentSong) {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                  drag()
-                }
-              }}
+              onLongPress={handleLongPress}
               onPress={handlePress}
               disabled={isActive}
               delayLongPress={150}
@@ -140,36 +145,32 @@ const SongCardQueue = memo(
               <View
                 style={[
                   queueItemStyles.itemContainer,
-                  {
-                    backgroundColor: isCurrentSong ? colors.primary + "12" : colors.background,
-                  },
+                  isCurrentSong && { backgroundColor: colors.primary + "12" },
                 ]}
               >
-                <Text
-                  style={[
-                    queueItemStyles.indexText,
-                    {
-                      color: isCurrentSong ? colors.primary : colors.mutedForeground,
-                    },
-                  ]}
-                >
-                  {isCurrentSong ? "▶" : index + 1}
-                </Text>
-
-                <Image
-                  source={{ uri: songImage }}
-                  style={queueItemStyles.thumbnail}
-                  fadeDuration={0}
-                  resizeMode="cover"
-                />
+                <View style={queueItemStyles.thumbnailWrapper}>
+                  <Image
+                    source={{ uri: songImage }}
+                    style={queueItemStyles.thumbnail}
+                    fadeDuration={0}
+                    resizeMode="cover"
+                  />
+                  {isCurrentSong && (
+                    <View style={queueItemStyles.thumbnailOverlay}>
+                      <Ionicons
+                        name={isPlaying ? "pause" : "play"}
+                        size={16}
+                        color="#fff"
+                      />
+                    </View>
+                  )}
+                </View>
 
                 <View style={queueItemStyles.textArea}>
                   <Text
                     style={[
                       queueItemStyles.title,
-                      {
-                        color: isCurrentSong ? colors.primary : colors.text,
-                      },
+                      { color: isCurrentSong ? colors.primary : colors.text },
                     ]}
                     numberOfLines={1}
                   >
@@ -183,14 +184,13 @@ const SongCardQueue = memo(
                   </Text>
                 </View>
 
-                <TouchableOpacity
-                  onPress={() => onMenuPress(song)}
-                  activeOpacity={0.6}
+                <Pressable
+                  onPress={handleMenuPress}
                   hitSlop={8}
                   style={queueItemStyles.menuButton}
                 >
                   <MoreVertical size={18} color={colors.mutedForeground} />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </Pressable>
           </Swipeable>
@@ -201,25 +201,33 @@ const SongCardQueue = memo(
 )
 
 const queueItemStyles = StyleSheet.create({
+  swipeContainer: {
+    marginVertical: 1,
+    overflow: "hidden",
+  },
   itemContainer: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
     paddingHorizontal: 12,
-    minHeight: 60,
+    height: ITEM_HEIGHT,
   },
-  indexText: {
-    width: 24,
-    fontSize: 13,
-    fontWeight: "600",
-    textAlign: "center",
-    fontVariant: ["tabular-nums"],
+  thumbnailWrapper: {
+    position: "relative",
+    width: 44,
+    height: 44,
   },
   thumbnail: {
     width: 44,
     height: 44,
     borderRadius: 8,
-    marginLeft: 10,
+  },
+  thumbnailOverlay: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   textArea: {
     flex: 1,
@@ -246,6 +254,10 @@ const queueItemStyles = StyleSheet.create({
     alignItems: "center",
     width: 70,
     height: "100%",
+  },
+  deleteIconWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
   },
 })
 

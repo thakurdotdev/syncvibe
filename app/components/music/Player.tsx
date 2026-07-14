@@ -1,27 +1,28 @@
-import {
-  usePlayerStore,
-  usePlaybackState,
-  usePlaylistState,
-  usePlayerControls,
-} from "@/stores/playerStore"
-import { useSongRecommendationsQuery } from "@/queries/useMusic"
+import { TAB_BAR_HEIGHT } from "@/app/(tabs)/_layout"
 import { useTheme } from "@/context/ThemeContext"
+import { useSongRecommendationsQuery } from "@/queries/useMusic"
+import {
+  usePlaybackState,
+  usePlayerControls,
+  usePlayerStore,
+  usePlaylistState,
+} from "@/stores/playerStore"
+import { Song } from "@/types/song"
 import { Ionicons } from "@expo/vector-icons"
+import * as Haptics from "expo-haptics"
 import { usePathname } from "expo-router"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import {
-  ActivityIndicator,
   BackHandler,
   Dimensions,
   Image,
   Pressable,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
-  Easing,
   Extrapolation,
   interpolate,
   runOnJS,
@@ -35,16 +36,27 @@ import Button from "../ui/button"
 import { ProgressBar, SongControls } from "./MusicCards"
 import { MusicQueue } from "./MusicLists"
 import NewPlayerDrawer from "./NewPlayerDrawer"
-import { Song } from "@/types/song"
-import * as Haptics from "expo-haptics"
 
 const { width: SCREEN_WIDTH, height } = Dimensions.get("window")
-const ANIMATION_DURATION = 350
-const SWIPE_THRESHOLD = 120
+const SWIPE_THRESHOLD = 100
 
-const SPRING_CONFIG = {
-  damping: 22,
-  stiffness: 250,
+const OPEN_SPRING = {
+  damping: 28,
+  stiffness: 280,
+  mass: 0.7,
+  overshootClamping: true,
+}
+
+const CLOSE_SPRING = {
+  damping: 32,
+  stiffness: 320,
+  mass: 0.6,
+  overshootClamping: true,
+}
+
+const SNAP_SPRING = {
+  damping: 24,
+  stiffness: 260,
   mass: 0.8,
 }
 
@@ -308,34 +320,22 @@ export default function Player() {
   const openPlayer = useCallback(() => {
     setIsExpanded(true)
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    translateY.value = withTiming(0, {
-      duration: ANIMATION_DURATION,
-      easing: Easing.bezier(0.2, 0.65, 0.2, 1),
-    })
-    miniPlayerOpacity.value = withTiming(0, {
-      duration: ANIMATION_DURATION * 0.5,
-      easing: Easing.out(Easing.ease),
-    })
-    scale.value = withSpring(1, SPRING_CONFIG)
+    translateY.value = withSpring(0, OPEN_SPRING)
+    miniPlayerOpacity.value = withTiming(0, { duration: 150 })
+    scale.value = withSpring(1, OPEN_SPRING)
   }, [translateY, miniPlayerOpacity, scale])
 
   const closePlayer = useCallback(() => {
-    translateY.value = withTiming(
+    translateY.value = withSpring(
       height,
-      {
-        duration: ANIMATION_DURATION,
-        easing: Easing.bezier(0.3, 0.0, 0.6, 1),
-      },
+      CLOSE_SPRING,
       () => {
         runOnJS(setIsExpanded)(false)
         gestureTranslateY.value = 0
       },
     )
-    miniPlayerOpacity.value = withTiming(1, {
-      duration: ANIMATION_DURATION,
-      easing: Easing.bezier(0.3, 0.0, 0.6, 1),
-    })
-    scale.value = withSpring(1, SPRING_CONFIG)
+    miniPlayerOpacity.value = withTiming(1, { duration: 200 })
+    scale.value = withSpring(1, CLOSE_SPRING)
   }, [translateY, miniPlayerOpacity, gestureTranslateY, scale])
 
   const handleTabPress = useCallback(
@@ -358,6 +358,7 @@ export default function Player() {
   )
 
   const verticalGesture = Gesture.Pan()
+    .activeOffsetY([-8, 8])
     .onStart(() => {
       "worklet"
       startY.value = gestureTranslateY.value
@@ -365,16 +366,15 @@ export default function Player() {
     .onUpdate((e) => {
       "worklet"
       if (e.translationY > 0) {
-        const dampenedDrag = e.translationY * 0.7
-        gestureTranslateY.value = startY.value + dampenedDrag
+        gestureTranslateY.value = startY.value + e.translationY * 0.65
       }
     })
     .onEnd((e) => {
       "worklet"
-      if (e.translationY > SWIPE_THRESHOLD || e.velocityY > 400) {
+      if (e.translationY > SWIPE_THRESHOLD || e.velocityY > 500) {
         runOnJS(closePlayer)()
       } else {
-        gestureTranslateY.value = withSpring(0, SPRING_CONFIG)
+        gestureTranslateY.value = withSpring(0, SNAP_SPRING)
       }
     })
 
@@ -383,32 +383,28 @@ export default function Player() {
     position: "absolute",
     width: "100%",
     height: "100%",
-    zIndex: isExpanded ? 10 : -1,
+    zIndex: translateY.value < height - 10 ? 10 : -1,
   }))
 
-  const miniPlayerStyle = useAnimatedStyle(() => {
-    const calculatedOpacity = interpolate(
+  const miniPlayerStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
       translateY.value,
-      [0, height * 0.2, height * 0.5],
-      [0, 0, 1],
+      [0, height * 0.3, height * 0.6, height],
+      [0, 0, 0.8, 1],
       Extrapolation.CLAMP,
-    )
-
-    return {
-      opacity: isExpanded ? calculatedOpacity : miniPlayerOpacity.value,
-      transform: [
-        {
-          translateY: interpolate(
-            translateY.value,
-            [height * 0.7, height],
-            [10, 0],
-            Extrapolation.CLAMP,
-          ),
-        },
-        { scale: miniPressScale.value },
-      ],
-    }
-  })
+    ),
+    transform: [
+      {
+        translateY: interpolate(
+          translateY.value,
+          [height * 0.7, height],
+          [8, 0],
+          Extrapolation.CLAMP,
+        ),
+      },
+      { scale: miniPressScale.value },
+    ],
+  }))
 
   const dragHandleOpacity = useAnimatedStyle(() => ({
     opacity: interpolate(gestureTranslateY.value, [0, 30], [0.4, 1], Extrapolation.CLAMP),
@@ -522,7 +518,7 @@ export default function Player() {
         styles.miniPlayerContainer,
         miniPlayerStyle,
         {
-          bottom: isHomeActive ? 70 : 10,
+          bottom: isHomeActive ? TAB_BAR_HEIGHT + 8 : 10,
           backgroundColor: colors.card,
         },
       ]}

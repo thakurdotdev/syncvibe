@@ -2,7 +2,7 @@
   "expo": {
     "name": "SyncVibe",
     "slug": "syncvibe",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/syncvibe.png",
     "scheme": "syncvibe",
@@ -21,7 +21,12 @@
       },
       "package": "com.thakurdotdev.syncvibe",
       "googleServicesFile": "./google-services.json",
-      "permissions": ["CAMERA", "RECORD_AUDIO", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"],
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -31,7 +36,10 @@
               "scheme": "syncvibe"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },

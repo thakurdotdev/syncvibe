@@ -43,22 +43,17 @@ const MAX_TRACK_CACHE_SIZE = 50
 const MAX_ERROR_RETRIES = 2
 const ERROR_COOLDOWN_MS = 8000
 
-// ─── Module State ────────────────────────────────────
-// Minimal flags — no shadow copies of native player state.
-
 let initialized = false
 let userId: number | undefined
 let appStateSub: ReturnType<typeof AppState.addEventListener> | null = null
 
-// Error recovery
 let errorRetries = 0
 let lastErrorTime = 0
 let recovering = false
 
+
 // Track cache for fast song→MediaItem conversion
 const trackCache = new Map<string, MediaItem>()
-
-// ─── Helpers ─────────────────────────────────────────
 
 const store = () => usePlayerStore.getState()
 
@@ -139,12 +134,6 @@ const resetErrors = () => {
 const hasExceededRetries = (): boolean =>
   Date.now() - lastErrorTime < ERROR_COOLDOWN_MS && errorRetries >= MAX_ERROR_RETRIES
 
-// ─── Queue Management ────────────────────────────────
-
-/**
- * Ensure upcoming tracks are loaded in the native queue.
- * Called after play, skip, and transition events.
- */
 const fillQueue = () => {
   if (!initialized) return
 
@@ -195,11 +184,6 @@ const loadPlaylist = (playlist: Song[], startIndex: number) => {
     s.setCurrentSong(song)
   }
   s.setPlaying(true)
-
-  if (userId && song?.id) {
-    playbackHistory.updatePlaybackProgress(song, 0, song.duration || 0, true).catch(console.error)
-    onAfterSongTransition?.(song)
-  }
 }
 
 // ─── Public Bridge Functions ─────────────────────────
@@ -226,7 +210,6 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
     const activeIdx = TrackPlayer.getActiveMediaItemIndex()
 
     if (queueIdx === activeIdx) {
-      // Already on this track — resume if paused
       if (!TrackPlayer.isPlaying()) TrackPlayer.play()
     } else {
       TrackPlayer.skipToIndex(queueIdx)
@@ -235,7 +218,6 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
 
     if (song.id !== s.currentSong?.id) {
       s.setCurrentSong(song)
-      if (userId) onAfterSongTransition?.(song)
     }
     s.setPlaying(true)
     fillQueue()
@@ -347,10 +329,7 @@ export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
 
   if (canSkipNative) {
     const nextSong = playlist[currentIdx + 1]
-    if (nextSong) {
-      s.setCurrentSong(nextSong)
-      if (uid) onAfterSongTransition?.(nextSong)
-    }
+    if (nextSong) s.setCurrentSong(nextSong)
     s.setPlaying(true)
     TrackPlayer.skipToNext()
     fillQueue()
@@ -598,23 +577,11 @@ const setupAppStateListener = () => {
   })
 }
 
-// ─── Event Handling ──────────────────────────────────
-// Minimal event handling — only for things the native player doesn't handle:
-// 1. Track ended → auto-advance to next song
-// 2. Track transition → update zustand current song + playback history
-// 3. Playback errors → retry or skip
-// 4. Progress updates → save to playback history
-//
-// We do NOT mirror IsPlayingChanged into the store on every fire.
-// The UI uses RNTP's useIsPlaying() hook which reads native state directly.
-// We only update store.isPlaying on explicit user actions (play/pause/stop/skip).
-
-export const dispatchTrackPlayerEvent = async (event: { type: string; [key: string]: unknown }) => {
+export const dispatchTrackPlayerEvent = async (event: { type: string;[key: string]: unknown }) => {
   if (!initialized) return
 
   const s = store()
 
-  // In group mode, only handle RemoteStop
   if (s.activePlayerMode === "group") {
     if (event.type === Event.RemoteStop) {
       const group = useGroupPlaybackStore.getState()
@@ -631,24 +598,11 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
 
   try {
     switch (event.type) {
-      // ── Track ended → play next ──
       case Event.PlaybackStateChanged: {
         const state = event.state as string
         if (state === "ended") {
           bridgeHandleNextSong(true, userId)
         }
-        break
-      }
-
-      // ── Playing state changed → sync store only on genuine transitions ──
-      case Event.IsPlayingChanged: {
-        const playing = event.playing as boolean
-
-        // Skip during error recovery — we'll sync once recovery succeeds
-        if (recovering) break
-
-        // Sync store playing state from native
-        s.setPlaying(playing)
         break
       }
 
@@ -662,15 +616,15 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
 
             if (songIdx >= 0) {
               const song = playlist[songIdx]
-              const isNewSong = song.id !== s.currentSong?.id
-              if (isNewSong) s.setCurrentSong(song)
+              if (song.id !== s.currentSong?.id) {
+                s.setCurrentSong(song)
+              }
 
-              // Always record history on native transitions (auto-next, native skip)
               if (userId) {
                 playbackHistory
                   .updatePlaybackProgress(song, 0, song.duration || 0, true)
                   .catch(console.error)
-                if (isNewSong) onAfterSongTransition?.(song)
+                onAfterSongTransition?.(song)
               }
             }
           }
@@ -740,7 +694,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
         }
 
         // Periodic history save (every ~10 seconds)
-        if (position > 0 && s.currentSong && s.isPlaying) {
+        if (position > 0 && s.currentSong && TrackPlayer.isPlaying()) {
           if (position > 5 && duration - position > 5 && Math.floor(position) % 10 === 0) {
             playbackHistory
               .updatePlaybackProgress(s.currentSong, position, duration, true)

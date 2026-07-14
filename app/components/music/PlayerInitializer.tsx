@@ -66,9 +66,6 @@ export default function PlayerInitializer() {
       TrackPlayer.addEventListener(Event.PlaybackStateChanged, (event) => {
         dispatchTrackPlayerEvent({ type: Event.PlaybackStateChanged, ...event })
       }),
-      TrackPlayer.addEventListener(Event.IsPlayingChanged, (event) => {
-        dispatchTrackPlayerEvent({ type: Event.IsPlayingChanged, ...event })
-      }),
       TrackPlayer.addEventListener(Event.MediaItemTransition, (event) => {
         dispatchTrackPlayerEvent({ type: Event.MediaItemTransition, ...event })
       }),
