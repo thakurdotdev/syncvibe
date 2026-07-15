@@ -88,8 +88,8 @@ function RootLayoutNav() {
     <>
       <StatusBar
         barStyle={theme === "dark" ? "light-content" : "dark-content"}
-        backgroundColor={colors.background}
-        showHideTransition="none"
+        backgroundColor="transparent"
+        translucent
       />
       <Stack
         screenOptions={{

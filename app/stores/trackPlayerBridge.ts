@@ -1,6 +1,5 @@
 import { Song } from "@/types/song"
 import { playbackHistory } from "@/utils/playbackHistory"
-import streamingManager from "@/utils/streamingManager"
 import { AppState, AppStateStatus } from "react-native"
 import TrackPlayer, { Event, RepeatMode } from "@rntp/player"
 import { setupPlayer } from "@/utils/playerSetup"
@@ -739,8 +738,6 @@ export const destroyTrackPlayer = async () => {
 }
 
 export const isTrackPlayerReady = () => initialized
-
-// ─── Wire up store callbacks ─────────────────────────
 
 setOnReorderPlaylist(syncReorderPlaylist)
 setOnPlaySong((song) => bridgePlaySong(song, userId))

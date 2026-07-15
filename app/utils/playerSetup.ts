@@ -9,10 +9,6 @@ export const setupPlayer = (): boolean => {
     TrackPlayer.setupPlayer({
       contentType: "music",
       handleAudioBecomingNoisy: true,
-      cache: {
-        maxSizeBytes: 500 * 1024 * 1024,
-        preloading: { window: 1 },
-      },
       android: {
         wakeMode: "network",
         taskRemovedBehavior: "stop",

@@ -1,13 +1,12 @@
 import { useTheme } from "@/context/ThemeContext"
 import { router, Tabs, useSegments } from "expo-router"
 import { Home, ListMusic, LucideProps, MessageCircle, Music, User } from "lucide-react-native"
-import React, { memo, useCallback, useEffect, useRef } from "react"
+import React, { memo, useCallback } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
 } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -39,21 +38,13 @@ const TabButton = memo(function TabButton({
   inactiveColor,
 }: TabButtonProps) {
   const scale = useSharedValue(1)
-  const dotOpacity = useSharedValue(isFocused ? 1 : 0)
-
-  // Animate dot when focus changes
-  useEffect(() => {
-    dotOpacity.value = withTiming(isFocused ? 1 : 0, { duration: 200 })
-  }, [isFocused, dotOpacity])
-
-  const dotStyle = useAnimatedStyle(() => ({ opacity: dotOpacity.value }))
   const scaleStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
 
   return (
     <Pressable
       onPress={onPress}
       onPressIn={() => {
-        scale.value = withSpring(0.9, { damping: 15, stiffness: 400 })
+        scale.value = withSpring(0.88, { damping: 15, stiffness: 400 })
       }}
       onPressOut={() => {
         scale.value = withSpring(1, { damping: 12, stiffness: 350 })
@@ -64,23 +55,22 @@ const TabButton = memo(function TabButton({
     >
       <Animated.View style={[styles.tabButtonInner, scaleStyle]}>
         <Icon
-          size={22}
+          size={23}
           color={isFocused ? activeColor : inactiveColor}
-          strokeWidth={isFocused ? 2.5 : 1.8}
+          strokeWidth={isFocused ? 2.5 : 1.6}
         />
         <Text
           style={[
             styles.tabLabel,
-            { color: isFocused ? activeColor : inactiveColor },
+            {
+              color: isFocused ? activeColor : inactiveColor,
+              fontWeight: isFocused ? "600" : "400",
+            },
           ]}
           numberOfLines={1}
         >
           {label}
         </Text>
-        {/* Small dot indicator below label */}
-        <Animated.View
-          style={[styles.dot, { backgroundColor: activeColor }, dotStyle]}
-        />
       </Animated.View>
     </Pressable>
   )
@@ -143,10 +133,8 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          // Pre-render all screens upfront — eliminates flicker on first tab visit.
-          // Tradeoff: slightly heavier app start, but all 5 screens are lightweight nav shells.
           lazy: false,
-          sceneStyle: { backgroundColor: "transparent" },
+          sceneStyle: { backgroundColor: colors.background },
         }}
         tabBar={() => null}
       >
@@ -185,17 +173,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 8,
-    gap: 3,
+    gap: 4,
   },
   tabLabel: {
     fontSize: 10,
-    fontWeight: "500",
     letterSpacing: 0.1,
-  },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 1,
   },
 })

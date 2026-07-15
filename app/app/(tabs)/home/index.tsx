@@ -12,7 +12,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { router } from "expo-router"
 import { memo, useCallback, useMemo, useRef } from "react"
-import { Pressable, RefreshControl, StatusBar, Text, View } from "react-native"
+import { Pressable, RefreshControl, Text, View } from "react-native"
 import Animated, {
   Extrapolation,
   interpolate,
@@ -195,12 +195,6 @@ function HomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <StatusBar
-        barStyle={theme === "light" ? "dark-content" : "light-content"}
-        backgroundColor="transparent"
-        translucent
-      />
-
       <SafeAreaView style={{ flex: 1 }}>
         <Animated.View
           style={[
