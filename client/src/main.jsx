@@ -7,8 +7,8 @@ if (import.meta.env.PROD) {
   const script = document.createElement("script")
 
   script.defer = true
-  script.src = "https://cloud.umami.is/script.js"
-  script.setAttribute("data-website-id", "be07d2ea-3b87-4a58-9737-4b124635f28f")
+  script.src = "https://analytics.thakur.dev/script.js"
+  script.setAttribute("data-website-id", "2df31e68-1ed7-4986-93ce-fe393bfdf2c3")
 
   document.head.appendChild(script)
 }

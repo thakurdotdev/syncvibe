@@ -3,7 +3,9 @@ const passport = require("passport")
 const jwt = require("jsonwebtoken")
 const User = require("../models/auth/userModel")
 const Follower = require("../models/auth/followerModel")
+const LoginLog = require("../models/auth/loginLogModel")
 const { CookieExpiryDate, UserLoginType } = require("../constant")
+const { parseUserAgent, getClientIp, getClientLocation } = require("../utils/helpers")
 
 function isValidUrl(u) {
   try {
@@ -64,6 +66,27 @@ exports.googleAuthCallback = (req, res, next) => {
       "syncvibe.thakur.dev": "/feed",
     }
 
+    if (process.env.NODE_ENV === "production" && user?.userid) {
+      ;(async () => {
+        try {
+          const [browserName, osName] = parseUserAgent(req)
+          const ipAddress = getClientIp(req)
+          const location = getClientLocation(req)
+
+          await LoginLog.create({
+            ipaddress: ipAddress,
+            browser: browserName || "Unknown",
+            os: osName || "Unknown",
+            location: location,
+            loginType: "Google OAuth",
+            userid: user.userid,
+          })
+        } catch (logErr) {
+          console.error("Google Auth login log error:", logErr)
+        }
+      })()
+    }
+
     const hostname = new URL(clientUrl).hostname
     const path = redirectMap[hostname] || "/"
     return res.redirect(`${clientUrl}${path}`)
@@ -118,6 +141,27 @@ exports.mobileGoogleAuth = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1Y" },
     )
+
+    if (process.env.NODE_ENV === "production" && userRecord?.userid) {
+      ;(async () => {
+        try {
+          const [browserName, osName] = parseUserAgent(req)
+          const ipAddress = getClientIp(req)
+          const location = getClientLocation(req)
+
+          await LoginLog.create({
+            ipaddress: ipAddress,
+            browser: browserName || "Unknown",
+            os: osName || "Unknown",
+            location: location,
+            loginType: "Google Mobile",
+            userid: userRecord.userid,
+          })
+        } catch (logErr) {
+          console.error("Mobile Google Auth login log error:", logErr)
+        }
+      })()
+    }
 
     return res.status(200).json({
       success: true,

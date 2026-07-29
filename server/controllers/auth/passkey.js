@@ -10,7 +10,7 @@ const { Authenticator } = require("../../models/auth/passKeyModal")
 const jwt = require("jsonwebtoken")
 const { configDotenv } = require("dotenv")
 const sequelize = require("../../utils/sequelize")
-const { parseUserAgent } = require("../../utils/helpers")
+const { parseUserAgent, getClientIp, getClientLocation } = require("../../utils/helpers")
 const LoginLog = require("../../models/auth/loginLogModel")
 const { JWTExpiryDate, CookieExpiryDate } = require("../../constant")
 
@@ -264,7 +264,7 @@ const authenticateConditional = async (req, res) => {
 
 const verifyAuthentication = async (req, res) => {
   try {
-    const { assertionResponse, email, userData } = req.body
+    const { assertionResponse, email } = req.body
 
     let user
     let authenticator
@@ -381,17 +381,15 @@ const verifyAuthentication = async (req, res) => {
     process.env.NODE_ENV === "production" &&
       (async () => {
         try {
-          const ipAddress = userData?.ip
-          const location = userData
-            ? userData?.city + ", " + userData?.region + ", " + userData?.country
-            : null
+          const ipAddress = getClientIp(req)
+          const location = getClientLocation(req)
           const [browserName, osName] = parseUserAgent(req)
 
           await LoginLog.create({
-            ipaddress: ipAddress || req.header("x-forwarded-for"),
+            ipaddress: ipAddress,
             browser: browserName || "Unknown",
             os: osName || "Unknown",
-            location: location || "Unknown",
+            location: location,
             loginType: "Using Passkey",
             userid: user.userid,
           })

@@ -3,16 +3,16 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { Input } from "@/components/ui/input"
 import { useProfile } from "@/Context/Context"
 import { yupResolver } from "@hookform/resolvers/yup"
-import { startAuthentication, browserSupportsWebAuthnAutofill } from "@simplewebauthn/browser"
+import { browserSupportsWebAuthnAutofill, startAuthentication } from "@simplewebauthn/browser"
 import axios from "axios"
-import { Eye, EyeOff, KeyRound, Loader2Icon, ArrowRight } from "lucide-react"
+import { ArrowRight, Eye, EyeOff, KeyRound, Loader2Icon } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import * as yup from "yup"
-import TwoFactorLogin from "./TwoFactorLogin"
 import ForgotPassword from "./ForgotPassword"
+import TwoFactorLogin from "./TwoFactorLogin"
 import googleIcon from "/google.png?url"
 
 const validationSchema = yup.object().shape({
@@ -29,7 +29,6 @@ const Login = () => {
   const { user, setUser, loading: loadingPro, getProfile } = useProfile()
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [userData, setUserData] = useState({})
   const [show2FA, setShow2FA] = useState(false)
   const [twoFactorUserId, setTwoFactorUserId] = useState(null)
   const navigate = useNavigate()
@@ -51,23 +50,6 @@ const Login = () => {
     }
   }, [loadingPro, user, navigate, returnPath])
 
-  useEffect(() => {
-    getUserData()
-  }, [])
-
-  const getUserData = async () => {
-    try {
-      const data = await axios.get(
-        `https://ipinfo.io/json?token=${import.meta.env.VITE_IPINFO_TOKEN}`,
-      )
-      if (data.status === 200) {
-        setUserData(data.data)
-      }
-    } catch (error) {
-      console.debug("Failed to fetch IP info:", error)
-    }
-  }
-
   // Handle passkey authentication with conditional UI (autofill)
   const handlePasskeyAuth = useCallback(
     async (assertionResponse, email) => {
@@ -78,7 +60,6 @@ const Login = () => {
           {
             assertionResponse,
             email,
-            userData,
           },
           { withCredentials: true },
         )
@@ -95,7 +76,7 @@ const Login = () => {
         setLoading(false)
       }
     },
-    [userData, getProfile, navigate, returnPath],
+    [getProfile, navigate, returnPath],
   )
 
   // Initialize conditional UI (passkey autofill) on mount
@@ -148,8 +129,7 @@ const Login = () => {
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/login`,
         {
-          ...data,
-          userData: userData,
+          ...data
         },
         { withCredentials: true },
       )

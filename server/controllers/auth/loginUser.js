@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken")
 const { Op } = require("sequelize")
 const User = require("../../models/auth/userModel")
 const LoginLog = require("../../models/auth/loginLogModel")
-const { parseUserAgent } = require("../../utils/helpers")
+const { parseUserAgent, getClientIp, getClientLocation } = require("../../utils/helpers")
 const { JWTExpiryDate, CookieExpiryDate } = require("../../constant")
 const { verifyTOTP, generateTOTPSecret } = require("../../utils/totp")
 const { decrypt, encrypt } = require("../../utils/crypto")
@@ -23,7 +23,7 @@ const validationSchema = Yup.object().shape({
 const loginUser = async (req, res) => {
   try {
     await validationSchema.validate(req.body)
-    const { email, password, userData } = req.body
+    const { email, password } = req.body
 
     const user = await User.findOne({
       where: { email },
@@ -89,17 +89,15 @@ const loginUser = async (req, res) => {
     if (process.env.NODE_ENV === "production") {
       ;(async () => {
         try {
-          const ipAddress = userData?.ip
-          const location = userData
-            ? `${userData?.city}, ${userData?.region}, ${userData?.country}`
-            : null
+          const ipAddress = getClientIp(req)
+          const location = getClientLocation(req)
           const [browserName, osName] = parseUserAgent(req)
 
           await LoginLog.create({
-            ipaddress: ipAddress || req.header("x-forwarded-for"),
+            ipaddress: ipAddress,
             browser: browserName || "Unknown",
             os: osName || "Unknown",
-            location: location || "Unknown",
+            location: location,
             loginType: "Using Password",
             userid: user.userid,
           })
@@ -122,7 +120,25 @@ const getLoginLogs = async (req, res) => {
       raw: true,
     })
 
-    return res.status(200).json(loginLogs)
+    const sanitizedLogs = loginLogs.map((log) => {
+      let ip = log.ipaddress
+      if (ip && ip.includes(",")) {
+        ip = ip.split(",")[0].trim()
+      }
+
+      let loc = log.location
+      if (!loc || loc.includes("undefined") || loc.includes("null")) {
+        loc = "Unknown"
+      }
+
+      return {
+        ...log,
+        ipaddress: ip,
+        location: loc,
+      }
+    })
+
+    return res.status(200).json(sanitizedLogs)
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
@@ -318,12 +334,14 @@ const guestLogin = async (req, res) => {
       (async () => {
         try {
           const [browserName, osName] = parseUserAgent(req)
+          const ipAddress = getClientIp(req)
+          const location = getClientLocation(req)
 
           await LoginLog.create({
-            ipaddress: req.header("x-forwarded-for") || req.ip,
+            ipaddress: ipAddress,
             browser: browserName || "Unknown",
             os: osName || "Unknown",
-            location: "Guest", // Since this is a guest account
+            location: location !== "Unknown" ? location : "Guest",
             loginType: "Guest Login",
             userid: user.userid,
           })
