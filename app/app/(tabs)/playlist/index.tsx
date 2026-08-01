@@ -1,5 +1,5 @@
 import LoginScreen from "@/components/LoginScreen"
-import SwipeableModal from "@/components/common/SwipeableModal"
+import SwipeableModal from "@/components/SwipeableModal"
 import LoginModal from "@/components/LoginModal"
 import { CardContainer, CardImage } from "@/components/music/MusicCards"
 import Button from "@/components/ui/button"

@@ -15,7 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import SwipeableModal from "../common/SwipeableModal"
+import SwipeableModal from "../SwipeableModal"
 
 export interface Playlist {
   id: string

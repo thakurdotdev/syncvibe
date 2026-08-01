@@ -9,7 +9,6 @@ import { useTheme } from "@/context/ThemeContext"
 import { toast } from "@/context/ToastContext"
 import { useSongRecommendationsQuery } from "@/queries/useMusic"
 import { Song } from "@/types/song"
-import * as Haptics from "expo-haptics"
 import { router } from "expo-router"
 import { ChevronRightIcon, Trash2Icon, MoreVertical, Sparkles } from "lucide-react-native"
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -19,7 +18,6 @@ import {
   Image,
   Pressable,
   Text,
-  TouchableOpacity,
   View,
   StyleSheet,
   ActivityIndicator,
@@ -34,7 +32,7 @@ import Swipeable from "react-native-gesture-handler/Swipeable"
 import Animated, { FadeIn } from "react-native-reanimated"
 import { AlbumCard, ArtistCard, NewSongCard, PlaylistCard } from "./MusicCards"
 import { Ionicons } from "@expo/vector-icons"
-import SwipeableModal from "../common/SwipeableModal"
+import SwipeableModal from "../SwipeableModal"
 
 interface AlbumsGridProps {
   albums: any[]
@@ -89,12 +87,10 @@ const SongCardQueue = memo(
     const handleDelete = useCallback(() => {
       removeFromQueue(song.id)
       swipeableRef.current?.close()
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
     }, [removeFromQueue, song.id])
 
     const handleLongPress = useCallback(() => {
       if (!isCurrentSong) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
         drag()
       }
     }, [isCurrentSong, drag])
@@ -141,6 +137,7 @@ const SongCardQueue = memo(
               onPress={handlePress}
               disabled={isActive}
               delayLongPress={150}
+              android_ripple={{ color: "rgba(128, 128, 128, 0.12)", borderless: false }}
             >
               <View
                 style={[
@@ -301,7 +298,6 @@ export const MusicQueue = memo(() => {
 
   const handleDragEnd = useCallback(
     ({ data }: { data: Song[] }) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
       reorderPlaylist(data)
     },
     [reorderPlaylist],
@@ -309,7 +305,6 @@ export const MusicQueue = memo(() => {
 
   const handleClearQueue = useCallback(() => {
     if (playlist.length <= 1) return
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
     clearQueue()
     toast("Queue cleared")
   }, [playlist, clearQueue])
@@ -318,7 +313,6 @@ export const MusicQueue = memo(() => {
     (songId?: string) => {
       const targetId = songId || currentSong?.id
       if (!targetId) return
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
       setIsFetchingRecs(true)
       setRecTargetId(targetId)
     },
@@ -326,14 +320,12 @@ export const MusicQueue = memo(() => {
   )
 
   const handleToggleAutoFetch = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     setAutoFetchRecommendations(!autoFetchRecommendations)
     toast(autoFetchRecommendations ? "Auto-fetch: Off" : "Auto-fetch: On")
   }, [autoFetchRecommendations, setAutoFetchRecommendations])
 
   const handleRemoveBelow = useCallback(
     (songId: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
       removeFromQueueBelow(songId)
       toast("Removed songs below")
       setMenuSong(null)
@@ -344,7 +336,6 @@ export const MusicQueue = memo(() => {
   const handleMenuRemove = useCallback(
     (songId: string) => {
       removeFromQueue(songId)
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
       toast("Removed from queue")
       setMenuSong(null)
     },
@@ -382,11 +373,10 @@ export const MusicQueue = memo(() => {
           {upcomingCount} {upcomingCount === 1 ? "song" : "songs"}
         </Text>
         <View style={queueStyles.headerActions}>
-          <TouchableOpacity
+          <Pressable
             onPress={() => handleFetchRecommendations()}
-            activeOpacity={0.7}
             disabled={isFetchingRecs || !currentSong?.id}
-            style={queueStyles.headerBtn}
+            style={({ pressed }) => [queueStyles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
           >
             {isFetchingRecs ? (
               <ActivityIndicator size={14} color={colors.primary} />
@@ -396,12 +386,11 @@ export const MusicQueue = memo(() => {
             <Text style={[queueStyles.headerBtnText, { color: colors.primary }]}>
               {isFetchingRecs ? "Fetching..." : "Get Recs"}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             onPress={handleToggleAutoFetch}
-            activeOpacity={0.7}
-            style={queueStyles.headerBtn}
+            style={({ pressed }) => [queueStyles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
           >
             <Ionicons
               name={autoFetchRecommendations ? "sync" : "sync-outline"}
@@ -416,17 +405,16 @@ export const MusicQueue = memo(() => {
             >
               Auto
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           {playlist.length > 1 && (
-            <TouchableOpacity
+            <Pressable
               onPress={handleClearQueue}
-              activeOpacity={0.7}
-              style={queueStyles.headerBtn}
+              style={({ pressed }) => [queueStyles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
             >
               <Trash2Icon size={14} color={colors.destructive} />
               <Text style={[queueStyles.headerBtnText, { color: colors.destructive }]}>Clear</Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       </View>
@@ -477,8 +465,11 @@ export const MusicQueue = memo(() => {
             <View style={[queueMenuStyles.divider, { backgroundColor: colors.border }]} />
 
             <View style={queueMenuStyles.options}>
-              <TouchableOpacity
-                style={[queueMenuStyles.optionRow, { backgroundColor: colors.card }]}
+              <Pressable
+                style={({ pressed }) => [
+                  queueMenuStyles.optionRow,
+                  { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 },
+                ]}
                 onPress={() => handleMenuFetchRecs(menuSong.id)}
               >
                 <View style={[queueMenuStyles.iconContainer, { backgroundColor: colors.muted }]}>
@@ -487,12 +478,15 @@ export const MusicQueue = memo(() => {
                 <Text style={[queueMenuStyles.optionText, { color: colors.foreground }]}>
                   Fetch Recommendations
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
 
               {!isMenuSongCurrent && (
                 <>
-                  <TouchableOpacity
-                    style={[queueMenuStyles.optionRow, { backgroundColor: colors.card }]}
+                  <Pressable
+                    style={({ pressed }) => [
+                      queueMenuStyles.optionRow,
+                      { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 },
+                    ]}
                     onPress={() => handleRemoveBelow(menuSong.id)}
                   >
                     <View
@@ -503,10 +497,13 @@ export const MusicQueue = memo(() => {
                     <Text style={[queueMenuStyles.optionText, { color: colors.foreground }]}>
                       Remove Below
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
 
-                  <TouchableOpacity
-                    style={[queueMenuStyles.optionRow, { backgroundColor: colors.card }]}
+                  <Pressable
+                    style={({ pressed }) => [
+                      queueMenuStyles.optionRow,
+                      { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 },
+                    ]}
                     onPress={() => handleMenuRemove(menuSong.id)}
                   >
                     <View
@@ -520,7 +517,7 @@ export const MusicQueue = memo(() => {
                     <Text style={[queueMenuStyles.optionText, { color: colors.destructive }]}>
                       Remove from Queue
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </>
               )}
             </View>
@@ -647,20 +644,22 @@ export const AlbumsGrid = ({ albums, title }: AlbumsGridProps) => {
   return (
     <View className="mb-6">
       {title && (
-        <Text className="text-xl font-bold mb-2 ml-3" style={{ color: colors.text }}>
+        <Text className="text-xl font-bold mb-2 px-4" style={{ color: colors.text }}>
           {title}
         </Text>
       )}
       <FlatList
         data={albums}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <Animated.View entering={FadeIn.duration(400)}>
-            <AlbumCard album={item} />
-          </Animated.View>
-        )}
+        renderItem={({ item }) => <AlbumCard album={item} />}
         horizontal
         showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+        getItemLayout={(_, index) => ({ length: 166, offset: 166 * index, index })}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews
       />
     </View>
   )
@@ -673,20 +672,22 @@ export const PlaylistsGrid = ({ playlists, title }: PlaylistsGridProps) => {
   return (
     <View className="mb-6">
       {title && (
-        <Text className="text-xl font-bold mb-2 ml-3" style={{ color: colors.text }}>
+        <Text className="text-xl font-bold mb-2 px-4" style={{ color: colors.text }}>
           {title}
         </Text>
       )}
       <FlatList
         data={playlists}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <Animated.View entering={FadeIn.duration(400)}>
-            <PlaylistCard playlist={item} isUser={false} />
-          </Animated.View>
-        )}
+        renderItem={({ item }) => <PlaylistCard playlist={item} isUser={false} />}
         horizontal
         showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+        getItemLayout={(_, index) => ({ length: 166, offset: 166 * index, index })}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews
       />
     </View>
   )
@@ -702,30 +703,36 @@ export const RecommendationGrid = ({
 
   return (
     <View className="mb-6">
-      <View className="flex-row justify-between items-center mb-2 ml-3">
+      <View className="flex-row justify-between items-center mb-2 px-4">
         {title && (
           <Text className="text-xl font-bold" style={{ fontFamily: "System", color: colors.text }}>
             {title}
           </Text>
         )}
         {showMore && (
-          <TouchableOpacity className="px-3 py-1" onPress={() => router.push("/song-history")}>
+          <Pressable
+            className="py-1"
+            style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+            onPress={() => router.push("/song-history")}
+          >
             <ChevronRightIcon size={20} color={colors.text} />
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
 
       <FlatList
         data={recommendations}
         keyExtractor={(item, index) => item?.id || index.toString()}
-        renderItem={({ item }) => (
-          <Animated.View entering={FadeIn.duration(400)}>
-            <NewSongCard song={item} />
-          </Animated.View>
-        )}
+        renderItem={({ item }) => <NewSongCard song={item} />}
         horizontal
         showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
         className="pb-2"
+        getItemLayout={(_, index) => ({ length: 158, offset: 158 * index, index })}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews
       />
     </View>
   )
@@ -738,20 +745,22 @@ export const TrendingSongs = memo(({ songs, title }: { songs: Song[]; title: str
   return (
     <View className="mb-6">
       {title && (
-        <Text className="text-xl font-bold mb-2 ml-3" style={{ color: colors.text }}>
+        <Text className="text-xl font-bold mb-2 px-4" style={{ color: colors.text }}>
           {title}
         </Text>
       )}
       <FlatList
         data={songs}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <Animated.View entering={FadeIn.duration(400)}>
-            <NewSongCard song={item} />
-          </Animated.View>
-        )}
+        renderItem={({ item }) => <NewSongCard song={item} />}
         horizontal
         showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+        getItemLayout={(_, index) => ({ length: 158, offset: 158 * index, index })}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews
       />
     </View>
   )
@@ -764,20 +773,22 @@ export const ArtistGrid = memo(({ artists, title }: ArtistGridProps) => {
   return (
     <View className="mb-6">
       {title && (
-        <Text className="text-xl font-bold mb-2 ml-3" style={{ color: colors.text }}>
+        <Text className="text-xl font-bold mb-2 px-4" style={{ color: colors.text }}>
           {title}
         </Text>
       )}
       <FlatList
         data={artists}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <Animated.View entering={FadeIn.duration(400)}>
-            <ArtistCard artist={item} />
-          </Animated.View>
-        )}
+        renderItem={({ item }) => <ArtistCard artist={item} />}
         horizontal
         showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+        getItemLayout={(_, index) => ({ length: 148, offset: 148 * index, index })}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews
       />
     </View>
   )

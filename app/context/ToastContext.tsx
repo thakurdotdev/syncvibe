@@ -10,14 +10,20 @@ import React, {
   useState,
 } from "react"
 import {
-  Animated,
   Dimensions,
-  PanResponder,
+  Pressable,
   StyleSheet,
   Text,
-  TouchableWithoutFeedback,
   View,
 } from "react-native"
+import { Gesture, GestureDetector } from "react-native-gesture-handler"
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated"
+import { scheduleOnRN } from "react-native-worklets"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Card } from "@/components/ui/card"
 import { useTheme } from "./ThemeContext"
@@ -59,6 +65,8 @@ export const useToast = () => {
   return context
 }
 
+const SPRING_CONFIG = { damping: 22, stiffness: 260 }
+
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const { colors } = useTheme()
   const insets = useSafeAreaInsets()
@@ -66,14 +74,12 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const [message, setMessage] = useState<string>("")
   const [toastType, setToastType] = useState<ToastType>("default")
 
-  const fadeAnim = useRef(new Animated.Value(0)).current
-  const translateYAnim = useRef(new Animated.Value(-80)).current
-  const scaleAnim = useRef(new Animated.Value(0.92)).current
-  const swipeAnim = useRef(new Animated.Value(0)).current
-  const iconScaleAnim = useRef(new Animated.Value(0)).current
+  const opacity = useSharedValue(0)
+  const translateY = useSharedValue(-60)
+  const translateX = useSharedValue(0)
+  const scale = useSharedValue(0.92)
 
-  const timeoutRef = useRef<any>(null)
-  const animationInProgressRef = useRef<boolean>(false)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const getToastColor = useCallback(
     (type: ToastType) => {
@@ -95,250 +101,150 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     (type: ToastType) => {
       const size = 18
       const color = getToastColor(type)
-      const iconStyle = {
-        transform: [
-          {
-            scale: iconScaleAnim.interpolate({
-              inputRange: [0, 0.5, 1],
-              outputRange: [0.8, 1.1, 1],
-            }),
-          },
-        ],
-      }
 
       switch (type) {
         case "success":
-          return (
-            <Animated.View style={iconStyle}>
-              <CheckCircle size={size} color={color} strokeWidth={2.5} />
-            </Animated.View>
-          )
+          return <CheckCircle size={size} color={color} strokeWidth={2.5} />
         case "error":
-          return (
-            <Animated.View style={iconStyle}>
-              <AlertCircle size={size} color={color} strokeWidth={2.5} />
-            </Animated.View>
-          )
+          return <AlertCircle size={size} color={color} strokeWidth={2.5} />
         case "info":
-          return (
-            <Animated.View style={iconStyle}>
-              <Info size={size} color={color} strokeWidth={2.5} />
-            </Animated.View>
-          )
+          return <Info size={size} color={color} strokeWidth={2.5} />
         default:
-          return (
-            <Animated.View style={iconStyle}>
-              <Check size={size} color={color} strokeWidth={2.5} />
-            </Animated.View>
-          )
+          return <Check size={size} color={color} strokeWidth={2.5} />
       }
     },
-    [getToastColor, iconScaleAnim],
+    [getToastColor],
   )
 
-  const hideToast = useCallback(
-    (withAnimation: boolean = true) => {
-      if (animationInProgressRef.current) return
-
-      animationInProgressRef.current = true
-
-      if (withAnimation) {
-        Animated.parallel([
-          Animated.timing(fadeAnim, {
-            toValue: 0,
-            duration: 200,
-            useNativeDriver: true,
-          }),
-          Animated.timing(translateYAnim, {
-            toValue: -80,
-            duration: 200,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scaleAnim, {
-            toValue: 0.92,
-            duration: 200,
-            useNativeDriver: true,
-          }),
-        ]).start(() => {
-          setVisible(false)
-          animationInProgressRef.current = false
-        })
-      } else {
-        setVisible(false)
-        animationInProgressRef.current = false
+  const hideToast = useCallback(() => {
+    opacity.value = withTiming(0, { duration: 180 }, (finished) => {
+      "worklet"
+      if (finished) {
+        scheduleOnRN(setVisible, false)
       }
-    },
-    [fadeAnim, translateYAnim, scaleAnim],
-  )
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          return Math.abs(gestureState.dx) > Math.abs(gestureState.dy * 2)
-        },
-        onPanResponderGrant: () => {
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current)
-          }
-        },
-        onPanResponderMove: Animated.event([null, { dx: swipeAnim }], {
-          useNativeDriver: false,
-        }),
-        onPanResponderRelease: (_, gestureState) => {
-          if (Math.abs(gestureState.dx) > 80) {
-            const velocity = Math.sign(gestureState.dx) * Math.min(Math.abs(gestureState.vx), 5)
-            Animated.decay(swipeAnim, {
-              velocity: velocity,
-              deceleration: 0.997,
-              useNativeDriver: true,
-            }).start(() => hideToast(false))
-          } else {
-            Animated.spring(swipeAnim, {
-              toValue: 0,
-              tension: 120,
-              friction: 8,
-              useNativeDriver: true,
-            }).start()
-
-            if (visible && !animationInProgressRef.current) {
-              timeoutRef.current = setTimeout(() => {
-                hideToast()
-              }, 2000)
-            }
-          }
-        },
-      }),
-    [swipeAnim, visible, hideToast],
-  )
+    })
+    translateY.value = withTiming(-60, { duration: 180 })
+    scale.value = withTiming(0.92, { duration: 180 })
+  }, [opacity, translateY, scale])
 
   const showToast = useCallback(
     (msg: string, options?: ToastOptions) => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+
       const type = options?.type || "default"
       const duration = options?.duration || 3000
 
       setMessage(msg)
       setToastType(type)
       setVisible(true)
-      animationInProgressRef.current = true
 
-      swipeAnim.setValue(0)
-      iconScaleAnim.setValue(0)
-      translateYAnim.setValue(-80)
-      scaleAnim.setValue(0.92)
-      fadeAnim.setValue(0)
+      translateX.value = 0
+      translateY.value = -60
+      opacity.value = 0
+      scale.value = 0.92
 
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
-
-      Animated.parallel([
-        Animated.spring(fadeAnim, {
-          toValue: 1,
-          tension: 100,
-          friction: 10,
-          useNativeDriver: true,
-        }),
-        Animated.spring(translateYAnim, {
-          toValue: 0,
-          tension: 100,
-          friction: 10,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 120,
-          friction: 9,
-          useNativeDriver: true,
-        }),
-        Animated.spring(iconScaleAnim, {
-          toValue: 1,
-          tension: 200,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        animationInProgressRef.current = false
-      })
+      opacity.value = withTiming(1, { duration: 200 })
+      translateY.value = withSpring(0, SPRING_CONFIG)
+      scale.value = withSpring(1, SPRING_CONFIG)
 
       timeoutRef.current = setTimeout(() => {
         hideToast()
       }, duration)
     },
-    [fadeAnim, translateYAnim, scaleAnim, swipeAnim, iconScaleAnim, hideToast],
+    [hideToast, opacity, scale, translateX, translateY],
   )
 
   useEffect(() => {
     globalToast = showToast
     return () => {
       globalToast = null
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
   }, [showToast])
 
-  const contextValue = useMemo(
-    () => ({
-      toast: showToast,
-    }),
-    [showToast],
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .onChange((e) => {
+          "worklet"
+          translateX.value = e.translationX
+        })
+        .onEnd((e) => {
+          "worklet"
+          if (Math.abs(e.translationX) > 100 || Math.abs(e.velocityX) > 500) {
+            translateX.value = withTiming(
+              Math.sign(e.translationX) * 400,
+              { duration: 150 },
+              (finished) => {
+                "worklet"
+                if (finished) {
+                  scheduleOnRN(setVisible, false)
+                }
+              },
+            )
+          } else {
+            translateX.value = withSpring(0, SPRING_CONFIG)
+          }
+        }),
+    [translateX],
   )
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [
+      { translateY: translateY.value },
+      { translateX: translateX.value },
+      { scale: scale.value },
+    ],
+  }))
+
+  const contextValue = useMemo(() => ({ toast: showToast }), [showToast])
 
   return (
     <ToastContext.Provider value={contextValue}>
       {children}
       {visible && (
-        <Animated.View
-          style={[
-            styles.toastContainer,
-            {
-              top: insets.top + 8,
-              opacity: fadeAnim,
-              transform: [
-                { translateY: translateYAnim },
-                { scale: scaleAnim },
-                { translateX: swipeAnim },
-              ],
-            },
-          ]}
-          {...panResponder.panHandlers}
-        >
-          <TouchableWithoutFeedback onPress={() => hideToast()}>
-            <Card
-              variant="default"
-              className="flex-row items-center px-4 py-3"
-              style={[
-                styles.toastCard,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  borderWidth: 1,
-                },
-              ]}
-            >
-              <View
-                style={[styles.iconContainer, { backgroundColor: getToastColor(toastType) + "1A" }]}
+        <GestureDetector gesture={panGesture}>
+          <Animated.View
+            style={[
+              styles.toastContainer,
+              { top: insets.top + 8 },
+              animatedStyle,
+            ]}
+          >
+            <Pressable onPress={() => hideToast()}>
+              <Card
+                variant="default"
+                className="flex-row items-center px-4 py-3"
+                style={[
+                  styles.toastCard,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    borderWidth: 1,
+                  },
+                ]}
               >
-                {getToastIcon(toastType)}
-              </View>
-              <View style={styles.toastContent}>
-                <Text
+                <View
                   style={[
-                    styles.toastText,
-                    {
-                      color: colors.foreground,
-                    },
+                    styles.iconContainer,
+                    { backgroundColor: getToastColor(toastType) + "1A" },
                   ]}
-                  numberOfLines={2}
                 >
-                  {message}
-                </Text>
-              </View>
-            </Card>
-          </TouchableWithoutFeedback>
-        </Animated.View>
+                  {getToastIcon(toastType)}
+                </View>
+                <View style={styles.toastContent}>
+                  <Text
+                    style={[styles.toastText, { color: colors.foreground }]}
+                    numberOfLines={2}
+                  >
+                    {message}
+                  </Text>
+                </View>
+              </Card>
+            </Pressable>
+          </Animated.View>
+        </GestureDetector>
       )}
     </ToastContext.Provider>
   )

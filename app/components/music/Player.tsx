@@ -2,6 +2,7 @@ import { TAB_BAR_HEIGHT } from "@/app/(tabs)/_layout"
 import { useTheme } from "@/context/ThemeContext"
 import { useSongRecommendationsQuery } from "@/queries/useMusic"
 import {
+  setOnOpenFullPlayer,
   usePlaybackState,
   usePlayerControls,
   usePlayerStore,
@@ -9,13 +10,14 @@ import {
 } from "@/stores/playerStore"
 import { Song } from "@/types/song"
 import { Ionicons } from "@expo/vector-icons"
-import * as Haptics from "expo-haptics"
+import { BlurView } from "expo-blur"
 import { usePathname } from "expo-router"
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import {
   BackHandler,
   Dimensions,
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -25,13 +27,13 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   Extrapolation,
   interpolate,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
 } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { scheduleOnRN } from "react-native-worklets"
 import Button from "../ui/button"
 import { ProgressBar, SongControls } from "./MusicCards"
 import { MusicQueue } from "./MusicLists"
@@ -127,7 +129,6 @@ const PlayerTab = React.memo(
                 },
               ]}
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                 handleNextSong()
               }}
             >
@@ -267,12 +268,11 @@ const QueueTab = React.memo(() => (
 ))
 
 export default function Player() {
-  const { colors } = useTheme()
+  const { colors, theme } = useTheme()
   const { addToQueue, handleNextSong, handlePlayPause } = usePlayerControls()
   const { currentSong, isPlaying } = usePlaybackState()
   const { playlist } = usePlaylistState()
   const autoFetchRecommendations = usePlayerStore((s) => s.autoFetchRecommendations)
-  const [isExpanded, setIsExpanded] = useState(false)
   const [activeTab, setActiveTab] = useState<TabType>("player")
   const insets = useSafeAreaInsets()
   const [playerDrawerOpen, setPlayerDrawerOpen] = useState(false)
@@ -284,6 +284,8 @@ export default function Player() {
   const scale = useSharedValue(1)
   const startY = useSharedValue(0)
   const miniPressScale = useSharedValue(1)
+  // True while the close animation is running — keeps expanded player visible until done
+  const isClosing = useSharedValue(false)
 
   const handlePlayPauseSong = () => {
     handlePlayPause()
@@ -291,6 +293,16 @@ export default function Player() {
 
   const pathname = usePathname()
   const isHomeActive = pathname.includes("/home")
+
+  const routeVisibility = useSharedValue(isHomeActive ? 1 : 0)
+
+  useEffect(() => {
+    routeVisibility.value = withSpring(isHomeActive ? 1 : 0, {
+      damping: 24,
+      stiffness: 320,
+      mass: 0.6,
+    })
+  }, [isHomeActive, routeVisibility])
 
   const currentIndex = playlist.findIndex((song) => song.id === currentSong?.id)
   const needsRecommendations = currentIndex === -1 || currentIndex >= playlist.length - 2
@@ -318,30 +330,37 @@ export default function Player() {
   }, [playlist, currentSong])
 
   const openPlayer = useCallback(() => {
-    setIsExpanded(true)
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    isClosing.value = false
     translateY.value = withSpring(0, OPEN_SPRING)
-    miniPlayerOpacity.value = withTiming(0, { duration: 150 })
+    miniPlayerOpacity.value = withTiming(0, { duration: 180 })
     scale.value = withSpring(1, OPEN_SPRING)
-  }, [translateY, miniPlayerOpacity, scale])
+  }, [translateY, miniPlayerOpacity, scale, isClosing])
+
+  useEffect(() => {
+    setOnOpenFullPlayer(openPlayer)
+    return () => setOnOpenFullPlayer(null)
+  }, [openPlayer])
 
   const closePlayer = useCallback(() => {
-    translateY.value = withSpring(
+    isClosing.value = true
+    miniPlayerOpacity.value = withTiming(1, { duration: 260 })
+    scale.value = withSpring(1, CLOSE_SPRING)
+    translateY.value = withTiming(
       height,
-      CLOSE_SPRING,
-      () => {
-        runOnJS(setIsExpanded)(false)
-        gestureTranslateY.value = 0
+      { duration: 280 },
+      (finished) => {
+        "worklet"
+        if (finished) {
+          isClosing.value = false
+          gestureTranslateY.value = 0
+        }
       },
     )
-    miniPlayerOpacity.value = withTiming(1, { duration: 200 })
-    scale.value = withSpring(1, CLOSE_SPRING)
-  }, [translateY, miniPlayerOpacity, gestureTranslateY, scale])
+  }, [translateY, miniPlayerOpacity, gestureTranslateY, scale, isClosing])
 
   const handleTabPress = useCallback(
     (tab: TabType) => {
       if (tab !== activeTab) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
         setActiveTab(tab)
       }
     },
@@ -372,7 +391,7 @@ export default function Player() {
     .onEnd((e) => {
       "worklet"
       if (e.translationY > SWIPE_THRESHOLD || e.velocityY > 500) {
-        runOnJS(closePlayer)()
+        scheduleOnRN(closePlayer)
       } else {
         gestureTranslateY.value = withSpring(0, SNAP_SPRING)
       }
@@ -383,28 +402,43 @@ export default function Player() {
     position: "absolute",
     width: "100%",
     height: "100%",
-    zIndex: translateY.value < height - 10 ? 10 : -1,
+    // Stay visible (zIndex 10) while opening OR during close animation; hide only when fully closed
+    zIndex: translateY.value < height - 2 || isClosing.value ? 10 : -1,
   }))
 
-  const miniPlayerStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
+  const miniPlayerStyle = useAnimatedStyle(() => {
+    const baseOpacity = interpolate(
       translateY.value,
       [0, height * 0.3, height * 0.6, height],
       [0, 0, 0.8, 1],
       Extrapolation.CLAMP,
-    ),
-    transform: [
-      {
-        translateY: interpolate(
-          translateY.value,
-          [height * 0.7, height],
-          [8, 0],
-          Extrapolation.CLAMP,
-        ),
-      },
-      { scale: miniPressScale.value },
-    ],
-  }))
+    )
+
+    const activeOpacity = baseOpacity * routeVisibility.value
+    const activeSlideY = interpolate(
+      routeVisibility.value,
+      [0, 1],
+      [24, 0],
+      Extrapolation.CLAMP,
+    )
+
+    return {
+      opacity: activeOpacity,
+      pointerEvents: activeOpacity < 0.1 ? "none" : "auto",
+      transform: [
+        {
+          translateY:
+            interpolate(
+              translateY.value,
+              [height * 0.7, height],
+              [8, 0],
+              Extrapolation.CLAMP,
+            ) + activeSlideY,
+        },
+        { scale: miniPressScale.value },
+      ],
+    }
+  })
 
   const dragHandleOpacity = useAnimatedStyle(() => ({
     opacity: interpolate(gestureTranslateY.value, [0, 30], [0.4, 1], Extrapolation.CLAMP),
@@ -512,54 +546,71 @@ export default function Player() {
     </Animated.View>
   )
 
+  const isDark = theme === "dark"
+  const glassBgColor = isDark ? "rgba(22, 22, 28, 0.85)" : "rgba(255, 255, 255, 0.85)"
+  const glassBorderColor = isDark ? "rgba(255, 255, 255, 0.14)" : "rgba(255, 255, 255, 0.65)"
+
   const renderMiniPlayer = () => (
     <Animated.View
       style={[
         styles.miniPlayerContainer,
         miniPlayerStyle,
         {
-          bottom: isHomeActive ? TAB_BAR_HEIGHT + 8 : 10,
-          backgroundColor: colors.card,
+          bottom: isHomeActive
+            ? TAB_BAR_HEIGHT + Math.max(16, insets.bottom + 4)
+            : Math.max(12, insets.bottom),
         },
       ]}
     >
-      <ProgressBar />
-      <Pressable
-        style={styles.miniPlayerContent}
-        onPress={openPlayer}
-        onPressIn={() => {
-          miniPressScale.value = withTiming(0.98, { duration: 100 })
-        }}
-        onPressOut={() => {
-          miniPressScale.value = withSpring(1, { damping: 15, stiffness: 300 })
-        }}
-        android_ripple={{ color: colors.primary + "10", borderless: false }}
+      <BlurView
+        intensity={Platform.OS === "android" ? 40 : 80}
+        tint={isDark ? "dark" : "light"}
+        style={[
+          styles.glassMiniPlayer,
+          {
+            backgroundColor: glassBgColor,
+            borderColor: glassBorderColor,
+          },
+        ]}
       >
-        <Image source={{ uri: currentSong?.image[1]?.link }} style={styles.miniPlayerImage} />
-        <View style={styles.miniPlayerTextContainer}>
-          <Text style={[styles.miniPlayerTitle, { color: colors.text }]} numberOfLines={1}>
-            {currentSong?.name}
-          </Text>
-          <Text
-            style={[styles.miniPlayerArtist, { color: colors.mutedForeground }]}
-            numberOfLines={1}
-          >
-            {artistName}
-          </Text>
-        </View>
-        <Pressable onPress={handlePlayPauseSong} hitSlop={8} style={styles.miniPlayerControl}>
-          <Ionicons name={isPlaying ? "pause" : "play"} size={22} color={colors.text} />
+        <ProgressBar />
+        <Pressable
+          style={styles.miniPlayerContent}
+          onPress={openPlayer}
+          onPressIn={() => {
+            miniPressScale.value = withTiming(0.98, { duration: 100 })
+          }}
+          onPressOut={() => {
+            miniPressScale.value = withSpring(1, { damping: 15, stiffness: 300 })
+          }}
+          android_ripple={{ color: colors.primary + "15", borderless: false }}
+        >
+          <Image source={{ uri: currentSong?.image[1]?.link }} style={styles.miniPlayerImage} />
+          <View style={styles.miniPlayerTextContainer}>
+            <Text style={[styles.miniPlayerTitle, { color: colors.foreground }]} numberOfLines={1}>
+              {currentSong?.name}
+            </Text>
+            <Text
+              style={[styles.miniPlayerArtist, { color: colors.mutedForeground }]}
+              numberOfLines={1}
+            >
+              {artistName}
+            </Text>
+          </View>
+          <Pressable onPress={handlePlayPauseSong} hitSlop={8} style={styles.miniPlayerControl}>
+            <Ionicons name={isPlaying ? "pause" : "play"} size={22} color={colors.foreground} />
+          </Pressable>
+          <Pressable onPress={() => handleNextSong()} hitSlop={8} style={styles.miniPlayerControl}>
+            <Ionicons name="play-skip-forward" size={20} color={colors.foreground} />
+          </Pressable>
         </Pressable>
-        <Pressable onPress={() => handleNextSong()} hitSlop={8} style={styles.miniPlayerControl}>
-          <Ionicons name="play-skip-forward" size={20} color={colors.text} />
-        </Pressable>
-      </Pressable>
+      </BlurView>
     </Animated.View>
   )
 
   useEffect(() => {
     const backAction = () => {
-      if (isExpanded) {
+      if (translateY.value < height - 10) {
         closePlayer()
         return true
       }
@@ -568,14 +619,13 @@ export default function Player() {
 
     const backHandler = BackHandler.addEventListener("hardwareBackPress", backAction)
     return () => backHandler.remove()
-  }, [isExpanded, closePlayer])
+  }, [closePlayer, translateY])
 
-  if (!currentSong || !isHomeActive) return null
+  if (!currentSong) return null
 
   return (
     <>
       {renderExpandedPlayer()}
-      {renderMiniPlayer()}
       {playerDrawerOpen && (
         <NewPlayerDrawer
           isVisible={playerDrawerOpen}
@@ -590,9 +640,22 @@ export default function Player() {
 const styles = StyleSheet.create({
   miniPlayerContainer: {
     position: "absolute",
-    width: "100%",
-    overflow: "hidden",
+    left: 14,
+    right: 14,
     zIndex: 5,
+    borderRadius: 24,
+
+    // Specular Glass Elevation
+    elevation: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+  },
+  glassMiniPlayer: {
+    borderRadius: 24,
+    borderWidth: 1.2,
+    overflow: "hidden",
   },
   miniPlayerContent: {
     flexDirection: "row",

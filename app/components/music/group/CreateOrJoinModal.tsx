@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import SwipeableModal from "@/components/common/SwipeableModal"
+import SwipeableModal from "@/components/SwipeableModal"
 import { Input } from "@/components/ui/input"
 import { useTheme } from "@/context/ThemeContext"
 

@@ -2,7 +2,7 @@
   "expo": {
     "name": "SyncVibe",
     "slug": "syncvibe",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/syncvibe.png",
     "scheme": "syncvibe",
@@ -17,7 +17,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/syncvibe.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0B0B0C"
       },
       "package": "com.thakurdotdev.syncvibe",
       "googleServicesFile": "./google-services.json",
@@ -56,7 +56,7 @@
           "image": "./assets/syncvibe.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#0B0B0C"
         }
       ],
       [
@@ -80,7 +80,8 @@
       ],
       "expo-media-library",
       "expo-system-ui",
-      "expo-asset"
+      "expo-asset",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

@@ -3,6 +3,7 @@ import { playbackHistory } from "@/utils/playbackHistory"
 import { AppState, AppStateStatus } from "react-native"
 import TrackPlayer, { Event, RepeatMode } from "@rntp/player"
 import { setupPlayer } from "@/utils/playerSetup"
+import { setTrackPlayerReady } from "./trackPlayerState"
 import {
   usePlayerStore,
   onAfterSongTransition,
@@ -485,6 +486,7 @@ export const initializeTrackPlayer = async (uid?: number): Promise<boolean> => {
 
     const isSetup = setupPlayer()
     initialized = isSetup
+    setTrackPlayerReady(isSetup)
 
     if (isSetup) {
       setupAppStateListener()

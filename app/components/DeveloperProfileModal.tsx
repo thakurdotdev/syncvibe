@@ -3,7 +3,7 @@ import { Dimensions, Image, Linking, StyleSheet, Text, TouchableOpacity, View } 
 import { Feather } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useTheme } from "@/context/ThemeContext"
-import SwipeableModal from "./common/SwipeableModal"
+import SwipeableModal from "./SwipeableModal"
 
 const { width } = Dimensions.get("window")
 

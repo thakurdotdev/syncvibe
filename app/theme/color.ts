@@ -213,14 +213,12 @@ const rosePalette: ColorPalette = {
     // Gradient colors
     gradients: {
       primary: ["#EC4A93", "#DB2777", "#A1175A"],
-      background: ["#F3F4F6", "#F3F4F6"],
+      background: ["#FFF8FA", "#F8F8FF"],
       card: ["#FFFFFF", "#FCFCFC"],
       accent: ["#FCE4F0", "#F9D2E5"],
       destructive: ["#DC4A3D", "#CC2819", "#991E12"],
-      // Hero header backdrop: a soft, low-saturation wash of primary —
-      // visible enough to give the header presence behind the search
-      // bar, far quieter than the full-strength `primary` gradient.
-      header: ["#FBE9F1", "#F9D8E7", "#FCEEF4"],
+      // Soft warm header backdrop: low saturation wash (#FFF8FA -> #F8F8FF)
+      header: ["#FFF8FA", "#FBF7FD", "#F8F8FF"],
     },
   },
   dark: {

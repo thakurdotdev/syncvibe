@@ -137,7 +137,7 @@ function HomeSkeleton({ colors }: { colors: ReturnType<typeof useTheme>["colors"
   )
 }
 
-const HEADER_H = 320
+const HEADER_H = 360
 
 function HomeScreen() {
   const { user } = useUser()
@@ -244,7 +244,7 @@ function HomeScreen() {
               />
             }
           >
-            <View style={{ paddingHorizontal: 4, paddingBottom: 16 }}>
+            <View style={{ paddingBottom: 16 }}>
               {/* Sections — rendered directly, no FadeInDown delays */}
               {(recommendations?.recentlyPlayed ?? []).length > 0 && (
                 <RecommendationGrid

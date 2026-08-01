@@ -58,6 +58,14 @@ export const setOnAfterSongTransition = (cb: ((song: Song) => void) | null) => {
   onAfterSongTransition = cb
 }
 
+export let onOpenFullPlayer: (() => void) | null = null
+export const setOnOpenFullPlayer = (cb: (() => void) | null) => {
+  onOpenFullPlayer = cb
+}
+export const openFullPlayer = () => {
+  onOpenFullPlayer?.()
+}
+
 interface PlayerState {
   currentSong: Song | null
   isPlaying: boolean

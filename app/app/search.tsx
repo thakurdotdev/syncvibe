@@ -286,6 +286,15 @@ export default function SearchMusic() {
     [searchQuery],
   )
 
+  const getItemLayout = useCallback(
+    (_: any, index: number) => ({
+      length: 82,
+      offset: 82 * index,
+      index,
+    }),
+    [],
+  )
+
   const Separator = useCallback(() => <View style={{ height: 10 }} />, [])
 
   return (
@@ -335,6 +344,7 @@ export default function SearchMusic() {
           data={songs}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
+          getItemLayout={getItemLayout}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={renderEmptyState}

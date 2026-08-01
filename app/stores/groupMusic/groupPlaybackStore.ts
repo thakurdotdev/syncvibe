@@ -5,7 +5,7 @@ import { Song } from "@/types/song"
 import { setupPlayer } from "@/utils/playerSetup"
 import { PlaybackState } from "./types"
 import { usePlayerStore } from "../playerStore"
-import { isTrackPlayerReady } from "../trackPlayerBridge"
+import { isTrackPlayerReady } from "../trackPlayerState"
 
 interface GroupPlaybackState {
   currentSong: Song | null

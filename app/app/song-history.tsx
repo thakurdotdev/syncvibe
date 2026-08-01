@@ -1,4 +1,4 @@
-import SwipeableModal from "@/components/common/SwipeableModal"
+import SwipeableModal from "@/components/SwipeableModal"
 import { SongCard } from "@/components/music/MusicCards"
 import Button from "@/components/ui/button"
 import Input from "@/components/ui/input"

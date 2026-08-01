@@ -34,28 +34,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [musicConfig, setMusicConfig] = useState<Record<string, any>>({})
   const [selectedLanguages, setSelectedLanguages] = useState<string>("hindi")
 
-  useEffect(() => {
-    if (!user) {
-      getProfile()
-    }
-  }, [user])
-
-  useEffect(() => {
-    loadMusicConfig()
-  }, [])
-
-  const loadMusicConfig = async () => {
-    try {
-      const data = await AsyncStorage.getItem("language-preferance")
-      if (data) {
-        setSelectedLanguages(data)
-      }
-    } catch (error) {
-      console.error("Error loading music config:", error)
-    }
-  }
-
-  const getProfile = async () => {
+  const getProfile = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem("token")
       if (!token) {
@@ -75,7 +54,23 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false)
     }
-  }
+  }, [api])
+
+  const loadMusicConfig = useCallback(async () => {
+    try {
+      const data = await AsyncStorage.getItem("language-preferance")
+      if (data) {
+        setSelectedLanguages(data)
+      }
+    } catch (error) {
+      console.error("Error loading music config:", error)
+    }
+  }, [])
+
+  useEffect(() => {
+    getProfile()
+    loadMusicConfig()
+  }, [getProfile, loadMusicConfig])
 
   const logout = useCallback(async () => {
     try {

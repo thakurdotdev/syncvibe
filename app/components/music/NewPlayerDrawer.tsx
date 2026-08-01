@@ -5,8 +5,8 @@ import { Song } from "@/types/song"
 import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons"
 import { router } from "expo-router"
 import React, { useState } from "react"
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
-import SwipeableModal from "../common/SwipeableModal"
+import { Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import SwipeableModal from "../SwipeableModal"
 import AddToPlaylist from "./AddToPlaylist"
 
 interface PlayerDrawerProps {
@@ -76,10 +76,13 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
 
           <View style={styles.optionsContainer}>
             {currentSong?.id !== song.id && (
-              <TouchableOpacity
-                style={styles.optionRow}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.optionRow,
+                  { backgroundColor: pressed ? colors.muted + "40" : "transparent" },
+                ]}
                 onPress={handleAddToQueue}
-                activeOpacity={0.7}
+                android_ripple={{ color: colors.primary + "1A" }}
               >
                 <View style={styles.iconContainer}>
                   <MaterialIcons name="queue-music" size={22} color={colors.foreground} />
@@ -87,44 +90,53 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
                 <Text style={[styles.optionText, { color: colors.foreground }]}>
                   {isSongInQueue ? "Remove from Queue" : "Add to Queue"}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
 
-            <TouchableOpacity
-              style={styles.optionRow}
+            <Pressable
+              style={({ pressed }) => [
+                styles.optionRow,
+                { backgroundColor: pressed ? colors.muted + "40" : "transparent" },
+              ]}
               onPress={() => setPlaylistModal(true)}
-              activeOpacity={0.7}
+              android_ripple={{ color: colors.primary + "1A" }}
             >
               <View style={styles.iconContainer}>
                 <MaterialIcons name="playlist-add" size={22} color={colors.foreground} />
               </View>
               <Text style={[styles.optionText, { color: colors.foreground }]}>Add to Playlist</Text>
-            </TouchableOpacity>
+            </Pressable>
 
             {artistName?.[0].id && (
-              <TouchableOpacity
-                style={styles.optionRow}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.optionRow,
+                  { backgroundColor: pressed ? colors.muted + "40" : "transparent" },
+                ]}
                 onPress={() => handlePress(artistName?.[0].id, paths.artist)}
-                activeOpacity={0.7}
+                android_ripple={{ color: colors.primary + "1A" }}
               >
                 <View style={styles.iconContainer}>
                   <Ionicons name="person-outline" size={20} color={colors.foreground} />
                 </View>
                 <Text style={[styles.optionText, { color: colors.foreground }]}>View Artist</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
 
             {song?.album_id && (
-              <TouchableOpacity
-                style={styles.optionRow}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.optionRow,
+                  { backgroundColor: pressed ? colors.muted + "40" : "transparent" },
+                ]}
                 onPress={() => handlePress(song.album_id, paths.albums)}
-                activeOpacity={0.7}
+                android_ripple={{ color: colors.primary + "1A" }}
               >
                 <View style={styles.iconContainer}>
                   <Ionicons name="disc-outline" size={20} color={colors.foreground} />
                 </View>
                 <Text style={[styles.optionText, { color: colors.foreground }]}>View Album</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
         </View>

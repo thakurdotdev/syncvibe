@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import SwipeableModal from "@/components/common/SwipeableModal"
+import SwipeableModal from "@/components/SwipeableModal"
 import { Input } from "@/components/ui/input"
 import { useGroupMusic } from "@/context/GroupMusicContext"
 import { useTheme } from "@/context/ThemeContext"

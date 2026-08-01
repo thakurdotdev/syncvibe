@@ -4,7 +4,10 @@ import { QueryClient } from "@tanstack/react-query"
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client"
 import * as Notifications from "expo-notifications"
 import { Stack } from "expo-router"
+import * as SplashScreen from "expo-splash-screen"
+import { useEffect } from "react"
 import { StatusBar } from "react-native"
+import { configureReanimatedLogger, ReanimatedLogLevel } from "react-native-reanimated"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import TrackPlayer from "@rntp/player"
 import ErrorBoundary from "@/components/ErrorBoundary"
@@ -15,10 +18,17 @@ import { NotificationProvider } from "@/context/NotificationContext"
 import { ChatProvider } from "@/context/SocketContext"
 import { ThemeProvider, useTheme } from "@/context/ThemeContext"
 import { ToastProvider } from "@/context/ToastContext"
-import { UserProvider } from "@/context/UserContext"
+import { UserProvider, useUser } from "@/context/UserContext"
 import { AppUpdateProvider } from "@/context/AppUpdateContext"
 import "../global.css"
 import { NotificationBehavior } from "expo-notifications"
+
+SplashScreen.preventAutoHideAsync()
+
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false,
+})
 
 Notifications.setNotificationHandler({
   handleNotification: async (): Promise<NotificationBehavior> => ({
@@ -82,7 +92,14 @@ function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const { colors, theme } = useTheme()
+  const { colors, theme, isLoading: themeLoading } = useTheme()
+  const { loading: userLoading } = useUser()
+
+  useEffect(() => {
+    if (!themeLoading && !userLoading) {
+      SplashScreen.hideAsync()
+    }
+  }, [themeLoading, userLoading])
 
   return (
     <>
@@ -93,8 +110,10 @@ function RootLayoutNav() {
       />
       <Stack
         screenOptions={{
-          animation: "none",
+          animation: "slide_from_right",
+          animationDuration: 220,
           presentation: "card",
+          navigationBarColor: colors.background,
           headerStyle: {
             backgroundColor: colors.background,
           },
@@ -116,8 +135,8 @@ function RootLayoutNav() {
         <Stack.Screen
           name="login"
           options={{
-            navigationBarColor: colors.background,
             title: "Login",
+            animation: "slide_from_bottom",
             presentation: "modal",
             headerShown: false,
             gestureEnabled: false,
@@ -133,7 +152,6 @@ function RootLayoutNav() {
         <Stack.Screen
           name="playlists"
           options={{
-            navigationBarColor: colors.background,
             title: "Playlist",
           }}
         />
@@ -141,26 +159,25 @@ function RootLayoutNav() {
           name="search"
           options={{
             headerShown: false,
+            animation: "fade",
+            animationDuration: 150,
           }}
         />
         <Stack.Screen
           name="albums"
           options={{
-            navigationBarColor: colors.background,
             title: "Album",
           }}
         />
         <Stack.Screen
           name="artist"
           options={{
-            navigationBarColor: colors.background,
             title: "Artist",
           }}
         />
         <Stack.Screen
           name="user-playlist"
           options={{
-            navigationBarColor: colors.background,
             title: "User Playlist",
           }}
         />

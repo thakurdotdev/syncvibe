@@ -1,6 +1,6 @@
 import React from "react"
 import { Image, Text, TouchableOpacity, View } from "react-native"
-import SwipeableModal from "@/components/common/SwipeableModal"
+import SwipeableModal from "@/components/SwipeableModal"
 import { useTheme } from "@/context/ThemeContext"
 
 interface QRCodeModalProps {

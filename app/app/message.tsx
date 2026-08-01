@@ -1,5 +1,5 @@
 import ImageGallery from "@/components/ImageGallery"
-import SwipeableModal from "@/components/common/SwipeableModal"
+import SwipeableModal from "@/components/SwipeableModal"
 import { Message, useChat } from "@/context/SocketContext"
 import { useUser } from "@/context/UserContext"
 import { useTheme } from "@/context/ThemeContext"
