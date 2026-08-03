@@ -20,7 +20,6 @@ export default function TabLayout() {
           headerShown: false,
           lazy: true,
           sceneStyle: { backgroundColor: colors.background },
-          animation: "fade",
         }}
         tabBar={() => null}
       >

@@ -1,5 +1,4 @@
 import { SongCard } from "@/components/music/MusicCards"
-import Button from "@/components/ui/button"
 import { SONG_URL } from "@/constants"
 import { usePlayerControls } from "@/stores/playerStore"
 import { useTheme } from "@/context/ThemeContext"
@@ -7,9 +6,8 @@ import { Song } from "@/types/song"
 import { convertToHttps, ensureHttpsForSongUrls } from "@/utils/getHttpsUrls"
 import { Ionicons } from "@expo/vector-icons"
 import axios from "axios"
-import { BlurView } from "expo-blur"
 import { LinearGradient } from "expo-linear-gradient"
-import { useLocalSearchParams } from "expo-router"
+import { useLocalSearchParams, router } from "expo-router"
 import { Music2Icon } from "lucide-react-native"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
@@ -18,6 +16,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native"
@@ -27,8 +26,10 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
+  withTiming,
+  withSpring,
 } from "react-native-reanimated"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 interface AlbumData {
   id: string
@@ -43,6 +44,7 @@ interface AlbumData {
 }
 
 export default function AlbumScreen() {
+  const insets = useSafeAreaInsets()
   const { colors, theme } = useTheme()
   const { id } = useLocalSearchParams()
   const [albumData, setAlbumData] = useState<AlbumData | null>(null)
@@ -50,6 +52,9 @@ export default function AlbumScreen() {
   const [loading, setLoading] = useState(true)
   const { width } = useWindowDimensions()
   const scrollY = useSharedValue(0)
+
+  const playScale = useSharedValue(1)
+  const shuffleScale = useSharedValue(1)
 
   const fetchAlbumData = useCallback(async () => {
     try {
@@ -76,8 +81,7 @@ export default function AlbumScreen() {
     },
   })
 
-  const headerHeight = useMemo(() => Math.min(width * 0.8, 250), [width])
-  const imageSize = useMemo(() => Math.min(width * 0.4, 250), [width])
+  const imageSize = useMemo(() => Math.min(width * 0.45, 175), [width])
 
   const albumCoverUrl = useMemo(() => {
     return albumData?.image?.[2]?.link || albumData?.image?.[0]?.link
@@ -90,36 +94,27 @@ export default function AlbumScreen() {
       .join(", ")
   }, [albumData])
 
-  const headerAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      scrollY.value,
-      [0, headerHeight * 0.5, headerHeight],
-      [1, 0.8, 0],
-      Extrapolation.CLAMP,
-    )
-
-    const scale = interpolate(scrollY.value, [0, headerHeight], [1, 0.85], Extrapolation.CLAMP)
-
+  const heroAnimatedStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [0, 150], [1, 0], Extrapolation.CLAMP)
+    const scale = interpolate(scrollY.value, [0, 150], [1, 0.9], Extrapolation.CLAMP)
     return {
       opacity,
-      transform: [
-        { scale },
-        {
-          translateY: interpolate(scrollY.value, [0, headerHeight], [0, -50], Extrapolation.CLAMP),
-        },
-      ],
+      transform: [{ scale }],
     }
   })
 
-  const imageAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          scale: interpolate(scrollY.value, [0, headerHeight], [1, 0.9], Extrapolation.CLAMP),
-        },
-      ],
-    }
+  const topTitleAnimatedStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scrollY.value, [100, 160], [0, 1], Extrapolation.CLAMP)
+    return { opacity }
   })
+
+  const playBtnAnim = useAnimatedStyle(() => ({
+    transform: [{ scale: playScale.value }],
+  }))
+
+  const shuffleBtnAnim = useAnimatedStyle(() => ({
+    transform: [{ scale: shuffleScale.value }],
+  }))
 
   const newSongs = useMemo(() => {
     if (!albumData?.songs) return []
@@ -152,134 +147,162 @@ export default function AlbumScreen() {
     }
   }
 
-  // Get gradient colors based on theme
-  const getGradientColors = useMemo(() => {
-    return theme === "dark"
-      ? colors.gradients.background
-      : ["rgba(30, 30, 30, 0.9)", "rgba(18, 18, 18, 0.95)"]
-  }, [theme, colors])
+  const isDark = theme === "dark"
+  const coverUrl = convertToHttps(albumCoverUrl || "")
+
+  const metaText = useMemo(() => {
+    const parts = []
+    if (artistName) parts.push(artistName)
+    if (albumData?.year) parts.push(albumData.year)
+    if (albumData?.songcount) parts.push(`${albumData.songcount} songs`)
+    return parts.join("  •  ")
+  }, [artistName, albumData])
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.text }]}>Loading album...</Text>
-      </SafeAreaView>
+      </View>
     )
   }
 
   if (!albumData) {
     return (
-      <SafeAreaView style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
-        <Music2Icon size={100} color={colors.primary} />
-        <Text style={[styles.emptyText, { color: colors.text }]}>No album found</Text>
-        <Button variant="default" title="Retry" onPress={fetchAlbumData} />
-      </SafeAreaView>
+      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+        <Music2Icon size={80} color={colors.primary} />
+        <Text style={[styles.emptyText, { color: colors.foreground }]}>No album found</Text>
+        <Pressable
+          onPress={fetchAlbumData}
+          style={[styles.primaryButton, { backgroundColor: colors.primary, width: 140 }]}
+        >
+          <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Retry</Text>
+        </Pressable>
+      </View>
     )
   }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Edge-to-Edge Ambient Background */}
+      <Image
+        source={{ uri: coverUrl }}
+        style={styles.heroBackgroundImage}
+        blurRadius={60}
+      />
+      <LinearGradient
+        colors={[
+          "rgba(0,0,0,0.1)",
+          isDark ? "rgba(11,11,12,0.85)" : "rgba(245,245,247,0.9)",
+          colors.background,
+        ]}
+        style={styles.backdropGradient}
+      />
+
+      {/* Floating Top Nav Bar */}
+      <View style={[styles.topNavBar, { paddingTop: Math.max(insets.top, 10) }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[
+            styles.backButton,
+            { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.06)" },
+          ]}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Ionicons name="arrow-back" size={20} color={colors.foreground} />
+        </TouchableOpacity>
+
+        <Animated.Text
+          style={[styles.topNavTitle, { color: colors.foreground }, topTitleAnimatedStyle]}
+          numberOfLines={1}
+        >
+          {albumData.name}
+        </Animated.Text>
+
+        <View style={{ width: 36 }} />
+      </View>
+
       <Animated.FlatList
         data={newSongs}
         renderItem={({ item }) => <SongCard song={item} />}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={[styles.separator]} />}
         contentContainerStyle={styles.listContent}
-        style={{ paddingHorizontal: 10 }}
+        style={{ paddingHorizontal: 16 }}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         ListHeaderComponent={
-          <View>
-            <Animated.View
-              style={[{ height: headerHeight }, styles.headerContainer, headerAnimatedStyle]}
-            >
-              <LinearGradient
-                colors={getGradientColors}
-                style={[styles.headerGradient, { height: headerHeight }]}
-              >
+          <View style={styles.headerWrapper}>
+            <Animated.View style={[styles.heroContent, heroAnimatedStyle]}>
+              <View style={styles.artworkShadow}>
                 <Image
-                  source={{ uri: convertToHttps(albumCoverUrl) }}
-                  style={[styles.backgroundImage, { height: headerHeight }]}
-                  blurRadius={30}
+                  source={{ uri: coverUrl }}
+                  style={[styles.albumCover, { width: imageSize, height: imageSize }]}
+                  resizeMode="cover"
                 />
-                <BlurView
-                  intensity={80}
-                  tint={theme === "dark" ? "dark" : "light"}
-                  style={styles.blurOverlay}
-                >
-                  <View style={styles.headerContent}>
-                    <Animated.View style={[styles.albumCoverContainer, imageAnimatedStyle]}>
-                      <Image
-                        source={{ uri: convertToHttps(albumCoverUrl) }}
-                        style={[styles.albumCover, { width: imageSize, height: imageSize }]}
-                        resizeMode="cover"
-                      />
-                    </Animated.View>
-                    <View style={styles.infoContainer}>
-                      <Text style={[styles.albumTitle, { color: colors.text }]} numberOfLines={2}>
-                        {albumData.name}
-                      </Text>
-                      {artistName && (
-                        <Text
-                          style={[styles.artistName, { color: colors.mutedForeground }]}
-                          numberOfLines={2}
-                        >
-                          {artistName}
-                        </Text>
-                      )}
-                      <View style={styles.statsContainer}>
-                        {albumData.year && (
-                          <View style={styles.stat}>
-                            <Ionicons
-                              name="calendar-outline"
-                              size={14}
-                              color={colors.mutedForeground}
-                            />
-                            <Text style={[styles.statText, { color: colors.mutedForeground }]}>
-                              {albumData.year}
-                            </Text>
-                          </View>
-                        )}
-                        <View style={styles.stat}>
-                          <Ionicons name="musical-note" size={14} color={colors.mutedForeground} />
-                          <Text style={[styles.statText, { color: colors.mutedForeground }]}>
-                            {albumData.songcount} {albumData.songcount === 1 ? "song" : "songs"}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                </BlurView>
-              </LinearGradient>
+              </View>
+
+              <Text style={[styles.albumTitle, { color: colors.foreground }]} numberOfLines={2}>
+                {albumData.name}
+              </Text>
+
+              {metaText ? (
+                <Text style={[styles.metaText, { color: colors.mutedForeground }]} numberOfLines={2}>
+                  {metaText}
+                </Text>
+              ) : null}
             </Animated.View>
 
-            {/* Action buttons */}
+            {/* Clean Action Bar */}
             <View style={styles.actionsContainer}>
-              <Button
+              <Pressable
                 onPress={handlePlayAll}
-                disabled={!albumData?.songs?.length}
-                title="Play All"
-                icon={<Ionicons name="play" size={22} color={colors.primaryForeground} />}
-                iconPosition="left"
-                variant="default"
-                size="default"
-              />
-              <Button
+                disabled={!newSongs.length}
+                onPressIn={() => (playScale.value = withTiming(0.96, { duration: 60 }))}
+                onPressOut={() => (playScale.value = withSpring(1, { damping: 16, stiffness: 350 }))}
+                style={{ flex: 1 }}
+              >
+                <Animated.View
+                  style={[
+                    styles.primaryButton,
+                    { backgroundColor: colors.primary },
+                    playBtnAnim,
+                  ]}
+                >
+                  <Ionicons name="play" size={18} color={colors.primaryForeground} />
+                  <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>
+                    Play All
+                  </Text>
+                </Animated.View>
+              </Pressable>
+
+              <Pressable
                 onPress={handleShuffle}
-                disabled={!albumData?.songs?.length}
-                title="Shuffle"
-                icon={<Ionicons name="shuffle" size={22} color={colors.text} />}
-                iconPosition="left"
-                variant="outline"
-                size="default"
-              />
+                disabled={!newSongs.length}
+                onPressIn={() => (shuffleScale.value = withTiming(0.96, { duration: 60 }))}
+                onPressOut={() => (shuffleScale.value = withSpring(1, { damping: 16, stiffness: 350 }))}
+                style={{ flex: 1 }}
+              >
+                <Animated.View
+                  style={[
+                    styles.secondaryButton,
+                    {
+                      backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
+                      borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+                    },
+                    shuffleBtnAnim,
+                  ]}
+                >
+                  <Ionicons name="shuffle" size={18} color={colors.foreground} />
+                  <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
+                    Shuffle
+                  </Text>
+                </Animated.View>
+              </Pressable>
             </View>
 
-            {/* Songs header */}
+            {/* Songs Section Label */}
             <View style={styles.songsHeader}>
-              <Text style={[styles.songsHeaderText, { color: colors.text }]}>Tracks</Text>
+              <Text style={[styles.songsHeaderText, { color: colors.foreground }]}>Tracks</Text>
             </View>
           </View>
         }
@@ -297,114 +320,134 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-  },
   emptyContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
+    gap: 16,
   },
   emptyText: {
-    fontSize: 18,
-    marginTop: 16,
-    marginBottom: 24,
+    fontSize: 17,
+    fontWeight: "600",
   },
-  headerContainer: {
-    width: "100%",
-    position: "relative",
-    overflow: "hidden",
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  headerGradient: {
-    width: "100%",
-    position: "relative",
-    overflow: "hidden",
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  backgroundImage: {
-    position: "absolute",
-    width: "100%",
-    opacity: 0.6,
-  },
-  blurOverlay: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "flex-end",
-    padding: 20,
-  },
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 10,
-  },
-  albumCoverContainer: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  albumCover: {
-    borderRadius: 12,
-  },
-  infoContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-    paddingBottom: 4,
-  },
-  albumTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 8,
-    textShadowColor: "rgba(0, 0, 0, 0.75)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  artistName: {
-    fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 12,
-  },
-  statsContainer: {
-    flexDirection: "row",
-    gap: 16,
-    marginTop: 8,
-  },
-  stat: {
+  topNavBar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    zIndex: 10,
   },
-  statText: {
-    fontSize: 14,
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  topNavTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: -0.3,
+    maxWidth: "70%",
+  },
+  headerWrapper: {
+    paddingTop: 8,
+    marginBottom: 12,
+  },
+  heroBackgroundImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 360,
+    opacity: 0.5,
+  },
+  backdropGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 360,
+  },
+  heroContent: {
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  artworkShadow: {
+    borderRadius: 16,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    marginBottom: 16,
+  },
+  albumCover: {
+    borderRadius: 16,
+  },
+  albumTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    textAlign: "center",
+    letterSpacing: -0.4,
+    marginBottom: 6,
+  },
+  metaText: {
+    fontSize: 13,
+    fontWeight: "500",
+    textAlign: "center",
+    letterSpacing: -0.1,
   },
   actionsContainer: {
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    gap: 16,
+    gap: 12,
+    marginVertical: 16,
+  },
+  primaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 46,
+    borderRadius: 23,
+    gap: 8,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  primaryButtonText: {
+    fontSize: 14.5,
+    fontWeight: "700",
+  },
+  secondaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1,
+    gap: 8,
+  },
+  secondaryButtonText: {
+    fontSize: 14.5,
+    fontWeight: "600",
   },
   songsHeader: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    marginTop: 4,
+    marginBottom: 8,
   },
   songsHeaderText: {
-    fontSize: 22,
-    fontWeight: "bold",
-    letterSpacing: 0.5,
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: -0.3,
   },
   listContent: {
-    paddingBottom: 120,
-  },
-  separator: {
-    height: 1,
-    marginVertical: 5,
+    paddingBottom: 130,
   },
 })

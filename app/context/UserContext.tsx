@@ -42,14 +42,22 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return
       }
 
+      const cachedProfile = await AsyncStorage.getItem("@user_profile")
+      if (cachedProfile) {
+        setUser(JSON.parse(cachedProfile))
+        setLoading(false)
+      }
+
       const response = await api.get("/api/profile")
       if (response.status === 200) {
-        setUser(response.data.user)
+        const freshUser = response.data.user
+        setUser(freshUser)
+        await AsyncStorage.setItem("@user_profile", JSON.stringify(freshUser))
       }
     } catch (error: any) {
       console.error("Error fetching profile:", error)
       if (error.response?.status === 401) {
-        await AsyncStorage.removeItem("token")
+        await AsyncStorage.multiRemove(["token", "@user_profile"])
       }
     } finally {
       setLoading(false)
@@ -83,17 +91,22 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
-  const updateUser = useCallback(async (userData: Partial<User>) => {
-    try {
-      const response = await api.post("/api/update-profile", userData)
-      if (response.status === 200) {
-        setUser(response.data.user)
+  const updateUser = useCallback(
+    async (userData: Partial<User>) => {
+      try {
+        const response = await api.post("/api/update-profile", userData)
+        if (response.status === 200) {
+          const updated = response.data.user
+          setUser(updated)
+          await AsyncStorage.setItem("@user_profile", JSON.stringify(updated))
+        }
+      } catch (error) {
+        console.error("Error updating profile:", error)
+        throw error
       }
-    } catch (error) {
-      console.error("Error updating profile:", error)
-      throw error
-    }
-  }, [])
+    },
+    [api],
+  )
 
   const memoizedValue = useMemo(
     () => ({

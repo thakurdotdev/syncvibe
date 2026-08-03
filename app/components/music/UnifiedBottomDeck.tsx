@@ -1,11 +1,10 @@
 import { useTheme } from "@/context/ThemeContext"
 import { router } from "expo-router"
 import * as Haptics from "expo-haptics"
-import { BlurView } from "expo-blur"
 import { Ionicons } from "@expo/vector-icons"
 import { useProgress } from "@rntp/player"
 import React, { memo, useCallback, useEffect, useMemo } from "react"
-import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native"
+import { Image, Pressable, StyleSheet, Text, View } from "react-native"
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -38,7 +37,7 @@ const TAB_ITEMS = [
   },
   {
     name: "playlist",
-    label: "Playlist",
+    label: "Library",
     activeIcon: "musical-notes",
     inactiveIcon: "musical-notes-outline",
   },
@@ -56,11 +55,7 @@ const TAB_ITEMS = [
   },
 ] as const
 
-const SPRING_CONFIG = {
-  damping: 22,
-  stiffness: 320,
-  mass: 0.5,
-}
+const SPRING_SNAPPY = { damping: 20, stiffness: 400, mass: 0.4 }
 
 const MiniProgressBar = memo(function MiniProgressBar({ color }: { color: string }) {
   const { position, duration } = useProgress()
@@ -68,10 +63,10 @@ const MiniProgressBar = memo(function MiniProgressBar({ color }: { color: string
   const clampedPercent = Math.min(100, Math.max(0, progressPercent))
 
   return (
-    <View style={styles.progressBarTrack}>
+    <View style={styles.progressTrack}>
       <View
         style={[
-          styles.progressBarFill,
+          styles.progressFill,
           {
             width: `${clampedPercent}%`,
             backgroundColor: color,
@@ -101,25 +96,18 @@ const TabButton = memo(function TabButton({
   activeColor,
   inactiveColor,
 }: TabButtonProps) {
-  const scale = useSharedValue(1)
   const focusAnim = useSharedValue(isFocused ? 1 : 0)
 
   useEffect(() => {
-    focusAnim.value = withSpring(isFocused ? 1 : 0, SPRING_CONFIG)
+    focusAnim.value = withSpring(isFocused ? 1 : 0, SPRING_SNAPPY)
   }, [isFocused, focusAnim])
 
-  const pillStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    backgroundColor: focusAnim.value > 0.05 ? activeColor + "18" : "transparent",
-    paddingHorizontal: interpolate(focusAnim.value, [0, 1], [8, 14], Extrapolation.CLAMP),
+  const iconStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(focusAnim.value, [0, 1], [0.5, 1], Extrapolation.CLAMP),
   }))
 
-  const labelWrapperStyle = useAnimatedStyle(() => ({
-    opacity: focusAnim.value,
-    maxWidth: interpolate(focusAnim.value, [0, 1], [0, 76], Extrapolation.CLAMP),
-    transform: [
-      { translateX: interpolate(focusAnim.value, [0, 1], [-4, 0], Extrapolation.CLAMP) },
-    ],
+  const labelStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(focusAnim.value, [0, 1], [0.5, 1], Extrapolation.CLAMP),
   }))
 
   const handlePress = () => {
@@ -130,38 +118,30 @@ const TabButton = memo(function TabButton({
   return (
     <Pressable
       onPress={handlePress}
-      onPressIn={() => {
-        scale.value = withSpring(0.97, { damping: 18, stiffness: 400 })
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, { damping: 14, stiffness: 350 })
-      }}
       style={styles.tabButton}
       accessibilityRole="tab"
       accessibilityState={{ selected: isFocused }}
+      android_ripple={{ color: activeColor + "12", borderless: true, radius: 28 }}
     >
-      <Animated.View style={[styles.tabPillContainer, pillStyle]}>
-        <View style={{ opacity: isFocused ? 1 : 0.68 }}>
+      <View style={styles.tabInner}>
+        <Animated.View style={iconStyle}>
           <Ionicons
             name={isFocused ? activeIcon : inactiveIcon}
-            size={21}
+            size={22}
             color={isFocused ? activeColor : inactiveColor}
           />
-        </View>
-        <Animated.View style={[styles.labelWrapper, labelWrapperStyle]}>
-          <Animated.Text
-            style={[
-              styles.tabLabel,
-              {
-                color: activeColor,
-              },
-            ]}
-            numberOfLines={1}
-          >
-            {label}
-          </Animated.Text>
         </Animated.View>
-      </Animated.View>
+        <Animated.Text
+          style={[
+            styles.tabLabel,
+            { color: isFocused ? activeColor : inactiveColor },
+            labelStyle,
+          ]}
+          numberOfLines={1}
+        >
+          {label}
+        </Animated.Text>
+      </View>
     </Pressable>
   )
 })
@@ -184,6 +164,8 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
   isDark,
 }: MiniPlayerRowProps) {
   const pressScale = useSharedValue(1)
+  const playBtnScale = useSharedValue(1)
+  const nextBtnScale = useSharedValue(1)
 
   const artistName = useMemo(
     () =>
@@ -200,63 +182,83 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
     transform: [{ scale: pressScale.value }],
   }))
 
+  const playBtnAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: playBtnScale.value }],
+  }))
+
+  const nextBtnAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: nextBtnScale.value }],
+  }))
+
   const handleOpenPlayer = () => {
     openFullPlayer()
   }
 
-  const artworkBorderColor = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)"
-
   return (
     <View style={styles.miniPlayerWrapper}>
-      {/* Precision Mini Progress Bar */}
       <MiniProgressBar color={colors.primary} />
 
-      <Animated.View style={[styles.miniPlayerRowContainer, rowAnimatedStyle]}>
+      <Animated.View style={[styles.miniPlayerRow, rowAnimatedStyle]}>
         <Pressable
           style={styles.miniPlayerPressable}
           onPress={handleOpenPlayer}
           onPressIn={() => {
-            pressScale.value = withTiming(0.98, { duration: 80 })
+            pressScale.value = withTiming(0.98, { duration: 70 })
           }}
           onPressOut={() => {
             pressScale.value = withSpring(1, { damping: 15, stiffness: 350 })
           }}
         >
-          {/* 48px Artwork */}
-          <View style={[styles.artworkContainer, { borderColor: artworkBorderColor }]}>
-            <Image source={{ uri: artworkUri }} style={styles.miniPlayerArtwork} />
+          <View
+            style={[
+              styles.artworkContainer,
+              { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" },
+            ]}
+          >
+            <Image source={{ uri: artworkUri }} style={styles.artwork} />
           </View>
 
-          {/* Song Info */}
-          <View style={styles.songInfoContainer}>
-            <Text style={[styles.songTitleText, { color: colors.foreground }]} numberOfLines={1}>
+          <View style={styles.songInfo}>
+            <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>
               {currentSong?.name}
             </Text>
             <Text
-              style={[styles.artistNameText, { color: colors.mutedForeground }]}
+              style={[styles.artistName, { color: colors.mutedForeground }]}
               numberOfLines={1}
             >
               {artistName}
             </Text>
           </View>
 
-          {/* Playback Controls */}
-          <View style={styles.controlsRow}>
+          <View style={styles.controls}>
             <Pressable
               onPress={(e) => {
                 e.stopPropagation()
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                 handlePlayPause()
               }}
-              style={[styles.dominantPlayButton, { backgroundColor: colors.primary + "18" }]}
-              hitSlop={6}
+              onPressIn={() => {
+                playBtnScale.value = withTiming(0.85, { duration: 60 })
+              }}
+              onPressOut={() => {
+                playBtnScale.value = withSpring(1, SPRING_SNAPPY)
+              }}
+              hitSlop={8}
             >
-              <Ionicons
-                name={isPlaying ? "pause" : "play"}
-                size={20}
-                color={colors.primary}
-                style={{ marginLeft: isPlaying ? 0 : 2 }}
-              />
+              <Animated.View
+                style={[
+                  styles.playButton,
+                  { backgroundColor: colors.primary },
+                  playBtnAnimStyle,
+                ]}
+              >
+                <Ionicons
+                  name={isPlaying ? "pause" : "play"}
+                  size={18}
+                  color={colors.primaryForeground}
+                  style={{ marginLeft: isPlaying ? 0 : 1.5 }}
+                />
+              </Animated.View>
             </Pressable>
 
             <Pressable
@@ -265,10 +267,18 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
                 handleNextSong()
               }}
-              style={styles.secondaryNextButton}
+              onPressIn={() => {
+                nextBtnScale.value = withTiming(0.82, { duration: 60 })
+              }}
+              onPressOut={() => {
+                nextBtnScale.value = withSpring(1, SPRING_SNAPPY)
+              }}
+              style={styles.nextButton}
               hitSlop={8}
             >
-              <Ionicons name="play-skip-forward" size={17} color={colors.foreground} />
+              <Animated.View style={nextBtnAnimStyle}>
+                <Ionicons name="play-skip-forward" size={18} color={colors.mutedForeground} />
+              </Animated.View>
             </Pressable>
           </View>
         </Pressable>
@@ -292,6 +302,15 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
 }: UnifiedBottomDeckProps) {
   const { currentSong, isPlaying } = usePlaybackState()
   const { handlePlayPause, handleNextSong } = usePlayerControls()
+  const mountOpacity = useSharedValue(0)
+
+  useEffect(() => {
+    mountOpacity.value = withTiming(1, { duration: 120 })
+  }, [mountOpacity])
+
+  const mountStyle = useAnimatedStyle(() => ({
+    opacity: mountOpacity.value,
+  }))
 
   const goHome = useCallback(() => router.navigate("/home"), [])
   const goGroup = useCallback(() => router.navigate("/group-music"), [])
@@ -302,33 +321,28 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
 
   const isDark = theme === "dark"
 
-  const surfaceBgColor = isDark ? "rgba(24, 24, 28, 0.90)" : "rgba(255, 255, 255, 0.92)"
-  const surfaceBorderColor = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.08)"
-  const dividerColor = isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)"
+  const surfaceBg = isDark ? "rgba(20, 20, 22, 0.97)" : "rgba(255, 255, 255, 0.97)"
+  const borderColor = isDark ? "rgba(255, 255, 255, 0.07)" : "rgba(0, 0, 0, 0.06)"
 
   const showMiniPlayer = !!currentSong
 
   return (
-    <View
+    <Animated.View
       style={[
-        styles.unifiedSurfaceOuter,
-        {
-          bottom: Math.max(10, insets.bottom),
-        },
+        styles.outerContainer,
+        { bottom: Math.max(8, insets.bottom) },
+        mountStyle,
       ]}
     >
-      <BlurView
-        intensity={Platform.OS === "android" ? 40 : 75}
-        tint={isDark ? "dark" : "light"}
+      <View
         style={[
-          styles.unifiedSurfaceContainer,
+          styles.surfaceContainer,
           {
-            backgroundColor: surfaceBgColor,
-            borderColor: surfaceBorderColor,
+            backgroundColor: surfaceBg,
+            borderColor: borderColor,
           },
         ]}
       >
-        {/* Top Section: Mini Player */}
         {showMiniPlayer && (
           <>
             <MiniPlayerRow
@@ -339,13 +353,16 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
               colors={colors}
               isDark={isDark}
             />
-            {/* Low Opacity Hairline Divider */}
-            <View style={[styles.hairlineDivider, { backgroundColor: dividerColor }]} />
+            <View
+              style={[
+                styles.divider,
+                { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" },
+              ]}
+            />
           </>
         )}
 
-        {/* Bottom Section: Navigation Bar */}
-        <View style={styles.navigationSectionRow}>
+        <View style={styles.navRow}>
           {TAB_ITEMS.map((tab, index) => (
             <TabButton
               key={tab.name}
@@ -359,114 +376,110 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
             />
           ))}
         </View>
-      </BlurView>
-    </View>
+      </View>
+    </Animated.View>
   )
 })
 
 const styles = StyleSheet.create({
-  unifiedSurfaceOuter: {
+  outerContainer: {
     position: "absolute",
-    left: 12,
-    right: 12,
+    left: 10,
+    right: 10,
     zIndex: 1000,
   },
-  unifiedSurfaceContainer: {
-    borderRadius: 28,
-    borderWidth: 1,
+  surfaceContainer: {
+    borderRadius: 22,
+    borderWidth: 0.5,
     overflow: "hidden",
-
-    elevation: 10,
+    elevation: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
   },
 
-  // Progress Bar Styles
-  progressBarTrack: {
+  progressTrack: {
     width: "100%",
-    height: 3,
-    backgroundColor: "rgba(128, 128, 128, 0.35)",
+    height: 2.5,
+    backgroundColor: "rgba(128, 128, 128, 0.15)",
     overflow: "hidden",
   },
-  progressBarFill: {
+  progressFill: {
     height: "100%",
+    borderTopRightRadius: 2,
+    borderBottomRightRadius: 2,
   },
 
-  // Mini Player Styles
   miniPlayerWrapper: {
     width: "100%",
   },
-  miniPlayerRowContainer: {
+  miniPlayerRow: {
     width: "100%",
   },
   miniPlayerPressable: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     width: "100%",
   },
   artworkContainer: {
-    borderRadius: 11,
-    borderWidth: 1,
+    borderRadius: 10,
     overflow: "hidden",
   },
-  miniPlayerArtwork: {
-    width: 48,
-    height: 48,
+  artwork: {
+    width: 44,
+    height: 44,
     borderRadius: 10,
   },
-  songInfoContainer: {
+  songInfo: {
     flex: 1,
-    paddingLeft: 12,
-    paddingRight: 6,
+    paddingLeft: 10,
+    paddingRight: 8,
     justifyContent: "center",
   },
-  songTitleText: {
-    fontSize: 14,
+  songTitle: {
+    fontSize: 13.5,
     fontWeight: "600",
-    letterSpacing: 0.1,
+    letterSpacing: 0.05,
   },
-  artistNameText: {
-    fontSize: 12,
-    opacity: 0.72,
-    marginTop: 2,
+  artistName: {
+    fontSize: 11.5,
+    marginTop: 1.5,
+    opacity: 0.7,
   },
-  controlsRow: {
+  controls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    gap: 6,
   },
-  dominantPlayButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  playButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: "center",
     alignItems: "center",
   },
-  secondaryNextButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  nextButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     justifyContent: "center",
     alignItems: "center",
   },
 
-  // Divider Styles
-  hairlineDivider: {
-    height: 1,
+  divider: {
+    height: StyleSheet.hairlineWidth,
     marginHorizontal: 12,
   },
 
-  // Navigation Styles
-  navigationSectionRow: {
+  navRow: {
     flexDirection: "row",
-    height: 48,
+    height: 52,
     alignItems: "center",
     justifyContent: "space-around",
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
   },
   tabButton: {
     alignItems: "center",
@@ -474,21 +487,14 @@ const styles = StyleSheet.create({
     height: "100%",
     flex: 1,
   },
-  tabPillContainer: {
-    flexDirection: "row",
+  tabInner: {
     alignItems: "center",
     justifyContent: "center",
-    height: 34,
-    borderRadius: 17,
-    overflow: "hidden",
-  },
-  labelWrapper: {
-    overflow: "hidden",
+    gap: 2,
   },
   tabLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    marginLeft: 5,
-    letterSpacing: 0.1,
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 0.15,
   },
 })

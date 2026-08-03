@@ -51,7 +51,6 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
   onScroll,
 }) => {
   const { colors } = useTheme()
-  // Modal must stay mounted until close animation finishes
   const [modalMounted, setModalMounted] = useState(false)
 
   const progress = useSharedValue(0)
@@ -75,11 +74,9 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
     [progress, gestureY, onClose],
   )
 
-  // Drive mount/unmount around the animation
   useEffect(() => {
     if (isVisible) {
       setModalMounted(true)
-      // Small delay so Modal renders before we animate in
       requestAnimationFrame(() => animateOpen())
     } else if (modalMounted) {
       animateClose(() => {
@@ -89,9 +86,15 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
     }
   }, [isVisible]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const resolvedMaxHeight = typeof maxHeight === "number" ? maxHeight : SCREEN_HEIGHT * 0.8
+  const resolvedMaxHeight =
+    typeof maxHeight === "number"
+      ? maxHeight
+      : typeof maxHeight === "string" && maxHeight.endsWith("%")
+      ? (parseFloat(maxHeight) / 100) * SCREEN_HEIGHT
+      : SCREEN_HEIGHT * 0.8
 
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-15, 15])
     .onUpdate((e) => {
       "worklet"
       if (e.translationY > 0) {
@@ -141,20 +144,17 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
       onRequestClose={() => animateClose()}
     >
       <GestureHandlerRootView style={styles.root}>
-        {/* Tappable backdrop — fills space above sheet */}
         <Pressable style={styles.backdropTouchable} onPress={() => animateClose()} />
 
-        {/* Animated dim layer — covers full screen, pointer events off */}
         <Animated.View style={[styles.backdrop, backdropStyle]} pointerEvents="none" />
 
-        {/* Sheet with gesture */}
         <GestureDetector gesture={panGesture}>
           <Animated.View
             style={[
               styles.sheet,
               {
                 backgroundColor: colors.card,
-                maxHeight,
+                maxHeight: resolvedMaxHeight,
               },
               sheetStyle,
               style,
@@ -172,6 +172,7 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               >
                 {children}
               </ScrollView>
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
   sheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: 30,
+    paddingBottom: 24,
     width: "100%",
   },
   handleContainer: {
@@ -214,10 +215,12 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   scrollView: {
-    flex: 1,
+    width: "100%",
+    flexShrink: 1,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 24,
   },
 })
 

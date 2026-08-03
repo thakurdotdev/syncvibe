@@ -80,7 +80,10 @@ export const AppUpdateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }
 
   useEffect(() => {
-    checkUpdates()
+    const timer = setTimeout(() => {
+      checkUpdates()
+    }, 3000)
+    return () => clearTimeout(timer)
   }, [])
 
   return (

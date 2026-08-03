@@ -3,7 +3,8 @@ import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persi
 import { QueryClient } from "@tanstack/react-query"
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client"
 import * as Notifications from "expo-notifications"
-import { Stack } from "expo-router"
+import { Stack } from "expo-router/js-stack"
+import { Easing } from "react-native-reanimated"
 import * as SplashScreen from "expo-splash-screen"
 import { useEffect } from "react"
 import { StatusBar } from "react-native"
@@ -101,6 +102,48 @@ function RootLayoutNav() {
     }
   }, [themeLoading, userLoading])
 
+  const sharedAxisZ = ({ current, next }: any) => {
+    const progress = current.progress
+    const nextProgress = next?.progress
+
+    const cardStyle = {
+      opacity: progress.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: [0, 0.6, 1],
+      }),
+      transform: [
+        {
+          scale: progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.94, 1],
+          }),
+        },
+      ],
+    }
+
+    const overlayStyle = nextProgress
+      ? {
+          opacity: nextProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 0.3],
+          }),
+        }
+      : undefined
+
+    return { cardStyle, overlayStyle }
+  }
+
+  const transitionSpec = {
+    open: {
+      animation: "timing" as const,
+      config: { duration: 220, easing: Easing.out(Easing.cubic) },
+    },
+    close: {
+      animation: "timing" as const,
+      config: { duration: 180, easing: Easing.in(Easing.cubic) },
+    },
+  }
+
   return (
     <>
       <StatusBar
@@ -110,20 +153,21 @@ function RootLayoutNav() {
       />
       <Stack
         screenOptions={{
-          animation: "slide_from_right",
-          animationDuration: 220,
-          presentation: "card",
-          navigationBarColor: colors.background,
+          cardStyleInterpolator: sharedAxisZ,
+          transitionSpec,
+          cardOverlayEnabled: true,
+          gestureEnabled: false,
           headerStyle: {
             backgroundColor: colors.background,
+            elevation: 0,
+            shadowOpacity: 0,
           },
           headerTintColor: colors.text,
           headerTitleStyle: {
             fontWeight: "600",
             fontSize: 18,
           },
-          headerShadowVisible: false,
-          headerBackVisible: true,
+          cardStyle: { backgroundColor: colors.background },
         }}
       >
         <Stack.Screen
@@ -136,7 +180,6 @@ function RootLayoutNav() {
           name="login"
           options={{
             title: "Login",
-            animation: "slide_from_bottom",
             presentation: "modal",
             headerShown: false,
             gestureEnabled: false,
@@ -152,33 +195,31 @@ function RootLayoutNav() {
         <Stack.Screen
           name="playlists"
           options={{
-            title: "Playlist",
+            headerShown: false,
           }}
         />
         <Stack.Screen
           name="search"
           options={{
             headerShown: false,
-            animation: "fade",
-            animationDuration: 150,
           }}
         />
         <Stack.Screen
           name="albums"
           options={{
-            title: "Album",
+            headerShown: false,
           }}
         />
         <Stack.Screen
           name="artist"
           options={{
-            title: "Artist",
+            headerShown: false,
           }}
         />
         <Stack.Screen
           name="user-playlist"
           options={{
-            title: "User Playlist",
+            headerShown: false,
           }}
         />
         <Stack.Screen

@@ -332,7 +332,8 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
               showsVerticalScrollIndicator={true}
               scrollEventThrottle={16}
               nestedScrollEnabled={true}
-              style={{ maxHeight: 350 }}
+              scrollEnabled={true}
+              style={{ maxHeight: 400 }}
             />
           )}
         </View>

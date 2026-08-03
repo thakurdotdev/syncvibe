@@ -231,20 +231,6 @@ export const SongCard = memo(
       setPlayerDrawerOpen(true)
     }, [])
 
-    const scale = useSharedValue(1)
-
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: scale.value }],
-    }))
-
-    const handlePressIn = () => {
-      scale.value = withSpring(0.98, { damping: 15, stiffness: 300 })
-    }
-
-    const handlePressOut = () => {
-      scale.value = withSpring(1, { damping: 15, stiffness: 300 })
-    }
-
     return (
       <Animated.View>
         <Pressable
@@ -256,11 +242,7 @@ export const SongCard = memo(
               alignItems: "center",
               padding: 8,
               borderRadius: 14,
-              backgroundColor: isCurrentSong ? colors.primary + "15" : colors.card,
-              borderWidth: 1,
-              borderColor: isCurrentSong ? colors.primary + "30" : colors.border + "30",
               height: 64,
-              marginBottom: 8,
               opacity: pressed ? 0.82 : 1,
             },
           ]}
@@ -317,7 +299,7 @@ export const SongCard = memo(
           <View style={{ paddingRight: 8, justifyContent: "center" }}>
             <Ionicons
               name={isCurrentSong ? (isPlaying ? "pause-circle" : "play-circle") : "play-outline"}
-              size={26}
+              size={20}
               color={isCurrentSong ? colors.primary : colors.mutedForeground}
             />
           </View>
@@ -335,16 +317,34 @@ export const SongCard = memo(
   },
 )
 
-export const CardImage = ({ uri, alt }: { uri: string; alt: string }) => (
-  <View style={{ width: "100%", height: 140, borderRadius: 12, overflow: "hidden" }}>
-    <Image
-      source={{ uri: uri || "https://via.placeholder.com/140" }}
-      style={{ width: "100%", height: "100%" }}
-      resizeMode="cover"
-      alt={alt}
-    />
-  </View>
-)
+export const CardImage = ({ uri, alt }: { uri: string; alt: string }) => {
+  const fallback =
+    "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp"
+  const sourceUri = uri && typeof uri === "string" && uri.trim() !== "" ? uri : fallback
+
+  return (
+    <View
+      style={{
+        width: "100%",
+        height: 140,
+        borderRadius: 14,
+        overflow: "hidden",
+        backgroundColor: "rgba(255,255,255,0.05)",
+      }}
+    >
+      <Image
+        source={{ uri: sourceUri }}
+        style={{
+          width: "100%",
+          height: 140,
+          borderRadius: 14,
+        }}
+        resizeMode="cover"
+        alt={alt}
+      />
+    </View>
+  )
+}
 
 export const AlbumCard = memo(
   ({ album, onPress: customOnPress, onLongPress }: AlbumCardProps) => {
