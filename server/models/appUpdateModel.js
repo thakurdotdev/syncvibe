@@ -1,7 +1,7 @@
 const { DataTypes, Model } = require("sequelize")
 const sequelize = require("../utils/sequelize")
 
-class AppUpdate extends Model {}
+class AppUpdate extends Model { }
 
 AppUpdate.init(
   {
@@ -28,6 +28,14 @@ AppUpdate.init(
       allowNull: false,
       defaultValue: false,
     },
+    sha256: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+    },
+    fileSize: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -46,5 +54,7 @@ AppUpdate.init(
     timestamps: true,
   },
 )
+
+AppUpdate.sync({ alter: true }).then(() => console.log("Synced AppUpdate model"))
 
 module.exports = AppUpdate

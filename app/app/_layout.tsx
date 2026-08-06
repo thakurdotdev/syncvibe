@@ -21,6 +21,7 @@ import { ThemeProvider, useTheme } from "@/context/ThemeContext"
 import { ToastProvider } from "@/context/ToastContext"
 import { UserProvider, useUser } from "@/context/UserContext"
 import { AppUpdateProvider } from "@/context/AppUpdateContext"
+import AppUpdateModal from "@/components/AppUpdateModal"
 import "../global.css"
 import { NotificationBehavior } from "expo-notifications"
 
@@ -275,6 +276,7 @@ function RootLayoutNav() {
         />
       </Stack>
       <Player />
+      <AppUpdateModal />
     </>
   )
 }

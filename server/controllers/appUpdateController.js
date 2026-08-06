@@ -63,7 +63,7 @@ exports.createUpdate = async (req, res) => {
       return res.status(403).json({ success: false, message: "Forbidden" })
     }
 
-    const { version, releaseNotes, downloadUrl, critical } = req.body
+    const { version, releaseNotes, downloadUrl, critical, sha256, fileSize } = req.body
     if (!version || !downloadUrl) {
       return res
         .status(400)
@@ -75,6 +75,8 @@ exports.createUpdate = async (req, res) => {
       releaseNotes,
       downloadUrl,
       critical: !!critical,
+      sha256: sha256 ? String(sha256).trim() : null,
+      fileSize: fileSize ? Number(fileSize) : null,
     })
 
     return res.status(201).json({ success: true, update })

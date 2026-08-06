@@ -77,6 +77,19 @@ const processUpdateInBackground = async (version, artifacts, metadata, releaseNo
 
     console.log(`Downloaded app update v${version} to temp file: ${tempFilePath}`)
 
+    const stats = fs.statSync(tempFilePath)
+    const fileSize = stats.size
+
+    const hash = crypto.createHash("sha256")
+    const hashStream = fs.createReadStream(tempFilePath)
+    const sha256 = await new Promise((resolve, reject) => {
+      hashStream.on("data", (chunk) => hash.update(chunk))
+      hashStream.on("end", () => resolve(hash.digest("hex")))
+      hashStream.on("error", reject)
+    })
+
+    console.log(`Calculated size (${fileSize} bytes) and SHA-256 (${sha256}) for v${version}`)
+
     console.log(`Uploading app update v${version} to R2`)
 
     const fileKey = `updates/syncvibe-v${version}.apk`
@@ -91,6 +104,8 @@ const processUpdateInBackground = async (version, artifacts, metadata, releaseNo
       releaseNotes,
       downloadUrl,
       critical: false,
+      sha256,
+      fileSize,
     })
 
     console.log(`Automatically published app update v${version} via EAS Webhook`)

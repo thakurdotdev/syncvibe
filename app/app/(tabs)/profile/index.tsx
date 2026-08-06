@@ -388,7 +388,7 @@ export default function ProfileScreen() {
   const { user, logout, getProfile, loading } = useUser()
   const { colors, theme } = useTheme()
   const [showDeveloperModal, setShowDeveloperModal] = useState(false)
-  const { updateInfo, isUpdateAvailable, currentVersion } = useAppUpdate()
+  const { updateInfo, isUpdateAvailable, currentVersion, showUpdateModal } = useAppUpdate()
 
   useEffect(() => {
     const getUser = async () => {
@@ -521,9 +521,7 @@ export default function ProfileScreen() {
                 )}
                 {updateInfo.downloadUrl && (
                   <TouchableOpacity
-                    onPress={() =>
-                      updateInfo.downloadUrl && Linking.openURL(updateInfo.downloadUrl)
-                    }
+                    onPress={showUpdateModal}
                     style={{
                       backgroundColor: colors.primary,
                       paddingVertical: 10,

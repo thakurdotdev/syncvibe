@@ -27,12 +27,16 @@ async function main() {
     const downloadUrl = await askQuestion("Download URL (link to APK): ")
     const criticalInput = await askQuestion("Is this a critical update? (y/N): ")
     const critical = criticalInput.toLowerCase().startsWith("y")
+    const sha256Input = await askQuestion("SHA-256 Checksum (optional): ")
+    const fileSizeInput = await askQuestion("File Size in bytes (optional): ")
 
     const update = await AppUpdate.create({
       version: version.trim(),
       releaseNotes: releaseNotes.trim() || null,
       downloadUrl: downloadUrl.trim() || null,
       critical,
+      sha256: sha256Input.trim() || null,
+      fileSize: fileSizeInput.trim() ? Number(fileSizeInput.trim()) : null,
     })
 
     console.log("Successfully published app update:")
