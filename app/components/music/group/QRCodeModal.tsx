@@ -1,5 +1,5 @@
 import React from "react"
-import { Image, Text, TouchableOpacity, View } from "react-native"
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import SwipeableModal from "@/components/SwipeableModal"
 import { useTheme } from "@/context/ThemeContext"
 
@@ -14,63 +14,59 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, qrCod
 
   return (
     <SwipeableModal isVisible={isOpen} onClose={onClose}>
-      <View style={{ padding: 24, alignItems: "center" }}>
-        <Text
-          style={{
-            color: colors.foreground,
-            fontSize: 20,
-            fontWeight: "700",
-            textAlign: "center",
-            marginTop: 8,
-            marginBottom: 24,
-          }}
-        >
-          Group QR Code
-        </Text>
-        <View
-          style={{
-            backgroundColor: colors.card,
-            padding: 16,
-            borderRadius: 12,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.1,
-            shadowRadius: 12,
-            elevation: 4,
-          }}
-        >
+      <View style={styles.content}>
+        <Text style={[styles.title, { color: colors.foreground }]}>Group QR Code</Text>
+        <View style={[styles.qrContainer, { backgroundColor: colors.secondary }]}>
           <Image
-            source={{
-              uri: `data:image/png;base64,${qrCode}`,
-            }}
-            style={{ width: 250, height: 250 }}
+            source={{ uri: `data:image/png;base64,${qrCode}` }}
+            style={styles.qrImage}
             resizeMode="contain"
           />
         </View>
-        <Text
-          style={{
-            color: colors.mutedForeground,
-            fontSize: 14,
-            marginTop: 20,
-            textAlign: "center",
-            lineHeight: 20,
-          }}
-        >
+        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
           Share this QR code with others to join your group
         </Text>
-        <TouchableOpacity onPress={onClose} style={{ marginTop: 24, paddingVertical: 12 }}>
-          <Text
-            style={{
-              color: colors.mutedForeground,
-              textAlign: "center",
-              fontSize: 15,
-              fontWeight: "500",
-            }}
-          >
-            Close
-          </Text>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.6}>
+          <Text style={[styles.closeText, { color: colors.mutedForeground }]}>Close</Text>
         </TouchableOpacity>
       </View>
     </SwipeableModal>
   )
 }
+
+const styles = StyleSheet.create({
+  content: {
+    padding: 24,
+    alignItems: "center",
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  qrContainer: {
+    padding: 16,
+    borderRadius: 12,
+  },
+  qrImage: {
+    width: 250,
+    height: 250,
+  },
+  subtitle: {
+    fontSize: 14,
+    marginTop: 20,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  closeButton: {
+    marginTop: 24,
+    paddingVertical: 12,
+  },
+  closeText: {
+    textAlign: "center",
+    fontSize: 15,
+    fontWeight: "500",
+  },
+})

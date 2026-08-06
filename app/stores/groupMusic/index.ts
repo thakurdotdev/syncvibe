@@ -5,4 +5,5 @@ export {
   useGroupQueue,
   useGroupSearch,
 } from "./groupSessionStore"
+export { useGroupInviteStore, useGroupInvite } from "./groupInviteStore"
 export type { Group, GroupMember, QueueItem, Message, PlaybackState } from "./types"

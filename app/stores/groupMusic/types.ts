@@ -37,6 +37,8 @@ export interface Message {
   profilePic?: string
   userName?: string
   message: string
+  messageType?: "text" | "gif" | "activity"
+  gifUrl?: string
   timestamp: number
   type?: "text" | "activity"
   activityType?: string

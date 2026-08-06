@@ -5,13 +5,15 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Platform,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import SwipeableModal from "@/components/SwipeableModal"
 import { Input } from "@/components/ui/input"
 import { useGroupMusic } from "@/context/GroupMusicContext"
@@ -39,7 +41,7 @@ const SearchResultItem = React.memo(
     const artist = item.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"
 
     return (
-      <View style={[styles.resultItem, { borderBottomColor: colors.border }]}>
+      <View style={[styles.resultItem, { borderBottomColor: colors.border + "30" }]}>
         <Image
           source={{ uri: item.image?.[1]?.link || "https://via.placeholder.com/50" }}
           style={[styles.resultArt, { backgroundColor: colors.secondary }]}
@@ -58,14 +60,14 @@ const SearchResultItem = React.memo(
             style={[styles.actionButton, { backgroundColor: colors.primary }]}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Ionicons name="play" size={14} color={colors.primaryForeground} />
+            <Ionicons name="play" size={13} color={colors.primaryForeground} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onAddToQueue(item)}
             style={[styles.actionButton, { backgroundColor: colors.secondary }]}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Feather name="plus" size={16} color={colors.foreground} />
+            <Feather name="plus" size={14} color={colors.foreground} />
           </TouchableOpacity>
         </View>
       </View>
@@ -77,6 +79,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
   const { colors } = useTheme()
   const { playNow, addToQueue } = useGroupMusic()
   const inputRef = useRef<TextInput>(null)
+  const insets = useSafeAreaInsets()
 
   const searchQuery = useGroupSessionStore((s) => s.searchQuery)
   const searchResults = useGroupSessionStore((s) => s.searchResults)
@@ -126,6 +129,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
 
   const keyExtractor = useCallback((item: Song) => item.id, [])
 
+  const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 24) : insets.top
+  const topPadding = Math.max(statusBarHeight, insets.top || 0, 24)
+
   return (
     <SwipeableModal
       isVisible={isOpen}
@@ -135,9 +141,8 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
       hideHandle={true}
       style={styles.modalStyle}
     >
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
-        <View style={styles.container}>
-          <View style={styles.searchHeader}>
+      <View style={styles.container}>
+        <View style={[styles.searchHeader, { paddingTop: topPadding + 8 }]}>
             <TouchableOpacity onPress={handleClose} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color={colors.foreground} />
             </TouchableOpacity>
@@ -148,11 +153,11 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
               onChangeText={handleSearchChange}
               variant="outline"
               containerStyle={styles.inputContainer}
-              leftIcon={<Feather name="search" size={18} color={colors.mutedForeground} />}
+              leftIcon={<Feather name="search" size={16} color={colors.mutedForeground} />}
               rightIcon={
                 searchQuery ? (
                   <TouchableOpacity onPress={() => handleSearchChange("")}>
-                    <Feather name="x" size={18} color={colors.mutedForeground} />
+                    <Feather name="x" size={16} color={colors.mutedForeground} />
                   </TouchableOpacity>
                 ) : null
               }
@@ -160,7 +165,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
           </View>
 
           {isSearchLoading ? (
-            <View style={styles.loadingContainer}>
+            <View style={styles.centeredState}>
               <ActivityIndicator size="large" color={colors.primary} />
             </View>
           ) : (
@@ -170,50 +175,27 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
               renderItem={renderItem}
               ListEmptyComponent={
                 searchQuery ? (
-                  <View style={styles.emptyContainer}>
-                    <Feather name="search" size={40} color={colors.mutedForeground} />
-                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                  <View style={styles.centeredState}>
+                    <Feather name="search" size={28} color={colors.mutedForeground + "40"} />
+                    <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
                       No results found
-                    </Text>
-                    <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-                      Try a different search term
                     </Text>
                   </View>
                 ) : (
-                  <View style={styles.emptyContainer}>
-                    <Feather name="music" size={40} color={colors.mutedForeground} />
-                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                      Search for music
-                    </Text>
-                    <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-                      Find songs to play or add to queue
+                  <View style={styles.centeredState}>
+                    <Feather name="search" size={28} color={colors.mutedForeground + "40"} />
+                    <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
+                      Search for songs to add
                     </Text>
                   </View>
                 )
               }
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
             />
           )}
-
-          <View style={[styles.legend, { borderTopColor: colors.border }]}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendIcon, { backgroundColor: colors.primary }]}>
-                <Ionicons name="play" size={8} color={colors.primaryForeground} />
-              </View>
-              <Text style={[styles.legendText, { color: colors.mutedForeground }]}>Play Now</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendIcon, { backgroundColor: colors.secondary }]}>
-                <Feather name="plus" size={8} color={colors.foreground} />
-              </View>
-              <Text style={[styles.legendText, { color: colors.mutedForeground }]}>
-                Add to Queue
-              </Text>
-            </View>
-          </View>
         </View>
-      </SafeAreaView>
     </SwipeableModal>
   )
 }
@@ -233,25 +215,24 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 20,
-    paddingTop: 10,
   },
   searchHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   backButton: {
-    paddingRight: 16,
+    paddingRight: 12,
   },
   inputContainer: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
+  centeredState: {
     alignItems: "center",
-    minHeight: 200,
+    justifyContent: "center",
+    paddingVertical: 48,
+    gap: 8,
   },
   listContent: {
     paddingBottom: 20,
@@ -259,73 +240,42 @@ const styles = StyleSheet.create({
   resultItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   resultArt: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: 8,
   },
   resultInfo: {
-    marginLeft: 14,
+    marginLeft: 12,
     flex: 1,
   },
   resultName: {
     fontWeight: "500",
-    fontSize: 15,
+    fontSize: 14,
   },
   resultArtist: {
-    fontSize: 13,
-    marginTop: 3,
+    fontSize: 12,
+    marginTop: 2,
   },
   actionButtons: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     marginLeft: 8,
   },
   actionButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-  },
-  emptyContainer: {
-    paddingVertical: 40,
-    alignItems: "center",
   },
   emptyTitle: {
-    fontWeight: "500",
-    marginTop: 16,
-    fontSize: 16,
-  },
-  emptySubtitle: {
     fontSize: 14,
-    marginTop: 4,
-    textAlign: "center",
-  },
-  legend: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 24,
-    paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  legendIcon: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  legendText: {
-    fontSize: 11,
+    fontWeight: "500",
   },
 })

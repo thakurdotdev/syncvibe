@@ -4,7 +4,8 @@ import * as Haptics from "expo-haptics"
 import { Ionicons } from "@expo/vector-icons"
 import { useProgress } from "@rntp/player"
 import React, { memo, useCallback, useEffect, useMemo } from "react"
-import { Image, Pressable, StyleSheet, Text, View } from "react-native"
+import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native"
+import { BlurView } from "expo-blur"
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -302,79 +303,80 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
 }: UnifiedBottomDeckProps) {
   const { currentSong, isPlaying } = usePlaybackState()
   const { handlePlayPause, handleNextSong } = usePlayerControls()
-  const mountOpacity = useSharedValue(0)
-
-  useEffect(() => {
-    mountOpacity.value = withTiming(1, { duration: 120 })
-  }, [mountOpacity])
+  const mountOpacity = useSharedValue(1)
 
   const mountStyle = useAnimatedStyle(() => ({
     opacity: mountOpacity.value,
   }))
 
-  const goHome = useCallback(() => router.navigate("/home"), [])
-  const goGroup = useCallback(() => router.navigate("/group-music"), [])
-  const goPlaylist = useCallback(() => router.navigate("/playlist"), [])
-  const goChat = useCallback(() => router.navigate("/chat"), [])
-  const goProfile = useCallback(() => router.navigate("/profile"), [])
+  const goHome = useCallback(() => router.navigate("/(tabs)/home"), [])
+  const goGroup = useCallback(() => router.navigate("/(tabs)/group-music"), [])
+  const goPlaylist = useCallback(() => router.navigate("/(tabs)/playlist"), [])
+  const goChat = useCallback(() => router.navigate("/(tabs)/chat"), [])
+  const goProfile = useCallback(() => router.navigate("/(tabs)/profile"), [])
   const handlers = [goHome, goGroup, goPlaylist, goChat, goProfile]
 
   const isDark = theme === "dark"
 
-  const surfaceBg = isDark ? "rgba(20, 20, 22, 0.97)" : "rgba(255, 255, 255, 0.97)"
-  const borderColor = isDark ? "rgba(255, 255, 255, 0.07)" : "rgba(0, 0, 0, 0.06)"
+  const glassBg = isDark ? "rgba(18, 18, 24, 0.93)" : "rgba(255, 255, 255, 0.94)"
+  const borderColor = isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.08)"
+  const highlightColor = isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.9)"
 
   const showMiniPlayer = !!currentSong
 
   return (
-    <Animated.View
-      style={[
-        styles.outerContainer,
-        { bottom: Math.max(8, insets.bottom) },
-        mountStyle,
-      ]}
-    >
-      <View
-        style={[
-          styles.surfaceContainer,
-          {
-            backgroundColor: surfaceBg,
-            borderColor: borderColor,
-          },
-        ]}
-      >
-        {showMiniPlayer && (
-          <>
-            <MiniPlayerRow
-              currentSong={currentSong}
-              isPlaying={isPlaying}
-              handlePlayPause={handlePlayPause}
-              handleNextSong={handleNextSong}
-              colors={colors}
-              isDark={isDark}
-            />
-            <View
-              style={[
-                styles.divider,
-                { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" },
-              ]}
-            />
-          </>
-        )}
+    <Animated.View style={[styles.outerContainer, mountStyle]}>
+      <View style={styles.surfaceWrapper}>
+        <BlurView
+          intensity={Platform.OS === "android" ? 70 : 95}
+          tint={isDark ? "dark" : "light"}
+          style={StyleSheet.absoluteFill}
+        />
+        <View
+          style={[
+            styles.blurContainer,
+            {
+              backgroundColor: glassBg,
+              borderColor: borderColor,
+              paddingBottom: Math.max(6, insets.bottom),
+            },
+          ]}
+        >
+          <View style={[styles.specularHighlight, { backgroundColor: highlightColor }]} />
 
-        <View style={styles.navRow}>
-          {TAB_ITEMS.map((tab, index) => (
-            <TabButton
-              key={tab.name}
-              onPress={handlers[index]}
-              label={tab.label}
-              activeIcon={tab.activeIcon}
-              inactiveIcon={tab.inactiveIcon}
-              isFocused={activeSegment === tab.name}
-              activeColor={colors.primary}
-              inactiveColor={colors.mutedForeground}
-            />
-          ))}
+          {showMiniPlayer && (
+            <>
+              <MiniPlayerRow
+                currentSong={currentSong}
+                isPlaying={isPlaying}
+                handlePlayPause={handlePlayPause}
+                handleNextSong={handleNextSong}
+                colors={colors}
+                isDark={isDark}
+              />
+              <View
+                style={[
+                  styles.divider,
+                  { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" },
+                ]}
+              />
+            </>
+          )}
+
+          <View style={styles.navRow}>
+            {TAB_ITEMS.map((tab, index) => (
+              <TabButton
+                key={tab.name}
+                onPress={handlers[index]}
+                label={tab.label}
+                activeIcon={tab.activeIcon}
+                inactiveIcon={tab.inactiveIcon}
+                isFocused={activeSegment === tab.name}
+                activeColor={colors.primary}
+                inactiveColor={colors.mutedForeground}
+              />
+            ))}
+          </View>
         </View>
       </View>
     </Animated.View>
@@ -384,19 +386,35 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
 const styles = StyleSheet.create({
   outerContainer: {
     position: "absolute",
-    left: 10,
-    right: 10,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 1000,
   },
-  surfaceContainer: {
-    borderRadius: 22,
-    borderWidth: 0.5,
+  surfaceWrapper: {
+    width: "100%",
     overflow: "hidden",
-    elevation: 12,
+    elevation: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.2,
     shadowRadius: 12,
+  },
+  blurContainer: {
+    width: "100%",
+    borderTopWidth: 1,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
+    overflow: "hidden",
+  },
+  specularHighlight: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    opacity: 0.6,
   },
 
   progressTrack: {

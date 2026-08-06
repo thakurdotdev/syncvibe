@@ -16,12 +16,13 @@ export default function TabLayout() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <Tabs
+        tabBar={() => null}
         screenOptions={{
           headerShown: false,
           lazy: true,
           sceneStyle: { backgroundColor: colors.background },
+          tabBarStyle: { display: "none" },
         }}
-        tabBar={() => null}
       >
         <Tabs.Screen name="home/index" options={{ title: "Home" }} />
         <Tabs.Screen name="group-music/index" options={{ title: "Group Music" }} />

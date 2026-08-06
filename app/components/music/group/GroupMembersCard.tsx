@@ -1,6 +1,5 @@
-import React from "react"
-import { FlatList, Image, Text, View } from "react-native"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import React, { useMemo } from "react"
+import { FlatList, Image, StyleSheet, Text, View } from "react-native"
 import { useTheme } from "@/context/ThemeContext"
 import { getProfileCloudinaryUrl } from "@/utils/Cloudinary"
 
@@ -19,55 +18,103 @@ export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({ groupMembers
   const { colors } = useTheme()
 
   return (
-    <Card variant="outline" className="m-4" style={{ flex: 1 }}>
-      <CardHeader>
-        <CardTitle>Group Members ({groupMembers.length})</CardTitle>
-      </CardHeader>
-      <CardContent style={{ flex: 1 }}>
-        <FlatList
-          data={groupMembers}
-          keyExtractor={(item) => item.userId.toString()}
-          renderItem={({ item }) => (
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                paddingVertical: 14,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
+    <View style={styles.container}>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Members</Text>
+        <View style={[styles.countBadge, { backgroundColor: colors.secondary }]}>
+          <Text style={[styles.countText, { color: colors.mutedForeground }]}>
+            {groupMembers.length}
+          </Text>
+        </View>
+      </View>
+
+      {groupMembers.map((item, index) => {
+        const isHost = hostId && item.userId.toString() === hostId.toString()
+        const isLast = index === groupMembers.length - 1
+
+        return (
+          <View
+            key={item.userId.toString()}
+            style={[
+              styles.memberRow,
+              !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border + "30" },
+            ]}
+          >
+            <Image
+              source={{
+                uri: getProfileCloudinaryUrl(item.profilePic) || "https://via.placeholder.com/40",
               }}
-            >
-              <Image
-                source={{
-                  uri: getProfileCloudinaryUrl(item.profilePic) || "https://via.placeholder.com/40",
-                }}
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: colors.secondary,
-                }}
-              />
-              <View style={{ marginLeft: 16 }}>
-                <Text style={{ color: colors.foreground, fontSize: 15 }}>{item.userName}</Text>
-                {hostId && item.userId.toString() === hostId.toString() && (
-                  <Text
-                    style={{
-                      color: colors.mutedForeground,
-                      fontSize: 12,
-                      marginTop: 2,
-                    }}
-                  >
-                    Host
-                  </Text>
-                )}
-              </View>
+              style={[styles.avatar, { backgroundColor: colors.secondary }]}
+            />
+            <View style={styles.memberInfo}>
+              <Text style={[styles.memberName, { color: colors.foreground }]}>{item.userName}</Text>
+              {isHost && (
+                <View style={[styles.hostBadge, { backgroundColor: colors.primary + "15" }]}>
+                  <Text style={[styles.hostText, { color: colors.primary }]}>Host</Text>
+                </View>
+              )}
             </View>
-          )}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          showsVerticalScrollIndicator={false}
-        />
-      </CardContent>
-    </Card>
+          </View>
+        )
+      })}
+    </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginTop: 16,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  countBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  countText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  memberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  memberInfo: {
+    marginLeft: 12,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  memberName: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  hostBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  hostText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+})

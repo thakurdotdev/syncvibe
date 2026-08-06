@@ -11,11 +11,14 @@ interface GroupPlaybackState {
   currentSong: Song | null
   isPlaying: boolean
   isLoading: boolean
+  isSyncing: boolean
+  syncCountdown: number
   currentTime: number
   duration: number
   serverTimeOffset: number
   lastSync: number
   trackPlayerReady: boolean
+  connectionQuality: "good" | "fair" | "poor"
 }
 
 interface GroupPlaybackActions {
@@ -71,11 +74,14 @@ const initialState: GroupPlaybackState = {
   currentSong: null,
   isPlaying: false,
   isLoading: false,
+  isSyncing: false,
+  syncCountdown: 0,
   currentTime: 0,
   duration: 0,
   serverTimeOffset: 0,
   lastSync: 0,
   trackPlayerReady: false,
+  connectionQuality: "good",
 }
 
 export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => ({
@@ -119,6 +125,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     if (!audioUrl) audioUrl = song.download_url?.[0]?.link || ""
     return {
       id: song.id,
+      mediaId: song.id,
       url: audioUrl,
       title: song.name || "Unknown Title",
       artist: song?.artist_map?.artists?.[0]?.name || "Unknown Artist",
@@ -154,9 +161,18 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     const timeUntilPlay = Math.max(0, (data.scheduledTime || serverNow) - serverNow)
 
     const activeItem = TrackPlayer.getActiveMediaItem()
-    const correctTrackLoaded = currentSong && activeItem?.mediaId === currentSong.id
+    const activeMediaId = activeItem?.mediaId || (activeItem as any)?.id
+    const correctTrackLoaded = currentSong && activeMediaId === currentSong.id
 
-    if (correctTrackLoaded) {
+    if (!correctTrackLoaded && currentSong) {
+      TrackPlayer.stop()
+      TrackPlayer.clear()
+      const track = get().convertSongToTrack(currentSong)
+      TrackPlayer.setMediaItems([track])
+      if (typeof data.currentTime === "number") {
+        TrackPlayer.seekTo(data.currentTime)
+      }
+    } else if (correctTrackLoaded && typeof data.currentTime === "number") {
       TrackPlayer.seekTo(data.currentTime)
     }
 
@@ -205,7 +221,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
           set({
             isPlaying: true,
             isLoading: false,
-            currentTime: 0,
+            currentTime: data.currentTime || 0,
             duration: data.song.duration || 0,
           })
         },
@@ -271,10 +287,11 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     }
 
     const newIsPlaying = typeof forceState === "boolean" ? forceState : !isPlaying
-    const currentAudioTime = TrackPlayer.getProgress().position
+    const currentAudioTime = get().currentTime || TrackPlayer.getProgress().position
 
     const activeItem = TrackPlayer.getActiveMediaItem()
-    const isActiveSongMatched = activeItem?.mediaId === currentSong.id
+    const activeMediaId = activeItem?.mediaId || (activeItem as any)?.id
+    const isActiveSongMatched = currentSong && activeMediaId === currentSong.id
 
     try {
       const scheduledTime = getServerTime() + 300

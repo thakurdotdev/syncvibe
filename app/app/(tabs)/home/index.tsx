@@ -234,7 +234,7 @@ function HomeScreen() {
             showsVerticalScrollIndicator={false}
             onScroll={scrollHandler}
             scrollEventThrottle={16}
-            contentContainerStyle={{ paddingBottom: 24, paddingTop: 12 }}
+            contentContainerStyle={{ paddingBottom: 130, paddingTop: 12 }}
             refreshControl={
               <RefreshControl
                 refreshing={isRefetching}

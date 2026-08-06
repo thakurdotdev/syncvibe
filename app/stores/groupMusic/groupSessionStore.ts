@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 import { Alert } from "react-native"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Song } from "@/types/song"
 import { searchSongs } from "@/utils/api/getSongs"
 import { ensureHttpsForSongUrls } from "@/utils/getHttpsUrls"
@@ -16,6 +17,12 @@ interface GroupSessionState {
   isQueueOpen: boolean
 
   isGroupModalOpen: boolean
+  isRejoining: boolean
+  connectionState: "connected" | "disconnected" | "reconnecting"
+
+  typingUsers: Record<string, string>
+  floatingReactions: Array<{ id: string; emoji: string; userName: string }>
+  quickPickRecs: Song[]
 
   searchResults: Song[]
   searchQuery: string
@@ -25,22 +32,38 @@ interface GroupSessionState {
 interface GroupSessionActions {
   getCurrentQueueItem: () => QueueItem | null
   getUpcomingQueue: () => QueueItem[]
+  getPlayedQueue: () => QueueItem[]
+
+  saveSession: (groupId: string) => void
+  clearSession: () => void
+  getStoredSession: () => Promise<{ groupId: string; lastUpdate: number } | null>
 
   createGroup: (socket: any, user: any, groupName: string) => void
   joinGroup: (socket: any, user: any, groupId: string) => void
+  rejoinGroup: (socket: any, user: any, groupId: string) => void
   leaveGroup: (socket: any, user: any, resetPlayback: () => void) => void
-  sendMessage: (socket: any, user: any, message: string) => void
+  sendMessage: (socket: any, user: any, message: string, messageType?: string) => void
 
   addToQueue: (socket: any, user: any, song: Song) => void
   playNow: (socket: any, user: any, song: Song) => void
+  playNext: (socket: any, user: any, song: Song) => void
   skipSong: (socket: any, user: any) => void
   removeFromQueue: (socket: any, user: any, queueItemId: string) => void
+  reorderQueue: (socket: any, fromIndex: number, toIndex: number) => void
+  addPlaylistToQueue: (socket: any, user: any, songs: Song[]) => void
 
   performSearch: (query: string) => Promise<void>
   clearSearch: () => void
 
-  handleGroupCreated: (group: Group, user: any) => void
+  handleGroupCreated: (group: Group, user: any, openInviteSheet?: () => void) => void
   handleGroupJoined: (data: {
+    group: Group
+    members: GroupMember[]
+    queue?: QueueItem[]
+    currentQueueIndex?: number
+    playbackState?: any
+  }) => void
+  handleGroupRejoined: (data: {
     group: Group
     members: GroupMember[]
     queue?: QueueItem[]
@@ -53,6 +76,7 @@ interface GroupSessionActions {
 type GroupSessionStore = GroupSessionState & GroupSessionActions
 
 let searchDebounceTimer: any = null
+const SESSION_KEY = "@syncvibe_group_session"
 
 const initialState: GroupSessionState = {
   currentGroup: null,
@@ -62,6 +86,11 @@ const initialState: GroupSessionState = {
   currentQueueIndex: -1,
   isQueueOpen: false,
   isGroupModalOpen: false,
+  isRejoining: false,
+  connectionState: "disconnected",
+  typingUsers: {},
+  floatingReactions: [],
+  quickPickRecs: [],
   searchResults: [],
   searchQuery: "",
   isSearchLoading: false,
@@ -78,6 +107,30 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
   getUpcomingQueue: () => {
     const { queue, currentQueueIndex } = get()
     return queue.filter((_, idx) => idx > currentQueueIndex)
+  },
+
+  getPlayedQueue: () => {
+    const { queue, currentQueueIndex } = get()
+    return queue.filter((_, idx) => idx < currentQueueIndex)
+  },
+
+  saveSession: (groupId) => {
+    AsyncStorage.setItem(SESSION_KEY, JSON.stringify({ groupId, lastUpdate: Date.now() })).catch(
+      () => {},
+    )
+  },
+
+  clearSession: () => {
+    AsyncStorage.removeItem(SESSION_KEY).catch(() => {})
+  },
+
+  getStoredSession: async () => {
+    try {
+      const stored = await AsyncStorage.getItem(SESSION_KEY)
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      return null
+    }
   },
 
   createGroup: (socket, user, groupName) => {
@@ -107,8 +160,19 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     set({ isGroupModalOpen: false })
   },
 
+  rejoinGroup: (socket, user, groupId) => {
+    if (!groupId || !user?.userid || !socket) return
+    set({ isRejoining: true })
+    socket.emit("rejoin-music-group", {
+      groupId,
+      userId: user.userid,
+      userName: user.name,
+      profilePic: user.profilepic,
+    })
+  },
+
   leaveGroup: (socket, user, resetPlayback) => {
-    const { currentGroup } = get()
+    const { currentGroup, clearSession } = get()
     if (!currentGroup || !user) return
 
     socket?.emit("leave-group", {
@@ -117,21 +181,29 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     })
 
     resetPlayback()
+    clearSession()
     set({ ...initialState })
-    Alert.alert("Info", `Left group ${currentGroup.name}`)
   },
 
-  sendMessage: (socket, user, message) => {
+  sendMessage: (socket, user, message, messageType = "text") => {
+    if (!message.trim()) return
     const { currentGroup } = get()
-    if (!message.trim() || !currentGroup?.id || !user) return
+    if (!currentGroup?.id || !user) return
 
-    socket?.emit("chat-message", {
+    const payload: any = {
       groupId: currentGroup.id,
       senderId: user.userid,
       profilePic: user.profilepic,
       userName: user.name,
-      message,
-    })
+      messageType,
+    }
+    if (messageType === "gif") {
+      payload.gifUrl = message
+      payload.message = ""
+    } else {
+      payload.message = message
+    }
+    socket?.emit("chat-message", payload)
   },
 
   addToQueue: (socket, user, song) => {
@@ -172,6 +244,22 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     })
   },
 
+  playNext: (socket, user, song) => {
+    const { currentGroup } = get()
+    if (!currentGroup?.id || !user) return
+
+    const securedSong = ensureHttpsForSongUrls(song)
+    socket?.emit("play-next", {
+      groupId: currentGroup.id,
+      song: securedSong,
+      addedBy: {
+        userId: user.userid,
+        userName: user.name,
+        profilePic: user.profilepic,
+      },
+    })
+  },
+
   skipSong: (socket, user) => {
     const { currentGroup } = get()
     if (!currentGroup?.id) return
@@ -190,6 +278,32 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
       groupId: currentGroup.id,
       queueItemId,
       userId: user.userid,
+    })
+  },
+
+  reorderQueue: (socket, fromIndex, toIndex) => {
+    const { currentGroup } = get()
+    if (!currentGroup?.id || fromIndex === toIndex) return
+    socket?.emit("reorder-queue", {
+      groupId: currentGroup.id,
+      fromIndex,
+      toIndex,
+    })
+  },
+
+  addPlaylistToQueue: (socket, user, songs) => {
+    const { currentGroup } = get()
+    if (!currentGroup?.id || !user || !songs?.length) return
+
+    const securedSongs = songs.map(ensureHttpsForSongUrls)
+    socket?.emit("add-playlist-to-queue", {
+      groupId: currentGroup.id,
+      songs: securedSongs,
+      addedBy: {
+        userId: user.userid,
+        userName: user.name,
+        profilePic: user.profilepic,
+      },
     })
   },
 
@@ -222,7 +336,8 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     set({ searchQuery: "", searchResults: [], isSearchLoading: false })
   },
 
-  handleGroupCreated: (group, user) => {
+  handleGroupCreated: (group, user, openInviteSheet) => {
+    const { saveSession } = get()
     set({
       currentGroup: group,
       groupMembers: [
@@ -236,20 +351,39 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
       queue: [],
       currentQueueIndex: -1,
     })
+    saveSession(group.id)
+    openInviteSheet?.()
   },
 
   handleGroupJoined: (data) => {
     const { group, members, queue: serverQueue, currentQueueIndex: serverIdx } = data
+    const { saveSession } = get()
     set({
       currentGroup: group,
       groupMembers: members,
       queue: serverQueue || [],
       currentQueueIndex: serverIdx ?? -1,
     })
+    saveSession(group.id)
+  },
+
+  handleGroupRejoined: (data) => {
+    const { group, members, queue: serverQueue, currentQueueIndex: serverIdx } = data
+    const { saveSession } = get()
+    set({
+      currentGroup: group,
+      groupMembers: members,
+      queue: serverQueue || [],
+      currentQueueIndex: serverIdx ?? -1,
+      isRejoining: false,
+    })
+    saveSession(group.id)
   },
 
   resetSession: (resetPlayback) => {
+    const { clearSession } = get()
     resetPlayback()
+    clearSession()
     set({ ...initialState })
   },
 }))

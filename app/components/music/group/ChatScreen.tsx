@@ -1,0 +1,486 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  Dimensions,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native"
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated"
+import { SafeAreaView } from "react-native-safe-area-context"
+import { Feather, Ionicons } from "@expo/vector-icons"
+import SwipeableModal from "@/components/SwipeableModal"
+import { useTheme } from "@/context/ThemeContext"
+import { useGroupMusic } from "@/context/GroupMusicContext"
+import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
+import { getProfileCloudinaryUrl } from "@/utils/Cloudinary"
+import { Message } from "@/stores/groupMusic/types"
+
+const EMOJI_ONLY_REGEX =
+  /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\s*(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)){0,2}$/u
+
+const isEmojiOnly = (text: string) => {
+  if (!text || text.length > 20) return false
+  return EMOJI_ONLY_REGEX.test(text.trim())
+}
+
+const ACTIVITY_COLORS: Record<string, { icon: string; bg: string; text: string }> = {
+  "now playing": { icon: "#34d399", bg: "#34d39915", text: "#34d39990" },
+  queue: { icon: "#60a5fa", bg: "#60a5fa15", text: "#60a5fa90" },
+  skipped: { icon: "#fbbf24", bg: "#fbbf2415", text: "#fbbf2490" },
+  joined: { icon: "#34d399", bg: "#34d39915", text: "#34d39990" },
+  left: { icon: "#fb7185", bg: "#fb718515", text: "#fb718590" },
+  "queue ended": { icon: "#a78bfa", bg: "#a78bfa15", text: "#a78bfa90" },
+}
+
+const getActivityMeta = (message: string) => {
+  const lower = message?.toLowerCase() || ""
+  for (const [keyword, meta] of Object.entries(ACTIVITY_COLORS)) {
+    if (lower.includes(keyword)) return meta
+  }
+  return { icon: "#888", bg: "#88888815", text: "#88888860" }
+}
+
+const getActivityIcon = (message: string): string => {
+  const lower = message?.toLowerCase() || ""
+  if (lower.includes("now playing") || lower.includes("play")) return "play"
+  if (lower.includes("queue")) return "list"
+  if (lower.includes("skip")) return "skip-forward"
+  if (lower.includes("joined")) return "user-plus"
+  if (lower.includes("left")) return "user-minus"
+  return "message-circle"
+}
+
+const ActivityMessageRow = React.memo(({ msg }: { msg: Message }) => {
+  const meta = getActivityMeta(msg.message)
+  const icon = getActivityIcon(msg.message)
+
+  return (
+    <View style={styles.activityContainer}>
+      <View style={[styles.activityBadge, { backgroundColor: meta.bg }]}>
+        <Feather name={icon as any} size={10} color={meta.icon} />
+        <Text style={[styles.activityText, { color: meta.text }]} numberOfLines={1}>
+          {msg.message}
+        </Text>
+      </View>
+    </View>
+  )
+})
+
+const ChatBubble = React.memo(
+  ({
+    msg,
+    isOwn,
+    showAvatar,
+    colors,
+  }: {
+    msg: Message
+    isOwn: boolean
+    showAvatar: boolean
+    colors: any
+  }) => {
+    const emoji = isEmojiOnly(msg.message)
+
+    return (
+      <View style={[styles.bubbleRow, isOwn && styles.bubbleRowOwn, showAvatar && { marginTop: 10 }]}>
+        {!isOwn && (
+          <View style={styles.avatarSlot}>
+            {showAvatar && (
+              <Image
+                source={{
+                  uri: getProfileCloudinaryUrl(msg.profilePic) || "https://via.placeholder.com/28",
+                }}
+                style={styles.bubbleAvatar}
+              />
+            )}
+          </View>
+        )}
+
+        <View
+          style={[
+            emoji
+              ? styles.emojiContainer
+              : isOwn
+                ? [styles.bubbleOwn, { backgroundColor: colors.primary }]
+                : [styles.bubbleOther, { backgroundColor: colors.secondary }],
+          ]}
+        >
+          {!isOwn && showAvatar && !emoji && (
+            <Text style={[styles.bubbleName, { color: colors.mutedForeground + "80" }]}>
+              {msg.userName}
+            </Text>
+          )}
+          {emoji ? (
+            <Text style={styles.emojiText}>{msg.message}</Text>
+          ) : (
+            <Text
+              style={[
+                styles.bubbleText,
+                { color: isOwn ? colors.primaryForeground : colors.foreground },
+              ]}
+            >
+              {msg.message}
+            </Text>
+          )}
+        </View>
+      </View>
+    )
+  },
+)
+
+const TypingDot = ({ delay }: { delay: number }) => {
+  const opacity = useSharedValue(0.3)
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      opacity.value = withRepeat(
+        withSequence(withTiming(1, { duration: 400 }), withTiming(0.3, { duration: 400 })),
+        -1,
+      )
+    }, delay)
+    return () => clearTimeout(timeout)
+  }, [delay])
+
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }))
+
+  return <Animated.View style={[styles.typingDot, style]} />
+}
+
+const TypingIndicator = React.memo(
+  ({ typingUsers, colors }: { typingUsers: Record<string, string>; colors: any }) => {
+    const names = Object.values(typingUsers)
+    if (names.length === 0) return null
+
+    const label =
+      names.length === 1
+        ? `${names[0]} is typing`
+        : names.length === 2
+          ? `${names[0]} and ${names[1]} are typing`
+          : `${names.length} people are typing`
+
+    return (
+      <Animated.View entering={FadeIn.duration(200)} style={styles.typingContainer}>
+        <View style={styles.typingDots}>
+          <TypingDot delay={0} />
+          <TypingDot delay={150} />
+          <TypingDot delay={300} />
+        </View>
+        <Text style={[styles.typingLabel, { color: colors.mutedForeground }]}>{label}</Text>
+      </Animated.View>
+    )
+  },
+)
+
+interface ChatScreenProps {
+  isOpen: boolean
+  onClose: () => void
+}
+
+export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
+  const { colors } = useTheme()
+  const { sendMessage, startTyping, stopTyping, user } = useGroupMusic()
+  const messages = useGroupSessionStore((s) => s.messages)
+  const typingUsers = useGroupSessionStore((s) => s.typingUsers)
+
+  const [inputText, setInputText] = useState("")
+  const flatListRef = useRef<FlatList>(null)
+  const typingTimerRef = useRef<any>(null)
+
+  useEffect(() => {
+    if (messages.length > 0 && isOpen) {
+      const timer = setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true })
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [messages.length, isOpen])
+
+  const handleSend = useCallback(() => {
+    const text = inputText.trim()
+    if (!text) return
+    sendMessage(text)
+    setInputText("")
+    stopTyping()
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+  }, [inputText, sendMessage, stopTyping])
+
+  const handleTextChange = useCallback(
+    (text: string) => {
+      setInputText(text)
+      if (text.trim()) {
+        startTyping()
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+        typingTimerRef.current = setTimeout(stopTyping, 2000)
+      } else {
+        stopTyping()
+      }
+    },
+    [startTyping, stopTyping],
+  )
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: Message; index: number }) => {
+      if (item.type === "activity") {
+        return <ActivityMessageRow msg={item} />
+      }
+      const isOwn = item.senderId === user?.userid
+      const prev = index > 0 ? messages[index - 1] : null
+      const showAvatar =
+        !isOwn && (!prev || prev.type === "activity" || prev.senderId !== item.senderId)
+
+      return <ChatBubble msg={item} isOwn={isOwn} showAvatar={showAvatar} colors={colors} />
+    },
+    [user?.userid, messages, colors],
+  )
+
+  const keyExtractor = useCallback((item: Message, index: number) => item.id || String(index), [])
+
+  return (
+    <SwipeableModal
+      isVisible={isOpen}
+      onClose={onClose}
+      maxHeight={Dimensions.get("window").height * 0.88}
+      style={{ height: Dimensions.get("window").height * 0.88 }}
+      scrollable={false}
+    >
+      <View style={styles.flex}>
+        <View style={styles.header}>
+          <Feather name="message-circle" size={18} color={colors.foreground} />
+          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Group Chat</Text>
+          <View style={styles.flex} />
+          <TouchableOpacity onPress={onClose}>
+            <Feather name="x" size={20} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.divider, { backgroundColor: colors.border + "40" }]} />
+
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={styles.messagesList}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}>
+                <Feather name="message-circle" size={20} color={colors.mutedForeground + "40"} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: colors.mutedForeground + "70" }]}>
+                No messages yet
+              </Text>
+              <Text style={[styles.emptySubtitle, { color: colors.mutedForeground + "40" }]}>
+                Say something to the group!
+              </Text>
+            </View>
+          }
+        />
+
+        <TypingIndicator typingUsers={typingUsers} colors={colors} />
+
+        <View style={[styles.inputContainer, { borderTopColor: colors.border + "30" }]}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.secondary,
+                color: colors.foreground,
+              },
+            ]}
+            value={inputText}
+            onChangeText={handleTextChange}
+            placeholder="Type a message..."
+            placeholderTextColor={colors.mutedForeground + "60"}
+            multiline
+            maxLength={500}
+            returnKeyType="send"
+            onSubmitEditing={handleSend}
+          />
+          <TouchableOpacity
+            onPress={handleSend}
+            disabled={!inputText.trim()}
+            style={[
+              styles.sendButton,
+              {
+                backgroundColor: inputText.trim() ? colors.primary : colors.secondary,
+              },
+            ]}
+          >
+            <Feather
+              name="send"
+              size={16}
+              color={inputText.trim() ? colors.primaryForeground : colors.mutedForeground + "40"}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SwipeableModal>
+  )
+}
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  divider: {
+    height: 1,
+    marginHorizontal: 20,
+  },
+  messagesList: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexGrow: 1,
+  },
+  activityContainer: {
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  activityBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  activityText: {
+    fontSize: 11,
+    maxWidth: 260,
+  },
+  bubbleRow: {
+    flexDirection: "row",
+    paddingVertical: 1,
+    paddingHorizontal: 4,
+  },
+  bubbleRowOwn: {
+    justifyContent: "flex-end",
+  },
+  avatarSlot: {
+    width: 28,
+    marginRight: 6,
+    alignSelf: "flex-end",
+  },
+  bubbleAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  bubbleOwn: {
+    maxWidth: "72%",
+    borderRadius: 18,
+    borderBottomRightRadius: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  bubbleOther: {
+    maxWidth: "72%",
+    borderRadius: 18,
+    borderBottomLeftRadius: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  bubbleName: {
+    fontSize: 10,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  bubbleText: {
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  emojiContainer: {
+    paddingVertical: 2,
+  },
+  emojiText: {
+    fontSize: 40,
+    lineHeight: 48,
+  },
+  typingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 6,
+    gap: 6,
+  },
+  typingDots: {
+    flexDirection: "row",
+    gap: 3,
+  },
+  typingDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#888",
+  },
+  typingLabel: {
+    fontSize: 11,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    gap: 8,
+  },
+  input: {
+    flex: 1,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === "ios" ? 10 : 8,
+    maxHeight: 100,
+    fontSize: 14,
+  },
+  sendButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 48,
+    flex: 1,
+  },
+  emptyIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 10,
+  },
+  emptySubtitle: {
+    fontSize: 11,
+    marginTop: 3,
+  },
+})

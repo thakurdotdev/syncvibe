@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react"
+import React, { useMemo } from "react"
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import { Feather, Ionicons } from "@expo/vector-icons"
 import { CustomSlider } from "../MusicCards"
 import { useTheme } from "@/context/ThemeContext"
 import { useGroupPlaybackStore } from "@/stores/groupMusic/groupPlaybackStore"
 import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
+import { ReactionBar } from "./ReactionBar"
+import { MemberAvatarStack } from "./MemberAvatarStack"
 
 interface CurrentSongCardProps {
   onChooseSong: () => void
@@ -71,33 +73,34 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
     [queue, currentQueueIndex],
   )
 
-  const queueCount = useMemo(
-    () => (currentQueueItem ? 1 : 0) + upcomingQueue.length,
-    [currentQueueItem, upcomingQueue.length],
-  )
-
   const nextSong = useMemo(() => upcomingQueue[0]?.song || null, [upcomingQueue])
   const addedBy = currentQueueItem?.addedBy
   const artist = currentSong?.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"
 
   if (!currentSong) {
     return (
-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <TouchableOpacity onPress={onChooseSong} style={styles.emptyState}>
-          <Feather name="music" size={28} color={colors.mutedForeground} />
+      <TouchableOpacity
+        onPress={onChooseSong}
+        style={[styles.card, { backgroundColor: colors.card }]}
+        activeOpacity={0.7}
+      >
+        <View style={styles.emptyState}>
+          <View style={[styles.emptyIconWrap, { backgroundColor: colors.secondary }]}>
+            <Feather name="music" size={24} color={colors.mutedForeground} />
+          </View>
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
             Choose a song to play
           </Text>
           <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
             Search for music to start the vibe
           </Text>
-        </TouchableOpacity>
-      </View>
+        </View>
+      </TouchableOpacity>
     )
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.card }]}>
       <View style={styles.songRow}>
         <Image
           source={{ uri: currentSong.image?.[2]?.link || currentSong.image?.[1]?.link }}
@@ -131,6 +134,7 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
             onPress={onPlayPause}
             disabled={isLoading}
             style={[styles.playButton, { backgroundColor: colors.primary }]}
+            activeOpacity={0.8}
           >
             {isLoading ? (
               <Feather name="loader" size={22} color={colors.primaryForeground} />
@@ -148,30 +152,24 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
             onPress={onSkip}
             disabled={isLoading}
             style={[styles.skipButton, { backgroundColor: colors.secondary }]}
+            activeOpacity={0.7}
           >
             <Ionicons name="play-skip-forward" size={18} color={colors.foreground} />
           </TouchableOpacity>
         </View>
+      </View>
 
-        <TouchableOpacity
-          onPress={onOpenQueue}
-          style={[styles.queueButton, { backgroundColor: colors.secondary }]}
-        >
-          <Feather name="list" size={16} color={colors.foreground} />
-          {queueCount > 0 && (
-            <View style={[styles.queueBadge, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.queueBadgeText, { color: colors.primaryForeground }]}>
-                {queueCount}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
+      <ReactionBar />
+
+      <View style={styles.memberStackRow}>
+        <MemberAvatarStack />
       </View>
 
       {nextSong && (
         <TouchableOpacity
           onPress={onOpenQueue}
-          style={[styles.upNextRow, { borderTopColor: colors.border }]}
+          style={[styles.upNextRow, { borderTopColor: colors.border + "30" }]}
+          activeOpacity={0.7}
         >
           <Text style={[styles.upNextLabel, { color: colors.mutedForeground }]}>UP NEXT</Text>
           <Text style={[styles.upNextSong, { color: colors.mutedForeground }]} numberOfLines={1}>
@@ -186,10 +184,8 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 16,
-    marginVertical: 8,
+    marginTop: 12,
     borderRadius: 16,
-    borderWidth: 1,
     overflow: "hidden",
   },
   emptyState: {
@@ -198,13 +194,20 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
     paddingHorizontal: 24,
   },
+  emptyIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   emptyTitle: {
     fontWeight: "600",
     fontSize: 16,
     marginTop: 12,
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     marginTop: 4,
     textAlign: "center",
   },
@@ -215,8 +218,8 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   albumArt: {
-    width: 72,
-    height: 72,
+    width: 80,
+    height: 80,
     borderRadius: 12,
   },
   songInfo: {
@@ -254,13 +257,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  slider: {
-    flex: 1,
-    height: 36,
-  },
-  sliderContainer: {
-    borderRadius: 4,
-  },
   timeRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -274,56 +270,36 @@ const styles = StyleSheet.create({
   controlsRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     paddingHorizontal: 16,
     paddingTop: 4,
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
   playbackControls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
   playButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
   },
   skipButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  queueButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    gap: 6,
-  },
-  queueBadge: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 5,
-  },
-  queueBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
   },
   upNextRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     gap: 6,
   },
   upNextLabel: {
@@ -334,5 +310,9 @@ const styles = StyleSheet.create({
   upNextSong: {
     fontSize: 12,
     flex: 1,
+  },
+  memberStackRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
 })

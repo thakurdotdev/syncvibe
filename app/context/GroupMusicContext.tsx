@@ -14,6 +14,7 @@ import { useChat } from "./SocketContext"
 import { useUser } from "./UserContext"
 import { useGroupPlaybackStore } from "@/stores/groupMusic/groupPlaybackStore"
 import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
+import { useGroupInviteStore } from "@/stores/groupMusic/groupInviteStore"
 import { usePlayerStore } from "@/stores/playerStore"
 
 interface GroupMusicContextType {
@@ -25,11 +26,20 @@ interface GroupMusicContextType {
   createGroup: (groupName: string) => void
   joinGroup: (groupId: string) => void
   leaveGroup: () => void
-  sendMessage: (message: string) => void
+  sendMessage: (message: string, messageType?: string) => void
   addToQueue: (song: Song) => void
   playNow: (song: Song) => void
+  playNext: (song: Song) => void
   skipSong: () => void
   removeFromQueue: (queueItemId: string) => void
+  reorderQueue: (fromIndex: number, toIndex: number) => void
+  addPlaylistToQueue: (songs: Song[]) => void
+  sendReaction: (emoji: string) => void
+  startTyping: () => void
+  stopTyping: () => void
+  sendInvite: (inviteeUserId: number) => void
+  acceptInvite: () => void
+  declineInvite: () => void
 }
 
 const GroupMusicContext = createContext<GroupMusicContextType | null>(null)
@@ -38,10 +48,13 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
   const { socket } = useChat()
   const { user } = useUser()
   const syncIntervalRef = useRef<any>(null)
+  const hasAttemptedRejoin = useRef(false)
 
   const pb = useGroupPlaybackStore
   const ss = useGroupSessionStore
+  const inv = useGroupInviteStore
 
+  // --- TrackPlayer lifecycle ---
   useEffect(() => {
     pb.getState().initTrackPlayer()
     return () => {
@@ -58,6 +71,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     }
   }, [pb((s) => s.isPlaying)])
 
+  // --- TrackPlayer event listeners ---
   useEffect(() => {
     const subIsPlaying = TrackPlayer.addEventListener(Event.IsPlayingChanged, ({ playing }) => {
       try {
@@ -123,6 +137,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     }
   }, [socket])
 
+  // --- Time sync ---
   useEffect(() => {
     if (!socket) return
 
@@ -143,6 +158,32 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     }
   }, [socket])
 
+  // --- Session rejoin on socket connect ---
+  useEffect(() => {
+    if (!socket || !user || hasAttemptedRejoin.current) return
+
+    const handleSetupComplete = async () => {
+      if (ss.getState().currentGroup) return
+
+      const stored = await ss.getState().getStoredSession()
+      if (stored?.groupId) {
+        hasAttemptedRejoin.current = true
+        ss.getState().rejoinGroup(socket, user, stored.groupId)
+      }
+    }
+
+    socket.on("setup-complete", handleSetupComplete)
+    // Also try immediately if socket is already connected
+    if (socket.connected) {
+      handleSetupComplete()
+    }
+
+    return () => {
+      socket.off("setup-complete", handleSetupComplete)
+    }
+  }, [socket, user])
+
+  // --- All group socket events ---
   useEffect(() => {
     if (!socket) return
 
@@ -183,7 +224,9 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
 
     socket.on("group-created", (group: any) => {
       if (!user) return
-      ss.getState().handleGroupCreated(group, user)
+      ss.getState().handleGroupCreated(group, user, () => {
+        inv.setState({ isInviteSheetOpen: true })
+      })
     })
 
     socket.on("group-joined", async (data: any) => {
@@ -197,6 +240,33 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
             data.currentQueueIndex ?? -1,
           )
       }
+    })
+
+    socket.on("group-rejoined", async (data: any) => {
+      ss.getState().handleGroupRejoined(data)
+      if (data.playbackState) {
+        await pb
+          .getState()
+          .syncPlaybackFromServer(
+            data.playbackState,
+            data.queue || [],
+            data.currentQueueIndex ?? -1,
+          )
+      }
+    })
+
+    socket.on("group-not-found", () => {
+      ss.setState({ isRejoining: false })
+      ss.getState().clearSession()
+      Alert.alert("Group Not Found", "The group no longer exists.")
+    })
+
+    socket.on("group-full", () => {
+      Alert.alert("Group Full", "This group has reached its member limit.")
+    })
+
+    socket.on("feature-locked", ({ message }: { message: string }) => {
+      Alert.alert("Feature Locked", message)
     })
 
     socket.on("member-joined", (member: any) => {
@@ -222,6 +292,63 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       ss.setState((state) => ({ messages: [...state.messages, message] }))
     })
 
+    socket.on("song-reaction", (data: { emoji: string; userName: string }) => {
+      const reactionId = `${Date.now()}-${Math.random()}`
+      ss.setState((state) => ({
+        floatingReactions: [
+          ...state.floatingReactions,
+          { id: reactionId, emoji: data.emoji, userName: data.userName },
+        ],
+      }))
+      setTimeout(() => {
+        ss.setState((state) => ({
+          floatingReactions: state.floatingReactions.filter((r) => r.id !== reactionId),
+        }))
+      }, 3000)
+    })
+
+    socket.on("user-typing", (data: { userId: string; userName: string; isTyping: boolean }) => {
+      ss.setState((state) => {
+        const updated = { ...state.typingUsers }
+        if (data.isTyping) {
+          updated[data.userId] = data.userName
+        } else {
+          delete updated[data.userId]
+        }
+        return { typingUsers: updated }
+      })
+    })
+
+    // Invite events
+    socket.on(
+      "group-invite-received",
+      (data: {
+        groupId: string
+        groupName: string
+        inviterName: string
+        inviterPic: string
+        inviterId: number
+      }) => {
+        inv.setState({ pendingInvite: data })
+      },
+    )
+
+    socket.on("invite-sent", () => {
+      Alert.alert("Invite Sent", "Your invite has been sent.")
+    })
+
+    socket.on("invite-error", ({ message }: { message: string }) => {
+      Alert.alert("Invite Error", message)
+    })
+
+    socket.on("invite-accepted", ({ userName }: { userName: string }) => {
+      Alert.alert("Invite Accepted", `${userName} has joined the group!`)
+    })
+
+    socket.on("group-invite-declined", ({ userName }: { userName: string }) => {
+      Alert.alert("Invite Declined", `${userName} declined the invite.`)
+    })
+
     return () => {
       const events = [
         "playback-update",
@@ -232,10 +359,21 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         "sync-state",
         "group-created",
         "group-joined",
+        "group-rejoined",
+        "group-not-found",
+        "group-full",
+        "feature-locked",
         "member-joined",
         "member-left",
         "group-disbanded",
         "new-message",
+        "song-reaction",
+        "user-typing",
+        "group-invite-received",
+        "invite-sent",
+        "invite-error",
+        "invite-accepted",
+        "group-invite-declined",
       ]
       events.forEach((e) => socket.off(e))
     }
@@ -243,6 +381,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
 
   const groupId = ss((s) => s.currentGroup?.id)
 
+  // --- Wrapped actions ---
   const handlePlayPause = useCallback(
     (forceState?: boolean) => pb.getState().handlePlayPause(socket, groupId, forceState),
     [socket, groupId],
@@ -269,7 +408,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
   )
 
   const sendMessage = useCallback(
-    (message: string) => ss.getState().sendMessage(socket, user, message),
+    (message: string, messageType?: string) =>
+      ss.getState().sendMessage(socket, user, message, messageType),
     [socket, user],
   )
 
@@ -283,12 +423,73 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     [socket, user],
   )
 
+  const playNext = useCallback(
+    (song: Song) => ss.getState().playNext(socket, user, song),
+    [socket, user],
+  )
+
   const skipSong = useCallback(() => ss.getState().skipSong(socket, user), [socket, user])
 
   const removeFromQueue = useCallback(
     (queueItemId: string) => ss.getState().removeFromQueue(socket, user, queueItemId),
     [socket, user],
   )
+
+  const reorderQueue = useCallback(
+    (fromIndex: number, toIndex: number) =>
+      ss.getState().reorderQueue(socket, fromIndex, toIndex),
+    [socket],
+  )
+
+  const addPlaylistToQueue = useCallback(
+    (songs: Song[]) => ss.getState().addPlaylistToQueue(socket, user, songs),
+    [socket, user],
+  )
+
+  const sendReaction = useCallback(
+    (emoji: string) => {
+      if (!groupId || !user) return
+      socket?.emit("song-reaction", {
+        groupId,
+        emoji,
+        userId: user.userid,
+        userName: user.name,
+      })
+    },
+    [socket, groupId, user],
+  )
+
+  const startTyping = useCallback(() => {
+    if (!groupId || !user) return
+    socket?.emit("typing-start", { groupId, userId: user.userid, userName: user.name })
+  }, [socket, groupId, user])
+
+  const stopTyping = useCallback(() => {
+    if (!groupId || !user) return
+    socket?.emit("typing-stop", { groupId, userId: user.userid })
+  }, [socket, groupId, user])
+
+  const sendInvite = useCallback(
+    (inviteeUserId: number) => {
+      const currentGroup = ss.getState().currentGroup
+      inv.getState().sendInvite(socket, user, currentGroup, inviteeUserId)
+    },
+    [socket, user],
+  )
+
+  const acceptInvite = useCallback(() => {
+    const invite = inv.getState().pendingInvite
+    if (invite) {
+      inv.getState().acceptInvite(socket, user, invite)
+    }
+  }, [socket, user])
+
+  const declineInvite = useCallback(() => {
+    const invite = inv.getState().pendingInvite
+    if (invite) {
+      inv.getState().declineInvite(socket, invite)
+    }
+  }, [socket])
 
   const contextValue = useMemo<GroupMusicContextType>(
     () => ({
@@ -302,8 +503,17 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       sendMessage,
       addToQueue,
       playNow,
+      playNext,
       skipSong,
       removeFromQueue,
+      reorderQueue,
+      addPlaylistToQueue,
+      sendReaction,
+      startTyping,
+      stopTyping,
+      sendInvite,
+      acceptInvite,
+      declineInvite,
     }),
     [
       socket,
@@ -316,8 +526,17 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       sendMessage,
       addToQueue,
       playNow,
+      playNext,
       skipSong,
       removeFromQueue,
+      reorderQueue,
+      addPlaylistToQueue,
+      sendReaction,
+      startTyping,
+      stopTyping,
+      sendInvite,
+      acceptInvite,
+      declineInvite,
     ],
   )
 
