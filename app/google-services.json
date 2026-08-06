@@ -23,6 +23,44 @@
           "other_platform_oauth_client": []
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:885959778004:android:21885142bc9f99df44a542",
+        "android_client_info": {
+          "package_name": "com.thakurdotdev.syncvibe.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA90wvaZ1Uq3N35C8dCTQnc_HcS2S1hhyo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:885959778004:android:21885142bc9f99df44a543",
+        "android_client_info": {
+          "package_name": "com.thakurdotdev.syncvibe.preview"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA90wvaZ1Uq3N35C8dCTQnc_HcS2S1hhyo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
     }
   ],
   "configuration_version": "1"
