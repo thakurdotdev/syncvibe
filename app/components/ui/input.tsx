@@ -7,6 +7,7 @@ import {
   TextStyle,
   View,
   ViewStyle,
+  StyleSheet,
 } from "react-native"
 import { useTheme } from "@/context/ThemeContext"
 import { cn } from "@/lib/utils"
@@ -45,7 +46,7 @@ const Input = forwardRef<TextInput, InputProps>(
       placeholderTextColor,
       ...props
     },
-    ref,
+    ref
   ) => {
     const { colors, theme } = useTheme()
     const [isFocused, setIsFocused] = useState(false)
@@ -78,7 +79,7 @@ const Input = forwardRef<TextInput, InputProps>(
       }
     }
 
-    const getVariantStyles = (): ViewStyle => {
+    const getVariantStyles = (): TextStyle => {
       const borderWidth = variant === "default" ? 0 : 1
 
       switch (variant) {
@@ -93,10 +94,10 @@ const Input = forwardRef<TextInput, InputProps>(
             backgroundColor:
               theme === "light"
                 ? isFocused
-                  ? "rgba(0,0,0,0.01)"
+                  ? colors.secondary
                   : colors.muted
                 : isFocused
-                  ? "rgba(255,255,255,0.03)"
+                  ? colors.muted || colors.secondary
                   : colors.secondary,
             borderWidth: 1,
             borderColor: isFocused ? colors.primary : "transparent",
@@ -128,7 +129,7 @@ const Input = forwardRef<TextInput, InputProps>(
     const defaultPlaceholderColor = colors.mutedForeground
 
     return (
-      <View style={containerStyle} className={cn("w-full", className)}>
+      <View style={[styles.container, containerStyle]} className={cn(className)}>
         {labelText && (
           <Text
             style={{
@@ -140,7 +141,7 @@ const Input = forwardRef<TextInput, InputProps>(
             {labelText}
           </Text>
         )}
-        <View className="relative flex flex-row items-center w-full">
+        <View style={styles.field}>
           {leftIcon && (
             <View
               style={{
@@ -163,8 +164,8 @@ const Input = forwardRef<TextInput, InputProps>(
             style={[
               {
                 color: props.editable === false ? colors.mutedForeground : colors.foreground,
-                width: "100%",
                 flex: 1,
+                minWidth: 0,
                 height: sizeStyles.height,
                 paddingLeft: leftIcon ? sizeStyles.height : sizeStyles.paddingHorizontal,
                 paddingRight: rightIcon ? sizeStyles.height : sizeStyles.paddingHorizontal,
@@ -175,7 +176,7 @@ const Input = forwardRef<TextInput, InputProps>(
               inputStyle,
             ]}
             placeholderTextColor={placeholderTextColor || defaultPlaceholderColor}
-            className={cn("flex-1 outline-none w-full", props.editable === false && "opacity-70")}
+            className={cn("flex-1 outline-none", props.editable === false && "opacity-70")}
             onFocus={(e) => {
               setIsFocused(true)
               props.onFocus && props.onFocus(e)
@@ -212,10 +213,23 @@ const Input = forwardRef<TextInput, InputProps>(
         )}
       </View>
     )
-  },
+  }
 )
 
 Input.displayName = "Input"
+
+const styles = StyleSheet.create({
+  container: {
+    alignSelf: "stretch",
+    minWidth: 0,
+  },
+  field: {
+    position: "relative",
+    flexDirection: "row",
+    alignItems: "center",
+    minWidth: 0,
+  },
+})
 
 export { Input }
 export default Input

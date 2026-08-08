@@ -5,6 +5,7 @@ import { useChat } from "./SocketContext"
 import { useUser } from "./UserContext"
 import useApi from "@/utils/hooks/useApi"
 import { router } from "expo-router"
+import { runAfterIdle } from "@/utils/runAfterIdle"
 
 type NotificationContextType = {
   expoPushToken: string | null
@@ -49,7 +50,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [])
 
   useEffect(() => {
-    registerForPushNotificationsAsync().then((token) => setExpoPushToken(token || null))
+    let cancelled = false
+    const task = runAfterIdle(() => {
+      registerForPushNotificationsAsync().then((token) => {
+        if (!cancelled) setExpoPushToken(token || null)
+      })
+    })
 
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
       setNotification(notification)
@@ -68,6 +74,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     })
 
     return () => {
+      cancelled = true
+      task.cancel()
       if (notificationListener.current) {
         notificationListener.current.remove()
       }

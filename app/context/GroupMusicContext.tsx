@@ -16,6 +16,7 @@ import { useGroupPlaybackStore } from "@/stores/groupMusic/groupPlaybackStore"
 import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
 import { useGroupInviteStore } from "@/stores/groupMusic/groupInviteStore"
 import { usePlayerStore } from "@/stores/playerStore"
+import { runAfterIdle } from "@/utils/runAfterIdle"
 
 interface GroupMusicContextType {
   socket: any
@@ -56,8 +57,14 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
 
   // --- TrackPlayer lifecycle ---
   useEffect(() => {
-    pb.getState().initTrackPlayer()
+    let cancelled = false
+    const task = runAfterIdle(() => {
+      if (!cancelled) void pb.getState().initTrackPlayer()
+    })
+
     return () => {
+      cancelled = true
+      task.cancel()
       pb.getState().reset()
     }
   }, [])

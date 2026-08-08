@@ -55,7 +55,7 @@ interface GroupPlaybackActions {
   syncPlaybackFromServer: (
     playbackState: PlaybackState,
     queue: any[],
-    currentQueueIndex: number,
+    currentQueueIndex: number
   ) => Promise<void>
 
   handlePlayPause: (socket: any, groupId: string | undefined, forceState?: boolean) => Promise<void>
@@ -69,6 +69,19 @@ interface GroupPlaybackActions {
 type GroupPlaybackStore = GroupPlaybackState & GroupPlaybackActions
 
 let progressInterval: any = null
+
+// TrackPlayer is shared by the personal and group experiences. A group session
+// must claim it before mutating the native queue so a stale personal player
+// state can never render over, or take control of, synchronized playback.
+const claimGroupPlayer = () => {
+  const personalPlayer = usePlayerStore.getState()
+  if (personalPlayer.activePlayerMode === "group") return
+
+  personalPlayer.setPlaying(false)
+  personalPlayer.setLoading(false)
+  personalPlayer.setCurrentSong(null)
+  personalPlayer.setActivePlayerMode("group")
+}
 
 const initialState: GroupPlaybackState = {
   currentSong: null,
@@ -150,11 +163,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     if (!trackPlayerReady) return
 
     if (data.isPlaying) {
-      const normalStore = usePlayerStore.getState()
-      if (normalStore.activePlayerMode !== "group") {
-        normalStore.setActivePlayerMode("group")
-        normalStore.setPlaying(false)
-      }
+      claimGroupPlayer()
     }
 
     const serverNow = get().getServerTime()
@@ -199,11 +208,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
       return
     }
 
-    const normalStore = usePlayerStore.getState()
-    if (normalStore.activePlayerMode !== "group") {
-      normalStore.setActivePlayerMode("group")
-      normalStore.setPlaying(false)
-    }
+    claimGroupPlayer()
 
     try {
       TrackPlayer.stop()
@@ -225,7 +230,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
             duration: data.song.duration || 0,
           })
         },
-        Math.max(0, timeUntilPlay),
+        Math.max(0, timeUntilPlay)
       )
     } catch (error) {
       console.error("Error loading song:", error)
@@ -242,11 +247,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
 
     if (!trackPlayerReady) return
 
-    const normalStore = usePlayerStore.getState()
-    if (normalStore.activePlayerMode !== "group") {
-      normalStore.setActivePlayerMode("group")
-      normalStore.setPlaying(false)
-    }
+    claimGroupPlayer()
 
     try {
       TrackPlayer.stop()
@@ -280,11 +281,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     const { trackPlayerReady, currentSong, isPlaying, getServerTime } = get()
     if (!trackPlayerReady || !currentSong || !groupId) return
 
-    const normalStore = usePlayerStore.getState()
-    if (normalStore.activePlayerMode !== "group") {
-      normalStore.setActivePlayerMode("group")
-      normalStore.setPlaying(false)
-    }
+    claimGroupPlayer()
 
     const newIsPlaying = typeof forceState === "boolean" ? forceState : !isPlaying
     const currentAudioTime = get().currentTime || TrackPlayer.getProgress().position
@@ -393,7 +390,7 @@ export const useGroupPlayback = () =>
       formatTime: s.formatTime,
       handlePlayPause: s.handlePlayPause,
       handleSeek: s.handleSeek,
-    })),
+    }))
   )
 
 export const useGroupProgress = () =>
@@ -402,5 +399,5 @@ export const useGroupProgress = () =>
       currentTime: s.currentTime,
       duration: s.duration,
       formatTime: s.formatTime,
-    })),
+    }))
   )

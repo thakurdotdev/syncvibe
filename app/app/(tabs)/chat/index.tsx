@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { TabSafeAreaView } from "@/components/ui/TabSafeAreaView"
 
 import { useChat } from "@/context/SocketContext"
 import useApi from "@/utils/hooks/useApi"
@@ -244,7 +244,7 @@ const SearchUser: React.FC = () => {
   }
 
   return (
-    <SafeAreaView
+    <TabSafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
       edges={["top"]}
     >
@@ -288,14 +288,13 @@ const SearchUser: React.FC = () => {
       </View>
 
       {loading && (
-        <View style={styles.loadingContainer}>
+        <View pointerEvents="none" style={[styles.loadingContainer, styles.loadingOverlay]}>
           <ActivityIndicator size="small" color={colors.primary} />
         </View>
       )}
 
       <View style={styles.listContainer}>
         <FlatList
-          key={searchResults.length > 0 ? "search" : "users"}
           ref={flatListRef}
           data={searchResults.length > 0 ? searchResults : users}
           keyExtractor={(item, index) =>
@@ -315,7 +314,7 @@ const SearchUser: React.FC = () => {
           windowSize={10}
         />
       </View>
-    </SafeAreaView>
+    </TabSafeAreaView>
   )
 }
 
@@ -360,8 +359,16 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   loadingContainer: {
-    padding: 20,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 42,
+    zIndex: 2,
   },
   listContainer: {
     flex: 1,

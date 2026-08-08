@@ -2,9 +2,10 @@ import { Feather, Ionicons } from "@expo/vector-icons"
 import React, { useCallback, useEffect, useRef } from "react"
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
   Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   StatusBar,
   StyleSheet,
@@ -20,6 +21,7 @@ import { useGroupMusic } from "@/context/GroupMusicContext"
 import { useTheme } from "@/context/ThemeContext"
 import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
 import { Song } from "@/types/song"
+import { useSharedValue } from "react-native-reanimated"
 
 interface SearchModalProps {
   isOpen: boolean
@@ -72,7 +74,7 @@ const SearchResultItem = React.memo(
         </View>
       </View>
     )
-  },
+  }
 )
 
 export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => {
@@ -80,6 +82,14 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
   const { playNow, addToQueue } = useGroupMusic()
   const inputRef = useRef<TextInput>(null)
   const insets = useSafeAreaInsets()
+  const scrollOffset = useSharedValue(0)
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollOffset.value = event.nativeEvent.contentOffset.y
+    },
+    [scrollOffset]
+  )
 
   const searchQuery = useGroupSessionStore((s) => s.searchQuery)
   const searchResults = useGroupSessionStore((s) => s.searchResults)
@@ -87,6 +97,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
 
   useEffect(() => {
     if (isOpen) {
+      scrollOffset.value = 0
       const timer = setTimeout(() => inputRef.current?.focus(), 350)
       return () => clearTimeout(timer)
     }
@@ -105,14 +116,14 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
     (song: Song) => {
       playNow(song)
     },
-    [playNow],
+    [playNow]
   )
 
   const handleAddToQueue = useCallback(
     (song: Song) => {
       addToQueue(song)
     },
-    [addToQueue],
+    [addToQueue]
   )
 
   const renderItem = useCallback(
@@ -124,95 +135,86 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
         colors={colors}
       />
     ),
-    [handlePlayNow, handleAddToQueue, colors],
+    [handlePlayNow, handleAddToQueue, colors]
   )
 
   const keyExtractor = useCallback((item: Song) => item.id, [])
 
-  const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 24) : insets.top
+  const statusBarHeight = Platform.OS === "android" ? StatusBar.currentHeight || 24 : insets.top
   const topPadding = Math.max(statusBarHeight, insets.top || 0, 24)
 
   return (
     <SwipeableModal
       isVisible={isOpen}
       onClose={handleClose}
-      maxHeight={Dimensions.get("screen").height}
+      maxHeight="100%"
       scrollable={true}
+      scrollOffset={scrollOffset}
       hideHandle={true}
-      style={styles.modalStyle}
+      fullScreen
     >
       <View style={styles.container}>
         <View style={[styles.searchHeader, { paddingTop: topPadding + 8 }]}>
-            <TouchableOpacity onPress={handleClose} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color={colors.foreground} />
-            </TouchableOpacity>
-            <Input
-              ref={inputRef}
-              placeholder="Search for songs..."
-              value={searchQuery}
-              onChangeText={handleSearchChange}
-              variant="outline"
-              containerStyle={styles.inputContainer}
-              leftIcon={<Feather name="search" size={16} color={colors.mutedForeground} />}
-              rightIcon={
-                searchQuery ? (
-                  <TouchableOpacity onPress={() => handleSearchChange("")}>
-                    <Feather name="x" size={16} color={colors.mutedForeground} />
-                  </TouchableOpacity>
-                ) : null
-              }
-            />
-          </View>
-
-          {isSearchLoading ? (
-            <View style={styles.centeredState}>
-              <ActivityIndicator size="large" color={colors.primary} />
-            </View>
-          ) : (
-            <FlatList
-              data={searchResults}
-              keyExtractor={keyExtractor}
-              renderItem={renderItem}
-              ListEmptyComponent={
-                searchQuery ? (
-                  <View style={styles.centeredState}>
-                    <Feather name="search" size={28} color={colors.mutedForeground + "40"} />
-                    <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
-                      No results found
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={styles.centeredState}>
-                    <Feather name="search" size={28} color={colors.mutedForeground + "40"} />
-                    <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
-                      Search for songs to add
-                    </Text>
-                  </View>
-                )
-              }
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            />
-          )}
+          <TouchableOpacity onPress={handleClose} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.foreground} />
+          </TouchableOpacity>
+          <Input
+            ref={inputRef}
+            placeholder="Search for songs..."
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            variant="filled"
+            containerStyle={styles.inputContainer}
+            leftIcon={<Feather name="search" size={16} color={colors.mutedForeground} />}
+            rightIcon={
+              searchQuery ? (
+                <TouchableOpacity onPress={() => handleSearchChange("")}>
+                  <Feather name="x" size={16} color={colors.mutedForeground} />
+                </TouchableOpacity>
+              ) : null
+            }
+          />
         </View>
+
+        {isSearchLoading ? (
+          <View style={styles.centeredState}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={searchResults}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+            ListEmptyComponent={
+              searchQuery ? (
+                <View style={styles.centeredState}>
+                  <Feather name="search" size={28} color={colors.mutedForeground + "40"} />
+                  <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
+                    No results found
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.centeredState}>
+                  <Feather name="search" size={28} color={colors.mutedForeground + "40"} />
+                  <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
+                    Search for songs to add
+                  </Text>
+                </View>
+              )
+            }
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+          />
+        )}
+      </View>
     </SwipeableModal>
   )
 }
 
 const styles = StyleSheet.create({
-  modalStyle: {
-    height: Dimensions.get("screen").height,
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-  },
-  safeArea: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },

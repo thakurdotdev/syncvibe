@@ -15,11 +15,7 @@ import Animated, {
   Extrapolation,
 } from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import {
-  usePlaybackState,
-  usePlayerControls,
-  openFullPlayer,
-} from "@/stores/playerStore"
+import { usePlaybackState, usePlayerControls, openFullPlayer } from "@/stores/playerStore"
 
 export const TAB_BAR_HEIGHT = 110
 
@@ -133,11 +129,7 @@ const TabButton = memo(function TabButton({
           />
         </Animated.View>
         <Animated.Text
-          style={[
-            styles.tabLabel,
-            { color: isFocused ? activeColor : inactiveColor },
-            labelStyle,
-          ]}
+          style={[styles.tabLabel, { color: isFocused ? activeColor : inactiveColor }, labelStyle]}
           numberOfLines={1}
         >
           {label}
@@ -174,7 +166,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
         ?.slice(0, 3)
         ?.map((a: any) => a.name)
         .join(", ") || "Unknown Artist",
-    [currentSong],
+    [currentSong]
   )
 
   const artworkUri = currentSong?.image?.[2]?.link || currentSong?.image?.[1]?.link
@@ -223,10 +215,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
             <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>
               {currentSong?.name}
             </Text>
-            <Text
-              style={[styles.artistName, { color: colors.mutedForeground }]}
-              numberOfLines={1}
-            >
+            <Text style={[styles.artistName, { color: colors.mutedForeground }]} numberOfLines={1}>
               {artistName}
             </Text>
           </View>
@@ -247,11 +236,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
               hitSlop={8}
             >
               <Animated.View
-                style={[
-                  styles.playButton,
-                  { backgroundColor: colors.primary },
-                  playBtnAnimStyle,
-                ]}
+                style={[styles.playButton, { backgroundColor: colors.primary }, playBtnAnimStyle]}
               >
                 <Ionicons
                   name={isPlaying ? "pause" : "play"}
@@ -301,20 +286,18 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   insets,
   activeSegment,
 }: UnifiedBottomDeckProps) {
-  const { currentSong, isPlaying } = usePlaybackState()
+  const { currentSong, isPlaying, activePlayerMode } = usePlaybackState()
   const { handlePlayPause, handleNextSong } = usePlayerControls()
-  const mountOpacity = useSharedValue(1)
-
-  const mountStyle = useAnimatedStyle(() => ({
-    opacity: mountOpacity.value,
-  }))
 
   const goHome = useCallback(() => router.navigate("/(tabs)/home"), [])
   const goGroup = useCallback(() => router.navigate("/(tabs)/group-music"), [])
   const goPlaylist = useCallback(() => router.navigate("/(tabs)/playlist"), [])
   const goChat = useCallback(() => router.navigate("/(tabs)/chat"), [])
   const goProfile = useCallback(() => router.navigate("/(tabs)/profile"), [])
-  const handlers = [goHome, goGroup, goPlaylist, goChat, goProfile]
+  const handlers = useMemo(
+    () => [goHome, goGroup, goPlaylist, goChat, goProfile],
+    [goHome, goGroup, goPlaylist, goChat, goProfile]
+  )
 
   const isDark = theme === "dark"
 
@@ -322,10 +305,10 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   const borderColor = isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.08)"
   const highlightColor = isDark ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.9)"
 
-  const showMiniPlayer = !!currentSong
+  const showMiniPlayer = activePlayerMode === "normal" && !!currentSong
 
   return (
-    <Animated.View style={[styles.outerContainer, mountStyle]}>
+    <Animated.View style={styles.outerContainer}>
       <View style={styles.surfaceWrapper}>
         <BlurView
           intensity={Platform.OS === "android" ? 70 : 95}

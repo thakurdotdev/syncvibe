@@ -1,5 +1,7 @@
-import React, { useMemo } from "react"
-import { FlatList, Image, StyleSheet, Text, View } from "react-native"
+import React from "react"
+import { Image, StyleSheet, Text, View } from "react-native"
+import { Feather } from "@expo/vector-icons"
+import Card from "@/components/ui/card"
 import { useTheme } from "@/context/ThemeContext"
 import { getProfileCloudinaryUrl } from "@/utils/Cloudinary"
 
@@ -18,9 +20,14 @@ export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({ groupMembers
   const { colors } = useTheme()
 
   return (
-    <View style={styles.container}>
+    <Card variant="default" style={styles.container}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Members</Text>
+        <View style={[styles.headerIcon, { backgroundColor: colors.accent }]}>
+          <Feather name="users" size={16} color={colors.primary} />
+        </View>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Listeners</Text>
+        </View>
         <View style={[styles.countBadge, { backgroundColor: colors.secondary }]}>
           <Text style={[styles.countText, { color: colors.mutedForeground }]}>
             {groupMembers.length}
@@ -37,7 +44,10 @@ export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({ groupMembers
             key={item.userId.toString()}
             style={[
               styles.memberRow,
-              !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border + "30" },
+              !isLast && {
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderBottomColor: colors.border,
+              },
             ]}
           >
             <Image
@@ -57,23 +67,35 @@ export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({ groupMembers
           </View>
         )
       })}
-    </View>
+    </Card>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     marginTop: 16,
+    padding: 16,
+    borderRadius: 16,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
+    marginBottom: 10,
+  },
+  headerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerCopy: {
+    flex: 1,
+    marginLeft: 10,
   },
   sectionTitle: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   countBadge: {
     minWidth: 22,
@@ -90,7 +112,7 @@ const styles = StyleSheet.create({
   memberRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: 11,
   },
   avatar: {
     width: 40,
@@ -106,12 +128,12 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   hostBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 7,
   },
   hostText: {
     fontSize: 11,

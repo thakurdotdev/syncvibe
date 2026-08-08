@@ -69,6 +69,8 @@
     "@tailwindcss/postcss": "^4.3.1",
     "@types/jest": "^29.5.12",
     "@types/react": "~19.2.14",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~56.0.4",
     "expo-dev-client": "~56.0.24",
     "husky": "^9.1.7",
     "jest": "^29.2.1",

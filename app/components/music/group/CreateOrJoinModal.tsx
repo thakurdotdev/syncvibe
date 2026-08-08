@@ -1,8 +1,6 @@
 import React, { useState } from "react"
 import {
   Dimensions,
-  KeyboardAvoidingView,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -54,6 +52,8 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
       isVisible={isOpen}
       onClose={onClose}
       maxHeight={Dimensions.get("window").height * 0.85}
+      scrollable
+      useScrollView
     >
       <View style={styles.content}>
         <Text style={[styles.title, { color: colors.foreground }]}>Create or Join Group</Text>

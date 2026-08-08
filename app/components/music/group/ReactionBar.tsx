@@ -18,7 +18,7 @@ export const ReactionBar: React.FC = () => {
       lastReactionTime.current = now
       sendReaction(emoji)
     },
-    [sendReaction],
+    [sendReaction]
   )
 
   return (
@@ -41,17 +41,17 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 10,
-    paddingVertical: 8,
+    gap: 5,
+    paddingVertical: 4,
   },
   reactionButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   emoji: {
-    fontSize: 20,
+    fontSize: 18,
   },
 })

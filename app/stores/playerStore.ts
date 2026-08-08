@@ -4,7 +4,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 import { createJSONStorage, persist } from "zustand/middleware"
-import { useIsPlaying as useIsPlayingNative } from "@rntp/player"
 
 export type RepeatMode = "off" | "all" | "one"
 
@@ -124,6 +123,7 @@ export const usePlayerStore = create<PlayerStore>()(
 
       playSong: (song: Song) => {
         if (!song?.id) return
+        if (get().activePlayerMode === "group") return
         const secureAudio = ensureHttpsForSongUrls(song)
         const { playlist } = get()
         const isInQueue = playlist.some((item) => item.id === song.id)
@@ -139,6 +139,7 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       stopSong: () => {
+        if (get().activePlayerMode === "group") return
         set({
           currentSong: null,
           isPlaying: false,
@@ -149,9 +150,7 @@ export const usePlayerStore = create<PlayerStore>()(
 
       handlePlayPause: () => {
         const { activePlayerMode } = get()
-        if (activePlayerMode !== "normal") {
-          set({ activePlayerMode: "normal" })
-        }
+        if (activePlayerMode !== "normal") return
         onPlayPause?.()
       },
 
@@ -161,9 +160,7 @@ export const usePlayerStore = create<PlayerStore>()(
 
       handleNextSong: (isAutoPlay = false) => {
         const { activePlayerMode } = get()
-        if (activePlayerMode !== "normal") {
-          set({ activePlayerMode: "normal" })
-        }
+        if (activePlayerMode !== "normal") return
         if (!isAutoPlay) {
           const { currentSong, playlist } = get()
           if (currentSong && playlist.length) {
@@ -179,9 +176,7 @@ export const usePlayerStore = create<PlayerStore>()(
 
       handlePrevSong: () => {
         const { activePlayerMode } = get()
-        if (activePlayerMode !== "normal") {
-          set({ activePlayerMode: "normal" })
-        }
+        if (activePlayerMode !== "normal") return
         onHandlePrevSong?.()
       },
 
@@ -334,17 +329,17 @@ export const usePlayerStore = create<PlayerStore>()(
           state.isLoading = false
         }
       },
-    },
-  ),
+    }
+  )
 )
 
 export const useCurrentSong = () => usePlayerStore((s) => s.currentSong)
-export const useIsPlaying = () => useIsPlayingNative()
+export const useIsPlaying = () => usePlayerStore((s) => s.isPlaying)
 export const useIsLoading = () => usePlayerStore((s) => s.isLoading)
 export const usePlaylist = () => usePlayerStore((s) => s.playlist)
 export const useShuffleMode = () =>
   usePlayerStore(
-    useShallow((s) => ({ shuffleMode: s.shuffleMode, toggleShuffle: s.toggleShuffle })),
+    useShallow((s) => ({ shuffleMode: s.shuffleMode, toggleShuffle: s.toggleShuffle }))
   )
 export const useRepeatMode = () =>
   usePlayerStore(useShallow((s) => ({ repeatMode: s.repeatMode, toggleRepeat: s.toggleRepeat })))
@@ -366,19 +361,31 @@ export const usePlayerControls = () =>
       reorderPlaylist: s.reorderPlaylist,
       toggleShuffle: s.toggleShuffle,
       toggleRepeat: s.toggleRepeat,
-    })),
+    }))
   )
 
 export const usePlaybackState = () => {
-  const { currentSong, isLoading } = usePlayerStore(
+  return usePlayerStore(
     useShallow((s) => ({
       currentSong: s.currentSong,
+      isPlaying: s.isPlaying,
       isLoading: s.isLoading,
-    })),
+      activePlayerMode: s.activePlayerMode,
+    }))
   )
-  const isPlaying = useIsPlayingNative()
-  return { currentSong, isPlaying, isLoading }
 }
+
+/**
+ * Playback state for a card. Non-active cards keep the same selector result
+ * while another song starts or pauses, so large music lists stay still.
+ */
+export const useSongPlaybackState = (songId: string | undefined) =>
+  usePlayerStore(
+    useShallow((s) => ({
+      isCurrentSong: !!songId && s.currentSong?.id === songId,
+      isPlaying: !!songId && s.currentSong?.id === songId && s.isPlaying,
+    }))
+  )
 
 export const usePlaylistState = () =>
   usePlayerStore(
@@ -387,5 +394,5 @@ export const usePlaylistState = () =>
       userPlaylist: s.userPlaylist,
       setPlaylist: s.setPlaylist,
       setUserPlaylist: s.setUserPlaylist,
-    })),
+    }))
   )

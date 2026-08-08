@@ -3,7 +3,9 @@ import {
   Dimensions,
   FlatList,
   Image,
-  KeyboardAvoidingView,
+  Keyboard,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   StyleSheet,
   Text,
@@ -196,8 +198,35 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
   const typingUsers = useGroupSessionStore((s) => s.typingUsers)
 
   const [inputText, setInputText] = useState("")
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
   const flatListRef = useRef<FlatList>(null)
   const typingTimerRef = useRef<any>(null)
+
+  useEffect(() => {
+    if (!isOpen) {
+      setKeyboardHeight(0)
+      return
+    }
+
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow"
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide"
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height)
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true })
+      }, 50)
+    })
+
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0)
+    })
+
+    return () => {
+      showSub.remove()
+      hideSub.remove()
+    }
+  }, [isOpen])
 
   useEffect(() => {
     if (messages.length > 0 && isOpen) {
@@ -231,6 +260,14 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
     [startTyping, stopTyping],
   )
 
+  const scrollOffset = useSharedValue(0)
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollOffset.value = event.nativeEvent.contentOffset.y
+    },
+    [scrollOffset],
+  )
+
   const renderItem = useCallback(
     ({ item, index }: { item: Message; index: number }) => {
       if (item.type === "activity") {
@@ -254,81 +291,84 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
       onClose={onClose}
       maxHeight={Dimensions.get("window").height * 0.88}
       style={{ height: Dimensions.get("window").height * 0.88 }}
-      scrollable={false}
+      scrollable={true}
+      scrollOffset={scrollOffset}
     >
-      <View style={styles.flex}>
-        <View style={styles.header}>
-          <Feather name="message-circle" size={18} color={colors.foreground} />
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Group Chat</Text>
-          <View style={styles.flex} />
-          <TouchableOpacity onPress={onClose}>
-            <Feather name="x" size={20} color={colors.mutedForeground} />
-          </TouchableOpacity>
-        </View>
+      <View style={[styles.flex, { paddingBottom: keyboardHeight }]}>
+          <View style={styles.header}>
+            <Feather name="message-circle" size={18} color={colors.foreground} />
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>Group Chat</Text>
+            <View style={styles.flex} />
+            <TouchableOpacity onPress={onClose}>
+              <Feather name="x" size={20} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
 
-        <View style={[styles.divider, { backgroundColor: colors.border + "40" }]} />
+          <View style={[styles.divider, { backgroundColor: colors.border + "40" }]} />
 
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={styles.messagesList}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}>
-                <Feather name="message-circle" size={20} color={colors.mutedForeground + "40"} />
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={styles.messagesList}
+            showsVerticalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}>
+                  <Feather name="message-circle" size={20} color={colors.mutedForeground + "40"} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: colors.mutedForeground + "70" }]}>
+                  No messages yet
+                </Text>
+                <Text style={[styles.emptySubtitle, { color: colors.mutedForeground + "40" }]}>
+                  Say something to the group!
+                </Text>
               </View>
-              <Text style={[styles.emptyTitle, { color: colors.mutedForeground + "70" }]}>
-                No messages yet
-              </Text>
-              <Text style={[styles.emptySubtitle, { color: colors.mutedForeground + "40" }]}>
-                Say something to the group!
-              </Text>
-            </View>
-          }
-        />
-
-        <TypingIndicator typingUsers={typingUsers} colors={colors} />
-
-        <View style={[styles.inputContainer, { borderTopColor: colors.border + "30" }]}>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.secondary,
-                color: colors.foreground,
-              },
-            ]}
-            value={inputText}
-            onChangeText={handleTextChange}
-            placeholder="Type a message..."
-            placeholderTextColor={colors.mutedForeground + "60"}
-            multiline
-            maxLength={500}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
+            }
           />
-          <TouchableOpacity
-            onPress={handleSend}
-            disabled={!inputText.trim()}
-            style={[
-              styles.sendButton,
-              {
-                backgroundColor: inputText.trim() ? colors.primary : colors.secondary,
-              },
-            ]}
-          >
-            <Feather
-              name="send"
-              size={16}
-              color={inputText.trim() ? colors.primaryForeground : colors.mutedForeground + "40"}
+
+          <TypingIndicator typingUsers={typingUsers} colors={colors} />
+
+          <View style={[styles.inputContainer, { borderTopColor: colors.border + "30" }]}>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.secondary,
+                  color: colors.foreground,
+                },
+              ]}
+              value={inputText}
+              onChangeText={handleTextChange}
+              placeholder="Type a message..."
+              placeholderTextColor={colors.mutedForeground + "60"}
+              multiline
+              maxLength={500}
+              returnKeyType="send"
+              onSubmitEditing={handleSend}
             />
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleSend}
+              disabled={!inputText.trim()}
+              style={[
+                styles.sendButton,
+                {
+                  backgroundColor: inputText.trim() ? colors.primary : colors.secondary,
+                },
+              ]}
+            >
+              <Feather
+                name="send"
+                size={16}
+                color={inputText.trim() ? colors.primaryForeground : colors.mutedForeground + "40"}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </SwipeableModal>
+      </SwipeableModal>
   )
 }
 

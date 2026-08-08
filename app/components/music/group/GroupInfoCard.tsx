@@ -1,12 +1,14 @@
 import React from "react"
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import { Feather } from "@expo/vector-icons"
+import Card from "@/components/ui/card"
 import { useTheme } from "@/context/ThemeContext"
 
 interface GroupInfoCardProps {
   groupName: string
   groupId: string
   onCopyId: () => void
+  onOpenInvite: () => void
   onShowQRCode: () => void
 }
 
@@ -14,67 +16,96 @@ export const GroupInfoCard: React.FC<GroupInfoCardProps> = ({
   groupName,
   groupId,
   onCopyId,
+  onOpenInvite,
   onShowQRCode,
 }) => {
   const { colors } = useTheme()
 
   return (
-    <View style={[styles.container, { borderBottomColor: colors.border + "30" }]}>
-      <Text style={[styles.groupName, { color: colors.foreground }]} numberOfLines={1}>
-        {groupName}
-      </Text>
-      <View style={styles.actions}>
+    <Card variant="default" style={styles.container}>
+      <View style={styles.roomRow}>
+        <View style={[styles.roomIcon, { backgroundColor: colors.secondary }]}>
+          <Feather name="headphones" size={18} color={colors.foreground} />
+        </View>
+        <View style={styles.roomInfo}>
+          <Text style={[styles.groupName, { color: colors.foreground }]} numberOfLines={1}>
+            {groupName}
+          </Text>
+          <Text style={[styles.roomId, { color: colors.mutedForeground }]} numberOfLines={1}>
+            Room · {groupId.substring(0, 8)}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={onOpenInvite}
+          style={[styles.iconAction, { backgroundColor: colors.secondary }]}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Invite listeners"
+        >
+          <Feather name="user-plus" size={15} color={colors.foreground} />
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={onCopyId}
-          style={[styles.chip, { backgroundColor: colors.secondary }]}
+          style={[styles.iconAction, { backgroundColor: colors.secondary }]}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Share room invite"
         >
-          <Text style={[styles.chipText, { color: colors.mutedForeground }]} numberOfLines={1}>
-            ID: {groupId.substring(0, 8)}...
-          </Text>
-          <Feather name="copy" size={12} color={colors.mutedForeground} />
+          <Feather name="send" size={15} color={colors.foreground} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={onShowQRCode}
-          style={[styles.chip, { backgroundColor: colors.secondary }]}
+          style={[styles.iconAction, { backgroundColor: colors.secondary }]}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Show room QR code"
         >
-          <Feather name="grid" size={12} color={colors.mutedForeground} />
-          <Text style={[styles.chipText, { color: colors.mutedForeground }]}>QR</Text>
+          <Feather name="maximize" size={15} color={colors.foreground} />
         </TouchableOpacity>
       </View>
-    </View>
+    </Card>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    marginTop: 4,
+    paddingHorizontal: 14,
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
+  },
+  roomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  roomIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  roomInfo: {
+    flex: 1,
+    marginLeft: 10,
+    marginRight: 8,
   },
   groupName: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "600",
     flex: 1,
-    marginRight: 12,
   },
-  actions: {
-    flexDirection: "row",
-    gap: 8,
+  roomId: {
+    fontSize: 10,
+    marginTop: 2,
+    fontVariant: ["tabular-nums"],
   },
-  chip: {
-    flexDirection: "row",
+  iconAction: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    gap: 6,
-  },
-  chipText: {
-    fontSize: 12,
-    fontWeight: "500",
+    justifyContent: "center",
+    marginLeft: 4,
   },
 })

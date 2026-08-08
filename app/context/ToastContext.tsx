@@ -1,4 +1,4 @@
-import { AlertCircle, Check, CheckCircle, Info } from "lucide-react-native"
+import { AlertTriangle, Bell, Check, Info } from "lucide-react-native"
 import React, {
   createContext,
   ReactNode,
@@ -9,15 +9,11 @@ import React, {
   useRef,
   useState,
 } from "react"
-import {
-  Dimensions,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native"
+import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
+  cancelAnimation,
+  LinearTransition,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -25,7 +21,7 @@ import Animated, {
 } from "react-native-reanimated"
 import { scheduleOnRN } from "react-native-worklets"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Card } from "@/components/ui/card"
+import { ThemeColors } from "@/theme/color"
 import { useTheme } from "./ThemeContext"
 
 export type ToastType = "default" | "success" | "error" | "info"
@@ -55,6 +51,13 @@ interface ToastProviderProps {
   children: ReactNode
 }
 
+interface ToastItem {
+  id: string
+  message: string
+  type: ToastType
+  duration: number
+}
+
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
 
 export const useToast = () => {
@@ -65,21 +68,140 @@ export const useToast = () => {
   return context
 }
 
-const SPRING_CONFIG = { damping: 22, stiffness: 260 }
+const MAX_VISIBLE_TOASTS = 3
+const SCREEN_WIDTH = Dimensions.get("window").width
+const ENTER_SPRING = { damping: 28, stiffness: 340, mass: 0.7 }
+
+const getToastIcon = (type: ToastType, color: string) => {
+  const iconProps = { size: 17, color, strokeWidth: 2.2 }
+
+  switch (type) {
+    case "success":
+      return <Check {...iconProps} />
+    case "error":
+      return <AlertTriangle {...iconProps} />
+    case "info":
+      return <Info {...iconProps} />
+    default:
+      return <Bell {...iconProps} />
+  }
+}
+
+interface ToastItemViewProps {
+  item: ToastItem
+  colors: ThemeColors
+  accentColor: string
+  onRemove: (id: string) => void
+}
+
+const ToastItemView = React.memo(
+  ({ item, colors, accentColor, onRemove }: ToastItemViewProps) => {
+    const opacity = useSharedValue(0)
+    const translateY = useSharedValue(-8)
+    const translateX = useSharedValue(0)
+    const dismissed = useSharedValue(0)
+    const removedRef = useRef(false)
+
+    const finishRemove = useCallback(() => {
+      if (removedRef.current) return
+      removedRef.current = true
+      onRemove(item.id)
+    }, [item.id, onRemove])
+
+    const animateOut = useCallback(() => {
+      if (removedRef.current || dismissed.value === 1) return
+
+      dismissed.value = 1
+      cancelAnimation(opacity)
+      cancelAnimation(translateY)
+      opacity.value = withTiming(0, { duration: 140 }, (finished) => {
+        "worklet"
+        if (finished) scheduleOnRN(finishRemove)
+      })
+      translateY.value = withTiming(-6, { duration: 140 })
+    }, [dismissed, finishRemove, opacity, translateY])
+
+    useEffect(() => {
+      dismissed.value = 0
+      removedRef.current = false
+      opacity.value = 0
+      translateY.value = -8
+      translateX.value = 0
+      opacity.value = withTiming(1, { duration: 140 })
+      translateY.value = withSpring(0, ENTER_SPRING)
+    }, [dismissed, opacity, translateX, translateY])
+
+    useEffect(() => {
+      const timeout = setTimeout(animateOut, item.duration)
+      return () => clearTimeout(timeout)
+    }, [animateOut, item.duration])
+
+    const panGesture = useMemo(
+      () =>
+        Gesture.Pan()
+          .activeOffsetX([-8, 8])
+          .onChange((event) => {
+            "worklet"
+            if (dismissed.value === 0) translateX.value = event.translationX
+          })
+          .onEnd((event) => {
+            "worklet"
+            if (dismissed.value === 1) return
+
+            if (Math.abs(event.translationX) > 90 || Math.abs(event.velocityX) > 500) {
+              dismissed.value = 1
+              const direction = event.translationX >= 0 ? 1 : -1
+              translateX.value = withTiming(direction * SCREEN_WIDTH, { duration: 150 }, (finished) => {
+                "worklet"
+                if (finished) scheduleOnRN(finishRemove)
+              })
+              opacity.value = withTiming(0, { duration: 120 })
+            } else {
+              translateX.value = withSpring(0, ENTER_SPRING)
+            }
+          }),
+      [dismissed, finishRemove, opacity, translateX],
+    )
+
+    const animatedStyle = useAnimatedStyle(() => ({
+      opacity: opacity.value,
+      transform: [{ translateY: translateY.value }, { translateX: translateX.value }],
+    }))
+
+    return (
+      <GestureDetector gesture={panGesture}>
+        <Animated.View
+          layout={LinearTransition.duration(160)}
+          style={[styles.toastContainer, animatedStyle]}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={item.message}
+            onPress={animateOut}
+          >
+            <View
+              style={[
+                styles.toastSurface,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <View style={styles.iconContainer}>{getToastIcon(item.type, accentColor)}</View>
+              <Text style={[styles.toastText, { color: colors.foreground }]} numberOfLines={2}>
+                {item.message}
+              </Text>
+            </View>
+          </Pressable>
+        </Animated.View>
+      </GestureDetector>
+    )
+  },
+)
 
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const { colors } = useTheme()
   const insets = useSafeAreaInsets()
-  const [visible, setVisible] = useState<boolean>(false)
-  const [message, setMessage] = useState<string>("")
-  const [toastType, setToastType] = useState<ToastType>("default")
-
-  const opacity = useSharedValue(0)
-  const translateY = useSharedValue(-60)
-  const translateX = useSharedValue(0)
-  const scale = useSharedValue(0.92)
-
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [toasts, setToasts] = useState<ToastItem[]>([])
+  const nextId = useRef(0)
 
   const getToastColor = useCallback(
     (type: ToastType) => {
@@ -91,195 +213,93 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
         case "info":
           return colors.accent
         default:
-          return colors.primary
+          return colors.mutedForeground
       }
     },
     [colors],
   )
 
-  const getToastIcon = useCallback(
-    (type: ToastType) => {
-      const size = 18
-      const color = getToastColor(type)
+  const removeToast = useCallback((id: string) => {
+    setToasts((current) => current.filter((item) => item.id !== id))
+  }, [])
 
-      switch (type) {
-        case "success":
-          return <CheckCircle size={size} color={color} strokeWidth={2.5} />
-        case "error":
-          return <AlertCircle size={size} color={color} strokeWidth={2.5} />
-        case "info":
-          return <Info size={size} color={color} strokeWidth={2.5} />
-        default:
-          return <Check size={size} color={color} strokeWidth={2.5} />
-      }
-    },
-    [getToastColor],
-  )
+  const showToast = useCallback((message: string, options?: ToastOptions) => {
+    const type = options?.type ?? "default"
+    const duration = options?.duration ?? 3000
+    const id = `toast-${Date.now()}-${nextId.current++}`
 
-  const hideToast = useCallback(() => {
-    opacity.value = withTiming(0, { duration: 180 }, (finished) => {
-      "worklet"
-      if (finished) {
-        scheduleOnRN(setVisible, false)
-      }
+    setToasts((current) => {
+      // Repeated status messages should refresh one toast instead of stacking copies.
+      const withoutDuplicate = current.filter(
+        (item) => item.message !== message || item.type !== type,
+      )
+      return [...withoutDuplicate, { id, message, type, duration }].slice(-MAX_VISIBLE_TOASTS)
     })
-    translateY.value = withTiming(-60, { duration: 180 })
-    scale.value = withTiming(0.92, { duration: 180 })
-  }, [opacity, translateY, scale])
-
-  const showToast = useCallback(
-    (msg: string, options?: ToastOptions) => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
-
-      const type = options?.type || "default"
-      const duration = options?.duration || 3000
-
-      setMessage(msg)
-      setToastType(type)
-      setVisible(true)
-
-      translateX.value = 0
-      translateY.value = -60
-      opacity.value = 0
-      scale.value = 0.92
-
-      opacity.value = withTiming(1, { duration: 200 })
-      translateY.value = withSpring(0, SPRING_CONFIG)
-      scale.value = withSpring(1, SPRING_CONFIG)
-
-      timeoutRef.current = setTimeout(() => {
-        hideToast()
-      }, duration)
-    },
-    [hideToast, opacity, scale, translateX, translateY],
-  )
+  }, [])
 
   useEffect(() => {
     globalToast = showToast
     return () => {
       globalToast = null
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
   }, [showToast])
 
-  const panGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .onChange((e) => {
-          "worklet"
-          translateX.value = e.translationX
-        })
-        .onEnd((e) => {
-          "worklet"
-          if (Math.abs(e.translationX) > 100 || Math.abs(e.velocityX) > 500) {
-            translateX.value = withTiming(
-              Math.sign(e.translationX) * 400,
-              { duration: 150 },
-              (finished) => {
-                "worklet"
-                if (finished) {
-                  scheduleOnRN(setVisible, false)
-                }
-              },
-            )
-          } else {
-            translateX.value = withSpring(0, SPRING_CONFIG)
-          }
-        }),
-    [translateX],
-  )
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [
-      { translateY: translateY.value },
-      { translateX: translateX.value },
-      { scale: scale.value },
-    ],
-  }))
-
   const contextValue = useMemo(() => ({ toast: showToast }), [showToast])
+  const visibleToasts = toasts.slice(-MAX_VISIBLE_TOASTS).reverse()
 
   return (
     <ToastContext.Provider value={contextValue}>
       {children}
-      {visible && (
-        <GestureDetector gesture={panGesture}>
-          <Animated.View
-            style={[
-              styles.toastContainer,
-              { top: insets.top + 8 },
-              animatedStyle,
-            ]}
-          >
-            <Pressable onPress={() => hideToast()}>
-              <Card
-                variant="default"
-                className="flex-row items-center px-4 py-3"
-                style={[
-                  styles.toastCard,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                    borderWidth: 1,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.iconContainer,
-                    { backgroundColor: getToastColor(toastType) + "1A" },
-                  ]}
-                >
-                  {getToastIcon(toastType)}
-                </View>
-                <View style={styles.toastContent}>
-                  <Text
-                    style={[styles.toastText, { color: colors.foreground }]}
-                    numberOfLines={2}
-                  >
-                    {message}
-                  </Text>
-                </View>
-              </Card>
-            </Pressable>
-          </Animated.View>
-        </GestureDetector>
-      )}
+      <View
+        pointerEvents="box-none"
+        style={[styles.toastLayer, { top: insets.top + 10 }]}
+      >
+        {visibleToasts.map((item) => (
+          <ToastItemView
+            key={item.id}
+            item={item}
+            colors={colors}
+            accentColor={getToastColor(item.type)}
+            onRemove={removeToast}
+          />
+        ))}
+      </View>
     </ToastContext.Provider>
   )
 }
 
 const styles = StyleSheet.create({
-  toastContainer: {
+  toastLayer: {
     position: "absolute",
-    alignSelf: "center",
-    width: Dimensions.get("window").width - 32,
-    maxWidth: 360,
+    left: 16,
+    right: 16,
+    alignItems: "center",
+    gap: 8,
     zIndex: 9999,
   },
-  toastCard: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-    borderRadius: 14,
+  toastContainer: {
+    width: "100%",
+    maxWidth: 380,
+  },
+  toastSurface: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
   },
   iconContainer: {
-    marginRight: 12,
-    justifyContent: "center",
+    width: 22,
     alignItems: "center",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  toastContent: {
-    flex: 1,
+    justifyContent: "center",
+    marginRight: 10,
   },
   toastText: {
+    flex: 1,
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
     lineHeight: 18,
   },
 })

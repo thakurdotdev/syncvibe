@@ -2,10 +2,11 @@ import { API_URL } from "@/constants"
 import { User } from "@/types/user"
 import useApi from "@/utils/hooks/useApi"
 import * as Notifications from "expo-notifications"
-import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react"
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react"
 import { Platform } from "react-native"
 import { io, Socket } from "socket.io-client"
 import { useUser } from "./UserContext"
+import { runAfterIdle } from "@/utils/runAfterIdle"
 
 export interface ChatUser {
   chatid: number
@@ -196,7 +197,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     }
   }, [user?.userid, updateCurrentChatStatus, handleMessageReceived])
 
-  const cleanUpSocket = () => {
+  const cleanUpSocket = useCallback(() => {
     Object.values(typingTimeouts).forEach(clearTimeout)
     setUsers([])
     setOnlineStatuses({})
@@ -215,28 +216,35 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       socket.disconnect()
       setSocket(null)
     }
-  }
+  }, [socket, user?.userid])
 
   useEffect(() => {
-    if (user?.userid) {
-      getAllExistingChats()
+    if (!user?.userid) return
+
+    const task = runAfterIdle(() => {
+      void getAllExistingChats()
       setupSocket()
-    }
+    })
+
+    return () => task.cancel()
   }, [user?.userid, getAllExistingChats, setupSocket])
 
-  const contextValue: ChatContextType = {
-    users,
-    setUsers,
-    loading,
-    setLoading,
-    onlineStatuses,
-    setOnlineStatuses,
-    currentChat,
-    setCurrentChat,
-    socket,
-    getAllExistingChats,
-    cleanUpSocket,
-  }
+  const contextValue = useMemo<ChatContextType>(
+    () => ({
+      users,
+      setUsers,
+      loading,
+      setLoading,
+      onlineStatuses,
+      setOnlineStatuses,
+      currentChat,
+      setCurrentChat,
+      socket,
+      getAllExistingChats,
+      cleanUpSocket,
+    }),
+    [users, loading, onlineStatuses, currentChat, socket, getAllExistingChats, cleanUpSocket],
+  )
 
   return <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>
 }

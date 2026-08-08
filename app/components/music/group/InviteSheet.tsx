@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
   Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   StatusBar,
   StyleSheet,
@@ -22,6 +23,7 @@ import { useGroupMusic } from "@/context/GroupMusicContext"
 import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
 import { getProfileCloudinaryUrl } from "@/utils/Cloudinary"
 import useApi from "@/utils/hooks/useApi"
+import { useSharedValue } from "react-native-reanimated"
 
 interface InviteUser {
   userid: number
@@ -78,9 +80,7 @@ const UserRow = React.memo(
           </View>
           <Text style={[styles.userHandle, { color: colors.mutedForeground }]} numberOfLines={1}>
             @{user.username}
-            {isOnline && (
-              <Text style={{ color: "#10b981", fontWeight: "700" }}> · online</Text>
-            )}
+            {isOnline && <Text style={{ color: "#10b981", fontWeight: "700" }}> · online</Text>}
           </Text>
         </View>
 
@@ -108,7 +108,7 @@ const UserRow = React.memo(
         </View>
       </View>
     )
-  },
+  }
 )
 
 interface InviteSheetProps {
@@ -125,10 +125,7 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
   const insets = useSafeAreaInsets()
 
   const groupMembers = useGroupSessionStore((s) => s.groupMembers)
-  const memberIds = useMemo(
-    () => new Set(groupMembers?.map((m) => m.userId) || []),
-    [groupMembers],
-  )
+  const memberIds = useMemo(() => new Set(groupMembers?.map((m) => m.userId) || []), [groupMembers])
 
   const [searchQuery, setSearchQuery] = useState("")
   const [users, setUsers] = useState<InviteUser[]>([])
@@ -136,6 +133,14 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
   const [invitedUsers, setInvitedUsers] = useState<Set<number>>(new Set())
   const [hasSearched, setHasSearched] = useState(false)
   const searchTimer = useRef<any>(null)
+  const scrollOffset = useSharedValue(0)
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollOffset.value = event.nativeEvent.contentOffset.y
+    },
+    [scrollOffset]
+  )
 
   const fetchUsers = useCallback(
     async (query: string) => {
@@ -151,7 +156,7 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
         setIsLoading(false)
       }
     },
-    [api],
+    [api]
   )
 
   useEffect(() => {
@@ -160,6 +165,7 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
       setInvitedUsers(new Set())
       setSearchQuery("")
       setHasSearched(false)
+      scrollOffset.value = 0
       const timer = setTimeout(() => inputRef.current?.focus(), 350)
       return () => clearTimeout(timer)
     }
@@ -171,7 +177,7 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
       if (searchTimer.current) clearTimeout(searchTimer.current)
       searchTimer.current = setTimeout(() => fetchUsers(query), 400)
     },
-    [fetchUsers],
+    [fetchUsers]
   )
 
   const handleInvite = useCallback(
@@ -179,7 +185,7 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
       setInvitedUsers((prev) => new Set(prev).add(userId))
       sendInvite(userId)
     },
-    [sendInvite],
+    [sendInvite]
   )
 
   const sortedUsers = useMemo(() => {
@@ -205,33 +211,32 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
         colors={colors}
       />
     ),
-    [onlineStatuses, invitedUsers, memberIds, handleInvite, colors],
+    [onlineStatuses, invitedUsers, memberIds, handleInvite, colors]
   )
 
   const keyExtractor = useCallback((item: InviteUser) => String(item.userid), [])
 
-  const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 24) : insets.top
+  const statusBarHeight = Platform.OS === "android" ? StatusBar.currentHeight || 24 : insets.top
   const topPadding = Math.max(statusBarHeight, insets.top || 0, 24)
 
   return (
     <SwipeableModal
       isVisible={isOpen}
       onClose={onClose}
-      maxHeight={Dimensions.get("screen").height}
+      maxHeight="100%"
       scrollable={true}
+      scrollOffset={scrollOffset}
       hideHandle={true}
-      style={styles.modalStyle}
+      fullScreen
     >
       <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: topPadding + 8 }]}>
+        <View style={[styles.header, { paddingTop: 16 }]}>
           <View style={styles.headerLeft}>
             <TouchableOpacity onPress={onClose} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color={colors.foreground} />
             </TouchableOpacity>
             <View>
-              <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-                Invite Friends
-              </Text>
+              <Text style={[styles.headerTitle, { color: colors.foreground }]}>Invite Friends</Text>
               <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
                 Bring your circle into the sync
               </Text>
@@ -245,8 +250,8 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
             placeholder="Search friends..."
             value={searchQuery}
             onChangeText={handleSearchChange}
-            variant="outline"
-            containerStyle={styles.searchInput}
+            variant="filled"
+            size="sm"
             leftIcon={<Feather name="search" size={16} color={colors.mutedForeground} />}
             rightIcon={
               searchQuery ? (
@@ -289,6 +294,8 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
           />
         )}
       </View>
@@ -297,15 +304,6 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
 }
 
 const styles = StyleSheet.create({
-  modalStyle: {
-    height: Dimensions.get("screen").height,
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-  },
   container: {
     flex: 1,
   },
@@ -332,14 +330,14 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingTop: 4,
+    paddingBottom: 6,
   },
   searchInput: {
     flex: 1,
   },
   listContent: {
-    paddingTop:10,
+    paddingTop: 10,
     paddingBottom: 20,
   },
   userRow: {

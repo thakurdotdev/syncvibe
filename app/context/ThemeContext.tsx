@@ -9,9 +9,8 @@ import React, {
   useMemo,
   useRef,
   useState,
-  useTransition,
 } from "react"
-import { Appearance, AppState, InteractionManager, useColorScheme } from "react-native"
+import { Appearance, AppState, useColorScheme } from "react-native"
 
 const THEME_PREFERENCE_KEY = "@theme_preference"
 
@@ -38,7 +37,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setThemeState] = useState<ColorTheme>(deviceColorScheme || "light")
   const [themePreference, setThemePreference] = useState<ThemePreference>("system")
   const [isLoading, setIsLoading] = useState<boolean>(true)
-  const [isPending, startTransition] = useTransition()
 
   const prevThemeRef = useRef<ThemePreference>(themePreference)
   const pendingThemeUpdate = useRef<any>(null)
@@ -61,18 +59,16 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         setThemeState(newTheme as ColorTheme)
       }
 
-      startTransition(() => {
-        setThemePreference(newTheme)
-        pendingThemeUpdate.current = setTimeout(() => {
-          InteractionManager.runAfterInteractions(() => {
-            storageCache.setItem(THEME_PREFERENCE_KEY, newTheme).catch((error) => {
-              console.log("Error saving theme preference:", error)
-            })
-          })
-        }, 300)
-      })
+      // Keep the visible theme update synchronous. A transition here makes
+      // the profile toggle feel unresponsive while the whole app repaints.
+      setThemePreference(newTheme)
+      pendingThemeUpdate.current = setTimeout(() => {
+        storageCache.setItem(THEME_PREFERENCE_KEY, newTheme).catch((error) => {
+          console.log("Error saving theme preference:", error)
+        })
+      }, 300)
     },
-    [deviceColorScheme, startTransition],
+    [deviceColorScheme],
   )
 
   useEffect(() => {
@@ -127,18 +123,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   }, [deviceColorScheme, themePreference])
 
-  const setTheme = (newTheme: ThemePreference) => {
-    updateTheme(newTheme)
-  }
+  const setTheme = useCallback((newTheme: ThemePreference) => updateTheme(newTheme), [updateTheme])
 
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light"
-    updateTheme(newTheme)
-  }
+  const toggleTheme = useCallback(() => {
+    updateTheme(theme === "light" ? "dark" : "light")
+  }, [theme, updateTheme])
 
-  const setSystemTheme = () => {
-    updateTheme("system")
-  }
+  const setSystemTheme = useCallback(() => updateTheme("system"), [updateTheme])
 
   const themeColors = useMemo(() => colorPalettes["default"][theme], [theme])
 

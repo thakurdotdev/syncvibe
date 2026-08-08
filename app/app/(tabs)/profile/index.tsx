@@ -16,7 +16,7 @@ import {
   View,
   Linking,
 } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { TabSafeAreaView } from "@/components/ui/TabSafeAreaView"
 import DeveloperProfileModal from "@/components/DeveloperProfileModal"
 import LoginScreen from "@/components/LoginScreen"
 import Card from "@/components/ui/card"
@@ -262,16 +262,6 @@ const ProfileHeader = ({
   onAvatarPress: () => void
   onCameraPress: () => void
 }) => {
-  const entrance = useState(() => new Animated.Value(0))[0]
-
-  useEffect(() => {
-    Animated.timing(entrance, {
-      toValue: 1,
-      duration: 420,
-      useNativeDriver: true,
-    }).start()
-  }, [entrance])
-
   return (
     <View style={{ marginBottom: 24 }}>
       <LinearGradient
@@ -285,12 +275,6 @@ const ProfileHeader = ({
         style={{
           paddingTop: 28,
           paddingHorizontal: 24,
-          opacity: entrance,
-          transform: [
-            {
-              translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }),
-            },
-          ],
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 18 }}>
@@ -441,7 +425,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <TabSafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <Animated.ScrollView showsVerticalScrollIndicator={false}>
         <ProfileHeader
           user={user}
@@ -606,6 +590,6 @@ export default function ProfileScreen() {
         isVisible={showDeveloperModal}
         onClose={() => setShowDeveloperModal(false)}
       />
-    </SafeAreaView>
+    </TabSafeAreaView>
   )
 }

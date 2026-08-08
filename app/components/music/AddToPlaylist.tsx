@@ -10,12 +10,15 @@ import {
   Animated,
   FlatList,
   Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native"
 import SwipeableModal from "../SwipeableModal"
+import { useSharedValue } from "react-native-reanimated"
 
 export interface Playlist {
   id: string
@@ -42,10 +45,16 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null)
   const [addingSuccess, setAddingSuccess] = useState(false)
+  const scrollOffset = useSharedValue(0)
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollOffset.value = event.nativeEvent.contentOffset.y
+  }
 
   const successOpacity = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
+    scrollOffset.value = 0
     if (!dialogOpen) {
       setSearchQuery("")
       setSelectedPlaylistId(null)
@@ -203,6 +212,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
         backdropOpacity={0.6}
         scrollable={true}
         useScrollView={false}
+        scrollOffset={scrollOffset}
         maxHeight="90%"
       >
         <View style={{ padding: 16 }}>
@@ -316,6 +326,8 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
               data={filteredPlaylists}
               renderItem={renderPlaylistItem}
               keyExtractor={(item) => item.id}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
               ListEmptyComponent={
                 <View style={{ alignItems: "center", paddingVertical: 40, gap: 12 }}>
                   <MaterialIcons name="queue-music" size={44} color={colors.border} />
@@ -330,7 +342,6 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
               }
               contentContainerStyle={{ paddingBottom: 8 }}
               showsVerticalScrollIndicator={true}
-              scrollEventThrottle={16}
               nestedScrollEnabled={true}
               scrollEnabled={true}
               style={{ maxHeight: 400 }}

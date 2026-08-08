@@ -51,7 +51,6 @@ let errorRetries = 0
 let lastErrorTime = 0
 let recovering = false
 
-
 // Track cache for fast song→MediaItem conversion
 const trackCache = new Map<string, MediaItem>()
 
@@ -194,6 +193,7 @@ export const setBridgeUserId = (id?: number) => {
 
 export const bridgePlaySong = (song: Song, uid?: number) => {
   if (!initialized || !song?.id) return
+  if (store().activePlayerMode === "group") return
 
   stopGroupPlayback()
   resetErrors()
@@ -227,7 +227,7 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
   // Song not in queue — rebuild from playlist
   const startIdx = Math.max(
     0,
-    playlist.findIndex((s) => s.id === song.id),
+    playlist.findIndex((s) => s.id === song.id)
   )
   loadPlaylist(playlist, startIdx)
   fillQueue()
@@ -235,6 +235,7 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
 
 export const bridgeStopSong = async () => {
   if (!initialized) return
+  if (store().activePlayerMode === "group") return
   try {
     await playbackHistory.stopPlayback().catch(console.error)
     TrackPlayer.stop()
@@ -246,6 +247,7 @@ export const bridgeStopSong = async () => {
 
 export const bridgePlayPause = () => {
   if (!initialized) return
+  if (store().activePlayerMode === "group") return
 
   stopGroupPlayback()
   switchToNormalMode()
@@ -282,6 +284,7 @@ export const bridgePlayPause = () => {
 
 export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
   if (!initialized) return
+  if (store().activePlayerMode === "group") return
 
   stopGroupPlayback()
   switchToNormalMode()
@@ -354,6 +357,7 @@ export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
 
 export const bridgeHandlePrevSong = (uid?: number) => {
   if (!initialized) return
+  if (store().activePlayerMode === "group") return
 
   stopGroupPlayback()
   switchToNormalMode()
@@ -464,6 +468,7 @@ export const syncReorderPlaylist = (newOrder: Song[]) => {
  */
 const syncStoreFromNative = () => {
   const s = store()
+  if (s.activePlayerMode === "group") return
   const activeItem = TrackPlayer.getActiveMediaItem()
 
   if (activeItem?.mediaId) {
@@ -546,7 +551,7 @@ const setupAppStateListener = () => {
               s.currentSong,
               position,
               duration,
-              TrackPlayer.isPlaying(),
+              TrackPlayer.isPlaying()
             )
           }
         } catch (error) {
@@ -567,7 +572,7 @@ const setupAppStateListener = () => {
               s.currentSong,
               position,
               duration,
-              TrackPlayer.isPlaying(),
+              TrackPlayer.isPlaying()
             )
           }
         }
@@ -578,7 +583,7 @@ const setupAppStateListener = () => {
   })
 }
 
-export const dispatchTrackPlayerEvent = async (event: { type: string;[key: string]: unknown }) => {
+export const dispatchTrackPlayerEvent = async (event: { type: string; [key: string]: unknown }) => {
   if (!initialized) return
 
   const s = store()

@@ -72,7 +72,10 @@ export const searchMusic = async (query: string): Promise<Song[]> => {
   return response.data.data ?? []
 }
 
-export const fetchSongRecommendations = async (api: any, id: string): Promise<Song[]> => {
+export const fetchSongRecommendations = async (
+  api: any,
+  id: string | number,
+): Promise<Song[]> => {
   try {
     const response = await api.get(`/api/play-next/${id}?limit=20`)
     if (response?.data?.data?.length) {
@@ -86,3 +89,15 @@ export const fetchSongRecommendations = async (api: any, id: string): Promise<So
     return []
   }
 }
+
+export const getGroupHistory = async (api: any, userId?: string | number): Promise<any[]> => {
+  try {
+    const response = await api.get(`/api/music/group-history${userId ? `?userId=${userId}` : ""}`)
+    return response.data?.data || []
+  } catch (err) {
+    console.log("group history error", err)
+    return []
+  }
+}
+
+

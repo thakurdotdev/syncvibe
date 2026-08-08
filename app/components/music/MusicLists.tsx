@@ -2,6 +2,7 @@ import Card from "@/components/ui/card"
 import {
   usePlayerControls,
   usePlaybackState,
+  useSongPlaybackState,
   usePlaylistState,
   usePlayerStore,
 } from "@/stores/playerStore"
@@ -72,8 +73,7 @@ const SongCardQueue = memo(
   }) => {
     const { colors } = useTheme()
     const { playSong, removeFromQueue, handlePlayPause } = usePlayerControls()
-    const { currentSong, isPlaying } = usePlaybackState()
-    const isCurrentSong = currentSong?.id === song.id
+    const { isCurrentSong, isPlaying } = useSongPlaybackState(song.id)
     const swipeableRef = useRef<Swipeable>(null)
 
     const handlePress = useCallback(() => {
@@ -147,7 +147,7 @@ const SongCardQueue = memo(
               >
                 <View style={queueItemStyles.thumbnailWrapper}>
                   <Image
-                    source={{ uri: songImage }}
+                    source={{ uri: songImage, cache: "force-cache" }}
                     style={queueItemStyles.thumbnail}
                     fadeDuration={0}
                     resizeMode="cover"
@@ -443,7 +443,7 @@ export const MusicQueue = memo(() => {
           <View style={queueMenuStyles.container}>
             <View style={queueMenuStyles.header}>
               <Image
-                source={{ uri: menuSong.image[1]?.link }}
+                source={{ uri: menuSong.image[1]?.link, cache: "force-cache" }}
                 style={queueMenuStyles.headerImage}
               />
               <View style={queueMenuStyles.headerInfo}>
@@ -637,7 +637,7 @@ const queueStyles = StyleSheet.create({
   },
 })
 
-export const AlbumsGrid = ({ albums, title }: AlbumsGridProps) => {
+export const AlbumsGrid = memo(({ albums, title }: AlbumsGridProps) => {
   const { colors } = useTheme()
   if (!albums?.length) return null
 
@@ -663,9 +663,9 @@ export const AlbumsGrid = ({ albums, title }: AlbumsGridProps) => {
       />
     </View>
   )
-}
+})
 
-export const PlaylistsGrid = ({ playlists, title }: PlaylistsGridProps) => {
+export const PlaylistsGrid = memo(({ playlists, title }: PlaylistsGridProps) => {
   const { colors } = useTheme()
   if (!playlists?.length) return null
 
@@ -691,9 +691,9 @@ export const PlaylistsGrid = ({ playlists, title }: PlaylistsGridProps) => {
       />
     </View>
   )
-}
+})
 
-export const RecommendationGrid = ({
+export const RecommendationGrid = memo(({
   recommendations,
   title,
   showMore = false,
@@ -736,7 +736,7 @@ export const RecommendationGrid = ({
       />
     </View>
   )
-}
+})
 
 export const TrendingSongs = memo(({ songs, title }: { songs: Song[]; title: string }) => {
   const { colors } = useTheme()

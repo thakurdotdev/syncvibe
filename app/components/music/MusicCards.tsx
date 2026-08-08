@@ -1,9 +1,10 @@
 import { useGroupMusic } from "@/context/GroupMusicContext"
 import { useTheme } from "@/context/ThemeContext"
 import {
-  usePlaybackState,
   usePlayerControls,
   useRepeatMode,
+  usePlaybackState,
+  useSongPlaybackState,
   useShuffleMode
 } from "@/stores/playerStore"
 import { Song } from "@/types/song"
@@ -208,11 +209,10 @@ export const SongCard = memo(
     onPress: onPressCallback,
   }: SongCardProps & { disableOnLongPress?: boolean }) => {
     const { playSong, handlePlayPause } = usePlayerControls()
-    const { currentSong, isPlaying } = usePlaybackState()
+    const { isCurrentSong, isPlaying } = useSongPlaybackState(song.id)
     const { colors } = useTheme()
 
     const securedSong = useMemo(() => ensureHttpsForSongUrls(song), [song])
-    const isCurrentSong = currentSong?.id === securedSong.id
     const [playerDrawerOpen, setPlayerDrawerOpen] = useState(false)
 
     const handlePress = useCallback(async () => {
@@ -257,7 +257,10 @@ export const SongCard = memo(
             }}
           >
             <Image
-              source={{ uri: securedSong.image[1]?.link || securedSong.image[0]?.link }}
+              source={{
+                uri: securedSong.image[1]?.link || securedSong.image[0]?.link,
+                cache: "force-cache",
+              }}
               style={{ width: "100%", height: "100%" }}
               alt="Song cover"
               fadeDuration={0}
@@ -333,7 +336,7 @@ export const CardImage = ({ uri, alt }: { uri: string; alt: string }) => {
       }}
     >
       <Image
-        source={{ uri: sourceUri }}
+        source={{ uri: sourceUri, cache: "force-cache" }}
         style={{
           width: "100%",
           height: 140,
@@ -417,7 +420,7 @@ export const AlbumCard = memo(
             }}
           >
             <Image
-              source={{ uri: imageUrl || "https://via.placeholder.com/136" }}
+              source={{ uri: imageUrl || "https://via.placeholder.com/136", cache: "force-cache" }}
               style={{ width: "100%", height: "100%" }}
               resizeMode="cover"
               alt={`Album: ${name}`}
@@ -506,7 +509,7 @@ export const PlaylistCard = memo(
             }}
           >
             <Image
-              source={{ uri: imageUrl }}
+              source={{ uri: imageUrl, cache: "force-cache" }}
               style={{ width: "100%", height: "100%" }}
               resizeMode="cover"
               alt={`Playlist: ${securedPlaylist.name}`}
@@ -567,7 +570,7 @@ export const PlaylistCard = memo(
             }}
           >
             <Image
-              source={{ uri: imageUrl }}
+              source={{ uri: imageUrl, cache: "force-cache" }}
               style={{ width: "100%", height: "100%" }}
               resizeMode="cover"
               alt={`Playlist: ${securedPlaylist.name}`}
@@ -629,9 +632,8 @@ export const PlaylistCard = memo(
 export const NewSongCard = memo(({ song }: SongCardProps) => {
   if (!song.id) return null
   const { playSong, handlePlayPause } = usePlayerControls()
-  const { currentSong, isPlaying } = usePlaybackState()
+  const { isCurrentSong, isPlaying } = useSongPlaybackState(song.id)
   const { colors } = useTheme()
-  const isCurrentSong = currentSong?.id === song.id
   const [playerDrawerOpen, setPlayerDrawerOpen] = useState(false)
 
   const securedSong = useMemo(() => ensureHttpsForSongUrls(song), [song])
@@ -676,7 +678,7 @@ export const NewSongCard = memo(({ song }: SongCardProps) => {
             }}
           >
             <Image
-              source={{ uri: imageUrl }}
+              source={{ uri: imageUrl, cache: "force-cache" }}
               style={{ width: "100%", height: "100%" }}
               resizeMode="cover"
               alt={`Song: ${securedSong.name}`}
@@ -793,7 +795,7 @@ export const ArtistCard = memo(
           }}
         >
           <Image
-            source={{ uri: imageUrl || "https://via.placeholder.com/120" }}
+            source={{ uri: imageUrl || "https://via.placeholder.com/120", cache: "force-cache" }}
             style={{ width: "100%", height: "100%" }}
             resizeMode="cover"
             alt={`Artist: ${securedArtist.name}`}

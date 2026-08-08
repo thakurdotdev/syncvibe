@@ -11,6 +11,7 @@ import useApi from "@/utils/hooks/useApi"
 import { useEffect } from "react"
 import TrackPlayer, { Event } from "@rntp/player"
 import { useQueryClient } from "@tanstack/react-query"
+import { runAfterIdle } from "@/utils/runAfterIdle"
 
 export default function PlayerInitializer() {
   const { user } = useUser()
@@ -18,9 +19,16 @@ export default function PlayerInitializer() {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    initializeTrackPlayer(user?.userid)
+    let cancelled = false
+    const task = runAfterIdle(() => {
+      if (!cancelled) {
+        void initializeTrackPlayer(user?.userid)
+      }
+    })
 
     return () => {
+      cancelled = true
+      task.cancel()
       destroyTrackPlayer()
     }
   }, [])
@@ -43,7 +51,11 @@ export default function PlayerInitializer() {
       }
     }
 
-    fetchPlaylists()
+    const task = runAfterIdle(() => {
+      void fetchPlaylists()
+    })
+
+    return () => task.cancel()
   }, [user?.userid])
 
   useEffect(() => {
@@ -65,6 +77,12 @@ export default function PlayerInitializer() {
     const subscriptions = [
       TrackPlayer.addEventListener(Event.PlaybackStateChanged, (event) => {
         dispatchTrackPlayerEvent({ type: Event.PlaybackStateChanged, ...event })
+      }),
+      TrackPlayer.addEventListener(Event.IsPlayingChanged, ({ playing }) => {
+        // GroupMusicContext owns this event while group playback is active.
+        if (usePlayerStore.getState().activePlayerMode === "normal") {
+          usePlayerStore.getState().setPlaying(playing)
+        }
       }),
       TrackPlayer.addEventListener(Event.MediaItemTransition, (event) => {
         dispatchTrackPlayerEvent({ type: Event.MediaItemTransition, ...event })

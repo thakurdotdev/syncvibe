@@ -23,15 +23,15 @@ import {
   View
 } from "react-native"
 import Animated from "react-native-reanimated"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { TabSafeAreaView } from "@/components/ui/TabSafeAreaView"
 
 const LoadingState = () => {
   const { colors } = useTheme()
 
   return (
-    <SafeAreaView style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+    <TabSafeAreaView style={[styles.centerContainer, { backgroundColor: colors.background }]}>
       <ActivityIndicator size="large" color={colors.primary} />
-    </SafeAreaView>
+    </TabSafeAreaView>
   )
 }
 
@@ -212,7 +212,7 @@ const PlaylistScreen = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <TabSafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.headerRow}>
         <View>
@@ -419,7 +419,7 @@ const PlaylistScreen = () => {
       </SwipeableModal>
 
       {!user && <LoginModal />}
-    </SafeAreaView>
+    </TabSafeAreaView>
   )
 }
 

@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react"
 import { Text, TouchableOpacity, View, StyleSheet, Alert, Share, ScrollView } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { TabSafeAreaView } from "@/components/ui/TabSafeAreaView"
 import { Feather, Ionicons } from "@expo/vector-icons"
 import LoginScreen from "@/components/LoginScreen"
 import QRScannerScreen from "@/app/qr-scanner"
@@ -27,12 +27,10 @@ const HeaderActions = React.memo(
   ({
     onOpenQueue,
     onOpenSearch,
-    onOpenInvite,
     onLeave,
   }: {
     onOpenQueue: () => void
     onOpenSearch: () => void
-    onOpenInvite: () => void
     onLeave: () => void
   }) => {
     const { colors } = useTheme()
@@ -47,7 +45,13 @@ const HeaderActions = React.memo(
 
     return (
       <View style={styles.headerRight}>
-        <TouchableOpacity onPress={onOpenQueue} style={styles.headerIconBtn} activeOpacity={0.6}>
+        <TouchableOpacity
+          onPress={onOpenQueue}
+          style={[styles.headerIconBtn, { backgroundColor: colors.secondary }]}
+          activeOpacity={0.6}
+          accessibilityRole="button"
+          accessibilityLabel="Open queue"
+        >
           <Feather name="list" size={20} color={colors.foreground} />
           {activeQueueCount > 0 && (
             <View style={[styles.headerBadge, { backgroundColor: colors.primary }]}>
@@ -57,18 +61,27 @@ const HeaderActions = React.memo(
             </View>
           )}
         </TouchableOpacity>
-        <TouchableOpacity onPress={onOpenSearch} style={styles.headerIconBtn} activeOpacity={0.6}>
+        <TouchableOpacity
+          onPress={onOpenSearch}
+          style={[styles.headerIconBtn, { backgroundColor: colors.secondary }]}
+          activeOpacity={0.6}
+          accessibilityRole="button"
+          accessibilityLabel="Search music"
+        >
           <Feather name="search" size={20} color={colors.foreground} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={onOpenInvite} style={styles.headerIconBtn} activeOpacity={0.6}>
-          <Feather name="user-plus" size={20} color={colors.foreground} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onLeave} style={styles.headerIconBtn} activeOpacity={0.6}>
+        <TouchableOpacity
+          onPress={onLeave}
+          style={[styles.headerIconBtn, { backgroundColor: colors.secondary }]}
+          activeOpacity={0.6}
+          accessibilityRole="button"
+          accessibilityLabel="Leave group"
+        >
           <Feather name="log-out" size={20} color={colors.foreground} />
         </TouchableOpacity>
       </View>
     )
-  },
+  }
 )
 
 export default function GroupMusicMobile() {
@@ -81,6 +94,7 @@ export default function GroupMusicMobile() {
   const currentGroup = useGroupSessionStore((s) => s.currentGroup)
   const groupMembers = useGroupSessionStore((s) => s.groupMembers)
   const isGroupModalOpen = useGroupSessionStore((s) => s.isGroupModalOpen)
+  const isQueueOpen = useGroupSessionStore((s) => s.isQueueOpen)
   const isRejoining = useGroupSessionStore((s) => s.isRejoining)
   const isInviteSheetOpen = useGroupInviteStore((s) => s.isInviteSheetOpen)
 
@@ -116,7 +130,7 @@ export default function GroupMusicMobile() {
       [
         { text: "Cancel", style: "cancel" },
         { text: "Leave", style: "destructive", onPress: leaveGroup },
-      ],
+      ]
     )
   }, [currentGroup?.name, leaveGroup])
 
@@ -137,87 +151,98 @@ export default function GroupMusicMobile() {
         />
       ) : (
         <View style={[styles.root, { backgroundColor: colors.background }]}>
-          <SafeAreaView style={styles.header} edges={["top"]}>
-            <View style={styles.headerLeft}>
-              <Ionicons name="musical-notes-outline" size={22} color={colors.primary} />
-              <Text style={[styles.headerTitle, { color: colors.foreground }]}>Group Music</Text>
-              {currentGroup && <ConnectionBadge />}
+          <TabSafeAreaView edges={["top"]}>
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <Text style={[styles.headerTitle, { color: colors.foreground }]}>Group music</Text>
+                {currentGroup && <ConnectionBadge />}
+              </View>
+              {currentGroup && (
+                <HeaderActions
+                  onOpenQueue={handleOpenQueue}
+                  onOpenSearch={handleOpenSearch}
+                  onLeave={handleLeaveGroup}
+                />
+              )}
             </View>
-            {currentGroup && (
-              <HeaderActions
-                onOpenQueue={handleOpenQueue}
-                onOpenSearch={handleOpenSearch}
-                onOpenInvite={() => useGroupInviteStore.setState({ isInviteSheetOpen: true })}
-                onLeave={handleLeaveGroup}
-              />
-            )}
-          </SafeAreaView>
+          </TabSafeAreaView>
 
           <InviteNotification />
 
           {!currentGroup ? (
-            <View style={styles.welcomeContainer}>
-              <View style={[styles.welcomeIconWrap, { backgroundColor: colors.primary + "12" }]}>
-                <Ionicons name="people-outline" size={48} color={colors.primary} />
+            <ScrollView
+              contentContainerStyle={styles.welcomeContainer}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={[styles.welcomeIconWrap, { backgroundColor: colors.accent }]}>
+                <Ionicons name="people-outline" size={32} color={colors.primary} />
               </View>
               <Text style={[styles.welcomeTitle, { color: colors.foreground }]}>
-                Sync Your Vibe with Friends
+                Listen together
               </Text>
               <Text style={[styles.welcomeSubtitle, { color: colors.mutedForeground }]}>
-                Create a group to listen to music together. Invite your friends to join and start
-                playing music for everyone in the group.
+                Start a room or join a friend. Playback stays in sync for everyone listening.
               </Text>
               <TouchableOpacity
                 onPress={() => useGroupSessionStore.setState({ isGroupModalOpen: true })}
                 style={[styles.createButton, { backgroundColor: colors.primary }]}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Create or join a music group"
               >
-                <Feather name="plus-circle" size={18} color={colors.primaryForeground} />
+                <Feather name="plus" size={19} color={colors.primaryForeground} />
                 <Text style={[styles.createButtonText, { color: colors.primaryForeground }]}>
-                  Create or Join Group
+                  Create or join a room
                 </Text>
               </TouchableOpacity>
-            </View>
+              <Text style={[styles.welcomeFootnote, { color: colors.mutedForeground }]}>
+                Use an invite link or QR code to join a room.
+              </Text>
+            </ScrollView>
           ) : (
-            <ScrollView
-              style={styles.scrollContainer}
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              <GroupInfoCard
-                groupName={currentGroup.name}
-                groupId={currentGroup.id}
-                onCopyId={handleCopyGroupId}
-                onShowQRCode={() => setShowQRCodeModal(true)}
-              />
+            <View style={{ flex: 1 }}>
+              <ScrollView
+                style={styles.scrollContainer}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                <GroupInfoCard
+                  groupName={currentGroup.name}
+                  groupId={currentGroup.id}
+                  onCopyId={handleCopyGroupId}
+                  onOpenInvite={() => useGroupInviteStore.setState({ isInviteSheetOpen: true })}
+                  onShowQRCode={() => setShowQRCodeModal(true)}
+                />
 
-              <CurrentSongCard
-                onChooseSong={handleOpenSearch}
-                onOpenQueue={handleOpenQueue}
-                onPlayPause={handlePlayPause}
-                onSeek={handleSeek}
-                onSkip={skipSong}
-              />
+                <CurrentSongCard
+                  onChooseSong={handleOpenSearch}
+                  onPlayPause={handlePlayPause}
+                  onSeek={handleSeek}
+                  onSkip={skipSong}
+                />
 
-              <ChatPeek onOpenChat={() => setShowChatSheet(true)} />
+                <ChatPeek onOpenChat={() => setShowChatSheet(true)} />
 
-              <GroupMembersCard groupMembers={groupMembers} hostId={currentGroup.createdBy} />
+                <GroupMembersCard groupMembers={groupMembers} hostId={currentGroup.createdBy} />
+              </ScrollView>
 
               <FloatingReactions />
-            </ScrollView>
+            </View>
           )}
 
-          <CreateOrJoinModal
-            isOpen={isGroupModalOpen}
-            onClose={() => useGroupSessionStore.setState({ isGroupModalOpen: false })}
-            onCreateGroup={createGroup}
-            onJoinGroup={joinGroup}
-            onScanQRCode={() => setScanQrCode(true)}
-          />
+          {isGroupModalOpen && (
+            <CreateOrJoinModal
+              isOpen
+              onClose={() => useGroupSessionStore.setState({ isGroupModalOpen: false })}
+              onCreateGroup={createGroup}
+              onJoinGroup={joinGroup}
+              onScanQRCode={() => setScanQrCode(true)}
+            />
+          )}
 
-          <SearchModal isOpen={showSearchModal} onClose={handleCloseSearch} />
+          {showSearchModal && <SearchModal isOpen onClose={handleCloseSearch} />}
 
-          <QueueSheet onOpenSearch={handleOpenSearch} />
+          {isQueueOpen && <QueueSheet />}
 
           {currentGroup?.qrCode && (
             <QRCodeModal
@@ -227,12 +252,14 @@ export default function GroupMusicMobile() {
             />
           )}
 
-          <InviteSheet
-            isOpen={isInviteSheetOpen}
-            onClose={() => useGroupInviteStore.setState({ isInviteSheetOpen: false })}
-          />
+          {isInviteSheetOpen && (
+            <InviteSheet
+              isOpen
+              onClose={() => useGroupInviteStore.setState({ isInviteSheetOpen: false })}
+            />
+          )}
 
-          <ChatScreen isOpen={showChatSheet} onClose={() => setShowChatSheet(false)} />
+          {showChatSheet && <ChatScreen isOpen onClose={() => setShowChatSheet(false)} />}
         </View>
       )}
     </>
@@ -244,8 +271,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -256,8 +284,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: "700",
+    letterSpacing: -0.35,
   },
   headerRight: {
     flexDirection: "row",
@@ -267,7 +296,7 @@ const styles = StyleSheet.create({
   headerIconBtn: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -287,35 +316,38 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   welcomeContainer: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 32,
+    paddingBottom: 56,
   },
   welcomeIconWrap: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 72,
+    height: 72,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
   },
   welcomeTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "700",
-    marginTop: 24,
+    letterSpacing: -0.5,
+    marginTop: 10,
     textAlign: "center",
   },
   welcomeSubtitle: {
     textAlign: "center",
     marginTop: 12,
-    marginBottom: 36,
+    marginBottom: 28,
     fontSize: 15,
-    lineHeight: 22,
+    lineHeight: 23,
   },
   createButton: {
+    minHeight: 52,
     paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -324,13 +356,17 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontWeight: "700",
     marginLeft: 8,
-    fontSize: 16,
+    fontSize: 15,
+  },
+  welcomeFootnote: {
+    marginTop: 14,
+    fontSize: 12,
   },
   scrollContainer: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
   },
 })

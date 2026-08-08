@@ -11,7 +11,7 @@ import { useHomePageMusic, useRecentMusic } from "@/queries/useMusic"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { router } from "expo-router"
-import { memo, useCallback, useMemo, useRef } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef } from "react"
 import { Pressable, RefreshControl, Text, View } from "react-native"
 import Animated, {
   Extrapolation,
@@ -19,11 +19,12 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
+  cancelAnimation,
   withRepeat,
   withSequence,
   withTiming,
 } from "react-native-reanimated"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { TabSafeAreaView } from "@/components/ui/TabSafeAreaView"
 
 const SearchBar = memo(function SearchBar({
   colors,
@@ -76,12 +77,15 @@ const SearchBar = memo(function SearchBar({
 function HomeSkeleton({ colors }: { colors: ReturnType<typeof useTheme>["colors"] }) {
   const opacity = useSharedValue(0.45)
 
-  // kick off infinite pulse on mount (worklet-safe)
-  opacity.value = withRepeat(
-    withSequence(withTiming(0.85, { duration: 750 }), withTiming(0.45, { duration: 750 })),
-    -1,
-    false,
-  )
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withSequence(withTiming(0.85, { duration: 750 }), withTiming(0.45, { duration: 750 })),
+      -1,
+      false,
+    )
+
+    return () => cancelAnimation(opacity)
+  }, [opacity])
 
   const pulseStyle = useAnimatedStyle(() => ({ opacity: opacity.value }))
 
@@ -195,7 +199,7 @@ function HomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <SafeAreaView style={{ flex: 1 }}>
+      <TabSafeAreaView style={{ flex: 1 }}>
         <Animated.View
           style={[
             {
@@ -284,7 +288,7 @@ function HomeScreen() {
             </View>
           </Animated.ScrollView>
         )}
-      </SafeAreaView>
+      </TabSafeAreaView>
     </View>
   )
 }

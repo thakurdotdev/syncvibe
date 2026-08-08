@@ -10,6 +10,7 @@ import { useEffect } from "react"
 import { StatusBar } from "react-native"
 import { configureReanimatedLogger, ReanimatedLogLevel } from "react-native-reanimated"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
+import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context"
 import TrackPlayer from "@rntp/player"
 import ErrorBoundary from "@/components/ErrorBoundary"
 import Player from "@/components/music/Player"
@@ -66,29 +67,31 @@ const asyncStoragePersister = createAsyncStoragePersister({
 function RootLayout() {
   return (
     <ErrorBoundary>
-      <ThemeProvider>
-        <ToastProvider>
-          <AppUpdateProvider>
-            <UserProvider>
-              <PersistQueryClientProvider
-                client={queryClient}
-                persistOptions={{ persister: asyncStoragePersister }}
-              >
-                <ChatProvider>
-                  <NotificationProvider>
-                    <GroupMusicProvider>
-                      <GestureHandlerRootView style={{ flex: 1 }}>
-                        <PlayerInitializer />
-                        <RootLayoutNav />
-                      </GestureHandlerRootView>
-                    </GroupMusicProvider>
-                  </NotificationProvider>
-                </ChatProvider>
-              </PersistQueryClientProvider>
-            </UserProvider>
-          </AppUpdateProvider>
-        </ToastProvider>
-      </ThemeProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider initialMetrics={initialWindowMetrics} style={{ flex: 1 }}>
+          <ThemeProvider>
+            <ToastProvider>
+              <AppUpdateProvider>
+                <UserProvider>
+                  <PersistQueryClientProvider
+                    client={queryClient}
+                    persistOptions={{ persister: asyncStoragePersister }}
+                  >
+                    <ChatProvider>
+                      <NotificationProvider>
+                        <GroupMusicProvider>
+                          <PlayerInitializer />
+                          <RootLayoutNav />
+                        </GroupMusicProvider>
+                      </NotificationProvider>
+                    </ChatProvider>
+                  </PersistQueryClientProvider>
+                </UserProvider>
+              </AppUpdateProvider>
+            </ToastProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     </ErrorBoundary>
   )
 }
@@ -191,6 +194,7 @@ function RootLayoutNav() {
           options={{
             headerShown: false,
             gestureEnabled: false,
+            animation: "none",
           }}
         />
         <Stack.Screen

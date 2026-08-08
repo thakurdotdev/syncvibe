@@ -2,6 +2,7 @@ import React, { useMemo } from "react"
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import { Feather, Ionicons } from "@expo/vector-icons"
 import { CustomSlider } from "../MusicCards"
+import Card from "@/components/ui/card"
 import { useTheme } from "@/context/ThemeContext"
 import { useGroupPlaybackStore } from "@/stores/groupMusic/groupPlaybackStore"
 import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
@@ -10,7 +11,6 @@ import { MemberAvatarStack } from "./MemberAvatarStack"
 
 interface CurrentSongCardProps {
   onChooseSong: () => void
-  onOpenQueue: () => void
   onPlayPause: () => void
   onSeek: (value: number) => void
   onSkip: () => void
@@ -49,7 +49,6 @@ const GroupProgressBar = React.memo(({ onSeek }: { onSeek: (v: number) => void }
 
 export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
   onChooseSong,
-  onOpenQueue,
   onPlayPause,
   onSeek,
   onSkip,
@@ -65,46 +64,55 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
 
   const currentQueueItem = useMemo(
     () => (currentQueueIndex >= 0 && queue[currentQueueIndex] ? queue[currentQueueIndex] : null),
-    [queue, currentQueueIndex],
+    [queue, currentQueueIndex]
   )
 
-  const upcomingQueue = useMemo(
-    () => queue.filter((_, idx) => idx > currentQueueIndex),
-    [queue, currentQueueIndex],
-  )
-
-  const nextSong = useMemo(() => upcomingQueue[0]?.song || null, [upcomingQueue])
   const addedBy = currentQueueItem?.addedBy
   const artist = currentSong?.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"
 
   if (!currentSong) {
     return (
-      <TouchableOpacity
-        onPress={onChooseSong}
-        style={[styles.card, { backgroundColor: colors.card }]}
-        activeOpacity={0.7}
-      >
-        <View style={styles.emptyState}>
-          <View style={[styles.emptyIconWrap, { backgroundColor: colors.secondary }]}>
-            <Feather name="music" size={24} color={colors.mutedForeground} />
+      <Card variant="default" style={styles.card}>
+        <TouchableOpacity
+          onPress={onChooseSong}
+          style={styles.emptyState}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Choose a song for the group"
+        >
+          <View style={[styles.emptyIconWrap, { backgroundColor: colors.accent }]}>
+            <Feather name="music" size={23} color={colors.primary} />
           </View>
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-            Choose a song to play
+            Pick the first track
           </Text>
           <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-            Search for music to start the vibe
+            Search for a song and it will play for everyone here.
           </Text>
-        </View>
-      </TouchableOpacity>
+          <View style={[styles.emptyAction, { backgroundColor: colors.primary }]}>
+            <Feather name="search" size={15} color={colors.primaryForeground} />
+            <Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>
+              Browse music
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </Card>
     )
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.card }]}>
+    <Card variant="default" style={styles.card}>
+      <View style={styles.cardHeader}>
+        <Text style={[styles.eyebrow, { color: colors.mutedForeground }]}>NOW PLAYING</Text>
+        <View style={[styles.syncBadge, { backgroundColor: colors.accent }]}>
+          <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
+          <Text style={[styles.syncText, { color: colors.primary }]}>In sync</Text>
+        </View>
+      </View>
       <View style={styles.songRow}>
         <Image
           source={{ uri: currentSong.image?.[2]?.link || currentSong.image?.[1]?.link }}
-          style={styles.albumArt}
+          style={[styles.albumArt, { backgroundColor: colors.secondary }]}
         />
         <View style={styles.songInfo}>
           <Text style={[styles.songName, { color: colors.foreground }]} numberOfLines={2}>
@@ -119,7 +127,7 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
                 <Image source={{ uri: String(addedBy.profilePic) }} style={styles.addedByAvatar} />
               ) : null}
               <Text style={[styles.addedByText, { color: colors.mutedForeground }]}>
-                {addedBy.userName}
+                Added by {addedBy.userName}
               </Text>
             </View>
           )}
@@ -129,75 +137,92 @@ export const CurrentSongCard: React.FC<CurrentSongCardProps> = ({
       <GroupProgressBar onSeek={onSeek} />
 
       <View style={styles.controlsRow}>
+        <MemberAvatarStack />
         <View style={styles.playbackControls}>
           <TouchableOpacity
             onPress={onPlayPause}
             disabled={isLoading}
             style={[styles.playButton, { backgroundColor: colors.primary }]}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={isPlaying ? "Pause for the group" : "Play for the group"}
           >
             {isLoading ? (
               <Feather name="loader" size={22} color={colors.primaryForeground} />
             ) : (
               <Ionicons
                 name={isPlaying ? "pause" : "play"}
-                size={22}
+                size={23}
                 color={colors.primaryForeground}
                 style={!isPlaying ? { marginLeft: 2 } : undefined}
               />
             )}
           </TouchableOpacity>
-
           <TouchableOpacity
             onPress={onSkip}
             disabled={isLoading}
             style={[styles.skipButton, { backgroundColor: colors.secondary }]}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Skip song"
           >
             <Ionicons name="play-skip-forward" size={18} color={colors.foreground} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <ReactionBar />
-
-      <View style={styles.memberStackRow}>
-        <MemberAvatarStack />
+      <View style={styles.reactionsRow}>
+        <ReactionBar />
       </View>
-
-      {nextSong && (
-        <TouchableOpacity
-          onPress={onOpenQueue}
-          style={[styles.upNextRow, { borderTopColor: colors.border + "30" }]}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.upNextLabel, { color: colors.mutedForeground }]}>UP NEXT</Text>
-          <Text style={[styles.upNextSong, { color: colors.mutedForeground }]} numberOfLines={1}>
-            {nextSong.name}
-          </Text>
-          <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
-        </TouchableOpacity>
-      )}
-    </View>
+    </Card>
   )
 }
 
 const styles = StyleSheet.create({
   card: {
-    marginTop: 12,
+    marginTop: 16,
     borderRadius: 16,
     overflow: "hidden",
+  },
+  cardHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  eyebrow: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1,
+  },
+  syncBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    height: 24,
+    borderRadius: 8,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  syncText: {
+    fontSize: 11,
+    fontWeight: "700",
   },
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 32,
+    paddingVertical: 28,
     paddingHorizontal: 24,
   },
   emptyIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -211,16 +236,31 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: "center",
   },
+  emptyAction: {
+    marginTop: 18,
+    height: 40,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 7,
+    paddingHorizontal: 14,
+  },
+  emptyActionText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
   songRow: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
   },
   albumArt: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
+    width: 76,
+    height: 76,
+    borderRadius: 14,
   },
   songInfo: {
     marginLeft: 14,
@@ -228,8 +268,8 @@ const styles = StyleSheet.create({
   },
   songName: {
     fontWeight: "700",
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 17,
+    lineHeight: 21,
   },
   artistName: {
     fontSize: 13,
@@ -251,7 +291,7 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     paddingHorizontal: 16,
-    paddingTop: 4,
+    paddingTop: 2,
   },
   sliderWrapper: {
     flexDirection: "row",
@@ -270,49 +310,32 @@ const styles = StyleSheet.create({
   controlsRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 8,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
   playbackControls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
   playButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
   skipButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  upNextRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  reactionsRow: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    gap: 6,
-  },
-  upNextLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 1,
-  },
-  upNextSong: {
-    fontSize: 12,
-    flex: 1,
-  },
-  memberStackRow: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingBottom: 10,
   },
 })

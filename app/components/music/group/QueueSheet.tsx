@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
   Image,
-  Platform,
-  StatusBar,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +16,8 @@ import { Feather, Ionicons } from "@expo/vector-icons"
 import SwipeableModal from "@/components/SwipeableModal"
 import { Input } from "@/components/ui/input"
 import { useTheme } from "@/context/ThemeContext"
+import { useUser } from "@/context/UserContext"
+import useApi from "@/utils/hooks/useApi"
 import { useGroupMusic } from "@/context/GroupMusicContext"
 import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
 import { useGroupPlaybackStore } from "@/stores/groupMusic/groupPlaybackStore"
@@ -24,12 +25,15 @@ import { QueueItem } from "@/stores/groupMusic/types"
 import { Song } from "@/types/song"
 import { searchSongs } from "@/utils/api/getSongs"
 import { ensureHttpsForSongUrls } from "@/utils/getHttpsUrls"
+import { useSharedValue } from "react-native-reanimated"
+import {
+  fetchSongRecommendations,
+  getGroupHistory,
+  getHomePageMusic,
+  getMusicHistory,
+} from "@/api/music"
 
-type TabKey = "queue" | "search" | "recommended"
-
-interface QueueSheetProps {
-  onOpenSearch: () => void
-}
+type TabKey = "queue" | "playlists" | "recommended"
 
 const QueueItemRow = React.memo(
   ({
@@ -81,7 +85,7 @@ const QueueItemRow = React.memo(
         </TouchableOpacity>
       </View>
     )
-  },
+  }
 )
 
 const SearchResultRow = React.memo(
@@ -136,12 +140,189 @@ const SearchResultRow = React.memo(
         </View>
       </View>
     )
-  },
+  }
 )
 
-export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
+const PlaylistBrowser: React.FC<{
+  onPlayNow: (song: Song) => void
+  onPlayNext: (song: Song) => void
+  onAddToQueue: (song: Song) => void
+  onAddAll: (songs: Song[]) => void
+  colors: any
+}> = ({ onPlayNow, onPlayNext, onAddToQueue, onAddAll, colors }) => {
+  const api = useApi()
+  const [playlists, setPlaylists] = useState<any[]>([])
+  const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(false)
+  const [selectedPlaylist, setSelectedPlaylist] = useState<{ id: string; name: string } | null>(null)
+  const [playlistDetail, setPlaylistDetail] = useState<any | null>(null)
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false)
+
+  const fetchPlaylists = useCallback(async () => {
+    setIsLoadingPlaylists(true)
+    try {
+      const response = await api.get("/api/playlist/get")
+      setPlaylists(response.data?.data || [])
+    } catch (err) {
+      console.error("Failed to fetch playlists:", err)
+      setPlaylists([])
+    } finally {
+      setIsLoadingPlaylists(false)
+    }
+  }, [api])
+
+  useEffect(() => {
+    fetchPlaylists()
+  }, [fetchPlaylists])
+
+  const handleSelectPlaylist = useCallback(
+    async (pl: any) => {
+      setSelectedPlaylist({ id: pl.id, name: pl.name })
+      setIsLoadingDetail(true)
+      try {
+        const response = await api.get("/api/playlist/details", { params: { id: pl.id } })
+        setPlaylistDetail(response.data?.data || null)
+      } catch (err) {
+        console.error("Failed to fetch playlist details:", err)
+        setPlaylistDetail(null)
+      } finally {
+        setIsLoadingDetail(false)
+      }
+    },
+    [api]
+  )
+
+  const songs: Song[] = useMemo(() => {
+    if (!playlistDetail?.songs) return []
+    return playlistDetail.songs
+      .map((item: any) => ensureHttpsForSongUrls(item.songData || item))
+      .filter((s: Song) => s?.id)
+  }, [playlistDetail])
+
+  if (selectedPlaylist) {
+    return (
+      <View style={styles.flex}>
+        <View style={[styles.playlistDetailHeader, { borderBottomColor: colors.border }]}>
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedPlaylist(null)
+              setPlaylistDetail(null)
+            }}
+            style={[styles.backButton, { backgroundColor: colors.secondary }]}
+          >
+            <Ionicons name="arrow-back" size={18} color={colors.foreground} />
+          </TouchableOpacity>
+          <View style={styles.flex}>
+            <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
+              {selectedPlaylist.name}
+            </Text>
+            <Text style={[styles.itemArtist, { color: colors.mutedForeground }]}>
+              {songs.length} songs
+            </Text>
+          </View>
+          {songs.length > 0 && (
+            <TouchableOpacity
+              onPress={() => onAddAll(songs)}
+              style={[styles.addAllBtn, { backgroundColor: colors.primary }]}
+            >
+              <Feather name="plus" size={14} color={colors.primaryForeground} />
+              <Text style={[styles.addAllBtnText, { color: colors.primaryForeground }]}>
+                Add All
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {isLoadingDetail ? (
+          <View style={styles.centeredState}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : songs.length === 0 ? (
+          <View style={styles.centeredState}>
+            <Feather name="music" size={28} color={colors.mutedForeground + "40"} />
+            <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
+              This playlist is empty
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={songs}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <SearchResultRow
+                song={item}
+                onAddToQueue={onAddToQueue}
+                onPlayNow={onPlayNow}
+                onPlayNext={onPlayNext}
+                colors={colors}
+              />
+            )}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+      </View>
+    )
+  }
+
+  if (isLoadingPlaylists) {
+    return (
+      <View style={styles.centeredState}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    )
+  }
+
+  if (playlists.length === 0) {
+    return (
+      <View style={styles.centeredState}>
+        <Feather name="disc" size={28} color={colors.mutedForeground + "40"} />
+        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No playlists yet</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
+          Create playlists from your music library
+        </Text>
+      </View>
+    )
+  }
+
+  return (
+    <FlatList
+      data={playlists}
+      keyExtractor={(item) => String(item.id)}
+      renderItem={({ item }) => {
+        const imageUrl =
+          typeof item.image === "string"
+            ? item.image
+            : item.image?.[1]?.link || item.image?.[0]?.link || ""
+        return (
+          <TouchableOpacity
+            onPress={() => handleSelectPlaylist(item)}
+            style={[styles.playlistRow, { borderBottomColor: colors.border }]}
+          >
+            <Image
+              source={{ uri: imageUrl }}
+              style={[styles.itemArt, { backgroundColor: colors.secondary }]}
+            />
+            <View style={styles.itemInfo}>
+              <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text style={[styles.itemArtist, { color: colors.mutedForeground }]} numberOfLines={1}>
+                {item.description || "Custom Playlist"}
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        )
+      }}
+      showsVerticalScrollIndicator={false}
+    />
+  )
+}
+
+export const QueueSheet: React.FC = () => {
+  const api = useApi()
+  const { user } = useUser()
   const { colors } = useTheme()
-  const { removeFromQueue, addToQueue, playNow, playNext } = useGroupMusic()
+  const { removeFromQueue, addToQueue, playNow, playNext, addPlaylistToQueue } = useGroupMusic()
   const insets = useSafeAreaInsets()
 
   const isQueueOpen = useGroupSessionStore((s) => s.isQueueOpen)
@@ -154,19 +335,51 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Song[]>([])
   const [isSearching, setIsSearching] = useState(false)
-  const [recommendations, setRecommendations] = useState<Song[]>([])
-  const [isLoadingRecs, setIsLoadingRecs] = useState(false)
+
+  const recommendations = useGroupSessionStore((s) => s.quickPickRecs)
+  const setRecommendations = useCallback((updater: Song[] | ((prev: Song[]) => Song[])) => {
+    if (typeof updater === "function") {
+      useGroupSessionStore.setState((s) => ({ quickPickRecs: updater(s.quickPickRecs) }))
+    } else {
+      useGroupSessionStore.setState({ quickPickRecs: updater })
+    }
+  }, [])
+
+  const lastRecsSongIdRef = useRef<string | null>(null)
+  const queueRef = useRef(queue)
+  const [recsLoading, setRecsLoading] = useState(false)
+  const [recsSourceName, setRecsSourceName] = useState("")
+  const [recsLockedSongId, setRecsLockedSongId] = useState<string | null>(null)
+
   const searchTimer = useRef<any>(null)
   const inputRef = useRef<TextInput>(null)
+  const scrollOffset = useSharedValue(0)
+
+  useEffect(() => {
+    queueRef.current = queue
+  }, [queue])
+
+  useEffect(() => {
+    if (queue.length === 0 && recsLockedSongId) {
+      setRecsLockedSongId(null)
+    }
+  }, [queue.length, recsLockedSongId])
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollOffset.value = event.nativeEvent.contentOffset.y
+    },
+    [scrollOffset]
+  )
 
   const currentQueueItem = useMemo(
     () => (currentQueueIndex >= 0 && queue[currentQueueIndex] ? queue[currentQueueIndex] : null),
-    [queue, currentQueueIndex],
+    [queue, currentQueueIndex]
   )
 
   const upcomingQueue = useMemo(
     () => queue.filter((_, idx) => idx > currentQueueIndex),
-    [queue, currentQueueIndex],
+    [queue, currentQueueIndex]
   )
 
   useEffect(() => {
@@ -174,28 +387,111 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
       setActiveTab("queue")
       setSearchQuery("")
       setSearchResults([])
+      scrollOffset.value = 0
     }
   }, [isQueueOpen])
 
-  useEffect(() => {
-    if (activeTab === "recommended" && recommendations.length === 0 && currentSong?.id) {
-      loadRecommendations()
-    }
-  }, [activeTab, currentSong?.id])
+  const fetchRecs = useCallback(
+    async (songId: string, force = false) => {
+      if (!songId) return
+      if (!force && lastRecsSongIdRef.current === songId) return
+      lastRecsSongIdRef.current = songId
+      setRecsLoading(true)
+      const currentQueue = queueRef.current || []
+      const songItem = currentQueue.find((q) => q.song?.id === songId)
+      setRecsSourceName(songItem?.song?.name || "")
+      try {
+        const data = await fetchSongRecommendations(api, songId)
+        const existingIds = new Set(currentQueue.map((q) => q.song?.id))
+        const filtered = (data || []).filter((s) => !existingIds.has(s.id))
+        setRecommendations(filtered.slice(0, 15))
+      } catch {
+        setRecommendations([])
+      } finally {
+        setRecsLoading(false)
+      }
+    },
+    [api, setRecommendations]
+  )
 
-  const loadRecommendations = useCallback(async () => {
-    if (!currentSong?.id) return
-    setIsLoadingRecs(true)
-    try {
-      const { getRelatedSongs } = await import("@/api/music")
-      const recs = await getRelatedSongs(currentSong.id)
-      setRecommendations(recs)
-    } catch {
-      setRecommendations([])
-    } finally {
-      setIsLoadingRecs(false)
+  const fetchSmartFallbackRecs = useCallback(
+    async (force = false) => {
+      if (!force && lastRecsSongIdRef.current === "fallback") return
+      lastRecsSongIdRef.current = "fallback"
+      setRecsLoading(true)
+
+      try {
+        if (user?.userid) {
+          const groupHist = await getGroupHistory(api, String(user.userid))
+          if (groupHist && groupHist.length > 0) {
+            const lastSong = groupHist[groupHist.length - 1]?.songData
+            if (lastSong?.id) {
+              setRecsSourceName(`Last Session: ${lastSong.name}`)
+              const data = await fetchSongRecommendations(api, lastSong.id)
+              if (data && data.length > 0) {
+                const currentQueue = queueRef.current || []
+                const existingIds = new Set(currentQueue.map((q) => q.song?.id))
+                const filtered = data.filter((s) => !existingIds.has(s.id))
+                setRecommendations(filtered.slice(0, 15))
+                return
+              }
+            }
+          }
+        }
+
+        const musicHist = await getMusicHistory(api, { page: 1, limit: 5 })
+        if (musicHist?.songs && musicHist.songs.length > 0) {
+          const lastSong = musicHist.songs[0]
+          if (lastSong?.id) {
+            setRecsSourceName(`Music History: ${lastSong.name}`)
+            const data = await fetchSongRecommendations(api, lastSong.id)
+            if (data && data.length > 0) {
+              const currentQueue = queueRef.current || []
+              const existingIds = new Set(currentQueue.map((q) => q.song?.id))
+              const filtered = data.filter((s) => !existingIds.has(s.id))
+              setRecommendations(filtered.slice(0, 15))
+              return
+            }
+          }
+        }
+
+        const modules = await getHomePageMusic()
+        if (modules?.trending?.data && modules.trending.data.length > 0) {
+          setRecsSourceName("Trending Now")
+          const currentQueue = queueRef.current || []
+          const existingIds = new Set(currentQueue.map((q) => q.song?.id))
+          const filtered = modules.trending.data
+            .map(ensureHttpsForSongUrls)
+            .filter((s) => !existingIds.has(s.id))
+          setRecommendations(filtered.slice(0, 15))
+        }
+      } catch (err) {
+        console.error("Failed to load fallback recommendations:", err)
+      } finally {
+        setRecsLoading(false)
+      }
+    },
+    [api, user?.userid, setRecommendations]
+  )
+
+  useEffect(() => {
+    if (recsLockedSongId) return
+
+    const activeSongId = currentQueueItem?.song?.id || currentSong?.id
+    if (activeSongId) {
+      if (activeSongId !== lastRecsSongIdRef.current) {
+        fetchRecs(activeSongId)
+      }
+    } else {
+      fetchSmartFallbackRecs()
     }
-  }, [currentSong?.id])
+  }, [
+    currentQueueItem?.song?.id,
+    currentSong?.id,
+    recsLockedSongId,
+    fetchRecs,
+    fetchSmartFallbackRecs,
+  ])
 
   const handleClose = useCallback(() => {
     useGroupSessionStore.setState({ isQueueOpen: false })
@@ -203,7 +499,7 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
 
   const handleRemove = useCallback(
     (queueItemId: string) => removeFromQueue(queueItemId),
-    [removeFromQueue],
+    [removeFromQueue]
   )
 
   const handleSearch = useCallback((query: string) => {
@@ -211,6 +507,7 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
     if (searchTimer.current) clearTimeout(searchTimer.current)
     if (!query.trim()) {
       setSearchResults([])
+      setIsSearching(false)
       return
     }
     searchTimer.current = setTimeout(async () => {
@@ -227,19 +524,16 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
   }, [])
 
   const handleAddToQueue = useCallback(
-    (song: Song) => addToQueue(song),
-    [addToQueue],
+    (song: Song) => {
+      addToQueue(song)
+      setRecommendations((prev) => prev.filter((s) => s.id !== song.id))
+    },
+    [addToQueue, setRecommendations]
   )
 
-  const handlePlayNow = useCallback(
-    (song: Song) => playNow(song),
-    [playNow],
-  )
+  const handlePlayNow = useCallback((song: Song) => playNow(song), [playNow])
 
-  const handlePlayNext = useCallback(
-    (song: Song) => playNext(song),
-    [playNext],
-  )
+  const handlePlayNext = useCallback((song: Song) => playNext(song), [playNext])
 
   const currentArtist = currentSong?.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"
 
@@ -247,7 +541,7 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
     ({ item }: { item: QueueItem }) => (
       <QueueItemRow item={item} onRemove={handleRemove} colors={colors} />
     ),
-    [handleRemove, colors],
+    [handleRemove, colors]
   )
 
   const renderSearchResult = useCallback(
@@ -260,7 +554,7 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
         colors={colors}
       />
     ),
-    [handleAddToQueue, handlePlayNow, handlePlayNext, colors],
+    [handleAddToQueue, handlePlayNow, handlePlayNext, colors]
   )
 
   const queueKeyExtractor = useCallback((item: QueueItem) => item.id, [])
@@ -318,42 +612,65 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
 
   const TABS: { key: TabKey; label: string; icon: string }[] = [
     { key: "queue", label: "Queue", icon: "list" },
-    { key: "search", label: "Search", icon: "search" },
+    { key: "playlists", label: "Playlists", icon: "disc" },
     { key: "recommended", label: "For You", icon: "zap" },
   ]
 
-  const statusBarHeight = Platform.OS === "android" ? (StatusBar.currentHeight || 24) : insets.top
-  const topPadding = Math.max(statusBarHeight, insets.top || 0, 24)
+  const listBottomInset = Math.max(insets.bottom, 12) + 16
 
   return (
     <SwipeableModal
       isVisible={isQueueOpen}
       onClose={handleClose}
-      maxHeight={Dimensions.get("screen").height}
+      maxHeight="100%"
       scrollable={true}
+      scrollOffset={scrollOffset}
       hideHandle={true}
-      style={styles.modalStyle}
+      fullScreen
     >
       <View style={styles.container}>
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: topPadding + 8 }]}>
-            <View style={styles.headerLeft}>
-              <TouchableOpacity onPress={handleClose} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={24} color={colors.foreground} />
-              </TouchableOpacity>
-              <Text style={[styles.headerTitle, { color: colors.foreground }]}>Queue</Text>
-              {upcomingQueue.length > 0 && (
-                <View style={[styles.countBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={[styles.countText, { color: colors.primaryForeground }]}>
-                    {upcomingQueue.length}
-                  </Text>
-                </View>
-              )}
-            </View>
+        <View style={[styles.header, { paddingTop: 16 }]}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity
+              onPress={handleClose}
+              style={[styles.backButton, { backgroundColor: colors.secondary }]}
+              accessibilityRole="button"
+              accessibilityLabel="Close queue"
+            >
+              <Ionicons name="arrow-back" size={20} color={colors.foreground} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>Queue</Text>
+            {upcomingQueue.length > 0 && (
+              <Text style={[styles.countText, { color: colors.mutedForeground }]}>
+                {upcomingQueue.length} next
+              </Text>
+            )}
           </View>
+        </View>
 
-          {/* Tabs */}
-          <View style={[styles.tabBar, { borderBottomColor: colors.border + "30" }]}>
+        {/* Search Bar Input */}
+        <View style={styles.searchBarContainer}>
+          <Input
+            ref={inputRef}
+            placeholder="Search songs to add..."
+            value={searchQuery}
+            onChangeText={handleSearch}
+            variant="filled"
+            size="sm"
+            leftIcon={<Feather name="search" size={16} color={colors.mutedForeground} />}
+            rightIcon={
+              searchQuery ? (
+                <TouchableOpacity onPress={() => handleSearch("")}>
+                  <Feather name="x" size={16} color={colors.mutedForeground} />
+                </TouchableOpacity>
+              ) : null
+            }
+          />
+        </View>
+
+        {/* Tabs */}
+        {!searchQuery.trim() && (
+          <View style={[styles.tabBar, { backgroundColor: colors.secondary }]}>
             {TABS.map((tab) => {
               const active = activeTab === tab.key
               return (
@@ -361,18 +678,16 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
                   key={tab.key}
                   onPress={() => {
                     setActiveTab(tab.key)
-                    if (tab.key === "search") {
-                      setTimeout(() => inputRef.current?.focus(), 200)
-                    }
+                    scrollOffset.value = 0
                   }}
                   style={[
                     styles.tab,
-                    active && [styles.tabActive, { borderBottomColor: colors.primary }],
+                    active && [styles.tabActive, { backgroundColor: colors.card }],
                   ]}
                 >
                   <Feather
                     name={tab.icon as any}
-                    size={14}
+                    size={15}
                     color={active ? colors.primary : colors.mutedForeground}
                   />
                   <Text
@@ -388,148 +703,142 @@ export const QueueSheet: React.FC<QueueSheetProps> = ({ onOpenSearch }) => {
               )
             })}
           </View>
+        )}
 
-          {/* Tab Content */}
-          {activeTab === "queue" && (
-            <FlatList
-              data={upcomingQueue}
-              keyExtractor={queueKeyExtractor}
-              renderItem={renderQueueItem}
-              ListHeaderComponent={renderQueueHeader}
-              ListEmptyComponent={
-                <View style={styles.emptyQueue}>
-                  <Feather name="music" size={32} color={colors.mutedForeground} />
-                  <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                    Queue is empty
-                  </Text>
-                  <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-                    Search and add songs to keep the music going
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setActiveTab("search")}
-                    style={[styles.emptyButton, { backgroundColor: colors.primary }]}
-                  >
-                    <Feather name="search" size={16} color={colors.primaryForeground} />
-                    <Text style={[styles.emptyButtonText, { color: colors.primaryForeground }]}>
-                      Search Songs
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              }
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-            />
-          )}
-
-          {activeTab === "search" && (
-            <View style={styles.flex}>
-              <View style={styles.searchBarContainer}>
-                <Input
-                  ref={inputRef}
-                  placeholder="Search songs..."
-                  value={searchQuery}
-                  onChangeText={handleSearch}
-                  variant="outline"
-                  containerStyle={styles.searchInput}
-                  leftIcon={<Feather name="search" size={16} color={colors.mutedForeground} />}
-                  rightIcon={
-                    searchQuery ? (
-                      <TouchableOpacity onPress={() => handleSearch("")}>
-                        <Feather name="x" size={16} color={colors.mutedForeground} />
-                      </TouchableOpacity>
-                    ) : null
-                  }
-                />
+        {/* Search View when query entered */}
+        {searchQuery.trim() ? (
+          <View style={styles.flex}>
+            {isSearching ? (
+              <View style={styles.centeredState}>
+                <ActivityIndicator size="large" color={colors.primary} />
               </View>
-              {isSearching ? (
-                <View style={styles.centeredState}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                </View>
-              ) : (
-                <FlatList
-                  data={searchResults}
-                  keyExtractor={songKeyExtractor}
-                  renderItem={renderSearchResult}
-                  ListEmptyComponent={
-                    searchQuery.trim() ? (
-                      <View style={styles.centeredState}>
-                        <Feather name="search" size={28} color={colors.mutedForeground + "40"} />
-                        <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
-                          No results found
-                        </Text>
-                      </View>
-                    ) : (
-                      <View style={styles.centeredState}>
-                        <Feather name="search" size={28} color={colors.mutedForeground + "40"} />
-                        <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
-                          Search for songs to add
-                        </Text>
-                      </View>
-                    )
-                  }
-                  contentContainerStyle={styles.listContent}
-                  showsVerticalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                />
-              )}
-            </View>
-          )}
+            ) : (
+              <FlatList
+                data={searchResults}
+                keyExtractor={songKeyExtractor}
+                renderItem={renderSearchResult}
+                ListEmptyComponent={
+                  <View style={styles.centeredState}>
+                    <Feather name="search" size={28} color={colors.mutedForeground + "40"} />
+                    <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
+                      No results found
+                    </Text>
+                  </View>
+                }
+                contentContainerStyle={[styles.listContent, { paddingBottom: listBottomInset }]}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+              />
+            )}
+          </View>
+        ) : (
+          /* Tab Content */
+          <View style={styles.flex}>
+            {activeTab === "queue" && (
+              <FlatList
+                data={upcomingQueue}
+                keyExtractor={queueKeyExtractor}
+                renderItem={renderQueueItem}
+                ListHeaderComponent={renderQueueHeader}
+                ListEmptyComponent={
+                  <View style={styles.emptyQueue}>
+                    <Feather name="music" size={32} color={colors.mutedForeground} />
+                    <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                      Queue is empty
+                    </Text>
+                    <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
+                      Search and add songs to keep the music going
+                    </Text>
+                  </View>
+                }
+                contentContainerStyle={[styles.listContent, { paddingBottom: listBottomInset }]}
+                showsVerticalScrollIndicator={false}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+              />
+            )}
 
-          {activeTab === "recommended" && (
-            <View style={styles.flex}>
-              {isLoadingRecs ? (
-                <View style={styles.centeredState}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-                    Finding songs for you...
-                  </Text>
-                </View>
-              ) : (
-                <FlatList
-                  data={recommendations}
-                  keyExtractor={songKeyExtractor}
-                  renderItem={renderSearchResult}
-                  ListEmptyComponent={
-                    <View style={styles.centeredState}>
-                      <Feather name="zap" size={28} color={colors.mutedForeground + "40"} />
-                      <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
-                        No recommendations yet
-                      </Text>
-                      <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-                        Play a song to get personalized recommendations
-                      </Text>
-                    </View>
-                  }
-                  contentContainerStyle={styles.listContent}
-                  showsVerticalScrollIndicator={false}
-                />
-              )}
-            </View>
-          )}
-        </View>
+            {activeTab === "playlists" && (
+              <PlaylistBrowser
+                onPlayNow={handlePlayNow}
+                onPlayNext={handlePlayNext}
+                onAddToQueue={handleAddToQueue}
+                onAddAll={addPlaylistToQueue}
+                colors={colors}
+              />
+            )}
+
+            {activeTab === "recommended" && (
+              <View style={styles.flex}>
+                {recsLoading ? (
+                  <View style={styles.centeredState}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
+                      Finding songs for you...
+                    </Text>
+                  </View>
+                ) : (
+                  <FlatList
+                    data={recommendations}
+                    keyExtractor={songKeyExtractor}
+                    renderItem={renderSearchResult}
+                    ListHeaderComponent={
+                      recsSourceName ? (
+                        <View style={styles.recsHeaderRow}>
+                          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+                            {`BASED ON: ${recsSourceName.toUpperCase()}`}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={() => {
+                              const activeSongId = currentQueueItem?.song?.id || currentSong?.id
+                              if (activeSongId) {
+                                fetchRecs(activeSongId, true)
+                              } else {
+                                fetchSmartFallbackRecs(true)
+                              }
+                            }}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Feather name="refresh-cw" size={12} color={colors.mutedForeground} />
+                          </TouchableOpacity>
+                        </View>
+                      ) : null
+                    }
+                    ListEmptyComponent={
+                      <View style={styles.centeredState}>
+                        <Feather name="zap" size={28} color={colors.mutedForeground + "40"} />
+                        <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
+                          No recommendations yet
+                        </Text>
+                        <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
+                          Play a song to get personalized recommendations
+                        </Text>
+                      </View>
+                    }
+                    contentContainerStyle={[styles.listContent, { paddingBottom: listBottomInset }]}
+                    showsVerticalScrollIndicator={false}
+                    onScroll={handleScroll}
+                    scrollEventThrottle={16}
+                  />
+                )}
+              </View>
+            )}
+          </View>
+        )}
+      </View>
     </SwipeableModal>
   )
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  modalStyle: {
-    height: Dimensions.get("screen").height,
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-  },
-  safeArea: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },
   listContent: {
-    paddingBottom: 20,
+    flexGrow: 1,
   },
   listHeader: {
     marginTop: 12,
@@ -539,8 +848,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
   headerLeft: {
     flexDirection: "row",
@@ -548,41 +857,39 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   backButton: {
-    paddingRight: 8,
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-  },
-  countBadge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 6,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    letterSpacing: -0.3,
   },
   countText: {
-    fontSize: 11,
-    fontWeight: "700",
+    fontSize: 13,
+    fontWeight: "500",
   },
   tabBar: {
     flexDirection: "row",
-    borderBottomWidth: 1,
-    paddingHorizontal: 16,
+    marginHorizontal: 20,
+    marginTop: 2,
+    marginBottom: 8,
+    borderRadius: 12,
+    padding: 3,
   },
   tab: {
+    flex: 1,
     flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
     gap: 5,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+    minHeight: 38,
+    borderRadius: 9,
   },
-  tabActive: {
-    borderBottomWidth: 2,
-  },
+  tabActive: {},
   tabText: {
     fontSize: 13,
     fontWeight: "500",
@@ -591,9 +898,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   searchBarContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 30,
-    paddingBottom: 8,
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 6,
   },
   searchInput: {
     flex: 1,
@@ -653,6 +960,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1,
     paddingHorizontal: 4,
+  },
+  recsHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginTop: 12,
     marginBottom: 6,
   },
   queueItem: {
@@ -665,10 +979,36 @@ const styles = StyleSheet.create({
   searchItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop:20,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  playlistRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  playlistDetailHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 12,
+  },
+  addAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  addAllBtnText: {
+    fontSize: 12,
+    fontWeight: "600",
   },
   itemArt: {
     width: 48,
