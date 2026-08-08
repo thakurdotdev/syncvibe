@@ -9,7 +9,7 @@ const shuffleArray = (array) => {
   const arr = [...array]
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
   }
   return arr
 }
@@ -118,13 +118,6 @@ const computeRecommendations = async (userId, limit) => {
 }
 
 const getRecentlyPlayed = async (userId, limit = 15) => {
-  const cacheKey = `recent:${userId}:${limit}`
-  const cached = await cache.get(cacheKey)
-
-  if (cached) {
-    return cached
-  }
-
   const query = `
     SELECT s."songData"
     FROM history_songs hs
@@ -140,7 +133,6 @@ const getRecentlyPlayed = async (userId, limit = 15) => {
   })
 
   const songs = results.map((r) => r.songData)
-  await cache.set(cacheKey, songs, 60)
 
   return songs
 }

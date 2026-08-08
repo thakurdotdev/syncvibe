@@ -4,9 +4,10 @@ const { cache, getRedis } = require("../utils/redis")
 const { Op } = require("sequelize")
 
 const SONG_API_URL = process.env.SONG_API_URL || "https://song.thakur.dev"
-const CACHE_PREFIX = "pn:v3:"
+const CACHE_PREFIX = "pn:v5:"
 const CACHE_TTL = 30 * 24 * 60 * 60
 const SONG_ATTRS = [
+  "id",
   "songId",
   "name",
   "artistNames",
@@ -16,7 +17,7 @@ const SONG_ATTRS = [
   "songData",
 ]
 
-const MIN_SCORE_THRESHOLD = 30
+const MIN_SCORE_THRESHOLD = 25
 
 const buildArtistILike = (name) => {
   if (name.length <= 3) {
@@ -79,15 +80,34 @@ const hasVariantTag = (name) => {
 
 const dedupKey = (name, artist) => `${cleanTitle(name)}::${normalize(artist)}`
 
-const extractSingers = (songData) => {
-  const artists = songData?.artist_map?.artists || []
-  return artists
+const extractSingers = (songData, artistNamesStr = "") => {
+  const primaryArtists = (songData?.artist_map?.primary_artists || [])
+    .map((a) => normalize(a?.name))
+    .filter(Boolean)
+
+  const artists = (songData?.artist_map?.artists || [])
     .filter((a) => {
       const role = (a?.role || "").toLowerCase()
-      return role.includes("singer") && !role.includes("music")
+      return role.includes("singer") || role.includes("primary") || !role
     })
-    .map((a) => normalize(a.name))
+    .map((a) => normalize(a?.name))
     .filter(Boolean)
+
+  let subtitleSinger = ""
+  if (songData?.subtitle && songData.subtitle.includes(" - ")) {
+    subtitleSinger = normalize(songData.subtitle.split(" - ")[0])
+  }
+
+  const fromStr = (artistNamesStr || "")
+    .split(",")
+    .map((s) => normalize(s))
+    .filter(Boolean)
+
+  const combined = [...new Set([...primaryArtists, ...artists, subtitleSinger, ...fromStr])].filter(
+    (s) => s && s !== "unknown",
+  )
+
+  return combined
 }
 
 const extractMusicDirectors = (songData) => {
@@ -95,7 +115,7 @@ const extractMusicDirectors = (songData) => {
   const fromRole = artists
     .filter((a) => {
       const role = (a?.role || "").toLowerCase()
-      return role.includes("music") || role === "composer"
+      return role.includes("music") || role.includes("composer")
     })
     .map((a) => normalize(a.name))
 
@@ -122,61 +142,150 @@ const normalizePlayCount = (playCount) => {
 
 const buildEntry = (song) => {
   const sd = song.songData || {}
+  const rawYear = parseInt(sd.year || song.year, 10)
   return {
+    id: song.id,
     songId: song.songId,
     name: song.name || sd.name || "Unknown",
-    singers: extractSingers(sd),
+    singers: extractSingers(sd, song.artistNames),
     musicDirectors: extractMusicDirectors(sd),
     lyricists: extractLyricists(sd),
     albumName: normalize(song.albumName || sd.album || ""),
     albumId: sd.album_id || "",
     language: normalize(song.language || sd.language || ""),
     duration: song.duration || sd.duration || 0,
-    playCount: sd.play_count || 0,
-    year: sd.year || 0,
+    playCount: parseInt(sd.play_count, 10) || 0,
+    year: isNaN(rawYear) ? 0 : rawYear,
     isVariant: hasVariantTag(song.name || sd.name || ""),
   }
 }
 
-const scoreSong = (candidate, baseSong) => {
+const getCoOccurrenceCandidates = async (baseSongRefId) => {
+  if (!baseSongRefId) return []
+  try {
+    const sequelize = Song.sequelize
+    const historyQuery = `
+      SELECT hs2."songRefId", COUNT(*) as co_weight
+      FROM history_songs hs1
+      INNER JOIN history_songs hs2 ON hs1."userId" = hs2."userId" AND hs1."songRefId" != hs2."songRefId"
+      WHERE hs1."songRefId" = :baseSongRefId
+      GROUP BY hs2."songRefId"
+      ORDER BY co_weight DESC
+      LIMIT 40
+    `
+    const historyResults = await sequelize.query(historyQuery, {
+      replacements: { baseSongRefId },
+      type: sequelize.QueryTypes.SELECT,
+    })
+
+    const playlistQuery = `
+      SELECT ps2."songRefId", COUNT(*) as co_weight
+      FROM playlist_songs ps1
+      INNER JOIN playlist_songs ps2 ON ps1."playlistId" = ps2."playlistId" AND ps1."songRefId" != ps2."songRefId"
+      WHERE ps1."songRefId" = :baseSongRefId
+      GROUP BY ps2."songRefId"
+      ORDER BY co_weight DESC
+      LIMIT 40
+    `
+    const playlistResults = await sequelize.query(playlistQuery, {
+      replacements: { baseSongRefId },
+      type: sequelize.QueryTypes.SELECT,
+    })
+
+    const coMap = new Map()
+    for (const r of historyResults) {
+      coMap.set(r.songRefId, (coMap.get(r.songRefId) || 0) + parseInt(r.co_weight, 10) * 2)
+    }
+    for (const r of playlistResults) {
+      coMap.set(r.songRefId, (coMap.get(r.songRefId) || 0) + parseInt(r.co_weight, 10) * 3)
+    }
+
+    if (coMap.size === 0) return []
+
+    const refIds = [...coMap.keys()]
+    const coSongs = await Song.findAll({
+      where: { id: { [Op.in]: refIds } },
+      attributes: SONG_ATTRS,
+      raw: true,
+    })
+
+    return coSongs.map((s) => ({
+      song: s,
+      coWeight: coMap.get(s.id) || 1,
+    }))
+  } catch (err) {
+    console.error("[PlayNext] Co-occurrence search error:", err.message)
+    return []
+  }
+}
+
+const getSongVibeVector = (entry) => {
+  const dur = entry.duration || 0
+  const isUpbeatPaced = (dur > 0 && dur < 240) || entry.isVariant || (entry.singers || []).length >= 3
+  const isSlowBallad = !isUpbeatPaced
+
+  return {
+    isUpbeatPaced,
+    isSlowBallad,
+    isVariant: entry.isVariant,
+  }
+}
+
+const scoreSong = (candidate, baseSong, coWeight = 0) => {
   let score = 0
 
-  if (baseSong.isVariant !== candidate.isVariant) {
-    score -= 40
+  if (coWeight > 0) {
+    score += Math.min(coWeight * 20, 70)
   }
 
   if (candidate.albumId && candidate.albumId === baseSong.albumId) {
-    score += 60
-  } else if (candidate.albumName && candidate.albumName === baseSong.albumName) {
     score += 55
+  } else if (candidate.albumName && candidate.albumName === baseSong.albumName) {
+    score += 50
   }
 
   const sharedSingers = candidate.singers.filter((s) => baseSong.singers.includes(s))
   score += Math.min(sharedSingers.length, 3) * 35
 
   const sharedMDs = candidate.musicDirectors.filter((m) => baseSong.musicDirectors.includes(m))
-  score += Math.min(sharedMDs.length, 2) * 8
+  score += Math.min(sharedMDs.length, 2) * 20
 
   const sharedLyricists = candidate.lyricists.filter((l) => baseSong.lyricists.includes(l))
-  if (sharedLyricists.length > 0) score += 5
+  if (sharedLyricists.length > 0) score += 10
 
   if (candidate.language && candidate.language === baseSong.language) {
-    score += 10
+    score += 20
   } else if (candidate.language && baseSong.language && candidate.language !== baseSong.language) {
-    score -= 30
+    score -= 50
   }
 
-  if (candidate.year > 0 && baseSong.year > 0) {
-    const yearDiff = Math.abs(candidate.year - baseSong.year)
-    if (yearDiff === 0) score += 8
-    else if (yearDiff <= 2) score += 5
-    else if (yearDiff <= 5) score += 2
-    else if (yearDiff > 10) score -= 10
+  const baseVector = getSongVibeVector(baseSong)
+  const candVector = getSongVibeVector(candidate)
+
+  if (baseVector.isUpbeatPaced && candVector.isUpbeatPaced) {
+    score += 20
+  } else if (baseVector.isSlowBallad && candVector.isSlowBallad) {
+    score += 20
+  } else {
+    score -= 55
   }
 
   if (candidate.duration > 0 && baseSong.duration > 0) {
     const durationDiff = Math.abs(candidate.duration - baseSong.duration)
-    if (durationDiff < 30) score += 3
+    if (durationDiff <= 30) score += 8
+    else if (durationDiff <= 60) score += 4
+  }
+
+  if (candidate.year > 0 && baseSong.year > 0) {
+    const yearDiff = Math.abs(candidate.year - baseSong.year)
+    if (yearDiff === 0) score += 10
+    else if (yearDiff <= 3) score += 7
+    else if (yearDiff <= 5) score += 4
+    else if (yearDiff > 12) score -= 15
+  }
+
+  if (baseSong.isVariant !== candidate.isVariant) {
+    score -= 35
   }
 
   score += normalizePlayCount(candidate.playCount) * 5
@@ -185,24 +294,35 @@ const scoreSong = (candidate, baseSong) => {
 }
 
 const diversifyScored = (scored, limit) => {
-  const result = []
-  const singerGroupCount = new Map()
   const seenNames = new Set()
-  const MAX_PER_SINGER = 4
+  const singerBuckets = new Map()
 
   for (const item of scored) {
-    if (result.length >= limit) break
-
     const nameKey = cleanTitle(item.name)
     if (seenNames.has(nameKey)) continue
     seenNames.add(nameKey)
 
     const topSinger = item.topSinger || "unknown"
-    const count = singerGroupCount.get(topSinger) || 0
-    if (count >= MAX_PER_SINGER) continue
-    singerGroupCount.set(topSinger, count + 1)
+    if (!singerBuckets.has(topSinger)) {
+      singerBuckets.set(topSinger, [])
+    }
+    const bucket = singerBuckets.get(topSinger)
+    if (bucket.length < 4) {
+      bucket.push(item.songId)
+    }
+  }
 
-    result.push(item.songId)
+  const result = []
+  const maxBucketLength = Math.max(0, ...[...singerBuckets.values()].map((b) => b.length))
+
+  for (let i = 0; i < maxBucketLength; i++) {
+    for (const [, bucket] of singerBuckets.entries()) {
+      if (result.length >= limit) break
+      if (bucket[i]) {
+        result.push(bucket[i])
+      }
+    }
+    if (result.length >= limit) break
   }
 
   return result
@@ -217,6 +337,14 @@ const computeForSong = async (baseSongId) => {
   if (!baseSongRow) return []
 
   const baseSong = buildEntry(baseSongRow)
+  const candidateMap = new Map()
+
+  const coCandidates = await getCoOccurrenceCandidates(baseSongRow.id)
+  for (const item of coCandidates) {
+    if (item.song.songId !== baseSongId) {
+      candidateMap.set(item.song.songId, { songRow: item.song, coWeight: item.coWeight })
+    }
+  }
 
   const singerConditions = baseSong.singers
     .filter((s) => s && s !== "unknown")
@@ -224,69 +352,80 @@ const computeForSong = async (baseSongId) => {
     .map((singer) => buildArtistILike(singer))
 
   const albumCondition = baseSongRow.albumName ? [{ albumName: baseSongRow.albumName }] : []
-
   const primaryConditions = [...singerConditions, ...albumCondition]
 
-  if (primaryConditions.length === 0) return []
+  if (primaryConditions.length > 0) {
+    const primaryCandidates = await Song.findAll({
+      where: {
+        [Op.or]: primaryConditions,
+        songId: { [Op.ne]: baseSongId },
+      },
+      attributes: SONG_ATTRS,
+      raw: true,
+      limit: 250,
+    })
+    for (const c of primaryCandidates) {
+      if (!candidateMap.has(c.songId)) {
+        candidateMap.set(c.songId, { songRow: c, coWeight: 0 })
+      }
+    }
+  }
 
-  const primaryCandidates = await Song.findAll({
-    where: {
-      [Op.or]: primaryConditions,
-      songId: { [Op.ne]: baseSongId },
-    },
-    attributes: SONG_ATTRS,
-    raw: true,
-    limit: 300,
-  })
-
-  let allCandidates = [...primaryCandidates]
-
-  if (allCandidates.length < 80) {
-    const existingIds = new Set(allCandidates.map((c) => c.songId))
-    existingIds.add(baseSongId)
-
+  if (candidateMap.size < 100) {
     const mdConditions = baseSong.musicDirectors
       .filter((m) => m && m !== "unknown")
       .slice(0, 3)
       .map((md) => buildArtistILike(md))
 
     if (mdConditions.length > 0 && baseSong.language) {
-      const { sequelize } = Song
-      const yearFilter =
-        baseSong.year > 0
-          ? sequelize.where(sequelize.cast(sequelize.json("songData.year"), "integer"), {
-              [Op.between]: [baseSong.year - 10, baseSong.year + 10],
-            })
-          : undefined
-
       const supplementary = await Song.findAll({
         where: {
           [Op.and]: [
             { [Op.or]: mdConditions },
             { language: baseSong.language },
-            { songId: { [Op.notIn]: [...existingIds] } },
-            yearFilter,
+            { songId: { [Op.ne]: baseSongId } },
           ],
         },
         attributes: SONG_ATTRS,
         raw: true,
         limit: 150,
       })
+      for (const c of supplementary) {
+        if (!candidateMap.has(c.songId)) {
+          candidateMap.set(c.songId, { songRow: c, coWeight: 0 })
+        }
+      }
+    }
+  }
 
-      allCandidates = [...allCandidates, ...supplementary]
+  if (candidateMap.size < 40 && baseSong.language) {
+    const catalogFallback = await Song.findAll({
+      where: {
+        language: baseSong.language,
+        songId: { [Op.ne]: baseSongId },
+      },
+      attributes: SONG_ATTRS,
+      order: [["createdAt", "DESC"]],
+      raw: true,
+      limit: 100,
+    })
+    for (const c of catalogFallback) {
+      if (!candidateMap.has(c.songId)) {
+        candidateMap.set(c.songId, { songRow: c, coWeight: 0 })
+      }
     }
   }
 
   const seen = new Set()
   const scored = []
 
-  for (const c of allCandidates) {
-    const entry = buildEntry(c)
+  for (const { songRow, coWeight } of candidateMap.values()) {
+    const entry = buildEntry(songRow)
     const dk = dedupKey(entry.name, entry.singers[0] || "unknown")
     if (seen.has(dk)) continue
     seen.add(dk)
 
-    const score = scoreSong(entry, baseSong)
+    const score = scoreSong(entry, baseSong, coWeight)
     if (score < MIN_SCORE_THRESHOLD) continue
 
     scored.push({
@@ -313,7 +452,12 @@ const deduplicateExternal = (songs) => {
 
 const fetchExternalRecommendations = async (songId) => {
   try {
-    const response = await fetch(`${SONG_API_URL}/song/recommend?id=${songId}`)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 2000)
+    const response = await fetch(`${SONG_API_URL}/song/recommend?id=${songId}`, {
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
     if (!response.ok) return []
     const json = await response.json()
     const data = json?.data || []
@@ -329,7 +473,7 @@ const getUserHistory = async (userId) => {
 
   const recentEntries = await HistorySong.findAll({
     where: { userId },
-    attributes: ["songRefId", "playedCount", "skipCount", "lastPlayedAt"],
+    attributes: ["songRefId", "playedCount", "skipCount", "likeStatus", "lastPlayedAt"],
     order: [["lastPlayedAt", "DESC"]],
     limit: 50,
     raw: true,
@@ -354,11 +498,12 @@ const getUserHistory = async (userId) => {
     const songId = refIdToSongId.get(entry.songRefId)
     if (!songId) continue
 
-    if (i < 10) recentSongIds.add(songId)
+    if (i < 15) recentSongIds.add(songId)
 
     historyMap.set(songId, {
       playedCount: entry.playedCount || 0,
       skipCount: entry.skipCount || 0,
+      likeStatus: entry.likeStatus || false,
     })
   }
 
@@ -367,9 +512,12 @@ const getUserHistory = async (userId) => {
 
 const getPlayNextSongs = async ({ baseSongId, userId = null, limit = 20, excludeSongIds = [] }) => {
   const external = await fetchExternalRecommendations(baseSongId)
-  if (external.length > 0) {
+  if (external && external.length > 0) {
     const excludeSet = new Set(excludeSongIds)
-    return external.filter((s) => !excludeSet.has(s.id)).slice(0, limit)
+    const filtered = external.filter((s) => !excludeSet.has(s.id))
+    if (filtered.length > 0) {
+      return filtered.slice(0, limit)
+    }
   }
 
   let cachedIds = await cache.get(`${CACHE_PREFIX}${baseSongId}`)
@@ -394,9 +542,9 @@ const getPlayNextSongs = async ({ baseSongId, userId = null, limit = 20, exclude
       if (history) {
         if (recentSongIds.has(id)) penalty -= 50
         if (history.skipCount >= 5) penalty -= 40
-        else if (history.skipCount >= 3) penalty -= 20
-        if (history.playedCount > 10) penalty -= 30
-        else if (history.playedCount > 5) penalty -= 15
+        else if (history.skipCount >= 2) penalty -= 25
+        if (history.playedCount > 10) penalty -= 20
+        if (history.likeStatus) penalty += 30
       }
       return { songId: id, score: penalty }
     })
@@ -456,3 +604,4 @@ module.exports = {
   rebuildAllPlayNext,
   invalidateSong,
 }
+

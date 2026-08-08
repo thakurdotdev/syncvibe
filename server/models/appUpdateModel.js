@@ -55,6 +55,4 @@ AppUpdate.init(
   },
 )
 
-AppUpdate.sync({ alter: true }).then(() => console.log("Synced AppUpdate model"))
-
 module.exports = AppUpdate

@@ -9,7 +9,7 @@ const {
 } = require("../controllers/music/musicController")
 
 const express = require("express")
-const authMiddleware = require("../middleware/authMiddleware")
+const { authMiddleware, optionalAuthMiddleware } = require("../middleware/authMiddleware")
 const {
   addToHistory,
   getPersonalizedRecommendations,
@@ -186,7 +186,7 @@ musicRoutes.get("/sync/status", async (req, res) => {
   }
 })
 
-musicRoutes.get("/play-next/:songId", async (req, res) => {
+musicRoutes.get("/play-next/:songId", optionalAuthMiddleware, async (req, res) => {
   try {
     const { songId } = req.params
 
@@ -203,6 +203,7 @@ musicRoutes.get("/play-next/:songId", async (req, res) => {
 
     const data = await getPlayNextSongs({
       baseSongId: songId,
+      userId: req.user?.userid || null,
       limit,
       excludeSongIds,
     })

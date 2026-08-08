@@ -69,4 +69,43 @@ const authMiddleware = async (req, res, next) => {
   }
 }
 
+const optionalAuthMiddleware = async (req, res, next) => {
+  try {
+    let token = req.cookies?.token
+    const authHeader = req.headers.authorization
+    if (!token && authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1]
+    }
+
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET)
+      const cacheKey = decoded.email
+      const now = Date.now()
+
+      if (userCache.has(cacheKey) && userCache.get(cacheKey).expiresAt > now) {
+        req.user = userCache.get(cacheKey).user
+        req.user.role = decoded.role || "user"
+      } else {
+        const existingUser = await User.findOne({
+          where: { email: decoded.email },
+          raw: true,
+        })
+        if (existingUser) {
+          userCache.set(cacheKey, {
+            user: existingUser,
+            expiresAt: now + CACHE_TTL,
+          })
+          req.user = existingUser
+          req.user.role = decoded.role || "user"
+        }
+      }
+    }
+  } catch {
+    // Ignore invalid tokens for optional auth
+  }
+  next()
+}
+
 module.exports = authMiddleware
+module.exports.authMiddleware = authMiddleware
+module.exports.optionalAuthMiddleware = optionalAuthMiddleware
