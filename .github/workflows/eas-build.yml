@@ -1,0 +1,55 @@
+name: Expo EAS Android Production Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      wait:
+        description: "Wait for build to complete in GitHub Actions log"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    name: Build Android Production APK
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Build Android Production on EAS
+        run: |
+          WAIT_FLAG="--no-wait"
+          if [ "${{ inputs.wait }}" = "true" ]; then
+            WAIT_FLAG="--wait"
+          fi
+
+          eas build --platform android --profile production --non-interactive $WAIT_FLAG

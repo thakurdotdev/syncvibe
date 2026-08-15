@@ -1,4 +1,4 @@
-import { Song } from "./song"
+import { Song, ImageQuality } from "./song"
 
 export type Type =
   | "artist"
@@ -14,85 +14,129 @@ export type Type =
   | "season"
   | "label"
 
+export interface AlbumArtist {
+  id?: string
+  name: string
+  url?: string
+  role?: string
+  type?: string
+  image?: ImageQuality[] | string
+}
+
+export interface AlbumArtistMap {
+  artists?: AlbumArtist[]
+  featured_artists?: AlbumArtist[]
+  primary_artists?: AlbumArtist[]
+}
+
 export interface Album {
   album_id?: string
   id: string
   name: string
+  title?: string
   subtitle?: string
-  type: Type
-  url: string
-  image: Array<{ quality: string; link: string }>
-  language: string
-  year: number
-  header_desc: string
-  play_count: number
-  explicit: boolean
-  list_count: number
-  artist_map: {
-    artists: Array<{
-      id: string
-      name: string
-      url: string
-      role: string
-      type: string
-      image: Array<{ quality: string; link: string }>
-    }>
-    featured_artists: Array<{
-      id: string
-      name: string
-      url: string
-      role: string
-      type: string
-      image: Array<{ quality: string; link: string }>
-    }>
-    primary_artists: Array<{
-      id: string
-      name: string
-      url: string
-      role: string
-      type: string
-      image: Array<{ quality: string; link: string }>
-    }>
-  }
+  type?: Type | string
+  url?: string
+  image?: ImageQuality[] | string
+  language?: string
+  year?: number | string
+  header_desc?: string
+  play_count?: number
+  explicit?: boolean
+  list_count?: number
+  artist?: string | AlbumArtist
+  artists?: AlbumArtist[]
+  artist_map?: AlbumArtistMap
+  songs?: Song[]
 }
 
 export interface Playlist {
   id: string
   name: string
+  title?: string
   subtitle?: string
-  type: Type
-  url: string
-  image: Array<{ quality: string; link: string }>
-  language: string
-  year: number
-  header_desc: string
-  play_count: number
-  explicit: boolean
-  list_count: number
+  description?: string
+  type?: Type | string
+  url?: string
+  image?: ImageQuality[] | string
+  language?: string
+  year?: number | string
+  header_desc?: string
+  play_count?: number
+  explicit?: boolean
+  list_count?: number
+  songCount?: number
+  artists?: AlbumArtist[]
+  songs?: Song[]
 }
 
 export interface Chart {
   id: string
   name: string
   subtitle?: string
-  type: Type
-  url: string
-  image: Array<{ quality: string; link: string }>
-  language: string
-  year: number
-  header_desc: string
-  play_count: number
-  explicit: boolean
-  list_count: number
+  type?: Type | string
+  url?: string
+  image?: ImageQuality[] | string
+  language?: string
+  year?: number | string
+  header_desc?: string
+  play_count?: number
+  explicit?: boolean
+  list_count?: number
 }
 
 export interface Artist {
   id: string
   name: string
-  url: string
-  role: string
-  type: string
-  image: Array<{ quality: string; link: string }>
+  url?: string
+  role?: string
+  type?: string
+  image?: ImageQuality[] | string
+  description?: string
+  header_desc?: string
+  follower_count?: number | string
+  list_count?: number | string
+}
+
+export interface ArtistBio {
+  text?: string
+  title?: string
+  sequence?: { key: string; value: string }[]
+}
+
+export interface ArtistDetails {
+  id: string
+  name: string
+  header_desc?: string
+  list_count?: number | string
+  follower_count?: number | string
+  fan_count?: number | string
+  is_verified?: boolean
+  dominant_type?: string
+  dominant_language?: string
+  image?: ImageQuality[] | string
+  bio?: ArtistBio[]
+  dob?: string
+  fb?: string
+  twitter?: string
+  wiki?: string
+  available_languages?: string[]
+  is_radio_present?: boolean
+  top_songs: Song[]
+  top_albums: Album[]
+  dedicated_artist_playlist: Playlist[]
+  featured_artist_playlist?: Playlist[]
+  similar_artists: Artist[]
+  singles?: Song[]
+  latest_release?: Album[]
+}
+
+export interface UserPlaylist {
+  id: string
+  name: string
+  image?: ImageQuality[] | string
+  songCount?: number
+  songs?: Song[]
 }
 
 export interface HomePageResponse {
@@ -121,43 +165,23 @@ export interface RecentMusicResponse {
 export interface PlaylistDetails {
   id: string
   name: string
-  header_desc: string
-  list_count: number
-  follower_count: number
-  image: string
+  header_desc?: string
+  list_count?: number
+  follower_count?: number
+  image?: ImageQuality[] | string
   songs: Song[]
 }
 
 export interface AlbumDetails {
   id: string
   name: string
-  header_desc: string
-  subtitle: string
-  year: number
-  duration: number
-  image: Array<{ quality: string; link: string }>
-  artistmap: Array<{
-    id: string
-    name: string
-    url: string
-    role: string
-    type: string
-    image: Array<{ quality: string; link: string }>
-  }>
+  header_desc?: string
+  subtitle?: string
+  year?: number | string
+  duration?: number
+  image?: ImageQuality[] | string
+  artistmap?: AlbumArtist[]
   songs: Song[]
-}
-
-export interface ArtistDetails {
-  id: string
-  name: string
-  header_desc: string
-  list_count: number
-  follower_count: number
-  image: Array<{ quality: string; link: string }>
-  top_songs: Array<Song>
-  top_albums: Array<Album>
-  dedicated_artist_playlist: Array<Playlist>
-  similar_artists: Array<Artist>
 }
 
 export interface MusicHistoryParams {
@@ -186,7 +210,7 @@ export interface PlaybackState {
 
 export interface PlaylistState {
   playlist: Song[]
-  userPlaylist: any[]
+  userPlaylist: UserPlaylist[]
 }
 
 export interface SleepTimerState {
@@ -223,7 +247,7 @@ export interface PlayerControls {
 export interface PlaylistContextValue extends PlaylistState {
   getPlaylists: () => Promise<void>
   setPlaylist: (playlist: Song[]) => void
-  setUserPlaylist: (playlist: Song[]) => void
+  setUserPlaylist: (playlist: UserPlaylist[]) => void
 }
 
 export interface SleepTimerContextValue extends SleepTimerState {

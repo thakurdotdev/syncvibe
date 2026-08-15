@@ -53,18 +53,18 @@ export const getRelatedSongs = async (songId: string): Promise<Song[]> => {
 }
 
 export const getPlaylistDetails = async (playlistId: string): Promise<PlaylistDetails> => {
-  const response = await axios.get(`${SONG_URL}/playlist?token=${playlistId}`)
-  return response.data.data ?? {}
+  const response = await axios.get(`${SONG_URL}/playlist?id=${playlistId}`)
+  return response.data?.data ?? {}
 }
 
 export const getAlbumDetails = async (albumId: string): Promise<AlbumDetails> => {
-  const response = await axios.get(`${SONG_URL}/album?token=${albumId}`)
-  return response.data.data ?? {}
+  const response = await axios.get(`${SONG_URL}/album?id=${albumId}`)
+  return response.data?.data ?? {}
 }
 
 export const getArtistDetails = async (artistId: string): Promise<ArtistDetails> => {
-  const response = await axios.get(`${SONG_URL}/artist?token=${artistId}`)
-  return response.data.data ?? {}
+  const response = await axios.get(`${SONG_URL}/artist?id=${artistId}`)
+  return response.data?.data ?? {}
 }
 
 export const searchMusic = async (query: string): Promise<Song[]> => {

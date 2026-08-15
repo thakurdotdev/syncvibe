@@ -68,6 +68,7 @@ export default function PlayerInitializer() {
       addToHistory(api, song, 10)
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ["recentMusic"] })
+          queryClient.invalidateQueries({ queryKey: ["musicHistory"] })
         })
         .catch(console.error)
     })
@@ -78,10 +79,10 @@ export default function PlayerInitializer() {
       TrackPlayer.addEventListener(Event.PlaybackStateChanged, (event) => {
         dispatchTrackPlayerEvent({ type: Event.PlaybackStateChanged, ...event })
       }),
-      TrackPlayer.addEventListener(Event.IsPlayingChanged, ({ playing }) => {
+      TrackPlayer.addEventListener(Event.IsPlayingChanged, (event) => {
         // GroupMusicContext owns this event while group playback is active.
         if (usePlayerStore.getState().activePlayerMode === "normal") {
-          usePlayerStore.getState().setPlaying(playing)
+          dispatchTrackPlayerEvent({ type: Event.IsPlayingChanged, ...event })
         }
       }),
       TrackPlayer.addEventListener(Event.MediaItemTransition, (event) => {

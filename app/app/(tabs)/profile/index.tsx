@@ -1,3 +1,12 @@
+import DeveloperProfileModal from "@/components/DeveloperProfileModal"
+import LoginScreen from "@/components/LoginScreen"
+import Card from "@/components/ui/card"
+import { TabSafeAreaView } from "@/components/ui/TabSafeAreaView"
+import { useAppUpdate } from "@/context/AppUpdateContext"
+import { useTheme } from "@/context/ThemeContext"
+import { useUser } from "@/context/UserContext"
+import type { ThemeColors } from "@/theme/color"
+import { getOptimizedImageUrl } from "@/utils/Cloudinary"
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { LinearGradient } from "expo-linear-gradient"
@@ -13,18 +22,8 @@ import {
   Pressable,
   Text,
   TouchableOpacity,
-  View,
-  Linking,
+  View
 } from "react-native"
-import { TabSafeAreaView } from "@/components/ui/TabSafeAreaView"
-import DeveloperProfileModal from "@/components/DeveloperProfileModal"
-import LoginScreen from "@/components/LoginScreen"
-import Card from "@/components/ui/card"
-import { useTheme } from "@/context/ThemeContext"
-import { useUser } from "@/context/UserContext"
-import { useAppUpdate } from "@/context/AppUpdateContext"
-import type { ThemeColors } from "@/theme/color"
-import { getOptimizedImageUrl } from "@/utils/Cloudinary"
 
 const SectionHeader = ({
   icon,
@@ -372,7 +371,26 @@ export default function ProfileScreen() {
   const { user, logout, getProfile, loading } = useUser()
   const { colors, theme } = useTheme()
   const [showDeveloperModal, setShowDeveloperModal] = useState(false)
-  const { updateInfo, isUpdateAvailable, currentVersion, showUpdateModal } = useAppUpdate()
+  const [showAllUpdateNotes, setShowAllUpdateNotes] = useState(false)
+  const {
+    updateInfo,
+    isUpdateAvailable,
+    currentVersion,
+    showUpdateModal,
+    openManualDownloadUrl,
+  } = useAppUpdate()
+
+  const releaseNoteLines = useMemo(() => {
+    if (!updateInfo?.releaseNotes) return []
+    return updateInfo.releaseNotes
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => line.replace(/^[-\*•\s]+/, ""))
+  }, [updateInfo?.releaseNotes])
+
+  const visibleNoteLines = showAllUpdateNotes ? releaseNoteLines : releaseNoteLines.slice(0, 2)
+  const hasMoreNotes = releaseNoteLines.length > 2
 
   useEffect(() => {
     const getUser = async () => {
@@ -436,7 +454,7 @@ export default function ProfileScreen() {
 
         <View style={{ paddingHorizontal: 20, paddingBottom: 32, gap: 16 }}>
           {isUpdateAvailable && updateInfo && (
-            <Card variant="default" style={{ borderColor: colors.primary, borderWidth: 1.5 }}>
+            <Card variant="default" style={{ borderColor: `${colors.primary}60`, borderWidth: 1.5 }}>
               <Card.Header
                 style={{
                   flexDirection: "row",
@@ -445,9 +463,22 @@ export default function ProfileScreen() {
                   paddingBottom: 8,
                 }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                  <Ionicons name="cloud-download-outline" size={22} color={colors.primary} />
-                  <Card.Title>Update Available (v{updateInfo.version})</Card.Title>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                  <View
+                    style={{
+                      backgroundColor: `${colors.primary}18`,
+                      borderRadius: 10,
+                      padding: 6,
+                    }}
+                  >
+                    <Ionicons name="cloud-download-outline" size={20} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Card.Title>Update Available</Card.Title>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 1 }}>
+                      v{currentVersion} → <Text style={{ color: colors.primary, fontWeight: "600" }}>v{updateInfo.version}</Text>
+                    </Text>
+                  </View>
                 </View>
                 {updateInfo.critical && (
                   <View
@@ -458,69 +489,97 @@ export default function ProfileScreen() {
                       borderRadius: 6,
                     }}
                   >
-                    <Text style={{ color: colors.destructive, fontSize: 11, fontWeight: "bold" }}>
+                    <Text style={{ color: colors.destructive, fontSize: 10, fontWeight: "bold" }}>
                       CRITICAL
                     </Text>
                   </View>
                 )}
               </Card.Header>
-              <Card.Content style={{ gap: 12 }}>
-                {updateInfo.releaseNotes && (
-                  <View style={{ gap: 4 }}>
-                    <Text
-                      style={{
-                        color: colors.foreground,
-                        fontWeight: "600",
-                        fontSize: 14,
-                        marginBottom: 2,
-                      }}
-                    >
-                      What's New:
-                    </Text>
-                    {updateInfo.releaseNotes
-                      .split("\n")
-                      .map((line) => line.trim())
-                      .filter((line) => line.length > 0)
-                      .map((line, idx) => (
-                        <View
-                          key={idx}
-                          style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}
+              <Card.Content style={{ gap: 10 }}>
+                {releaseNoteLines.length > 0 && (
+                  <View style={{ gap: 5 }}>
+                    {visibleNoteLines.map((line, idx) => (
+                      <View
+                        key={idx}
+                        style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}
+                      >
+                        <Text style={{ color: colors.primary, fontSize: 13, lineHeight: 18 }}>
+                          •
+                        </Text>
+                        <Text
+                          style={{
+                            color: colors.mutedForeground,
+                            fontSize: 13,
+                            lineHeight: 18,
+                            flex: 1,
+                          }}
+                          numberOfLines={showAllUpdateNotes ? undefined : 2}
                         >
-                          <Text style={{ color: colors.primary, fontSize: 13, lineHeight: 18 }}>
-                            •
-                          </Text>
-                          <Text
-                            style={{
-                              color: colors.mutedForeground,
-                              fontSize: 13,
-                              lineHeight: 18,
-                              flex: 1,
-                            }}
-                          >
-                            {line.replace(/^[-\*•\s]+/, "")}
-                          </Text>
-                        </View>
-                      ))}
+                          {line}
+                        </Text>
+                      </View>
+                    ))}
+
+                    {hasMoreNotes && (
+                      <TouchableOpacity
+                        onPress={() => setShowAllUpdateNotes((prev) => !prev)}
+                        style={{ alignSelf: "flex-start", marginTop: 2 }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "600" }}>
+                          {showAllUpdateNotes
+                            ? "Show less"
+                            : `+ ${releaseNoteLines.length - 2} more improvements`}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
-                {updateInfo.downloadUrl && (
+
+                <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
                   <TouchableOpacity
                     onPress={showUpdateModal}
                     style={{
+                      flex: 1,
                       backgroundColor: colors.primary,
                       paddingVertical: 10,
                       borderRadius: 10,
                       alignItems: "center",
-                      marginTop: 8,
+                      justifyContent: "center",
                     }}
+                    activeOpacity={0.8}
                   >
                     <Text
-                      style={{ color: colors.primaryForeground, fontWeight: "600", fontSize: 14 }}
+                      style={{ color: colors.primaryForeground, fontWeight: "600", fontSize: 13 }}
                     >
-                      Download & Install Update
+                      Update App
                     </Text>
                   </TouchableOpacity>
-                )}
+
+                  {updateInfo.downloadUrl && (
+                    <TouchableOpacity
+                      onPress={openManualDownloadUrl}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        backgroundColor: colors.secondary,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                      activeOpacity={0.7}
+                      accessibilityLabel="Download APK via browser"
+                    >
+                      <MaterialCommunityIcons name="open-in-new" size={15} color={colors.primary} />
+                      <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>
+                        Browser
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </Card.Content>
             </Card>
           )}

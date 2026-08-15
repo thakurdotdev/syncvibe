@@ -2,7 +2,7 @@
   "expo": {
     "name": "SyncVibe",
     "slug": "syncvibe",
-    "version": "1.1.2",
+    "version": "1.1.3",
     "orientation": "portrait",
     "icon": "./assets/syncvibe.png",
     "scheme": "syncvibe",
@@ -25,7 +25,8 @@
         "CAMERA",
         "RECORD_AUDIO",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "REQUEST_INSTALL_PACKAGES"
       ],
       "intentFilters": [
         {

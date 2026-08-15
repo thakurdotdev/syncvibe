@@ -7,6 +7,7 @@ import { setTrackPlayerReady } from "./trackPlayerState"
 import {
   usePlayerStore,
   onAfterSongTransition,
+  checkAndFetchRecommendations,
   setOnReorderPlaylist,
   setOnPlaySong,
   setOnStopSong,
@@ -185,6 +186,26 @@ const loadPlaylist = (playlist: Song[], startIndex: number) => {
   s.setPlaying(true)
 }
 
+let lastHistorySongId: string | null = null
+let lastHistoryTimestamp = 0
+
+const recordSongStart = (song: Song) => {
+  if (!song?.id) return
+
+  playbackHistory
+    .updatePlaybackProgress(song, 0, song.duration || 0, true)
+    .catch(console.error)
+
+  const now = Date.now()
+  if (lastHistorySongId === song.id && now - lastHistoryTimestamp < 3000) {
+    return
+  }
+  lastHistorySongId = song.id
+  lastHistoryTimestamp = now
+  onAfterSongTransition?.(song)
+  checkAndFetchRecommendations(song)
+}
+
 // ─── Public Bridge Functions ─────────────────────────
 
 export const setBridgeUserId = (id?: number) => {
@@ -220,6 +241,7 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
       s.setCurrentSong(song)
     }
     s.setPlaying(true)
+    recordSongStart(song)
     fillQueue()
     return
   }
@@ -230,6 +252,7 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
     playlist.findIndex((s) => s.id === song.id)
   )
   loadPlaylist(playlist, startIdx)
+  recordSongStart(song)
   fillQueue()
 }
 
@@ -268,6 +291,12 @@ export const bridgePlayPause = () => {
   if (TrackPlayer.isPlaying()) {
     TrackPlayer.pause()
     s.setPlaying(false)
+    if (s.currentSong) {
+      const { position, duration } = TrackPlayer.getProgress()
+      playbackHistory
+        .updatePlaybackProgress(s.currentSong, position, duration, false)
+        .catch(console.error)
+    }
   } else if (s.currentSong) {
     resetErrors()
     const state = TrackPlayer.getPlaybackState()
@@ -276,6 +305,10 @@ export const bridgePlayPause = () => {
     } else {
       TrackPlayer.play()
       s.setPlaying(true)
+      const { position, duration } = TrackPlayer.getProgress()
+      playbackHistory
+        .updatePlaybackProgress(s.currentSong, position, duration, true)
+        .catch(console.error)
     }
   } else {
     s.setPlaying(false)
@@ -612,6 +645,18 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
         break
       }
 
+      case Event.IsPlayingChanged: {
+        const playing = !!event.playing
+        s.setPlaying(playing)
+        if (s.currentSong) {
+          const { position, duration } = TrackPlayer.getProgress()
+          playbackHistory
+            .updatePlaybackProgress(s.currentSong, position, duration, playing)
+            .catch(console.error)
+        }
+        break
+      }
+
       // ── Track transition → update current song + history ──
       case Event.MediaItemTransition: {
         if (event.item && event.index !== undefined) {
@@ -626,12 +671,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
                 s.setCurrentSong(song)
               }
 
-              if (userId) {
-                playbackHistory
-                  .updatePlaybackProgress(song, 0, song.duration || 0, true)
-                  .catch(console.error)
-                onAfterSongTransition?.(song)
-              }
+              recordSongStart(song)
             }
           }
         }
@@ -728,6 +768,9 @@ export const destroyTrackPlayer = async () => {
     clearTimeout(reorderTimeout)
     reorderTimeout = null
   }
+
+  lastHistorySongId = null
+  lastHistoryTimestamp = 0
 
   playbackHistory.destroy()
   trackCache.clear()

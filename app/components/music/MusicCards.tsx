@@ -7,6 +7,7 @@ import {
   useSongPlaybackState,
   useShuffleMode
 } from "@/stores/playerStore"
+import { Album, Artist, Playlist } from "@/types/music"
 import { Song } from "@/types/song"
 import {
   ensureHttpsForAlbumUrls,
@@ -19,7 +20,7 @@ import TrackPlayer, { useProgress } from "@rntp/player"
 import { router } from "expo-router"
 import { Repeat, Repeat1, Shuffle, SkipBackIcon, SkipForwardIcon } from "lucide-react-native"
 import { memo, default as React, useCallback, useMemo, useState } from "react"
-import { Image, Pressable, StyleSheet, Text, View } from "react-native"
+import { Image, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   clamp,
@@ -36,24 +37,20 @@ interface SongCardProps {
 }
 
 interface AlbumCardProps {
-  album: any
+  album: Album
   onPress?: () => void | Promise<void>
   onLongPress?: () => void | Promise<void>
 }
 
 interface PlaylistCardProps {
-  playlist: any
+  playlist: Playlist
   isUser?: boolean
   onPress?: () => void | Promise<void>
   onLongPress?: () => void | Promise<void>
 }
 
-interface ImageType {
-  link: string
-}
-
 interface ArtistCardProps {
-  artist: { id: string; name: string; image: ImageType[] }
+  artist: Artist
   onPress?: () => void | Promise<void>
   onLongPress?: () => void | Promise<void>
 }
@@ -182,19 +179,26 @@ export const CustomSlider = ({
 
 interface CardContainerProps {
   children: React.ReactNode
-  onPress: () => void | Promise<void>
+  onPress?: () => void | Promise<void>
   onLongPress?: () => void | Promise<void>
-  width?: number | `${number}%`
-  style?: any
+  width?: number | `${number}%` | "auto"
+  style?: StyleProp<ViewStyle>
 }
 
 export const CardContainer = memo(
-  ({ children, onPress, onLongPress, width = 160, style }: CardContainerProps) => {
+  ({ children, onPress, onLongPress, width, style }: CardContainerProps) => {
     return (
       <Pressable
         onPress={onPress}
         onLongPress={onLongPress}
-        style={({ pressed }) => [{ width, opacity: pressed ? 0.82 : 1 }, style]}
+        style={({ pressed }) => [
+          {
+            width: width ?? "100%",
+            transform: [{ scale: pressed ? 0.97 : 1 }],
+            opacity: pressed ? 0.9 : 1,
+          },
+          style,
+        ]}
       >
         {children}
       </Pressable>
@@ -210,7 +214,8 @@ export const SongCard = memo(
   }: SongCardProps & { disableOnLongPress?: boolean }) => {
     const { playSong, handlePlayPause } = usePlayerControls()
     const { isCurrentSong, isPlaying } = useSongPlaybackState(song.id)
-    const { colors } = useTheme()
+    const { colors, theme } = useTheme()
+    const isDark = theme === "dark"
 
     const securedSong = useMemo(() => ensureHttpsForSongUrls(song), [song])
     const [playerDrawerOpen, setPlayerDrawerOpen] = useState(false)
@@ -232,7 +237,7 @@ export const SongCard = memo(
     }, [])
 
     return (
-      <Animated.View>
+      <View style={{ marginVertical: 2 }}>
         <Pressable
           onPress={handlePress}
           onLongPress={disableOnLongPress ? undefined : handleLongPress}
@@ -240,20 +245,30 @@ export const SongCard = memo(
             {
               flexDirection: "row",
               alignItems: "center",
-              padding: 8,
-              borderRadius: 14,
-              height: 64,
-              opacity: pressed ? 0.82 : 1,
+              paddingVertical: 7,
+              paddingHorizontal: 8,
+              borderRadius: 10,
+              backgroundColor: isCurrentSong
+                ? isDark
+                  ? "rgba(255,255,255,0.07)"
+                  : "rgba(0,0,0,0.04)"
+                : pressed
+                  ? isDark
+                    ? "rgba(255,255,255,0.04)"
+                    : "rgba(0,0,0,0.02)"
+                  : "transparent",
             },
           ]}
         >
           <View
             style={{
-              width: 48,
-              height: 48,
-              borderRadius: 10,
+              width: 46,
+              height: 46,
+              borderRadius: 8,
               overflow: "hidden",
-              backgroundColor: colors.muted,
+              backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+              borderWidth: 1,
+              borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
             }}
           >
             <Image
@@ -283,26 +298,27 @@ export const SongCard = memo(
           <View style={{ flex: 1, paddingHorizontal: 12, justifyContent: "center" }}>
             <Text
               style={{
-                color: isCurrentSong ? colors.primary : colors.text,
-                fontWeight: "700",
-                fontSize: 15,
+                color: isCurrentSong ? colors.primary : colors.foreground,
+                fontWeight: "600",
+                fontSize: 14.5,
+                letterSpacing: -0.2,
               }}
               numberOfLines={1}
             >
               {securedSong.name}
             </Text>
             <Text
-              style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 2 }}
+              style={{ color: colors.mutedForeground, fontSize: 12.5, marginTop: 2 }}
               numberOfLines={1}
             >
               {securedSong.subtitle || securedSong.artist_map?.artists?.[0]?.name}
             </Text>
           </View>
 
-          <View style={{ paddingRight: 8, justifyContent: "center" }}>
+          <View style={{ paddingRight: 4, justifyContent: "center" }}>
             <Ionicons
               name={isCurrentSong ? (isPlaying ? "pause-circle" : "play-circle") : "play-outline"}
-              size={20}
+              size={22}
               color={isCurrentSong ? colors.primary : colors.mutedForeground}
             />
           </View>
@@ -315,7 +331,7 @@ export const SongCard = memo(
             song={securedSong}
           />
         )}
-      </Animated.View>
+      </View>
     )
   },
 )
@@ -329,19 +345,15 @@ export const CardImage = ({ uri, alt }: { uri: string; alt: string }) => {
     <View
       style={{
         width: "100%",
-        height: 140,
-        borderRadius: 14,
+        aspectRatio: 1,
+        borderRadius: 8,
         overflow: "hidden",
         backgroundColor: "rgba(255,255,255,0.05)",
       }}
     >
       <Image
         source={{ uri: sourceUri, cache: "force-cache" }}
-        style={{
-          width: "100%",
-          height: 140,
-          borderRadius: 14,
-        }}
+        style={{ width: "100%", height: "100%" }}
         resizeMode="cover"
         alt={alt}
       />
@@ -350,8 +362,10 @@ export const CardImage = ({ uri, alt }: { uri: string; alt: string }) => {
 }
 
 export const AlbumCard = memo(
-  ({ album, onPress: customOnPress, onLongPress }: AlbumCardProps) => {
-    const { colors } = useTheme()
+  ({ album, width, onPress: customOnPress, onLongPress }: AlbumCardProps & { width?: number | `${number}%` }) => {
+    const { colors, theme } = useTheme()
+    const isDark = theme === "dark"
+
     const handlePress = useCallback(() => {
       if (customOnPress) {
         customOnPress()
@@ -367,99 +381,74 @@ export const AlbumCard = memo(
 
     const securedAlbum = useMemo(() => ensureHttpsForAlbumUrls(album), [album])
     const name = securedAlbum.name || securedAlbum.title || ""
-    const subtitle = securedAlbum.artist || securedAlbum.subtitle || "Album"
-    const imageUrl =
-      securedAlbum.image?.[2]?.link || securedAlbum.image?.[2]?.url || securedAlbum.image?.[1]?.link
+    const artistName =
+      typeof securedAlbum.artist === "object"
+        ? securedAlbum.artist?.name
+        : securedAlbum.artist
+    const subtitle =
+      artistName ||
+      securedAlbum.subtitle ||
+      securedAlbum.artist_map?.artists?.[0]?.name ||
+      "Album"
+    const imageUrl = Array.isArray(securedAlbum.image)
+      ? securedAlbum.image[2]?.link || securedAlbum.image[1]?.link || securedAlbum.image[0]?.link
+      : typeof securedAlbum.image === "string"
+        ? securedAlbum.image
+        : undefined
 
     return (
-      <CardContainer onPress={handlePress} onLongPress={onLongPress} width={152} style={{ marginRight: 14 }}>
-      <View style={{ gap: 10 }}>
-        <View style={{ position: "relative", width: 140, height: 140 }}>
-          {/* Vinyl Disc poking out */}
+      <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
+        <View style={cardStyles.container}>
           <View
-            style={{
-              position: "absolute",
-              top: 8,
-              right: -10,
-              width: 124,
-              height: 124,
-              borderRadius: 62,
-              backgroundColor: "#121212",
-              borderWidth: 1,
-              borderColor: "rgba(255,255,255,0.12)",
-              justifyContent: "center",
-              alignItems: "center",
-              elevation: 2,
-            }}
-          >
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: colors.primary,
-                borderWidth: 4,
-                borderColor: "#181818",
-              }}
-            />
-          </View>
-
-          {/* Album Cover */}
-          <View
-            style={{
-              width: 136,
-              height: 136,
-              borderRadius: 14,
-              overflow: "hidden",
-              backgroundColor: colors.muted,
-              elevation: 5,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.25,
-              shadowRadius: 8,
-            }}
+            style={[
+              cardStyles.imageCover,
+              {
+                backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              },
+            ]}
           >
             <Image
-              source={{ uri: imageUrl || "https://via.placeholder.com/136", cache: "force-cache" }}
-              style={{ width: "100%", height: "100%" }}
+              source={{ uri: imageUrl || "https://via.placeholder.com/150", cache: "force-cache" }}
+              style={cardStyles.image}
               resizeMode="cover"
               alt={`Album: ${name}`}
             />
           </View>
-        </View>
 
-        <View style={{ gap: 2, paddingHorizontal: 2 }}>
-          <Text
-            style={{
-              color: colors.text,
-              fontWeight: "700",
-              fontSize: 14,
-            }}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {name}
-          </Text>
-          <Text
-            style={{
-              color: colors.mutedForeground,
-              fontSize: 12,
-              fontWeight: "500",
-            }}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {subtitle}
-          </Text>
+          <View style={cardStyles.textContainer}>
+            <Text
+              style={[cardStyles.primaryText, { color: colors.foreground }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {name}
+            </Text>
+            <Text
+              style={[cardStyles.secondaryText, { color: colors.mutedForeground }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {subtitle}
+            </Text>
+          </View>
         </View>
-      </View>
-    </CardContainer>
-  )
-})
+      </CardContainer>
+    )
+  },
+)
 
 export const PlaylistCard = memo(
-  ({ playlist, isUser = false, onPress: customOnPress, onLongPress }: PlaylistCardProps) => {
-    const { colors } = useTheme()
+  ({
+    playlist,
+    isUser = false,
+    width,
+    onPress: customOnPress,
+    onLongPress,
+  }: PlaylistCardProps & { width?: number | `${number}%` }) => {
+    const { colors, theme } = useTheme()
+    const isDark = theme === "dark"
+
     const handlePress = useCallback(() => {
       if (customOnPress) {
         customOnPress()
@@ -476,8 +465,10 @@ export const PlaylistCard = memo(
     const securedPlaylist = useMemo(() => ensureHttpsForPlaylistUrls(playlist), [playlist])
     const subtitle = securedPlaylist.subtitle || securedPlaylist.description || "Playlist"
     const imageUrl = Array.isArray(securedPlaylist.image)
-      ? securedPlaylist.image[2]?.link || securedPlaylist.image[1]?.link
-      : securedPlaylist.image
+      ? securedPlaylist.image[2]?.link || securedPlaylist.image[1]?.link || securedPlaylist.image[0]?.link
+      : typeof securedPlaylist.image === "string"
+        ? securedPlaylist.image
+        : undefined
 
     if (isUser) {
       return (
@@ -485,201 +476,140 @@ export const PlaylistCard = memo(
           onPress={handlePress}
           onLongPress={onLongPress}
           width="100%"
-          style={{ marginBottom: 10 }}
-        >
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            padding: 10,
-            borderRadius: 16,
-            backgroundColor: colors.card,
-            borderWidth: 1,
-            borderColor: colors.border + "40",
-            gap: 14,
-          }}
+          style={{ marginBottom: 8 }}
         >
           <View
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 12,
-              overflow: "hidden",
-              backgroundColor: colors.muted,
-            }}
+            style={[
+              cardStyles.userPlaylistRow,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border + "35",
+              },
+            ]}
+          >
+            <View
+              style={[
+                cardStyles.userPlaylistImage,
+                {
+                  backgroundColor: colors.muted,
+                },
+              ]}
+            >
+              <Image
+                source={{ uri: imageUrl, cache: "force-cache" }}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode="cover"
+                alt={`Playlist: ${securedPlaylist.name}`}
+              />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text
+                style={{ color: colors.foreground, fontWeight: "600", fontSize: 14.5 }}
+                numberOfLines={1}
+              >
+                {securedPlaylist.name}
+              </Text>
+              <Text
+                style={{ color: colors.mutedForeground, fontSize: 12.5 }}
+                numberOfLines={1}
+              >
+                {subtitle}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+          </View>
+        </CardContainer>
+      )
+    }
+
+    return (
+      <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
+        <View style={cardStyles.container}>
+          <View
+            style={[
+              cardStyles.imageCover,
+              {
+                backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              },
+            ]}
           >
             <Image
               source={{ uri: imageUrl, cache: "force-cache" }}
-              style={{ width: "100%", height: "100%" }}
+              style={cardStyles.image}
               resizeMode="cover"
               alt={`Playlist: ${securedPlaylist.name}`}
             />
           </View>
-          <View style={{ flex: 1, gap: 2 }}>
+
+          <View style={cardStyles.textContainer}>
             <Text
-              style={{ color: colors.text, fontWeight: "700", fontSize: 15 }}
+              style={[cardStyles.primaryText, { color: colors.foreground }]}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {securedPlaylist.name}
             </Text>
             <Text
-              style={{ color: colors.mutedForeground, fontSize: 13 }}
+              style={[cardStyles.secondaryText, { color: colors.mutedForeground }]}
               numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {subtitle}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
         </View>
       </CardContainer>
     )
-  }
+  },
+)
 
-    return (
-      <CardContainer onPress={handlePress} onLongPress={onLongPress} width={152} style={{ marginRight: 14 }}>
-      <View style={{ gap: 10 }}>
-        <View style={{ position: "relative", width: 144, height: 144 }}>
-          {/* Offset Stacked Back Card */}
-          <View
-            style={{
-              position: "absolute",
-              top: 6,
-              left: 6,
-              right: -6,
-              bottom: -6,
-              borderRadius: 16,
-              backgroundColor: colors.primary + "30",
-              borderWidth: 1,
-              borderColor: colors.border + "30",
-            }}
-          />
-
-          {/* Main Cover */}
-          <View
-            style={{
-              width: 144,
-              height: 144,
-              borderRadius: 16,
-              overflow: "hidden",
-              backgroundColor: colors.muted,
-              elevation: 4,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.2,
-              shadowRadius: 6,
-            }}
-          >
-            <Image
-              source={{ uri: imageUrl, cache: "force-cache" }}
-              style={{ width: "100%", height: "100%" }}
-              resizeMode="cover"
-              alt={`Playlist: ${securedPlaylist.name}`}
-            />
-            <View
-              style={{
-                position: "absolute",
-                top: 8,
-                left: 8,
-                backgroundColor: "rgba(0,0,0,0.65)",
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-                borderRadius: 8,
-              }}
-            >
-              <Text
-                style={{
-                  color: "#fff",
-                  fontSize: 10,
-                  fontWeight: "700",
-                  letterSpacing: 0.5,
-                }}
-              >
-                MIX
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={{ gap: 2, paddingHorizontal: 2 }}>
-          <Text
-            style={{
-              color: colors.text,
-              fontWeight: "700",
-              fontSize: 14,
-            }}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {securedPlaylist.name}
-          </Text>
-          <Text
-            style={{
-              color: colors.mutedForeground,
-              fontSize: 12,
-              fontWeight: "500",
-            }}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {subtitle}
-          </Text>
-        </View>
-      </View>
-    </CardContainer>
-  )
-})
-
-export const NewSongCard = memo(({ song }: SongCardProps) => {
+export const NewSongCard = memo(({ song, width }: SongCardProps & { width?: number | `${number}%` }) => {
   if (!song.id) return null
   const { playSong, handlePlayPause } = usePlayerControls()
   const { isCurrentSong, isPlaying } = useSongPlaybackState(song.id)
-  const { colors } = useTheme()
+  const { colors, theme } = useTheme()
+  const isDark = theme === "dark"
   const [playerDrawerOpen, setPlayerDrawerOpen] = useState(false)
 
   const securedSong = useMemo(() => ensureHttpsForSongUrls(song), [song])
-  const imageUrl = securedSong.image?.[2]?.link || securedSong.image?.[1]?.link
+  const imageUrl =
+    securedSong.image?.[2]?.link || securedSong.image?.[1]?.link || securedSong.image?.[0]?.link
   const artistName =
     securedSong.subtitle || securedSong.artist_map?.artists?.[0]?.name || "Unknown Artist"
 
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     if (isCurrentSong) {
       handlePlayPause()
     } else {
       playSong(securedSong)
     }
-  }
+  }, [isCurrentSong, handlePlayPause, playSong, securedSong])
 
-  const handleLongPress = () => {
+  const handleLongPress = useCallback(() => {
     setPlayerDrawerOpen(true)
-  }
+  }, [])
 
   return (
     <>
       <CardContainer
-        width={144}
+        width={width}
         onPress={handlePress}
         onLongPress={handleLongPress}
-        style={{ marginRight: 14 }}
       >
-        <View style={{ gap: 8 }}>
+        <View style={cardStyles.container}>
           <View
-            style={{
-              width: 144,
-              height: 144,
-              borderRadius: 14,
-              overflow: "hidden",
-              backgroundColor: colors.muted,
-              position: "relative",
-              elevation: 3,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 3 },
-              shadowOpacity: 0.15,
-              shadowRadius: 5,
-            }}
+            style={[
+              cardStyles.imageCover,
+              {
+                backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              },
+            ]}
           >
             <Image
               source={{ uri: imageUrl, cache: "force-cache" }}
-              style={{ width: "100%", height: "100%" }}
+              style={cardStyles.image}
               resizeMode="cover"
               alt={`Song: ${securedSong.name}`}
             />
@@ -696,9 +626,9 @@ export const NewSongCard = memo(({ song }: SongCardProps) => {
               >
                 <View
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
                     backgroundColor: colors.primary,
                     justifyContent: "center",
                     alignItems: "center",
@@ -706,7 +636,7 @@ export const NewSongCard = memo(({ song }: SongCardProps) => {
                 >
                   <Ionicons
                     name={isPlaying ? "pause" : "play"}
-                    size={22}
+                    size={18}
                     color={colors.primaryForeground}
                     style={isPlaying ? undefined : { marginLeft: 2 }}
                   />
@@ -715,20 +645,19 @@ export const NewSongCard = memo(({ song }: SongCardProps) => {
             )}
           </View>
 
-          <View style={{ gap: 2, paddingHorizontal: 2 }}>
+          <View style={cardStyles.textContainer}>
             <Text
-              style={{
-                color: isCurrentSong ? colors.primary : colors.text,
-                fontWeight: "700",
-                fontSize: 14,
-              }}
+              style={[
+                cardStyles.primaryText,
+                { color: isCurrentSong ? colors.primary : colors.foreground },
+              ]}
               numberOfLines={1}
               ellipsizeMode="tail"
             >
               {securedSong.name}
             </Text>
             <Text
-              style={{ color: colors.mutedForeground, fontSize: 12, fontWeight: "500" }}
+              style={[cardStyles.secondaryText, { color: colors.mutedForeground }]}
               numberOfLines={1}
               ellipsizeMode="tail"
             >
@@ -750,8 +679,14 @@ export const NewSongCard = memo(({ song }: SongCardProps) => {
 })
 
 export const ArtistCard = memo(
-  ({ artist, onPress: customOnPress, onLongPress }: ArtistCardProps) => {
-    const { colors } = useTheme()
+  ({
+    artist,
+    width,
+    onPress: customOnPress,
+    onLongPress,
+  }: ArtistCardProps & { width?: number | `${number}%` }) => {
+    const { colors, theme } = useTheme()
+    const isDark = theme === "dark"
 
     if (!artist?.name || !artist?.image) return null
 
@@ -759,8 +694,10 @@ export const ArtistCard = memo(
     const imageUrl = useMemo(
       () =>
         Array.isArray(securedArtist.image)
-          ? securedArtist.image[2]?.link || securedArtist.image[1]?.link
-          : securedArtist.image,
+          ? securedArtist.image[2]?.link || securedArtist.image[1]?.link || securedArtist.image[0]?.link
+          : typeof securedArtist.image === "string"
+            ? securedArtist.image
+            : undefined,
       [securedArtist.image],
     )
 
@@ -776,70 +713,116 @@ export const ArtistCard = memo(
     }, [securedArtist?.id, customOnPress])
 
     return (
-      <CardContainer onPress={handlePress} onLongPress={onLongPress} width={136} style={{ marginRight: 12 }}>
-      <View style={{ alignItems: "center", gap: 10, paddingVertical: 4 }}>
-        <View
-          style={{
-            width: 120,
-            height: 120,
-            borderRadius: 60,
-            overflow: "hidden",
-            borderWidth: 2,
-            borderColor: colors.border + "60",
-            backgroundColor: colors.muted + "40",
-            elevation: 4,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.15,
-            shadowRadius: 6,
-          }}
-        >
-          <Image
-            source={{ uri: imageUrl || "https://via.placeholder.com/120", cache: "force-cache" }}
-            style={{ width: "100%", height: "100%" }}
-            resizeMode="cover"
-            alt={`Artist: ${securedArtist.name}`}
-          />
-        </View>
-
-        <View style={{ alignItems: "center", width: "100%", paddingHorizontal: 4 }}>
-          <Text
-            style={{
-              color: colors.text,
-              fontWeight: "700",
-              fontSize: 14,
-              textAlign: "center",
-            }}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {securedArtist.name}
-          </Text>
+      <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
+        <View style={cardStyles.artistContainer}>
           <View
-            style={{
-              marginTop: 4,
-              paddingHorizontal: 8,
-              paddingVertical: 2,
-              borderRadius: 12,
-              backgroundColor: colors.primary + "15",
-            }}
+            style={[
+              cardStyles.artistAvatarWrapper,
+              {
+                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+              },
+            ]}
           >
+            <Image
+              source={{ uri: imageUrl || "https://via.placeholder.com/120", cache: "force-cache" }}
+              style={cardStyles.artistAvatar}
+              resizeMode="cover"
+              alt={`Artist: ${securedArtist.name}`}
+            />
+          </View>
+
+          <View style={cardStyles.artistTextContainer}>
             <Text
-              style={{
-                color: colors.primary,
-                fontSize: 10,
-                fontWeight: "600",
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
-              }}
+              style={[cardStyles.primaryText, { color: colors.foreground, textAlign: "center" }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {securedArtist.name}
+            </Text>
+            <Text
+              style={[cardStyles.secondaryText, { color: colors.mutedForeground, textAlign: "center" }]}
+              numberOfLines={1}
             >
               Artist
             </Text>
           </View>
         </View>
-      </View>
-    </CardContainer>
-  )
+      </CardContainer>
+    )
+  },
+)
+
+const cardStyles = StyleSheet.create({
+  container: {
+    width: "100%",
+    gap: 6,
+  },
+  imageCover: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 8,
+    overflow: "hidden",
+    borderWidth: 1,
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+  textContainer: {
+    gap: 2,
+    paddingHorizontal: 1,
+  },
+  primaryText: {
+    fontSize: 14,
+    fontWeight: "600",
+    letterSpacing: -0.2,
+    lineHeight: 18,
+  },
+  secondaryText: {
+    fontSize: 12.5,
+    fontWeight: "400",
+    lineHeight: 16,
+  },
+  artistContainer: {
+    width: "100%",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 2,
+  },
+  artistAvatarWrapper: {
+    width: "100%",
+    maxWidth: 136,
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: "hidden",
+    borderWidth: 1,
+    alignSelf: "center",
+  },
+  artistAvatar: {
+    width: "100%",
+    height: "100%",
+  },
+  artistTextContainer: {
+    width: "100%",
+    alignItems: "center",
+    gap: 2,
+    paddingHorizontal: 4,
+  },
+  userPlaylistRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 12,
+  },
+  userPlaylistImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
 })
 
 export const SongControls = memo(() => {

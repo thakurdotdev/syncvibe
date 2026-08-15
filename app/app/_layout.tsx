@@ -1,30 +1,29 @@
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister"
-import { QueryClient } from "@tanstack/react-query"
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client"
-import * as Notifications from "expo-notifications"
-import { Stack } from "expo-router/js-stack"
-import { Easing } from "react-native-reanimated"
-import * as SplashScreen from "expo-splash-screen"
-import { useEffect } from "react"
-import { StatusBar } from "react-native"
-import { configureReanimatedLogger, ReanimatedLogLevel } from "react-native-reanimated"
-import { GestureHandlerRootView } from "react-native-gesture-handler"
-import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context"
-import TrackPlayer from "@rntp/player"
+import AppUpdateModal from "@/components/AppUpdateModal"
 import ErrorBoundary from "@/components/ErrorBoundary"
 import Player from "@/components/music/Player"
 import PlayerInitializer from "@/components/music/PlayerInitializer"
+import { AppUpdateProvider } from "@/context/AppUpdateContext"
 import { GroupMusicProvider } from "@/context/GroupMusicContext"
 import { NotificationProvider } from "@/context/NotificationContext"
 import { ChatProvider } from "@/context/SocketContext"
 import { ThemeProvider, useTheme } from "@/context/ThemeContext"
 import { ToastProvider } from "@/context/ToastContext"
-import { UserProvider, useUser } from "@/context/UserContext"
-import { AppUpdateProvider } from "@/context/AppUpdateContext"
-import AppUpdateModal from "@/components/AppUpdateModal"
-import "../global.css"
+import { UserProvider } from "@/context/UserContext"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import TrackPlayer from "@rntp/player"
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister"
+import { QueryClient } from "@tanstack/react-query"
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client"
+import * as Notifications from "expo-notifications"
 import { NotificationBehavior } from "expo-notifications"
+import { Stack } from "expo-router/js-stack"
+import * as SplashScreen from "expo-splash-screen"
+import { useEffect } from "react"
+import { StatusBar } from "react-native"
+import { GestureHandlerRootView } from "react-native-gesture-handler"
+import { configureReanimatedLogger, Easing, ReanimatedLogLevel } from "react-native-reanimated"
+import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context"
+import "../global.css"
 
 SplashScreen.preventAutoHideAsync()
 
@@ -51,8 +50,8 @@ TrackPlayer.registerBackgroundEventHandler(() => async (event) => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
       retry: 1,
       gcTime: Infinity,
       staleTime: Infinity,
@@ -98,13 +97,12 @@ function RootLayout() {
 
 function RootLayoutNav() {
   const { colors, theme, isLoading: themeLoading } = useTheme()
-  const { loading: userLoading } = useUser()
 
   useEffect(() => {
-    if (!themeLoading && !userLoading) {
+    if (!themeLoading) {
       SplashScreen.hideAsync()
     }
-  }, [themeLoading, userLoading])
+  }, [themeLoading])
 
   const sharedAxisZ = ({ current, next }: any) => {
     const progress = current.progress

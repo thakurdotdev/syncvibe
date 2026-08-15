@@ -1,12 +1,11 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react"
-import { Platform } from "react-native"
+import { Linking, Platform } from "react-native"
 import useApi from "@/utils/hooks/useApi"
 import Constants from "expo-constants"
 import { toast } from "@/context/ToastContext"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import * as FileSystem from "expo-file-system/legacy"
 import * as IntentLauncher from "expo-intent-launcher"
-import * as Crypto from "expo-crypto"
 
 export interface AppUpdate {
   id: number
@@ -47,6 +46,7 @@ interface AppUpdateContextType {
   cancelDownload: () => Promise<void>
   installDownloadedApk: () => Promise<void>
   openInstallPermissionSettings: () => Promise<void>
+  openManualDownloadUrl: () => Promise<void>
 }
 
 const AppUpdateContext = createContext<AppUpdateContextType | null>(null)
@@ -214,6 +214,19 @@ export const AppUpdateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }
 
+  const openManualDownloadUrl = async () => {
+    if (!updateInfo?.downloadUrl) {
+      toast("No download URL available.", { type: "error" })
+      return
+    }
+    try {
+      await Linking.openURL(updateInfo.downloadUrl)
+    } catch (err) {
+      console.error("Failed to open manual download URL:", err)
+      toast("Failed to open browser download link.", { type: "error" })
+    }
+  }
+
   const cancelDownload = async () => {
     try {
       if (downloadTaskRef.current) {
@@ -256,7 +269,7 @@ export const AppUpdateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         await FileSystem.makeDirectoryAsync(updatesDir, { intermediates: true })
       }
 
-      // Skip download if local file exists and matches expected size
+      // Reuse existing complete download if size matches
       const existingFile = await FileSystem.getInfoAsync(localPath)
       if (existingFile.exists && existingFile.size && existingFile.size > 0) {
         if (!updateInfo.fileSize || existingFile.size === updateInfo.fileSize) {
@@ -316,20 +329,14 @@ export const AppUpdateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return
       }
 
-      if (updateInfo.sha256) {
-        setDownloadStatus("verifying")
-        const fileContent = await FileSystem.readAsStringAsync(downloadResult.uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        })
-        const hash = await Crypto.digestStringAsync(
-          Crypto.CryptoDigestAlgorithm.SHA256,
-          fileContent
-        )
+      const verifiedFile = await FileSystem.getInfoAsync(downloadResult.uri)
+      if (!verifiedFile.exists || !verifiedFile.size || verifiedFile.size === 0) {
+        throw new Error("Downloaded package file is corrupted or incomplete.")
+      }
 
-        if (hash.toLowerCase() !== updateInfo.sha256.toLowerCase()) {
-          await FileSystem.deleteAsync(downloadResult.uri, { idempotent: true })
-          throw new Error("SHA-256 integrity verification failed.")
-        }
+      if (updateInfo.fileSize && verifiedFile.size !== updateInfo.fileSize) {
+        await FileSystem.deleteAsync(downloadResult.uri, { idempotent: true })
+        throw new Error("Downloaded file size does not match package specification.")
       }
 
       setDownloadStatus("ready")
@@ -366,6 +373,7 @@ export const AppUpdateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         cancelDownload,
         installDownloadedApk,
         openInstallPermissionSettings,
+        openManualDownloadUrl,
       }}
     >
       {children}

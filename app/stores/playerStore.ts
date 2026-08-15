@@ -1,11 +1,55 @@
+import { API_URL } from "@/constants"
 import { Song } from "@/types/song"
 import { ensureHttpsForSongUrls } from "@/utils/getHttpsUrls"
 import AsyncStorage from "@react-native-async-storage/async-storage"
+import axios from "axios"
 import { create } from "zustand"
 import { useShallow } from "zustand/react/shallow"
 import { createJSONStorage, persist } from "zustand/middleware"
 
 export type RepeatMode = "off" | "all" | "one"
+
+let lastFetchedRecSongId: string | null = null
+let isFetchingRecs = false
+
+export const checkAndFetchRecommendations = async (targetSong?: Song | null, force = false) => {
+  const store = usePlayerStore.getState()
+  if (!store.autoFetchRecommendations && !force) return
+  if (store.activePlayerMode === "group") return
+
+  const song = targetSong ?? store.currentSong
+  if (!song?.id) return
+
+  const { playlist } = store
+  const currentIndex = playlist.findIndex((s) => s.id === song.id)
+  const remaining = currentIndex === -1 ? 0 : playlist.length - currentIndex - 1
+
+  if (!force && (remaining > 2 || lastFetchedRecSongId === song.id)) return
+  if (isFetchingRecs) return
+
+  try {
+    isFetchingRecs = true
+    lastFetchedRecSongId = song.id
+
+    const token = await AsyncStorage.getItem("token")
+    const headers: Record<string, string> = { Accept: "application/json" }
+    if (token) headers.Authorization = `Bearer ${token}`
+
+    const response = await axios.get(`${API_URL}/api/play-next/${song.id}?limit=20`, {
+      headers,
+      timeout: 10000,
+    })
+
+    if (response.data?.data?.length) {
+      const newRecommendations: Song[] = response.data.data.map(ensureHttpsForSongUrls)
+      store.addToQueue(newRecommendations)
+    }
+  } catch (err) {
+    console.error("Auto recommendation fetch error:", err)
+  } finally {
+    isFetchingRecs = false
+  }
+}
 
 export let onReorderPlaylist: ((newOrder: Song[]) => void) | null = null
 export const setOnReorderPlaylist = (cb: (newOrder: Song[]) => void) => {
@@ -136,6 +180,7 @@ export const usePlayerStore = create<PlayerStore>()(
         })
 
         onPlaySong?.(secureAudio)
+        checkAndFetchRecommendations(secureAudio)
       },
 
       stopSong: () => {
@@ -172,6 +217,7 @@ export const usePlayerStore = create<PlayerStore>()(
           }
         }
         onHandleNextSong?.(isAutoPlay)
+        checkAndFetchRecommendations()
       },
 
       handlePrevSong: () => {
@@ -187,6 +233,7 @@ export const usePlayerStore = create<PlayerStore>()(
           originalPlaylist: secureSongs,
           autoFetchRecommendations: true,
         })
+        checkAndFetchRecommendations()
       },
 
       addToQueue: (songs: Song | Song[]) => {
@@ -231,6 +278,7 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       clearQueue: () => {
+        lastFetchedRecSongId = null
         const { currentSong } = get()
         if (currentSong) {
           set({
@@ -248,6 +296,7 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       replaceQueue: (songs: Song[], keepCurrentSong = false) => {
+        lastFetchedRecSongId = null
         const { currentSong } = get()
         const secureSongs = songs.map(ensureHttpsForSongUrls)
 
@@ -307,6 +356,10 @@ export const usePlayerStore = create<PlayerStore>()(
 
       setAutoFetchRecommendations: (value: boolean) => {
         set({ autoFetchRecommendations: value })
+        if (value) {
+          lastFetchedRecSongId = null
+          checkAndFetchRecommendations(null, true)
+        }
       },
 
       setUserPlaylist: (playlists: any[]) => set({ userPlaylist: playlists }),
@@ -396,3 +449,16 @@ export const usePlaylistState = () =>
       setUserPlaylist: s.setUserPlaylist,
     }))
   )
+
+export const useQueueCount = () =>
+  usePlayerStore((s) => {
+    if (!s.currentSong) return s.playlist.length
+    return s.playlist.filter((item) => item.id !== s.currentSong?.id).length
+  })
+
+export const useNextSong = () =>
+  usePlayerStore((s) => {
+    if (!s.currentSong || !s.playlist.length) return null
+    const idx = s.playlist.findIndex((item) => item.id === s.currentSong?.id)
+    return idx >= 0 && idx < s.playlist.length - 1 ? s.playlist[idx + 1] : null
+  })

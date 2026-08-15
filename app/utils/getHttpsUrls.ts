@@ -1,3 +1,4 @@
+import type { Album, Artist as MusicArtist, Playlist } from "@/types/music"
 import { Song, Artist, ImageQuality, DownloadQuality } from "@/types/song"
 
 /**
@@ -56,13 +57,17 @@ const ensureHttpsForImages = (images?: ImageQuality[] | ImageQuality | string): 
 /**
  * Ensures all artists' URLs and image links use HTTPS
  */
-const ensureHttpsForArtists = (artists?: Artist[]): Artist[] => {
+const ensureHttpsForArtists = <
+  T extends Artist | { name: string; url?: string; image?: ImageQuality[] | ImageQuality | string }
+>(
+  artists?: T[],
+): T[] => {
   if (!artists) return []
   return artists.map((artist) => ({
     ...artist,
-    url: artist.url ? convertToHttps(artist.url) : undefined,
+    url: artist.url ? convertToHttps(artist.url) : (artist.url as string | undefined),
     image: artist.image
-      ? ensureHttpsForImages(artist.image)
+      ? ensureHttpsForImages(artist.image as ImageQuality[] | ImageQuality | string)
       : "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp",
   }))
 }
@@ -74,7 +79,7 @@ const ensureHttpsForDownloadUrls = (downloadUrls?: DownloadQuality[]): DownloadQ
   if (!downloadUrls) return []
   return downloadUrls.map((item) => ({
     ...item,
-    link: item.link ? convertToHttps(item.link) : undefined,
+    link: convertToHttps(item.link || ""),
   }))
 }
 
@@ -89,7 +94,6 @@ export const ensureHttpsForSongUrls = (song: Song): Song => {
   if (song.url) securedSong.url = convertToHttps(song.url)
   if (song.image) securedSong.image = ensureHttpsForImages(song.image)
 
-  // Handle artist_map if it exists
   if (song.artist_map) {
     securedSong.artist_map = { ...song.artist_map }
     if (song.artist_map.artists) {
@@ -117,7 +121,7 @@ export const ensureHttpsForSongUrls = (song: Song): Song => {
 /**
  * Ensures all URLs in an album object use HTTPS
  */
-export const ensureHttpsForAlbumUrls = (album: any): any => {
+export const ensureHttpsForAlbumUrls = (album: Album): Album => {
   if (!album) return album
 
   const securedAlbum = { ...album }
@@ -126,10 +130,12 @@ export const ensureHttpsForAlbumUrls = (album: any): any => {
   if (album.image) securedAlbum.image = ensureHttpsForImages(album.image)
   if (album.artists) securedAlbum.artists = ensureHttpsForArtists(album.artists)
 
-  if (album.artist) {
-    securedAlbum.artist = { ...album.artist }
-    if (album.artist.url) securedAlbum.artist.url = convertToHttps(album.artist.url)
-    if (album.artist.image) securedAlbum.artist.image = ensureHttpsForImages(album.artist.image)
+  if (album.artist && typeof album.artist === "object") {
+    securedAlbum.artist = {
+      ...album.artist,
+      url: album.artist.url ? convertToHttps(album.artist.url) : undefined,
+      image: album.artist.image ? ensureHttpsForImages(album.artist.image) : undefined,
+    }
   }
 
   return securedAlbum
@@ -138,7 +144,7 @@ export const ensureHttpsForAlbumUrls = (album: any): any => {
 /**
  * Ensures all URLs in an artist object use HTTPS
  */
-export const ensureHttpsForArtistUrls = (artist: any): any => {
+export const ensureHttpsForArtistUrls = (artist: MusicArtist): MusicArtist => {
   if (!artist) return artist
 
   const securedArtist = { ...artist }
@@ -151,23 +157,13 @@ export const ensureHttpsForArtistUrls = (artist: any): any => {
       "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp"
   }
 
-  if (Array.isArray(artist.albums)) {
-    securedArtist.albums = artist.albums.map((album: any) => ensureHttpsForAlbumUrls(album))
-  }
-
-  if (Array.isArray(artist.similar_artists)) {
-    securedArtist.similar_artists = artist.similar_artists.map((similarArtist: any) =>
-      ensureHttpsForArtistUrls(similarArtist),
-    )
-  }
-
   return securedArtist
 }
 
 /**
  * Ensures all URLs in a playlist object use HTTPS
  */
-export const ensureHttpsForPlaylistUrls = (playlist: any): any => {
+export const ensureHttpsForPlaylistUrls = (playlist: Playlist): Playlist => {
   if (!playlist) return playlist
 
   const securedPlaylist = { ...playlist }
@@ -177,15 +173,13 @@ export const ensureHttpsForPlaylistUrls = (playlist: any): any => {
   if (playlist.image) {
     securedPlaylist.image = Array.isArray(playlist.image)
       ? ensureHttpsForImages(playlist.image)
-      : playlist.image
+      : typeof playlist.image === "string"
         ? convertToHttps(playlist.image)
         : "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp"
   }
 
   if (playlist.artists) {
-    securedPlaylist.artists = Array.isArray(playlist.artists)
-      ? ensureHttpsForArtists(playlist.artists)
-      : playlist.artists
+    securedPlaylist.artists = ensureHttpsForArtists(playlist.artists)
   }
 
   return securedPlaylist
