@@ -7,6 +7,7 @@ const { Upload } = require("@aws-sdk/lib-storage")
 const { NodeHttpHandler } = require("@smithy/node-http-handler")
 const AppUpdate = require("../models/appUpdateModel")
 const { getRedis, cache } = require("../utils/redis")
+const { buildPublishedMailSender } = require("../utils/resend")
 
 const s3Client = new S3Client({
   region: "auto",
@@ -110,6 +111,17 @@ const processUpdateInBackground = async (version, artifacts, metadata, releaseNo
 
     console.log(`Automatically published app update v${version} via EAS Webhook`)
     await cache.del(`pending-update:${version}`)
+
+    if (process.env.ADMIN_EMAIL) {
+      buildPublishedMailSender(process.env.ADMIN_EMAIL, {
+        version,
+        releaseNotes,
+        downloadUrl,
+        fileSize,
+        sha256,
+        platform: "Android",
+      }).catch((err) => console.error("Failed to send build notification email:", err))
+    }
   } catch (error) {
     console.error(`EAS Webhook background processing failed for v${version}:`, error)
   } finally {

@@ -1,6 +1,7 @@
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3")
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner")
 const AppUpdate = require("../models/appUpdateModel")
+const { buildPublishedMailSender } = require("../utils/resend")
 
 exports.getLatestUpdate = async (req, res) => {
   try {
@@ -78,6 +79,17 @@ exports.createUpdate = async (req, res) => {
       sha256: sha256 ? String(sha256).trim() : null,
       fileSize: fileSize ? Number(fileSize) : null,
     })
+
+    if (process.env.ADMIN_EMAIL) {
+      buildPublishedMailSender(process.env.ADMIN_EMAIL, {
+        version,
+        releaseNotes,
+        downloadUrl,
+        fileSize: fileSize ? Number(fileSize) : null,
+        sha256: sha256 ? String(sha256).trim() : null,
+        platform: "Android",
+      }).catch((err) => console.error("Failed to send build notification email:", err))
+    }
 
     return res.status(201).json({ success: true, update })
   } catch (error) {

@@ -10,36 +10,40 @@ const CURRENT_YEAR = new Date().getFullYear()
 
 const BRAND = {
   black: "#000000",
-  text: "#171717",
-  muted: "#6b7280",
-  subtle: "#9ca3af",
-  border: "#e5e7eb",
-  bg: "#fafafa",
-  white: "#ffffff",
-  accent: "#171717",
-  accentText: "#ffffff",
-  codeBg: "#f3f4f6",
+  text: "#111111",
+  bodyText: "#444444",
+  muted: "#666666",
+  subtle: "#888888",
+  border: "#EAEAEA",
+  bg: "#FAFAFA",
+  cardBg: "#FFFFFF",
+  codeBg: "#F4F4F5",
+  codeText: "#000000",
+  accent: "#000000",
+  accentText: "#FFFFFF",
 }
 
 const inlineStyles = {
-  body: `margin:0;padding:0;background-color:${BRAND.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;-webkit-text-size-adjust:100%;text-size-adjust:100%;`,
-  wrapper: `width:100%;background-color:${BRAND.bg};padding:40px 0;`,
-  container: `max-width:560px;margin:0 auto;padding:0 20px;`,
-  card: `background-color:${BRAND.white};border:1px solid ${BRAND.border};border-radius:12px;overflow:hidden;`,
-  cardInner: `padding:40px 40px 32px;`,
-  logo: `text-align:center;padding-bottom:32px;`,
-  logoImg: `height:40px;width:40px;border-radius:50%;`,
-  heading: `font-size:22px;font-weight:600;color:${BRAND.text};margin:0 0 12px;line-height:1.3;letter-spacing:-0.3px;`,
-  text: `font-size:14px;line-height:1.6;color:${BRAND.muted};margin:0 0 16px;`,
-  code: `display:block;text-align:center;background-color:${BRAND.codeBg};border:1px solid ${BRAND.border};border-radius:8px;padding:20px;margin:24px 0;font-family:'SF Mono',SFMono-Regular,ui-monospace,Menlo,Monaco,Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:8px;color:${BRAND.text};`,
-  button: `display:inline-block;background-color:${BRAND.accent};color:${BRAND.accentText};text-decoration:none;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:500;line-height:1;`,
-  buttonWrapper: `text-align:center;padding:24px 0 8px;`,
-  divider: `border:none;border-top:1px solid ${BRAND.border};margin:24px 0;`,
-  footer: `padding:24px 40px;`,
-  footerText: `font-size:12px;line-height:1.6;color:${BRAND.subtle};margin:0;text-align:center;`,
-  footerLink: `color:${BRAND.subtle};text-decoration:none;`,
+  body: `margin:0;padding:0;background-color:${BRAND.bg};font-family:Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;-webkit-text-size-adjust:100%;text-size-adjust:100%;`,
+  wrapper: `width:100%;background-color:${BRAND.bg};padding:48px 0;`,
+  container: `max-width:520px;margin:0 auto;padding:0 16px;`,
+  card: `background-color:${BRAND.cardBg};border:1px solid ${BRAND.border};border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.02);`,
+  cardInner: `padding:40px 36px 36px;`,
+  logoRow: `margin-bottom:28px;`,
+  logoImg: `height:36px;width:36px;border-radius:50%;vertical-align:middle;`,
+  brandName: `font-size:16px;font-weight:600;color:${BRAND.text};letter-spacing:-0.4px;margin-left:10px;vertical-align:middle;display:inline-block;`,
+  heading: `font-size:20px;font-weight:600;color:${BRAND.text};margin:0 0 12px;line-height:1.3;letter-spacing:-0.4px;`,
+  text: `font-size:14px;line-height:1.6;color:${BRAND.bodyText};margin:0 0 16px;`,
+  code: `display:block;text-align:center;background-color:${BRAND.codeBg};border:1px solid ${BRAND.border};border-radius:8px;padding:18px 24px;margin:24px 0;font-family:'Geist Mono',SFMono-Regular,ui-monospace,Menlo,Monaco,Consolas,monospace;font-size:28px;font-weight:700;letter-spacing:6px;color:${BRAND.codeText};`,
+  button: `display:inline-block;background-color:${BRAND.accent};color:${BRAND.accentText};text-decoration:none;border-radius:6px;padding:11px 22px;font-size:13px;font-weight:500;line-height:1;letter-spacing:-0.1px;`,
+  buttonWrapper: `text-align:left;padding:16px 0 8px;`,
+  divider: `border:none;border-top:1px solid ${BRAND.border};margin:28px 0;`,
+  footer: `padding:24px 36px;background-color:${BRAND.bg};border-top:1px solid ${BRAND.border};`,
+  footerText: `font-size:12px;line-height:1.6;color:${BRAND.subtle};margin:0;`,
+  footerLink: `color:${BRAND.muted};text-decoration:none;font-weight:500;`,
   urlFallback: `font-size:12px;line-height:1.5;color:${BRAND.subtle};margin:0;word-break:break-all;`,
-  listItem: `font-size:14px;line-height:1.8;color:${BRAND.muted};`,
+  listItem: `font-size:14px;line-height:1.7;color:${BRAND.bodyText};margin-bottom:6px;`,
+  badge: `display:inline-block;background-color:${BRAND.codeBg};border:1px solid ${BRAND.border};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;color:${BRAND.text};letter-spacing:-0.2px;`,
 }
 
 const renderLayout = (content) => `<!DOCTYPE html>
@@ -54,23 +58,24 @@ const renderLayout = (content) => `<!DOCTYPE html>
 <body style="${inlineStyles.body}">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${inlineStyles.wrapper}">
 <tr><td align="center">
-<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="${inlineStyles.container}">
+<table role="presentation" width="520" cellpadding="0" cellspacing="0" style="${inlineStyles.container}">
 <tr><td>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${inlineStyles.card}">
     <tr><td style="${inlineStyles.cardInner}">
-      <div style="${inlineStyles.logo}">
+      <div style="${inlineStyles.logoRow}">
         <img src="${LOGO_URL}" alt="SyncVibe" style="${inlineStyles.logoImg}">
+        <span style="${inlineStyles.brandName}">SyncVibe</span>
       </div>
       ${content}
     </td></tr>
-    <tr><td style="border-top:1px solid ${BRAND.border};">
+    <tr><td>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr><td style="${inlineStyles.footer}">
           <p style="${inlineStyles.footerText}">
-            <a href="https://twitter.com/thakurdotdev" style="${inlineStyles.footerLink}">Twitter</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="https://instagram.com/thakurdotdev" style="${inlineStyles.footerLink}">Instagram</a>&nbsp;&nbsp;·&nbsp;&nbsp;<a href="https://github.com/thakurdotdev" style="${inlineStyles.footerLink}">GitHub</a>
+            <a href="https://twitter.com/thakurdotdev" style="${inlineStyles.footerLink}">Twitter</a> &nbsp;·&nbsp; <a href="https://github.com/thakurdotdev" style="${inlineStyles.footerLink}">GitHub</a> &nbsp;·&nbsp; <a href="https://instagram.com/thakurdotdev" style="${inlineStyles.footerLink}">Instagram</a>
           </p>
-          <p style="${inlineStyles.footerText};margin-top:16px;">
-            © ${CURRENT_YEAR} SyncVibe · Built by Pankaj Thakur
+          <p style="${inlineStyles.footerText};margin-top:12px;">
+            © ${CURRENT_YEAR} SyncVibe. Built by Pankaj Thakur.
           </p>
         </td></tr>
       </table>
@@ -118,32 +123,31 @@ const sendEmail = async (to, subject, html) => {
 const resendOtp = async (email, otp) => {
   const html = renderLayout(
     [
-      renderHeading("Verify your email"),
-      renderText("Enter this verification code to get started with SyncVibe."),
+      renderHeading("Verify your email address"),
+      renderText("Use the verification code below to complete signing in to SyncVibe."),
       renderVerificationCode(otp),
       renderText(
-        "This code expires in 1 hour. If you didn't request this, you can safely ignore this email.",
+        "This code will expire in 1 hour. If you did not request this code, no further action is required.",
       ),
     ].join(""),
   )
 
-  return sendEmail(email, "Your verification code", html)
+  return sendEmail(email, "Verify your email - SyncVibe", html)
 }
 
 const verifiedMailSender = async (email, username) => {
   const html = renderLayout(
     [
       renderHeading("Welcome to SyncVibe"),
-      renderText(`Hi ${username}, your email has been verified. You're all set.`),
+      renderText(`Hi ${username}, your email address has been successfully verified.`),
       renderButton("Get Started", `${APP_URL}/login`),
       renderDivider(),
-      renderText("Here's what you can do next:"),
-      `<ul style="padding-left:20px;margin:0 0 16px;">
-      <li style="${inlineStyles.listItem}">Complete your profile</li>
-      <li style="${inlineStyles.listItem}">Find and connect with friends</li>
-      <li style="${inlineStyles.listItem}">Share your first post</li>
-      <li style="${inlineStyles.listItem}">Explore trending content</li>
-    </ul>`,
+      renderText("What's next:"),
+      `<ul style="padding-left:18px;margin:0 0 16px;">
+        <li style="${inlineStyles.listItem}">Complete your profile information</li>
+        <li style="${inlineStyles.listItem}">Connect with friends and join rooms</li>
+        <li style="${inlineStyles.listItem}">Explore trending sessions</li>
+      </ul>`,
     ].join(""),
   )
 
@@ -155,31 +159,31 @@ const passwordResetMailSender = async (email, resetUrl) => {
     [
       renderHeading("Reset your password"),
       renderText(
-        "We received a request to reset your password. Click the button below to choose a new one.",
+        "A request was received to reset the password for your SyncVibe account. Click below to continue.",
       ),
       renderButton("Reset Password", resetUrl),
-      renderText("This link expires in 1 hour for security reasons."),
+      renderText("This link will expire in 1 hour."),
       renderDivider(),
-      `<p style="${inlineStyles.urlFallback}">If the button doesn't work, copy and paste this URL into your browser:<br>${resetUrl}</p>`,
+      `<p style="${inlineStyles.urlFallback}">If the button doesn't work, copy and paste this URL into your browser:<br><a href="${resetUrl}" style="${inlineStyles.footerLink}">${resetUrl}</a></p>`,
     ].join(""),
   )
 
-  return sendEmail(email, "Reset your password", html)
+  return sendEmail(email, "Reset your SyncVibe password", html)
 }
 
 const otpForDeleteMailSender = async (email, otp) => {
   const html = renderLayout(
     [
       renderHeading("Confirm account deletion"),
-      renderText("We received a request to delete your account. Use the code below to confirm."),
+      renderText("Enter the security code below to confirm deletion of your SyncVibe account."),
       renderVerificationCode(otp),
       renderText(
-        "This code is valid for 10 minutes. If you didn't request this, change your password immediately.",
+        "This code is valid for 10 minutes. If you did not request account deletion, please secure your account immediately.",
       ),
     ].join(""),
   )
 
-  return sendEmail(email, "Confirm account deletion", html)
+  return sendEmail(email, "Confirm account deletion - SyncVibe", html)
 }
 
 const accountDeletedMailSender = async (email) => {
@@ -187,13 +191,60 @@ const accountDeletedMailSender = async (email) => {
     [
       renderHeading("Account deleted"),
       renderText(
-        "Your SyncVibe account has been permanently deleted. All your data has been removed.",
+        "Your SyncVibe account has been permanently deleted along with all associated user data.",
       ),
-      renderText("If you didn't request this, please contact us immediately."),
+      renderText("If you believe this was an error, please reach out to support immediately."),
     ].join(""),
   )
 
-  return sendEmail(email, "Your account has been deleted", html)
+  return sendEmail(email, "Your SyncVibe account has been deleted", html)
+}
+
+const buildPublishedMailSender = async (email, build) => {
+  const { version, releaseNotes, downloadUrl, fileSize, sha256, platform = "Android" } = build
+  const formattedSize = fileSize ? `${(fileSize / (1024 * 1024)).toFixed(2)} MB` : "N/A"
+
+  const html = renderLayout(
+    [
+      `<div style="margin-bottom:12px;"><span style="${inlineStyles.badge}">v${version}</span> <span style="font-size:12px;color:${BRAND.subtle};margin-left:6px;">${platform} Build</span></div>`,
+      renderHeading(`SyncVibe v${version} Published`),
+      renderText(
+        `A new ${platform} release (v${version}) has been built, uploaded to Cloudflare R2, and is now ready for deployment.`,
+      ),
+      `<div style="background-color:${BRAND.bg};border:1px solid ${BRAND.border};border-radius:8px;padding:16px 18px;margin:20px 0;">
+        <table style="width:100%;font-size:13px;line-height:1.6;color:${BRAND.text};border-collapse:collapse;">
+          <tr>
+            <td style="font-weight:600;padding:5px 0;width:110px;color:${BRAND.muted};">Version:</td>
+            <td style="font-weight:600;padding:5px 0;color:${BRAND.text};">v${version}</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;padding:5px 0;color:${BRAND.muted};">Platform:</td>
+            <td style="padding:5px 0;color:${BRAND.text};">${platform}</td>
+          </tr>
+          <tr>
+            <td style="font-weight:600;padding:5px 0;color:${BRAND.muted};">Package Size:</td>
+            <td style="padding:5px 0;color:${BRAND.text};">${formattedSize}</td>
+          </tr>
+          ${sha256
+        ? `<tr>
+            <td style="font-weight:600;padding:5px 0;color:${BRAND.muted};">SHA-256:</td>
+            <td style="font-family:'Geist Mono',SFMono-Regular,Consolas,monospace;font-size:11px;padding:5px 0;word-break:break-all;color:${BRAND.muted};">${sha256}</td>
+          </tr>`
+        : ""
+      }
+          <tr>
+            <td style="font-weight:600;padding:5px 0;color:${BRAND.muted};vertical-align:top;">Release Notes:</td>
+            <td style="padding:5px 0;white-space:pre-wrap;color:${BRAND.text};">${releaseNotes || "No release notes provided."}</td>
+          </tr>
+        </table>
+      </div>`,
+      renderButton("Download APK", downloadUrl),
+      renderDivider(),
+      `<p style="${inlineStyles.urlFallback}">Direct APK Link:<br><a href="${downloadUrl}" style="${inlineStyles.footerLink}">${downloadUrl}</a></p>`,
+    ].join(""),
+  )
+
+  return sendEmail(email, `[SyncVibe] New Build v${version} Published`, html)
 }
 
 module.exports = {
@@ -202,4 +253,6 @@ module.exports = {
   passwordResetMailSender,
   otpForDeleteMailSender,
   accountDeletedMailSender,
+  buildPublishedMailSender,
 }
+
