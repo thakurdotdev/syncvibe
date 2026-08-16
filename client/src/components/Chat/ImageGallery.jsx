@@ -1,14 +1,8 @@
-import React, { useState, useCallback, useMemo, useEffect, Suspense } from "react"
+import React, { useState, useCallback, useMemo, useEffect } from "react"
+import { createPortal } from "react-dom"
 import { X, ChevronLeft, ChevronRight, Download } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import BlurFade from "../ui/blur-fade"
-
-// Optimized blur loading placeholder
-const BlurLoadingPlaceholder = () => (
-  <div className="absolute inset-0 bg-black/20 backdrop-blur-lg">
-    <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-  </div>
-)
 
 const ImageGallery = React.memo(({ images, initialIndex = 0, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
@@ -137,26 +131,28 @@ const ImageGallery = React.memo(({ images, initialIndex = 0, onClose }) => {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [handleNext, handlePrevious, isZoomed, onClose])
 
-  return (
+  if (typeof document === "undefined") return null
+
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-2xl"
     >
       {/* Modern gradient overlays */}
       <div className="absolute inset-x-0 top-0 h-32 bg-linear-to-b from-black/60 to-transparent pointer-events-none" />
       <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-black/60 to-transparent pointer-events-none" />
 
-      {/* Close button with improved animation */}
+      {/* Close button */}
       <motion.button
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={onClose}
-        className="absolute top-4 right-4 p-2 rounded-full bg-black/40 text-white backdrop-blur-xs border border-white/10 z-50 hover:bg-black/60 transition-colors"
+        className="absolute top-4 right-4 p-2 rounded-full bg-black/40 text-white backdrop-blur-xs border border-white/10 z-50 hover:bg-black/60 transition-colors cursor-pointer"
       >
         <X className="w-6 h-6" />
       </motion.button>
@@ -170,7 +166,7 @@ const ImageGallery = React.memo(({ images, initialIndex = 0, onClose }) => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={handlePrevious}
-            className="absolute left-4 p-3 rounded-full bg-black/40 text-white backdrop-blur-xs border border-white/10 z-50 hover:bg-black/60 transition-colors"
+            className="absolute left-4 p-3 rounded-full bg-black/40 text-white backdrop-blur-xs border border-white/10 z-50 hover:bg-black/60 transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-6 h-6" />
           </motion.button>
@@ -181,7 +177,7 @@ const ImageGallery = React.memo(({ images, initialIndex = 0, onClose }) => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={handleNext}
-            className="absolute right-4 p-3 rounded-full bg-black/40 text-white backdrop-blur-xs border border-white/10 z-50 hover:bg-black/60 transition-colors"
+            className="absolute right-4 p-3 rounded-full bg-black/40 text-white backdrop-blur-xs border border-white/10 z-50 hover:bg-black/60 transition-colors cursor-pointer"
           >
             <ChevronRight className="w-6 h-6" />
           </motion.button>
@@ -242,12 +238,13 @@ const ImageGallery = React.memo(({ images, initialIndex = 0, onClose }) => {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           onClick={handleDownload}
-          className="absolute bottom-4 right-4 p-3 rounded-full bg-black/40 text-white backdrop-blur-xs border border-white/10 z-50 hover:bg-black/60 transition-colors"
+          className="absolute bottom-4 right-4 p-3 rounded-full bg-black/40 text-white backdrop-blur-xs border border-white/10 z-50 hover:bg-black/60 transition-colors cursor-pointer"
         >
           <Download className="w-6 h-6" />
         </motion.button>
       </div>
-    </motion.div>
+    </motion.div>,
+    document.body,
   )
 })
 

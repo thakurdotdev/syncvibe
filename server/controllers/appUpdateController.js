@@ -16,6 +16,35 @@ exports.getLatestUpdate = async (req, res) => {
   }
 }
 
+exports.getAllUpdates = async (req, res) => {
+  try {
+    const updates = await AppUpdate.findAll({
+      order: [["createdAt", "DESC"]],
+      raw: true,
+    })
+    return res.status(200).json({ success: true, updates })
+  } catch (error) {
+    console.error("Error fetching app updates history:", error)
+    return res.status(500).json({ success: false, message: "Internal server error" })
+  }
+}
+
+exports.downloadLatestUpdate = async (req, res) => {
+  try {
+    const latest = await AppUpdate.findOne({
+      order: [["createdAt", "DESC"]],
+      raw: true,
+    })
+    if (!latest || !latest.downloadUrl) {
+      return res.status(404).json({ success: false, message: "No release APK available" })
+    }
+    return res.redirect(latest.downloadUrl)
+  } catch (error) {
+    console.error("Error redirecting to latest update download:", error)
+    return res.status(500).json({ success: false, message: "Internal server error" })
+  }
+}
+
 exports.getPresignedUrl = async (req, res) => {
   try {
     if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {

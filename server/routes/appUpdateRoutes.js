@@ -1,6 +1,8 @@
 const express = require("express")
 const {
   getLatestUpdate,
+  getAllUpdates,
+  downloadLatestUpdate,
   getPresignedUrl,
   createUpdate,
 } = require("../controllers/appUpdateController")
@@ -9,6 +11,8 @@ const authMiddleware = require("../middleware/authMiddleware")
 const router = express.Router()
 
 router.get("/app-update/latest", getLatestUpdate)
+router.get("/app-update/all", getAllUpdates)
+router.get("/app-update/download", downloadLatestUpdate)
 router.get("/app-update/presigned-url", authMiddleware, getPresignedUrl)
 router.post("/app-update", authMiddleware, createUpdate)
 
