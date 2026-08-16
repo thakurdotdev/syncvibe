@@ -16,7 +16,7 @@ import {
   Redo,
   RemoveFormatting,
 } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { memo, useCallback, useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "./button"
 import { Popover, PopoverContent, PopoverTrigger } from "./popover"
@@ -41,6 +41,7 @@ const LinkPopover = ({ editor }) => {
   const [open, setOpen] = useState(false)
 
   const setLink = useCallback(() => {
+    if (!editor || editor.isDestroyed) return
     if (url === "") {
       editor.chain().focus().extendMarkRange("link").unsetLink().run()
     } else {
@@ -58,25 +59,26 @@ const LinkPopover = ({ editor }) => {
           variant="ghost"
           size="icon"
           title="Add Link"
-          className={cn(
-            "h-8 w-8 p-0",
-            editor.isActive("link") && "bg-accent text-accent-foreground",
-          )}
+          className={cn("h-8 w-8 p-0", editor?.isActive("link") && "bg-accent text-accent-foreground")}
         >
           <LinkIcon className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-3">
+      <PopoverContent className="w-80 p-3" align="start">
         <div className="flex gap-2">
           <Input
             placeholder="https://example.com"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && setLink()}
-            className="flex-1"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                setLink()
+              }
+            }}
           />
           <Button type="button" size="sm" onClick={setLink}>
-            Set
+            Save
           </Button>
         </div>
       </PopoverContent>
@@ -88,7 +90,7 @@ const Toolbar = ({ editor }) => {
   if (!editor) return null
 
   return (
-    <div className="flex flex-wrap items-center gap-0.5 p-1 border-b border-border bg-muted/30 rounded-t-md">
+    <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-muted/40">
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
         isActive={editor.isActive("bold")}
@@ -121,7 +123,7 @@ const Toolbar = ({ editor }) => {
         <Code className="h-4 w-4" />
       </ToolbarButton>
 
-      <div className="w-px h-6 bg-border mx-1" />
+      <div className="w-[1px] h-6 bg-border mx-1" />
 
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -139,7 +141,7 @@ const Toolbar = ({ editor }) => {
         <Heading2 className="h-4 w-4" />
       </ToolbarButton>
 
-      <div className="w-px h-6 bg-border mx-1" />
+      <div className="w-[1px] h-6 bg-border mx-1" />
 
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -157,11 +159,9 @@ const Toolbar = ({ editor }) => {
         <ListOrdered className="h-4 w-4" />
       </ToolbarButton>
 
-      <div className="w-px h-6 bg-border mx-1" />
+      <div className="w-[1px] h-6 bg-border mx-1" />
 
       <LinkPopover editor={editor} />
-
-      <div className="w-px h-6 bg-border mx-1" />
 
       <ToolbarButton
         onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
@@ -169,6 +169,8 @@ const Toolbar = ({ editor }) => {
       >
         <RemoveFormatting className="h-4 w-4" />
       </ToolbarButton>
+
+      <div className="w-[1px] h-6 bg-border mx-1" />
 
       <ToolbarButton
         onClick={() => editor.chain().focus().undo().run()}
@@ -198,6 +200,7 @@ const RichTextEditor = ({
   editorClassName,
 }) => {
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: {
@@ -214,11 +217,15 @@ const RichTextEditor = ({
         placeholder,
       }),
     ],
-    content,
+    content: content || "",
     onUpdate: ({ editor }) => {
-      const html = editor.getHTML()
-      const isEmpty = editor.isEmpty
-      onChange?.(isEmpty ? "" : html)
+      try {
+        const html = editor.getHTML()
+        const isEmpty = editor.isEmpty
+        onChange?.(isEmpty ? "" : html)
+      } catch {
+        // Safe fallback
+      }
     },
     editorProps: {
       attributes: {
@@ -240,13 +247,20 @@ const RichTextEditor = ({
   })
 
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content)
+    if (!editor || editor.isDestroyed || editor.isFocused) return
+
+    try {
+      const currentHTML = editor.getHTML()
+      if (content !== currentHTML) {
+        editor.commands.setContent(content || "", false)
+      }
+    } catch {
+      // Safe fallback
     }
   }, [content, editor])
 
   const characterCount =
-    editor?.storage.characterCount?.characters?.() ?? editor?.getText().length ?? 0
+    editor?.storage?.characterCount?.characters?.() ?? editor?.getText?.()?.length ?? 0
 
   return (
     <div className={cn("border rounded-md bg-background", className)}>
@@ -261,4 +275,4 @@ const RichTextEditor = ({
   )
 }
 
-export default RichTextEditor
+export default memo(RichTextEditor)

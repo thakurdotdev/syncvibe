@@ -1,14 +1,14 @@
-import React, { useEffect, useState, useContext } from "react"
-import { ScrollArea, ScrollBar } from "../ui/scroll-area"
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+import { memo, useContext, useEffect, useState } from "react"
 import { Plus } from "lucide-react"
-import CreateStory from "./CreateStory"
-import { Context } from "@/Context/Context"
-import StoryViewer from "./StoryViewer"
 import axios from "axios"
+import { Context } from "@/Context/Context"
 import { getProfileCloudinaryUrl } from "@/Utils/Cloudinary"
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+import { ScrollArea, ScrollBar } from "../ui/scroll-area"
 import { Card } from "../ui/card"
-import { Loader2Icon } from "lucide-react"
+import CreateStory from "./CreateStory"
+import StoryViewer from "./StoryViewer"
+import { cn } from "@/lib/utils"
 
 const StoriesBar = () => {
   const { user } = useContext(Context)
@@ -29,7 +29,7 @@ const StoriesBar = () => {
       })
 
       if (response.status === 200) {
-        setStories(response.data.stories)
+        setStories(response.data.stories || [])
       }
     } catch (error) {
       console.error("Error fetching stories:", error)
@@ -45,58 +45,76 @@ const StoriesBar = () => {
 
   if (loading) {
     return (
-      <Card className="flex items-center justify-center p-4 mt-3 h-28">
-        <Loader2Icon className="w-8 h-8 animate-spin" />
+      <Card className="rounded-2xl border-border/80 bg-card/60 backdrop-blur-xl p-3.5 sm:p-4 shadow-xs overflow-hidden">
+        <div className="flex items-center gap-3.5 sm:gap-4 overflow-hidden">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex flex-col items-center gap-1.5 shrink-0 animate-pulse">
+              <div className="w-14 h-14 sm:w-15 sm:h-15 rounded-full bg-muted/60" />
+              <div className="w-12 h-2.5 rounded-md bg-muted/40" />
+            </div>
+          ))}
+        </div>
       </Card>
     )
   }
 
   return (
     <>
-      <Card className="rounded-lg p-4 mt-3">
+      <Card className="rounded-2xl border-border/80 bg-card/60 backdrop-blur-xl p-3 sm:p-4 shadow-xs overflow-hidden">
         <ScrollArea className="w-full whitespace-nowrap">
-          <div className="flex gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 pb-1">
+            {/* Create / Add Story */}
             <div
-              className="flex flex-col items-center gap-1 cursor-pointer"
+              className="flex flex-col items-center gap-1.5 cursor-pointer group/story shrink-0"
               onClick={() => setIsCreateStoryOpen(true)}
             >
               <div className="relative">
-                <Avatar className="w-14 h-14 border-2 border-white">
-                  <AvatarImage src={getProfileCloudinaryUrl(user?.profilepic)} />
-                  <AvatarFallback>{user?.name?.[0]}</AvatarFallback>
-                </Avatar>
-                <div className="absolute bottom-0 right-0 bg-blue-500 rounded-full p-1">
-                  <Plus className="w-4 h-4 text-white" />
+                <div className="p-[2px] rounded-full ring-2 ring-primary/25 transition-transform duration-200 group-hover/story:scale-105 group-hover/story:ring-primary/60">
+                  <Avatar className="w-13 h-13 sm:w-14 sm:h-14 ring-2 ring-background">
+                    <AvatarImage src={getProfileCloudinaryUrl(user?.profilepic)} />
+                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                      {user?.name?.[0]?.toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
+                <div className="absolute -bottom-0.5 -right-0.5 bg-primary text-primary-foreground rounded-full p-1 ring-2 ring-background shadow-sm transition-transform duration-200 group-hover/story:scale-110">
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                 </div>
               </div>
-              <span className="text-xs truncate w-16 text-center">Add story</span>
+              <span className="text-[11px] sm:text-xs font-medium text-foreground/90 truncate w-16 text-center">
+                Your story
+              </span>
             </div>
 
+            {/* Friend Stories */}
             {stories.map((storyGroup, index) => (
               <div
                 key={storyGroup.user.userid}
-                className="flex flex-col items-center gap-1 cursor-pointer"
+                className="flex flex-col items-center gap-1.5 cursor-pointer group/story shrink-0"
                 onClick={() => handleStoryClick(index)}
               >
                 <div
-                  className={`rounded-full p-1 ${
+                  className={cn(
+                    "rounded-full transition-transform duration-200 group-hover/story:scale-105",
                     storyGroup.hasUnviewedStories
-                      ? "bg-linear-to-tr from-yellow-400 to-fuchsia-600"
-                      : "bg-gray-300"
-                  }`}
+                      ? "p-[2.5px] bg-gradient-to-tr from-amber-400 via-rose-500 to-indigo-500 shadow-xs"
+                      : "p-[2px] bg-border/90",
+                  )}
                 >
-                  <Avatar className="w-14 h-14 border-2 border-white">
+                  <Avatar className="w-13 h-13 sm:w-14 sm:h-14 ring-2 ring-background">
                     <AvatarImage src={getProfileCloudinaryUrl(storyGroup.user.profilepic)} />
-                    <AvatarFallback>{storyGroup.user.username[0]}</AvatarFallback>
+                    <AvatarFallback className="bg-muted text-muted-foreground font-semibold">
+                      {storyGroup.user.username?.[0]?.toUpperCase() || "U"}
+                    </AvatarFallback>
                   </Avatar>
                 </div>
-                <span className="text-xs truncate w-16 text-center">
+                <span className="text-[11px] sm:text-xs font-medium text-foreground/80 truncate w-16 text-center group-hover/story:text-primary transition-colors">
                   {storyGroup.user.username}
                 </span>
               </div>
             ))}
           </div>
-          <ScrollBar orientation="horizontal" />
+          <ScrollBar orientation="horizontal" className="h-1.5" />
         </ScrollArea>
       </Card>
 
@@ -125,4 +143,4 @@ const StoriesBar = () => {
   )
 }
 
-export default StoriesBar
+export default memo(StoriesBar)

@@ -1,103 +1,166 @@
-import React from "react"
-import { Clock, Globe, Monitor, MapPin, Shield, Check, AlertTriangle } from "lucide-react"
+import { useState, useMemo, memo } from "react"
+import { ChevronLeft, ChevronRight, Globe, MapPin, Monitor, ShieldCheck, Smartphone, Laptop } from "lucide-react"
 import { TimeAgo } from "../../Utils/TimeAgo"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog"
-import { ScrollArea } from "../ui/scroll-area"
-import { cn } from "@/lib/utils"
-import { ShieldCheck } from "lucide-react"
+import { Button } from "../ui/button"
+import { Badge } from "../ui/badge"
 
-const LoginLogItem = ({ log }) => {
-  const isSuspiciousLogin = (log) => {
-    // Placeholder for suspicious login detection logic
-    return false // Update with your logic
+const ITEMS_PER_PAGE = 5
+
+const getDeviceIcon = (os = "") => {
+  const osLower = os.toLowerCase()
+  if (osLower.includes("android") || osLower.includes("ios") || osLower.includes("iphone")) {
+    return <Smartphone className="h-4 w-4 text-muted-foreground shrink-0" />
   }
-
-  const suspicious = isSuspiciousLogin(log)
-  const deviceInfo = `${log?.browser || "Unknown"} ${log?.os ? `• ${log?.os}` : ""}`
-
-  return (
-    <div
-      className={cn(
-        "relative overflow-hidden rounded-lg border transition-shadow",
-        suspicious
-          ? "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 shadow-sm"
-          : "bg-white dark:bg-background border-border hover:shadow-md",
-      )}
-    >
-      <div className="flex items-start justify-between p-4">
-        <div className="flex items-center space-x-3">
-          {suspicious ? (
-            <AlertTriangle className="h-5 w-5 text-red-500 dark:text-red-400" />
-          ) : (
-            <ShieldCheck className="h-5 w-5 text-green-500 dark:text-green-400" />
-          )}
-          <div>
-            <h3 className="text-sm font-semibold">
-              {suspicious ? "Suspicious Login" : "Successful Login"}
-            </h3>
-            <p className="text-xs text-muted-foreground">{TimeAgo(log.createdAt)}</p>
-          </div>
-        </div>
-        {log?.loginType && (
-          <div className="text-xs text-muted-foreground">
-            <span className="capitalize">{log?.loginType}</span>
-          </div>
-        )}
-      </div>
-      <div className="p-4 pt-0 text-xs">
-        <div className="flex flex-wrap justify-between gap-3">
-          <div className="flex items-center space-x-2">
-            <Monitor className="h-4 w-4 text-muted-foreground" />
-            <span>{deviceInfo}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Globe className="h-4 w-4 text-muted-foreground" />
-            <span>{log.ipaddress || "Unknown"}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-            <span>{log.location || "Unavailable"}</span>
-          </div>
-        </div>
-      </div>
-
-      {suspicious && (
-        <div className="bg-red-100 dark:bg-red-950 p-3 text-xs border-t border-red-200 dark:border-red-800 text-muted-foreground">
-          <div className="flex items-center space-x-2">
-            <AlertTriangle className="h-4 w-4 text-red-500 dark:text-red-400" />
-            <span>Additional investigation may be required for this login attempt.</span>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  if (osLower.includes("mac") || osLower.includes("windows") || osLower.includes("linux")) {
+    return <Laptop className="h-4 w-4 text-muted-foreground shrink-0" />
+  }
+  return <Monitor className="h-4 w-4 text-muted-foreground shrink-0" />
 }
 
-const LoginLogs = ({ isOpen, toggleDialog, loginLogs }) => {
+const LoginLogItem = memo(({ log }) => {
+  const browser = log?.browser || "Unknown Browser"
+  const os = log?.os || "Unknown OS"
+  const ip = log?.ipaddress || "Unknown IP"
+  const location = log?.location || "Location unavailable"
+  const loginType = log?.loginType || "password"
+
   return (
-    <Dialog open={isOpen} onOpenChange={toggleDialog}>
-      <DialogContent className="sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            Security Logs
-          </DialogTitle>
-          <DialogDescription>Review recent account activity and login attempts.</DialogDescription>
+    <div className="p-4 transition-colors hover:bg-muted/30 flex flex-col gap-2.5">
+      {/* Top Details Row */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" title="Successful Login" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            {getDeviceIcon(os)}
+            <span className="text-sm font-semibold text-foreground truncate">
+              {browser} <span className="text-muted-foreground font-normal">• {os}</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge
+            variant="outline"
+            className="text-[11px] font-medium tracking-wide uppercase px-2 py-0.5 rounded-md bg-muted/50 border-border/70 text-muted-foreground"
+          >
+            {loginType}
+          </Badge>
+          <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+            {TimeAgo(log.createdAt)}
+          </span>
+        </div>
+      </div>
+
+      {/* Bottom Metadata Row: IP & Location */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground pl-4.5">
+        <div className="flex items-center gap-1.5">
+          <Globe className="h-3.5 w-3.5 text-muted-foreground/70" />
+          <span className="font-mono text-[11.5px] tabular-nums text-foreground/80">{ip}</span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <MapPin className="h-3.5 w-3.5 text-muted-foreground/70" />
+          <span className="text-foreground/80">{location}</span>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+LoginLogItem.displayName = "LoginLogItem"
+
+const LoginLogs = ({ isOpen, toggleDialog, loginLogs = [] }) => {
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const totalPages = Math.max(1, Math.ceil(loginLogs.length / ITEMS_PER_PAGE))
+
+  // Reset page when dialog opens/closes
+  const handleOpenChange = (open) => {
+    if (!open) setCurrentPage(1)
+    toggleDialog()
+  }
+
+  const paginatedLogs = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return loginLogs.slice(start, start + ITEMS_PER_PAGE)
+  }, [loginLogs, currentPage])
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE + 1
+  const endIndex = Math.min(currentPage * ITEMS_PER_PAGE, loginLogs.length)
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-2xl rounded-2xl border-border/80 bg-card/95 backdrop-blur-xl shadow-2xl p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
+          <DialogTitle className="text-lg font-semibold">Login Activity</DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground">
+            Recent sign-in events and authorized sessions for your SyncVibe account.
+          </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="h-[60vh]">
-          {loginLogs.length > 0 ? (
-            <div className="space-y-3">
-              {loginLogs.map((log) => (
-                <LoginLogItem key={log.loginlogid} log={log} />
-              ))}
+
+        {/* Content Area */}
+        <div className="p-6">
+          {loginLogs.length === 0 ? (
+            <div className="text-center py-12 space-y-2">
+              <ShieldCheck className="h-10 w-10 text-muted-foreground/40 mx-auto" />
+              <p className="text-sm font-medium text-foreground">No login activity recorded</p>
+              <p className="text-xs text-muted-foreground">
+                Your future login sessions and device history will appear here.
+              </p>
             </div>
           ) : (
-            <p className="text-center text-muted-foreground">No login activity to display.</p>
+            <div className="space-y-4">
+              {/* Logs List Container */}
+              <div className="rounded-xl border border-border/60 divide-y divide-border/40 overflow-hidden bg-background/40">
+                {paginatedLogs.map((log) => (
+                  <LoginLogItem key={log.loginlogid || `${log.ipaddress}-${log.createdAt}`} log={log} />
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {loginLogs.length > ITEMS_PER_PAGE && (
+                <div className="flex items-center justify-between pt-2 px-1">
+                  <span className="text-xs text-muted-foreground">
+                    Showing <span className="font-semibold text-foreground">{startIndex}–{endIndex}</span> of{" "}
+                    <span className="font-semibold text-foreground">{loginLogs.length}</span> sessions
+                  </span>
+
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 w-8 p-0 rounded-lg cursor-pointer"
+                      title="Previous page"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+
+                    <span className="text-xs font-medium text-foreground px-2 tabular-nums">
+                      Page {currentPage} of {totalPages}
+                    </span>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 w-8 p-0 rounded-lg cursor-pointer"
+                      title="Next page"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   )
 }
 
-export default LoginLogs
+export default memo(LoginLogs)

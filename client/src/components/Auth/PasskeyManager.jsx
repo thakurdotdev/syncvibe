@@ -230,30 +230,29 @@ const PasskeyManager = ({ getProfile }) => {
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Passkeys
+    <Card className="border-border/80 bg-card/60 backdrop-blur-xl shadow-sm rounded-2xl overflow-hidden">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <CardTitle className="text-base font-semibold">Passkeys</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground mt-0.5">
+              Sign in securely with Touch ID, Face ID, Windows Hello, or hardware security keys
+            </CardDescription>
           </div>
           <Button
             onClick={handleAddPasskeyClick}
             disabled={isPasskeyLoading}
-            className="flex items-center gap-2"
             size="sm"
+            className="rounded-xl h-8.5 px-3.5 text-xs font-medium shrink-0 gap-1.5 cursor-pointer"
           >
             {isPasskeyLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <PlusCircle className="h-4 w-4" />
+              <PlusCircle className="h-3.5 w-3.5" />
             )}
-            Add Passkey
+            Add passkey
           </Button>
-        </CardTitle>
-        <CardDescription>
-          Passkeys let you sign in securely without a password using biometrics or a security key.
-        </CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (

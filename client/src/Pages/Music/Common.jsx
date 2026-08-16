@@ -257,7 +257,7 @@ export const MusicControls = memo(({ size = "default", showExtras = true }) => {
   )
 })
 
-export const VolumeControl = memo(({ showVolume = false }) => {
+export const VolumeControl = memo(({ showVolume = false, alwaysShowSlider = false }) => {
   const handleVolumeChange = usePlayerStore((s) => s.handleVolumeChange)
   const volume = usePlayerStore((s) => s.volume)
   const [isMuted, setIsMuted] = useState(false)
@@ -285,7 +285,7 @@ export const VolumeControl = memo(({ showVolume = false }) => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 transition-colors duration-200"
+                className="h-9 w-9 transition-colors duration-200 text-white/70 hover:text-white"
                 onClick={toggleMute}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -307,13 +307,20 @@ export const VolumeControl = memo(({ showVolume = false }) => {
             {isMuted || volume === 0 ? "Unmute" : "Mute"}
           </TooltipContent>
         </Tooltip>
-        <div className="w-0 overflow-hidden group-hover:w-20 transition-all duration-300">
+        <div
+          className={cn(
+            "transition-all duration-300",
+            alwaysShowSlider
+              ? "w-24 sm:w-28 opacity-100"
+              : "w-0 overflow-hidden group-hover:w-20 opacity-0 group-hover:opacity-100",
+          )}
+        >
           <Slider
             value={[isMuted ? 0 : volume]}
             min={0}
             max={1}
             step={0.01}
-            className="w-20 cursor-pointer **:[[role=slider]]:bg-primary **:[[role=slider]]:border-0"
+            className="w-full cursor-pointer **:[[role=slider]]:bg-primary **:[[role=slider]]:border-0"
             onValueChange={([value]) => {
               handleVolumeChange(value)
               if (value > 0) setIsMuted(false)
@@ -324,6 +331,7 @@ export const VolumeControl = memo(({ showVolume = false }) => {
     </TooltipProvider>
   )
 })
+
 
 export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
   const currentTime = usePlayerStore((s) => s.currentTime)

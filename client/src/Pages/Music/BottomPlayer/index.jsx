@@ -7,7 +7,6 @@ import { usePlayerStore } from "@/stores/playerStore"
 import { useAppModeStore } from "@/stores/appModeStore"
 import { useGroupPlaybackStore } from "@/stores/groupMusic/playbackStore"
 import AddToPlaylist from "../AddToPlaylist"
-import { ProgressBarMusic } from "../Common"
 import MinimizedPlayer from "./MinimizedPlayer"
 import PlayerControls from "./PlayerControls"
 import PlayerSheet from "./PlayerSheet"
@@ -29,8 +28,9 @@ const BottomPlayer = () => {
   }, [isGroupPlaying, isSoloPlaying, handlePlayPause])
 
   const isMobile = useIsMobile()
-  const appMode = useAppModeStore((s) => s.mode)
-  const hasMobileNav = isMobile && appMode === "music"
+  const mode = useAppModeStore((s) => s.mode)
+  const hasMobileNav = isMobile && mode === "music"
+
   const isMinimized = usePlayerStore((s) => s.isMinimized)
   const setIsMinimized = usePlayerStore((s) => s.setIsMinimized)
   const isClosed = usePlayerStore((s) => s.isClosed)
@@ -60,60 +60,47 @@ const BottomPlayer = () => {
 
   if (!currentSong || isClosed) return null
 
-  const songImage = currentSong?.image?.[2]?.link || currentSong?.image?.[1]?.link
+  const songImage =
+    currentSong?.image?.[2]?.link ||
+    currentSong?.image?.[1]?.link ||
+    "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/f_auto/v1731395454/j6r5zemodfexdxid4gcx.png"
 
   return (
     <>
+      {/* Floating Liquid Glass Pill Player */}
       <div
         className={cn(
-          "fixed left-0 w-full transition-all duration-300 ease-out z-50",
-          hasMobileNav ? "bottom-0" : "bottom-0",
+          "fixed left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-out",
+          "w-[calc(100%-1rem)] xs:w-[calc(100%-1.5rem)] sm:w-auto sm:min-w-[540px] md:min-w-[600px] max-w-xl md:max-w-2xl",
+          hasMobileNav ? "bottom-[72px]" : "bottom-4 sm:bottom-6",
           isMinimized
-            ? "translate-y-full opacity-0 pointer-events-none"
+            ? "translate-y-28 opacity-0 pointer-events-none"
             : "translate-y-0 opacity-100",
         )}
       >
-        <div className="absolute -top-1 left-0 right-0 z-50">
-          <ProgressBarMusic />
+        {/* Soft centered ambient artwork glow */}
+        <div className="absolute inset-0 -z-10 rounded-full opacity-30 blur-3xl overflow-hidden pointer-events-none transition-opacity duration-700">
+          <img
+            src={songImage}
+            alt=""
+            className="w-full h-full object-cover scale-150 saturate-200"
+          />
         </div>
 
-        <div
-          className="w-full border-t border-x-0 border-b-0 liquid-glass overflow-hidden"
-          style={{
-            borderRadius: 0,
-          }}
-        >
-          <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-            <div className="absolute -left-16 -top-16 w-80 h-80 rounded-full opacity-60 blur-3xl">
-              <img
-                src={songImage}
-                alt=""
-                className="w-full h-full object-cover scale-150 transition-all duration-1000"
-              />
-            </div>
-            <div className="absolute -right-16 -top-16 w-80 h-80 rounded-full opacity-60 blur-3xl">
-              <img
-                src={songImage}
-                alt=""
-                className="w-full h-full object-cover scale-150 transition-all duration-1000"
-              />
-            </div>
-            <div className="absolute inset-0 bg-black/15" />
-          </div>
+        {/* Liquid Glass Pill Capsule */}
+        <div className="relative w-full rounded-full bg-[#10121a]/75 dark:bg-black/65 backdrop-blur-2xl backdrop-saturate-150 border border-white/15 shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.22),0_20px_48px_-8px_rgba(0,0,0,0.7)] px-3.5 sm:px-5 py-2.5 sm:py-3">
+          {/* Top subtle specular reflection shine */}
+          <div className="absolute top-0 inset-x-8 sm:inset-x-12 h-[1px] bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none rounded-full" />
 
-          <div className={cn("p-0 relative pt-1.5", hasMobileNav && "pb-14")}>
-            <div className="flex items-center justify-between px-4 py-3">
-              <SongInfo currentSong={currentSong} onOpenSheet={() => setIsSheetOpen(true)} />
-              <PlayerControls
-                onMinimize={() => setIsMinimized(true)}
-                onOpenModal={() => setIsModalOpen(true)}
-                isMobile={isMobile}
-              />
-            </div>
+          {/* Main Layout: Left Track Block | Right Controls */}
+          <div className="flex items-center justify-between gap-2.5 sm:gap-6">
+            <SongInfo currentSong={currentSong} onOpenSheet={() => setIsSheetOpen(true)} />
+            <PlayerControls />
           </div>
         </div>
       </div>
 
+      {/* Minimized Draggable Floating Bubble */}
       <MinimizedPlayer
         isMinimized={isMinimized}
         onMaximize={() => setIsMinimized(false)}
@@ -121,6 +108,7 @@ const BottomPlayer = () => {
         isMobile={isMobile}
       />
 
+      {/* Full-Screen Player Sheet */}
       <PlayerSheet
         isOpen={isSheetOpen}
         onClose={() => setIsSheetOpen(false)}
@@ -130,6 +118,7 @@ const BottomPlayer = () => {
         onOpenModal={() => setIsModalOpen(true)}
       />
 
+      {/* Add To Playlist Dialog */}
       <AddToPlaylist dialogOpen={isModalOpen} setDialogOpen={setIsModalOpen} song={currentSong} />
     </>
   )

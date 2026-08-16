@@ -22,23 +22,12 @@ const MobileBottomBar = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const mode = useAppModeStore((s) => s.mode)
-  const currentSong = usePlayerStore((s) => s.currentSong)
-  const isMinimized = usePlayerStore((s) => s.isMinimized)
-  const isClosed = usePlayerStore((s) => s.isClosed)
 
   const menuItems = mode === "music" ? musicMenuItems : normalMenuItems
-  const isPlayerVisible = !!currentSong && mode === "music" && !isMinimized && !isClosed
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 sm:hidden">
-      <div
-        className={cn(
-          isPlayerVisible
-            ? "bg-transparent border-0 shadow-none backdrop-blur-none"
-            : "liquid-glass border-t-0",
-        )}
-        style={{ borderRadius: 0 }}
-      >
+    <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden">
+      <div className="liquid-glass border-t border-x-0 border-b-0" style={{ borderRadius: 0 }}>
         <div className="flex items-center justify-around h-14 px-2">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path
