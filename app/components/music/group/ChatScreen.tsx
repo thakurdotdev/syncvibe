@@ -15,14 +15,12 @@ import {
 } from "react-native"
 import Animated, {
   FadeIn,
-  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSequence,
   withTiming,
 } from "react-native-reanimated"
-import { SafeAreaView } from "react-native-safe-area-context"
 import { Feather, Ionicons } from "@expo/vector-icons"
 import SwipeableModal from "@/components/SwipeableModal"
 import { useTheme } from "@/context/ThemeContext"
@@ -33,6 +31,7 @@ import { Message } from "@/stores/groupMusic/types"
 
 import { SoundMessageRow } from "./SoundMessageRow"
 import { SoundPickerModal } from "./SoundPickerModal"
+import { GifPickerModal } from "./GifPickerModal"
 import { soundEffectsManager } from "@/utils/soundEffectsManager"
 import { SoundEffectItem } from "@/utils/api/soundEffects"
 
@@ -43,6 +42,10 @@ const isEmojiOnly = (text: string) => {
   if (!text || text.length > 20) return false
   return EMOJI_ONLY_REGEX.test(text.trim())
 }
+
+const isGifMessage = (msg: Message) => msg.messageType === "gif" && !!msg.gifUrl
+const isImageUrl = (text: string) =>
+  /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(text?.trim() || "")
 
 const ACTIVITY_COLORS: Record<string, { icon: string; bg: string; text: string }> = {
   "now playing": { icon: "#34d399", bg: "#34d39915", text: "#34d39990" },
@@ -100,7 +103,12 @@ const ChatBubble = React.memo(
     colors: any
   }) => {
     const isSound = msg.messageType === "sound" || Boolean(msg.soundUrl)
-    const emoji = isEmojiOnly(msg.message)
+    const isGif = isGifMessage(msg)
+    const isImg = !isGif && !isSound && isImageUrl(msg.message)
+    const isMedia = isGif || isImg
+    const emoji = !isMedia && !isSound && isEmojiOnly(msg.message)
+
+    const mediaUrl = isGif ? msg.gifUrl : isImg ? msg.message : null
 
     return (
       <View style={[styles.bubbleRow, isOwn && styles.bubbleRowOwn, showAvatar && { marginTop: 10 }]}>
@@ -117,35 +125,52 @@ const ChatBubble = React.memo(
           </View>
         )}
 
-        <View
-          style={[
-            emoji && !isSound
-              ? styles.emojiContainer
-              : isOwn
-                ? [styles.bubbleOwn, { backgroundColor: colors.primary }]
-                : [styles.bubbleOther, { backgroundColor: colors.secondary }],
-          ]}
-        >
-          {!isOwn && showAvatar && !emoji && (
-            <Text style={[styles.bubbleName, { color: colors.mutedForeground + "80" }]}>
-              {msg.userName}
-            </Text>
-          )}
-          {isSound ? (
-            <SoundMessageRow msg={msg} isOwn={isOwn} />
-          ) : emoji ? (
-            <Text style={styles.emojiText}>{msg.message}</Text>
-          ) : (
-            <Text
-              style={[
-                styles.bubbleText,
-                { color: isOwn ? colors.primaryForeground : colors.foreground },
-              ]}
-            >
-              {msg.message}
-            </Text>
-          )}
-        </View>
+        {isMedia ? (
+          <View>
+            {!isOwn && showAvatar && (
+              <Text style={[styles.bubbleName, { color: colors.mutedForeground + "80" }]}>
+                {msg.userName}
+              </Text>
+            )}
+            <View style={styles.mediaContainer}>
+              <Image
+                source={{ uri: mediaUrl! }}
+                style={styles.mediaImage}
+                resizeMode="cover"
+              />
+            </View>
+          </View>
+        ) : (
+          <View
+            style={[
+              emoji && !isSound
+                ? styles.emojiContainer
+                : isOwn
+                  ? [styles.bubbleOwn, { backgroundColor: colors.primary }]
+                  : [styles.bubbleOther, { backgroundColor: colors.secondary }],
+            ]}
+          >
+            {!isOwn && showAvatar && !emoji && (
+              <Text style={[styles.bubbleName, { color: colors.mutedForeground + "80" }]}>
+                {msg.userName}
+              </Text>
+            )}
+            {isSound ? (
+              <SoundMessageRow msg={msg} isOwn={isOwn} />
+            ) : emoji ? (
+              <Text style={styles.emojiText}>{msg.message}</Text>
+            ) : (
+              <Text
+                style={[
+                  styles.bubbleText,
+                  { color: isOwn ? colors.primaryForeground : colors.foreground },
+                ]}
+              >
+                {msg.message}
+              </Text>
+            )}
+          </View>
+        )}
       </View>
     )
   },
@@ -208,6 +233,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
   const [inputText, setInputText] = useState("")
   const [keyboardHeight, setKeyboardHeight] = useState(0)
   const [showSoundPicker, setShowSoundPicker] = useState(false)
+  const [showGifPicker, setShowGifPicker] = useState(false)
+  const [showAttachMenu, setShowAttachMenu] = useState(false)
   const [sfxAutoPlay, setSfxAutoPlay] = useState(() => soundEffectsManager.getAutoPlay())
 
   const flatListRef = useRef<FlatList>(null)
@@ -221,11 +248,21 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
 
   const handleSelectSound = useCallback(
     (sound: SoundEffectItem) => {
+      setShowAttachMenu(false)
       sendMessage(sound.url, "sound", {
         soundUrl: sound.url,
         soundName: sound.name,
         soundId: sound.id,
       })
+    },
+    [sendMessage],
+  )
+
+  const handleGifSelect = useCallback(
+    (gifUrl: string) => {
+      sendMessage(gifUrl, "gif")
+      setShowGifPicker(false)
+      setShowAttachMenu(false)
     },
     [sendMessage],
   )
@@ -394,14 +431,51 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
 
           <TypingIndicator typingUsers={typingUsers} colors={colors} />
 
+          {/* Attachment row */}
+          {showAttachMenu && (
+            <View style={[styles.attachRow, { backgroundColor: colors.secondary + "80" }]}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowSoundPicker(true)
+                  setShowAttachMenu(false)
+                }}
+                style={[styles.attachOption, { backgroundColor: colors.background }]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="volume-high" size={16} color={colors.primary} />
+                <Text style={[styles.attachLabel, { color: colors.foreground }]}>Sounds</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setShowGifPicker(true)
+                  setShowAttachMenu(false)
+                }}
+                style={[styles.attachOption, { backgroundColor: colors.background }]}
+                activeOpacity={0.7}
+              >
+                <Feather name="film" size={16} color={colors.primary} />
+                <Text style={[styles.attachLabel, { color: colors.foreground }]}>GIF</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={[styles.inputContainer, { borderTopColor: colors.border + "30" }]}>
-            {/* Soundboard Button */}
             <TouchableOpacity
-              onPress={() => setShowSoundPicker(true)}
-              style={[styles.soundboardBtn, { backgroundColor: colors.secondary }]}
+              onPress={() => setShowAttachMenu((v) => !v)}
+              style={[
+                styles.attachBtn,
+                {
+                  backgroundColor: showAttachMenu ? colors.primary : colors.secondary,
+                },
+              ]}
               activeOpacity={0.75}
             >
-              <Ionicons name="volume-high" size={17} color={colors.primary} />
+              <Feather
+                name="plus"
+                size={18}
+                color={showAttachMenu ? colors.primaryForeground : colors.mutedForeground}
+              />
             </TouchableOpacity>
 
             <TextInput
@@ -425,7 +499,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
               onPress={handleSend}
               disabled={!inputText.trim()}
               style={[
-                styles.sendButton,
+                styles.sendBtn,
                 {
                   backgroundColor: inputText.trim() ? colors.primary : colors.secondary,
                 },
@@ -433,7 +507,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
             >
               <Feather
                 name="send"
-                size={16}
+                size={15}
                 color={inputText.trim() ? colors.primaryForeground : colors.mutedForeground + "40"}
               />
             </TouchableOpacity>
@@ -441,7 +515,6 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
         </View>
       </SwipeableModal>
 
-      {/* Soundboard Picker Modal */}
       {showSoundPicker && (
         <SoundPickerModal
           isOpen={showSoundPicker}
@@ -449,6 +522,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
           onSelectSound={handleSelectSound}
         />
       )}
+
+      <GifPickerModal
+        isOpen={showGifPicker}
+        onClose={() => setShowGifPicker(false)}
+        onSelect={handleGifSelect}
+      />
     </>
   )
 }
@@ -559,26 +638,61 @@ const styles = StyleSheet.create({
   typingLabel: {
     fontSize: 11,
   },
+  mediaContainer: {
+    borderRadius: 12,
+    overflow: "hidden",
+    maxWidth: 220,
+  },
+  mediaImage: {
+    width: 220,
+    height: 160,
+    borderRadius: 12,
+  },
+  attachRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  attachOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  attachLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  attachBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   inputContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderTopWidth: 1,
-    gap: 8,
+    gap: 6,
   },
   input: {
     flex: 1,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: Platform.OS === "ios" ? 10 : 8,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === "ios" ? 8 : 6,
     maxHeight: 100,
     fontSize: 14,
   },
-  sendButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  sendBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -622,12 +736,5 @@ const styles = StyleSheet.create({
   sfxToggleText: {
     fontSize: 10,
     fontWeight: "700",
-  },
-  soundboardBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
   },
 })

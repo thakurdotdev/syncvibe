@@ -56,7 +56,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               <MaterialCommunityIcons
                 name={message.isread ? "check-all" : "check"}
                 size={14}
-                color={message.isread ? "#60A5FA" : "#CBD5E1"}
+                color={message.isread ? colors.primary : colors.mutedForeground}
                 style={styles.checkIcon}
               />
             )}

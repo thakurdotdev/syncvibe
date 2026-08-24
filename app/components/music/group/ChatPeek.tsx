@@ -14,10 +14,18 @@ export const ChatPeek: React.FC<ChatPeekProps> = ({ onOpenChat }) => {
   const { colors } = useTheme()
   const messages = useGroupSessionStore((s) => s.messages)
 
-  const recentMessages = useMemo(() => {
+  const lastMessage = useMemo(() => {
     const textMessages = messages.filter((m) => m.type !== "activity")
-    return textMessages.slice(-2)
+    return textMessages.length > 0 ? textMessages[textMessages.length - 1] : null
   }, [messages])
+
+  const previewText = lastMessage
+    ? lastMessage.messageType === "gif"
+      ? "sent a GIF"
+      : lastMessage.messageType === "sound"
+        ? `🔊 ${lastMessage.soundName || "Sound"}`
+        : lastMessage.message
+    : null
 
   return (
     <Card variant="default" style={styles.container}>
@@ -26,50 +34,40 @@ export const ChatPeek: React.FC<ChatPeekProps> = ({ onOpenChat }) => {
         activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityLabel="Open group chat"
+        style={styles.inner}
       >
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={[styles.headerIcon, { backgroundColor: colors.accent }]}>
-              <Feather name="message-circle" size={16} color={colors.primary} />
-            </View>
-            <View>
-              <Text style={[styles.title, { color: colors.foreground }]}>Chat</Text>
-            </View>
-          </View>
-          <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-        </View>
+        <Feather name="message-circle" size={15} color={colors.mutedForeground} />
 
-        {recentMessages.length > 0 ? (
-          <View style={styles.messagesPreview}>
-            {recentMessages.map((msg, i) => (
-              <View key={msg.id || i} style={styles.messageRow}>
-                <Image
-                  source={{
-                    uri:
-                      getProfileCloudinaryUrl(msg.profilePic) || "https://via.placeholder.com/20",
-                  }}
-                  style={[styles.miniAvatar, { backgroundColor: colors.secondary }]}
-                />
-                <Text
-                  style={[styles.messageAuthor, { color: colors.mutedForeground }]}
-                  numberOfLines={1}
-                >
-                  {msg.userName}
-                </Text>
-                <Text style={[styles.messageText, { color: colors.foreground }]} numberOfLines={1}>
-                  {msg.message}
-                </Text>
-              </View>
-            ))}
+        {lastMessage ? (
+          <View style={styles.previewContent}>
+            <Image
+              source={{
+                uri:
+                  getProfileCloudinaryUrl(lastMessage.profilePic) ||
+                  "https://via.placeholder.com/18",
+              }}
+              style={[styles.miniAvatar, { backgroundColor: colors.secondary }]}
+            />
+            <Text
+              style={[styles.previewName, { color: colors.mutedForeground }]}
+              numberOfLines={1}
+            >
+              {lastMessage.userName}
+            </Text>
+            <Text
+              style={[styles.previewText, { color: colors.foreground }]}
+              numberOfLines={1}
+            >
+              {previewText}
+            </Text>
           </View>
         ) : (
-          <View style={[styles.emptyMessage, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              Start the conversation
-            </Text>
-            <Feather name="arrow-up-right" size={14} color={colors.mutedForeground} />
-          </View>
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+            Start the conversation
+          </Text>
         )}
+
+        <Feather name="chevron-right" size={16} color={colors.mutedForeground + "60"} />
       </TouchableOpacity>
     </Card>
   )
@@ -77,64 +75,39 @@ export const ChatPeek: React.FC<ChatPeekProps> = ({ onOpenChat }) => {
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 16,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  headerIcon: {
-    width: 36,
-    height: 36,
     borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 12,
   },
-  title: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  messagesPreview: {
-    gap: 4,
-  },
-  messageRow: {
+  inner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 8,
+  },
+  previewContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   miniAvatar: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
   },
-  messageAuthor: {
+  previewName: {
     fontSize: 11,
     fontWeight: "600",
     flexShrink: 0,
   },
-  messageText: {
+  previewText: {
     fontSize: 12,
     flex: 1,
   },
   emptyText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
-  },
-  emptyMessage: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    minHeight: 42,
-    borderRadius: 10,
-    paddingHorizontal: 12,
+    flex: 1,
   },
 })

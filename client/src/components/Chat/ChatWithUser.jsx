@@ -669,10 +669,11 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
     }
 
     const handleReadStatus = (data) => {
-      if (data.chatid === currentChat.chatid) {
+      if (data?.chatid === currentChat.chatid && Array.isArray(data.messageIds)) {
+        const idSet = new Set(data.messageIds.map(Number))
         setMessages((prevMessages) =>
           prevMessages.map((msg) =>
-            data.messageIds.includes(msg.messageid) ? { ...msg, isread: true } : msg,
+            idSet.has(Number(msg.messageid)) ? { ...msg, isread: true } : msg,
           ),
         )
       }
@@ -825,14 +826,15 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
     }
 
     // Find messages from other user that are unread
+    const otherUserId = currentChat?.otherUser?.userid
     const unreadMessages = messages.filter(
-      (msg) => msg.senderid === currentChat?.otherUser?.userid && !msg.isread,
+      (msg) => String(msg.senderid) === String(otherUserId) && !msg.isread,
     )
 
     if (unreadMessages.length === 0) return
 
     // Get message IDs to mark as read
-    const messageIds = unreadMessages.map((msg) => msg.messageid)
+    const messageIds = unreadMessages.map((msg) => msg.messageid).filter(Boolean)
 
     // Function to mark messages as read
     const markMessagesAsRead = async () => {
@@ -849,8 +851,15 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
             messageIds,
             chatid: currentChat.chatid,
             readerId: loggedInUserId,
-            senderId: currentChat.otherUser.userid,
+            senderId: otherUserId,
           })
+
+          const idSet = new Set(messageIds.map(Number))
+          setMessages((prevMessages) =>
+            prevMessages.map((msg) =>
+              idSet.has(Number(msg.messageid)) ? { ...msg, isread: true } : msg,
+            ),
+          )
         }
       } catch (error) {
         console.error("Error marking messages as read:", error)

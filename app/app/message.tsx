@@ -103,7 +103,7 @@ const ChatWithUser = () => {
 
   const markAsRead = useCallback(
     async (messageIds: number[]) => {
-      if (!currentChat?.chatid || !socket) return
+      if (!currentChat?.chatid || !socket || !currentChat?.otherUser?.userid || !messageIds.length) return
 
       try {
         const response = await api.post(`/api/read/messages`, {
@@ -117,12 +117,19 @@ const ChatWithUser = () => {
             readerId: loggedInUserId,
             senderId: currentChat.otherUser.userid,
           })
+
+          const idSet = new Set(messageIds)
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.messageid && idSet.has(msg.messageid) ? { ...msg, isread: true } : msg,
+            ),
+          )
         }
       } catch (error) {
         console.error("Error marking messages as read:", error)
       }
     },
-    [currentChat?.chatid, api],
+    [currentChat?.chatid, currentChat?.otherUser?.userid, socket, api, loggedInUserId],
   )
 
   useEffect(() => {
@@ -138,9 +145,14 @@ const ChatWithUser = () => {
       }
     }
 
-    const handleReadStatus = (data: Message) => {
-      if (data.chatid === currentChat.chatid) {
-        setMessages((prev) => prev.map((msg) => ({ ...msg, isread: true })))
+    const handleReadStatus = (data: { messageIds?: number[]; chatid?: number }) => {
+      if (data?.chatid === currentChat.chatid && Array.isArray(data.messageIds)) {
+        const idSet = new Set(data.messageIds)
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.messageid && idSet.has(msg.messageid) ? { ...msg, isread: true } : msg,
+          ),
+        )
       }
     }
 
@@ -154,22 +166,26 @@ const ChatWithUser = () => {
   }, [socket, currentChat?.chatid])
 
   useEffect(() => {
-    if (currentChat?.chatid && loggedInUserId) {
-      const unreadMessages = messages.filter(
-        (msg) => msg.chatid === currentChat.chatid && !msg.isread,
+    if (currentChat?.chatid && loggedInUserId && currentChat?.otherUser?.userid) {
+      const otherUserId = currentChat.otherUser.userid
+      const unreadIncomingMessages = messages.filter(
+        (msg) =>
+          msg.chatid === currentChat.chatid &&
+          String(msg.senderid) === String(otherUserId) &&
+          !msg.isread,
       )
 
-      if (unreadMessages.length > 0) {
-        const messageIds = unreadMessages
+      if (unreadIncomingMessages.length > 0) {
+        const messageIds = unreadIncomingMessages
           .map((msg) => msg.messageid)
-          .filter((id): id is number => id !== undefined)
+          .filter((id): id is number => typeof id === "number")
 
         if (messageIds.length > 0) {
           markAsRead(messageIds)
         }
       }
     }
-  }, [currentChat?.chatid, loggedInUserId, messages, markAsRead])
+  }, [currentChat?.chatid, currentChat?.otherUser?.userid, loggedInUserId, messages, markAsRead])
 
   const handleTyping = useCallback(
     (text: string) => {
@@ -202,23 +218,25 @@ const ChatWithUser = () => {
 
   const handleSendMessage = async () => {
     if (!message.trim() && !file) return
-    if (!currentChat?.chatid) return
+    if (!currentChat?.chatid || !loggedInUserId) return
 
-    const currentMsgText = message
+    const currentMsgText = message.trim()
     const currentFile = file
+    const tempId = Date.now()
+
+    const newMessage: Message = {
+      senderid: loggedInUserId,
+      content: currentMsgText,
+      createdat: new Date().toISOString(),
+      messageid: tempId,
+      participants: currentChat?.participants || [],
+      chatid: currentChat?.chatid,
+      fileurl: filePreview || undefined,
+      senderName: user?.name,
+      isread: false,
+    }
 
     try {
-      const newMessage = {
-        senderid: loggedInUserId,
-        content: currentMsgText,
-        createdat: new Date().toISOString(),
-        messageid: Date.now(),
-        participants: currentChat?.participants,
-        chatid: currentChat?.chatid,
-        fileurl: filePreview || undefined,
-        senderName: user?.name,
-      }
-
       setMessages((prev) => [...prev, newMessage])
       setMessage("")
       setFile(null)
@@ -234,8 +252,6 @@ const ChatWithUser = () => {
         recipientId: currentChat?.otherUser.userid,
         isTyping: false,
       })
-
-      if (!loggedInUserId) return
 
       let uploadedUrl: string | undefined = undefined
       if (currentFile && currentFile.assets?.[0]) {
@@ -256,13 +272,25 @@ const ChatWithUser = () => {
         fileurl: uploadedUrl,
       })
 
-      if (currentFile && response?.data?.message) {
-        let serverMessage = response.data.message
-        serverMessage.participants = currentChat.participants
-        socket?.emit("new-message", serverMessage)
+      if (response?.data?.message) {
+        const serverMessage: Message = {
+          ...response.data.message,
+          participants: currentChat.participants,
+          senderName: user?.name,
+          isread: false,
+        }
+
+        setMessages((prev) =>
+          prev.map((msg) => (msg.messageid === tempId ? serverMessage : msg)),
+        )
+
+        if (currentFile) {
+          socket?.emit("new-message", serverMessage)
+        }
       }
     } catch (error) {
       console.error("Error sending message:", error)
+      setMessages((prev) => prev.filter((msg) => msg.messageid !== tempId))
     }
   }
 

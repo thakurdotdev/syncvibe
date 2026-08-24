@@ -1,3 +1,4 @@
+const { Op } = require("sequelize")
 const ChatMessage = require("../../models/chat/chatMessageModel")
 
 const getAllMessages = async (req, res) => {
@@ -29,12 +30,18 @@ const readMessage = async (req, res) => {
       return res.status(400).json({ message: "Valid array of message IDs is required" })
     }
 
+    const sanitizedIds = messageIds.map((id) => Number(id)).filter((id) => !isNaN(id) && id > 0)
+    if (sanitizedIds.length === 0) {
+      return res.status(400).json({ message: "Valid array of message IDs is required" })
+    }
+
     await ChatMessage.update(
       { isread: true },
       {
         where: {
-          messageid: messageIds,
+          messageid: { [Op.in]: sanitizedIds },
           isdeleted: false,
+          senderid: { [Op.ne]: userid },
         },
       },
     )

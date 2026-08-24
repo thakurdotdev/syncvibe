@@ -13,7 +13,7 @@ import { GroupInfoCard } from "@/components/music/group/GroupInfoCard"
 import { CurrentSongCard } from "@/components/music/group/CurrentSongCard"
 import { GroupMembersCard } from "@/components/music/group/GroupMembersCard"
 import { CreateOrJoinModal } from "@/components/music/group/CreateOrJoinModal"
-import { SearchModal } from "@/components/music/group/SearchModal"
+
 import { QRCodeModal } from "@/components/music/group/QRCodeModal"
 import { QueueSheet } from "@/components/music/group/QueueSheet"
 import { InviteSheet } from "@/components/music/group/InviteSheet"
@@ -27,11 +27,9 @@ import { GlobalSoundAnimation } from "@/components/music/group/GlobalSoundAnimat
 const HeaderActions = React.memo(
   ({
     onOpenQueue,
-    onOpenSearch,
     onLeave,
   }: {
     onOpenQueue: () => void
-    onOpenSearch: () => void
     onLeave: () => void
   }) => {
     const { colors } = useTheme()
@@ -63,15 +61,6 @@ const HeaderActions = React.memo(
           )}
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={onOpenSearch}
-          style={[styles.headerIconBtn, { backgroundColor: colors.secondary }]}
-          activeOpacity={0.6}
-          accessibilityRole="button"
-          accessibilityLabel="Search music"
-        >
-          <Feather name="search" size={20} color={colors.foreground} />
-        </TouchableOpacity>
-        <TouchableOpacity
           onPress={onLeave}
           style={[styles.headerIconBtn, { backgroundColor: colors.secondary }]}
           activeOpacity={0.6}
@@ -99,21 +88,12 @@ export default function GroupMusicMobile() {
   const isRejoining = useGroupSessionStore((s) => s.isRejoining)
   const isInviteSheetOpen = useGroupInviteStore((s) => s.isInviteSheetOpen)
 
-  const [showSearchModal, setShowSearchModal] = useState(false)
   const [showQRCodeModal, setShowQRCodeModal] = useState(false)
   const [showChatSheet, setShowChatSheet] = useState(false)
   const [scanQrCode, setScanQrCode] = useState(false)
 
   const handleOpenQueue = useCallback(() => {
     useGroupSessionStore.setState({ isQueueOpen: true })
-  }, [])
-
-  const handleOpenSearch = useCallback(() => {
-    setShowSearchModal(true)
-  }, [])
-
-  const handleCloseSearch = useCallback(() => {
-    setShowSearchModal(false)
   }, [])
 
   const handleCopyGroupId = useCallback(async () => {
@@ -161,7 +141,6 @@ export default function GroupMusicMobile() {
               {currentGroup && (
                 <HeaderActions
                   onOpenQueue={handleOpenQueue}
-                  onOpenSearch={handleOpenSearch}
                   onLeave={handleLeaveGroup}
                 />
               )}
@@ -216,7 +195,7 @@ export default function GroupMusicMobile() {
                 />
 
                 <CurrentSongCard
-                  onChooseSong={handleOpenSearch}
+                  onChooseSong={handleOpenQueue}
                   onPlayPause={handlePlayPause}
                   onSeek={handleSeek}
                   onSkip={skipSong}
@@ -241,7 +220,7 @@ export default function GroupMusicMobile() {
             />
           )}
 
-          {showSearchModal && <SearchModal isOpen onClose={handleCloseSearch} />}
+
 
           {isQueueOpen && <QueueSheet />}
 

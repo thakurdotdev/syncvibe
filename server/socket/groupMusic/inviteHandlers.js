@@ -10,6 +10,7 @@ const {
   untrackUserGroup,
 } = require("./state")
 const { getQueueState } = require("./queue")
+const { sendPushNotification } = require("../notification")
 
 const setupInviteHandlers = (io, socket, userId) => {
   socket.on("create-music-group", async (data) => {
@@ -246,6 +247,10 @@ const setupInviteHandlers = (io, socket, userId) => {
     console.log(`Sending real-time invite from ${userId} to ${inviteeUserId}`)
     io.to(inviteeUserId).emit("group-invite-received", invitePayload)
     socket.emit("invite-sent", { inviteeUserId })
+
+    sendPushNotification(inviteeUserId, invitePayload, "group-invite").catch((err) =>
+      console.error("Failed to send invite push notification:", err)
+    )
 
     GroupInvite.create({
       groupId,

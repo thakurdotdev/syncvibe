@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from "react"
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react"
 import * as Notifications from "expo-notifications"
 import { registerForPushNotificationsAsync } from "@/utils/registerForPushNotificationsAsync"
 import { useChat } from "./SocketContext"
@@ -20,7 +20,7 @@ const NotificationContext = createContext<NotificationContextType>({
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const api = useApi()
   const { user } = useUser()
-  const { users, setCurrentChat } = useChat()
+  const { users, setCurrentChat, socket } = useChat()
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null)
   const [notification, setNotification] = useState<Notifications.Notification | null>(null)
 
@@ -30,24 +30,80 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const responseListener = useRef<Notifications.EventSubscription | null>(null)
   const appInitialized = useRef(false)
 
-  // Handle initial notification (on app launch)
+  // Centralized handler for notification interactions (taps, quick reply, join/decline)
+  const handleNotificationResponse = useCallback(
+    (response: Notifications.NotificationResponse) => {
+      const { actionIdentifier, userText } = response
+      const data = response.notification.request.content.data as Record<string, any> | undefined
+
+      const chatid = data?.chatid ? String(data.chatid) : undefined
+      const type = data?.type as string | undefined
+
+      // 1. Interactive Action: Quick Reply (WhatsApp-style inline response)
+      if (actionIdentifier === "REPLY_ACTION" && userText?.trim()) {
+        const text = userText.trim()
+        if (chatid && user?.userid) {
+          const targetChat = users.find((u) => String(u.chatid) === chatid)
+          const participants = targetChat?.participants || [Number(user.userid), Number(data?.senderId)]
+          const newMsg = {
+            senderid: user.userid,
+            content: text,
+            createdat: new Date().toISOString(),
+            messageid: Date.now(),
+            participants,
+            chatid: Number(chatid),
+            senderName: user.name,
+          }
+          if (socket?.connected) {
+            socket.emit("new-message", newMsg)
+          }
+        }
+        return
+      }
+
+      // 2. Interactive Action: Group Invite Join or Default Tap on Group Invite
+      if (
+        actionIdentifier === "JOIN_GROUP_ACTION" ||
+        type === "group-invite" ||
+        type === "group_invite"
+      ) {
+        setTimeout(() => {
+          router.push("/(tabs)/group-music")
+        }, 150)
+        return
+      }
+
+      // 3. Interactive Action: Decline (no navigation needed)
+      if (
+        actionIdentifier === "DECLINE_GROUP_ACTION" ||
+        actionIdentifier === "DECLINE_CALL_ACTION"
+      ) {
+        return
+      }
+
+      // 4. Default / Open Chat Action: Route to specific conversation
+      if (chatid) {
+        setPendingChatId(chatid)
+      }
+    },
+    [user, users, socket],
+  )
+
+  // Handle initial notification on cold start (using non-deprecated getLastNotificationResponse)
   useEffect(() => {
     if (!appInitialized.current) {
       appInitialized.current = true
 
-      // Check if app was opened from a notification
-      Notifications.getLastNotificationResponseAsync()
-        .then((response) => {
-          if (response) {
-            const chatid = response.notification.request.content.data?.chatid as string | undefined
-            if (chatid) {
-              setPendingChatId(chatid)
-            }
-          }
-        })
-        .catch((err) => console.error("Error checking last notification:", err))
+      try {
+        const lastResponse = Notifications.getLastNotificationResponse()
+        if (lastResponse) {
+          handleNotificationResponse(lastResponse)
+        }
+      } catch (err) {
+        console.error("Error retrieving last notification response:", err)
+      }
     }
-  }, [])
+  }, [handleNotificationResponse])
 
   useEffect(() => {
     let cancelled = false
@@ -57,21 +113,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       })
     })
 
-    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      setNotification(notification)
+    notificationListener.current = Notifications.addNotificationReceivedListener((notif) => {
+      setNotification(notif)
     })
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log("Notification response received:", response)
-
-      const chatid = response.notification.request.content.data?.chatid as string | undefined
-
-      // Instead of trying to process immediately, store the chatid
-      if (chatid) {
-        console.log("Setting pending chat ID from notification tap:", chatid)
-        setPendingChatId(chatid)
-      }
-    })
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(
+      handleNotificationResponse,
+    )
 
     return () => {
       cancelled = true
@@ -83,7 +131,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         responseListener.current.remove()
       }
     }
-  }, [])
+  }, [handleNotificationResponse])
 
   // Process pending notifications when users and user are available
   useEffect(() => {
@@ -93,7 +141,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         setCurrentChat(chat)
         setPendingChatId(null)
 
-        // Slight delay to ensure context updates before navigation
         setTimeout(() => {
           router.push("/message")
         }, 100)
@@ -112,7 +159,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const setPushToken = async () => {
     if (expoPushToken) {
       try {
-        const response = await api.post("/api/mobile/pushToken", {
+        await api.post("/api/mobile/pushToken", {
           expoPushToken,
         })
       } catch (error) {

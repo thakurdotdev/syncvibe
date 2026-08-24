@@ -1,13 +1,8 @@
 import React, { useEffect, useRef } from "react"
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  runOnJS,
-} from "react-native-reanimated"
-import { Feather } from "@expo/vector-icons"
+import { Ionicons } from "@expo/vector-icons"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+import SwipeableModal from "@/components/SwipeableModal"
 import { useTheme } from "@/context/ThemeContext"
 import { useGroupMusic } from "@/context/GroupMusicContext"
 import { useGroupInviteStore } from "@/stores/groupMusic/groupInviteStore"
@@ -17,156 +12,164 @@ export const InviteNotification: React.FC = () => {
   const { colors } = useTheme()
   const { acceptInvite, declineInvite } = useGroupMusic()
   const pendingInvite = useGroupInviteStore((s) => s.pendingInvite)
+  const insets = useSafeAreaInsets()
 
-  const translateY = useSharedValue(-120)
-  const opacity = useSharedValue(0)
-  const autoDismissRef = useRef<any>(null)
+  const autoDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (pendingInvite) {
-      translateY.value = withSpring(0, { damping: 18, stiffness: 200 })
-      opacity.value = withTiming(1, { duration: 200 })
-
       if (autoDismissRef.current) clearTimeout(autoDismissRef.current)
-      autoDismissRef.current = setTimeout(() => {
-        dismiss()
-      }, 15000)
-    } else {
-      dismiss()
+      autoDismissRef.current = setTimeout(declineInvite, 30000)
     }
 
     return () => {
       if (autoDismissRef.current) clearTimeout(autoDismissRef.current)
     }
-  }, [pendingInvite])
-
-  const dismiss = () => {
-    translateY.value = withTiming(-120, { duration: 250 })
-    opacity.value = withTiming(0, { duration: 200 })
-  }
-
-  const handleAccept = () => {
-    dismiss()
-    setTimeout(acceptInvite, 300)
-  }
-
-  const handleDecline = () => {
-    dismiss()
-    setTimeout(declineInvite, 300)
-  }
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    opacity: opacity.value,
-  }))
+  }, [pendingInvite, declineInvite])
 
   if (!pendingInvite) return null
 
+  const bottomInset = Math.max(insets.bottom, 16)
+
   return (
-    <Animated.View style={[styles.container, animatedStyle]}>
-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <View style={styles.content}>
-          <Image
-            source={{
-              uri:
-                getProfileCloudinaryUrl(pendingInvite.inviterPic) ||
-                "https://via.placeholder.com/40",
-            }}
-            style={[styles.avatar, { backgroundColor: colors.secondary }]}
-          />
-          <View style={styles.textContent}>
-            <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
-              {pendingInvite.inviterName}
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]} numberOfLines={1}>
-              Invited you to {pendingInvite.groupName || "a group"}
-            </Text>
+    <SwipeableModal
+      isVisible={Boolean(pendingInvite)}
+      onClose={declineInvite}
+      maxHeight="auto"
+    >
+      <View style={[styles.container, { paddingBottom: bottomInset }]}>
+        {/* Profile Avatar with Music Badge */}
+        <View style={styles.avatarSection}>
+          <View style={styles.avatarWrapper}>
+            <Image
+              source={{
+                uri:
+                  getProfileCloudinaryUrl(pendingInvite.inviterPic) ||
+                  "https://via.placeholder.com/64",
+              }}
+              style={[styles.avatar, { backgroundColor: colors.secondary }]}
+            />
+            <View style={[styles.avatarBadge, { backgroundColor: colors.primary, borderColor: colors.card }]}>
+              <Ionicons name="musical-notes" size={12} color={colors.primaryForeground} />
+            </View>
           </View>
+
+          <Text style={[styles.title, { color: colors.foreground }]}>
+            {pendingInvite.inviterName}
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+            invited you to listen together in{"\n"}
+            <Text style={[styles.groupHighlight, { color: colors.foreground }]}>
+              {pendingInvite.groupName || "Music Room"}
+            </Text>
+          </Text>
         </View>
 
+        {/* Action Buttons */}
         <View style={styles.actions}>
           <TouchableOpacity
-            onPress={handleDecline}
-            style={[styles.declineButton, { borderColor: colors.border }]}
+            onPress={declineInvite}
+            style={[styles.declineBtn, { backgroundColor: colors.secondary }]}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Decline invite"
           >
-            <Feather name="x" size={16} color={colors.mutedForeground} />
+            <Text style={[styles.declineBtnText, { color: colors.mutedForeground }]}>
+              Decline
+            </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
-            onPress={handleAccept}
-            style={[styles.acceptButton, { backgroundColor: colors.primary }]}
+            onPress={acceptInvite}
+            style={[styles.acceptBtn, { backgroundColor: colors.primary }]}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Join music group"
           >
-            <Text style={[styles.acceptText, { color: colors.primaryForeground }]}>Join</Text>
+            <Ionicons name="play" size={15} color={colors.primaryForeground} />
+            <Text style={[styles.acceptBtnText, { color: colors.primaryForeground }]}>
+              Join Session
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
-    </Animated.View>
+    </SwipeableModal>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
-    top: 50,
-    left: 16,
-    right: 16,
-    zIndex: 1000,
-  },
-  card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 14,
-    flexDirection: "row",
+    paddingHorizontal: 24,
+    paddingTop: 4,
     alignItems: "center",
-    justifyContent: "space-between",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
   },
-  content: {
-    flexDirection: "row",
+  avatarSection: {
     alignItems: "center",
-    flex: 1,
-    marginRight: 12,
+    marginBottom: 24,
+    width: "100%",
+  },
+  avatarWrapper: {
+    position: "relative",
+    marginBottom: 14,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
   },
-  textContent: {
-    marginLeft: 10,
-    flex: 1,
-  },
-  title: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  subtitle: {
-    fontSize: 12,
-    marginTop: 1,
-  },
-  actions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  declineButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
+  avatarBadge: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2.5,
     alignItems: "center",
     justifyContent: "center",
   },
-  acceptButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
+  title: {
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: -0.3,
+    textAlign: "center",
+    marginBottom: 6,
   },
-  acceptText: {
-    fontSize: 13,
+  subtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  groupHighlight: {
+    fontWeight: "700",
+  },
+  actions: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  declineBtn: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  declineBtnText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  acceptBtn: {
+    flex: 1.4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  acceptBtnText: {
+    fontSize: 15,
     fontWeight: "700",
   },
 })
