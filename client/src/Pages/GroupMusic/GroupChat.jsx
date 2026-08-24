@@ -1,4 +1,4 @@
-import { memo, useRef, useEffect, useCallback, useState, useMemo, createPortal } from "react"
+import { memo, useRef, useEffect, useCallback, useState, useMemo } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   MessageCircle,
@@ -14,11 +14,15 @@ import {
   Image as ImageIcon,
   X,
   Search,
+  Volume2,
+  VolumeX,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { AnimatePresence, motion } from "framer-motion"
 import UpgradeDialog from "@/components/UpgradeDialog"
 import ReactDOM from "react-dom"
+import SoundPicker from "./SoundPicker"
+import SoundMessage from "./SoundMessage"
 
 const EMOJI_ONLY_REGEX =
   /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\s*(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)){0,2}$/u
@@ -29,6 +33,7 @@ const isEmojiOnly = (text) => {
 }
 
 const isGifMessage = (msg) => msg.messageType === "gif" && msg.gifUrl
+const isSoundMessage = (msg) => msg.messageType === "sound" || Boolean(msg.soundUrl)
 
 const ACTIVITY_MAP = {
   "now playing": {
@@ -120,6 +125,7 @@ const GifContent = memo(({ url }) => (
 const ChatMessage = memo(({ msg, isOwn, showAvatar, isNew }) => {
   const emojiOnly = useMemo(() => isEmojiOnly(msg.message), [msg.message])
   const gifMsg = isGifMessage(msg)
+  const soundMsg = isSoundMessage(msg)
 
   const content = (
     <div
@@ -144,12 +150,12 @@ const ChatMessage = memo(({ msg, isOwn, showAvatar, isNew }) => {
 
       <div
         className={cn(
-          "max-w-[72%] relative",
+          "max-w-[78%] relative",
           emojiOnly || gifMsg
             ? ""
             : isOwn
-              ? "liquid-message-own rounded-[18px] rounded-br-[6px] px-3.5 py-[7px]"
-              : "liquid-message-other rounded-[18px] rounded-bl-[6px] px-3.5 py-[7px]",
+              ? "liquid-message-own rounded-[18px] rounded-br-[6px] px-3 py-1.5"
+              : "liquid-message-other rounded-[18px] rounded-bl-[6px] px-3 py-1.5",
         )}
       >
         {!isOwn && showAvatar && (
@@ -157,7 +163,9 @@ const ChatMessage = memo(({ msg, isOwn, showAvatar, isNew }) => {
             {msg.userName}
           </p>
         )}
-        {gifMsg ? (
+        {soundMsg ? (
+          <SoundMessage msg={msg} isOwn={isOwn} />
+        ) : gifMsg ? (
           <GifContent url={msg.gifUrl} />
         ) : emojiOnly ? (
           <p className="text-[40px] leading-[1.1] select-none">{msg.message}</p>
@@ -226,10 +234,11 @@ const MessagesList = memo(({ messages, currentUserId, prevCountRef }) => {
         if (msg.type === "activity") {
           return <ActivityMessage key={msg.id || i} msg={msg} />
         }
-        const isOwn = msg.senderId === currentUserId
+        const isOwn = String(msg.senderId) === String(currentUserId)
         const prev = messages[i - 1]
         const showAvatar =
-          !isOwn && (!prev || prev.type === "activity" || prev.senderId !== msg.senderId)
+          !isOwn &&
+          (!prev || prev.type === "activity" || String(prev.senderId) !== String(msg.senderId))
         const isNew = i >= prevCount
 
         return (
@@ -490,10 +499,26 @@ const GroupChat = ({
   const bottomRef = useRef(null)
   const inputAreaRef = useRef(null)
   const gifButtonRef = useRef(null)
+  const soundButtonRef = useRef(null)
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [showGifPicker, setShowGifPicker] = useState(false)
+  const [showSoundPicker, setShowSoundPicker] = useState(false)
+  const [sfxAutoPlay, setSfxAutoPlay] = useState(() => {
+    if (typeof window === "undefined") return true
+    return localStorage.getItem("syncvibe_sfx_autoplay") !== "false"
+  })
   const typingTimeoutRef = useRef(null)
   const prevCountRef = useRef(0)
+
+  const handleToggleSfxAutoPlay = useCallback(() => {
+    setSfxAutoPlay((prev) => {
+      const next = !prev
+      if (typeof window !== "undefined") {
+        localStorage.setItem("syncvibe_sfx_autoplay", String(next))
+      }
+      return next
+    })
+  }, [])
 
   useEffect(() => {
     if (bottomRef.current) {
@@ -545,6 +570,19 @@ const GroupChat = ({
     [locked, onSendMessage],
   )
 
+  const handleSoundSelect = useCallback(
+    (sound) => {
+      if (locked) return
+      setShowSoundPicker(false)
+      onSendMessage(sound.url, "sound", {
+        soundUrl: sound.url,
+        soundName: sound.name,
+        soundId: sound.id,
+      })
+    },
+    [locked, onSendMessage],
+  )
+
   useEffect(() => {
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
@@ -563,7 +601,29 @@ const GroupChat = ({
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/15">
         <MessageCircle className="h-3.5 w-3.5 text-muted-foreground/35" />
         <span className="text-sm font-semibold tracking-tight">Chat</span>
-        {locked && <Lock className="h-3 w-3 text-muted-foreground/25 ml-auto" />}
+
+        <div className="ml-auto flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={handleToggleSfxAutoPlay}
+            title={
+              sfxAutoPlay
+                ? "Sound effects auto-play is ON (Tap to mute)"
+                : "Sound effects auto-play is OFF (Tap to enable)"
+            }
+            className={cn(
+              "h-6 px-2 rounded-full flex items-center gap-1 text-[10px] font-medium border cursor-pointer transition-all duration-200",
+              sfxAutoPlay
+                ? "bg-primary/10 border-primary/20 text-primary hover:bg-primary/20"
+                : "bg-muted/40 border-border/20 text-muted-foreground/50 hover:text-foreground",
+            )}
+          >
+            {sfxAutoPlay ? <Volume2 className="h-3 w-3" /> : <VolumeX className="h-3 w-3" />}
+            <span className="hidden sm:inline">SFX {sfxAutoPlay ? "ON" : "OFF"}</span>
+          </button>
+
+          {locked && <Lock className="h-3 w-3 text-muted-foreground/25" />}
+        </div>
       </div>
 
       <div
@@ -609,8 +669,13 @@ const GroupChat = ({
           <motion.button
             ref={gifButtonRef}
             whileTap={{ scale: 0.9 }}
-            onClick={() => !locked && setShowGifPicker((v) => !v)}
+            onClick={() => {
+              if (locked) return
+              setShowGifPicker((v) => !v)
+              setShowSoundPicker(false)
+            }}
             disabled={locked}
+            title="Search GIFs"
             className={cn(
               "shrink-0 h-9 w-9 rounded-full flex items-center justify-center cursor-pointer border-0 transition-colors duration-200",
               "hover:bg-accent/50 disabled:opacity-30 disabled:pointer-events-none",
@@ -620,6 +685,27 @@ const GroupChat = ({
             )}
           >
             <ImageIcon className="h-4 w-4" />
+          </motion.button>
+
+          <motion.button
+            ref={soundButtonRef}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => {
+              if (locked) return
+              setShowSoundPicker((v) => !v)
+              setShowGifPicker(false)
+            }}
+            disabled={locked}
+            title="Soundboard & Instant Effects"
+            className={cn(
+              "shrink-0 h-9 w-9 rounded-full flex items-center justify-center cursor-pointer border-0 transition-colors duration-200",
+              "hover:bg-accent/50 disabled:opacity-30 disabled:pointer-events-none",
+              showSoundPicker
+                ? "bg-accent text-foreground"
+                : "text-muted-foreground/50 bg-transparent",
+            )}
+          >
+            <Volume2 className="h-4 w-4" />
           </motion.button>
 
           <input
@@ -649,6 +735,17 @@ const GroupChat = ({
             toggleRef={gifButtonRef}
             onSelect={handleGifSelect}
             onClose={() => setShowGifPicker(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSoundPicker && (
+          <SoundPicker
+            anchorRef={inputAreaRef}
+            toggleRef={soundButtonRef}
+            onSelect={handleSoundSelect}
+            onClose={() => setShowSoundPicker(false)}
           />
         )}
       </AnimatePresence>

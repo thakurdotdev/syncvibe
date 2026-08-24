@@ -18,9 +18,17 @@ export const useGroupSessionStore = create((set, get) => ({
   isGroupModalOpen: false,
   connectionState: "disconnected",
   isRejoining: false,
-  upgradeDialog: { open: false, feature: "default", message: "" },
   floatingReactions: [],
+  activeSoundEffect: null,
   typingUsers: {},
+
+  triggerSoundEffectAnimation: (sfx) => {
+    set({ activeSoundEffect: sfx })
+  },
+
+  clearActiveSoundEffect: () => {
+    set({ activeSoundEffect: null })
+  },
 
   searchResults: [],
   searchQuery: "",
@@ -122,8 +130,8 @@ export const useGroupSessionStore = create((set, get) => ({
     toast.info(`Left group ${currentGroup.name}`)
   },
 
-  sendMessage: (socket, user, message, messageType = "text") => {
-    if (!message.trim()) return
+  sendMessage: (socket, user, message, messageType = "text", extra = {}) => {
+    if (!message?.trim() && !extra?.soundUrl) return
     const { currentGroup } = get()
     const payload = {
       groupId: currentGroup?.id,
@@ -131,10 +139,16 @@ export const useGroupSessionStore = create((set, get) => ({
       profilePic: user.profilepic,
       userName: user.name,
       messageType,
+      ...extra,
     }
     if (messageType === "gif") {
       payload.gifUrl = message
       payload.message = ""
+    } else if (messageType === "sound") {
+      payload.soundUrl = extra.soundUrl || message
+      payload.soundName = extra.soundName || "Sound Effect"
+      payload.soundId = extra.soundId || ""
+      payload.message = extra.soundName || "Sound Effect"
     } else {
       payload.message = message
     }

@@ -14,6 +14,7 @@ import {
   WelcomeView,
   QueueSheet,
   InviteSheet,
+  GlobalSoundAnimation,
 } from "./index"
 
 import "../Music/music.css"
@@ -116,6 +117,7 @@ const GroupMusic = () => {
 
   const userId = useMemo(() => user?.userid, [user?.userid])
   const groupMaxMembers = Math.max(currentGroup?.maxMembers || 0, maxGroupMembers)
+  const isChatAllowed = canChat || Boolean(currentGroup?.features?.realtimeChat)
 
   return (
     <div className="mx-auto max-w-7xl px-2 md:px-4 py-2 md:py-4">
@@ -212,7 +214,7 @@ const GroupMusic = () => {
                           messages={messages}
                           currentUserId={userId}
                           onSendMessage={sendMessage}
-                          locked={!canChat}
+                          locked={!isChatAllowed}
                           typingUsers={typingUsers}
                           onTypingStart={onTypingStart}
                           onTypingStop={onTypingStop}
@@ -257,6 +259,8 @@ const GroupMusic = () => {
         groupMembers={groupMembers}
         sendInvite={sendInvite}
       />
+
+      <GlobalSoundAnimation currentUserId={userId} />
     </div>
   )
 }

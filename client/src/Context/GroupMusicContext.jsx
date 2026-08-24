@@ -8,6 +8,7 @@ import UpgradeDialog from "@/components/UpgradeDialog"
 import { useGroupInviteStore } from "@/stores/groupMusic/inviteStore"
 import { useGroupPlaybackStore } from "@/stores/groupMusic/playbackStore"
 import { useGroupSessionStore } from "@/stores/groupMusic/sessionStore"
+import { soundEffectsManager } from "@/lib/soundEffectsManager"
 
 export const GroupMusicContext = createContext(null)
 
@@ -244,7 +245,31 @@ export function GroupMusicProvider({ children }) {
     })
 
     socket.on("new-message", (message) => {
+      // Append incoming message to group chat messages store
       ss.setState((state) => ({ messages: [...state.messages, message] }))
+
+      // When a sound effect arrives
+      if (message.messageType === "sound" && message.soundUrl) {
+        ss.getState().triggerSoundEffectAnimation({
+          id: message.id || String(Date.now()),
+          soundName: message.soundName || message.message || "Sound Effect",
+          soundUrl: message.soundUrl,
+          userName: message.userName || "Someone",
+          profilePic: message.profilePic,
+          senderId: message.senderId,
+          timestamp: Date.now(),
+        })
+
+        // Auto-play incoming sound effect if enabled by user
+        const isSfxAutoPlay =
+          typeof window !== "undefined"
+            ? localStorage.getItem("syncvibe_sfx_autoplay") !== "false"
+            : true
+        if (isSfxAutoPlay) {
+          soundEffectsManager.playRoomEffect(message.soundUrl)
+        }
+      }
+
       if (
         message.type !== "activity" &&
         message.senderId !== user?.userid &&
@@ -407,8 +432,8 @@ export function GroupMusicProvider({ children }) {
   )
 
   const wrappedSendMessage = useCallback(
-    (msg, messageType) => session.sendMessage(socket, user, msg, messageType),
-    [socket, user],
+    (msg, messageType, extra) => session.sendMessage(socket, user, msg, messageType, extra),
+    [socket, user, session],
   )
 
   const wrappedAddToQueue = useCallback(
@@ -572,12 +597,12 @@ export function GroupMusicProvider({ children }) {
       {children}
       <audio ref={audioRef} />
       <UpgradeDialog
-        open={session.upgradeDialog.open}
+        open={session?.upgradeDialog?.open}
         onOpenChange={(open) =>
           useGroupSessionStore.setState((s) => ({ upgradeDialog: { ...s.upgradeDialog, open } }))
         }
-        feature={session.upgradeDialog.feature}
-        customMessage={session.upgradeDialog.message}
+        feature={session?.upgradeDialog?.feature}
+        customMessage={session?.upgradeDialog?.message}
       />
       <InviteNotification
         invite={invite.pendingInvite}
