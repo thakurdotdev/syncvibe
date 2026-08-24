@@ -1,9 +1,9 @@
 import { API_URL } from "@/constants"
 import { useUser } from "@/context/UserContext"
 import { useTheme } from "@/context/ThemeContext"
+import { configureGoogleSignIn, performNativeGoogleSignIn } from "@/lib/googleAuth"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import axios from "axios"
-import * as Google from "expo-auth-session/providers/google"
 import { BlurView } from "expo-blur"
 import { useRouter } from "expo-router"
 import * as WebBrowser from "expo-web-browser"
@@ -26,8 +26,6 @@ import { Input } from "./ui/input"
 import { Button } from "./ui/button"
 import TwoFactorLogin from "./TwoFactorLogin"
 
-WebBrowser.maybeCompleteAuthSession()
-
 const { width, height } = Dimensions.get("window")
 
 const LoginScreen = () => {
@@ -48,41 +46,31 @@ const LoginScreen = () => {
   const [twoFactorUserId, setTwoFactorUserId] = useState<string | null>(null)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: "752661424495-r0jl8s9kc6h4dsvd9ur121hci61vnch9.apps.googleusercontent.com",
-    webClientId: "752661424495-hdf62mg8mfuje1c2f5pkoimj2rch0hjl.apps.googleusercontent.com",
-  })
-
   useEffect(() => {
-    if (response?.type === "success") {
-      setLoading(true)
-      const { authentication } = response
-      handleSignInWithGoogle(authentication?.accessToken)
-    } else if (response?.type === "error") {
-      console.error("Auth Error:", response.error)
-      setError(`Authentication error: ${response.error?.message || "Unknown error"}`)
+    configureGoogleSignIn()
+  }, [])
+
+  const navigateAfterLogin = () => {
+    if (router.canGoBack()) {
+      router.back()
+    } else {
+      router.replace("/")
     }
-  }, [response])
+  }
 
-  const handleSignInWithGoogle = async (accessToken: string | undefined) => {
+  const handleGoogleSignIn = async () => {
+    setError("")
+    setLoading(true)
     try {
-      if (!accessToken) {
-        throw new Error("No access token received")
+      const authResult = await performNativeGoogleSignIn()
+      if (!authResult) {
+        setLoading(false)
+        return
       }
-
-      const userInfoResponse = await fetch("https://www.googleapis.com/userinfo/v2/me", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
-
-      if (!userInfoResponse.ok) {
-        const errorText = await userInfoResponse.text()
-        throw new Error(`Google API error (${userInfoResponse.status}): ${errorText}`)
-      }
-
-      const googleUserInfo = await userInfoResponse.json()
 
       const backendResponse = await axios.post(`${API_URL}/api/auth/google/mobile`, {
-        user: googleUserInfo,
+        token: authResult.token,
+        user: authResult.user,
       })
 
       const token = backendResponse.data.token
@@ -90,9 +78,14 @@ const LoginScreen = () => {
 
       setIsLoggingIn(true)
       await getProfile()
-    } catch (error: any) {
-      console.error("Google sign-in error:", error)
-      setError(`Authentication failed: ${error.message}`)
+      navigateAfterLogin()
+    } catch (err: any) {
+      console.error("Google sign-in error:", err)
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Google sign-in failed. Please try again."
+      )
       setIsLoggingIn(false)
     } finally {
       setLoading(false)
@@ -145,6 +138,7 @@ const LoginScreen = () => {
           await AsyncStorage.setItem("token", token)
           setIsLoggingIn(true)
           await getProfile()
+          navigateAfterLogin()
         }
       }
     } catch (err: any) {
@@ -162,6 +156,7 @@ const LoginScreen = () => {
     setIsLoggingIn(true)
     try {
       await getProfile()
+      navigateAfterLogin()
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to fetch profile. Please try again.")
       setIsLoggingIn(false)
@@ -311,11 +306,8 @@ const LoginScreen = () => {
               },
               loading && styles.buttonDisabled,
             ]}
-            onPress={() => {
-              setError("")
-              promptAsync()
-            }}
-            disabled={!request || loading}
+            onPress={handleGoogleSignIn}
+            disabled={loading}
             activeOpacity={0.8}
           >
             <Image source={require("../assets/images/google.png")} style={styles.googleIcon} />

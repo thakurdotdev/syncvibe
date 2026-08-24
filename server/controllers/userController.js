@@ -67,7 +67,7 @@ exports.googleAuthCallback = (req, res, next) => {
     }
 
     if (process.env.NODE_ENV === "production" && user?.userid) {
-      ;(async () => {
+      ; (async () => {
         try {
           const [browserName, osName] = parseUserAgent(req)
           const ipAddress = getClientIp(req)
@@ -97,7 +97,7 @@ exports.mobileGoogleAuth = async (req, res) => {
   try {
     const { token, user } = req.body
 
-    if (!user.email) {
+    if (!user || !user.email) {
       return res.status(400).json({
         success: false,
         message: "Email is required",
@@ -122,7 +122,7 @@ exports.mobileGoogleAuth = async (req, res) => {
           username: user.email.split("@")[0],
           email: user.email,
           password: user.id,
-          profilepic: user.picture,
+          profilepic: user.picture || user.photo || null,
           verified: true,
           logintype: UserLoginType.GOOGLE,
         },
@@ -143,7 +143,7 @@ exports.mobileGoogleAuth = async (req, res) => {
     )
 
     if (process.env.NODE_ENV === "production" && userRecord?.userid) {
-      ;(async () => {
+      ; (async () => {
         try {
           const [browserName, osName] = parseUserAgent(req)
           const ipAddress = getClientIp(req)
