@@ -31,6 +31,11 @@ import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
 import { getProfileCloudinaryUrl } from "@/utils/Cloudinary"
 import { Message } from "@/stores/groupMusic/types"
 
+import { SoundMessageRow } from "./SoundMessageRow"
+import { SoundPickerModal } from "./SoundPickerModal"
+import { soundEffectsManager } from "@/utils/soundEffectsManager"
+import { SoundEffectItem } from "@/utils/api/soundEffects"
+
 const EMOJI_ONLY_REGEX =
   /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\s*(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)){0,2}$/u
 
@@ -94,6 +99,7 @@ const ChatBubble = React.memo(
     showAvatar: boolean
     colors: any
   }) => {
+    const isSound = msg.messageType === "sound" || Boolean(msg.soundUrl)
     const emoji = isEmojiOnly(msg.message)
 
     return (
@@ -113,7 +119,7 @@ const ChatBubble = React.memo(
 
         <View
           style={[
-            emoji
+            emoji && !isSound
               ? styles.emojiContainer
               : isOwn
                 ? [styles.bubbleOwn, { backgroundColor: colors.primary }]
@@ -125,7 +131,9 @@ const ChatBubble = React.memo(
               {msg.userName}
             </Text>
           )}
-          {emoji ? (
+          {isSound ? (
+            <SoundMessageRow msg={msg} isOwn={isOwn} />
+          ) : emoji ? (
             <Text style={styles.emojiText}>{msg.message}</Text>
           ) : (
             <Text
@@ -199,8 +207,28 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
 
   const [inputText, setInputText] = useState("")
   const [keyboardHeight, setKeyboardHeight] = useState(0)
+  const [showSoundPicker, setShowSoundPicker] = useState(false)
+  const [sfxAutoPlay, setSfxAutoPlay] = useState(() => soundEffectsManager.getAutoPlay())
+
   const flatListRef = useRef<FlatList>(null)
   const typingTimerRef = useRef<any>(null)
+
+  const handleToggleSfx = useCallback(() => {
+    const next = !sfxAutoPlay
+    setSfxAutoPlay(next)
+    soundEffectsManager.setAutoPlay(next)
+  }, [sfxAutoPlay])
+
+  const handleSelectSound = useCallback(
+    (sound: SoundEffectItem) => {
+      sendMessage(sound.url, "sound", {
+        soundUrl: sound.url,
+        soundName: sound.name,
+        soundId: sound.id,
+      })
+    },
+    [sendMessage],
+  )
 
   useEffect(() => {
     if (!isOpen) {
@@ -273,10 +301,11 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
       if (item.type === "activity") {
         return <ActivityMessageRow msg={item} />
       }
-      const isOwn = item.senderId === user?.userid
+      const isOwn = String(item.senderId) === String(user?.userid)
       const prev = index > 0 ? messages[index - 1] : null
       const showAvatar =
-        !isOwn && (!prev || prev.type === "activity" || prev.senderId !== item.senderId)
+        !isOwn &&
+        (!prev || prev.type === "activity" || String(prev.senderId) !== String(item.senderId))
 
       return <ChatBubble msg={item} isOwn={isOwn} showAvatar={showAvatar} colors={colors} />
     },
@@ -286,22 +315,55 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
   const keyExtractor = useCallback((item: Message, index: number) => item.id || String(index), [])
 
   return (
-    <SwipeableModal
-      isVisible={isOpen}
-      onClose={onClose}
-      maxHeight={Dimensions.get("window").height * 0.88}
-      style={{ height: Dimensions.get("window").height * 0.88 }}
-      scrollable={true}
-      scrollOffset={scrollOffset}
-    >
-      <View style={[styles.flex, { paddingBottom: keyboardHeight }]}>
+    <>
+      <SwipeableModal
+        isVisible={isOpen}
+        onClose={onClose}
+        maxHeight={Dimensions.get("window").height * 0.88}
+        style={{ height: Dimensions.get("window").height * 0.88 }}
+        scrollable={true}
+        scrollOffset={scrollOffset}
+      >
+        <View style={[styles.flex, { paddingBottom: keyboardHeight }]}>
           <View style={styles.header}>
             <Feather name="message-circle" size={18} color={colors.foreground} />
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>Group Chat</Text>
-            <View style={styles.flex} />
-            <TouchableOpacity onPress={onClose}>
-              <Feather name="x" size={20} color={colors.mutedForeground} />
-            </TouchableOpacity>
+
+            <View style={styles.headerRightControls}>
+              <TouchableOpacity
+                onPress={handleToggleSfx}
+                style={[
+                  styles.sfxToggleBtn,
+                  {
+                    backgroundColor: sfxAutoPlay
+                      ? colors.primary + "18"
+                      : colors.secondary,
+                    borderColor: sfxAutoPlay
+                      ? colors.primary + "40"
+                      : colors.border + "30",
+                  },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Feather
+                  name={sfxAutoPlay ? "volume-2" : "volume-x"}
+                  size={12}
+                  color={sfxAutoPlay ? colors.primary : colors.mutedForeground}
+                />
+                <Text
+                  style={[
+                    styles.sfxToggleText,
+                    { color: sfxAutoPlay ? colors.primary : colors.mutedForeground },
+                  ]}
+                >
+                  SFX {sfxAutoPlay ? "ON" : "OFF"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Feather name="x" size={20} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={[styles.divider, { backgroundColor: colors.border + "40" }]} />
@@ -333,6 +395,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
           <TypingIndicator typingUsers={typingUsers} colors={colors} />
 
           <View style={[styles.inputContainer, { borderTopColor: colors.border + "30" }]}>
+            {/* Soundboard Button */}
+            <TouchableOpacity
+              onPress={() => setShowSoundPicker(true)}
+              style={[styles.soundboardBtn, { backgroundColor: colors.secondary }]}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="volume-high" size={17} color={colors.primary} />
+            </TouchableOpacity>
+
             <TextInput
               style={[
                 styles.input,
@@ -369,6 +440,16 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ isOpen, onClose }) => {
           </View>
         </View>
       </SwipeableModal>
+
+      {/* Soundboard Picker Modal */}
+      {showSoundPicker && (
+        <SoundPickerModal
+          isOpen={showSoundPicker}
+          onClose={() => setShowSoundPicker(false)}
+          onSelectSound={handleSelectSound}
+        />
+      )}
+    </>
   )
 }
 
@@ -522,5 +603,31 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     fontSize: 11,
     marginTop: 3,
+  },
+  headerRightControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginLeft: "auto",
+  },
+  sfxToggleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  sfxToggleText: {
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  soundboardBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
   },
 })

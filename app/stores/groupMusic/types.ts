@@ -33,15 +33,28 @@ export interface QueueItem {
 export interface Message {
   id: string
   groupId: string
-  senderId?: number
+  senderId?: number | string
   profilePic?: string
   userName?: string
   message: string
-  messageType?: "text" | "gif" | "activity"
+  messageType?: "text" | "gif" | "sound" | "activity"
   gifUrl?: string
+  soundUrl?: string
+  soundName?: string
+  soundId?: string
   timestamp: number
   type?: "text" | "activity"
   activityType?: string
+}
+
+export interface ActiveSoundEffect {
+  id: string
+  soundName: string
+  soundUrl: string
+  userName: string
+  profilePic?: string
+  senderId?: number | string
+  timestamp: number
 }
 
 export interface PlaybackState {

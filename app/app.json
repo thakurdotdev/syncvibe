@@ -82,7 +82,8 @@
       "expo-media-library",
       "expo-system-ui",
       "expo-asset",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true

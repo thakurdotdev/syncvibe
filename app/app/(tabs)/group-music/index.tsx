@@ -22,6 +22,7 @@ import { ChatScreen } from "@/components/music/group/ChatScreen"
 import { ChatPeek } from "@/components/music/group/ChatPeek"
 import { FloatingReactions } from "@/components/music/group/FloatingReactions"
 import { ConnectionBadge } from "@/components/music/group/ConnectionBadge"
+import { GlobalSoundAnimation } from "@/components/music/group/GlobalSoundAnimation"
 
 const HeaderActions = React.memo(
   ({
@@ -260,6 +261,8 @@ export default function GroupMusicMobile() {
           )}
 
           {showChatSheet && <ChatScreen isOpen onClose={() => setShowChatSheet(false)} />}
+
+          <GlobalSoundAnimation currentUserId={user?.userid} />
         </View>
       )}
     </>

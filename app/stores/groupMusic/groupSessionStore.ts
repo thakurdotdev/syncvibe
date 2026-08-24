@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Song } from "@/types/song"
 import { searchSongs } from "@/utils/api/getSongs"
 import { ensureHttpsForSongUrls } from "@/utils/getHttpsUrls"
-import { Group, GroupMember, Message, QueueItem } from "./types"
+import { Group, GroupMember, Message, QueueItem, ActiveSoundEffect } from "./types"
 
 interface GroupSessionState {
   currentGroup: Group | null
@@ -22,6 +22,7 @@ interface GroupSessionState {
 
   typingUsers: Record<string, string>
   floatingReactions: Array<{ id: string; emoji: string; userName: string }>
+  activeSoundEffect: ActiveSoundEffect | null
   quickPickRecs: Song[]
 
   searchResults: Song[]
@@ -38,11 +39,20 @@ interface GroupSessionActions {
   clearSession: () => void
   getStoredSession: () => Promise<{ groupId: string; lastUpdate: number } | null>
 
+  triggerSoundEffectAnimation: (sfx: ActiveSoundEffect) => void
+  clearActiveSoundEffect: () => void
+
   createGroup: (socket: any, user: any, groupName: string) => void
   joinGroup: (socket: any, user: any, groupId: string) => void
   rejoinGroup: (socket: any, user: any, groupId: string) => void
   leaveGroup: (socket: any, user: any, resetPlayback: () => void) => void
-  sendMessage: (socket: any, user: any, message: string, messageType?: string) => void
+  sendMessage: (
+    socket: any,
+    user: any,
+    message: string,
+    messageType?: string,
+    extra?: Record<string, any>,
+  ) => void
 
   addToQueue: (socket: any, user: any, song: Song) => void
   playNow: (socket: any, user: any, song: Song) => void
@@ -90,6 +100,7 @@ const initialState: GroupSessionState = {
   connectionState: "disconnected",
   typingUsers: {},
   floatingReactions: [],
+  activeSoundEffect: null,
   quickPickRecs: [],
   searchResults: [],
   searchQuery: "",
@@ -98,6 +109,14 @@ const initialState: GroupSessionState = {
 
 export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
   ...initialState,
+
+  triggerSoundEffectAnimation: (sfx) => {
+    set({ activeSoundEffect: sfx })
+  },
+
+  clearActiveSoundEffect: () => {
+    set({ activeSoundEffect: null })
+  },
 
   getCurrentQueueItem: () => {
     const { queue, currentQueueIndex } = get()
@@ -185,8 +204,8 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     set({ ...initialState })
   },
 
-  sendMessage: (socket, user, message, messageType = "text") => {
-    if (!message.trim()) return
+  sendMessage: (socket, user, message, messageType = "text", extra = {}) => {
+    if (!message?.trim() && !extra?.soundUrl) return
     const { currentGroup } = get()
     if (!currentGroup?.id || !user) return
 
@@ -196,10 +215,16 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
       profilePic: user.profilepic,
       userName: user.name,
       messageType,
+      ...extra,
     }
     if (messageType === "gif") {
       payload.gifUrl = message
       payload.message = ""
+    } else if (messageType === "sound") {
+      payload.soundUrl = extra.soundUrl || message
+      payload.soundName = extra.soundName || "Sound Effect"
+      payload.soundId = extra.soundId || ""
+      payload.message = extra.soundName || "Sound Effect"
     } else {
       payload.message = message
     }

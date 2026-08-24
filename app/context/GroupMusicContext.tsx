@@ -17,6 +17,7 @@ import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
 import { useGroupInviteStore } from "@/stores/groupMusic/groupInviteStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { runAfterIdle } from "@/utils/runAfterIdle"
+import { soundEffectsManager } from "@/utils/soundEffectsManager"
 
 interface GroupMusicContextType {
   socket: any
@@ -27,7 +28,7 @@ interface GroupMusicContextType {
   createGroup: (groupName: string) => void
   joinGroup: (groupId: string) => void
   leaveGroup: () => void
-  sendMessage: (message: string, messageType?: string) => void
+  sendMessage: (message: string, messageType?: string, extra?: Record<string, any>) => void
   addToQueue: (song: Song) => void
   playNow: (song: Song) => void
   playNext: (song: Song) => void
@@ -297,6 +298,24 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
 
     socket.on("new-message", (message: any) => {
       ss.setState((state) => ({ messages: [...state.messages, message] }))
+
+      // When a sound effect arrives
+      if (message.messageType === "sound" && message.soundUrl) {
+        ss.getState().triggerSoundEffectAnimation({
+          id: message.id || String(Date.now()),
+          soundName: message.soundName || message.message || "Sound Effect",
+          soundUrl: message.soundUrl,
+          userName: message.userName || "Someone",
+          profilePic: message.profilePic,
+          senderId: message.senderId,
+          timestamp: Date.now(),
+        })
+
+        // Auto-play incoming sound effect if enabled
+        if (soundEffectsManager.getAutoPlay()) {
+          soundEffectsManager.playRoomEffect(message.soundUrl)
+        }
+      }
     })
 
     socket.on("song-reaction", (data: { emoji: string; userName: string }) => {
@@ -415,8 +434,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
   )
 
   const sendMessage = useCallback(
-    (message: string, messageType?: string) =>
-      ss.getState().sendMessage(socket, user, message, messageType),
+    (message: string, messageType?: string, extra?: Record<string, any>) =>
+      ss.getState().sendMessage(socket, user, message, messageType, extra),
     [socket, user],
   )
 
