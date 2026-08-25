@@ -2,8 +2,10 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { getOptimizedImageUrl, getProfileCloudinaryUrl } from "@/Utils/Cloudinary"
 import axios from "axios"
 import {
+  AlertCircle,
   ArrowLeft,
   Check,
+  Clock,
   Copy,
   ImageIcon,
   Loader2,
@@ -25,6 +27,7 @@ import { ChatContext } from "../../Context/ChatContext"
 import { Context } from "../../Context/Context"
 import { useVideoCallStore } from "../../stores/videoCallStore"
 import { getAllMessages } from "../../Utils/ChatUtils"
+import { uploadToCloudinary } from "../../Utils/cloudinaryUpload"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -273,12 +276,45 @@ const MessageBubble = ({
   isOwnMessage,
   handleCopy,
   deleteMessage,
+  onRetry,
   chatImages,
   setSelectedImageIndex,
   setShowGallery,
 }) => {
   // Check if message has only image/file without text content
   const isMediaOnly = message.fileurl && !message.content?.trim()
+
+  const renderStatusIcon = () => {
+    if (!isOwnMessage) return null
+
+    if (message.status === "pending") {
+      return <Clock className="w-3 h-3 text-muted-foreground animate-pulse" />
+    }
+
+    if (message.status === "failed") {
+      return (
+        <button
+          onClick={() => onRetry && onRetry(message)}
+          title="Failed to send. Click to retry."
+          className="text-destructive hover:opacity-80 flex items-center gap-0.5 cursor-pointer bg-transparent border-0 p-0"
+        >
+          <AlertCircle className="w-3.5 h-3.5" />
+          <span className="text-[10px] font-medium underline">Retry</span>
+        </button>
+      )
+    }
+
+    if (message.isread) {
+      return (
+        <div className="flex text-blue-500">
+          <Check size={13} />
+          <Check size={13} className="-ml-2" />
+        </div>
+      )
+    }
+
+    return <Check size={13} className="text-muted-foreground/70" />
+  }
 
   return (
     <div className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} mb-2 group`}>
@@ -332,14 +368,7 @@ const MessageBubble = ({
           {formatTime(message.createdat)}
           {isOwnMessage && (
             <div className="flex items-center ml-1">
-              {message.isread ? (
-                <div className="flex text-blue-500">
-                  <Check size={13} />
-                  <Check size={13} className="-ml-2" />
-                </div>
-              ) : (
-                <Check size={13} className="text-muted-foreground/70" />
-              )}
+              {renderStatusIcon()}
             </div>
           )}
         </div>
@@ -354,6 +383,7 @@ const MessageList = ({
   loggedInUserId,
   handleCopy,
   deleteMessage,
+  onRetry,
   chatImages,
   setSelectedImageIndex,
   setShowGallery,
@@ -425,6 +455,7 @@ const MessageList = ({
                     isOwnMessage={message.senderid === loggedInUserId}
                     handleCopy={handleCopy}
                     deleteMessage={deleteMessage}
+                    onRetry={onRetry}
                     chatImages={chatImages}
                     setSelectedImageIndex={setSelectedImageIndex}
                     setShowGallery={setShowGallery}
@@ -650,9 +681,86 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
     fetchMessages()
   }, [fetchMessages])
 
+  const outboxQueueRef = useRef(new Map())
+  const ackTimersRef = useRef(new Map())
+
+  const clearAckTimer = useCallback((tempId) => {
+    const timer = ackTimersRef.current.get(tempId)
+    if (timer) {
+      clearTimeout(timer)
+      ackTimersRef.current.delete(tempId)
+    }
+    outboxQueueRef.current.delete(tempId)
+  }, [])
+
+  const sendQueuedMessage = useCallback(
+    (payload) => {
+      const { tempId } = payload
+      outboxQueueRef.current.set(tempId, { tempId, payload })
+
+      // 10s ACK timeout
+      const timer = setTimeout(() => {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.messageid === tempId || msg.tempId === tempId
+              ? { ...msg, status: "failed" }
+              : msg,
+          ),
+        )
+        ackTimersRef.current.delete(tempId)
+      }, 10000)
+
+      ackTimersRef.current.set(tempId, timer)
+
+      if (socket?.connected) {
+        socket.emit("send-message", payload)
+      }
+    },
+    [socket],
+  )
+
+  const handleRetryMessage = useCallback(
+    (failedMsg) => {
+      const tempId = failedMsg.tempId || failedMsg.messageid
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.messageid === failedMsg.messageid
+            ? { ...msg, status: "pending" }
+            : msg,
+        ),
+      )
+
+      const queuedItem = outboxQueueRef.current.get(tempId)
+      if (queuedItem) {
+        sendQueuedMessage(queuedItem.payload)
+      } else if (currentChat?.chatid && currentChat?.otherUser?.userid) {
+        sendQueuedMessage({
+          tempId,
+          chatid: currentChat.chatid,
+          content: failedMsg.content || null,
+          fileurl: failedMsg.fileurl || null,
+          recipientId: currentChat.otherUser.userid,
+          senderName: user?.name,
+          participants: currentChat.participants,
+        })
+      }
+    },
+    [currentChat, user?.name, sendQueuedMessage],
+  )
+
   // Socket event listeners
   useEffect(() => {
     if (!socket || !currentChat?.chatid) return
+
+    const handleConnect = () => {
+      // Re-sync messages and drain outbox queue
+      fetchMessages()
+
+      outboxQueueRef.current.forEach(({ payload }) => {
+        socket.emit("send-message", payload)
+      })
+    }
 
     const handleNewMessage = (newMessageReceived) => {
       if (newMessageReceived.chatid === currentChat.chatid) {
@@ -668,12 +776,44 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
       }
     }
 
+    const handleMessageAck = (data) => {
+      clearAckTimer(data.tempId)
+
+      if (data?.message?.chatid === currentChat.chatid) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.messageid === data.tempId || msg.tempId === data.tempId
+              ? {
+                  ...data.message,
+                  participants: currentChat.participants,
+                  senderName: user?.name,
+                  isread: false,
+                  status: "sent",
+                }
+              : msg,
+          ),
+        )
+      }
+    }
+
+    const handleMessageError = (data) => {
+      clearAckTimer(data.tempId)
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.messageid === data.tempId || msg.tempId === data.tempId
+            ? { ...msg, status: "failed" }
+            : msg,
+        ),
+      )
+      toast.error(data?.error || "Failed to send message")
+    }
+
     const handleReadStatus = (data) => {
       if (data?.chatid === currentChat.chatid && Array.isArray(data.messageIds)) {
         const idSet = new Set(data.messageIds.map(Number))
         setMessages((prevMessages) =>
           prevMessages.map((msg) =>
-            idSet.has(Number(msg.messageid)) ? { ...msg, isread: true } : msg,
+            idSet.has(Number(msg.messageid)) ? { ...msg, isread: true, status: "sent" } : msg,
           ),
         )
       }
@@ -685,101 +825,90 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
       }
     }
 
+    socket.on("connect", handleConnect)
     socket.on("message-received", handleNewMessage)
     socket.on("message-deleted", handleMessageDeleted)
+    socket.on("message-ack", handleMessageAck)
+    socket.on("message-error", handleMessageError)
     socket.on("messages-read-status", handleReadStatus)
     socket.on("call-log", handleCallLog)
 
     return () => {
+      socket.off("connect", handleConnect)
       socket.off("message-received", handleNewMessage)
       socket.off("message-deleted", handleMessageDeleted)
+      socket.off("message-ack", handleMessageAck)
+      socket.off("message-error", handleMessageError)
       socket.off("messages-read-status", handleReadStatus)
       socket.off("call-log", handleCallLog)
     }
-  }, [socket, currentChat?.chatid])
+  }, [socket, currentChat?.chatid, currentChat?.participants, user?.name, fetchMessages, clearAckTimer])
 
   // Send message handler
   const handleSendMessage = useCallback(
     async (messageContent) => {
       if ((!messageContent?.trim() && !file) || !currentChat?.chatid) return
 
-      try {
-        // Optimistic update
-        const optimisticMessage = {
-          senderid: loggedInUserId,
-          content: messageContent.trim(),
-          createdat: new Date().toISOString(),
-          messageid: `temp-${Date.now()}`,
-          participants: currentChat.participants,
-          chatid: currentChat.chatid,
-          fileurl: file ? URL.createObjectURL(file) : null,
-          senderName: user?.name,
-        }
+      const tempId = `temp-${Date.now()}`
+      const contentText = messageContent?.trim() || ""
 
-        setMessages((prev) => [...prev, optimisticMessage])
+      const optimisticMessage = {
+        senderid: loggedInUserId,
+        content: contentText,
+        createdat: new Date().toISOString(),
+        messageid: tempId,
+        tempId,
+        participants: currentChat.participants,
+        chatid: currentChat.chatid,
+        fileurl: file ? URL.createObjectURL(file) : null,
+        senderName: user?.name,
+        isread: false,
+        status: "pending",
+      }
 
-        // Update last message in chat list
-        setUsers((prevUsers) =>
-          prevUsers.map((chat) =>
-            chat.chatid === currentChat.chatid
-              ? {
-                  ...chat,
-                  lastmessage: messageContent.trim() || "Sent an image",
-                }
-              : chat,
-          ),
-        )
+      setMessages((prev) => [...prev, optimisticMessage])
 
-        // Send text message immediately via socket
-        if (!file) {
-          socket.emit("new-message", optimisticMessage)
-        }
+      // Update last message in chat list
+      setUsers((prevUsers) =>
+        prevUsers.map((chat) =>
+          chat.chatid === currentChat.chatid
+            ? { ...chat, lastmessage: contentText || "Sent an image" }
+            : chat,
+        ),
+      )
 
-        // Prepare and send API request
-        const formData = new FormData()
-        formData.append("chatid", currentChat.chatid)
-        formData.append("senderid", loggedInUserId)
-        formData.append("content", messageContent.trim())
-
-        if (file) {
-          formData.append("file", file)
+      // Upload file via Cloudinary presigned URL (same flow as posts)
+      let uploadedFileUrl = null
+      if (file) {
+        try {
+          const result = await uploadToCloudinary(file, "chat")
+          uploadedFileUrl = result.image
           setFile(null)
           setFilePreview(null)
-        }
-
-        const response = await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/send/message`,
-          formData,
-          {
-            withCredentials: true,
-            headers: { "Content-Type": "multipart/form-data" },
-          },
-        )
-
-        // If file was sent, update with server response and emit socket event
-        if (file && response.data.message) {
-          const serverMessage = {
-            ...response.data.message,
-            participants: currentChat.participants,
-          }
-
+        } catch (error) {
+          console.error("Error uploading file:", error)
+          toast.error("Failed to upload file")
           setMessages((prev) =>
             prev.map((msg) =>
-              msg.messageid === optimisticMessage.messageid ? serverMessage : msg,
+              msg.messageid === tempId ? { ...msg, status: "failed" } : msg,
             ),
           )
-
-          socket.emit("new-message", serverMessage)
+          return
         }
-      } catch (error) {
-        console.error("Error sending message:", error)
-        toast.error("Failed to send message")
-
-        // Remove optimistic message on failure
-        setMessages((prev) => prev.filter((msg) => !msg.messageid.toString().startsWith("temp-")))
       }
+
+      // Queue and send message via socket
+      sendQueuedMessage({
+        tempId,
+        chatid: currentChat.chatid,
+        content: contentText || null,
+        fileurl: uploadedFileUrl,
+        recipientId: currentChat.otherUser.userid,
+        senderName: user?.name,
+        participants: currentChat.participants,
+      })
     },
-    [file, loggedInUserId, currentChat, user?.name, socket, setUsers],
+    [file, loggedInUserId, currentChat, user?.name, setUsers, sendQueuedMessage],
   )
 
   // Delete message handler
@@ -819,56 +948,43 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
     [socket],
   )
 
-  // Mark messages as read
+  // Mark messages as read — socket-only, server handles DB persistence
   useEffect(() => {
-    if (!messages.length || !socket || !loggedInUserId || !currentChat?.otherUser?.userid) {
+    if (!messages.length || !socket?.connected || !loggedInUserId || !currentChat?.otherUser?.userid) {
       return
     }
 
-    // Find messages from other user that are unread
-    const otherUserId = currentChat?.otherUser?.userid
+    const otherUserId = currentChat.otherUser.userid
     const unreadMessages = messages.filter(
       (msg) => String(msg.senderid) === String(otherUserId) && !msg.isread,
     )
 
     if (unreadMessages.length === 0) return
 
-    // Get message IDs to mark as read
-    const messageIds = unreadMessages.map((msg) => msg.messageid).filter(Boolean)
+    const messageIds = unreadMessages
+      .map((msg) => msg.messageid)
+      .filter((id) => typeof id === "number" || (typeof id === "string" && !id.startsWith("temp-")))
 
-    // Function to mark messages as read
-    const markMessagesAsRead = async () => {
-      try {
-        const response = await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/read/messages`,
-          { messageIds },
-          { withCredentials: true },
-        )
+    if (messageIds.length === 0) return
 
-        if (response.status === 200) {
-          // Emit socket event to inform sender
-          socket.emit("messages-read", {
-            messageIds,
-            chatid: currentChat.chatid,
-            readerId: loggedInUserId,
-            senderId: otherUserId,
-          })
+    const markMessagesAsRead = () => {
+      socket.emit("messages-read", {
+        messageIds,
+        chatid: currentChat.chatid,
+        readerId: loggedInUserId,
+        senderId: otherUserId,
+      })
 
-          const idSet = new Set(messageIds.map(Number))
-          setMessages((prevMessages) =>
-            prevMessages.map((msg) =>
-              idSet.has(Number(msg.messageid)) ? { ...msg, isread: true } : msg,
-            ),
-          )
-        }
-      } catch (error) {
-        console.error("Error marking messages as read:", error)
-      }
+      // Optimistic local update
+      const idSet = new Set(messageIds.map(Number))
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          idSet.has(Number(msg.messageid)) ? { ...msg, isread: true } : msg,
+        ),
+      )
     }
 
-    // Debounce the read status update
-    const timeoutId = setTimeout(markMessagesAsRead, 1000)
-
+    const timeoutId = setTimeout(markMessagesAsRead, 100)
     return () => clearTimeout(timeoutId)
   }, [messages, socket, loggedInUserId, currentChat])
 
@@ -952,6 +1068,7 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
           loggedInUserId={loggedInUserId}
           handleCopy={handleCopy}
           deleteMessage={deleteMessage}
+          onRetry={handleRetryMessage}
           chatImages={chatImages}
           setSelectedImageIndex={setSelectedImageIndex}
           setShowGallery={setShowGallery}

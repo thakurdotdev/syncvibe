@@ -11,6 +11,7 @@ interface MessageBubbleProps {
   isOwn: boolean
   onImagePress: (url: string) => void
   onMessageLongPress: (message: Message) => void
+  onRetry?: (message: Message) => void
 }
 
 const formatTime = (dateString: string) => {
@@ -23,11 +24,52 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   isOwn,
   onImagePress,
   onMessageLongPress,
+  onRetry,
 }) => {
   const { colors } = useTheme()
 
   const bubbleBg = isOwn ? colors.accent : colors.card
   const timeStr = formatTime(message.createdat)
+
+  const renderStatusIcon = () => {
+    if (!isOwn) return null
+
+    if (message.status === "pending") {
+      return (
+        <MaterialCommunityIcons
+          name="clock-outline"
+          size={13}
+          color={colors.mutedForeground}
+          style={styles.checkIcon}
+        />
+      )
+    }
+
+    if (message.status === "failed") {
+      return (
+        <Pressable
+          onPress={() => onRetry && onRetry(message)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MaterialCommunityIcons
+            name="alert-circle"
+            size={14}
+            color={colors.destructive}
+            style={styles.checkIcon}
+          />
+        </Pressable>
+      )
+    }
+
+    return (
+      <MaterialCommunityIcons
+        name={message.isread ? "check-all" : "check"}
+        size={14}
+        color={message.isread ? colors.primary : colors.mutedForeground}
+        style={styles.checkIcon}
+      />
+    )
+  }
 
   return (
     <View
@@ -52,14 +94,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             <Text style={styles.imageTime}>
               {timeStr}
             </Text>
-            {isOwn && (
-              <MaterialCommunityIcons
-                name={message.isread ? "check-all" : "check"}
-                size={14}
-                color={message.isread ? colors.primary : colors.mutedForeground}
-                style={styles.checkIcon}
-              />
-            )}
+            {renderStatusIcon()}
           </View>
         </Pressable>
       )}
@@ -86,14 +121,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               <Text style={[styles.time, { color: colors.mutedForeground }]}>
                 {timeStr}
               </Text>
-              {isOwn && (
-                <MaterialCommunityIcons
-                  name={message.isread ? "check-all" : "check"}
-                  size={14}
-                  color={message.isread ? colors.primary : colors.mutedForeground}
-                  style={styles.checkIcon}
-                />
-              )}
+              {renderStatusIcon()}
             </View>
           </View>
         </Pressable>

@@ -29,7 +29,7 @@ import TwoFactorLogin from "./TwoFactorLogin"
 const { width, height } = Dimensions.get("window")
 
 const LoginScreen = () => {
-  const { getProfile } = useUser()
+  const { getProfile, setUser } = useUser()
   const { colors, theme } = useTheme()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -73,12 +73,18 @@ const LoginScreen = () => {
         user: authResult.user,
       })
 
-      const token = backendResponse.data.token
-      await AsyncStorage.setItem("token", token)
+      const { token, user: loggedInUser } = backendResponse.data
+      await AsyncStorage.multiSet([
+        ["token", token],
+        ["@user_profile", JSON.stringify(loggedInUser)],
+      ])
 
+      setUser(loggedInUser)
       setIsLoggingIn(true)
-      await getProfile()
       navigateAfterLogin()
+
+      // Keep user profile synced in background without blocking navigation
+      getProfile().catch(console.error)
     } catch (err: any) {
       console.error("Google sign-in error:", err)
       setError(
@@ -134,11 +140,19 @@ const LoginScreen = () => {
           setTwoFactorUserId(response.data.userId)
           setShow2FA(true)
         } else {
-          const token = response.data.token
-          await AsyncStorage.setItem("token", token)
+          const { token, user: loggedInUser } = response.data
+          if (loggedInUser) {
+            await AsyncStorage.multiSet([
+              ["token", token],
+              ["@user_profile", JSON.stringify(loggedInUser)],
+            ])
+            setUser(loggedInUser)
+          } else {
+            await AsyncStorage.setItem("token", token)
+          }
           setIsLoggingIn(true)
-          await getProfile()
           navigateAfterLogin()
+          getProfile().catch(console.error)
         }
       }
     } catch (err: any) {

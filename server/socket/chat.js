@@ -1,3 +1,6 @@
+const { Op } = require("sequelize")
+const ChatMessage = require("../models/chat/chatMessageModel")
+const Chat = require("../models/chat/chatModel")
 const { sendPushNotification } = require("./notification")
 
 const setupChatHandlers = (io, socket, context) => {
@@ -8,26 +11,67 @@ const setupChatHandlers = (io, socket, context) => {
     socket.join(String(room))
   })
 
-  socket.on("new-message", (messageData) => {
+  socket.on("send-message", async (data) => {
     if (!socket.userId) return
 
+    const { tempId, chatid, content, fileurl } = data
+    if (!chatid || (!content && !fileurl)) {
+      socket.emit("message-error", { tempId, error: "Invalid message data" })
+      return
+    }
+
     try {
-      const { senderid, participants } = messageData
-      if (!senderid || !participants?.length) return
-
-      const recipientId = participants.find((p) => String(p) !== String(senderid))
-      if (!recipientId) return
-
-      const recipientSocket = userSockets.get(recipientId)
-      const isRecipientOnline = recipientSocket && onlineUsers.has(recipientId)
-
-      if (!isRecipientOnline) {
-        sendPushNotification(recipientId, messageData)
+      // Verify chat exists and sender is an authorized participant
+      const chat = await Chat.findByPk(Number(chatid))
+      if (!chat || !Array.isArray(chat.participants) || !chat.participants.includes(socket.userId)) {
+        socket.emit("message-error", { tempId, error: "Unauthorized chat access" })
+        return
       }
 
-      io.to(String(recipientId)).emit("message-received", messageData)
+      const verifiedRecipientId = chat.participants.find((p) => p !== socket.userId)
+      if (!verifiedRecipientId) {
+        socket.emit("message-error", { tempId, error: "Recipient not found in chat" })
+        return
+      }
+
+      const dbMessage = await ChatMessage.create({
+        chatid: Number(chatid),
+        senderid: socket.userId,
+        content: content || null,
+        fileurl: fileurl || null,
+      })
+
+      const lastMessageContent = content || "Sent an attachment"
+      await Chat.update(
+        { lastmessage: lastMessageContent, updatedat: new Date() },
+        { where: { chatid: Number(chatid) } },
+      )
+
+      const message = dbMessage.toJSON()
+
+      // Ack sender with real DB message so they can replace the temp ID
+      socket.emit("message-ack", { tempId, message })
+
+      // Deliver strictly to the verified recipient's private room
+      const recipientKey = String(verifiedRecipientId)
+      io.to(recipientKey).emit("message-received", {
+        ...message,
+        senderName: data.senderName,
+        participants: chat.participants,
+      })
+
+      // Push notification if recipient is offline
+      const recipientSocket = userSockets.get(verifiedRecipientId) || userSockets.get(Number(verifiedRecipientId)) || userSockets.get(String(verifiedRecipientId))
+      const isRecipientOnline = recipientSocket && (onlineUsers.has(verifiedRecipientId) || onlineUsers.has(Number(verifiedRecipientId)) || onlineUsers.has(String(verifiedRecipientId)))
+      if (!isRecipientOnline) {
+        sendPushNotification(verifiedRecipientId, {
+          ...message,
+          senderName: data.senderName,
+        })
+      }
     } catch (error) {
-      console.error("new-message error:", error)
+      console.error("send-message error:", error)
+      socket.emit("message-error", { tempId, error: "Failed to send message" })
     }
   })
 
@@ -51,22 +95,40 @@ const setupChatHandlers = (io, socket, context) => {
       const { recipientId, isTyping } = data
       if (!recipientId) return
 
-      io.to(String(recipientId)).emit("typing_status", { userId: socket.userId, isTyping })
+      io.to(String(recipientId)).emit("typing_status", {
+        userId: socket.userId,
+        isTyping,
+      })
     } catch (error) {
       console.error("typing error:", error)
     }
   })
 
-  socket.on("messages-read", (data) => {
+  socket.on("messages-read", async (data) => {
     if (!socket.userId) return
 
     try {
       const { messageIds, chatid, senderId } = data
       if (!messageIds?.length || !chatid || !senderId) return
 
-      const sanitizedIds = messageIds.map((id) => Number(id)).filter((id) => !isNaN(id) && id > 0)
+      const sanitizedIds = messageIds
+        .map((id) => Number(id))
+        .filter((id) => !isNaN(id) && id > 0)
       if (sanitizedIds.length === 0) return
 
+      // Persist read status to DB
+      await ChatMessage.update(
+        { isread: true },
+        {
+          where: {
+            messageid: { [Op.in]: sanitizedIds },
+            isdeleted: false,
+            senderid: { [Op.ne]: socket.userId },
+          },
+        },
+      )
+
+      // Notify the original sender that their messages were read
       io.to(String(senderId)).emit("messages-read-status", {
         messageIds: sanitizedIds,
         chatid: Number(chatid),

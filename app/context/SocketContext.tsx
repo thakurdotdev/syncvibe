@@ -3,7 +3,7 @@ import { User } from "@/types/user"
 import useApi from "@/utils/hooks/useApi"
 import * as Notifications from "expo-notifications"
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react"
-import { Platform } from "react-native"
+import { AppState, Platform } from "react-native"
 import { io, Socket } from "socket.io-client"
 import { useUser } from "./UserContext"
 import { runAfterIdle } from "@/utils/runAfterIdle"
@@ -11,7 +11,7 @@ import { runAfterIdle } from "@/utils/runAfterIdle"
 export interface ChatUser {
   chatid: number
   otherUser: User
-  lastmessage?: string
+  lastmessage?: string | null
   lastMessageType?: string
   isTyping?: boolean
   createdat: string
@@ -20,16 +20,18 @@ export interface ChatUser {
 }
 
 export interface Message {
-  messageid?: number
+  messageid?: number | string
+  tempId?: string | number
   senderid?: number
   senderName?: string
-  content: string
+  content?: string | null
   chatid?: number
   timestamp?: string
-  fileurl?: string
+  fileurl?: string | null
   createdat: string
   participants: number[]
   isread?: boolean
+  status?: "pending" | "sent" | "failed"
 }
 
 interface ChatContextType {
@@ -100,10 +102,11 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
   const handleMessageReceived = useCallback((messageData: Message) => {
     const { senderid } = messageData
+    const lastMsg = messageData.content || (messageData.fileurl ? "Sent an attachment" : "")
 
     setUsers((prevUsers) =>
       prevUsers.map((user) =>
-        user.otherUser.userid === senderid ? { ...user, lastmessage: messageData.content } : user,
+        user.otherUser.userid === senderid ? { ...user, lastmessage: lastMsg } : user,
       ),
     )
 
@@ -136,8 +139,10 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
     const newSocket = io(API_URL!, {
       reconnection: true,
-      reconnectionAttempts: 3,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
     })
 
     // Socket event handlers
@@ -174,6 +179,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
     // Attach event listeners
     newSocket.on("connect", handleConnect)
+    newSocket.io.on("reconnect", handleConnect)
     newSocket.on("typing_status", handleTypingStatus)
     newSocket.on("user_online", (userId: number) => {
       setOnlineStatuses((prev) => ({ ...prev, [userId]: true }))
@@ -228,6 +234,16 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
     return () => task.cancel()
   }, [user?.userid, getAllExistingChats, setupSocket])
+
+  // Reconnect immediately on app foreground if disconnected
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active" && socket && !socket.connected) {
+        socket.connect()
+      }
+    })
+    return () => subscription.remove()
+  }, [socket])
 
   const contextValue = useMemo<ChatContextType>(
     () => ({

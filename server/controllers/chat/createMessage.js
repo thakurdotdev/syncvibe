@@ -1,52 +1,4 @@
 const ChatMessage = require("../../models/chat/chatMessageModel")
-const Chat = require("../../models/chat/chatModel")
-const cloudinary = require("cloudinary").v2
-const getDataUri = require("../../utils/dataUri")
-
-const createMessage = async (req, res) => {
-  try {
-    const { chatid, content, fileurl } = req.body
-    const { userid: senderid } = req.user
-
-    if (!chatid || !senderid || (!content && !req.file && !fileurl)) {
-      return res.status(400).json({
-        message: "At least one of content or files is required",
-      })
-    }
-
-    let fileUrl = fileurl || null
-
-    if (req.file) {
-      const dataUri = getDataUri(req.file)
-      const cloudinaryResponse = await cloudinary.uploader.upload(dataUri.content)
-      fileUrl = cloudinaryResponse.secure_url
-    }
-
-    const newMessage = await ChatMessage.create({
-      chatid,
-      senderid,
-      content: content || null,
-      fileurl: fileUrl,
-    })
-
-    const lastMessageContent = content || "File shared"
-    const updateRes = await Chat.update(
-      { lastmessage: lastMessageContent, updatedat: new Date() },
-      { where: { chatid } },
-    )
-
-    if (!updateRes) {
-      return res.status(500).json({
-        message: "An error occurred while updating the chat.",
-      })
-    }
-
-    return res.status(200).json({ message: "success", message: newMessage })
-  } catch (error) {
-    console.error("Error creating message:", error)
-    return res.status(500).json({ error: "An error occurred while creating a message." })
-  }
-}
 
 const deleteMessage = async (req, res) => {
   try {
@@ -74,4 +26,4 @@ const deleteMessage = async (req, res) => {
   }
 }
 
-module.exports = { createMessage, deleteMessage }
+module.exports = { deleteMessage }

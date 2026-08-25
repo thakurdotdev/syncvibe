@@ -1,5 +1,6 @@
 import { User } from "@/types/user"
 import useApi from "@/utils/hooks/useApi"
+import { signOutGoogle } from "@/lib/googleAuth"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { router } from "expo-router"
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
@@ -82,7 +83,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     try {
-      await AsyncStorage.clear()
+      await Promise.allSettled([
+        AsyncStorage.clear(),
+        signOutGoogle(),
+      ])
       setUser(null)
       router.reload()
     } catch (error) {

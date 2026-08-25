@@ -94,7 +94,7 @@ export const ChatProvider = ({ children }) => {
 
     const newSocket = io(import.meta.env.VITE_API_URL, {
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20000,

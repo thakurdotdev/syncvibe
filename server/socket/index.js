@@ -34,7 +34,7 @@ const socketManager = (io) => {
 
         const userId = userData.userid
         socket.userId = userId
-        socket.join(userId)
+        socket.join(String(userId))
         userSockets.set(userId, socket)
 
         if (!socket.musicHandlersSetup) {
@@ -72,6 +72,15 @@ const socketManager = (io) => {
 
       userSockets.delete(userId)
       onlineUsers.delete(userId)
+
+      try {
+        const { getRedis } = require("../utils/redis")
+        const redis = getRedis()
+        if (redis) {
+          redis.srem("online_users", String(userId)).catch(() => {})
+        }
+      } catch {}
+
       io.emit("user_offline", userId)
     })
   })

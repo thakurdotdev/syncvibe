@@ -31,6 +31,14 @@ export const configureGoogleSignIn = () => {
 export const performNativeGoogleSignIn = async (): Promise<NativeGoogleSignInResult | null> => {
   try {
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true })
+
+    // Clear any existing native Google session to guarantee the account picker dialog opens every time
+    try {
+      await GoogleSignin.signOut()
+    } catch {
+      // Ignore if no session was active
+    }
+
     const response = await GoogleSignin.signIn()
 
     // Handle v13+ response structure (response.data) as well as legacy structure

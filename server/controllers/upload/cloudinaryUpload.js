@@ -37,6 +37,7 @@ const resolveFolder = (intent) => {
     post: "posts",
     story: "stories",
     profile: "profiles",
+    chat: "chat",
   }
 
   const folder = folderMap[intent]

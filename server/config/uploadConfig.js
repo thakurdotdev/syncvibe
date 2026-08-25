@@ -13,6 +13,7 @@ const FOLDER_CONFIG = {
   posts: { allowedTypes: ["image"] },
   stories: { allowedTypes: ["image", "video"] },
   profiles: { allowedTypes: ["image"] },
+  chat: { allowedTypes: ["image"] },
 }
 
 const RATE_LIMIT = {
