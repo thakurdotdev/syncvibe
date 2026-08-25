@@ -5,7 +5,7 @@ import { useUser } from "@/context/UserContext"
 import { useTheme } from "@/context/ThemeContext"
 import { uploadToCloudinary } from "@/utils/Cloudinary"
 import useApi from "@/utils/hooks/useApi"
-import { Ionicons } from "@expo/vector-icons"
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
 import * as Haptics from "expo-haptics"
 import * as ImagePicker from "expo-image-picker"
 import { router } from "expo-router"
@@ -27,6 +27,18 @@ import MessageHeader from "@/components/chat/MessageHeader"
 import MessageBubble from "@/components/chat/MessageBubble"
 import ChatInput from "@/components/chat/ChatInput"
 import DateBubble from "@/components/chat/DateBubble"
+
+const formatFullDateTime = (dateString?: string | null) => {
+  if (!dateString) return ""
+  const date = new Date(dateString)
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
@@ -62,6 +74,7 @@ const ChatWithUser = () => {
   const [showGallery, setShowGallery] = useState(false)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [showMessageOptions, setShowMessageOptions] = useState(false)
+  const [showMessageInfo, setShowMessageInfo] = useState(false)
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [editText, setEditText] = useState("")
@@ -114,10 +127,11 @@ const ChatWithUser = () => {
       })
 
       // Optimistic local update
+      const now = new Date().toISOString()
       const idSet = new Set(messageIds)
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.messageid && idSet.has(Number(msg.messageid)) ? { ...msg, isread: true } : msg,
+          msg.messageid && idSet.has(Number(msg.messageid)) ? { ...msg, isread: true, readat: now } : msg,
         ),
       )
     },
@@ -249,12 +263,15 @@ const ChatWithUser = () => {
       console.error("Message send failed:", data.error)
     }
 
-    const handleReadStatus = (data: { messageIds?: number[]; chatid?: number }) => {
+    const handleReadStatus = (data: { messageIds?: number[]; chatid?: number; readat?: string }) => {
       if (data?.chatid === currentChat.chatid && Array.isArray(data.messageIds)) {
         const idSet = new Set(data.messageIds.map(Number))
+        const readTime = data.readat || new Date().toISOString()
         setMessages((prev) =>
           prev.map((msg) =>
-            msg.messageid && idSet.has(Number(msg.messageid)) ? { ...msg, isread: true, status: "sent" } : msg,
+            msg.messageid && idSet.has(Number(msg.messageid))
+              ? { ...msg, isread: true, readat: readTime, status: "sent" }
+              : msg,
           ),
         )
       }
@@ -654,9 +671,19 @@ const ChatWithUser = () => {
         <SwipeableModal
           isVisible={showMessageOptions}
           onClose={() => setShowMessageOptions(false)}
-          maxHeight="25%"
+          maxHeight="35%"
         >
           <View style={styles.modalContent}>
+            {selectedMessage?.senderid === loggedInUserId && (
+              <OptionItem
+                icon="information-circle-outline"
+                text="Message Info"
+                onPress={() => {
+                  setShowMessageOptions(false)
+                  setShowMessageInfo(true)
+                }}
+              />
+            )}
             <OptionItem icon="pencil" text="Edit" onPress={handleEditMessage} />
             <OptionItem icon="copy-outline" text="Copy" onPress={handleCopyText} />
             <OptionItem
@@ -665,6 +692,62 @@ const ChatWithUser = () => {
               onPress={handleDeleteMessage}
               color={colors.destructive}
             />
+          </View>
+        </SwipeableModal>
+
+        <SwipeableModal
+          isVisible={showMessageInfo}
+          onClose={() => setShowMessageInfo(false)}
+          maxHeight="45%"
+        >
+          <View style={styles.infoModalContent}>
+            <Text style={[styles.infoTitle, { color: colors.foreground }]}>
+              Message Info
+            </Text>
+
+            {selectedMessage?.content ? (
+              <View style={[styles.infoPreviewBox, { backgroundColor: colors.accent }]}>
+                <Text style={[styles.infoPreviewText, { color: colors.foreground }]} numberOfLines={2}>
+                  {selectedMessage.content}
+                </Text>
+              </View>
+            ) : null}
+
+            <View style={styles.infoRows}>
+              <View style={[styles.infoRow, { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+                <View style={styles.infoRowLeft}>
+                  <MaterialCommunityIcons
+                    name="check-all"
+                    size={22}
+                    color={selectedMessage?.isread ? colors.primary : colors.mutedForeground}
+                  />
+                  <View style={styles.infoTextGroup}>
+                    <Text style={[styles.infoLabel, { color: colors.foreground }]}>Read</Text>
+                    <Text style={[styles.infoSubtext, { color: colors.mutedForeground }]}>
+                      {selectedMessage?.isread
+                        ? formatFullDateTime(selectedMessage.readat) || "Read"
+                        : "Not read yet"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoRowLeft}>
+                  <MaterialCommunityIcons
+                    name="check"
+                    size={22}
+                    color={colors.mutedForeground}
+                  />
+                  <View style={styles.infoTextGroup}>
+                    <Text style={[styles.infoLabel, { color: colors.foreground }]}>Delivered</Text>
+                    <Text style={[styles.infoSubtext, { color: colors.mutedForeground }]}>
+                      {formatFullDateTime(selectedMessage?.createdat)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
           </View>
         </SwipeableModal>
       </Wrapper>
@@ -727,6 +810,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 12,
     fontWeight: "500",
+  },
+  infoModalContent: {
+    padding: 20,
+  },
+  infoTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 14,
+  },
+  infoPreviewBox: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  infoPreviewText: {
+    fontSize: 14,
+    fontWeight: "400",
+  },
+  infoRows: {
+    gap: 2,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+  },
+  infoRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  infoTextGroup: {
+    gap: 2,
+  },
+  infoLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  infoSubtext: {
+    fontSize: 13,
   },
 })
 

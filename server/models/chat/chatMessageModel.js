@@ -48,6 +48,10 @@ ChatMessage.init(
       allowNull: false,
       defaultValue: false,
     },
+    readat: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     messagetype: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -93,6 +97,8 @@ Chat.hasMany(ChatMessage, {
   as: "Messages",
 })
 
-// ChatMessage.sync({ alter: true });
+sequelize
+  .query("ALTER TABLE chatmessage ADD COLUMN IF NOT EXISTS readat TIMESTAMP WITH TIME ZONE;")
+  .catch((err) => console.error("Error ensuring readat column in chatmessage:", err.message))
 
 module.exports = ChatMessage

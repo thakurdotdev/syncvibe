@@ -1,25 +1,6 @@
 import { useIsMobile } from "@/hooks/use-mobile"
-import { getOptimizedImageUrl, getProfileCloudinaryUrl } from "@/Utils/Cloudinary"
 import axios from "axios"
-import {
-  AlertCircle,
-  ArrowLeft,
-  Check,
-  Clock,
-  Copy,
-  ImageIcon,
-  Loader2,
-  MoreHorizontal,
-  Paperclip,
-  Phone,
-  PhoneIncoming,
-  PhoneMissed,
-  PhoneOff,
-  SendHorizontal,
-  Trash,
-  Video,
-  X,
-} from "lucide-react"
+import { ImageIcon } from "lucide-react"
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
@@ -28,615 +9,11 @@ import { Context } from "../../Context/Context"
 import { useVideoCallStore } from "../../stores/videoCallStore"
 import { getAllMessages } from "../../Utils/ChatUtils"
 import { uploadToCloudinary } from "../../Utils/cloudinaryUpload"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "../ui/alert-dialog"
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
-import { Button } from "../ui/button"
-import { Card } from "../ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu"
-import { Input } from "../ui/input"
-import { ScrollArea } from "../ui/scroll-area"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip"
+import ChatHeader from "./ChatHeader"
 import ImageGallery from "./ImageGallery"
-import VideoCallButton from "./StartVideoCall"
-
-const formatTime = (date) => {
-  return new Date(date).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-}
-
-const formatMessageDate = (dateString) => {
-  const date = new Date(dateString)
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-
-  if (date.toDateString() === today.toDateString()) {
-    return "Today"
-  } else if (date.toDateString() === yesterday.toDateString()) {
-    return "Yesterday"
-  } else {
-    return date.toLocaleDateString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    })
-  }
-}
-
-const groupMessagesByDate = (messages) => {
-  return messages.reduce((groups, message) => {
-    const messageDate = new Date(message.createdat).toDateString()
-
-    if (!groups[messageDate]) {
-      groups[messageDate] = []
-    }
-
-    groups[messageDate].push(message)
-    return groups
-  }, {})
-}
-
-const ChatHeader = ({
-  currentChat,
-  setCurrentChat,
-  isMobile,
-  navigate,
-  incomingCall,
-  isInCall,
-  startCall,
-}) => {
-  const { otherUser, isTyping, isOnline } = currentChat || {}
-
-  return (
-    <Card className="sticky top-0 z-10 mb-2 flex flex-row items-center w-full p-3 gap-3 rounded-none shadow-xs border-b">
-      {isMobile && (
-        <Button
-          onClick={() => setCurrentChat(null)}
-          variant="ghost"
-          size="icon"
-          className="rounded-full"
-        >
-          <ArrowLeft size={20} />
-        </Button>
-      )}
-
-      <div
-        className="relative cursor-pointer flex items-center gap-3"
-        onClick={() => {
-          navigate(`/user/${otherUser?.username}`, {
-            state: { user: otherUser },
-          })
-        }}
-      >
-        <Avatar className="h-12 w-12 relative">
-          <AvatarImage
-            alt={otherUser?.name || "User"}
-            src={getProfileCloudinaryUrl(otherUser?.profilepic)}
-          />
-          <AvatarFallback>{otherUser?.name?.[0] || "U"}</AvatarFallback>
-          {isOnline && (
-            <span
-              title="Online"
-              className="absolute right-1 bottom-1 w-3 h-3 bg-green-500 rounded-full"
-            />
-          )}
-        </Avatar>
-
-        <div className="flex flex-col justify-center">
-          <div className="text-lg font-medium text-foreground">{otherUser?.name}</div>
-          {isTyping && (
-            <div className="text-xs font-medium text-green-500 animate-pulse">Typing...</div>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 ml-auto">
-        {!incomingCall && !isInCall && (
-          <VideoCallButton
-            startCall={startCall}
-            currentChat={currentChat}
-            incomingCall={incomingCall}
-          />
-        )}
-      </div>
-    </Card>
-  )
-}
-
-const DateSeparator = ({ date }) => (
-  <div className="flex justify-center my-4">
-    <div className="px-4 py-1 text-xs font-medium bg-muted rounded-full text-muted-foreground">
-      {formatMessageDate(date)}
-    </div>
-  </div>
-)
-
-const formatCallDuration = (seconds) => {
-  if (!seconds || seconds <= 0) return null
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  if (mins === 0) return `${secs}s`
-  return `${mins}m ${secs}s`
-}
-
-const CallMessageBubble = ({ message, isOwnMessage }) => {
-  const isMissed = message.messagetype === "missed_call"
-  const isRejected = message.messagetype === "rejected_call"
-  const isCompleted = message.messagetype === "completed_call"
-
-  const getIcon = () => {
-    if (isMissed) return <PhoneMissed className="h-4 w-4" />
-    if (isRejected) return <PhoneOff className="h-4 w-4" />
-    if (isCompleted) return <Video className="h-4 w-4" />
-    return <Phone className="h-4 w-4" />
-  }
-
-  const getLabel = () => {
-    if (isMissed) return isOwnMessage ? "No answer" : "Missed call"
-    if (isRejected) return isOwnMessage ? "Call declined" : "Declined"
-    if (isCompleted) {
-      const dur = formatCallDuration(parseInt(message.content, 10))
-      return dur ? `Video call · ${dur}` : "Video call"
-    }
-    return "Call"
-  }
-
-  const iconColor = isMissed || isRejected ? "text-red-500" : "text-green-500"
-
-  return (
-    <div className="flex justify-center mb-2">
-      <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-muted/60 text-sm text-muted-foreground">
-        <span className={iconColor}>{getIcon()}</span>
-        <span>{getLabel()}</span>
-        <span className="text-xs opacity-70">{formatTime(message.createdat)}</span>
-      </div>
-    </div>
-  )
-}
-
-const MessageActions = ({ message, isOwnMessage, handleCopy, deleteMessage }) => {
-  // Check if message has only image/file without text content
-  const isMediaOnly = message.fileurl && !message.content?.trim()
-
-  return (
-    <div
-      className={`absolute ${isOwnMessage ? "-left-12" : "-right-12"} ${
-        isMediaOnly ? "top-2" : "top-0"
-      } opacity-0 group-hover:opacity-100 transition-opacity`}
-    >
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-accent">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align={isOwnMessage ? "start" : "end"} className="w-[160px]">
-          {message.content && (
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onSelect={() => handleCopy(message.content)}
-            >
-              <Copy className="mr-2 h-4 w-4" />
-              <span>Copy</span>
-            </DropdownMenuItem>
-          )}
-
-          {isOwnMessage && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <DropdownMenuItem
-                  className="text-destructive cursor-pointer focus:text-destructive"
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  <Trash className="mr-2 h-4 w-4" />
-                  <span>Delete</span>
-                </DropdownMenuItem>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Message</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. Are you sure you want to delete this message?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => deleteMessage(message.messageid)}>
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  )
-}
-
-const MessageBubble = ({
-  message,
-  isOwnMessage,
-  handleCopy,
-  deleteMessage,
-  onRetry,
-  chatImages,
-  setSelectedImageIndex,
-  setShowGallery,
-}) => {
-  // Check if message has only image/file without text content
-  const isMediaOnly = message.fileurl && !message.content?.trim()
-
-  const renderStatusIcon = () => {
-    if (!isOwnMessage) return null
-
-    if (message.status === "pending") {
-      return <Clock className="w-3 h-3 text-muted-foreground animate-pulse" />
-    }
-
-    if (message.status === "failed") {
-      return (
-        <button
-          onClick={() => onRetry && onRetry(message)}
-          title="Failed to send. Click to retry."
-          className="text-destructive hover:opacity-80 flex items-center gap-0.5 cursor-pointer bg-transparent border-0 p-0"
-        >
-          <AlertCircle className="w-3.5 h-3.5" />
-          <span className="text-[10px] font-medium underline">Retry</span>
-        </button>
-      )
-    }
-
-    if (message.isread) {
-      return (
-        <div className="flex text-blue-500">
-          <Check size={13} />
-          <Check size={13} className="-ml-2" />
-        </div>
-      )
-    }
-
-    return <Check size={13} className="text-muted-foreground/70" />
-  }
-
-  return (
-    <div className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} mb-2 group`}>
-      <div
-        className={`max-w-[75%] md:max-w-[60%] flex flex-col ${
-          isOwnMessage ? "items-end" : "items-start"
-        }`}
-      >
-        <div
-          className={`relative ${
-            isMediaOnly
-              ? ""
-              : `px-3 py-2 rounded-lg ${
-                  isOwnMessage
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted dark:bg-muted/70 text-foreground"
-                }`
-          }`}
-        >
-          <MessageActions
-            message={message}
-            isOwnMessage={isOwnMessage}
-            handleCopy={handleCopy}
-            deleteMessage={deleteMessage}
-          />
-
-          {message.fileurl && (
-            <div className={`${isMediaOnly ? "" : "mb-2"} rounded-lg overflow-hidden`}>
-              <img
-                src={getOptimizedImageUrl(message.fileurl, { thumbnail: true })}
-                alt="Attachment"
-                className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={() => {
-                  const imageIndex = chatImages.indexOf(message.fileurl)
-                  setSelectedImageIndex(imageIndex)
-                  setShowGallery(true)
-                }}
-                loading="lazy"
-              />
-            </div>
-          )}
-
-          {message.content && (
-            <div className="text-sm font-normal whitespace-pre-wrap wrap-break-word">
-              {message.content}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 px-1">
-          {formatTime(message.createdat)}
-          {isOwnMessage && (
-            <div className="flex items-center ml-1">
-              {renderStatusIcon()}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-const MessageList = ({
-  messages,
-  loading,
-  loggedInUserId,
-  handleCopy,
-  deleteMessage,
-  onRetry,
-  chatImages,
-  setSelectedImageIndex,
-  setShowGallery,
-  currentChat,
-  messageEndRef,
-}) => {
-  const groupedMessages = useMemo(() => {
-    const grouped = groupMessagesByDate(messages)
-    return Object.entries(grouped).sort(([dateA], [dateB]) => new Date(dateA) - new Date(dateB))
-  }, [messages])
-
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading messages...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (messages.length === 0) {
-    return (
-      <div className="flex flex-col h-full justify-center items-center">
-        <div className="flex flex-col items-center gap-4 text-center p-4">
-          <div className="p-4 rounded-full bg-muted">
-            <MessageIcon className="w-8 h-8 text-muted-foreground" />
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold text-foreground">No messages yet</h3>
-            <p className="text-muted-foreground">
-              Say hi to {currentChat?.otherUser?.name} to start the conversation
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <ScrollArea className="flex-1 p-4">
-      <div className="space-y-4">
-        {groupedMessages.map(([date, dateMessages]) => (
-          <div key={date} className="space-y-2">
-            <DateSeparator date={date} />
-
-            {dateMessages
-              .sort((a, b) => new Date(a.createdat) - new Date(b.createdat))
-              .map((message, index) => {
-                const isCallMessage = ["missed_call", "completed_call", "rejected_call"].includes(
-                  message.messagetype,
-                )
-
-                if (isCallMessage) {
-                  return (
-                    <CallMessageBubble
-                      key={message.messageid || index}
-                      message={message}
-                      isOwnMessage={message.senderid === loggedInUserId}
-                    />
-                  )
-                }
-
-                return (
-                  <MessageBubble
-                    key={message.messageid || index}
-                    message={message}
-                    isOwnMessage={message.senderid === loggedInUserId}
-                    handleCopy={handleCopy}
-                    deleteMessage={deleteMessage}
-                    onRetry={onRetry}
-                    chatImages={chatImages}
-                    setSelectedImageIndex={setSelectedImageIndex}
-                    setShowGallery={setShowGallery}
-                  />
-                )
-              })}
-          </div>
-        ))}
-        <div ref={messageEndRef} />
-      </div>
-    </ScrollArea>
-  )
-}
-
-const MessageInput = ({
-  onSendMessage,
-  filePreview,
-  removeImage,
-  onTyping,
-  currentChat,
-  loggedInUserId,
-  onFileSelect,
-}) => {
-  const [message, setMessage] = useState("")
-  const typingTimeoutRef = useRef(null)
-
-  const fileInputRef = useRef(null)
-
-  const handleAttachClick = () => {
-    fileInputRef.current?.click()
-  }
-
-  // Handle typing events with proper socket emission
-  const handleTyping = useCallback(
-    (e) => {
-      setMessage(e.target.value)
-
-      if (!onTyping || !currentChat?.otherUser?.userid) return
-
-      clearTimeout(typingTimeoutRef.current)
-
-      // Emit typing start
-      onTyping({
-        userId: loggedInUserId,
-        recipientId: currentChat.otherUser.userid,
-        isTyping: true,
-      })
-
-      typingTimeoutRef.current = setTimeout(() => {
-        onTyping({
-          userId: loggedInUserId,
-          recipientId: currentChat.otherUser.userid,
-          isTyping: false,
-        })
-      }, 3000)
-    },
-    [onTyping, loggedInUserId, currentChat?.otherUser?.userid],
-  )
-
-  const handleSendMessage = useCallback(() => {
-    if (!message.trim() && !filePreview) return
-
-    clearTimeout(typingTimeoutRef.current)
-    if (onTyping && currentChat?.otherUser?.userid) {
-      onTyping({
-        userId: loggedInUserId,
-        recipientId: currentChat.otherUser.userid,
-        isTyping: false,
-      })
-    }
-
-    onSendMessage(message.trim())
-
-    setMessage("")
-  }, [
-    message,
-    filePreview,
-    onSendMessage,
-    onTyping,
-    loggedInUserId,
-    currentChat?.otherUser?.userid,
-  ])
-
-  useEffect(() => {
-    return () => {
-      clearTimeout(typingTimeoutRef.current)
-    }
-  }, [])
-
-  return (
-    <Card className="mt-auto w-full p-3 border-t shadow-xs rounded-none">
-      {filePreview && (
-        <div className="mb-3 relative w-24 h-24 overflow-hidden rounded-md mr-auto">
-          <img src={filePreview} alt="Preview" className="w-full h-full object-cover" />
-          <Button
-            variant="destructive"
-            size="icon"
-            className="absolute top-0.5 right-0.5 h-6 w-6 rounded-full"
-            onClick={removeImage}
-          >
-            <X className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
-
-      <div className="relative flex items-center gap-2">
-        <div className="flex gap-1">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full"
-                  onClick={handleAttachClick}
-                >
-                  <Paperclip className="h-5 w-5 text-muted-foreground" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Attach</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          ref={fileInputRef}
-          id="fileInput"
-          onChange={(e) => {
-            const selectedFile = e.target.files?.[0]
-            if (selectedFile && onFileSelect) {
-              onFileSelect(selectedFile)
-            }
-          }}
-        />
-
-        <Input
-          value={message}
-          onChange={handleTyping}
-          placeholder="Type a message..."
-          className="grow rounded-full"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault()
-              handleSendMessage()
-            }
-          }}
-        />
-
-        <Button
-          variant={message.trim() || filePreview ? "default" : "ghost"}
-          size="icon"
-          className="rounded-full"
-          disabled={!message.trim() && !filePreview}
-          onClick={handleSendMessage}
-        >
-          <SendHorizontal className="h-5 w-5" />
-        </Button>
-      </div>
-    </Card>
-  )
-}
-
-const MessageIcon = (props) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-  </svg>
-)
+import MessageInfoModal from "./MessageInfoModal"
+import MessageInput from "./MessageInput"
+import MessageList from "./MessageList"
 
 const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) => {
   const { user } = useContext(Context)
@@ -652,35 +29,10 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
   const [filePreview, setFilePreview] = useState(null)
   const [showGallery, setShowGallery] = useState(false)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const [infoModalMessage, setInfoModalMessage] = useState(null)
 
   // Refs
   const messageEndRef = useRef(null)
-
-  // Get all images in the chat for the gallery
-  const chatImages = useMemo(() => {
-    return messages.filter((msg) => msg.fileurl).map((msg) => msg.fileurl)
-  }, [messages])
-
-  // Fetch messages when chat changes
-  const fetchMessages = useCallback(async () => {
-    if (!loggedInUserId || !currentChat?.chatid) return
-
-    try {
-      setLoading(true)
-      const fetchedMessages = await getAllMessages(currentChat.chatid)
-      setMessages(fetchedMessages)
-    } catch (error) {
-      toast.error("Failed to load messages")
-      console.error(error)
-    } finally {
-      setLoading(false)
-    }
-  }, [loggedInUserId, currentChat?.chatid])
-
-  useEffect(() => {
-    fetchMessages()
-  }, [fetchMessages])
-
   const outboxQueueRef = useRef(new Map())
   const ackTimersRef = useRef(new Map())
 
@@ -749,6 +101,28 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
     [currentChat, user?.name, sendQueuedMessage],
   )
 
+  // Fetch initial messages
+  const fetchMessages = useCallback(async () => {
+    if (!currentChat?.chatid) return
+
+    try {
+      setLoading(true)
+      const data = await getAllMessages(currentChat.chatid)
+      if (data) {
+        setMessages(data)
+      }
+    } catch (error) {
+      console.error("Error fetching messages:", error)
+      toast.error("Failed to load messages")
+    } finally {
+      setLoading(false)
+    }
+  }, [currentChat?.chatid])
+
+  useEffect(() => {
+    fetchMessages()
+  }, [fetchMessages])
+
   // Socket event listeners
   useEffect(() => {
     if (!socket || !currentChat?.chatid) return
@@ -811,9 +185,12 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
     const handleReadStatus = (data) => {
       if (data?.chatid === currentChat.chatid && Array.isArray(data.messageIds)) {
         const idSet = new Set(data.messageIds.map(Number))
+        const readTime = data.readat || new Date().toISOString()
         setMessages((prevMessages) =>
           prevMessages.map((msg) =>
-            idSet.has(Number(msg.messageid)) ? { ...msg, isread: true, status: "sent" } : msg,
+            idSet.has(Number(msg.messageid))
+              ? { ...msg, isread: true, readat: readTime, status: "sent" }
+              : msg,
           ),
         )
       }
@@ -976,10 +353,11 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
       })
 
       // Optimistic local update
+      const now = new Date().toISOString()
       const idSet = new Set(messageIds.map(Number))
       setMessages((prevMessages) =>
         prevMessages.map((msg) =>
-          idSet.has(Number(msg.messageid)) ? { ...msg, isread: true } : msg,
+          idSet.has(Number(msg.messageid)) ? { ...msg, isread: true, readat: now } : msg,
         ),
       )
     }
@@ -1034,6 +412,13 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
     setFilePreview(URL.createObjectURL(selectedFile))
   }, [])
 
+  // Collect chat images for image gallery
+  const chatImages = useMemo(() => {
+    return messages
+      .filter((message) => message.fileurl)
+      .map((message) => message.fileurl)
+  }, [messages])
+
   // If no current chat is selected
   if (!currentChat) {
     return (
@@ -1069,6 +454,7 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
           handleCopy={handleCopy}
           deleteMessage={deleteMessage}
           onRetry={handleRetryMessage}
+          onShowInfo={setInfoModalMessage}
           chatImages={chatImages}
           setSelectedImageIndex={setSelectedImageIndex}
           setShowGallery={setShowGallery}
@@ -1094,6 +480,11 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
           onClose={() => setShowGallery(false)}
         />
       )}
+
+      <MessageInfoModal
+        message={infoModalMessage}
+        onClose={() => setInfoModalMessage(null)}
+      />
     </>
   )
 }

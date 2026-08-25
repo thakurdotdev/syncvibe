@@ -116,9 +116,10 @@ const setupChatHandlers = (io, socket, context) => {
         .filter((id) => !isNaN(id) && id > 0)
       if (sanitizedIds.length === 0) return
 
-      // Persist read status to DB
+      // Persist read status and timestamp to DB
+      const readTime = new Date()
       await ChatMessage.update(
-        { isread: true },
+        { isread: true, readat: readTime },
         {
           where: {
             messageid: { [Op.in]: sanitizedIds },
@@ -133,6 +134,7 @@ const setupChatHandlers = (io, socket, context) => {
         messageIds: sanitizedIds,
         chatid: Number(chatid),
         readerId: socket.userId,
+        readat: readTime.toISOString(),
       })
     } catch (error) {
       console.error("messages-read error:", error)

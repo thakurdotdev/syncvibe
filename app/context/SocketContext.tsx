@@ -31,6 +31,7 @@ export interface Message {
   createdat: string
   participants: number[]
   isread?: boolean
+  readat?: string | null
   status?: "pending" | "sent" | "failed"
 }
 
