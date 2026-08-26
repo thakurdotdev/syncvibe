@@ -1,15 +1,15 @@
-import { SongCard } from "@/components/music/MusicCards"
-import { SONG_URL } from "@/constants"
-import { usePlayerControls } from "@/stores/playerStore"
-import { useTheme } from "@/context/ThemeContext"
-import { Song } from "@/types/song"
-import { convertToHttps, ensureHttpsForSongUrls } from "@/utils/getHttpsUrls"
-import { Ionicons } from "@expo/vector-icons"
-import axios from "axios"
-import { LinearGradient } from "expo-linear-gradient"
-import { useLocalSearchParams, router } from "expo-router"
-import { Music2Icon } from "lucide-react-native"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { SongCard } from '@/components/music/MusicCards';
+import { SONG_URL } from '@/constants';
+import { usePlayerControls } from '@/stores/playerStore';
+import { useTheme } from '@/context/ThemeContext';
+import { Song } from '@/types/song';
+import { convertToHttps, ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
+import { Ionicons } from '@expo/vector-icons';
+import axios from 'axios';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams, router } from 'expo-router';
+import { Music2Icon } from 'lucide-react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -19,7 +19,7 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   View,
-} from "react-native"
+} from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -28,98 +28,98 @@ import Animated, {
   useSharedValue,
   withTiming,
   withSpring,
-} from "react-native-reanimated"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface AlbumData {
-  id: string
-  name: string
-  year: string
-  songcount: number
-  image: { link: string }[]
-  songs: Song[]
+  id: string;
+  name: string;
+  year: string;
+  songcount: number;
+  image: { link: string }[];
+  songs: Song[];
   artist_map?: {
-    artists?: { name: string }[]
-  }
+    artists?: { name: string }[];
+  };
 }
 
 export default function AlbumScreen() {
-  const insets = useSafeAreaInsets()
-  const { colors, theme } = useTheme()
-  const { id } = useLocalSearchParams()
-  const [albumData, setAlbumData] = useState<AlbumData | null>(null)
-  const { addToPlaylist, playSong } = usePlayerControls()
-  const [loading, setLoading] = useState(true)
-  const { width } = useWindowDimensions()
-  const scrollY = useSharedValue(0)
+  const insets = useSafeAreaInsets();
+  const { colors, theme } = useTheme();
+  const { id } = useLocalSearchParams();
+  const [albumData, setAlbumData] = useState<AlbumData | null>(null);
+  const { addToPlaylist, playSong } = usePlayerControls();
+  const [loading, setLoading] = useState(true);
+  const { width } = useWindowDimensions();
+  const scrollY = useSharedValue(0);
 
-  const playScale = useSharedValue(1)
-  const shuffleScale = useSharedValue(1)
+  const playScale = useSharedValue(1);
+  const shuffleScale = useSharedValue(1);
 
   const fetchAlbumData = useCallback(async () => {
     try {
-      setLoading(true)
-      const response = await axios.get(`${SONG_URL}/album?id=${id}`)
-      const data = response.data
-      setAlbumData(data.data)
+      setLoading(true);
+      const response = await axios.get(`${SONG_URL}/album?id=${id}`);
+      const data = response.data;
+      setAlbumData(data.data);
     } catch (error) {
-      console.error("Error fetching album data:", error)
+      console.error('Error fetching album data:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [id])
+  }, [id]);
 
   useEffect(() => {
     if (id) {
-      fetchAlbumData()
+      fetchAlbumData();
     }
-  }, [id, fetchAlbumData])
+  }, [id, fetchAlbumData]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      scrollY.value = event.contentOffset.y
+      scrollY.value = event.contentOffset.y;
     },
-  })
+  });
 
-  const imageSize = useMemo(() => Math.min(width * 0.45, 175), [width])
+  const imageSize = useMemo(() => Math.min(width * 0.45, 175), [width]);
 
   const albumCoverUrl = useMemo(() => {
-    return albumData?.image?.[2]?.link || albumData?.image?.[0]?.link
-  }, [albumData])
+    return albumData?.image?.[2]?.link || albumData?.image?.[0]?.link;
+  }, [albumData]);
 
   const artistName = useMemo(() => {
     return albumData?.artist_map?.artists
       ?.slice(0, 2)
       ?.map((artist) => artist.name)
-      .join(", ")
-  }, [albumData])
+      .join(', ');
+  }, [albumData]);
 
   const heroAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [0, 150], [1, 0], Extrapolation.CLAMP)
-    const scale = interpolate(scrollY.value, [0, 150], [1, 0.9], Extrapolation.CLAMP)
+    const opacity = interpolate(scrollY.value, [0, 150], [1, 0], Extrapolation.CLAMP);
+    const scale = interpolate(scrollY.value, [0, 150], [1, 0.9], Extrapolation.CLAMP);
     return {
       opacity,
       transform: [{ scale }],
-    }
-  })
+    };
+  });
 
   const topTitleAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [100, 160], [0, 1], Extrapolation.CLAMP)
-    return { opacity }
-  })
+    const opacity = interpolate(scrollY.value, [100, 160], [0, 1], Extrapolation.CLAMP);
+    return { opacity };
+  });
 
   const playBtnAnim = useAnimatedStyle(() => ({
     transform: [{ scale: playScale.value }],
-  }))
+  }));
 
   const shuffleBtnAnim = useAnimatedStyle(() => ({
     transform: [{ scale: shuffleScale.value }],
-  }))
+  }));
 
   const newSongs = useMemo(() => {
-    if (!albumData?.songs) return []
-    return albumData?.songs?.map(ensureHttpsForSongUrls) || []
-  }, [albumData?.songs])
+    if (!albumData?.songs) return [];
+    return albumData?.songs?.map(ensureHttpsForSongUrls) || [];
+  }, [albumData?.songs]);
 
   const handlePlayAll = () => {
     if (newSongs?.length) {
@@ -127,11 +127,11 @@ export default function AlbumScreen() {
         ...song,
         isPlaylist: true,
         playlistId: albumData?.id,
-      }))
-      addToPlaylist(songsWithPlaylistInfo)
-      playSong(songsWithPlaylistInfo[0])
+      }));
+      addToPlaylist(songsWithPlaylistInfo);
+      playSong(songsWithPlaylistInfo[0]);
     }
-  }
+  };
 
   const handleShuffle = () => {
     if (newSongs?.length) {
@@ -141,29 +141,29 @@ export default function AlbumScreen() {
           ...song,
           isPlaylist: true,
           playlistId: albumData?.id,
-        }))
-      addToPlaylist(shuffledSongs)
-      playSong(shuffledSongs[0])
+        }));
+      addToPlaylist(shuffledSongs);
+      playSong(shuffledSongs[0]);
     }
-  }
+  };
 
-  const isDark = theme === "dark"
-  const coverUrl = convertToHttps(albumCoverUrl || "")
+  const isDark = theme === 'dark';
+  const coverUrl = convertToHttps(albumCoverUrl || '');
 
   const metaText = useMemo(() => {
-    const parts = []
-    if (artistName) parts.push(artistName)
-    if (albumData?.year) parts.push(albumData.year)
-    if (albumData?.songcount) parts.push(`${albumData.songcount} songs`)
-    return parts.join("  •  ")
-  }, [artistName, albumData])
+    const parts = [];
+    if (artistName) parts.push(artistName);
+    if (albumData?.year) parts.push(albumData.year);
+    if (albumData?.songcount) parts.push(`${albumData.songcount} songs`);
+    return parts.join('  •  ');
+  }, [artistName, albumData]);
 
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size='large' color={colors.primary} />
       </View>
-    )
+    );
   }
 
   if (!albumData) {
@@ -178,21 +178,17 @@ export default function AlbumScreen() {
           <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Retry</Text>
         </Pressable>
       </View>
-    )
+    );
   }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Edge-to-Edge Ambient Background */}
-      <Image
-        source={{ uri: coverUrl }}
-        style={styles.heroBackgroundImage}
-        blurRadius={60}
-      />
+      <Image source={{ uri: coverUrl }} style={styles.heroBackgroundImage} blurRadius={60} />
       <LinearGradient
         colors={[
-          "rgba(0,0,0,0.1)",
-          isDark ? "rgba(11,11,12,0.85)" : "rgba(245,245,247,0.9)",
+          'rgba(0,0,0,0.1)',
+          isDark ? 'rgba(11,11,12,0.85)' : 'rgba(245,245,247,0.9)',
           colors.background,
         ]}
         style={styles.backdropGradient}
@@ -204,11 +200,11 @@ export default function AlbumScreen() {
           onPress={() => router.back()}
           style={[
             styles.backButton,
-            { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.06)" },
+            { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' },
           ]}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <Ionicons name="arrow-back" size={20} color={colors.foreground} />
+          <Ionicons name='arrow-back' size={20} color={colors.foreground} />
         </TouchableOpacity>
 
         <Animated.Text
@@ -237,7 +233,7 @@ export default function AlbumScreen() {
                 <Image
                   source={{ uri: coverUrl }}
                   style={[styles.albumCover, { width: imageSize, height: imageSize }]}
-                  resizeMode="cover"
+                  resizeMode='cover'
                 />
               </View>
 
@@ -246,7 +242,10 @@ export default function AlbumScreen() {
               </Text>
 
               {metaText ? (
-                <Text style={[styles.metaText, { color: colors.mutedForeground }]} numberOfLines={2}>
+                <Text
+                  style={[styles.metaText, { color: colors.mutedForeground }]}
+                  numberOfLines={2}
+                >
                   {metaText}
                 </Text>
               ) : null}
@@ -258,17 +257,15 @@ export default function AlbumScreen() {
                 onPress={handlePlayAll}
                 disabled={!newSongs.length}
                 onPressIn={() => (playScale.value = withTiming(0.96, { duration: 60 }))}
-                onPressOut={() => (playScale.value = withSpring(1, { damping: 16, stiffness: 350 }))}
+                onPressOut={() =>
+                  (playScale.value = withSpring(1, { damping: 16, stiffness: 350 }))
+                }
                 style={{ flex: 1 }}
               >
                 <Animated.View
-                  style={[
-                    styles.primaryButton,
-                    { backgroundColor: colors.primary },
-                    playBtnAnim,
-                  ]}
+                  style={[styles.primaryButton, { backgroundColor: colors.primary }, playBtnAnim]}
                 >
-                  <Ionicons name="play" size={18} color={colors.primaryForeground} />
+                  <Ionicons name='play' size={18} color={colors.primaryForeground} />
                   <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>
                     Play All
                   </Text>
@@ -279,20 +276,22 @@ export default function AlbumScreen() {
                 onPress={handleShuffle}
                 disabled={!newSongs.length}
                 onPressIn={() => (shuffleScale.value = withTiming(0.96, { duration: 60 }))}
-                onPressOut={() => (shuffleScale.value = withSpring(1, { damping: 16, stiffness: 350 }))}
+                onPressOut={() =>
+                  (shuffleScale.value = withSpring(1, { damping: 16, stiffness: 350 }))
+                }
                 style={{ flex: 1 }}
               >
                 <Animated.View
                   style={[
                     styles.secondaryButton,
                     {
-                      backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
-                      borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+                      borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
                     },
                     shuffleBtnAnim,
                   ]}
                 >
-                  <Ionicons name="shuffle" size={18} color={colors.foreground} />
+                  <Ionicons name='shuffle' size={18} color={colors.foreground} />
                   <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
                     Shuffle
                   </Text>
@@ -308,7 +307,7 @@ export default function AlbumScreen() {
         }
       />
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -317,24 +316,24 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyContainer: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
     gap: 16,
   },
   emptyText: {
     fontSize: 17,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   topNavBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 10,
     zIndex: 10,
@@ -343,21 +342,21 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   topNavTitle: {
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: '700',
     letterSpacing: -0.3,
-    maxWidth: "70%",
+    maxWidth: '70%',
   },
   headerWrapper: {
     paddingTop: 8,
     marginBottom: 12,
   },
   heroBackgroundImage: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
@@ -365,14 +364,14 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   backdropGradient: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     height: 360,
   },
   heroContent: {
-    alignItems: "center",
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 8,
     paddingBottom: 12,
@@ -380,7 +379,7 @@ const styles = StyleSheet.create({
   artworkShadow: {
     borderRadius: 16,
     elevation: 10,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.22,
     shadowRadius: 12,
@@ -391,44 +390,44 @@ const styles = StyleSheet.create({
   },
   albumTitle: {
     fontSize: 22,
-    fontWeight: "800",
-    textAlign: "center",
+    fontWeight: '800',
+    textAlign: 'center',
     letterSpacing: -0.4,
     marginBottom: 6,
   },
   metaText: {
     fontSize: 13,
-    fontWeight: "500",
-    textAlign: "center",
+    fontWeight: '500',
+    textAlign: 'center',
     letterSpacing: -0.1,
   },
   actionsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
     marginVertical: 16,
   },
   primaryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     height: 46,
     borderRadius: 23,
     gap: 8,
     elevation: 2,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   primaryButtonText: {
     fontSize: 14.5,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   secondaryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     height: 46,
     borderRadius: 23,
     borderWidth: 1,
@@ -436,7 +435,7 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     fontSize: 14.5,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   songsHeader: {
     marginTop: 4,
@@ -444,10 +443,10 @@ const styles = StyleSheet.create({
   },
   songsHeaderText: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     letterSpacing: -0.3,
   },
   listContent: {
     paddingBottom: 130,
   },
-})
+});

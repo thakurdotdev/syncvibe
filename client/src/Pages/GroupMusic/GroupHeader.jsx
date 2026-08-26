@@ -9,10 +9,10 @@ import {
   UserPlus,
   Wifi,
   WifiOff,
-} from "lucide-react"
-import { memo, useCallback, useMemo, useState } from "react"
-import { toast } from "sonner"
-import { motion } from "framer-motion"
+} from 'lucide-react';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { motion } from 'framer-motion';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,8 +22,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+} from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const GroupHeader = ({
   currentGroup,
@@ -34,116 +34,116 @@ const GroupHeader = ({
   onQueueOpen,
   onInviteOpen,
   queueCount = 0,
-  connectionQuality = "good",
+  connectionQuality = 'good',
 }) => {
-  const [copied, setCopied] = useState(false)
-  const [showLeaveDialog, setShowLeaveDialog] = useState(false)
+  const [copied, setCopied] = useState(false);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
   const shortId = useMemo(
-    () => currentGroup?.id?.replace("syncvibe_", "") || "",
-    [currentGroup?.id],
-  )
+    () => currentGroup?.id?.replace('syncvibe_', '') || '',
+    [currentGroup?.id]
+  );
 
   const handleCopy = useCallback(async () => {
-    if (!currentGroup?.id) return
+    if (!currentGroup?.id) return;
     try {
-      await navigator.clipboard.writeText(currentGroup.id)
-      setCopied(true)
-      toast.success("Copied!")
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(currentGroup.id);
+      setCopied(true);
+      toast.success('Copied!');
+      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      toast.error("Failed to copy")
+      toast.error('Failed to copy');
     }
-  }, [currentGroup?.id])
+  }, [currentGroup?.id]);
 
   if (!currentGroup) {
     return (
-      <div className="flex items-center gap-2.5 pb-1">
-        <div className="liquid-badge p-1.5 rounded-xl">
-          <Music className="h-4 w-4 text-muted-foreground/60" />
+      <div className='flex items-center gap-2.5 pb-1'>
+        <div className='liquid-badge p-1.5 rounded-xl'>
+          <Music className='h-4 w-4 text-muted-foreground/60' />
         </div>
-        <h1 className="text-base font-semibold">Group Session</h1>
+        <h1 className='text-base font-semibold'>Group Session</h1>
       </div>
-    )
+    );
   }
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3 pb-1">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="liquid-badge p-2 rounded-xl shrink-0">
-            <Music className="h-5 w-5 text-primary" />
+      <div className='flex items-center justify-between gap-3 pb-1'>
+        <div className='flex items-center gap-3 min-w-0 flex-1'>
+          <div className='liquid-badge p-2 rounded-xl shrink-0'>
+            <Music className='h-5 w-5 text-primary' />
           </div>
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold truncate tracking-tight">{currentGroup.name}</h1>
+          <div className='min-w-0'>
+            <div className='flex items-center gap-2'>
+              <h1 className='text-lg font-bold truncate tracking-tight'>{currentGroup.name}</h1>
               {isRejoining ? (
-                <RefreshCw className="h-3.5 w-3.5 text-muted-foreground/50 animate-spin shrink-0" />
+                <RefreshCw className='h-3.5 w-3.5 text-muted-foreground/50 animate-spin shrink-0' />
               ) : (
                 <div
-                  className="flex items-center gap-[2px] shrink-0"
+                  className='flex items-center gap-[2px] shrink-0'
                   title={`Connection: ${connectionQuality}`}
                 >
                   {[0, 1, 2].map((i) => {
                     const active =
-                      connectionQuality === "good"
+                      connectionQuality === 'good'
                         ? true
-                        : connectionQuality === "fair"
+                        : connectionQuality === 'fair'
                           ? i < 2
-                          : i < 1
+                          : i < 1;
                     const color =
-                      connectionQuality === "good"
-                        ? "bg-emerald-400"
-                        : connectionQuality === "fair"
-                          ? "bg-amber-400"
-                          : "bg-rose-400"
+                      connectionQuality === 'good'
+                        ? 'bg-emerald-400'
+                        : connectionQuality === 'fair'
+                          ? 'bg-amber-400'
+                          : 'bg-rose-400';
                     return (
                       <span
                         key={i}
-                        className={`w-[3px] rounded-full transition-all ${active ? color : "bg-muted-foreground/15"}`}
+                        className={`w-[3px] rounded-full transition-all ${active ? color : 'bg-muted-foreground/15'}`}
                         style={{ height: `${6 + i * 3}px` }}
                       />
-                    )
+                    );
                   })}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="items-center gap-1 px-2.5 py-1.5 rounded-xl liquid-badge shrink-0 hidden md:flex">
-            <span className="text-xs font-mono text-muted-foreground">{shortId}</span>
+          <div className='items-center gap-1 px-2.5 py-1.5 rounded-xl liquid-badge shrink-0 hidden md:flex'>
+            <span className='text-xs font-mono text-muted-foreground'>{shortId}</span>
             <button
               onClick={handleCopy}
-              className="p-1 rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 transition-all duration-200 cursor-pointer"
+              className='p-1 rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 transition-all duration-200 cursor-pointer'
             >
               {copied ? (
-                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                <Check className='h-3.5 w-3.5 text-emerald-400' />
               ) : (
-                <Copy className="h-3.5 w-3.5" />
+                <Copy className='h-3.5 w-3.5' />
               )}
             </button>
             <button
               onClick={onQRCodeOpen}
-              className="p-1 rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 transition-all duration-200 cursor-pointer"
+              className='p-1 rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 transition-all duration-200 cursor-pointer'
             >
-              <QrCode className="h-3.5 w-3.5" />
+              <QrCode className='h-3.5 w-3.5' />
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className='flex items-center gap-1.5 shrink-0'>
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   onClick={onQueueOpen}
-                  className="liquid-btn h-9 rounded-xl gap-2 px-3 flex items-center text-muted-foreground hover:text-foreground cursor-pointer"
+                  className='liquid-btn h-9 rounded-xl gap-2 px-3 flex items-center text-muted-foreground hover:text-foreground cursor-pointer'
                 >
-                  <Search className="h-4 w-4" />
-                  <span className="text-xs font-medium hidden sm:inline">Queue</span>
+                  <Search className='h-4 w-4' />
+                  <span className='text-xs font-medium hidden sm:inline'>Queue</span>
                   {queueCount > 0 && (
-                    <span className="h-5 min-w-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                    <span className='h-5 min-w-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center'>
                       {queueCount}
                     </span>
                   )}
@@ -156,9 +156,9 @@ const GroupHeader = ({
               <TooltipTrigger asChild>
                 <button
                   onClick={onInviteOpen}
-                  className="liquid-btn h-9 w-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
+                  className='liquid-btn h-9 w-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer'
                 >
-                  <UserPlus className="h-4 w-4" />
+                  <UserPlus className='h-4 w-4' />
                 </button>
               </TooltipTrigger>
               <TooltipContent>Invite</TooltipContent>
@@ -169,9 +169,9 @@ const GroupHeader = ({
                 <motion.button
                   onClick={() => setShowLeaveDialog(true)}
                   whileTap={{ scale: 0.93, transition: { duration: 0.1 } }}
-                  className="liquid-btn h-9 w-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-rose-400 hover:border-rose-500/20 cursor-pointer"
+                  className='liquid-btn h-9 w-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-rose-400 hover:border-rose-500/20 cursor-pointer'
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className='h-4 w-4' />
                 </motion.button>
               </TooltipTrigger>
               <TooltipContent>Leave Group</TooltipContent>
@@ -190,13 +190,13 @@ const GroupHeader = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className='cursor-pointer'>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                setShowLeaveDialog(false)
-                onLeaveGroup()
+                setShowLeaveDialog(false);
+                onLeaveGroup();
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer'
             >
               Leave Group
             </AlertDialogAction>
@@ -204,7 +204,7 @@ const GroupHeader = ({
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
-}
+  );
+};
 
-export default memo(GroupHeader)
+export default memo(GroupHeader);

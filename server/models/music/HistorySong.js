@@ -1,5 +1,5 @@
-const { DataTypes, Model } = require("sequelize")
-const sequelize = require("../../utils/sequelize")
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
 
 class HistorySong extends Model {}
 
@@ -15,8 +15,8 @@ HistorySong.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: "users",
-        key: "userid",
+        model: 'users',
+        key: 'userid',
       },
     },
 
@@ -24,8 +24,8 @@ HistorySong.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: "songs",
-        key: "id",
+        model: 'songs',
+        key: 'id',
       },
     },
 
@@ -94,33 +94,33 @@ HistorySong.init(
   },
   {
     sequelize,
-    tableName: "history_songs",
-    modelName: "HistorySong",
+    tableName: 'history_songs',
+    modelName: 'HistorySong',
     timestamps: false,
 
     indexes: [
       // ONE history row per user per song
       {
         unique: true,
-        fields: ["userId", "songRefId"],
+        fields: ['userId', 'songRefId'],
       },
 
       // Fast history listing
       {
-        fields: ["userId", "lastPlayedAt"],
+        fields: ['userId', 'lastPlayedAt'],
       },
 
       // Likes page
       {
-        fields: ["userId", "likeStatus"],
+        fields: ['userId', 'likeStatus'],
       },
 
       // Recommendation scan
       {
-        fields: ["userId", "playedCount"],
+        fields: ['userId', 'playedCount'],
       },
     ],
-  },
-)
+  }
+);
 
-module.exports = HistorySong
+module.exports = HistorySong;

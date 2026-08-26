@@ -1,42 +1,38 @@
-import React, { useEffect, useRef } from "react"
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import SwipeableModal from "@/components/SwipeableModal"
-import { useTheme } from "@/context/ThemeContext"
-import { useGroupMusic } from "@/context/GroupMusicContext"
-import { useGroupInviteStore } from "@/stores/groupMusic/groupInviteStore"
-import { getProfileCloudinaryUrl } from "@/utils/Cloudinary"
+import React, { useEffect, useRef } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import SwipeableModal from '@/components/SwipeableModal';
+import { useTheme } from '@/context/ThemeContext';
+import { useGroupMusic } from '@/context/GroupMusicContext';
+import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
+import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 
 export const InviteNotification: React.FC = () => {
-  const { colors } = useTheme()
-  const { acceptInvite, declineInvite } = useGroupMusic()
-  const pendingInvite = useGroupInviteStore((s) => s.pendingInvite)
-  const insets = useSafeAreaInsets()
+  const { colors } = useTheme();
+  const { acceptInvite, declineInvite } = useGroupMusic();
+  const pendingInvite = useGroupInviteStore((s) => s.pendingInvite);
+  const insets = useSafeAreaInsets();
 
-  const autoDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autoDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (pendingInvite) {
-      if (autoDismissRef.current) clearTimeout(autoDismissRef.current)
-      autoDismissRef.current = setTimeout(declineInvite, 30000)
+      if (autoDismissRef.current) clearTimeout(autoDismissRef.current);
+      autoDismissRef.current = setTimeout(declineInvite, 30000);
     }
 
     return () => {
-      if (autoDismissRef.current) clearTimeout(autoDismissRef.current)
-    }
-  }, [pendingInvite, declineInvite])
+      if (autoDismissRef.current) clearTimeout(autoDismissRef.current);
+    };
+  }, [pendingInvite, declineInvite]);
 
-  if (!pendingInvite) return null
+  if (!pendingInvite) return null;
 
-  const bottomInset = Math.max(insets.bottom, 16)
+  const bottomInset = Math.max(insets.bottom, 16);
 
   return (
-    <SwipeableModal
-      isVisible={Boolean(pendingInvite)}
-      onClose={declineInvite}
-      maxHeight="auto"
-    >
+    <SwipeableModal isVisible={Boolean(pendingInvite)} onClose={declineInvite} maxHeight='auto'>
       <View style={[styles.container, { paddingBottom: bottomInset }]}>
         {/* Profile Avatar with Music Badge */}
         <View style={styles.avatarSection}>
@@ -45,12 +41,17 @@ export const InviteNotification: React.FC = () => {
               source={{
                 uri:
                   getProfileCloudinaryUrl(pendingInvite.inviterPic) ||
-                  "https://via.placeholder.com/64",
+                  'https://via.placeholder.com/64',
               }}
               style={[styles.avatar, { backgroundColor: colors.secondary }]}
             />
-            <View style={[styles.avatarBadge, { backgroundColor: colors.primary, borderColor: colors.card }]}>
-              <Ionicons name="musical-notes" size={12} color={colors.primaryForeground} />
+            <View
+              style={[
+                styles.avatarBadge,
+                { backgroundColor: colors.primary, borderColor: colors.card },
+              ]}
+            >
+              <Ionicons name='musical-notes' size={12} color={colors.primaryForeground} />
             </View>
           </View>
 
@@ -58,9 +59,9 @@ export const InviteNotification: React.FC = () => {
             {pendingInvite.inviterName}
           </Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            invited you to listen together in{"\n"}
+            invited you to listen together in{'\n'}
             <Text style={[styles.groupHighlight, { color: colors.foreground }]}>
-              {pendingInvite.groupName || "Music Room"}
+              {pendingInvite.groupName || 'Music Room'}
             </Text>
           </Text>
         </View>
@@ -71,22 +72,20 @@ export const InviteNotification: React.FC = () => {
             onPress={declineInvite}
             style={[styles.declineBtn, { backgroundColor: colors.secondary }]}
             activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Decline invite"
+            accessibilityRole='button'
+            accessibilityLabel='Decline invite'
           >
-            <Text style={[styles.declineBtnText, { color: colors.mutedForeground }]}>
-              Decline
-            </Text>
+            <Text style={[styles.declineBtnText, { color: colors.mutedForeground }]}>Decline</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={acceptInvite}
             style={[styles.acceptBtn, { backgroundColor: colors.primary }]}
             activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Join music group"
+            accessibilityRole='button'
+            accessibilityLabel='Join music group'
           >
-            <Ionicons name="play" size={15} color={colors.primaryForeground} />
+            <Ionicons name='play' size={15} color={colors.primaryForeground} />
             <Text style={[styles.acceptBtnText, { color: colors.primaryForeground }]}>
               Join Session
             </Text>
@@ -94,22 +93,22 @@ export const InviteNotification: React.FC = () => {
         </View>
       </View>
     </SwipeableModal>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 24,
     paddingTop: 4,
-    alignItems: "center",
+    alignItems: 'center',
   },
   avatarSection: {
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 24,
-    width: "100%",
+    width: '100%',
   },
   avatarWrapper: {
-    position: "relative",
+    position: 'relative',
     marginBottom: 14,
   },
   avatar: {
@@ -118,58 +117,58 @@ const styles = StyleSheet.create({
     borderRadius: 34,
   },
   avatarBadge: {
-    position: "absolute",
+    position: 'absolute',
     bottom: -2,
     right: -2,
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2.5,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
     letterSpacing: -0.3,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
     lineHeight: 20,
-    textAlign: "center",
+    textAlign: 'center',
   },
   groupHighlight: {
-    fontWeight: "700",
+    fontWeight: '700',
   },
   actions: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
-    width: "100%",
+    width: '100%',
   },
   declineBtn: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 14,
   },
   declineBtnText: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   acceptBtn: {
     flex: 1.4,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     paddingVertical: 14,
     borderRadius: 14,
   },
   acceptBtnText: {
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: '700',
   },
-})
+});

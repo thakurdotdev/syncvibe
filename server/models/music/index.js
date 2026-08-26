@@ -3,54 +3,54 @@
  * Sets up relationships between Song, HistorySong, PlaylistSong, and Playlist
  */
 
-const Song = require("./Song")
-const HistorySong = require("./HistorySong")
-const PlaylistSong = require("./playlistSong")
-const Playlist = require("./playlist")
-const GroupSessionHistory = require("./GroupSessionHistory")
+const Song = require('./Song');
+const HistorySong = require('./HistorySong');
+const PlaylistSong = require('./playlistSong');
+const Playlist = require('./playlist');
+const GroupSessionHistory = require('./GroupSessionHistory');
 
 // Song -> HistorySong (one-to-many)
 Song.hasMany(HistorySong, {
-  foreignKey: "songRefId",
-  as: "historyEntries",
-})
+  foreignKey: 'songRefId',
+  as: 'historyEntries',
+});
 
 HistorySong.belongsTo(Song, {
-  foreignKey: "songRefId",
-  as: "song",
-})
+  foreignKey: 'songRefId',
+  as: 'song',
+});
 
 // Song -> PlaylistSong (one-to-many)
 Song.hasMany(PlaylistSong, {
-  foreignKey: "songRefId",
-  as: "playlistEntries",
-})
+  foreignKey: 'songRefId',
+  as: 'playlistEntries',
+});
 
 PlaylistSong.belongsTo(Song, {
-  foreignKey: "songRefId",
-  as: "song",
-})
+  foreignKey: 'songRefId',
+  as: 'song',
+});
 
 // Playlist -> PlaylistSong associations are already in playlist.js
 // Just re-export for convenience
 
 Song.hasMany(GroupSessionHistory, {
-  foreignKey: "songRefId",
-  as: "groupSessionEntries",
-})
+  foreignKey: 'songRefId',
+  as: 'groupSessionEntries',
+});
 
 GroupSessionHistory.belongsTo(Song, {
-  foreignKey: "songRefId",
-  as: "song",
-})
+  foreignKey: 'songRefId',
+  as: 'song',
+});
 
-const User = require("../auth/userModel")
+const User = require('../auth/userModel');
 
 GroupSessionHistory.belongsTo(User, {
-  foreignKey: "addedByUserId",
-  targetKey: "userid",
-  as: "addedBy",
-})
+  foreignKey: 'addedByUserId',
+  targetKey: 'userid',
+  as: 'addedBy',
+});
 
 module.exports = {
   Song,
@@ -58,4 +58,4 @@ module.exports = {
   PlaylistSong,
   Playlist,
   GroupSessionHistory,
-}
+};

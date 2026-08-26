@@ -1,12 +1,12 @@
-import React from "react"
-import { Copy, Info, MoreHorizontal, Trash } from "lucide-react"
-import { Button } from "../ui/button"
+import React from 'react';
+import { Copy, Info, MoreHorizontal, Trash } from 'lucide-react';
+import { Button } from '../ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu"
+} from '../ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,40 +17,40 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "../ui/alert-dialog"
+} from '../ui/alert-dialog';
 
 const MessageActions = ({ message, isOwnMessage, handleCopy, deleteMessage, onShowInfo }) => {
-  const isMediaOnly = message.fileurl && !message.content?.trim()
+  const isMediaOnly = message.fileurl && !message.content?.trim();
 
   return (
     <div
-      className={`absolute ${isOwnMessage ? "-left-12" : "-right-12"} ${
-        isMediaOnly ? "top-2" : "top-0"
+      className={`absolute ${isOwnMessage ? '-left-12' : '-right-12'} ${
+        isMediaOnly ? 'top-2' : 'top-0'
       } opacity-0 group-hover:opacity-100 transition-opacity`}
     >
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-accent">
-            <MoreHorizontal className="h-4 w-4" />
+          <Button variant='ghost' size='icon' className='h-8 w-8 rounded-full hover:bg-accent'>
+            <MoreHorizontal className='h-4 w-4' />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align={isOwnMessage ? "start" : "end"} className="w-[160px]">
+        <DropdownMenuContent align={isOwnMessage ? 'start' : 'end'} className='w-[160px]'>
           {isOwnMessage && (
             <DropdownMenuItem
-              className="cursor-pointer"
+              className='cursor-pointer'
               onSelect={() => onShowInfo && onShowInfo(message)}
             >
-              <Info className="mr-2 h-4 w-4" />
+              <Info className='mr-2 h-4 w-4' />
               <span>Message Info</span>
             </DropdownMenuItem>
           )}
 
           {message.content && (
             <DropdownMenuItem
-              className="cursor-pointer"
+              className='cursor-pointer'
               onSelect={() => handleCopy(message.content)}
             >
-              <Copy className="mr-2 h-4 w-4" />
+              <Copy className='mr-2 h-4 w-4' />
               <span>Copy</span>
             </DropdownMenuItem>
           )}
@@ -59,10 +59,10 @@ const MessageActions = ({ message, isOwnMessage, handleCopy, deleteMessage, onSh
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <DropdownMenuItem
-                  className="text-destructive cursor-pointer focus:text-destructive"
+                  className='text-destructive cursor-pointer focus:text-destructive'
                   onSelect={(e) => e.preventDefault()}
                 >
-                  <Trash className="mr-2 h-4 w-4" />
+                  <Trash className='mr-2 h-4 w-4' />
                   <span>Delete</span>
                 </DropdownMenuItem>
               </AlertDialogTrigger>
@@ -85,7 +85,7 @@ const MessageActions = ({ message, isOwnMessage, handleCopy, deleteMessage, onSh
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-  )
-}
+  );
+};
 
-export default MessageActions
+export default MessageActions;

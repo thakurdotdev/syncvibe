@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
   fetchComments,
   fetchPostById,
@@ -6,20 +6,20 @@ import {
   fetchUserPosts,
   getLikeStatus,
   postKeys,
-} from "@/api/posts"
+} from '@/api/posts';
 
 export const usePostsInfiniteQuery = (limit = 10, options = {}) => {
   return useInfiniteQuery({
     queryKey: postKeys.list({ limit }),
     queryFn: ({ pageParam = 1 }) => fetchPosts({ page: pageParam, limit }),
     getNextPageParam: (lastPage, allPages) => {
-      const totalFetched = allPages.reduce((acc, page) => acc + page.posts.length, 0)
-      return totalFetched < lastPage.totalPosts ? allPages.length + 1 : undefined
+      const totalFetched = allPages.reduce((acc, page) => acc + page.posts.length, 0);
+      return totalFetched < lastPage.totalPosts ? allPages.length + 1 : undefined;
     },
     staleTime: 1000 * 60 * 2,
     ...options,
-  })
-}
+  });
+};
 
 export const useUserPostsInfiniteQuery = (userId, limit = 12, options = {}) => {
   return useInfiniteQuery({
@@ -29,8 +29,8 @@ export const useUserPostsInfiniteQuery = (userId, limit = 12, options = {}) => {
     enabled: !!userId,
     staleTime: 1000 * 60 * 2,
     ...options,
-  })
-}
+  });
+};
 
 export const usePostDetailQuery = (postid, options = {}) => {
   return useQuery({
@@ -39,8 +39,8 @@ export const usePostDetailQuery = (postid, options = {}) => {
     enabled: !!postid,
     staleTime: 1000 * 60 * 5,
     ...options,
-  })
-}
+  });
+};
 
 export const useCommentsQuery = (postid, options = {}) => {
   return useQuery({
@@ -49,8 +49,8 @@ export const useCommentsQuery = (postid, options = {}) => {
     enabled: !!postid,
     staleTime: 1000 * 60 * 2,
     ...options,
-  })
-}
+  });
+};
 
 export const useLikeStatusQuery = (postid, options = {}) => {
   return useQuery({
@@ -59,5 +59,5 @@ export const useLikeStatusQuery = (postid, options = {}) => {
     enabled: !!postid,
     staleTime: 1000 * 60 * 5,
     ...options,
-  })
-}
+  });
+};

@@ -1,142 +1,150 @@
-import { API_URL } from "@/constants"
-import { User } from "@/types/user"
-import useApi from "@/utils/hooks/useApi"
-import * as Notifications from "expo-notifications"
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react"
-import { AppState, Platform } from "react-native"
-import { io, Socket } from "socket.io-client"
-import { useUser } from "./UserContext"
-import { runAfterIdle } from "@/utils/runAfterIdle"
+import { API_URL } from '@/constants';
+import { User } from '@/types/user';
+import useApi from '@/utils/hooks/useApi';
+import * as Notifications from 'expo-notifications';
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { AppState, Platform } from 'react-native';
+import { io, Socket } from 'socket.io-client';
+import { useUser } from './UserContext';
+import { runAfterIdle } from '@/utils/runAfterIdle';
 
 export interface ChatUser {
-  chatid: number
-  otherUser: User
-  lastmessage?: string | null
-  lastMessageType?: string
-  isTyping?: boolean
-  createdat: string
-  participants: number[]
-  isOnline?: boolean
+  chatid: number;
+  otherUser: User;
+  lastmessage?: string | null;
+  lastMessageType?: string;
+  isTyping?: boolean;
+  createdat: string;
+  participants: number[];
+  isOnline?: boolean;
 }
 
 export interface Message {
-  messageid?: number | string
-  tempId?: string | number
-  senderid?: number
-  senderName?: string
-  content?: string | null
-  chatid?: number
-  timestamp?: string
-  fileurl?: string | null
-  createdat: string
-  participants: number[]
-  isread?: boolean
-  readat?: string | null
-  status?: "pending" | "sent" | "failed"
+  messageid?: number | string;
+  tempId?: string | number;
+  senderid?: number;
+  senderName?: string;
+  content?: string | null;
+  chatid?: number;
+  timestamp?: string;
+  fileurl?: string | null;
+  createdat: string;
+  participants: number[];
+  isread?: boolean;
+  readat?: string | null;
+  status?: 'pending' | 'sent' | 'failed';
 }
 
 interface ChatContextType {
-  users: ChatUser[]
-  setUsers: React.Dispatch<React.SetStateAction<ChatUser[]>>
-  loading: boolean
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>
-  onlineStatuses: Record<string, boolean>
-  setOnlineStatuses: React.Dispatch<React.SetStateAction<Record<string, boolean>>>
-  currentChat: ChatUser | null
-  setCurrentChat: React.Dispatch<React.SetStateAction<ChatUser | null>>
-  socket: Socket | null
-  getAllExistingChats: () => Promise<void>
-  cleanUpSocket: () => void
+  users: ChatUser[];
+  setUsers: React.Dispatch<React.SetStateAction<ChatUser[]>>;
+  loading: boolean;
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  onlineStatuses: Record<string, boolean>;
+  setOnlineStatuses: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  currentChat: ChatUser | null;
+  setCurrentChat: React.Dispatch<React.SetStateAction<ChatUser | null>>;
+  socket: Socket | null;
+  getAllExistingChats: () => Promise<void>;
+  cleanUpSocket: () => void;
 }
 
 interface ChatProviderProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
 // Create context
-export const ChatContext = createContext<ChatContextType | undefined>(undefined)
+export const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 // Create hook to use the chat context
 export const useChat = (): ChatContextType => {
-  const context = useContext(ChatContext)
+  const context = useContext(ChatContext);
   if (context === undefined) {
-    throw new Error("useChat must be used within a ChatProvider")
+    throw new Error('useChat must be used within a ChatProvider');
   }
-  return context
-}
+  return context;
+};
 
 // Provider component
 export const ChatProvider = ({ children }: ChatProviderProps) => {
-  const api = useApi()
-  const { user } = useUser()
+  const api = useApi();
+  const { user } = useUser();
 
-  const [users, setUsers] = useState<ChatUser[]>([])
-  const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({})
-  const [loading, setLoading] = useState<boolean>(false)
-  const [currentChat, setCurrentChat] = useState<ChatUser | null>(null)
-  const [socket, setSocket] = useState<Socket | null>(null)
+  const [users, setUsers] = useState<ChatUser[]>([]);
+  const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState<boolean>(false);
+  const [currentChat, setCurrentChat] = useState<ChatUser | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
-  const typingTimeouts: Record<string, any> = {}
+  const typingTimeouts: Record<string, any> = {};
 
   const updateCurrentChatStatus = useCallback((userId: number, isOnline: boolean) => {
     setCurrentChat((prevChat) => {
       if (prevChat?.otherUser?.userid === userId) {
-        return { ...prevChat, isOnline }
+        return { ...prevChat, isOnline };
       }
-      return prevChat
-    })
-  }, [])
+      return prevChat;
+    });
+  }, []);
 
   const showNotification = (message: Message) => {
     if (currentChat?.otherUser.userid !== message.senderid) {
-      if (Platform.OS !== "web") {
+      if (Platform.OS !== 'web') {
         Notifications.scheduleNotificationAsync({
           content: {
             title: `New message from ${message.senderName}`,
-            body: message?.content ? message.content : "Sent an attachment",
+            body: message?.content ? message.content : 'Sent an attachment',
           },
           trigger: null,
-        })
+        });
       }
     }
-  }
+  };
 
   const handleMessageReceived = useCallback((messageData: Message) => {
-    const { senderid } = messageData
-    const lastMsg = messageData.content || (messageData.fileurl ? "Sent an attachment" : "")
+    const { senderid } = messageData;
+    const lastMsg = messageData.content || (messageData.fileurl ? 'Sent an attachment' : '');
 
     setUsers((prevUsers) =>
       prevUsers.map((user) =>
-        user.otherUser.userid === senderid ? { ...user, lastmessage: lastMsg } : user,
-      ),
-    )
+        user.otherUser.userid === senderid ? { ...user, lastmessage: lastMsg } : user
+      )
+    );
 
-    showNotification(messageData)
-  }, [])
+    showNotification(messageData);
+  }, []);
 
   const getAllExistingChats = useCallback(async () => {
-    if (!user?.userid) return
+    if (!user?.userid) return;
 
     try {
-      setLoading(true)
-      const response = await api.get(`/api/get/chatlist`)
+      setLoading(true);
+      const response = await api.get(`/api/get/chatlist`);
 
       if (response.status === 200) {
         const updatedChatList = response.data.chatList.map((chat: any) => ({
           ...chat,
           isTyping: false,
-        }))
-        setUsers(updatedChatList)
+        }));
+        setUsers(updatedChatList);
       }
     } catch (error) {
-      console.error("Error fetching chats:", error)
+      console.error('Error fetching chats:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [user?.userid])
+  }, [user?.userid]);
 
   const setupSocket = useCallback(() => {
-    if (!user?.userid || socket?.connected) return
+    if (!user?.userid || socket?.connected) return;
 
     const newSocket = io(API_URL!, {
       reconnection: true,
@@ -144,107 +152,108 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20000,
-    })
+    });
 
     // Socket event handlers
     const handleConnect = () => {
-      newSocket.emit("setup", { userid: user.userid, name: user.name })
-      newSocket.emit("user_online", user.userid)
-      newSocket.emit("get_initial_online_users")
-    }
+      newSocket.emit('setup', { userid: user.userid, name: user.name });
+      newSocket.emit('user_online', user.userid);
+      newSocket.emit('get_initial_online_users');
+    };
 
     const handleTypingStatus = ({ userId, isTyping }: { userId: number; isTyping: boolean }) => {
       if (typingTimeouts[userId]) {
-        clearTimeout(typingTimeouts[userId])
+        clearTimeout(typingTimeouts[userId]);
       }
 
       const updateTypingStatus = (status: boolean) => {
         setUsers((prevUsers) =>
           prevUsers.map((user) =>
-            user.otherUser.userid === userId ? { ...user, isTyping: status } : user,
-          ),
-        )
+            user.otherUser.userid === userId ? { ...user, isTyping: status } : user
+          )
+        );
         setCurrentChat((prevChat) =>
           prevChat && prevChat?.otherUser?.userid === userId
             ? { ...prevChat, isTyping: status }
-            : prevChat,
-        )
-      }
+            : prevChat
+        );
+      };
 
-      updateTypingStatus(isTyping)
+      updateTypingStatus(isTyping);
 
       if (isTyping) {
-        typingTimeouts[userId] = setTimeout(() => updateTypingStatus(false), 3000)
+        typingTimeouts[userId] = setTimeout(() => updateTypingStatus(false), 3000);
       }
-    }
+    };
 
     // Attach event listeners
-    newSocket.on("connect", handleConnect)
-    newSocket.io.on("reconnect", handleConnect)
-    newSocket.on("typing_status", handleTypingStatus)
-    newSocket.on("user_online", (userId: number) => {
-      setOnlineStatuses((prev) => ({ ...prev, [userId]: true }))
-      updateCurrentChatStatus(userId, true)
-    })
-    newSocket.on("user_offline", (userId: number) => {
-      setOnlineStatuses((prev) => ({ ...prev, [userId]: false }))
-      updateCurrentChatStatus(userId, false)
-    })
-    newSocket.on("initial_online_users", (onlineUserIds: number[]) => {
-      setOnlineStatuses(onlineUserIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}))
-    })
+    newSocket.on('connect', handleConnect);
+    newSocket.io.on('reconnect', handleConnect);
+    newSocket.on('typing_status', handleTypingStatus);
+    newSocket.on('user_online', (userId: number) => {
+      setOnlineStatuses((prev) => ({ ...prev, [userId]: true }));
+      updateCurrentChatStatus(userId, true);
+    });
+    newSocket.on('user_offline', (userId: number) => {
+      setOnlineStatuses((prev) => ({ ...prev, [userId]: false }));
+      updateCurrentChatStatus(userId, false);
+    });
+    newSocket.on('initial_online_users', (onlineUserIds: number[]) => {
+      setOnlineStatuses(onlineUserIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}));
+    });
 
-    newSocket.on("message-received", handleMessageReceived)
+    newSocket.on('message-received', handleMessageReceived);
 
-    setSocket(newSocket)
+    setSocket(newSocket);
 
     return () => {
-      Object.values(typingTimeouts).forEach(clearTimeout)
-      newSocket.disconnect()
-    }
-  }, [user?.userid, updateCurrentChatStatus, handleMessageReceived])
+      Object.values(typingTimeouts).forEach(clearTimeout);
+      newSocket.disconnect();
+    };
+  }, [user?.userid, updateCurrentChatStatus, handleMessageReceived]);
 
   const cleanUpSocket = useCallback(() => {
-    Object.values(typingTimeouts).forEach(clearTimeout)
-    setUsers([])
-    setOnlineStatuses({})
-    setCurrentChat(null)
+    Object.values(typingTimeouts).forEach(clearTimeout);
+    setUsers([]);
+    setOnlineStatuses({});
+    setCurrentChat(null);
 
     if (socket) {
       if (user?.userid) {
-        socket.emit("user_offline", user.userid)
+        socket.emit('user_offline', user.userid);
       }
-      socket.off("connect")
-      socket.off("typing_status")
-      socket.off("user_online")
-      socket.off("user_offline")
-      socket.off("initial_online_users")
-      socket.off("message-received")
-      socket.disconnect()
-      setSocket(null)
+      socket.removeAllListeners();
+      socket.io.removeAllListeners();
+      socket.disconnect();
+      setSocket(null);
     }
-  }, [socket, user?.userid])
+  }, [socket, user?.userid]);
 
   useEffect(() => {
-    if (!user?.userid) return
+    if (!user?.userid) {
+      cleanUpSocket();
+      return;
+    }
 
     const task = runAfterIdle(() => {
-      void getAllExistingChats()
-      setupSocket()
-    })
+      void getAllExistingChats();
+      setupSocket();
+    });
 
-    return () => task.cancel()
-  }, [user?.userid, getAllExistingChats, setupSocket])
+    return () => {
+      task.cancel();
+    };
+  }, [user?.userid, getAllExistingChats, setupSocket, cleanUpSocket]);
 
-  // Reconnect immediately on app foreground if disconnected
+  // Reconnect immediately on app foreground only if user is logged in
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "active" && socket && !socket.connected) {
-        socket.connect()
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active' && user?.userid && socket && !socket.connected) {
+        socket.connect();
       }
-    })
-    return () => subscription.remove()
-  }, [socket])
+    });
+    return () => subscription.remove();
+  }, [socket, user?.userid]);
 
   const contextValue = useMemo<ChatContextType>(
     () => ({
@@ -260,8 +269,8 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       getAllExistingChats,
       cleanUpSocket,
     }),
-    [users, loading, onlineStatuses, currentChat, socket, getAllExistingChats, cleanUpSocket],
-  )
+    [users, loading, onlineStatuses, currentChat, socket, getAllExistingChats, cleanUpSocket]
+  );
 
-  return <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>
-}
+  return <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>;
+};

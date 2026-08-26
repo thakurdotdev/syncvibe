@@ -1,84 +1,84 @@
-const { Op } = require("sequelize")
-const UserEntitlement = require("../models/payment/userEntitlementModel")
-const Plan = require("../models/payment/planModel")
+const { Op } = require('sequelize');
+const UserEntitlement = require('../models/payment/userEntitlementModel');
+const Plan = require('../models/payment/planModel');
 
 const getActiveEntitlement = async (userid, planCode) => {
-  const plan = await Plan.findOne({ where: { code: planCode } })
-  if (!plan) return null
+  const plan = await Plan.findOne({ where: { code: planCode } });
+  if (!plan) return null;
 
   return UserEntitlement.findOne({
     where: {
       userid,
       planid: plan.planid,
-      status: "ACTIVE",
+      status: 'ACTIVE',
       [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }],
     },
-    include: [{ model: Plan, as: "plan" }],
-  })
-}
+    include: [{ model: Plan, as: 'plan' }],
+  });
+};
 
 const createProEntitlement = async (userid, paymentid, transaction = null) => {
-  const plan = await Plan.findOne({ where: { code: "PRO" } })
+  const plan = await Plan.findOne({ where: { code: 'PRO' } });
   if (!plan) {
-    throw new Error("PRO plan not found")
+    throw new Error('PRO plan not found');
   }
 
   const existing = await UserEntitlement.findOne({
     where: {
       userid,
       planid: plan.planid,
-      status: "ACTIVE",
+      status: 'ACTIVE',
       [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }],
     },
     transaction,
     lock: transaction?.LOCK.UPDATE,
-  })
+  });
 
   if (existing) {
-    return { created: false, entitlement: existing }
+    return { created: false, entitlement: existing };
   }
 
-  const now = new Date()
-  const expiresAt = new Date(now)
-  expiresAt.setFullYear(expiresAt.getFullYear() + 1)
+  const now = new Date();
+  const expiresAt = new Date(now);
+  expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 
   const entitlement = await UserEntitlement.create(
     {
       userid,
       planid: plan.planid,
       paymentid,
-      status: "ACTIVE",
+      status: 'ACTIVE',
       startsAt: now,
       expiresAt,
     },
-    { transaction },
-  )
+    { transaction }
+  );
 
-  return { created: true, entitlement }
-}
+  return { created: true, entitlement };
+};
 
 const hasFeatureAccess = async (userid, planCode) => {
-  const entitlement = await getActiveEntitlement(userid, planCode)
-  return !!entitlement
-}
+  const entitlement = await getActiveEntitlement(userid, planCode);
+  return !!entitlement;
+};
 
 const getUserEntitlement = async (userid) => {
   return UserEntitlement.findOne({
     where: {
       userid,
-      status: "ACTIVE",
+      status: 'ACTIVE',
       [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }],
     },
-    include: [{ model: Plan, as: "plan" }],
-    order: [["createdAt", "DESC"]],
-  })
-}
+    include: [{ model: Plan, as: 'plan' }],
+    order: [['createdAt', 'DESC']],
+  });
+};
 
 const getUserPlanLimits = async (userid) => {
-  const entitlement = await getUserEntitlement(userid)
-  if (entitlement?.plan) return entitlement.plan
-  return Plan.findOne({ where: { code: "FREE" } })
-}
+  const entitlement = await getUserEntitlement(userid);
+  if (entitlement?.plan) return entitlement.plan;
+  return Plan.findOne({ where: { code: 'FREE' } });
+};
 
 module.exports = {
   getActiveEntitlement,
@@ -86,4 +86,4 @@ module.exports = {
   hasFeatureAccess,
   getUserEntitlement,
   getUserPlanLimits,
-}
+};

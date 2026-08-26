@@ -1,5 +1,5 @@
-import { Feather, Ionicons } from "@expo/vector-icons"
-import React, { useCallback, useEffect, useRef } from "react"
+import { Feather, Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,19 +13,19 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import SwipeableModal from "@/components/SwipeableModal"
-import { Input } from "@/components/ui/input"
-import { useGroupMusic } from "@/context/GroupMusicContext"
-import { useTheme } from "@/context/ThemeContext"
-import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
-import { Song } from "@/types/song"
-import { useSharedValue } from "react-native-reanimated"
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import SwipeableModal from '@/components/SwipeableModal';
+import { Input } from '@/components/ui/input';
+import { useGroupMusic } from '@/context/GroupMusicContext';
+import { useTheme } from '@/context/ThemeContext';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import { Song } from '@/types/song';
+import { useSharedValue } from 'react-native-reanimated';
 
 interface SearchModalProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 const SearchResultItem = React.memo(
@@ -35,17 +35,17 @@ const SearchResultItem = React.memo(
     onAddToQueue,
     colors,
   }: {
-    item: Song
-    onPlayNow: (song: Song) => void
-    onAddToQueue: (song: Song) => void
-    colors: any
+    item: Song;
+    onPlayNow: (song: Song) => void;
+    onAddToQueue: (song: Song) => void;
+    colors: any;
   }) => {
-    const artist = item.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"
+    const artist = item.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
 
     return (
-      <View style={[styles.resultItem, { borderBottomColor: colors.border + "30" }]}>
+      <View style={[styles.resultItem, { borderBottomColor: colors.border + '30' }]}>
         <Image
-          source={{ uri: item.image?.[1]?.link || "https://via.placeholder.com/50" }}
+          source={{ uri: item.image?.[1]?.link || 'https://via.placeholder.com/50' }}
           style={[styles.resultArt, { backgroundColor: colors.secondary }]}
         />
         <View style={styles.resultInfo}>
@@ -62,69 +62,69 @@ const SearchResultItem = React.memo(
             style={[styles.actionButton, { backgroundColor: colors.primary }]}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Ionicons name="play" size={13} color={colors.primaryForeground} />
+            <Ionicons name='play' size={13} color={colors.primaryForeground} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onAddToQueue(item)}
             style={[styles.actionButton, { backgroundColor: colors.secondary }]}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Feather name="plus" size={14} color={colors.foreground} />
+            <Feather name='plus' size={14} color={colors.foreground} />
           </TouchableOpacity>
         </View>
       </View>
-    )
+    );
   }
-)
+);
 
 export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => {
-  const { colors } = useTheme()
-  const { playNow, addToQueue } = useGroupMusic()
-  const inputRef = useRef<TextInput>(null)
-  const insets = useSafeAreaInsets()
-  const scrollOffset = useSharedValue(0)
+  const { colors } = useTheme();
+  const { playNow, addToQueue } = useGroupMusic();
+  const inputRef = useRef<TextInput>(null);
+  const insets = useSafeAreaInsets();
+  const scrollOffset = useSharedValue(0);
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollOffset.value = event.nativeEvent.contentOffset.y
+      scrollOffset.value = event.nativeEvent.contentOffset.y;
     },
     [scrollOffset]
-  )
+  );
 
-  const searchQuery = useGroupSessionStore((s) => s.searchQuery)
-  const searchResults = useGroupSessionStore((s) => s.searchResults)
-  const isSearchLoading = useGroupSessionStore((s) => s.isSearchLoading)
+  const searchQuery = useGroupSessionStore((s) => s.searchQuery);
+  const searchResults = useGroupSessionStore((s) => s.searchResults);
+  const isSearchLoading = useGroupSessionStore((s) => s.isSearchLoading);
 
   useEffect(() => {
     if (isOpen) {
-      scrollOffset.value = 0
-      const timer = setTimeout(() => inputRef.current?.focus(), 350)
-      return () => clearTimeout(timer)
+      scrollOffset.value = 0;
+      const timer = setTimeout(() => inputRef.current?.focus(), 350);
+      return () => clearTimeout(timer);
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   const handleSearchChange = useCallback((query: string) => {
-    useGroupSessionStore.getState().performSearch(query)
-  }, [])
+    useGroupSessionStore.getState().performSearch(query);
+  }, []);
 
   const handleClose = useCallback(() => {
-    useGroupSessionStore.getState().clearSearch()
-    onClose()
-  }, [onClose])
+    useGroupSessionStore.getState().clearSearch();
+    onClose();
+  }, [onClose]);
 
   const handlePlayNow = useCallback(
     (song: Song) => {
-      playNow(song)
+      playNow(song);
     },
     [playNow]
-  )
+  );
 
   const handleAddToQueue = useCallback(
     (song: Song) => {
-      addToQueue(song)
+      addToQueue(song);
     },
     [addToQueue]
-  )
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: Song }) => (
@@ -136,18 +136,18 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
       />
     ),
     [handlePlayNow, handleAddToQueue, colors]
-  )
+  );
 
-  const keyExtractor = useCallback((item: Song) => item.id, [])
+  const keyExtractor = useCallback((item: Song) => item.id, []);
 
-  const statusBarHeight = Platform.OS === "android" ? StatusBar.currentHeight || 24 : insets.top
-  const topPadding = Math.max(statusBarHeight, insets.top || 0, 24)
+  const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : insets.top;
+  const topPadding = Math.max(statusBarHeight, insets.top || 0, 24);
 
   return (
     <SwipeableModal
       isVisible={isOpen}
       onClose={handleClose}
-      maxHeight="100%"
+      maxHeight='100%'
       scrollable={true}
       scrollOffset={scrollOffset}
       hideHandle={true}
@@ -156,20 +156,20 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
       <View style={styles.container}>
         <View style={[styles.searchHeader, { paddingTop: topPadding + 8 }]}>
           <TouchableOpacity onPress={handleClose} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.foreground} />
+            <Ionicons name='arrow-back' size={24} color={colors.foreground} />
           </TouchableOpacity>
           <Input
             ref={inputRef}
-            placeholder="Search for songs..."
+            placeholder='Search for songs...'
             value={searchQuery}
             onChangeText={handleSearchChange}
-            variant="filled"
+            variant='filled'
             containerStyle={styles.inputContainer}
-            leftIcon={<Feather name="search" size={16} color={colors.mutedForeground} />}
+            leftIcon={<Feather name='search' size={16} color={colors.mutedForeground} />}
             rightIcon={
               searchQuery ? (
-                <TouchableOpacity onPress={() => handleSearchChange("")}>
-                  <Feather name="x" size={16} color={colors.mutedForeground} />
+                <TouchableOpacity onPress={() => handleSearchChange('')}>
+                  <Feather name='x' size={16} color={colors.mutedForeground} />
                 </TouchableOpacity>
               ) : null
             }
@@ -178,7 +178,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
 
         {isSearchLoading ? (
           <View style={styles.centeredState}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size='large' color={colors.primary} />
           </View>
         ) : (
           <FlatList
@@ -188,14 +188,14 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
             ListEmptyComponent={
               searchQuery ? (
                 <View style={styles.centeredState}>
-                  <Feather name="search" size={28} color={colors.mutedForeground + "40"} />
+                  <Feather name='search' size={28} color={colors.mutedForeground + '40'} />
                   <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
                     No results found
                   </Text>
                 </View>
               ) : (
                 <View style={styles.centeredState}>
-                  <Feather name="search" size={28} color={colors.mutedForeground + "40"} />
+                  <Feather name='search' size={28} color={colors.mutedForeground + '40'} />
                   <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
                     Search for songs to add
                   </Text>
@@ -204,23 +204,23 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
             }
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps='handled'
             onScroll={handleScroll}
             scrollEventThrottle={16}
           />
         )}
       </View>
     </SwipeableModal>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
   searchHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
@@ -231,8 +231,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   centeredState: {
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 48,
     gap: 8,
   },
@@ -240,8 +240,8 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   resultItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   resultName: {
-    fontWeight: "500",
+    fontWeight: '500',
     fontSize: 14,
   },
   resultArtist: {
@@ -264,8 +264,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   actionButtons: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
     marginLeft: 8,
   },
@@ -273,11 +273,11 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyTitle: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
   },
-})
+});

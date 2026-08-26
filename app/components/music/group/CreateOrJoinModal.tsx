@@ -1,22 +1,16 @@
-import React, { useState } from "react"
-import {
-  Dimensions,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import SwipeableModal from "@/components/SwipeableModal"
-import { Input } from "@/components/ui/input"
-import { useTheme } from "@/context/ThemeContext"
+import React, { useState } from 'react';
+import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import SwipeableModal from '@/components/SwipeableModal';
+import { Input } from '@/components/ui/input';
+import { useTheme } from '@/context/ThemeContext';
 
 interface CreateOrJoinModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onCreateGroup: (name: string) => void
-  onJoinGroup: (id: string) => void
-  onScanQRCode: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  onCreateGroup: (name: string) => void;
+  onJoinGroup: (id: string) => void;
+  onScanQRCode: () => void;
 }
 
 export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
@@ -26,32 +20,32 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
   onJoinGroup,
   onScanQRCode,
 }) => {
-  const { colors } = useTheme()
-  const [tabIndex, setTabIndex] = useState(0)
-  const [newGroupName, setNewGroupName] = useState("")
-  const [groupId, setGroupId] = useState("")
+  const { colors } = useTheme();
+  const [tabIndex, setTabIndex] = useState(0);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [groupId, setGroupId] = useState('');
 
   const handleCreate = () => {
     if (newGroupName.trim()) {
-      onCreateGroup(newGroupName.trim())
-      setNewGroupName("")
-      onClose()
+      onCreateGroup(newGroupName.trim());
+      setNewGroupName('');
+      onClose();
     }
-  }
+  };
 
   const handleJoin = () => {
     if (groupId.trim()) {
-      onJoinGroup(groupId.trim())
-      setGroupId("")
-      onClose()
+      onJoinGroup(groupId.trim());
+      setGroupId('');
+      onClose();
     }
-  }
+  };
 
   return (
     <SwipeableModal
       isVisible={isOpen}
       onClose={onClose}
-      maxHeight={Dimensions.get("window").height * 0.85}
+      maxHeight={Dimensions.get('window').height * 0.85}
       scrollable
       useScrollView
     >
@@ -96,12 +90,12 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
         {tabIndex === 0 ? (
           <View>
             <Input
-              labelText="GROUP NAME"
-              placeholder="Enter a name for your group"
+              labelText='GROUP NAME'
+              placeholder='Enter a name for your group'
               value={newGroupName}
               onChangeText={setNewGroupName}
-              variant="outline"
-              size="lg"
+              variant='outline'
+              size='lg'
               containerStyle={styles.inputSpacing}
             />
             <TouchableOpacity
@@ -118,12 +112,12 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
         ) : (
           <View>
             <Input
-              labelText="GROUP ID"
-              placeholder="Enter the group ID to join"
+              labelText='GROUP ID'
+              placeholder='Enter the group ID to join'
               value={groupId}
               onChangeText={setGroupId}
-              variant="outline"
-              size="lg"
+              variant='outline'
+              size='lg'
               containerStyle={styles.inputSpacing}
             />
             <TouchableOpacity
@@ -156,13 +150,13 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
 
             <TouchableOpacity
               onPress={() => {
-                onClose()
-                onScanQRCode()
+                onClose();
+                onScanQRCode();
               }}
               style={[styles.secondaryButton, { backgroundColor: colors.secondary }]}
               activeOpacity={0.7}
             >
-              <Ionicons name="qr-code-outline" size={20} color={colors.foreground} />
+              <Ionicons name='qr-code-outline' size={20} color={colors.foreground} />
               <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
                 Scan QR Code
               </Text>
@@ -175,8 +169,8 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
         </TouchableOpacity>
       </View>
     </SwipeableModal>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   content: {
@@ -185,12 +179,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontWeight: "700",
-    textAlign: "center",
+    fontWeight: '700',
+    textAlign: 'center',
     marginBottom: 24,
   },
   tabBar: {
-    flexDirection: "row",
+    flexDirection: 'row',
     borderRadius: 12,
     marginBottom: 28,
     padding: 4,
@@ -202,8 +196,8 @@ const styles = StyleSheet.create({
   },
   tabActive: {},
   tabText: {
-    textAlign: "center",
-    fontWeight: "600",
+    textAlign: 'center',
+    fontWeight: '600',
     fontSize: 15,
   },
   inputSpacing: {
@@ -215,13 +209,13 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   primaryButtonText: {
-    fontWeight: "700",
-    textAlign: "center",
+    fontWeight: '700',
+    textAlign: 'center',
     fontSize: 16,
   },
   dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginVertical: 20,
   },
   dividerLine: {
@@ -231,27 +225,27 @@ const styles = StyleSheet.create({
   dividerText: {
     marginHorizontal: 16,
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   secondaryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 12,
     gap: 8,
   },
   secondaryButtonText: {
-    fontWeight: "600",
+    fontWeight: '600',
     fontSize: 16,
   },
   cancelButton: {
     marginTop: 32,
     paddingVertical: 12,
-    alignItems: "center",
+    alignItems: 'center',
   },
   cancelText: {
     fontSize: 15,
-    fontWeight: "500",
+    fontWeight: '500',
   },
-})
+});

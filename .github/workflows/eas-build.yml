@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       wait:
-        description: "Wait for build to complete in GitHub Actions log"
+        description: 'Wait for build to complete in GitHub Actions log'
         required: false
         type: boolean
         default: false

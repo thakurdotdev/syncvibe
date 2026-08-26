@@ -1,5 +1,5 @@
-import { useTheme } from "@/context/ThemeContext"
-import React, { memo, useCallback } from "react"
+import { useTheme } from '@/context/ThemeContext';
+import React, { memo, useCallback } from 'react';
 import {
   FlatList,
   Pressable,
@@ -9,50 +9,46 @@ import {
   TextStyle,
   View,
   ViewStyle,
-} from "react-native"
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from "react-native-reanimated"
+} from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 export interface TabItem<T extends string = string> {
-  id: T
-  label: string
-  count?: number | string
-  icon?: (props: { size: number; color: string }) => React.ReactNode
-  disabled?: boolean
+  id: T;
+  label: string;
+  count?: number | string;
+  icon?: (props: { size: number; color: string }) => React.ReactNode;
+  disabled?: boolean;
 }
 
-export type TabsVariant = "pills" | "underlined" | "segmented"
-export type TabsSize = "sm" | "md" | "lg"
+export type TabsVariant = 'pills' | 'underlined' | 'segmented';
+export type TabsSize = 'sm' | 'md' | 'lg';
 
 export interface TabsProps<T extends string = string> {
-  tabs: TabItem<T>[]
-  activeTab: T
-  onTabChange: (tabId: T) => void
-  variant?: TabsVariant
-  size?: TabsSize
-  scrollable?: boolean
-  containerStyle?: StyleProp<ViewStyle>
-  tabStyle?: StyleProp<ViewStyle>
-  activeTabStyle?: StyleProp<ViewStyle>
-  textStyle?: StyleProp<TextStyle>
-  activeTextStyle?: StyleProp<TextStyle>
+  tabs: TabItem<T>[];
+  activeTab: T;
+  onTabChange: (tabId: T) => void;
+  variant?: TabsVariant;
+  size?: TabsSize;
+  scrollable?: boolean;
+  containerStyle?: StyleProp<ViewStyle>;
+  tabStyle?: StyleProp<ViewStyle>;
+  activeTabStyle?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
+  activeTextStyle?: StyleProp<TextStyle>;
 }
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface SingleTabProps<T extends string> {
-  tab: TabItem<T>
-  isActive: boolean
-  onPress: (id: T) => void
-  variant: TabsVariant
-  size: TabsSize
-  tabStyle?: StyleProp<ViewStyle>
-  activeTabStyle?: StyleProp<ViewStyle>
-  textStyle?: StyleProp<TextStyle>
-  activeTextStyle?: StyleProp<TextStyle>
+  tab: TabItem<T>;
+  isActive: boolean;
+  onPress: (id: T) => void;
+  variant: TabsVariant;
+  size: TabsSize;
+  tabStyle?: StyleProp<ViewStyle>;
+  activeTabStyle?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
+  activeTextStyle?: StyleProp<TextStyle>;
 }
 
 const TabButton = memo(function TabButton<T extends string>({
@@ -66,62 +62,52 @@ const TabButton = memo(function TabButton<T extends string>({
   textStyle,
   activeTextStyle,
 }: SingleTabProps<T>) {
-  const { colors, theme } = useTheme()
-  const scale = useSharedValue(1)
-  const isDark = theme === "dark"
+  const { colors, theme } = useTheme();
+  const scale = useSharedValue(1);
+  const isDark = theme === 'dark';
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
-  }))
+  }));
 
   const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.95, { damping: 15, stiffness: 350 })
-  }, [scale])
+    scale.value = withSpring(0.95, { damping: 15, stiffness: 350 });
+  }, [scale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 350 })
-  }, [scale])
+    scale.value = withSpring(1, { damping: 15, stiffness: 350 });
+  }, [scale]);
 
   const handlePress = useCallback(() => {
     if (!tab.disabled) {
-      onPress(tab.id)
+      onPress(tab.id);
     }
-  }, [tab.disabled, tab.id, onPress])
+  }, [tab.disabled, tab.id, onPress]);
 
-  const isSmall = size === "sm"
-  const isLarge = size === "lg"
+  const isSmall = size === 'sm';
+  const isLarge = size === 'lg';
 
-  const paddingVertical = isSmall ? 6 : isLarge ? 10 : 8
-  const paddingHorizontal = isSmall ? 12 : isLarge ? 18 : 14
-  const fontSize = isSmall ? 12.5 : isLarge ? 15 : 13.5
+  const paddingVertical = isSmall ? 6 : isLarge ? 10 : 8;
+  const paddingHorizontal = isSmall ? 12 : isLarge ? 18 : 14;
+  const fontSize = isSmall ? 12.5 : isLarge ? 15 : 13.5;
 
   const activeBg =
-    variant === "segmented"
-      ? isDark
-        ? "rgba(255,255,255,0.15)"
-        : colors.card
-      : colors.primary
+    variant === 'segmented' ? (isDark ? 'rgba(255,255,255,0.15)' : colors.card) : colors.primary;
 
   const inactiveBg =
-    variant === "segmented"
-      ? "transparent"
+    variant === 'segmented'
+      ? 'transparent'
       : isDark
-        ? "rgba(255,255,255,0.06)"
-        : "rgba(0,0,0,0.04)"
+        ? 'rgba(255,255,255,0.06)'
+        : 'rgba(0,0,0,0.04)';
 
-  const activeTextColor =
-    variant === "segmented"
-      ? colors.foreground
-      : colors.primaryForeground
+  const activeTextColor = variant === 'segmented' ? colors.foreground : colors.primaryForeground;
 
-  const inactiveTextColor = colors.mutedForeground
+  const inactiveTextColor = colors.mutedForeground;
 
-  const activeBorderColor =
-    variant === "underlined"
-      ? colors.primary
-      : "transparent"
+  const activeBorderColor = variant === 'underlined' ? colors.primary : 'transparent';
 
-  const iconColor = isActive ? activeTextColor : inactiveTextColor
+  const iconColor = isActive ? activeTextColor : inactiveTextColor;
 
   return (
     <AnimatedPressable
@@ -129,16 +115,17 @@ const TabButton = memo(function TabButton<T extends string>({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={tab.disabled}
-      accessibilityRole="tab"
+      accessibilityRole='tab'
       accessibilityState={{ selected: isActive, disabled: tab.disabled }}
       style={[
         styles.tabButton,
         {
           paddingVertical,
           paddingHorizontal,
-          backgroundColor: variant === "underlined" ? "transparent" : isActive ? activeBg : inactiveBg,
-          borderRadius: variant === "underlined" ? 0 : 20,
-          borderBottomWidth: variant === "underlined" ? 2.5 : 0,
+          backgroundColor:
+            variant === 'underlined' ? 'transparent' : isActive ? activeBg : inactiveBg,
+          borderRadius: variant === 'underlined' ? 0 : 20,
+          borderBottomWidth: variant === 'underlined' ? 2.5 : 0,
           borderBottomColor: activeBorderColor,
         },
         tabStyle,
@@ -156,7 +143,7 @@ const TabButton = memo(function TabButton<T extends string>({
             {
               fontSize,
               color: isActive ? activeTextColor : inactiveTextColor,
-              fontWeight: isActive ? "700" : "600",
+              fontWeight: isActive ? '700' : '600',
             },
             textStyle,
             isActive && activeTextStyle,
@@ -172,12 +159,12 @@ const TabButton = memo(function TabButton<T extends string>({
               styles.badge,
               {
                 backgroundColor: isActive
-                  ? variant === "segmented"
-                    ? colors.primary + "25"
-                    : "rgba(255,255,255,0.22)"
+                  ? variant === 'segmented'
+                    ? colors.primary + '25'
+                    : 'rgba(255,255,255,0.22)'
                   : isDark
-                    ? "rgba(255,255,255,0.09)"
-                    : "rgba(0,0,0,0.07)",
+                    ? 'rgba(255,255,255,0.09)'
+                    : 'rgba(0,0,0,0.07)',
               },
             ]}
           >
@@ -196,15 +183,15 @@ const TabButton = memo(function TabButton<T extends string>({
         )}
       </View>
     </AnimatedPressable>
-  )
-}) as <T extends string>(props: SingleTabProps<T>) => React.ReactElement | null
+  );
+}) as <T extends string>(props: SingleTabProps<T>) => React.ReactElement | null;
 
 export function Tabs<T extends string = string>({
   tabs,
   activeTab,
   onTabChange,
-  variant = "pills",
-  size = "md",
+  variant = 'pills',
+  size = 'md',
   scrollable = true,
   containerStyle,
   tabStyle,
@@ -212,8 +199,8 @@ export function Tabs<T extends string = string>({
   textStyle,
   activeTextStyle,
 }: TabsProps<T>) {
-  const { colors, theme } = useTheme()
-  const isDark = theme === "dark"
+  const { colors, theme } = useTheme();
+  const isDark = theme === 'dark';
 
   const renderTab = useCallback(
     ({ item }: { item: TabItem<T> }) => (
@@ -229,21 +216,21 @@ export function Tabs<T extends string = string>({
         activeTextStyle={activeTextStyle}
       />
     ),
-    [activeTab, onTabChange, variant, size, tabStyle, activeTabStyle, textStyle, activeTextStyle],
-  )
+    [activeTab, onTabChange, variant, size, tabStyle, activeTabStyle, textStyle, activeTextStyle]
+  );
 
-  const keyExtractor = useCallback((item: TabItem<T>) => item.id, [])
+  const keyExtractor = useCallback((item: TabItem<T>) => item.id, []);
 
-  if (!tabs || tabs.length === 0) return null
+  if (!tabs || tabs.length === 0) return null;
 
-  if (variant === "segmented") {
+  if (variant === 'segmented') {
     return (
       <View
         style={[
           styles.segmentedContainer,
           {
-            backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-            borderColor: colors.border + "40",
+            backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+            borderColor: colors.border + '40',
           },
           containerStyle,
         ]}
@@ -263,7 +250,7 @@ export function Tabs<T extends string = string>({
           />
         ))}
       </View>
-    )
+    );
   }
 
   if (scrollable) {
@@ -278,7 +265,7 @@ export function Tabs<T extends string = string>({
           contentContainerStyle={styles.scrollContent}
         />
       </View>
-    )
+    );
   }
 
   return (
@@ -298,7 +285,7 @@ export function Tabs<T extends string = string>({
         />
       ))}
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -308,19 +295,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     gap: 8,
-    alignItems: "center",
+    alignItems: 'center',
   },
   staticContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
     paddingHorizontal: 16,
     marginVertical: 8,
     gap: 8,
   },
   segmentedContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 4,
     borderRadius: 24,
     borderWidth: 1,
@@ -328,12 +315,12 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   tabButton: {
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabContent: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   tabText: {
@@ -343,12 +330,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badgeText: {
-    fontWeight: "700",
+    fontWeight: '700',
   },
-})
+});
 
-export default memo(Tabs) as typeof Tabs
+export default memo(Tabs) as typeof Tabs;

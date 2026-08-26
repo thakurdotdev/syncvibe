@@ -1,42 +1,42 @@
-import React, { useMemo } from "react"
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
-import { Feather } from "@expo/vector-icons"
-import Card from "@/components/ui/card"
-import { useTheme } from "@/context/ThemeContext"
-import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
-import { getProfileCloudinaryUrl } from "@/utils/Cloudinary"
+import React, { useMemo } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import Card from '@/components/ui/card';
+import { useTheme } from '@/context/ThemeContext';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 
 interface ChatPeekProps {
-  onOpenChat: () => void
+  onOpenChat: () => void;
 }
 
 export const ChatPeek: React.FC<ChatPeekProps> = ({ onOpenChat }) => {
-  const { colors } = useTheme()
-  const messages = useGroupSessionStore((s) => s.messages)
+  const { colors } = useTheme();
+  const messages = useGroupSessionStore((s) => s.messages);
 
   const lastMessage = useMemo(() => {
-    const textMessages = messages.filter((m) => m.type !== "activity")
-    return textMessages.length > 0 ? textMessages[textMessages.length - 1] : null
-  }, [messages])
+    const textMessages = messages.filter((m) => m.type !== 'activity');
+    return textMessages.length > 0 ? textMessages[textMessages.length - 1] : null;
+  }, [messages]);
 
   const previewText = lastMessage
-    ? lastMessage.messageType === "gif"
-      ? "sent a GIF"
-      : lastMessage.messageType === "sound"
-        ? `🔊 ${lastMessage.soundName || "Sound"}`
+    ? lastMessage.messageType === 'gif'
+      ? 'sent a GIF'
+      : lastMessage.messageType === 'sound'
+        ? `🔊 ${lastMessage.soundName || 'Sound'}`
         : lastMessage.message
-    : null
+    : null;
 
   return (
-    <Card variant="default" style={styles.container}>
+    <Card variant='default' style={styles.container}>
       <TouchableOpacity
         onPress={onOpenChat}
         activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel="Open group chat"
+        accessibilityRole='button'
+        accessibilityLabel='Open group chat'
         style={styles.inner}
       >
-        <Feather name="message-circle" size={15} color={colors.mutedForeground} />
+        <Feather name='message-circle' size={15} color={colors.mutedForeground} />
 
         {lastMessage ? (
           <View style={styles.previewContent}>
@@ -44,20 +44,14 @@ export const ChatPeek: React.FC<ChatPeekProps> = ({ onOpenChat }) => {
               source={{
                 uri:
                   getProfileCloudinaryUrl(lastMessage.profilePic) ||
-                  "https://via.placeholder.com/18",
+                  'https://via.placeholder.com/18',
               }}
               style={[styles.miniAvatar, { backgroundColor: colors.secondary }]}
             />
-            <Text
-              style={[styles.previewName, { color: colors.mutedForeground }]}
-              numberOfLines={1}
-            >
+            <Text style={[styles.previewName, { color: colors.mutedForeground }]} numberOfLines={1}>
               {lastMessage.userName}
             </Text>
-            <Text
-              style={[styles.previewText, { color: colors.foreground }]}
-              numberOfLines={1}
-            >
+            <Text style={[styles.previewText, { color: colors.foreground }]} numberOfLines={1}>
               {previewText}
             </Text>
           </View>
@@ -67,11 +61,11 @@ export const ChatPeek: React.FC<ChatPeekProps> = ({ onOpenChat }) => {
           </Text>
         )}
 
-        <Feather name="chevron-right" size={16} color={colors.mutedForeground + "60"} />
+        <Feather name='chevron-right' size={16} color={colors.mutedForeground + '60'} />
       </TouchableOpacity>
     </Card>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -81,14 +75,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   inner: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   previewContent: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   miniAvatar: {
@@ -98,7 +92,7 @@ const styles = StyleSheet.create({
   },
   previewName: {
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: '600',
     flexShrink: 0,
   },
   previewText: {
@@ -107,7 +101,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: '500',
     flex: 1,
   },
-})
+});

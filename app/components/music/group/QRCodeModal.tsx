@@ -1,16 +1,16 @@
-import React from "react"
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
-import SwipeableModal from "@/components/SwipeableModal"
-import { useTheme } from "@/context/ThemeContext"
+import React from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import SwipeableModal from '@/components/SwipeableModal';
+import { useTheme } from '@/context/ThemeContext';
 
 interface QRCodeModalProps {
-  isOpen: boolean
-  onClose: () => void
-  qrCode: string
+  isOpen: boolean;
+  onClose: () => void;
+  qrCode: string;
 }
 
 export const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, qrCode }) => {
-  const { colors } = useTheme()
+  const { colors } = useTheme();
 
   return (
     <SwipeableModal isVisible={isOpen} onClose={onClose}>
@@ -20,7 +20,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, qrCod
           <Image
             source={{ uri: `data:image/png;base64,${qrCode}` }}
             style={styles.qrImage}
-            resizeMode="contain"
+            resizeMode='contain'
           />
         </View>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
@@ -31,18 +31,18 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, qrCod
         </TouchableOpacity>
       </View>
     </SwipeableModal>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   content: {
     padding: 24,
-    alignItems: "center",
+    alignItems: 'center',
   },
   title: {
     fontSize: 20,
-    fontWeight: "700",
-    textAlign: "center",
+    fontWeight: '700',
+    textAlign: 'center',
     marginTop: 8,
     marginBottom: 24,
   },
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     marginTop: 20,
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 20,
   },
   closeButton: {
@@ -65,8 +65,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   closeText: {
-    textAlign: "center",
+    textAlign: 'center',
     fontSize: 15,
-    fontWeight: "500",
+    fontWeight: '500',
   },
-})
+});

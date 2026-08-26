@@ -1,7 +1,12 @@
 packages:
   - client
   - server
+  - app
 
-onlyBuiltDependencies:
-  - bcrypt
-  - esbuild
+allowBuilds:
+  bcrypt: true
+  esbuild: true
+  unrs-resolver: true
+
+overrides:
+  lightningcss: 1.30.1

@@ -1,7 +1,7 @@
-const { DataTypes, Model } = require("sequelize")
-const sequelize = require("../utils/sequelize")
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../utils/sequelize');
 
-class AppUpdate extends Model { }
+class AppUpdate extends Model {}
 
 AppUpdate.init(
   {
@@ -49,10 +49,10 @@ AppUpdate.init(
   },
   {
     sequelize,
-    modelName: "AppUpdate",
-    tableName: "app_updates",
+    modelName: 'AppUpdate',
+    tableName: 'app_updates',
     timestamps: true,
-  },
-)
+  }
+);
 
-module.exports = AppUpdate
+module.exports = AppUpdate;

@@ -1,195 +1,195 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react"
-import { useNavigate } from "react-router-dom"
-import { toast } from "sonner"
-import { useSocket } from "@/Context/ChatContext"
-import { useProfile } from "@/Context/Context"
-import InviteNotification from "@/components/InviteNotification"
-import UpgradeDialog from "@/components/UpgradeDialog"
-import { useGroupInviteStore } from "@/stores/groupMusic/inviteStore"
-import { useGroupPlaybackStore } from "@/stores/groupMusic/playbackStore"
-import { useGroupSessionStore } from "@/stores/groupMusic/sessionStore"
-import { soundEffectsManager } from "@/lib/soundEffectsManager"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useSocket } from '@/Context/ChatContext';
+import { useProfile } from '@/Context/Context';
+import InviteNotification from '@/components/InviteNotification';
+import UpgradeDialog from '@/components/UpgradeDialog';
+import { useGroupInviteStore } from '@/stores/groupMusic/inviteStore';
+import { useGroupPlaybackStore } from '@/stores/groupMusic/playbackStore';
+import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
+import { soundEffectsManager } from '@/lib/soundEffectsManager';
 
-export const GroupMusicContext = createContext(null)
+export const GroupMusicContext = createContext(null);
 
 export function GroupMusicProvider({ children }) {
-  const { socket } = useSocket()
-  const { user } = useProfile()
-  const navigate = useNavigate()
+  const { socket } = useSocket();
+  const { user } = useProfile();
+  const navigate = useNavigate();
 
-  const audioRef = useRef(null)
-  const syncIntervalRef = useRef(null)
-  const periodicSyncRef = useRef(null)
-  const hasAttemptedRejoinRef = useRef(false)
+  const audioRef = useRef(null);
+  const syncIntervalRef = useRef(null);
+  const periodicSyncRef = useRef(null);
+  const hasAttemptedRejoinRef = useRef(false);
 
-  const playback = useGroupPlaybackStore()
-  const session = useGroupSessionStore()
-  const invite = useGroupInviteStore()
+  const playback = useGroupPlaybackStore();
+  const session = useGroupSessionStore();
+  const invite = useGroupInviteStore();
 
   useEffect(() => {
     if (audioRef.current) {
-      useGroupPlaybackStore.getState().setAudioRef(audioRef.current)
+      useGroupPlaybackStore.getState().setAudioRef(audioRef.current);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
     if (playback.currentSong) {
       playback.updateMediaSession(
         playback.currentSong,
         (force) => playback.handlePlayPause(socket, session.currentGroup?.id, force),
-        () => session.skipSong(socket, user),
-      )
+        () => session.skipSong(socket, user)
+      );
     }
-  }, [playback.currentSong])
+  }, [playback.currentSong]);
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (useGroupSessionStore.getState().currentGroup) {
-        e.preventDefault()
-        e.returnValue = "You are in a music group. Your session will be restored when you return."
-        return e.returnValue
+        e.preventDefault();
+        e.returnValue = 'You are in a music group. Your session will be restored when you return.';
+        return e.returnValue;
       }
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload)
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
-  }, [])
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      const activeGroup = useGroupSessionStore.getState().currentGroup
-      if (!activeGroup) return
+      const activeGroup = useGroupSessionStore.getState().currentGroup;
+      if (!activeGroup) return;
 
       if (
-        e.key === " " &&
+        e.key === ' ' &&
         document.activeElement &&
-        !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)
+        !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)
       ) {
-        e.preventDefault()
-        playback.handlePlayPause(socket, activeGroup.id)
+        e.preventDefault();
+        playback.handlePlayPause(socket, activeGroup.id);
       }
-      if (e.key === "ArrowRight") {
-        session.skipSong(socket, user)
+      if (e.key === 'ArrowRight') {
+        session.skipSong(socket, user);
       }
-    }
+    };
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [socket, user, playback, session])
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-        Notification.requestPermission()
-      }
-    }
-  }, [])
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [socket, user, playback, session]);
 
   useEffect(() => {
-    if (!socket) return
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!socket) return;
 
     const syncWithServer = () => {
-      const startTime = Date.now()
-      socket.emit("time-sync-request", { clientTime: startTime })
-    }
+      const startTime = Date.now();
+      socket.emit('time-sync-request', { clientTime: startTime });
+    };
 
-    socket.on("time-sync-response", (data) => {
-      useGroupPlaybackStore.getState().processTimeSyncResponse(data.clientTime, data.serverTime)
-    })
+    socket.on('time-sync-response', (data) => {
+      useGroupPlaybackStore.getState().processTimeSyncResponse(data.clientTime, data.serverTime);
+    });
 
-    syncWithServer()
-    const fastInterval = setInterval(syncWithServer, 3000)
+    syncWithServer();
+    const fastInterval = setInterval(syncWithServer, 3000);
 
     const settleTimeout = setTimeout(() => {
-      clearInterval(fastInterval)
-      syncIntervalRef.current = setInterval(syncWithServer, 5000)
-    }, 15000)
+      clearInterval(fastInterval);
+      syncIntervalRef.current = setInterval(syncWithServer, 5000);
+    }, 15000);
 
     return () => {
-      clearInterval(fastInterval)
-      clearTimeout(settleTimeout)
-      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current)
-      socket.off("time-sync-response")
-    }
-  }, [socket])
+      clearInterval(fastInterval);
+      clearTimeout(settleTimeout);
+      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+      socket.off('time-sync-response');
+    };
+  }, [socket]);
 
   useEffect(() => {
-    const currentGroup = useGroupSessionStore.getState().currentGroup
-    if (!currentGroup || !socket) return
+    const currentGroup = useGroupSessionStore.getState().currentGroup;
+    if (!currentGroup || !socket) return;
 
     const requestSync = () => {
-      socket.emit("request-sync", { groupId: currentGroup.id })
-    }
+      socket.emit('request-sync', { groupId: currentGroup.id });
+    };
 
-    periodicSyncRef.current = setInterval(requestSync, 10000)
+    periodicSyncRef.current = setInterval(requestSync, 10000);
     return () => {
-      if (periodicSyncRef.current) clearInterval(periodicSyncRef.current)
-    }
-  }, [session.currentGroup, socket])
+      if (periodicSyncRef.current) clearInterval(periodicSyncRef.current);
+    };
+  }, [session.currentGroup, socket]);
 
   useEffect(() => {
-    if (!socket || !user?.userid) return
+    if (!socket || !user?.userid) return;
 
     const handleSetupComplete = () => {
       if (!hasAttemptedRejoinRef.current) {
-        const stored = useGroupSessionStore.getState().getStoredSession()
+        const stored = useGroupSessionStore.getState().getStoredSession();
         if (stored?.groupId) {
-          hasAttemptedRejoinRef.current = true
-          useGroupSessionStore.getState().rejoinGroup(socket, user, stored.groupId)
+          hasAttemptedRejoinRef.current = true;
+          useGroupSessionStore.getState().rejoinGroup(socket, user, stored.groupId);
         }
       }
-      socket.emit("get-pending-invites")
-    }
+      socket.emit('get-pending-invites');
+    };
 
-    socket.on("setup-complete", handleSetupComplete)
-    return () => socket.off("setup-complete", handleSetupComplete)
-  }, [socket, user])
+    socket.on('setup-complete', handleSetupComplete);
+    return () => socket.off('setup-complete', handleSetupComplete);
+  }, [socket, user]);
 
   useEffect(() => {
-    if (!socket) return
+    if (!socket) return;
 
-    const getGroupId = () => useGroupSessionStore.getState().currentGroup?.id
-    const pb = useGroupPlaybackStore
-    const ss = useGroupSessionStore
-    const inv = useGroupInviteStore
+    const getGroupId = () => useGroupSessionStore.getState().currentGroup?.id;
+    const pb = useGroupPlaybackStore;
+    const ss = useGroupSessionStore;
+    const inv = useGroupInviteStore;
 
-    socket.on("sync-state", async (data) => {
+    socket.on('sync-state', async (data) => {
       if (data.queue) {
-        ss.setState({ queue: data.queue, currentQueueIndex: data.currentQueueIndex })
+        ss.setState({ queue: data.queue, currentQueueIndex: data.currentQueueIndex });
       }
-      await pb.getState().handleSyncState(data, socket, getGroupId())
-    })
+      await pb.getState().handleSyncState(data, socket, getGroupId());
+    });
 
-    socket.on("queue-updated", (data) => {
-      const { queue, currentQueueIndex, action, item } = data
-      ss.setState({ queue, currentQueueIndex })
-      pb.getState().preloadUpcoming(queue, currentQueueIndex)
+    socket.on('queue-updated', (data) => {
+      const { queue, currentQueueIndex, action, item } = data;
+      ss.setState({ queue, currentQueueIndex });
+      pb.getState().preloadUpcoming(queue, currentQueueIndex);
 
-      if (action === "remove") toast.info("Song removed from queue")
-      else if (action === "skip") toast.info("Skipped to next song")
-    })
+      if (action === 'remove') toast.info('Song removed from queue');
+      else if (action === 'skip') toast.info('Skipped to next song');
+    });
 
-    socket.on("queue-error", ({ error }) => toast.error(error))
+    socket.on('queue-error', ({ error }) => toast.error(error));
 
-    socket.on("queue-ended", () => {
-      pb.setState({ isPlaying: false })
-      toast.info("Queue ended")
-    })
+    socket.on('queue-ended', () => {
+      pb.setState({ isPlaying: false });
+      toast.info('Queue ended');
+    });
 
-    socket.on("playback-update", (data) => {
-      pb.getState().handlePlaybackUpdate(data)
-    })
+    socket.on('playback-update', (data) => {
+      pb.getState().handlePlaybackUpdate(data);
+    });
 
-    socket.on("music-update", async (data) => {
-      await pb.getState().handleMusicUpdate(data, socket, getGroupId())
-    })
+    socket.on('music-update', async (data) => {
+      await pb.getState().handleMusicUpdate(data, socket, getGroupId());
+    });
 
-    socket.on("group-created", (group) => {
-      ss.getState().handleGroupCreated(group, user, (v) => inv.setState({ isInviteSheetOpen: v }))
-    })
+    socket.on('group-created', (group) => {
+      ss.getState().handleGroupCreated(group, user, (v) => inv.setState({ isInviteSheetOpen: v }));
+    });
 
-    socket.on("group-joined", async (data) => {
-      ss.getState().handleGroupJoined(data)
-      const offset = pb.getState().serverTimeOffset
+    socket.on('group-joined', async (data) => {
+      ss.getState().handleGroupJoined(data);
+      const offset = pb.getState().serverTimeOffset;
       await pb
         .getState()
         .syncPlaybackFromServer(
@@ -198,13 +198,13 @@ export function GroupMusicProvider({ children }) {
           data.currentQueueIndex,
           socket,
           data.group.id,
-          offset,
-        )
-    })
+          offset
+        );
+    });
 
-    socket.on("group-rejoined", async (data) => {
-      ss.getState().handleGroupRejoined(data)
-      const offset = pb.getState().serverTimeOffset
+    socket.on('group-rejoined', async (data) => {
+      ss.getState().handleGroupRejoined(data);
+      const offset = pb.getState().serverTimeOffset;
       await pb
         .getState()
         .syncPlaybackFromServer(
@@ -213,279 +213,280 @@ export function GroupMusicProvider({ children }) {
           data.currentQueueIndex,
           socket,
           data.group.id,
-          offset,
-        )
-    })
+          offset
+        );
+    });
 
-    socket.on("group-not-found", () => {
-      ss.setState({ isRejoining: false })
-      ss.getState().clearSession()
-      toast.error("The group no longer exists")
-    })
+    socket.on('group-not-found', () => {
+      ss.setState({ isRejoining: false });
+      ss.getState().clearSession();
+      toast.error('The group no longer exists');
+    });
 
-    socket.on("member-joined", (member) => {
+    socket.on('member-joined', (member) => {
       ss.setState((state) => {
-        if (state.groupMembers.find((m) => m.userId === member.userId)) return state
-        return { groupMembers: [...state.groupMembers, member] }
-      })
-      toast.info(`${member.userName} joined the group`)
-    })
+        if (state.groupMembers.find((m) => String(m.userId) === String(member.userId)))
+          return state;
+        return { groupMembers: [...state.groupMembers, member] };
+      });
+      toast.info(`${member.userName} joined the group`);
+    });
 
-    socket.on("member-left", ({ userId }) => {
-      if (!userId) return
-      const members = ss.getState().groupMembers
-      const member = members.find((m) => m.userId === userId)
-      if (member) toast.info(`${member.userName} left the group`)
-      ss.setState({ groupMembers: members.filter((m) => m.userId !== userId) })
-    })
+    socket.on('member-left', ({ userId }) => {
+      if (!userId) return;
+      const members = ss.getState().groupMembers;
+      const member = members.find((m) => String(m.userId) === String(userId));
+      if (member) toast.info(`${member.userName} left the group`);
+      ss.setState({ groupMembers: members.filter((m) => String(m.userId) !== String(userId)) });
+    });
 
-    socket.on("group-disbanded", () => {
-      ss.getState().resetSession(() => pb.getState().reset())
-      toast.info("Group disbanded")
-    })
+    socket.on('group-disbanded', () => {
+      ss.getState().resetSession(() => pb.getState().reset());
+      toast.info('Group disbanded');
+    });
 
-    socket.on("new-message", (message) => {
+    socket.on('new-message', (message) => {
       // Append incoming message to group chat messages store
-      ss.setState((state) => ({ messages: [...state.messages, message] }))
+      ss.setState((state) => ({ messages: [...state.messages, message] }));
 
       // When a sound effect arrives
-      if (message.messageType === "sound" && message.soundUrl) {
+      if (message.messageType === 'sound' && message.soundUrl) {
         ss.getState().triggerSoundEffectAnimation({
           id: message.id || String(Date.now()),
-          soundName: message.soundName || message.message || "Sound Effect",
+          soundName: message.soundName || message.message || 'Sound Effect',
           soundUrl: message.soundUrl,
-          userName: message.userName || "Someone",
+          userName: message.userName || 'Someone',
           profilePic: message.profilePic,
           senderId: message.senderId,
           timestamp: Date.now(),
-        })
+        });
 
         // Auto-play incoming sound effect if enabled by user
         const isSfxAutoPlay =
-          typeof window !== "undefined"
-            ? localStorage.getItem("syncvibe_sfx_autoplay") !== "false"
-            : true
+          typeof window !== 'undefined'
+            ? localStorage.getItem('syncvibe_sfx_autoplay') !== 'false'
+            : true;
         if (isSfxAutoPlay) {
-          soundEffectsManager.playRoomEffect(message.soundUrl)
+          soundEffectsManager.playRoomEffect(message.soundUrl);
         }
       }
 
       if (
-        message.type !== "activity" &&
+        message.type !== 'activity' &&
         message.senderId !== user?.userid &&
-        typeof window !== "undefined" &&
-        "Notification" in window &&
-        Notification.permission === "granted"
+        typeof window !== 'undefined' &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
       ) {
         try {
-          new Notification(message.userName || "SyncVibe Chat", {
+          new Notification(message.userName || 'SyncVibe Chat', {
             body: message.message,
-            icon: message.profilePic || "/favicon.ico",
-            tag: "syncvibe-group-chat",
+            icon: message.profilePic || '/favicon.ico',
+            tag: 'syncvibe-group-chat',
             renotify: true,
-          })
+          });
         } catch (err) {
-          console.error("Error displaying notification:", err)
+          console.error('Error displaying notification:', err);
         }
       }
-    })
+    });
 
-    socket.on("group-full", ({ maxMembers, message }) => {
+    socket.on('group-full', ({ maxMembers, message }) => {
       ss.setState({
         upgradeDialog: {
           open: true,
-          feature: "groupMembers",
+          feature: 'groupMembers',
           message: message || `Group is full (${maxMembers} members max)`,
         },
-      })
-    })
+      });
+    });
 
-    socket.on("feature-locked", ({ feature, message }) => {
+    socket.on('feature-locked', ({ feature, message }) => {
       ss.setState({
         upgradeDialog: {
           open: true,
-          feature: feature || "default",
-          message: message || "This feature requires PRO plan",
+          feature: feature || 'default',
+          message: message || 'This feature requires PRO plan',
         },
-      })
-    })
+      });
+    });
 
-    socket.on("group-invite-received", (inviteData) => {
-      if (ss.getState().currentGroup) return
-      inv.setState({ pendingInvite: inviteData })
-    })
+    socket.on('group-invite-received', (inviteData) => {
+      if (ss.getState().currentGroup) return;
+      inv.setState({ pendingInvite: inviteData });
+    });
 
-    socket.on("invite-sent", () => toast.success("Invite sent!"))
-    socket.on("invite-error", ({ error }) => toast.error(error))
-    socket.on("invite-accepted", ({ userName }) =>
-      toast.success(`${userName} accepted the invite!`),
-    )
-    socket.on("group-invite-declined", () => toast.info("Invite was declined"))
+    socket.on('invite-sent', () => toast.success('Invite sent!'));
+    socket.on('invite-error', ({ error }) => toast.error(error));
+    socket.on('invite-accepted', ({ userName }) =>
+      toast.success(`${userName} accepted the invite!`)
+    );
+    socket.on('group-invite-declined', () => toast.info('Invite was declined'));
 
-    socket.on("song-reaction", (data) => {
+    socket.on('song-reaction', (data) => {
       ss.setState((state) => ({
         floatingReactions: [...state.floatingReactions.slice(-20), data],
-      }))
-    })
+      }));
+    });
 
-    const typingTimers = {}
-    socket.on("user-typing", (data) => {
-      const { userId: typingUserId, userName, isTyping } = data
+    const typingTimers = {};
+    socket.on('user-typing', (data) => {
+      const { userId: typingUserId, userName, isTyping } = data;
       if (!isTyping) {
         ss.setState((state) => {
-          const next = { ...state.typingUsers }
-          delete next[typingUserId]
-          return { typingUsers: next }
-        })
+          const next = { ...state.typingUsers };
+          delete next[typingUserId];
+          return { typingUsers: next };
+        });
         if (typingTimers[typingUserId]) {
-          clearTimeout(typingTimers[typingUserId])
-          delete typingTimers[typingUserId]
+          clearTimeout(typingTimers[typingUserId]);
+          delete typingTimers[typingUserId];
         }
-        return
+        return;
       }
       ss.setState((state) => ({
         typingUsers: { ...state.typingUsers, [typingUserId]: userName },
-      }))
-      if (typingTimers[typingUserId]) clearTimeout(typingTimers[typingUserId])
+      }));
+      if (typingTimers[typingUserId]) clearTimeout(typingTimers[typingUserId]);
       typingTimers[typingUserId] = setTimeout(() => {
         ss.setState((state) => {
-          const next = { ...state.typingUsers }
-          delete next[typingUserId]
-          return { typingUsers: next }
-        })
-        delete typingTimers[typingUserId]
-      }, 3000)
-    })
+          const next = { ...state.typingUsers };
+          delete next[typingUserId];
+          return { typingUsers: next };
+        });
+        delete typingTimers[typingUserId];
+      }, 3000);
+    });
 
     return () => {
       const events = [
-        "sync-state",
-        "queue-updated",
-        "queue-error",
-        "queue-ended",
-        "playback-update",
-        "music-update",
-        "group-created",
-        "group-joined",
-        "group-rejoined",
-        "group-not-found",
-        "member-joined",
-        "member-left",
-        "group-disbanded",
-        "new-message",
-        "group-full",
-        "feature-locked",
-        "group-invite-received",
-        "invite-sent",
-        "invite-error",
-        "invite-accepted",
-        "group-invite-declined",
-        "song-reaction",
-        "user-typing",
-      ]
-      events.forEach((e) => socket.off(e))
-      Object.values(typingTimers).forEach(clearTimeout)
-    }
-  }, [socket, user])
+        'sync-state',
+        'queue-updated',
+        'queue-error',
+        'queue-ended',
+        'playback-update',
+        'music-update',
+        'group-created',
+        'group-joined',
+        'group-rejoined',
+        'group-not-found',
+        'member-joined',
+        'member-left',
+        'group-disbanded',
+        'new-message',
+        'group-full',
+        'feature-locked',
+        'group-invite-received',
+        'invite-sent',
+        'invite-error',
+        'invite-accepted',
+        'group-invite-declined',
+        'song-reaction',
+        'user-typing',
+      ];
+      events.forEach((e) => socket.off(e));
+      Object.values(typingTimers).forEach(clearTimeout);
+    };
+  }, [socket, user]);
 
   const currentQueueItem = useMemo(
     () => session.getCurrentQueueItem(),
-    [session.queue, session.currentQueueIndex],
-  )
+    [session.queue, session.currentQueueIndex]
+  );
   const upcomingQueue = useMemo(
     () => session.getUpcomingQueue(),
-    [session.queue, session.currentQueueIndex],
-  )
+    [session.queue, session.currentQueueIndex]
+  );
   const playedQueue = useMemo(
     () => session.getPlayedQueue(),
-    [session.queue, session.currentQueueIndex],
-  )
+    [session.queue, session.currentQueueIndex]
+  );
 
   const wrappedHandlePlayPause = useCallback(
     (forceState) => playback.handlePlayPause(socket, session.currentGroup?.id, forceState),
-    [socket, session.currentGroup?.id],
-  )
+    [socket, session.currentGroup?.id]
+  );
 
   const wrappedHandleSeek = useCallback(
     (value) => playback.handleSeek(socket, session.currentGroup?.id, value),
-    [socket, session.currentGroup?.id],
-  )
+    [socket, session.currentGroup?.id]
+  );
 
   const wrappedCreateGroup = useCallback(
     (name) => session.createGroup(socket, user, name),
-    [socket, user],
-  )
+    [socket, user]
+  );
 
   const wrappedJoinGroup = useCallback(
     (groupId) => session.joinGroup(socket, user, groupId),
-    [socket, user],
-  )
+    [socket, user]
+  );
 
   const wrappedRejoinGroup = useCallback(
     (groupId) => session.rejoinGroup(socket, user, groupId),
-    [socket, user],
-  )
+    [socket, user]
+  );
 
   const wrappedLeaveGroup = useCallback(
     () => session.leaveGroup(socket, user, () => useGroupPlaybackStore.getState().reset()),
-    [socket, user],
-  )
+    [socket, user]
+  );
 
   const wrappedSendMessage = useCallback(
     (msg, messageType, extra) => session.sendMessage(socket, user, msg, messageType, extra),
-    [socket, user, session],
-  )
+    [socket, user, session]
+  );
 
   const wrappedAddToQueue = useCallback(
     (song) => session.addToQueue(socket, user, song),
-    [socket, user],
-  )
+    [socket, user]
+  );
 
-  const wrappedPlayNow = useCallback((song) => session.playNow(socket, user, song), [socket, user])
+  const wrappedPlayNow = useCallback((song) => session.playNow(socket, user, song), [socket, user]);
 
   const wrappedPlayNext = useCallback(
     (song) => session.playNext(socket, user, song),
-    [socket, user],
-  )
+    [socket, user]
+  );
 
   const wrappedRemoveFromQueue = useCallback(
     (id) => session.removeFromQueue(socket, user, id),
-    [socket, user],
-  )
+    [socket, user]
+  );
 
-  const wrappedSkipSong = useCallback(() => session.skipSong(socket, user), [socket, user])
+  const wrappedSkipSong = useCallback(() => session.skipSong(socket, user), [socket, user]);
 
   const wrappedReorderQueue = useCallback(
     (from, to) => session.reorderQueue(socket, from, to),
-    [socket],
-  )
+    [socket]
+  );
 
   const wrappedAddPlaylistToQueue = useCallback(
     (songs) => session.addPlaylistToQueue(socket, user, songs),
-    [socket, user],
-  )
+    [socket, user]
+  );
 
   const wrappedAcceptInvite = useCallback(
     (inv) => invite.acceptInvite(socket, user, inv, navigate),
-    [socket, user, navigate],
-  )
+    [socket, user, navigate]
+  );
 
-  const wrappedDeclineInvite = useCallback((inv) => invite.declineInvite(socket, inv), [socket])
+  const wrappedDeclineInvite = useCallback((inv) => invite.declineInvite(socket, inv), [socket]);
 
   const wrappedSendInvite = useCallback(
     (userId) => invite.sendInvite(socket, user, session.currentGroup, userId),
-    [socket, user, session.currentGroup],
-  )
+    [socket, user, session.currentGroup]
+  );
 
   const wrappedSendReaction = useCallback(
     (emoji) => {
-      if (!socket || !session.currentGroup?.id || !user) return
+      if (!socket || !session.currentGroup?.id || !user) return;
       const reactionData = {
         groupId: session.currentGroup.id,
         emoji,
         userName: user.name,
-      }
-      socket.emit("song-reaction", reactionData)
+      };
+      socket.emit('song-reaction', reactionData);
       useGroupSessionStore.setState((state) => ({
         floatingReactions: [
           ...state.floatingReactions.slice(-20),
@@ -494,10 +495,10 @@ export function GroupMusicProvider({ children }) {
             id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
           },
         ],
-      }))
+      }));
     },
-    [socket, session.currentGroup?.id, user],
-  )
+    [socket, session.currentGroup?.id, user]
+  );
 
   const contextValue = {
     currentGroup: session.currentGroup,
@@ -583,14 +584,14 @@ export function GroupMusicProvider({ children }) {
     sendReaction: wrappedSendReaction,
     typingUsers: session.typingUsers,
     onTypingStart: () => {
-      if (!socket || !session.currentGroup?.id) return
-      socket.emit("typing-start", { groupId: session.currentGroup.id, userName: user?.name })
+      if (!socket || !session.currentGroup?.id) return;
+      socket.emit('typing-start', { groupId: session.currentGroup.id, userName: user?.name });
     },
     onTypingStop: () => {
-      if (!socket || !session.currentGroup?.id) return
-      socket.emit("typing-stop", { groupId: session.currentGroup.id })
+      if (!socket || !session.currentGroup?.id) return;
+      socket.emit('typing-stop', { groupId: session.currentGroup.id });
     },
-  }
+  };
 
   return (
     <GroupMusicContext.Provider value={contextValue}>
@@ -610,13 +611,13 @@ export function GroupMusicProvider({ children }) {
         onDecline={wrappedDeclineInvite}
       />
     </GroupMusicContext.Provider>
-  )
+  );
 }
 
 export const useGroupMusic = () => {
-  const context = useContext(GroupMusicContext)
+  const context = useContext(GroupMusicContext);
   if (!context) {
-    throw new Error("useGroupMusic must be used within a GroupMusicProvider")
+    throw new Error('useGroupMusic must be used within a GroupMusicProvider');
   }
-  return context
-}
+  return context;
+};

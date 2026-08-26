@@ -1,5 +1,5 @@
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query"
-import { fetchProfile, profileKeys } from "@/api/auth/profile"
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { fetchProfile, profileKeys } from '@/api/auth/profile';
 
 export const useProfileQuery = (options = {}) => {
   return useQuery({
@@ -9,8 +9,8 @@ export const useProfileQuery = (options = {}) => {
     gcTime: 1000 * 60 * 30,
     retry: false,
     ...options,
-  })
-}
+  });
+};
 
 export const useProfileSuspenseQuery = (options = {}) => {
   return useSuspenseQuery({
@@ -19,5 +19,5 @@ export const useProfileSuspenseQuery = (options = {}) => {
     staleTime: 1000 * 60 * 10,
     gcTime: 1000 * 60 * 30,
     ...options,
-  })
-}
+  });
+};

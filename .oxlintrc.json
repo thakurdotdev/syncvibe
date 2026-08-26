@@ -1,0 +1,13 @@
+{
+  "$schema": "https://unpkg.com/oxlint/configuration_schema.json",
+  "plugins": [
+    "react",
+    "typescript",
+    "unicorn",
+    "import",
+    "jsx-a11y"
+  ],
+  "categories": {
+    "correctness": "warn"
+  }
+}

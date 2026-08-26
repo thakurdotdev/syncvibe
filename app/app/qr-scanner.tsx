@@ -1,69 +1,69 @@
-import { Ionicons } from "@expo/vector-icons"
-import { CameraView, Camera as ExpoCamera, FlashMode, useCameraPermissions } from "expo-camera"
-import * as Haptics from "expo-haptics"
-import React, { useEffect, useState } from "react"
-import { SafeAreaView, StyleSheet, Text, TouchableOpacity, Vibration, View } from "react-native"
-import { useTheme } from "@/context/ThemeContext"
+import { Ionicons } from '@expo/vector-icons';
+import { CameraView, Camera as ExpoCamera, FlashMode, useCameraPermissions } from 'expo-camera';
+import * as Haptics from 'expo-haptics';
+import React, { useEffect, useState } from 'react';
+import { SafeAreaView, StyleSheet, Text, TouchableOpacity, Vibration, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
 import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
   useSharedValue,
   withSequence,
-} from "react-native-reanimated"
-import { BlurView } from "expo-blur"
+} from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 
 const QRScannerScreen = ({
   onScanComplete,
   onClose,
 }: {
-  onScanComplete: (data: string) => void
-  onClose: () => void
+  onScanComplete: (data: string) => void;
+  onClose: () => void;
 }) => {
-  const { colors } = useTheme()
-  const [hasPermission, setHasPermission] = useState<null | boolean>(null)
-  const [scanned, setScanned] = useState(false)
-  const [flashMode, setFlashMode] = useState<FlashMode>("off")
-  const [scannedData, setScannedData] = useState<string | null>(null)
-  const [isCameraActive, setIsCameraActive] = useState(true)
-  const [permission, requestPermission] = useCameraPermissions()
+  const { colors } = useTheme();
+  const [hasPermission, setHasPermission] = useState<null | boolean>(null);
+  const [scanned, setScanned] = useState(false);
+  const [flashMode, setFlashMode] = useState<FlashMode>('off');
+  const [scannedData, setScannedData] = useState<string | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(true);
+  const [permission, requestPermission] = useCameraPermissions();
 
-  const scanLinePosition = useSharedValue(0)
-  const scanLineOpacity = useSharedValue(1)
-  const resultPanelHeight = useSharedValue(0)
+  const scanLinePosition = useSharedValue(0);
+  const scanLineOpacity = useSharedValue(1);
+  const resultPanelHeight = useSharedValue(0);
 
   const resultPanelStyle = useAnimatedStyle(() => ({
     height: withSpring(resultPanelHeight.value * 200),
     opacity: withTiming(resultPanelHeight.value),
-  }))
+  }));
 
   useEffect(() => {
-    ;(async () => {
-      const { status } = await requestPermission()
-      setHasPermission(status === "granted")
-    })()
+    (async () => {
+      const { status } = await requestPermission();
+      setHasPermission(status === 'granted');
+    })();
 
     return () => {
-      setIsCameraActive(false)
-    }
-  }, [])
+      setIsCameraActive(false);
+    };
+  }, []);
 
   useEffect(() => {
     if (isCameraActive && !scanned) {
-      startScanAnimation()
+      startScanAnimation();
     }
-  }, [isCameraActive, scanned])
+  }, [isCameraActive, scanned]);
 
   const startScanAnimation = () => {
     scanLinePosition.value = withSequence(
       withTiming(1, { duration: 2000 }),
-      withTiming(0, { duration: 0 }),
-    )
+      withTiming(0, { duration: 0 })
+    );
     scanLineOpacity.value = withSequence(
       withTiming(1, { duration: 1000 }),
-      withTiming(0.5, { duration: 1000 }),
-    )
-  }
+      withTiming(0.5, { duration: 1000 })
+    );
+  };
 
   if (!permission?.granted) {
     return (
@@ -86,37 +86,37 @@ const QRScannerScreen = ({
           </TouchableOpacity>
         </View>
       </View>
-    )
+    );
   }
 
   const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
     if (!scanned && isCameraActive) {
-      setScanned(true)
-      setScannedData(data)
-      setIsCameraActive(false)
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-      Vibration.vibrate(100)
-      resultPanelHeight.value = withSpring(1)
+      setScanned(true);
+      setScannedData(data);
+      setIsCameraActive(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Vibration.vibrate(100);
+      resultPanelHeight.value = withSpring(1);
     }
-  }
+  };
 
   const resetScanner = () => {
-    setScanned(false)
-    setScannedData(null)
-    setIsCameraActive(true)
-    resultPanelHeight.value = withSpring(0)
-    startScanAnimation()
-  }
+    setScanned(false);
+    setScannedData(null);
+    setIsCameraActive(true);
+    resultPanelHeight.value = withSpring(0);
+    startScanAnimation();
+  };
 
   const toggleFlash = () => {
-    setFlashMode(flashMode === "off" ? "on" : "off")
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-  }
+    setFlashMode(flashMode === 'off' ? 'on' : 'off');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
 
   const handleClose = () => {
-    setIsCameraActive(false)
-    onClose()
-  }
+    setIsCameraActive(false);
+    onClose();
+  };
 
   if (hasPermission === null) {
     return (
@@ -127,7 +127,7 @@ const QRScannerScreen = ({
           </Text>
         </View>
       </SafeAreaView>
-    )
+    );
   }
 
   if (hasPermission === false) {
@@ -153,7 +153,7 @@ const QRScannerScreen = ({
           </TouchableOpacity>
         </View>
       </SafeAreaView>
-    )
+    );
   }
 
   if (scanned && scannedData) {
@@ -163,13 +163,13 @@ const QRScannerScreen = ({
           <View style={[styles.resultHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>QR Code Scanned</Text>
             <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-              <Ionicons name="close" size={24} color={colors.foreground} />
+              <Ionicons name='close' size={24} color={colors.foreground} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.resultContent}>
             <Ionicons
-              name="checkmark-circle"
+              name='checkmark-circle'
               size={60}
               color={colors.primary}
               style={styles.successIcon}
@@ -181,8 +181,8 @@ const QRScannerScreen = ({
             <TouchableOpacity
               style={[styles.joinButton, { backgroundColor: colors.primary }]}
               onPress={() => {
-                onScanComplete(scannedData)
-                handleClose()
+                onScanComplete(scannedData);
+                handleClose();
               }}
             >
               <Text style={[styles.buttonText, { color: colors.foreground }]}>Join Group</Text>
@@ -197,7 +197,7 @@ const QRScannerScreen = ({
           </View>
         </Animated.View>
       </SafeAreaView>
-    )
+    );
   }
 
   return (
@@ -205,7 +205,7 @@ const QRScannerScreen = ({
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>QR Scanner</Text>
         <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-          <Ionicons name="close" size={24} color={colors.foreground} />
+          <Ionicons name='close' size={24} color={colors.foreground} />
         </TouchableOpacity>
       </View>
 
@@ -214,10 +214,10 @@ const QRScannerScreen = ({
           style={styles.camera}
           onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
           barcodeScannerSettings={{
-            barcodeTypes: ["qr"],
+            barcodeTypes: ['qr'],
           }}
-          enableTorch={flashMode === "on"}
-          facing={"back"}
+          enableTorch={flashMode === 'on'}
+          facing={'back'}
           flash={flashMode}
         >
           <View style={[styles.overlay, { backgroundColor: `rgba(0,0,0,0.5)` }]}>
@@ -240,18 +240,18 @@ const QRScannerScreen = ({
       <BlurView intensity={20} style={[styles.controlsContainer, { backgroundColor: colors.card }]}>
         <TouchableOpacity style={styles.iconButton} onPress={toggleFlash}>
           <Ionicons
-            name={flashMode === "on" ? "flash" : "flash-outline"}
+            name={flashMode === 'on' ? 'flash' : 'flash-outline'}
             size={28}
             color={colors.foreground}
           />
           <Text style={[styles.iconText, { color: colors.mutedForeground }]}>
-            {flashMode === "on" ? "Flash On" : "Flash Off"}
+            {flashMode === 'on' ? 'Flash On' : 'Flash Off'}
           </Text>
         </TouchableOpacity>
       </BlurView>
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -263,23 +263,23 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   closeButton: {
-    position: "absolute",
+    position: 'absolute',
     right: 16,
     padding: 8,
   },
   scannerContainer: {
     flex: 1,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
   camera: {
     flex: 1,
@@ -289,17 +289,17 @@ const styles = StyleSheet.create({
   },
   rowContainer: {
     flex: 1,
-    flexDirection: "row",
+    flexDirection: 'row',
   },
   unfilled: {
     flex: 1,
   },
   scanner: {
     aspectRatio: 1,
-    position: "relative",
+    position: 'relative',
   },
   corner: {
-    position: "absolute",
+    position: 'absolute',
     width: 30,
     height: 30,
     borderWidth: 4,
@@ -333,17 +333,17 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
   },
   controlsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingVertical: 20,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     marginTop: -20,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
   iconButton: {
-    alignItems: "center",
+    alignItems: 'center',
     padding: 12,
     borderRadius: 12,
     width: 100,
@@ -351,27 +351,27 @@ const styles = StyleSheet.create({
   iconText: {
     marginTop: 6,
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   statusText: {
     fontSize: 16,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: 20,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   permissionContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   permissionText: {
     fontSize: 16,
-    textAlign: "center",
+    textAlign: 'center',
     marginBottom: 20,
   },
   button: {
@@ -379,40 +379,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 12,
     marginTop: 16,
-    alignSelf: "stretch",
-    alignItems: "center",
+    alignSelf: 'stretch',
+    alignItems: 'center',
   },
   cancelButton: {
     marginTop: 12,
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   resultScreen: {
     flex: 1,
     padding: 20,
   },
   resultHeader: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
     paddingVertical: 16,
     borderBottomWidth: 1,
     marginBottom: 30,
   },
   resultContent: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   resultMessage: {
     fontSize: 18,
     marginBottom: 40,
     marginTop: 16,
-    textAlign: "center",
+    textAlign: 'center',
   },
   successIcon: {
     marginBottom: 16,
@@ -423,14 +423,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 10,
     marginBottom: 20,
-    alignSelf: "stretch",
-    alignItems: "center",
-    shadowColor: "#000",
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
   },
-})
+});
 
-export default QRScannerScreen
+export default QRScannerScreen;

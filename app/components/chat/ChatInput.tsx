@@ -1,21 +1,21 @@
-import React from "react"
-import { Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useTheme } from "@/context/ThemeContext"
+import React from 'react';
+import { Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '@/context/ThemeContext';
 
 interface ChatInputProps {
-  message: string
-  onChangeText: (text: string) => void
-  onSend: () => void
-  onAttach: () => void
-  filePreview: string | null
-  onRemoveAttachment: () => void
-  editMode?: boolean
-  editText?: string
-  onEditTextChange?: (text: string) => void
-  onSaveEdit?: () => void
-  onCancelEdit?: () => void
+  message: string;
+  onChangeText: (text: string) => void;
+  onSend: () => void;
+  onAttach: () => void;
+  filePreview: string | null;
+  onRemoveAttachment: () => void;
+  editMode?: boolean;
+  editText?: string;
+  onEditTextChange?: (text: string) => void;
+  onSaveEdit?: () => void;
+  onCancelEdit?: () => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -31,12 +31,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onSaveEdit,
   onCancelEdit,
 }) => {
-  const { colors } = useTheme()
-  const insets = useSafeAreaInsets()
-  const bottomPadding = Platform.OS === "ios" ? Math.max(insets.bottom, 6) : 6
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Platform.OS === 'ios' ? Math.max(insets.bottom, 6) : 6;
 
   if (editMode) {
-    const canSave = Boolean(editText?.trim())
+    const canSave = Boolean(editText?.trim());
 
     return (
       <View
@@ -50,13 +50,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
       >
         <View style={[styles.editBanner, { backgroundColor: colors.card }]}>
           <View style={styles.editLabelRow}>
-            <Ionicons name="pencil" size={14} color={colors.primary} />
-            <Text style={[styles.editLabel, { color: colors.primary }]}>
-              Editing message
-            </Text>
+            <Ionicons name='pencil' size={14} color={colors.primary} />
+            <Text style={[styles.editLabel, { color: colors.primary }]}>Editing message</Text>
           </View>
           <Pressable onPress={onCancelEdit} hitSlop={8}>
-            <Ionicons name="close" size={18} color={colors.mutedForeground} />
+            <Ionicons name='close' size={18} color={colors.mutedForeground} />
           </Pressable>
         </View>
 
@@ -65,7 +63,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <TextInput
               value={editText}
               onChangeText={onEditTextChange}
-              placeholder="Edit message..."
+              placeholder='Edit message...'
               placeholderTextColor={colors.mutedForeground}
               multiline
               maxLength={500}
@@ -84,18 +82,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
             onPress={onSaveEdit}
             disabled={!canSave}
           >
-            <Ionicons
-              name="checkmark"
-              size={22}
-              color={colors.primaryForeground}
-            />
+            <Ionicons name='checkmark' size={22} color={colors.primaryForeground} />
           </Pressable>
         </View>
       </View>
-    )
+    );
   }
 
-  const canSend = Boolean(message.trim() || filePreview)
+  const canSend = Boolean(message.trim() || filePreview);
 
   return (
     <View
@@ -111,10 +105,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
         <View style={styles.previewWrapper}>
           <Image source={{ uri: filePreview }} style={styles.previewImage} />
           <Pressable
-            style={[styles.removeButton, { backgroundColor: "rgba(0,0,0,0.6)" }]}
+            style={[styles.removeButton, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
             onPress={onRemoveAttachment}
           >
-            <Ionicons name="close" size={16} color="#FFFFFF" />
+            <Ionicons name='close' size={16} color='#FFFFFF' />
           </Pressable>
         </View>
       )}
@@ -122,13 +116,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
       <View style={styles.inputRow}>
         <View style={[styles.inputPill, { backgroundColor: colors.card }]}>
           <Pressable style={styles.pillIconBtn} onPress={onAttach} hitSlop={6}>
-            <Ionicons name="image-outline" size={22} color={colors.mutedForeground} />
+            <Ionicons name='image-outline' size={22} color={colors.mutedForeground} />
           </Pressable>
 
           <TextInput
             value={message}
             onChangeText={onChangeText}
-            placeholder="Message"
+            placeholder='Message'
             placeholderTextColor={colors.mutedForeground}
             multiline
             maxLength={500}
@@ -148,7 +142,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           disabled={!canSend}
         >
           <Ionicons
-            name="send"
+            name='send'
             size={18}
             color={colors.primaryForeground}
             style={{ marginLeft: 2 }}
@@ -156,8 +150,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </Pressable>
       </View>
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -165,14 +159,14 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
   inputRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     gap: 6,
   },
   inputPill: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "flex-end",
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     borderRadius: 24,
     paddingHorizontal: 8,
     minHeight: 48,
@@ -180,8 +174,8 @@ const styles = StyleSheet.create({
   pillIconBtn: {
     height: 48,
     width: 32,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   textInput: {
     flex: 1,
@@ -196,12 +190,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   previewWrapper: {
     marginBottom: 8,
-    position: "relative",
+    position: 'relative',
     width: 72,
     marginLeft: 8,
   },
@@ -211,33 +205,33 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   removeButton: {
-    position: "absolute",
+    position: 'absolute',
     top: -6,
     right: -6,
     width: 22,
     height: 22,
     borderRadius: 11,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   editBanner: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
   },
   editLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   editLabel: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: '600',
   },
-})
+});
 
-export default React.memo(ChatInput)
+export default React.memo(ChatInput);

@@ -1,12 +1,12 @@
-const sequelize = require("../../utils/sequelize")
+const sequelize = require('../../utils/sequelize');
 
 const getPostByUser = async (req, res) => {
   try {
-    const userid = req.params.userid
-    const currentUser = req.user.userid
-    const page = parseInt(req.query.page, 10) || 1
-    const limit = parseInt(req.query.limit, 10) || 10
-    const offset = (page - 1) * limit
+    const userid = req.params.userid;
+    const currentUser = req.user.userid;
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const offset = (page - 1) * limit;
 
     // Calculate total stats for the user
     const statsQuery = await sequelize.query(
@@ -28,15 +28,15 @@ const getPostByUser = async (req, res) => {
       {
         replacements: { userid },
         type: sequelize.QueryTypes.SELECT,
-      },
-    )
+      }
+    );
 
     const stats = statsQuery[0] || {
       totalPosts: 0,
       totalLikes: 0,
       totalComments: 0,
       totalImages: 0,
-    }
+    };
 
     const posts = await sequelize.query(
       `
@@ -62,8 +62,8 @@ const getPostByUser = async (req, res) => {
       {
         replacements: { limit, offset, userid, currentUser },
         type: sequelize.QueryTypes.SELECT,
-      },
-    )
+      }
+    );
 
     res.status(200).json({
       stats: {
@@ -74,11 +74,11 @@ const getPostByUser = async (req, res) => {
       },
       posts,
       hasMore: parseInt(stats.totalPosts, 10) > offset + limit,
-    })
+    });
   } catch (err) {
-    console.log(err)
-    res.status(500).json({ error: "Internal Server Error" })
+    console.log(err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
-}
+};
 
-module.exports = getPostByUser
+module.exports = getPostByUser;

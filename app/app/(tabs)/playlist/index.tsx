@@ -1,18 +1,18 @@
-import LoginModal from "@/components/LoginModal"
-import LoginScreen from "@/components/LoginScreen"
-import { CardContainer, CardImage } from "@/components/music/MusicCards"
-import SwipeableModal from "@/components/SwipeableModal"
-import Button from "@/components/ui/button"
-import { useTheme } from "@/context/ThemeContext"
-import { toast } from "@/context/ToastContext"
-import { useUser } from "@/context/UserContext"
-import { usePlaylistState } from "@/stores/playerStore"
-import { ensureHttpsForPlaylistUrls } from "@/utils/getHttpsUrls"
-import useApi from "@/utils/hooks/useApi"
-import { LinearGradient } from "expo-linear-gradient"
-import { router } from "expo-router"
-import { AlertCircle, Edit3, Plus, Trash2, X } from "lucide-react-native"
-import { memo, useCallback, useEffect, useMemo, useState } from "react"
+import LoginModal from '@/components/LoginModal';
+import LoginScreen from '@/components/LoginScreen';
+import { CardContainer, CardImage } from '@/components/music/MusicCards';
+import SwipeableModal from '@/components/SwipeableModal';
+import Button from '@/components/ui/button';
+import { useTheme } from '@/context/ThemeContext';
+import { toast } from '@/context/ToastContext';
+import { useUser } from '@/context/UserContext';
+import { usePlaylistState } from '@/stores/playerStore';
+import { ensureHttpsForPlaylistUrls } from '@/utils/getHttpsUrls';
+import useApi from '@/utils/hooks/useApi';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { AlertCircle, Edit3, Plus, Trash2, X } from 'lucide-react-native';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -20,59 +20,59 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
-} from "react-native"
-import Animated from "react-native-reanimated"
-import { TabSafeAreaView } from "@/components/ui/TabSafeAreaView"
+  View,
+} from 'react-native';
+import Animated from 'react-native-reanimated';
+import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 
 const LoadingState = () => {
-  const { colors } = useTheme()
+  const { colors } = useTheme();
 
   return (
     <TabSafeAreaView style={[styles.centerContainer, { backgroundColor: colors.background }]}>
-      <ActivityIndicator size="large" color={colors.primary} />
+      <ActivityIndicator size='large' color={colors.primary} />
     </TabSafeAreaView>
-  )
-}
+  );
+};
 
 const PlaylistScreen = () => {
-  const api = useApi()
-  const { colors, theme } = useTheme()
-  const { user } = useUser()
-  const { userPlaylist, setUserPlaylist } = usePlaylistState()
-  const [loading, setLoading] = useState(false)
+  const api = useApi();
+  const { colors, theme } = useTheme();
+  const { user } = useUser();
+  const { userPlaylist, setUserPlaylist } = usePlaylistState();
+  const [loading, setLoading] = useState(false);
 
   const getPlaylists = async () => {
     try {
-      const { data } = await api.get("/api/playlist/get")
-      if (data?.data) setUserPlaylist(data.data)
+      const { data } = await api.get('/api/playlist/get');
+      if (data?.data) setUserPlaylist(data.data);
     } catch (error) {
-      console.error("Error fetching playlists:", error)
+      console.error('Error fetching playlists:', error);
     }
-  }
+  };
 
   const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-  })
-  const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null)
-  const [showActionsModal, setShowActionsModal] = useState(false)
-  const [showUpdateModal, setShowUpdateModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
+    name: '',
+    description: '',
+  });
+  const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
+  const [showActionsModal, setShowActionsModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     if (!showUpdateModal && !showDeleteModal) {
-      Keyboard.dismiss()
+      Keyboard.dismiss();
     }
-  }, [showUpdateModal, showDeleteModal])
+  }, [showUpdateModal, showDeleteModal]);
 
   const handleSavePlaylist = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       if (!formData.name?.trim()) {
-        toast("Please enter a playlist name")
-        setLoading(false)
-        return
+        toast('Please enter a playlist name');
+        setLoading(false);
+        return;
       }
 
       if (selectedPlaylist) {
@@ -80,92 +80,92 @@ const PlaylistScreen = () => {
           id: selectedPlaylist.id,
           name: formData.name.trim(),
           description: formData.description?.trim(),
-        })
-        toast("Playlist updated successfully!")
+        });
+        toast('Playlist updated successfully!');
       } else {
         await api.post(`/api/playlist/create`, {
           name: formData.name.trim(),
           description: formData.description?.trim(),
-        })
-        toast("Playlist created successfully!")
+        });
+        toast('Playlist created successfully!');
       }
 
-      setShowUpdateModal(false)
-      getPlaylists()
+      setShowUpdateModal(false);
+      getPlaylists();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || "An error occurred."
-      toast(errorMessage)
+      const errorMessage = error.response?.data?.message || 'An error occurred.';
+      toast(errorMessage);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDeletePlaylist = async () => {
-    if (!selectedPlaylist) return
+    if (!selectedPlaylist) return;
 
-    setLoading(true)
+    setLoading(true);
     try {
       await api.delete(`/api/playlist/delete`, {
         data: { playlistId: selectedPlaylist.id },
-      })
-      toast("Playlist deleted successfully!")
-      setShowDeleteModal(false)
-      setShowActionsModal(false)
-      getPlaylists()
+      });
+      toast('Playlist deleted successfully!');
+      setShowDeleteModal(false);
+      setShowActionsModal(false);
+      getPlaylists();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || "An error occurred."
-      toast(errorMessage)
+      const errorMessage = error.response?.data?.message || 'An error occurred.';
+      toast(errorMessage);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleLongPress = (playlist: { name: string; id: number; description: string }) => {
-    setSelectedPlaylist(playlist)
+    setSelectedPlaylist(playlist);
     setFormData({
-      name: playlist.name || "",
-      description: playlist.description || "",
-    })
-    setShowActionsModal(true)
-  }
+      name: playlist.name || '',
+      description: playlist.description || '',
+    });
+    setShowActionsModal(true);
+  };
 
   const handleUpdateAction = () => {
-    setShowActionsModal(false)
-    setTimeout(() => setShowUpdateModal(true), 250)
-  }
+    setShowActionsModal(false);
+    setTimeout(() => setShowUpdateModal(true), 250);
+  };
 
   const handleDeleteAction = () => {
-    setShowActionsModal(false)
-    setTimeout(() => setShowDeleteModal(true), 250)
-  }
+    setShowActionsModal(false);
+    setTimeout(() => setShowDeleteModal(true), 250);
+  };
 
   const openCreateModal = () => {
-    setSelectedPlaylist(null)
-    setFormData({ name: "", description: "" })
-    setShowUpdateModal(true)
-  }
+    setSelectedPlaylist(null);
+    setFormData({ name: '', description: '' });
+    setShowUpdateModal(true);
+  };
 
   // Prepend "+ Create New" item to grid
   const gridData = useMemo(() => {
-    return [{ isCreateTile: true, id: "create-tile" }, ...(userPlaylist || [])]
-  }, [userPlaylist])
+    return [{ isCreateTile: true, id: 'create-tile' }, ...(userPlaylist || [])];
+  }, [userPlaylist]);
 
-  const isDark = theme === "dark"
+  const isDark = theme === 'dark';
 
-  if (loading && !selectedPlaylist) return <LoadingState />
+  if (loading && !selectedPlaylist) return <LoadingState />;
 
   if (!user) {
-    return <LoginScreen />
+    return <LoginScreen />;
   }
 
   const renderPlaylistItem = ({ item }: { item: any }) => {
     if (item.isCreateTile) {
       return (
         <View style={styles.gridItemWrapper}>
-          <CardContainer onPress={openCreateModal} width={"100%"}>
+          <CardContainer onPress={openCreateModal} width={'100%'}>
             <View style={{ padding: 10, gap: 8 }}>
               <LinearGradient
-                colors={[colors.primary, colors.primary + "CC"]}
+                colors={[colors.primary, colors.primary + 'CC']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.createCoverGradient}
@@ -179,7 +179,7 @@ const PlaylistScreen = () => {
                 <Text
                   style={{
                     color: colors.foreground,
-                    fontWeight: "700",
+                    fontWeight: '700',
                     fontSize: 14.5,
                     lineHeight: 19,
                   }}
@@ -201,15 +201,15 @@ const PlaylistScreen = () => {
             </View>
           </CardContainer>
         </View>
-      )
+      );
     }
 
     return (
       <View style={styles.gridItemWrapper}>
         <PlaylistCard playlist={item} isUser={true} onLongPress={() => handleLongPress(item)} />
       </View>
-    )
-  }
+    );
+  };
 
   return (
     <TabSafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -227,7 +227,7 @@ const PlaylistScreen = () => {
           activeOpacity={0.8}
           style={[
             styles.headerCreateBtn,
-            { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)" },
+            { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
           ]}
         >
           <Plus size={18} color={colors.primary} />
@@ -250,7 +250,7 @@ const PlaylistScreen = () => {
       <SwipeableModal
         isVisible={showActionsModal}
         onClose={() => setShowActionsModal(false)}
-        maxHeight="35%"
+        maxHeight='35%'
       >
         <View style={styles.modalBody}>
           <View style={styles.modalHeaderRow}>
@@ -258,7 +258,7 @@ const PlaylistScreen = () => {
             <TouchableOpacity
               style={[
                 styles.modalCloseBtn,
-                { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)" },
+                { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
               ]}
               onPress={() => setShowActionsModal(false)}
             >
@@ -268,18 +268,18 @@ const PlaylistScreen = () => {
 
           <View style={{ gap: 12 }}>
             <Button
-              variant="secondary"
-              title="Edit Playlist"
+              variant='secondary'
+              title='Edit Playlist'
               icon={<Edit3 size={18} color={colors.primary} />}
-              iconPosition="left"
+              iconPosition='left'
               onPress={handleUpdateAction}
             />
 
             <Button
-              variant="destructive"
-              title="Delete Playlist"
+              variant='destructive'
+              title='Delete Playlist'
               icon={<Trash2 size={18} color={colors.destructiveForeground} />}
-              iconPosition="left"
+              iconPosition='left'
               onPress={handleDeleteAction}
             />
           </View>
@@ -297,12 +297,12 @@ const PlaylistScreen = () => {
         <View style={styles.modalBody}>
           <View style={styles.modalHeaderRow}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              {selectedPlaylist ? "Edit Playlist" : "Create Playlist"}
+              {selectedPlaylist ? 'Edit Playlist' : 'Create Playlist'}
             </Text>
             <TouchableOpacity
               style={[
                 styles.modalCloseBtn,
-                { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)" },
+                { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
               ]}
               onPress={() => setShowUpdateModal(false)}
             >
@@ -317,14 +317,14 @@ const PlaylistScreen = () => {
                 style={[
                   styles.textInput,
                   {
-                    backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)",
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
                     color: colors.foreground,
-                    borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
+                    borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
                   },
                 ]}
                 value={formData.name}
                 onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
-                placeholder="My Awesome Playlist"
+                placeholder='My Awesome Playlist'
                 placeholderTextColor={colors.mutedForeground}
                 selectionColor={colors.primary}
               />
@@ -339,14 +339,14 @@ const PlaylistScreen = () => {
                   styles.textInput,
                   styles.textAreaInput,
                   {
-                    backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)",
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
                     color: colors.foreground,
-                    borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
+                    borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
                   },
                 ]}
                 value={formData.description}
                 onChangeText={(text) => setFormData((prev) => ({ ...prev, description: text }))}
-                placeholder="Give your playlist a nice description..."
+                placeholder='Give your playlist a nice description...'
                 placeholderTextColor={colors.mutedForeground}
                 multiline={true}
                 numberOfLines={3}
@@ -355,9 +355,9 @@ const PlaylistScreen = () => {
             </View>
 
             <Button
-              variant="default"
-              size="lg"
-              title={selectedPlaylist ? "Save Changes" : "Create Playlist"}
+              variant='default'
+              size='lg'
+              title={selectedPlaylist ? 'Save Changes' : 'Create Playlist'}
               disabled={loading}
               isLoading={loading}
               onPress={handleSavePlaylist}
@@ -370,14 +370,14 @@ const PlaylistScreen = () => {
       <SwipeableModal
         isVisible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
-        maxHeight="38%"
+        maxHeight='38%'
       >
         <View style={styles.modalBody}>
-          <View style={{ alignItems: "center", marginBottom: 20 }}>
+          <View style={{ alignItems: 'center', marginBottom: 20 }}>
             <View
               style={{
                 backgroundColor:
-                  theme === "dark" ? "rgba(127, 29, 29, 0.3)" : "rgba(254, 202, 202, 0.3)",
+                  theme === 'dark' ? 'rgba(127, 29, 29, 0.3)' : 'rgba(254, 202, 202, 0.3)',
                 padding: 14,
                 borderRadius: 20,
                 marginBottom: 14,
@@ -394,23 +394,23 @@ const PlaylistScreen = () => {
             </Text>
           </View>
 
-          <View style={{ flexDirection: "row", gap: 12 }}>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
             <Button
-              variant="secondary"
-              title="Cancel"
-              size="default"
+              variant='secondary'
+              title='Cancel'
+              size='default'
               style={{ flex: 1 }}
               onPress={() => setShowDeleteModal(false)}
             />
 
             <Button
-              variant="destructive"
-              title="Delete"
-              size="default"
+              variant='destructive'
+              title='Delete'
+              size='default'
               isLoading={loading}
               disabled={loading}
               icon={<Trash2 size={18} color={colors.destructiveForeground} />}
-              iconPosition="left"
+              iconPosition='left'
               style={{ flex: 1 }}
               onPress={handleDeletePlaylist}
             />
@@ -420,40 +420,42 @@ const PlaylistScreen = () => {
 
       {!user && <LoginModal />}
     </TabSafeAreaView>
-  )
-}
+  );
+};
 
 export const PlaylistCard = memo(({ playlist, isUser, onLongPress }: any) => {
-  const { colors, theme } = useTheme()
+  const { colors, theme } = useTheme();
 
   const handlePress = useCallback(() => {
     router.push({
-      pathname: "/user-playlist",
+      pathname: '/user-playlist',
       params: { id: playlist.id },
-    })
-  }, [playlist?.id])
+    });
+  }, [playlist?.id]);
 
-  if (!playlist?.name) return null
+  if (!playlist?.name) return null;
 
-  const securedPlaylist = useMemo(() => ensureHttpsForPlaylistUrls(playlist), [playlist])
+  const securedPlaylist = useMemo(() => ensureHttpsForPlaylistUrls(playlist), [playlist]);
 
-  const subtitle = securedPlaylist.description || "Custom Playlist"
+  const subtitle = securedPlaylist.description || 'Custom Playlist';
   const imageUrl = useMemo(() => {
-    const img = securedPlaylist?.image
-    if (!img) return ""
-    if (typeof img === "string") return img
+    const img = securedPlaylist?.image;
+    if (!img) return '';
+    if (typeof img === 'string') return img;
     if (Array.isArray(img) && img.length > 0) {
-      return img[2]?.link || img[1]?.link || img[0]?.link || (typeof img[0] === "string" ? img[0] : "")
+      return (
+        img[2]?.link || img[1]?.link || img[0]?.link || (typeof img[0] === 'string' ? img[0] : '')
+      );
     }
-    return ""
-  }, [securedPlaylist?.image])
+    return '';
+  }, [securedPlaylist?.image]);
 
   return (
     <CardContainer
       onPress={handlePress}
       onLongPress={isUser ? () => onLongPress(playlist) : undefined}
       key={securedPlaylist.id}
-      width={"100%"}
+      width={'100%'}
     >
       <View style={{ padding: 10, gap: 8 }}>
         <CardImage uri={imageUrl} alt={`Playlist: ${securedPlaylist.name}`} />
@@ -462,12 +464,12 @@ export const PlaylistCard = memo(({ playlist, isUser, onLongPress }: any) => {
           <Text
             style={{
               color: colors.foreground,
-              fontWeight: "700",
+              fontWeight: '700',
               fontSize: 14.5,
               lineHeight: 19,
             }}
             numberOfLines={1}
-            ellipsizeMode="tail"
+            ellipsizeMode='tail'
           >
             {securedPlaylist.name}
           </Text>
@@ -478,15 +480,15 @@ export const PlaylistCard = memo(({ playlist, isUser, onLongPress }: any) => {
               lineHeight: 16,
             }}
             numberOfLines={1}
-            ellipsizeMode="tail"
+            ellipsizeMode='tail'
           >
             {subtitle}
           </Text>
         </View>
       </View>
     </CardContainer>
-  )
-})
+  );
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -494,30 +496,30 @@ const styles = StyleSheet.create({
   },
   centerContainer: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 12,
   },
   headerTitle: {
     fontSize: 26,
-    fontWeight: "800",
+    fontWeight: '800',
     letterSpacing: -0.5,
   },
   headerSubTitle: {
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: '500',
     marginTop: 2,
   },
   headerCreateBtn: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -525,7 +527,7 @@ const styles = StyleSheet.create({
   },
   headerCreateText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   gridContent: {
     paddingHorizontal: 10,
@@ -536,25 +538,25 @@ const styles = StyleSheet.create({
   },
   gridItemWrapper: {
     flex: 1,
-    maxWidth: "50%",
+    maxWidth: '50%',
     paddingHorizontal: 6,
   },
 
   createCoverGradient: {
-    width: "100%",
+    width: '100%',
     height: 140,
     borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   createIconBadge: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Modal Styles
@@ -562,14 +564,14 @@ const styles = StyleSheet.create({
     padding: 22,
   },
   modalHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: '700',
     letterSpacing: -0.3,
   },
   modalCloseBtn: {
@@ -578,7 +580,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
     marginBottom: 6,
   },
   textInput: {
@@ -589,13 +591,13 @@ const styles = StyleSheet.create({
   },
   textAreaInput: {
     height: 90,
-    textAlignVertical: "top",
+    textAlignVertical: 'top',
   },
   deleteSubText: {
     fontSize: 14,
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 20,
   },
-})
+});
 
-export default PlaylistScreen
+export default PlaylistScreen;

@@ -1,34 +1,34 @@
-import { ListMusic } from "lucide-react"
-import { memo } from "react"
-import { Badge } from "@/components/ui/badge"
-import { usePlayerStore } from "@/stores/playerStore"
-import QueueTab from "./QueueTab"
+import { ListMusic } from 'lucide-react';
+import { memo } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { usePlayerStore } from '@/stores/playerStore';
+import QueueTab from './QueueTab';
 
 const DesktopQueuePanel = memo(({ ready }) => {
-  const playlistLength = usePlayerStore((s) => s.playlist.length)
+  const playlistLength = usePlayerStore((s) => s.playlist.length);
 
   return (
     <>
-      <div className="dqp-panel">
-        <div className="dqp-header">
-          <div className="flex items-center gap-2.5">
-            <ListMusic className="w-4 h-4 text-white/50" />
-            <span className="text-sm font-semibold text-white/85 tracking-wide">Queue</span>
+      <div className='dqp-panel'>
+        <div className='dqp-header'>
+          <div className='flex items-center gap-2.5'>
+            <ListMusic className='w-4 h-4 text-white/50' />
+            <span className='text-sm font-semibold text-white/85 tracking-wide'>Queue</span>
             <Badge
-              variant="secondary"
-              className="h-[18px] text-[10px] px-1.5 bg-white/8 text-white/50 border-0 font-medium"
+              variant='secondary'
+              className='h-[18px] text-[10px] px-1.5 bg-white/8 text-white/50 border-0 font-medium'
             >
               {playlistLength}
             </Badge>
           </div>
         </div>
 
-        <div className="dqp-list">
+        <div className='dqp-list'>
           {ready ? (
-            <QueueTab variant="desktop" />
+            <QueueTab variant='desktop' />
           ) : (
-            <div className="flex items-center justify-center h-32">
-              <div className="w-5 h-5 border-2 border-white/10 border-t-white/40 rounded-full animate-spin" />
+            <div className='flex items-center justify-center h-32'>
+              <div className='w-5 h-5 border-2 border-white/10 border-t-white/40 rounded-full animate-spin' />
             </div>
           )}
         </div>
@@ -99,8 +99,8 @@ const DesktopQueuePanel = memo(({ ready }) => {
         @keyframes dqpEq3 { 0%,100%{height:8px} 50%{height:14px} }
       `}</style>
     </>
-  )
-})
+  );
+});
 
-DesktopQueuePanel.displayName = "DesktopQueuePanel"
-export default DesktopQueuePanel
+DesktopQueuePanel.displayName = 'DesktopQueuePanel';
+export default DesktopQueuePanel;

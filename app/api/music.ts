@@ -1,4 +1,4 @@
-import { API_URL, SONG_URL } from "@/constants"
+import { API_URL, SONG_URL } from '@/constants';
 import type {
   MusicHistoryResponse,
   HomePageResponse,
@@ -7,97 +7,92 @@ import type {
   PlaylistDetails,
   AlbumDetails,
   ArtistDetails,
-} from "@/types/music"
-import { Song } from "@/types/song"
-import { ensureHttpsForSongUrls } from "@/utils/getHttpsUrls"
-import axios from "axios"
+} from '@/types/music';
+import { Song } from '@/types/song';
+import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
+import axios from 'axios';
 
 export const getHomePageMusic = async (): Promise<HomePageResponse> => {
-  const response = await axios.get(`${SONG_URL}/modules?lang=${"hindi"}`, {
+  const response = await axios.get(`${SONG_URL}/modules?lang=${'hindi'}`, {
     headers: {
-      "Cache-Control": "no-cache",
+      'Cache-Control': 'no-cache',
     },
-  })
+  });
 
-  return response.data.data
-}
+  return response.data.data;
+};
 
 export const getRecentMusic = async (api: any): Promise<RecentMusicResponse> => {
-  const response = await api.get("/api/music/recommendations")
-  return response.data.data
-}
+  const response = await api.get('/api/music/recommendations');
+  return response.data.data;
+};
 
 export const getMusicHistory = async (
   api: any,
-  params: MusicHistoryParams,
+  params: MusicHistoryParams
 ): Promise<MusicHistoryResponse> => {
-  const response = await api.get("/api/music/latestHistory", {
+  const response = await api.get('/api/music/latestHistory', {
     params,
-  })
-  return response.data.data
-}
+  });
+  return response.data.data;
+};
 
 export const addToHistory = async (api: any, songData: Song, playedTime?: number) => {
-  const response = await api.post(`/api/history/add`, { songData, playedTime })
-  return response.data
-}
+  const response = await api.post(`/api/history/add`, { songData, playedTime });
+  return response.data;
+};
 
 export const getRelatedSongs = async (songId: string): Promise<Song[]> => {
-  const response = await axios.get(`${SONG_URL}/song/recommend?id=${songId}`)
+  const response = await axios.get(`${SONG_URL}/song/recommend?id=${songId}`);
   if (response?.data?.data?.length) {
-    const newRecommendations = response.data.data?.map(ensureHttpsForSongUrls)
-    return newRecommendations
+    const newRecommendations = response.data.data?.map(ensureHttpsForSongUrls);
+    return newRecommendations;
   } else {
-    return []
+    return [];
   }
-}
+};
 
 export const getPlaylistDetails = async (playlistId: string): Promise<PlaylistDetails> => {
-  const response = await axios.get(`${SONG_URL}/playlist?id=${playlistId}`)
-  return response.data?.data ?? {}
-}
+  const response = await axios.get(`${SONG_URL}/playlist?id=${playlistId}`);
+  return response.data?.data ?? {};
+};
 
 export const getAlbumDetails = async (albumId: string): Promise<AlbumDetails> => {
-  const response = await axios.get(`${SONG_URL}/album?id=${albumId}`)
-  return response.data?.data ?? {}
-}
+  const response = await axios.get(`${SONG_URL}/album?id=${albumId}`);
+  return response.data?.data ?? {};
+};
 
 export const getArtistDetails = async (artistId: string): Promise<ArtistDetails> => {
-  const response = await axios.get(`${SONG_URL}/artist?id=${artistId}`)
-  return response.data?.data ?? {}
-}
+  const response = await axios.get(`${SONG_URL}/artist?id=${artistId}`);
+  return response.data?.data ?? {};
+};
 
 export const searchMusic = async (query: string): Promise<Song[]> => {
-  const response = await axios.get(`${SONG_URL}/search?q=${query}`)
-  return response.data.data ?? []
-}
+  const response = await axios.get(`${SONG_URL}/search?q=${query}`);
+  return response.data.data ?? [];
+};
 
-export const fetchSongRecommendations = async (
-  api: any,
-  id: string | number,
-): Promise<Song[]> => {
+export const fetchSongRecommendations = async (api: any, id: string | number): Promise<Song[]> => {
   try {
-    const response = await api.get(`/api/play-next/${id}?limit=20`)
+    const response = await api.get(`/api/play-next/${id}?limit=20`);
     if (response?.data?.data?.length) {
-      const newRecommendations = response.data.data?.map(ensureHttpsForSongUrls)
-      return newRecommendations
+      const newRecommendations = response.data.data?.map(ensureHttpsForSongUrls);
+      return newRecommendations;
     } else {
-      return []
+      return [];
     }
   } catch (err) {
-    console.log("recommendations error", err)
-    return []
+    console.log('recommendations error', err);
+    return [];
   }
-}
+};
 
 export const getGroupHistory = async (api: any, userId?: string | number): Promise<any[]> => {
   try {
-    const response = await api.get(`/api/music/group-history${userId ? `?userId=${userId}` : ""}`)
-    return response.data?.data || []
+    const response = await api.get(`/api/music/group-history${userId ? `?userId=${userId}` : ''}`);
+    return response.data?.data || [];
   } catch (err) {
-    console.log("group history error", err)
-    return []
+    console.log('group history error', err);
+    return [];
   }
-}
-
-
+};

@@ -1,54 +1,54 @@
-const http = require("http")
-const { Server } = require("socket.io")
-const app = require("./app")
-const sequelize = require("./utils/sequelize")
-const { socketManager } = require("./socket")
+const http = require('http');
+const { Server } = require('socket.io');
+const app = require('./app');
+const sequelize = require('./utils/sequelize');
+const { socketManager } = require('./socket');
 
-const server = http.createServer(app)
+const server = http.createServer(app);
 
 const io = new Server(server, {
   pingTimeout: 30000,
   pingInterval: 10000,
   connectTimeout: 20000,
   maxHttpBufferSize: 2e6,
-  transports: ["websocket", "polling"],
+  transports: ['websocket', 'polling'],
   cors: {
     origin: [
-      "https://syncvibe.thakur.dev",
-      "http://localhost:5173",
+      'https://syncvibe.thakur.dev',
+      'http://localhost:5173',
       /^https:\/\/([a-z0-9-]+\.)*thakur\.dev$/,
     ],
     credentials: true,
   },
-})
+});
 
-socketManager(io)
+socketManager(io);
 
-const { startBackgroundRecalc } = require("./services/recommendationService")
-const { resumePendingUpdates } = require("./controllers/easWebhookController")
+const { startBackgroundRecalc } = require('./services/recommendationService');
+const { resumePendingUpdates } = require('./controllers/easWebhookController');
 
 sequelize.authenticate().then(async () => {
-  const port = process.env.PORT || 4000
+  const port = process.env.PORT || 4000;
   server.listen(port, () => {
-    console.log(`Server running on port ${port}`)
-    startBackgroundRecalc(60000)
-    resumePendingUpdates()
-  })
-})
+    console.log(`Server running on port ${port}`);
+    startBackgroundRecalc(60000);
+    resumePendingUpdates();
+  });
+});
 
-process.on("SIGTERM", async () => {
-  console.log("SIGTERM received, shutting down gracefully...")
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, shutting down gracefully...');
   server.close(async () => {
-    await sequelize.close()
-    process.exit(0)
-  })
-})
+    await sequelize.close();
+    process.exit(0);
+  });
+});
 
-process.on("uncaughtException", (err) => {
-  console.error(err)
-  process.exit(1)
-})
+process.on('uncaughtException', (err) => {
+  console.error(err);
+  process.exit(1);
+});
 
-process.on("unhandledRejection", (reason) => {
-  console.error(reason)
-})
+process.on('unhandledRejection', (reason) => {
+  console.error(reason);
+});

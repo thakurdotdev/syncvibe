@@ -1,8 +1,8 @@
-const { DataTypes } = require("sequelize")
-const sequelize = require("../../utils/sequelize")
+const { DataTypes } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
 
 const GroupInvite = sequelize.define(
-  "GroupInvite",
+  'GroupInvite',
   {
     id: {
       type: DataTypes.INTEGER,
@@ -34,8 +34,8 @@ const GroupInvite = sequelize.define(
       allowNull: false,
     },
     status: {
-      type: DataTypes.ENUM("pending", "accepted", "declined", "expired"),
-      defaultValue: "pending",
+      type: DataTypes.ENUM('pending', 'accepted', 'declined', 'expired'),
+      defaultValue: 'pending',
     },
     expiresAt: {
       type: DataTypes.DATE,
@@ -44,11 +44,11 @@ const GroupInvite = sequelize.define(
   },
   {
     sequelize,
-    modelName: "GroupInvite",
-    tableName: "group_invites",
+    modelName: 'GroupInvite',
+    tableName: 'group_invites',
     timestamps: true,
-    indexes: [{ fields: ["inviteeId", "status"] }, { fields: ["groupId", "inviteeId"] }],
-  },
-)
+    indexes: [{ fields: ['inviteeId', 'status'] }, { fields: ['groupId', 'inviteeId'] }],
+  }
+);
 
-module.exports = GroupInvite
+module.exports = GroupInvite;

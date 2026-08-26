@@ -1,156 +1,156 @@
-import { Loader2 } from "lucide-react"
-import { lazy, Suspense, useContext } from "react"
-import { Navigate, Outlet, useLocation } from "react-router-dom"
-import { Context } from "./Context/Context"
-import AuthLayout from "./components/Auth/AuthLayout"
-import { useVideoCallStore } from "./stores/videoCallStore"
-import BottomPlayer from "./Pages/Music/BottomPlayer"
-import GroupMusic from "./Pages/GroupMusic/GroupMusic"
-import { AppSidebar } from "./components/AppSidebar"
-import { MusicSidebar } from "./components/MusicSidebar"
-import IncomingCallNotification from "./components/Chat/IncomingCall"
-import VideoCallUI from "./components/Chat/VideoCall"
-import Navbar from "./components/Navbar"
-import MusicNavbar from "./components/MusicNavbar"
-import ModeChooser from "./components/ModeChooser"
-import UploadIndicator from "./components/Posts/UploadIndicator"
-import MobileBottomBar from "./components/MobileBottomBar"
-import { useSidebar } from "./components/ui/sidebar"
-import { useProfileSuspenseQuery } from "./hooks/queries/useProfileQuery"
-import { useIsMobile } from "./hooks/use-mobile"
-import { useAppModeStore } from "./stores/appModeStore"
-import Login from "./components/Auth/Login"
-import PasskeyLogin from "./components/Auth/PassKeyLogin"
-import Register from "./components/Auth/Register"
-import VerifyUser from "./components/Auth/VerifyUser"
-import ResetPassword from "./components/Auth/ResetPassword"
+import { Loader2 } from 'lucide-react';
+import { lazy, Suspense, useContext } from 'react';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Context } from './Context/Context';
+import AuthLayout from './components/Auth/AuthLayout';
+import { useVideoCallStore } from './stores/videoCallStore';
+import BottomPlayer from './Pages/Music/BottomPlayer';
+import GroupMusic from './Pages/GroupMusic/GroupMusic';
+import { AppSidebar } from './components/AppSidebar';
+import { MusicSidebar } from './components/MusicSidebar';
+import IncomingCallNotification from './components/Chat/IncomingCall';
+import VideoCallUI from './components/Chat/VideoCall';
+import Navbar from './components/Navbar';
+import MusicNavbar from './components/MusicNavbar';
+import ModeChooser from './components/ModeChooser';
+import UploadIndicator from './components/Posts/UploadIndicator';
+import MobileBottomBar from './components/MobileBottomBar';
+import { useSidebar } from './components/ui/sidebar';
+import { useProfileSuspenseQuery } from './hooks/queries/useProfileQuery';
+import { useIsMobile } from './hooks/use-mobile';
+import { useAppModeStore } from './stores/appModeStore';
+import Login from './components/Auth/Login';
+import PasskeyLogin from './components/Auth/PassKeyLogin';
+import Register from './components/Auth/Register';
+import VerifyUser from './components/Auth/VerifyUser';
+import ResetPassword from './components/Auth/ResetPassword';
 
-const Header = lazy(() => import("./components/LandingPage/Header"))
-const Footer = lazy(() => import("./components/LandingPage/Footer"))
+const Header = lazy(() => import('./components/LandingPage/Header'));
+const Footer = lazy(() => import('./components/LandingPage/Footer'));
 
 const ProfileLoader = ({ children }) => {
-  useProfileSuspenseQuery()
-  return children
-}
+  useProfileSuspenseQuery();
+  return children;
+};
 
 // Lazy-load components
-const Profile = lazy(() => import("./components/Auth/Profile"))
-const SeeUserProfile = lazy(() => import("./components/Auth/SeeUserProfile"))
-const Chat = lazy(() => import("./components/Chat/Chat"))
-const Home = lazy(() => import("./components/LandingPage/Home"))
-const PrivacyPolicy = lazy(() => import("./components/LandingPage/PrivacyPolicy"))
-const TermsOfService = lazy(() => import("./components/LandingPage/TermOfService"))
-const RefundPolicy = lazy(() => import("./components/LandingPage/RefundPolicy"))
-const NotFoundPage = lazy(() => import("./components/NotFound"))
-const Dashboard = lazy(() => import("./components/Posts/Dashboard"))
-const PostDetail = lazy(() => import("./components/Posts/PostDetail"))
-const SearchPost = lazy(() => import("./components/Posts/SearchPost"))
-const PostEditor = lazy(() => import("./Pages/Posts/PostEditor"))
-const UserPosts = lazy(() => import("./components/Posts/UserPosts"))
-const StoryViewer = lazy(() => import("./components/Story/StoryViewer"))
-const Album = lazy(() => import("./Pages/Music/Album"))
-const Artist = lazy(() => import("./Pages/Music/Artist"))
-const HomePage = lazy(() => import("./Pages/Music/Homepage"))
-const LanguagePreference = lazy(() => import("./Pages/Music/LanguagePrefrance"))
-const Playlist = lazy(() => import("./Pages/Music/Playlist"))
-const UserPlaylist = lazy(() => import("./Pages/Music/UserPlaylist"))
-const UserPlaylistDetails = lazy(() => import("./Pages/Music/UserPlaylistDetails"))
-const HistoryPage = lazy(() => import("./Pages/Music/History"))
-const PlansPage = lazy(() => import("./Pages/Plans"))
-const PaymentHistoryPage = lazy(() => import("./Pages/PaymentHistory"))
-const PublishUpdate = lazy(() => import("./Pages/Admin/PublishUpdate"))
-const ReleasesPage = lazy(() => import("./Pages/Releases"))
+const Profile = lazy(() => import('./components/Auth/Profile'));
+const SeeUserProfile = lazy(() => import('./components/Auth/SeeUserProfile'));
+const Chat = lazy(() => import('./components/Chat/Chat'));
+const Home = lazy(() => import('./components/LandingPage/Home'));
+const PrivacyPolicy = lazy(() => import('./components/LandingPage/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./components/LandingPage/TermOfService'));
+const RefundPolicy = lazy(() => import('./components/LandingPage/RefundPolicy'));
+const NotFoundPage = lazy(() => import('./components/NotFound'));
+const Dashboard = lazy(() => import('./components/Posts/Dashboard'));
+const PostDetail = lazy(() => import('./components/Posts/PostDetail'));
+const SearchPost = lazy(() => import('./components/Posts/SearchPost'));
+const PostEditor = lazy(() => import('./Pages/Posts/PostEditor'));
+const UserPosts = lazy(() => import('./components/Posts/UserPosts'));
+const StoryViewer = lazy(() => import('./components/Story/StoryViewer'));
+const Album = lazy(() => import('./Pages/Music/Album'));
+const Artist = lazy(() => import('./Pages/Music/Artist'));
+const HomePage = lazy(() => import('./Pages/Music/Homepage'));
+const LanguagePreference = lazy(() => import('./Pages/Music/LanguagePrefrance'));
+const Playlist = lazy(() => import('./Pages/Music/Playlist'));
+const UserPlaylist = lazy(() => import('./Pages/Music/UserPlaylist'));
+const UserPlaylistDetails = lazy(() => import('./Pages/Music/UserPlaylistDetails'));
+const HistoryPage = lazy(() => import('./Pages/Music/History'));
+const PlansPage = lazy(() => import('./Pages/Plans'));
+const PaymentHistoryPage = lazy(() => import('./Pages/PaymentHistory'));
+const PublishUpdate = lazy(() => import('./Pages/Admin/PublishUpdate'));
+const ReleasesPage = lazy(() => import('./Pages/Releases'));
 
 // Fallback loader
 const Fallback = () => (
-  <div className="flex h-screen items-center justify-center w-full">
-    <Loader2 className="w-8 h-8 animate-spin" />
+  <div className='flex h-screen items-center justify-center w-full'>
+    <Loader2 className='w-8 h-8 animate-spin' />
   </div>
-)
+);
 
 export const privateRoutes = [
-  { path: "/profile", element: <Profile /> },
-  { path: "/user/:username", element: <SeeUserProfile /> },
-  { path: "/my/posts", element: <UserPosts /> },
-  { path: "/feed", element: <Dashboard /> },
-  { path: "/feed/post/:postid", element: <PostDetail /> },
-  { path: "/post/search", element: <SearchPost /> },
-  { path: "/post/create", element: <PostEditor /> },
-  { path: "/post/edit/:postid", element: <PostEditor /> },
-  { path: "/chat", element: <Chat /> },
-  { path: "/stories/:userid", element: <StoryViewer /> },
-  { path: "/music", element: <HomePage /> },
-  { path: "/music/languages", element: <LanguagePreference /> },
-  { path: "/music/playlist/:id", element: <Playlist /> },
-  { path: "/music/album/:id", element: <Album /> },
-  { path: "/music/artist/:id", element: <Artist /> },
-  { path: "/music/my-playlist", element: <UserPlaylist /> },
-  { path: "/music/my-playlist/:id", element: <UserPlaylistDetails /> },
-  { path: "/music/history", element: <HistoryPage /> },
-  { path: "/music/sync", element: <GroupMusic /> },
-  { path: "/payments/history", element: <PaymentHistoryPage /> },
-  { path: "/admin/updates", element: <PublishUpdate /> },
-]
+  { path: '/profile', element: <Profile /> },
+  { path: '/user/:username', element: <SeeUserProfile /> },
+  { path: '/my/posts', element: <UserPosts /> },
+  { path: '/feed', element: <Dashboard /> },
+  { path: '/feed/post/:postid', element: <PostDetail /> },
+  { path: '/post/search', element: <SearchPost /> },
+  { path: '/post/create', element: <PostEditor /> },
+  { path: '/post/edit/:postid', element: <PostEditor /> },
+  { path: '/chat', element: <Chat /> },
+  { path: '/stories/:userid', element: <StoryViewer /> },
+  { path: '/music', element: <HomePage /> },
+  { path: '/music/languages', element: <LanguagePreference /> },
+  { path: '/music/playlist/:id', element: <Playlist /> },
+  { path: '/music/album/:id', element: <Album /> },
+  { path: '/music/artist/:id', element: <Artist /> },
+  { path: '/music/my-playlist', element: <UserPlaylist /> },
+  { path: '/music/my-playlist/:id', element: <UserPlaylistDetails /> },
+  { path: '/music/history', element: <HistoryPage /> },
+  { path: '/music/sync', element: <GroupMusic /> },
+  { path: '/payments/history', element: <PaymentHistoryPage /> },
+  { path: '/admin/updates', element: <PublishUpdate /> },
+];
 
 export const musicOnlyRoutes = [
-  { path: "/music", element: <HomePage /> },
-  { path: "/music/playlist/:id", element: <Playlist /> },
-  { path: "/music/album/:id", element: <Album /> },
-  { path: "/music/artist/:id", element: <Artist /> },
-  { path: "/music/my-playlist", element: <UserPlaylist /> },
-  { path: "/music/my-playlist/:id", element: <UserPlaylistDetails /> },
-  { path: "/music/history", element: <HistoryPage /> },
-  { path: "/music/sync", element: <GroupMusic /> },
-  { path: "/post/search", element: <SearchPost /> },
-  { path: "/profile", element: <Profile /> },
-  { path: "/payments/history", element: <PaymentHistoryPage /> },
-  { path: "*", element: <Navigate to="/music" replace /> },
-]
+  { path: '/music', element: <HomePage /> },
+  { path: '/music/playlist/:id', element: <Playlist /> },
+  { path: '/music/album/:id', element: <Album /> },
+  { path: '/music/artist/:id', element: <Artist /> },
+  { path: '/music/my-playlist', element: <UserPlaylist /> },
+  { path: '/music/my-playlist/:id', element: <UserPlaylistDetails /> },
+  { path: '/music/history', element: <HistoryPage /> },
+  { path: '/music/sync', element: <GroupMusic /> },
+  { path: '/post/search', element: <SearchPost /> },
+  { path: '/profile', element: <Profile /> },
+  { path: '/payments/history', element: <PaymentHistoryPage /> },
+  { path: '*', element: <Navigate to='/music' replace /> },
+];
 
 export const publicRoutes = [
-  { path: "/", element: <Home /> },
-  { path: "/download", element: <ReleasesPage /> },
-  { path: "/releases", element: <ReleasesPage /> },
-  { path: "/register", element: <Register /> },
-  { path: "/verify", element: <VerifyUser /> },
-  { path: "/login", element: <Login /> },
-  { path: "/passkey-login", element: <PasskeyLogin /> },
-  { path: "/privacy-policy", element: <PrivacyPolicy /> },
-  { path: "/terms-of-services", element: <TermsOfService /> },
-  { path: "/refund-policy", element: <RefundPolicy /> },
-  { path: "/plans", element: <PlansPage /> },
-  { path: "/reset-password", element: <ResetPassword /> },
-  { path: "*", element: <NotFoundPage /> },
-]
+  { path: '/', element: <Home /> },
+  { path: '/download', element: <ReleasesPage /> },
+  { path: '/releases', element: <ReleasesPage /> },
+  { path: '/register', element: <Register /> },
+  { path: '/verify', element: <VerifyUser /> },
+  { path: '/login', element: <Login /> },
+  { path: '/passkey-login', element: <PasskeyLogin /> },
+  { path: '/privacy-policy', element: <PrivacyPolicy /> },
+  { path: '/terms-of-services', element: <TermsOfService /> },
+  { path: '/refund-policy', element: <RefundPolicy /> },
+  { path: '/plans', element: <PlansPage /> },
+  { path: '/reset-password', element: <ResetPassword /> },
+  { path: '*', element: <NotFoundPage /> },
+];
 
 // Protected Routes Component
 export const ProtectedRoutes = () => {
-  const { user, loading } = useContext(Context)
-  const { open } = useSidebar()
-  const isMobile = useIsMobile()
-  const { incomingCall, isInCall, answerCall, rejectCall } = useVideoCallStore()
-  const location = useLocation()
-  const mode = useAppModeStore((s) => s.mode)
-  const hasChosen = useAppModeStore((s) => s.hasChosen)
+  const { user, loading } = useContext(Context);
+  const { open } = useSidebar();
+  const isMobile = useIsMobile();
+  const { incomingCall, isInCall, answerCall, rejectCall } = useVideoCallStore();
+  const location = useLocation();
+  const mode = useAppModeStore((s) => s.mode);
+  const hasChosen = useAppModeStore((s) => s.hasChosen);
 
   if (loading) {
-    return <Fallback />
+    return <Fallback />;
   }
 
   if (!user?.email) {
-    return <Navigate to={`/login?returnTo=${location.pathname}`} replace />
+    return <Navigate to={`/login?returnTo=${location.pathname}`} replace />;
   }
 
   if (!user?.verified) {
-    return <Navigate to="/verify" state={{ email: user?.email }} replace />
+    return <Navigate to='/verify' state={{ email: user?.email }} replace />;
   }
 
   if (!hasChosen) {
-    return <ModeChooser />
+    return <ModeChooser />;
   }
 
-  if (mode === "music") {
-    return <MusicLayout />
+  if (mode === 'music') {
+    return <MusicLayout />;
   }
 
   return (
@@ -159,10 +159,10 @@ export const ProtectedRoutes = () => {
       <AppSidebar />
       <main
         className={`${
-          open && !isMobile ? "w-full max-w-[calc(100%-260px)]" : "w-full"
+          open && !isMobile ? 'w-full max-w-[calc(100%-260px)]' : 'w-full'
         } transition-all duration-300`}
       >
-        <div className="mt-[60px] h-[calc(100vh-60px)]">
+        <div className='mt-[60px] h-[calc(100vh-60px)]'>
           <Suspense fallback={<Fallback />}>
             <ProfileLoader>
               <Outlet />
@@ -179,12 +179,12 @@ export const ProtectedRoutes = () => {
       {isInCall && <VideoCallUI />}
       <UploadIndicator />
     </>
-  )
-}
+  );
+};
 
 const MusicLayout = () => {
-  const { open } = useSidebar()
-  const isMobile = useIsMobile()
+  const { open } = useSidebar();
+  const isMobile = useIsMobile();
 
   return (
     <>
@@ -192,10 +192,10 @@ const MusicLayout = () => {
       {!isMobile && <MusicSidebar />}
       <main
         className={`${
-          open && !isMobile ? "w-full max-w-[calc(100%-260px)]" : "w-full"
+          open && !isMobile ? 'w-full max-w-[calc(100%-260px)]' : 'w-full'
         } transition-all duration-300`}
       >
-        <div className={`mt-[56px] h-[calc(100vh-56px)] ${isMobile ? "pb-16" : ""}`}>
+        <div className={`mt-[56px] h-[calc(100vh-56px)] ${isMobile ? 'pb-16' : ''}`}>
           <Suspense fallback={<Fallback />}>
             <ProfileLoader>
               <Outlet />
@@ -206,31 +206,31 @@ const MusicLayout = () => {
       <BottomPlayer />
       {isMobile && <MobileBottomBar />}
     </>
-  )
-}
+  );
+};
 
 export const PublicRoutes = () => {
-  const location = useLocation()
+  const location = useLocation();
   const noHeaderFooterRoutes = [
-    "/login",
-    "/register",
-    "/verify",
-    "/passkey-login",
-    "/reset-password",
-  ]
-  const hideHeaderFooter = noHeaderFooterRoutes.includes(location.pathname)
+    '/login',
+    '/register',
+    '/verify',
+    '/passkey-login',
+    '/reset-password',
+  ];
+  const hideHeaderFooter = noHeaderFooterRoutes.includes(location.pathname);
 
   if (hideHeaderFooter) {
-    return <AuthLayout />
+    return <AuthLayout />;
   }
 
   return (
-    <main className="w-full">
+    <main className='w-full'>
       <Header />
       <Suspense fallback={<Fallback />}>
         <Outlet />
       </Suspense>
       <Footer />
     </main>
-  )
-}
+  );
+};

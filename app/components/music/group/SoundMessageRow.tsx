@@ -1,66 +1,66 @@
-import React, { memo, useState, useEffect, useCallback, useMemo } from "react"
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native"
-import { Feather, Ionicons } from "@expo/vector-icons"
-import { useTheme } from "@/context/ThemeContext"
-import { Message } from "@/stores/groupMusic/types"
-import { soundEffectsManager } from "@/utils/soundEffectsManager"
+import React, { memo, useState, useEffect, useCallback, useMemo } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/context/ThemeContext';
+import { Message } from '@/stores/groupMusic/types';
+import { soundEffectsManager } from '@/utils/soundEffectsManager';
 
 // Generate a deterministic, realistic waveform pattern based on sound ID/name
-const generateWaveform = (str = ""): number[] => {
-  const bars: number[] = []
-  let seed = 0
+const generateWaveform = (str = ''): number[] => {
+  const bars: number[] = [];
+  let seed = 0;
   for (let i = 0; i < str.length; i++) {
-    seed = (seed * 31 + str.charCodeAt(i)) & 0xffffffff
+    seed = (seed * 31 + str.charCodeAt(i)) & 0xffffffff;
   }
   for (let i = 0; i < 24; i++) {
-    seed = (seed * 1664525 + 1013904223) & 0xffffffff
-    const norm = Math.abs(seed % 100) / 100
+    seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+    const norm = Math.abs(seed % 100) / 100;
     // Height between 4 and 18 for voice-note waveform bars
-    const h = Math.round(4 + norm * 14)
-    bars.push(h)
+    const h = Math.round(4 + norm * 14);
+    bars.push(h);
   }
-  return bars
-}
+  return bars;
+};
 
 interface SoundMessageRowProps {
-  msg: Message
-  isOwn: boolean
+  msg: Message;
+  isOwn: boolean;
 }
 
 export const SoundMessageRow: React.FC<SoundMessageRowProps> = memo(({ msg, isOwn }) => {
-  const { colors } = useTheme()
-  const [isPlaying, setIsPlaying] = useState(false)
+  const { colors } = useTheme();
+  const [isPlaying, setIsPlaying] = useState(false);
 
-  const soundUrl = msg.soundUrl || msg.message
-  const soundName = msg.soundName || msg.message || "Sound Effect"
-  const soundId = msg.soundId || soundName
+  const soundUrl = msg.soundUrl || msg.message;
+  const soundName = msg.soundName || msg.message || 'Sound Effect';
+  const soundId = msg.soundId || soundName;
 
-  const waveformBars = useMemo(() => generateWaveform(soundId), [soundId])
+  const waveformBars = useMemo(() => generateWaveform(soundId), [soundId]);
 
   const handleTogglePlay = useCallback(() => {
-    if (!soundUrl) return
+    if (!soundUrl) return;
 
     if (isPlaying) {
-      soundEffectsManager.stopPreview()
-      setIsPlaying(false)
-      return
+      soundEffectsManager.stopPreview();
+      setIsPlaying(false);
+      return;
     }
 
-    setIsPlaying(true)
+    setIsPlaying(true);
     soundEffectsManager.playPreview(
       soundUrl,
       () => setIsPlaying(false),
-      () => setIsPlaying(false),
-    )
-  }, [isPlaying, soundUrl])
+      () => setIsPlaying(false)
+    );
+  }, [isPlaying, soundUrl]);
 
   useEffect(() => {
     return () => {
       if (isPlaying) {
-        soundEffectsManager.stopPreview()
+        soundEffectsManager.stopPreview();
       }
-    }
-  }, [isPlaying])
+    };
+  }, [isPlaying]);
 
   return (
     <View style={styles.container}>
@@ -71,14 +71,12 @@ export const SoundMessageRow: React.FC<SoundMessageRowProps> = memo(({ msg, isOw
         style={[
           styles.playBtn,
           {
-            backgroundColor: isOwn
-              ? colors.primaryForeground
-              : colors.primary,
+            backgroundColor: isOwn ? colors.primaryForeground : colors.primary,
           },
         ]}
       >
         <Ionicons
-          name={isPlaying ? "pause" : "play"}
+          name={isPlaying ? 'pause' : 'play'}
           size={15}
           color={isOwn ? colors.primary : colors.primaryForeground}
           style={!isPlaying ? { marginLeft: 1.5 } : undefined}
@@ -115,8 +113,8 @@ export const SoundMessageRow: React.FC<SoundMessageRowProps> = memo(({ msg, isOw
                       ? colors.primaryForeground
                       : colors.primary
                     : isOwn
-                      ? colors.primaryForeground + "50"
-                      : colors.foreground + "35",
+                      ? colors.primaryForeground + '50'
+                      : colors.foreground + '35',
                 },
               ]}
             />
@@ -124,13 +122,13 @@ export const SoundMessageRow: React.FC<SoundMessageRowProps> = memo(({ msg, isOw
         </TouchableOpacity>
       </View>
     </View>
-  )
-})
+  );
+});
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     width: 200,
     paddingVertical: 2,
     gap: 10,
@@ -139,9 +137,9 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 3,
@@ -149,17 +147,17 @@ const styles = StyleSheet.create({
   },
   infoCol: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: 'center',
     gap: 4,
   },
   titleText: {
     fontSize: 12.5,
-    fontWeight: "700",
+    fontWeight: '700',
     lineHeight: 16,
   },
   waveformRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     height: 18,
     gap: 2,
   },
@@ -167,6 +165,6 @@ const styles = StyleSheet.create({
     width: 2.5,
     borderRadius: 2,
   },
-})
+});
 
-export default SoundMessageRow
+export default SoundMessageRow;

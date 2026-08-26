@@ -1,19 +1,19 @@
-import DeveloperProfileModal from "@/components/DeveloperProfileModal"
-import LoginScreen from "@/components/LoginScreen"
-import Card from "@/components/ui/card"
-import { TabSafeAreaView } from "@/components/ui/TabSafeAreaView"
-import { useAppUpdate } from "@/context/AppUpdateContext"
-import { useTheme } from "@/context/ThemeContext"
-import { useUser } from "@/context/UserContext"
-import type { ThemeColors } from "@/theme/color"
-import { getOptimizedImageUrl } from "@/utils/Cloudinary"
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import { LinearGradient } from "expo-linear-gradient"
-import { router } from "expo-router"
-import { ChevronRightIcon, LaptopIcon, MoonIcon, SunIcon } from "lucide-react-native"
-import type React from "react"
-import { memo, useCallback, useEffect, useMemo, useState } from "react"
+import DeveloperProfileModal from '@/components/DeveloperProfileModal';
+import LoginScreen from '@/components/LoginScreen';
+import Card from '@/components/ui/card';
+import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
+import { useAppUpdate } from '@/context/AppUpdateContext';
+import { useTheme } from '@/context/ThemeContext';
+import { useUser } from '@/context/UserContext';
+import type { ThemeColors } from '@/theme/color';
+import { getOptimizedImageUrl } from '@/utils/Cloudinary';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { ChevronRightIcon, LaptopIcon, MoonIcon, SunIcon } from 'lucide-react-native';
+import type React from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,19 +22,19 @@ import {
   Pressable,
   Text,
   TouchableOpacity,
-  View
-} from "react-native"
+  View,
+} from 'react-native';
 
 const SectionHeader = ({
   icon,
   title,
   colors,
 }: {
-  icon: React.ReactNode
-  title: string
-  colors: ThemeColors
+  icon: React.ReactNode;
+  title: string;
+  colors: ThemeColors;
 }) => (
-  <View style={{ flexDirection: "row", alignItems: "center" }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
     <View
       style={{
         backgroundColor: colors.accent,
@@ -47,108 +47,108 @@ const SectionHeader = ({
     </View>
     <Card.Title>{title}</Card.Title>
   </View>
-)
+);
 
 const ThemeToggle = memo(() => {
-  const { colors, setTheme, themePreference } = useTheme()
-  const selectedTheme = themePreference
+  const { colors, setTheme, themePreference } = useTheme();
+  const selectedTheme = themePreference;
 
   const handleThemeChange = useCallback(
-    (newTheme: "light" | "system" | "dark") => {
-      setTheme(newTheme)
+    (newTheme: 'light' | 'system' | 'dark') => {
+      setTheme(newTheme);
     },
-    [setTheme],
-  )
+    [setTheme]
+  );
 
   const themeButtons = useMemo(
     () => (
       <View
         style={{
-          flexDirection: "row",
+          flexDirection: 'row',
           backgroundColor: colors.secondary,
           borderRadius: 20,
           padding: 4,
         }}
       >
         <TouchableOpacity
-          onPress={() => handleThemeChange("light")}
+          onPress={() => handleThemeChange('light')}
           style={{
             paddingHorizontal: 12,
             paddingVertical: 6,
             borderRadius: 16,
-            backgroundColor: selectedTheme === "light" ? colors.primary : "transparent",
+            backgroundColor: selectedTheme === 'light' ? colors.primary : 'transparent',
             marginRight: 4,
           }}
           activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Light theme"
-          accessibilityState={{ selected: selectedTheme === "light" }}
+          accessibilityRole='button'
+          accessibilityLabel='Light theme'
+          accessibilityState={{ selected: selectedTheme === 'light' }}
         >
           <SunIcon
             size={20}
-            color={selectedTheme === "light" ? colors.primaryForeground : colors.mutedForeground}
+            color={selectedTheme === 'light' ? colors.primaryForeground : colors.mutedForeground}
           />
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => handleThemeChange("system")}
+          onPress={() => handleThemeChange('system')}
           style={{
             paddingHorizontal: 12,
             paddingVertical: 6,
             borderRadius: 16,
-            backgroundColor: selectedTheme === "system" ? colors.primary : "transparent",
+            backgroundColor: selectedTheme === 'system' ? colors.primary : 'transparent',
             marginRight: 4,
           }}
           activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="System theme"
-          accessibilityState={{ selected: selectedTheme === "system" }}
+          accessibilityRole='button'
+          accessibilityLabel='System theme'
+          accessibilityState={{ selected: selectedTheme === 'system' }}
         >
           <LaptopIcon
             size={20}
-            color={selectedTheme === "system" ? colors.primaryForeground : colors.mutedForeground}
+            color={selectedTheme === 'system' ? colors.primaryForeground : colors.mutedForeground}
           />
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => handleThemeChange("dark")}
+          onPress={() => handleThemeChange('dark')}
           style={{
             paddingHorizontal: 12,
             paddingVertical: 6,
             borderRadius: 16,
-            backgroundColor: selectedTheme === "dark" ? colors.primary : "transparent",
+            backgroundColor: selectedTheme === 'dark' ? colors.primary : 'transparent',
           }}
           activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Dark theme"
-          accessibilityState={{ selected: selectedTheme === "dark" }}
+          accessibilityRole='button'
+          accessibilityLabel='Dark theme'
+          accessibilityState={{ selected: selectedTheme === 'dark' }}
         >
           <MoonIcon
             size={20}
-            color={selectedTheme === "dark" ? colors.primaryForeground : colors.mutedForeground}
+            color={selectedTheme === 'dark' ? colors.primaryForeground : colors.mutedForeground}
           />
         </TouchableOpacity>
       </View>
     ),
-    [colors, selectedTheme, handleThemeChange],
-  )
+    [colors, selectedTheme, handleThemeChange]
+  );
 
   return (
     <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
       <View
         style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
         }}
       >
-        <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "600" }}>Theme</Text>
+        <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '600' }}>Theme</Text>
         {themeButtons}
       </View>
     </View>
-  )
-})
-ThemeToggle.displayName = "ThemeToggle"
+  );
+});
+ThemeToggle.displayName = 'ThemeToggle';
 
 const SettingItem = ({
   icon,
@@ -159,15 +159,15 @@ const SettingItem = ({
   isLast = false,
   colors,
 }: {
-  icon: React.ReactNode
-  title: string
-  subtitle?: string
-  onPress: () => void
-  isDestructive?: boolean
-  isLast?: boolean
-  colors: ThemeColors
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  onPress: () => void;
+  isDestructive?: boolean;
+  isLast?: boolean;
+  colors: ThemeColors;
 }) => {
-  const pressScale = useState(() => new Animated.Value(1))[0]
+  const pressScale = useState(() => new Animated.Value(1))[0];
 
   const handlePressIn = () => {
     Animated.spring(pressScale, {
@@ -175,8 +175,8 @@ const SettingItem = ({
       friction: 8,
       tension: 100,
       useNativeDriver: true,
-    }).start()
-  }
+    }).start();
+  };
 
   const handlePressOut = () => {
     Animated.spring(pressScale, {
@@ -184,23 +184,23 @@ const SettingItem = ({
       friction: 5,
       tension: 40,
       useNativeDriver: true,
-    }).start()
-  }
+    }).start();
+  };
 
   return (
     <Pressable
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={onPress}
-      accessibilityRole="button"
+      accessibilityRole='button'
       accessibilityLabel={title}
     >
       <Animated.View
         style={{
           transform: [{ scale: pressScale }],
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           paddingVertical: 14,
           // Bottom hairline divider between rows instead of relying on
           // card padding alone to separate items — keeps multi-row
@@ -209,7 +209,7 @@ const SettingItem = ({
           borderBottomColor: colors.border,
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
           <View
             style={{
               backgroundColor: isDestructive ? `${colors.destructive}1A` : colors.secondary,
@@ -225,7 +225,7 @@ const SettingItem = ({
               style={{
                 color: isDestructive ? colors.destructive : colors.foreground,
                 fontSize: 16,
-                fontWeight: "500",
+                fontWeight: '500',
               }}
             >
               {title}
@@ -240,8 +240,8 @@ const SettingItem = ({
         {!isDestructive && <ChevronRightIcon size={20} color={colors.mutedForeground} />}
       </Animated.View>
     </Pressable>
-  )
-}
+  );
+};
 
 // ---------------------------------------------------------------------------
 // ProfileHeader — isolated so the gradient + avatar block reads as one
@@ -256,10 +256,10 @@ const ProfileHeader = ({
   onAvatarPress,
   onCameraPress,
 }: {
-  user: any
-  colors: ThemeColors
-  onAvatarPress: () => void
-  onCameraPress: () => void
+  user: any;
+  colors: ThemeColors;
+  onAvatarPress: () => void;
+  onCameraPress: () => void;
 }) => {
   return (
     <View style={{ marginBottom: 24 }}>
@@ -267,7 +267,7 @@ const ProfileHeader = ({
         colors={[colors.primary, `${colors.primary}95`, colors.background]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
-        style={{ height: 260, position: "absolute", left: 0, right: 0, top: 0 }}
+        style={{ height: 260, position: 'absolute', left: 0, right: 0, top: 0 }}
       />
 
       <Animated.View
@@ -276,13 +276,13 @@ const ProfileHeader = ({
           paddingHorizontal: 24,
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 18 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 18 }}>
           <Pressable
             onPress={onAvatarPress}
-            accessibilityRole="button"
-            accessibilityLabel="Change profile picture"
+            accessibilityRole='button'
+            accessibilityLabel='Change profile picture'
             style={{
-              shadowColor: "#000",
+              shadowColor: '#000',
               shadowOffset: { width: 0, height: 6 },
               shadowOpacity: 0.2,
               shadowRadius: 10,
@@ -298,36 +298,36 @@ const ProfileHeader = ({
                 borderWidth: 3,
                 borderColor: colors.primaryForeground,
               }}
-              resizeMode="cover"
+              resizeMode='cover'
             />
             <Pressable
               onPress={onCameraPress}
-              accessibilityRole="button"
-              accessibilityLabel="Update profile picture"
+              accessibilityRole='button'
+              accessibilityLabel='Update profile picture'
               style={{
-                position: "absolute",
+                position: 'absolute',
                 bottom: -4,
                 right: -4,
                 backgroundColor: colors.primary,
                 borderRadius: 14,
                 width: 30,
                 height: 30,
-                justifyContent: "center",
-                alignItems: "center",
+                justifyContent: 'center',
+                alignItems: 'center',
                 borderWidth: 2,
                 borderColor: colors.primaryForeground,
               }}
             >
-              <Feather name="camera" size={13} color={colors.primaryForeground} />
+              <Feather name='camera' size={13} color={colors.primaryForeground} />
             </Pressable>
           </Pressable>
 
           <View style={{ flex: 1, paddingTop: 8 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
               <Text
                 style={{
                   fontSize: 22,
-                  fontWeight: "700",
+                  fontWeight: '700',
                   color: colors.primaryForeground,
                   letterSpacing: -0.4,
                 }}
@@ -337,7 +337,7 @@ const ProfileHeader = ({
               </Text>
               {user?.verified && (
                 <MaterialCommunityIcons
-                  name="check-decagram"
+                  name='check-decagram'
                   size={20}
                   color={colors.primaryForeground}
                   style={{ opacity: 0.95 }}
@@ -364,82 +364,77 @@ const ProfileHeader = ({
         </View>
       </Animated.View>
     </View>
-  )
-}
+  );
+};
 
 export default function ProfileScreen() {
-  const { user, logout, getProfile, loading } = useUser()
-  const { colors, theme } = useTheme()
-  const [showDeveloperModal, setShowDeveloperModal] = useState(false)
-  const [showAllUpdateNotes, setShowAllUpdateNotes] = useState(false)
-  const {
-    updateInfo,
-    isUpdateAvailable,
-    currentVersion,
-    showUpdateModal,
-    openManualDownloadUrl,
-  } = useAppUpdate()
+  const { user, logout, getProfile, loading } = useUser();
+  const { colors, theme } = useTheme();
+  const [showDeveloperModal, setShowDeveloperModal] = useState(false);
+  const [showAllUpdateNotes, setShowAllUpdateNotes] = useState(false);
+  const { updateInfo, isUpdateAvailable, currentVersion, showUpdateModal, openManualDownloadUrl } =
+    useAppUpdate();
 
   const releaseNoteLines = useMemo(() => {
-    if (!updateInfo?.releaseNotes) return []
+    if (!updateInfo?.releaseNotes) return [];
     return updateInfo.releaseNotes
-      .split("\n")
+      .split('\n')
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
-      .map((line) => line.replace(/^[-\*•\s]+/, ""))
-  }, [updateInfo?.releaseNotes])
+      .map((line) => line.replace(/^[-*•\s]+/, ''));
+  }, [updateInfo?.releaseNotes]);
 
-  const visibleNoteLines = showAllUpdateNotes ? releaseNoteLines : releaseNoteLines.slice(0, 2)
-  const hasMoreNotes = releaseNoteLines.length > 2
+  const visibleNoteLines = showAllUpdateNotes ? releaseNoteLines : releaseNoteLines.slice(0, 2);
+  const hasMoreNotes = releaseNoteLines.length > 2;
 
   useEffect(() => {
     const getUser = async () => {
-      const token = await AsyncStorage.getItem("token")
+      const token = await AsyncStorage.getItem('token');
       if (!user && token) {
-        getProfile()
+        getProfile();
       }
-    }
-    getUser()
-  }, [user, getProfile])
+    };
+    getUser();
+  }, [user, getProfile]);
 
   const handleLogout = useCallback(async () => {
     Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
+      'Logout',
+      'Are you sure you want to logout?',
       [
-        { text: "Cancel", style: "cancel" },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Logout",
-          style: "destructive",
+          text: 'Logout',
+          style: 'destructive',
           onPress: async () => {
-            await logout()
-            router.replace("/(tabs)/home")
+            await logout();
+            router.replace('/(tabs)/home');
           },
         },
       ],
-      { cancelable: true },
-    )
-  }, [logout])
+      { cancelable: true }
+    );
+  }, [logout]);
 
   if (loading) {
     return (
       <View
         style={{
           flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
+          justifyContent: 'center',
+          alignItems: 'center',
           backgroundColor: colors.background,
           gap: 12,
         }}
       >
-        <ActivityIndicator size="small" color={colors.primary} />
+        <ActivityIndicator size='small' color={colors.primary} />
         <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>Loading profile…</Text>
       </View>
-    )
+    );
   }
 
   if (!user) {
-    return <LoginScreen />
+    return <LoginScreen />;
   }
 
   return (
@@ -448,22 +443,25 @@ export default function ProfileScreen() {
         <ProfileHeader
           user={user}
           colors={colors}
-          onAvatarPress={() => router.push("/update-profile-picture")}
-          onCameraPress={() => router.push("/update-profile-picture")}
+          onAvatarPress={() => router.push('/update-profile-picture')}
+          onCameraPress={() => router.push('/update-profile-picture')}
         />
 
         <View style={{ paddingHorizontal: 20, paddingBottom: 32, gap: 16 }}>
           {isUpdateAvailable && updateInfo && (
-            <Card variant="default" style={{ borderColor: `${colors.primary}60`, borderWidth: 1.5 }}>
+            <Card
+              variant='default'
+              style={{ borderColor: `${colors.primary}60`, borderWidth: 1.5 }}
+            >
               <Card.Header
                 style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                   paddingBottom: 8,
                 }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                   <View
                     style={{
                       backgroundColor: `${colors.primary}18`,
@@ -471,12 +469,15 @@ export default function ProfileScreen() {
                       padding: 6,
                     }}
                   >
-                    <Ionicons name="cloud-download-outline" size={20} color={colors.primary} />
+                    <Ionicons name='cloud-download-outline' size={20} color={colors.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Card.Title>Update Available</Card.Title>
                     <Text style={{ color: colors.mutedForeground, fontSize: 12, marginTop: 1 }}>
-                      v{currentVersion} → <Text style={{ color: colors.primary, fontWeight: "600" }}>v{updateInfo.version}</Text>
+                      v{currentVersion} →{' '}
+                      <Text style={{ color: colors.primary, fontWeight: '600' }}>
+                        v{updateInfo.version}
+                      </Text>
                     </Text>
                   </View>
                 </View>
@@ -489,7 +490,7 @@ export default function ProfileScreen() {
                       borderRadius: 6,
                     }}
                   >
-                    <Text style={{ color: colors.destructive, fontSize: 10, fontWeight: "bold" }}>
+                    <Text style={{ color: colors.destructive, fontSize: 10, fontWeight: 'bold' }}>
                       CRITICAL
                     </Text>
                   </View>
@@ -501,7 +502,7 @@ export default function ProfileScreen() {
                     {visibleNoteLines.map((line, idx) => (
                       <View
                         key={idx}
-                        style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}
+                        style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}
                       >
                         <Text style={{ color: colors.primary, fontSize: 13, lineHeight: 18 }}>
                           •
@@ -523,12 +524,12 @@ export default function ProfileScreen() {
                     {hasMoreNotes && (
                       <TouchableOpacity
                         onPress={() => setShowAllUpdateNotes((prev) => !prev)}
-                        style={{ alignSelf: "flex-start", marginTop: 2 }}
+                        style={{ alignSelf: 'flex-start', marginTop: 2 }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "600" }}>
+                        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
                           {showAllUpdateNotes
-                            ? "Show less"
+                            ? 'Show less'
                             : `+ ${releaseNoteLines.length - 2} more improvements`}
                         </Text>
                       </TouchableOpacity>
@@ -536,7 +537,7 @@ export default function ProfileScreen() {
                   </View>
                 )}
 
-                <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
                   <TouchableOpacity
                     onPress={showUpdateModal}
                     style={{
@@ -544,13 +545,13 @@ export default function ProfileScreen() {
                       backgroundColor: colors.primary,
                       paddingVertical: 10,
                       borderRadius: 10,
-                      alignItems: "center",
-                      justifyContent: "center",
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
                     activeOpacity={0.8}
                   >
                     <Text
-                      style={{ color: colors.primaryForeground, fontWeight: "600", fontSize: 13 }}
+                      style={{ color: colors.primaryForeground, fontWeight: '600', fontSize: 13 }}
                     >
                       Update App
                     </Text>
@@ -566,15 +567,15 @@ export default function ProfileScreen() {
                         borderWidth: 1,
                         borderColor: colors.border,
                         backgroundColor: colors.secondary,
-                        flexDirection: "row",
-                        alignItems: "center",
+                        flexDirection: 'row',
+                        alignItems: 'center',
                         gap: 6,
                       }}
                       activeOpacity={0.7}
-                      accessibilityLabel="Download APK via browser"
+                      accessibilityLabel='Download APK via browser'
                     >
-                      <MaterialCommunityIcons name="open-in-new" size={15} color={colors.primary} />
-                      <Text style={{ color: colors.foreground, fontWeight: "600", fontSize: 13 }}>
+                      <MaterialCommunityIcons name='open-in-new' size={15} color={colors.primary} />
+                      <Text style={{ color: colors.foreground, fontWeight: '600', fontSize: 13 }}>
                         Browser
                       </Text>
                     </TouchableOpacity>
@@ -583,17 +584,17 @@ export default function ProfileScreen() {
               </Card.Content>
             </Card>
           )}
-          <Card variant="default">
+          <Card variant='default'>
             <Card.Header>
               <SectionHeader
                 icon={
                   <Ionicons
-                    name={theme === "dark" ? "moon" : "sunny"}
+                    name={theme === 'dark' ? 'moon' : 'sunny'}
                     size={20}
                     color={colors.primary}
                   />
                 }
-                title="Appearance"
+                title='Appearance'
                 colors={colors}
               />
             </Card.Header>
@@ -602,33 +603,33 @@ export default function ProfileScreen() {
             </Card.Content>
           </Card>
 
-          <Card variant="default">
+          <Card variant='default'>
             <Card.Content style={{ paddingVertical: 8 }}>
               <SettingItem
-                icon={<Feather name="user" size={18} color={colors.mutedForeground} />}
-                title="Edit profile"
-                subtitle="Update your personal information"
-                onPress={() => router.push("/edit-profile")}
+                icon={<Feather name='user' size={18} color={colors.mutedForeground} />}
+                title='Edit profile'
+                subtitle='Update your personal information'
+                onPress={() => router.push('/edit-profile')}
                 colors={colors}
               />
               <SettingItem
-                icon={<Feather name="music" size={18} color={colors.mutedForeground} />}
-                title="Language preferences"
-                subtitle="Set your preferred music languages"
-                onPress={() => router.push("/music-language")}
+                icon={<Feather name='music' size={18} color={colors.mutedForeground} />}
+                title='Language preferences'
+                subtitle='Set your preferred music languages'
+                onPress={() => router.push('/music-language')}
                 colors={colors}
               />
               <SettingItem
-                icon={<Feather name="code" size={18} color={colors.mutedForeground} />}
-                title="Developer info"
-                subtitle="Meet the developer behind SyncVibe"
+                icon={<Feather name='code' size={18} color={colors.mutedForeground} />}
+                title='Developer info'
+                subtitle='Meet the developer behind SyncVibe'
                 onPress={() => setShowDeveloperModal(true)}
                 colors={colors}
               />
               <SettingItem
-                icon={<Feather name="log-out" size={18} color={colors.destructive} />}
-                title="Logout"
-                subtitle="Sign out of your account"
+                icon={<Feather name='log-out' size={18} color={colors.destructive} />}
+                title='Logout'
+                subtitle='Sign out of your account'
                 onPress={handleLogout}
                 colors={colors}
                 isDestructive
@@ -637,7 +638,7 @@ export default function ProfileScreen() {
             </Card.Content>
           </Card>
 
-          <View style={{ alignItems: "center", marginTop: 8 }}>
+          <View style={{ alignItems: 'center', marginTop: 8 }}>
             <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
               SyncVibe v{currentVersion}
             </Text>
@@ -650,5 +651,5 @@ export default function ProfileScreen() {
         onClose={() => setShowDeveloperModal(false)}
       />
     </TabSafeAreaView>
-  )
+  );
 }

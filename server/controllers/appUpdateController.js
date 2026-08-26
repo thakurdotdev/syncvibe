@@ -1,103 +1,103 @@
-const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3")
-const { getSignedUrl } = require("@aws-sdk/s3-request-presigner")
-const AppUpdate = require("../models/appUpdateModel")
-const { buildPublishedMailSender } = require("../utils/resend")
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const AppUpdate = require('../models/appUpdateModel');
+const { buildPublishedMailSender } = require('../utils/resend');
 
 exports.getLatestUpdate = async (req, res) => {
   try {
     const latest = await AppUpdate.findOne({
-      order: [["createdAt", "DESC"]],
+      order: [['createdAt', 'DESC']],
       raw: true,
-    })
-    return res.status(200).json({ success: true, latest })
+    });
+    return res.status(200).json({ success: true, latest });
   } catch (error) {
-    console.error("Error fetching latest update:", error)
-    return res.status(500).json({ success: false, message: "Internal server error" })
+    console.error('Error fetching latest update:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
-}
+};
 
 exports.getAllUpdates = async (req, res) => {
   try {
     const updates = await AppUpdate.findAll({
-      order: [["createdAt", "DESC"]],
+      order: [['createdAt', 'DESC']],
       raw: true,
-    })
-    return res.status(200).json({ success: true, updates })
+    });
+    return res.status(200).json({ success: true, updates });
   } catch (error) {
-    console.error("Error fetching app updates history:", error)
-    return res.status(500).json({ success: false, message: "Internal server error" })
+    console.error('Error fetching app updates history:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
-}
+};
 
 exports.downloadLatestUpdate = async (req, res) => {
   try {
     const latest = await AppUpdate.findOne({
-      order: [["createdAt", "DESC"]],
+      order: [['createdAt', 'DESC']],
       raw: true,
-    })
+    });
     if (!latest || !latest.downloadUrl) {
-      return res.status(404).json({ success: false, message: "No release APK available" })
+      return res.status(404).json({ success: false, message: 'No release APK available' });
     }
-    return res.redirect(latest.downloadUrl)
+    return res.redirect(latest.downloadUrl);
   } catch (error) {
-    console.error("Error redirecting to latest update download:", error)
-    return res.status(500).json({ success: false, message: "Internal server error" })
+    console.error('Error redirecting to latest update download:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
-}
+};
 
 exports.getPresignedUrl = async (req, res) => {
   try {
     if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
-      return res.status(403).json({ success: false, message: "Forbidden" })
+      return res.status(403).json({ success: false, message: 'Forbidden' });
     }
 
-    const { version } = req.query
+    const { version } = req.query;
     if (!version) {
-      return res.status(400).json({ success: false, message: "Version is required" })
+      return res.status(400).json({ success: false, message: 'Version is required' });
     }
 
-    const existingUpdate = await AppUpdate.findOne({ where: { version } })
+    const existingUpdate = await AppUpdate.findOne({ where: { version } });
     if (existingUpdate) {
-      return res.status(400).json({ success: false, message: "This version already exists" })
+      return res.status(400).json({ success: false, message: 'This version already exists' });
     }
 
     const s3Client = new S3Client({
-      region: "auto",
+      region: 'auto',
       endpoint: process.env.R2_ENDPOINT,
       credentials: {
         accessKeyId: process.env.R2_ACCESS_KEY_ID,
         secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
       },
-    })
+    });
 
-    const fileKey = `updates/syncvibe-v${version}.apk`
+    const fileKey = `updates/syncvibe-v${version}.apk`;
     const command = new PutObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME,
       Key: fileKey,
-      ContentType: "application/vnd.android.package-archive",
-    })
+      ContentType: 'application/vnd.android.package-archive',
+    });
 
-    const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 })
-    const downloadUrl = `${process.env.R2_PUBLIC_URL}/${fileKey}`
+    const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    const downloadUrl = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
 
-    return res.status(200).json({ success: true, uploadUrl, downloadUrl })
+    return res.status(200).json({ success: true, uploadUrl, downloadUrl });
   } catch (error) {
-    console.error("Error generating presigned URL:", error)
-    return res.status(500).json({ success: false, message: error.message })
+    console.error('Error generating presigned URL:', error);
+    return res.status(500).json({ success: false, message: error.message });
   }
-}
+};
 
 exports.createUpdate = async (req, res) => {
   try {
     if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
-      return res.status(403).json({ success: false, message: "Forbidden" })
+      return res.status(403).json({ success: false, message: 'Forbidden' });
     }
 
-    const { version, releaseNotes, downloadUrl, critical, sha256, fileSize } = req.body
+    const { version, releaseNotes, downloadUrl, critical, sha256, fileSize } = req.body;
     if (!version || !downloadUrl) {
       return res
         .status(400)
-        .json({ success: false, message: "Version and download URL are required" })
+        .json({ success: false, message: 'Version and download URL are required' });
     }
 
     const update = await AppUpdate.create({
@@ -107,7 +107,7 @@ exports.createUpdate = async (req, res) => {
       critical: !!critical,
       sha256: sha256 ? String(sha256).trim() : null,
       fileSize: fileSize ? Number(fileSize) : null,
-    })
+    });
 
     if (process.env.ADMIN_EMAIL) {
       buildPublishedMailSender(process.env.ADMIN_EMAIL, {
@@ -116,13 +116,13 @@ exports.createUpdate = async (req, res) => {
         downloadUrl,
         fileSize: fileSize ? Number(fileSize) : null,
         sha256: sha256 ? String(sha256).trim() : null,
-        platform: "Android",
-      }).catch((err) => console.error("Failed to send build notification email:", err))
+        platform: 'Android',
+      }).catch((err) => console.error('Failed to send build notification email:', err));
     }
 
-    return res.status(201).json({ success: true, update })
+    return res.status(201).json({ success: true, update });
   } catch (error) {
-    console.error("Error creating update record:", error)
-    return res.status(500).json({ success: false, message: error.message })
+    console.error('Error creating update record:', error);
+    return res.status(500).json({ success: false, message: error.message });
   }
-}
+};

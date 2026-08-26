@@ -1,5 +1,5 @@
-import axios from "axios"
-import { AnimatePresence, motion } from "framer-motion"
+import axios from 'axios';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   Loader2,
   Pause,
@@ -12,40 +12,40 @@ import {
   SkipForward,
   Volume2,
   VolumeX,
-} from "lucide-react"
-import { memo, useCallback, useState, useRef } from "react"
-import ShareDrawer from "@/components/Posts/ShareDrawer"
-import { Button } from "@/components/ui/button"
-import { Slider } from "@/components/ui/slider"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
-import { usePlayerStore } from "@/stores/playerStore"
+} from 'lucide-react';
+import { memo, useCallback, useState, useRef } from 'react';
+import ShareDrawer from '@/components/Posts/ShareDrawer';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import { usePlayerStore } from '@/stores/playerStore';
 
 export const formatTime = (time) => {
-  if (!time) return "00:00"
-  const minutes = Math.floor(time / 60)
-  const seconds = Math.floor(time % 60)
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
-}
+  if (!time) return '00:00';
+  const minutes = Math.floor(time / 60);
+  const seconds = Math.floor(time % 60);
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
 
 export const PlaylistActions = ({ onPlayAll, onShuffle, disabled, showShare = true }) => {
-  const [isShareDrawerOpen, setIsShareDrawerOpen] = useState(false)
+  const [isShareDrawerOpen, setIsShareDrawerOpen] = useState(false);
   return (
     <>
-      <div className="flex items-center gap-2">
-        <Button onClick={onPlayAll} disabled={disabled} className="gap-2">
-          <Play className="w-4 h-4" />
+      <div className='flex items-center gap-2'>
+        <Button onClick={onPlayAll} disabled={disabled} className='gap-2'>
+          <Play className='w-4 h-4' />
           Play All
         </Button>
 
-        <Button variant="outline" onClick={onShuffle} disabled={disabled} className="gap-2">
-          <Shuffle className="w-4 h-4" />
+        <Button variant='outline' onClick={onShuffle} disabled={disabled} className='gap-2'>
+          <Shuffle className='w-4 h-4' />
           Shuffle
         </Button>
 
         {showShare && (
-          <Button variant="outline" onClick={() => setIsShareDrawerOpen(true)} className="gap-2">
-            <Share2 className="w-4 h-4" />
+          <Button variant='outline' onClick={() => setIsShareDrawerOpen(true)} className='gap-2'>
+            <Share2 className='w-4 h-4' />
             Share
           </Button>
         )}
@@ -58,66 +58,66 @@ export const PlaylistActions = ({ onPlayAll, onShuffle, disabled, showShare = tr
         />
       )}
     </>
-  )
-}
+  );
+};
 
 export const LoadingState = ({ message, height }) => (
   <div
     className={`flex ${
-      height ? height : "h-full"
+      height ? height : 'h-full'
     } items-center justify-center bg-background/50 backdrop-blur-xs`}
   >
-    <div className="flex flex-col items-center gap-4">
-      <Loader2 className="w-10 h-10 animate-spin text-emerald-500" />
-      <p className="text-muted-foreground animate-pulse">{message || "Loading your music..."}</p>
+    <div className='flex flex-col items-center gap-4'>
+      <Loader2 className='w-10 h-10 animate-spin text-emerald-500' />
+      <p className='text-muted-foreground animate-pulse'>{message || 'Loading your music...'}</p>
     </div>
   </div>
-)
+);
 
-export const MusicControls = memo(({ size = "default", showExtras = true }) => {
-  const handleNextSong = usePlayerStore((s) => s.handleNextSong)
-  const handlePrevSong = usePlayerStore((s) => s.handlePrevSong)
-  const handlePlayPause = usePlayerStore((s) => s.handlePlayPause)
-  const isPlaying = usePlayerStore((s) => s.isPlaying)
-  const shuffleMode = usePlayerStore((s) => s.shuffleMode)
-  const repeatMode = usePlayerStore((s) => s.repeatMode)
-  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle)
-  const toggleRepeat = usePlayerStore((s) => s.toggleRepeat)
+export const MusicControls = memo(({ size = 'default', showExtras = true }) => {
+  const handleNextSong = usePlayerStore((s) => s.handleNextSong);
+  const handlePrevSong = usePlayerStore((s) => s.handlePrevSong);
+  const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const shuffleMode = usePlayerStore((s) => s.shuffleMode);
+  const repeatMode = usePlayerStore((s) => s.repeatMode);
+  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const toggleRepeat = usePlayerStore((s) => s.toggleRepeat);
 
-  const isLarge = size === "large"
-  const RepeatIcon = repeatMode === "one" ? Repeat1 : Repeat
-  const repeatLabel = { off: "Repeat: Off", all: "Repeat: All", one: "Repeat: One" }
+  const isLarge = size === 'large';
+  const RepeatIcon = repeatMode === 'one' ? Repeat1 : Repeat;
+  const repeatLabel = { off: 'Repeat: Off', all: 'Repeat: All', one: 'Repeat: One' };
 
-  const btnAnim = { hover: { scale: 1.1 }, tap: { scale: 0.9 } }
-  const playAnim = { hover: { scale: 1.08 }, tap: { scale: 0.92 } }
+  const btnAnim = { hover: { scale: 1.1 }, tap: { scale: 0.9 } };
+  const playAnim = { hover: { scale: 1.08 }, tap: { scale: 0.92 } };
 
   return (
     <TooltipProvider delayDuration={300}>
       <div
         className={cn(
-          "flex items-center justify-center",
-          isLarge ? "gap-3 sm:gap-5" : "gap-1 sm:gap-2",
+          'flex items-center justify-center',
+          isLarge ? 'gap-3 sm:gap-5' : 'gap-1 sm:gap-2'
         )}
       >
         {showExtras && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <motion.div variants={btnAnim} whileHover="hover" whileTap="tap">
+              <motion.div variants={btnAnim} whileHover='hover' whileTap='tap'>
                 <Button
-                  variant="ghost"
-                  size="icon"
+                  variant='ghost'
+                  size='icon'
                   onClick={toggleShuffle}
                   className={cn(
-                    "relative transition-colors duration-200",
-                    isLarge ? "h-11 w-11" : "h-9 w-9",
-                    shuffleMode ? "text-white" : "text-white/50 hover:text-white/80",
+                    'relative transition-colors duration-200',
+                    isLarge ? 'h-11 w-11' : 'h-9 w-9',
+                    shuffleMode ? 'text-white' : 'text-white/50 hover:text-white/80'
                   )}
                 >
-                  <Shuffle className={isLarge ? "h-[18px] w-[18px]" : "h-4 w-4"} />
+                  <Shuffle className={isLarge ? 'h-[18px] w-[18px]' : 'h-4 w-4'} />
                   {shuffleMode && (
                     <motion.span
-                      layoutId="shuffle-indicator"
-                      className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white"
+                      layoutId='shuffle-indicator'
+                      className='absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white'
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
@@ -126,64 +126,64 @@ export const MusicControls = memo(({ size = "default", showExtras = true }) => {
                 </Button>
               </motion.div>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">
-              {shuffleMode ? "Shuffle: On" : "Shuffle: Off"}
+            <TooltipContent side='top' className='text-xs'>
+              {shuffleMode ? 'Shuffle: On' : 'Shuffle: Off'}
             </TooltipContent>
           </Tooltip>
         )}
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <motion.div variants={btnAnim} whileHover="hover" whileTap="tap">
+            <motion.div variants={btnAnim} whileHover='hover' whileTap='tap'>
               <Button
-                variant="ghost"
-                size="icon"
+                variant='ghost'
+                size='icon'
                 onClick={handlePrevSong}
                 className={cn(
-                  "transition-colors duration-200 text-white/70 hover:text-white",
-                  isLarge ? "h-12 w-12" : "h-9 w-9",
+                  'transition-colors duration-200 text-white/70 hover:text-white',
+                  isLarge ? 'h-12 w-12' : 'h-9 w-9'
                 )}
               >
                 <SkipBack
-                  className={isLarge ? "h-[22px] w-[22px]" : "h-4 w-4"}
-                  fill="currentColor"
+                  className={isLarge ? 'h-[22px] w-[22px]' : 'h-4 w-4'}
+                  fill='currentColor'
                 />
               </Button>
             </motion.div>
           </TooltipTrigger>
-          <TooltipContent side="top" className="text-xs">
+          <TooltipContent side='top' className='text-xs'>
             Previous
           </TooltipContent>
         </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <motion.div variants={playAnim} whileHover="hover" whileTap="tap">
+            <motion.div variants={playAnim} whileHover='hover' whileTap='tap'>
               <Button
-                size="icon"
+                size='icon'
                 onClick={handlePlayPause}
                 className={cn(
-                  "bg-white hover:bg-white/90 text-black transition-all duration-200",
+                  'bg-white hover:bg-white/90 text-black transition-all duration-200',
                   isLarge
-                    ? "h-16 w-16 rounded-full shadow-[0_4px_24px_rgba(255,255,255,0.15)]"
-                    : "h-10 w-10 rounded-full shadow-lg",
+                    ? 'h-16 w-16 rounded-full shadow-[0_4px_24px_rgba(255,255,255,0.15)]'
+                    : 'h-10 w-10 rounded-full shadow-lg'
                 )}
               >
-                <AnimatePresence mode="wait" initial={false}>
+                <AnimatePresence mode='wait' initial={false}>
                   <motion.span
-                    key={isPlaying ? "pause" : "play"}
+                    key={isPlaying ? 'pause' : 'play'}
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.5, opacity: 0 }}
                     transition={{ duration: 0.15 }}
-                    className="flex items-center justify-center"
+                    className='flex items-center justify-center'
                   >
                     {isPlaying ? (
-                      <Pause className={isLarge ? "h-7 w-7" : "h-4 w-4"} fill="currentColor" />
+                      <Pause className={isLarge ? 'h-7 w-7' : 'h-4 w-4'} fill='currentColor' />
                     ) : (
                       <Play
-                        className={cn(isLarge ? "h-7 w-7" : "h-4 w-4", "ml-0.5")}
-                        fill="currentColor"
+                        className={cn(isLarge ? 'h-7 w-7' : 'h-4 w-4', 'ml-0.5')}
+                        fill='currentColor'
                       />
                     )}
                   </motion.span>
@@ -191,31 +191,31 @@ export const MusicControls = memo(({ size = "default", showExtras = true }) => {
               </Button>
             </motion.div>
           </TooltipTrigger>
-          <TooltipContent side="top" className="text-xs">
-            {isPlaying ? "Pause" : "Play"}
+          <TooltipContent side='top' className='text-xs'>
+            {isPlaying ? 'Pause' : 'Play'}
           </TooltipContent>
         </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <motion.div variants={btnAnim} whileHover="hover" whileTap="tap">
+            <motion.div variants={btnAnim} whileHover='hover' whileTap='tap'>
               <Button
-                variant="ghost"
-                size="icon"
+                variant='ghost'
+                size='icon'
                 onClick={() => handleNextSong(false)}
                 className={cn(
-                  "transition-colors duration-200 text-white/70 hover:text-white",
-                  isLarge ? "h-12 w-12" : "h-9 w-9",
+                  'transition-colors duration-200 text-white/70 hover:text-white',
+                  isLarge ? 'h-12 w-12' : 'h-9 w-9'
                 )}
               >
                 <SkipForward
-                  className={isLarge ? "h-[22px] w-[22px]" : "h-4 w-4"}
-                  fill="currentColor"
+                  className={isLarge ? 'h-[22px] w-[22px]' : 'h-4 w-4'}
+                  fill='currentColor'
                 />
               </Button>
             </motion.div>
           </TooltipTrigger>
-          <TooltipContent side="top" className="text-xs">
+          <TooltipContent side='top' className='text-xs'>
             Next
           </TooltipContent>
         </Tooltip>
@@ -223,22 +223,22 @@ export const MusicControls = memo(({ size = "default", showExtras = true }) => {
         {showExtras && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <motion.div variants={btnAnim} whileHover="hover" whileTap="tap">
+              <motion.div variants={btnAnim} whileHover='hover' whileTap='tap'>
                 <Button
-                  variant="ghost"
-                  size="icon"
+                  variant='ghost'
+                  size='icon'
                   onClick={toggleRepeat}
                   className={cn(
-                    "relative transition-colors duration-200",
-                    isLarge ? "h-11 w-11" : "h-9 w-9",
-                    repeatMode !== "off" ? "text-white" : "text-white/50 hover:text-white/80",
+                    'relative transition-colors duration-200',
+                    isLarge ? 'h-11 w-11' : 'h-9 w-9',
+                    repeatMode !== 'off' ? 'text-white' : 'text-white/50 hover:text-white/80'
                   )}
                 >
-                  <RepeatIcon className={isLarge ? "h-[18px] w-[18px]" : "h-4 w-4"} />
-                  {repeatMode !== "off" && (
+                  <RepeatIcon className={isLarge ? 'h-[18px] w-[18px]' : 'h-4 w-4'} />
+                  {repeatMode !== 'off' && (
                     <motion.span
-                      layoutId="repeat-indicator"
-                      className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white"
+                      layoutId='repeat-indicator'
+                      className='absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white'
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
@@ -247,55 +247,55 @@ export const MusicControls = memo(({ size = "default", showExtras = true }) => {
                 </Button>
               </motion.div>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">
+            <TooltipContent side='top' className='text-xs'>
               {repeatLabel[repeatMode]}
             </TooltipContent>
           </Tooltip>
         )}
       </div>
     </TooltipProvider>
-  )
-})
+  );
+});
 
 export const VolumeControl = memo(({ showVolume = false, alwaysShowSlider = false }) => {
-  const handleVolumeChange = usePlayerStore((s) => s.handleVolumeChange)
-  const volume = usePlayerStore((s) => s.volume)
-  const [isMuted, setIsMuted] = useState(false)
-  const [prevVolume, setPrevVolume] = useState(1)
+  const handleVolumeChange = usePlayerStore((s) => s.handleVolumeChange);
+  const volume = usePlayerStore((s) => s.volume);
+  const [isMuted, setIsMuted] = useState(false);
+  const [prevVolume, setPrevVolume] = useState(1);
 
   const toggleMute = useCallback(() => {
     if (isMuted) {
-      handleVolumeChange(prevVolume)
-      setIsMuted(false)
+      handleVolumeChange(prevVolume);
+      setIsMuted(false);
     } else {
-      setPrevVolume(volume)
-      handleVolumeChange(0)
-      setIsMuted(true)
+      setPrevVolume(volume);
+      handleVolumeChange(0);
+      setIsMuted(true);
     }
-  }, [isMuted, volume, prevVolume, handleVolumeChange])
+  }, [isMuted, volume, prevVolume, handleVolumeChange]);
 
-  if (!showVolume) return null
+  if (!showVolume) return null;
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex items-center gap-2 group">
+      <div className='flex items-center gap-2 group'>
         <Tooltip>
           <TooltipTrigger asChild>
             <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
               <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 transition-colors duration-200 text-white/70 hover:text-white"
+                variant='ghost'
+                size='icon'
+                className='h-9 w-9 transition-colors duration-200 text-white/70 hover:text-white'
                 onClick={toggleMute}
               >
-                <AnimatePresence mode="wait" initial={false}>
+                <AnimatePresence mode='wait' initial={false}>
                   <motion.span
-                    key={isMuted || volume === 0 ? "muted" : "unmuted"}
+                    key={isMuted || volume === 0 ? 'muted' : 'unmuted'}
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.5, opacity: 0 }}
                     transition={{ duration: 0.15 }}
-                    className="flex items-center justify-center"
+                    className='flex items-center justify-center'
                   >
                     {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
                   </motion.span>
@@ -303,16 +303,16 @@ export const VolumeControl = memo(({ showVolume = false, alwaysShowSlider = fals
               </Button>
             </motion.div>
           </TooltipTrigger>
-          <TooltipContent side="top" className="text-xs">
-            {isMuted || volume === 0 ? "Unmute" : "Mute"}
+          <TooltipContent side='top' className='text-xs'>
+            {isMuted || volume === 0 ? 'Unmute' : 'Mute'}
           </TooltipContent>
         </Tooltip>
         <div
           className={cn(
-            "transition-all duration-300",
+            'transition-all duration-300',
             alwaysShowSlider
-              ? "w-24 sm:w-28 opacity-100"
-              : "w-0 overflow-hidden group-hover:w-20 opacity-0 group-hover:opacity-100",
+              ? 'w-24 sm:w-28 opacity-100'
+              : 'w-0 overflow-hidden group-hover:w-20 opacity-0 group-hover:opacity-100'
           )}
         >
           <Slider
@@ -320,63 +320,62 @@ export const VolumeControl = memo(({ showVolume = false, alwaysShowSlider = fals
             min={0}
             max={1}
             step={0.01}
-            className="w-full cursor-pointer **:[[role=slider]]:bg-primary **:[[role=slider]]:border-0"
+            className='w-full cursor-pointer **:[[role=slider]]:bg-primary **:[[role=slider]]:border-0'
             onValueChange={([value]) => {
-              handleVolumeChange(value)
-              if (value > 0) setIsMuted(false)
+              handleVolumeChange(value);
+              if (value > 0) setIsMuted(false);
             }}
           />
         </div>
       </div>
     </TooltipProvider>
-  )
-})
-
+  );
+});
 
 export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
-  const currentTime = usePlayerStore((s) => s.currentTime)
-  const duration = usePlayerStore((s) => s.duration)
-  const handleTimeSeek = usePlayerStore((s) => s.handleTimeSeek)
-  const [hoverTime, setHoverTime] = useState(null)
-  const [hoverX, setHoverX] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const containerRef = useRef(null)
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
+  const handleTimeSeek = usePlayerStore((s) => s.handleTimeSeek);
+  const [hoverTime, setHoverTime] = useState(null);
+  const [hoverX, setHoverX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef(null);
 
   const handleMouseMove = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const pct = Math.max(0, Math.min(1, x / rect.width))
-    setHoverTime(pct * duration)
-    setHoverX(x)
-  }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, x / rect.width));
+    setHoverTime(pct * duration);
+    setHoverX(x);
+  };
 
   const handleMouseLeave = () => {
-    setHoverTime(null)
-  }
+    setHoverTime(null);
+  };
 
-  const showTooltip = (hoverTime !== null || isDragging) && duration > 0
-  const displayTime = isDragging ? currentTime : hoverTime
+  const showTooltip = (hoverTime !== null || isDragging) && duration > 0;
+  const displayTime = isDragging ? currentTime : hoverTime;
 
-  let activeX = hoverX
+  let activeX = hoverX;
   if (isDragging && containerRef.current) {
-    const rect = containerRef.current.getBoundingClientRect()
-    const pct = currentTime / (duration || 1)
-    activeX = pct * rect.width
+    const rect = containerRef.current.getBoundingClientRect();
+    const pct = currentTime / (duration || 1);
+    activeX = pct * rect.width;
   }
 
   return (
     <div
       ref={containerRef}
-      className="relative group/progress cursor-pointer overflow-visible"
+      className='relative group/progress cursor-pointer overflow-visible'
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
       {showTooltip && (
         <div
-          className="absolute z-[100] bg-[#0a0c12]/95 border border-white/10 text-white text-[10px] font-semibold px-2 py-0.5 rounded shadow-xl pointer-events-none -translate-x-1/2"
+          className='absolute z-[100] bg-[#0a0c12]/95 border border-white/10 text-white text-[10px] font-semibold px-2 py-0.5 rounded shadow-xl pointer-events-none -translate-x-1/2'
           style={{
             left: `${activeX}px`,
-            bottom: "18px",
+            bottom: '18px',
           }}
         >
           {formatTime(displayTime)}
@@ -393,83 +392,83 @@ export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
         onPointerUp={() => setIsDragging(false)}
         onPointerCancel={() => setIsDragging(false)}
         className={cn(
-          "relative h-5 py-2 -my-2 cursor-pointer transition-colors duration-200",
-          "[&>span:first-child]:h-[4px] [&>span:first-child]:bg-white/15 [&>span:first-child]:rounded-full [&>span:first-child]:transition-[height,background-color] [&>span:first-child]:duration-200",
-          "group-hover/progress:[&>span:first-child]:h-[6px] group-hover/progress:[&>span:first-child]:bg-white/20",
-          "[&>span:first-child>span]:bg-white [&>span:first-child>span]:rounded-full [&>span:first-child>span]:transition-colors [&>span:first-child>span]:duration-200",
-          "group-hover/progress:[&>span:first-child>span]:bg-primary",
-          "**:[[role=slider]]:h-3.5 **:[[role=slider]]:w-3.5 **:[[role=slider]]:bg-white **:[[role=slider]]:border-0",
-          "**:[[role=slider]]:shadow-[0_0_10px_rgba(255,255,255,0.4)]",
-          "**:[[role=slider]]:opacity-0 **:[[role=slider]]:scale-50",
-          "**:[[role=slider]]:transition-[opacity,transform] **:[[role=slider]]:duration-200",
-          "group-hover/progress:**:[[role=slider]]:opacity-100 group-hover/progress:**:[[role=slider]]:scale-100",
+          'relative h-5 py-2 -my-2 cursor-pointer transition-colors duration-200',
+          '[&>span:first-child]:h-[4px] [&>span:first-child]:bg-white/15 [&>span:first-child]:rounded-full [&>span:first-child]:transition-[height,background-color] [&>span:first-child]:duration-200',
+          'group-hover/progress:[&>span:first-child]:h-[6px] group-hover/progress:[&>span:first-child]:bg-white/20',
+          '[&>span:first-child>span]:bg-white [&>span:first-child>span]:rounded-full [&>span:first-child>span]:transition-colors [&>span:first-child>span]:duration-200',
+          'group-hover/progress:[&>span:first-child>span]:bg-primary',
+          '**:[[role=slider]]:h-3.5 **:[[role=slider]]:w-3.5 **:[[role=slider]]:bg-white **:[[role=slider]]:border-0',
+          '**:[[role=slider]]:shadow-[0_0_10px_rgba(255,255,255,0.4)]',
+          '**:[[role=slider]]:opacity-0 **:[[role=slider]]:scale-50',
+          '**:[[role=slider]]:transition-[opacity,transform] **:[[role=slider]]:duration-200',
+          'group-hover/progress:**:[[role=slider]]:opacity-100 group-hover/progress:**:[[role=slider]]:scale-100'
         )}
       />
       {isTimeVisible && (
-        <div className="flex justify-between px-0.5">
-          <span className="text-[11px] text-white/40 tabular-nums font-medium">
+        <div className='flex justify-between px-0.5'>
+          <span className='text-[11px] text-white/40 tabular-nums font-medium'>
             {formatTime(currentTime)}
           </span>
-          <span className="text-[11px] text-white/40 tabular-nums font-medium">
+          <span className='text-[11px] text-white/40 tabular-nums font-medium'>
             {formatTime(duration)}
           </span>
         </div>
       )}
     </div>
-  )
-})
+  );
+});
 
 export const ensureHttpsForDownloadUrls = (song) => {
-  if (!song || typeof song !== "object") return song
+  if (!song || typeof song !== 'object') return song;
 
   const updatedDownloadUrls = Array.isArray(song.download_url)
     ? song.download_url.map((item) => {
-        if (!item || typeof item !== "object") return item
+        if (!item || typeof item !== 'object') return item;
         return {
           ...item,
           link:
-            item.link && typeof item.link === "string"
-              ? item.link.startsWith("http://")
-                ? item.link.replace("http://", "https://")
+            item.link && typeof item.link === 'string'
+              ? item.link.startsWith('http://')
+                ? item.link.replace('http://', 'https://')
                 : item.link
               : item.link,
-        }
+        };
       })
-    : song.download_url
+    : song.download_url;
 
   const updatedArtworkUrls = Array.isArray(song.image)
     ? song.image.map((item) => {
-        if (!item || typeof item !== "object") return item
+        if (!item || typeof item !== 'object') return item;
         return {
           ...item,
           link:
-            item.link && typeof item.link === "string"
-              ? item.link.startsWith("http://")
-                ? item.link.replace("http://", "https://")
+            item.link && typeof item.link === 'string'
+              ? item.link.startsWith('http://')
+                ? item.link.replace('http://', 'https://')
                 : item.link
               : item.link,
-        }
+        };
       })
-    : song.image
+    : song.image;
 
   return {
     ...song,
     download_url: updatedDownloadUrls,
     image: updatedArtworkUrls,
-  }
-}
+  };
+};
 
 export const addToHistory = async (songData, playedTime, trackingType) => {
   try {
     const response = await axios.post(
       `${import.meta.env.VITE_API_URL}/api/history/add`,
       { songData, playedTime, trackingType },
-      { withCredentials: true },
-    )
+      { withCredentials: true }
+    );
 
     if (response.status === 200) {
     }
   } catch (error) {
-    console.error("Error adding to history:", error)
+    console.error('Error adding to history:', error);
   }
-}
+};

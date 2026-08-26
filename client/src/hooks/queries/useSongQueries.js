@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery } from '@tanstack/react-query';
 import {
   fetchAlbum,
   fetchArtist,
@@ -7,7 +7,7 @@ import {
   searchSongs,
   searchSongsBackend,
   songKeys,
-} from "@/api/music/songs"
+} from '@/api/music/songs';
 
 export const useSearchQuery = (query, options = {}) => {
   return useQuery({
@@ -16,8 +16,8 @@ export const useSearchQuery = (query, options = {}) => {
     enabled: !!query?.trim(),
     staleTime: 1000 * 60 * 5,
     ...options,
-  })
-}
+  });
+};
 
 export const useBackendSearchQuery = (query, options = {}) => {
   return useQuery({
@@ -26,8 +26,8 @@ export const useBackendSearchQuery = (query, options = {}) => {
     enabled: !!query?.trim(),
     staleTime: 1000 * 60 * 5,
     ...options,
-  })
-}
+  });
+};
 
 export const useAlbumQuery = (id, options = {}) => {
   return useQuery({
@@ -36,8 +36,8 @@ export const useAlbumQuery = (id, options = {}) => {
     enabled: !!id,
     staleTime: 1000 * 60 * 10,
     ...options,
-  })
-}
+  });
+};
 
 export const useArtistQuery = (id, options = {}) => {
   return useQuery({
@@ -46,8 +46,8 @@ export const useArtistQuery = (id, options = {}) => {
     enabled: !!id,
     staleTime: 1000 * 60 * 10,
     ...options,
-  })
-}
+  });
+};
 
 export const useExternalPlaylistQuery = (id, options = {}) => {
   return useQuery({
@@ -56,8 +56,8 @@ export const useExternalPlaylistQuery = (id, options = {}) => {
     enabled: !!id,
     staleTime: 1000 * 60 * 10,
     ...options,
-  })
-}
+  });
+};
 
 export const useSongRecommendationsQuery = (id, options = {}) => {
   return useQuery({
@@ -66,5 +66,5 @@ export const useSongRecommendationsQuery = (id, options = {}) => {
     enabled: !!id,
     staleTime: 1000 * 60 * 5,
     ...options,
-  })
-}
+  });
+};

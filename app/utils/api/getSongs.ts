@@ -1,7 +1,7 @@
-import { SONG_URL } from "@/constants"
-import { Song } from "@/types/song"
-import axios from "axios"
-import { ensureHttpsForSongUrls } from "../getHttpsUrls"
+import { SONG_URL } from '@/constants';
+import { Song } from '@/types/song';
+import axios from 'axios';
+import { ensureHttpsForSongUrls } from '../getHttpsUrls';
 
 /**
  * Searches for songs based on a query string
@@ -12,10 +12,10 @@ export const searchSongs = async (query: string): Promise<Song[]> => {
   try {
     const { data } = await axios.get(`${SONG_URL}/search/songs`, {
       params: { q: query },
-    })
+    });
 
-    return (data?.data?.results || []).map(ensureHttpsForSongUrls)
+    return (data?.data?.results || []).map(ensureHttpsForSongUrls);
   } catch {
-    return []
+    return [];
   }
-}
+};

@@ -1,0 +1,10 @@
+node_modules
+dist
+.expo
+android
+bun.lock
+bun.lockb
+pnpm-lock.yaml
+package-lock.json
+.git
+.github

@@ -1,50 +1,53 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react"
-import * as Notifications from "expo-notifications"
-import { registerForPushNotificationsAsync } from "@/utils/registerForPushNotificationsAsync"
-import { useChat } from "./SocketContext"
-import { useUser } from "./UserContext"
-import useApi from "@/utils/hooks/useApi"
-import { router } from "expo-router"
-import { runAfterIdle } from "@/utils/runAfterIdle"
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import * as Notifications from 'expo-notifications';
+import { registerForPushNotificationsAsync } from '@/utils/registerForPushNotificationsAsync';
+import { useChat } from './SocketContext';
+import { useUser } from './UserContext';
+import useApi from '@/utils/hooks/useApi';
+import { router } from 'expo-router';
+import { runAfterIdle } from '@/utils/runAfterIdle';
 
 type NotificationContextType = {
-  expoPushToken: string | null
-  notification: Notifications.Notification | null
-}
+  expoPushToken: string | null;
+  notification: Notifications.Notification | null;
+};
 
 const NotificationContext = createContext<NotificationContextType>({
   expoPushToken: null,
   notification: null,
-})
+});
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const api = useApi()
-  const { user } = useUser()
-  const { users, setCurrentChat, socket } = useChat()
-  const [expoPushToken, setExpoPushToken] = useState<string | null>(null)
-  const [notification, setNotification] = useState<Notifications.Notification | null>(null)
+  const api = useApi();
+  const { user } = useUser();
+  const { users, setCurrentChat, socket } = useChat();
+  const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
+  const [notification, setNotification] = useState<Notifications.Notification | null>(null);
 
-  const [pendingChatId, setPendingChatId] = useState<string | null>(null)
+  const [pendingChatId, setPendingChatId] = useState<string | null>(null);
 
-  const notificationListener = useRef<Notifications.EventSubscription | null>(null)
-  const responseListener = useRef<Notifications.EventSubscription | null>(null)
-  const appInitialized = useRef(false)
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  const appInitialized = useRef(false);
 
   // Centralized handler for notification interactions (taps, quick reply, join/decline)
   const handleNotificationResponse = useCallback(
     (response: Notifications.NotificationResponse) => {
-      const { actionIdentifier, userText } = response
-      const data = response.notification.request.content.data as Record<string, any> | undefined
+      const { actionIdentifier, userText } = response;
+      const data = response.notification.request.content.data as Record<string, any> | undefined;
 
-      const chatid = data?.chatid ? String(data.chatid) : undefined
-      const type = data?.type as string | undefined
+      const chatid = data?.chatid ? String(data.chatid) : undefined;
+      const type = data?.type as string | undefined;
 
       // 1. Interactive Action: Quick Reply (WhatsApp-style inline response)
-      if (actionIdentifier === "REPLY_ACTION" && userText?.trim()) {
-        const text = userText.trim()
+      if (actionIdentifier === 'REPLY_ACTION' && userText?.trim()) {
+        const text = userText.trim();
         if (chatid && user?.userid) {
-          const targetChat = users.find((u) => String(u.chatid) === chatid)
-          const participants = targetChat?.participants || [Number(user.userid), Number(data?.senderId)]
+          const targetChat = users.find((u) => String(u.chatid) === chatid);
+          const participants = targetChat?.participants || [
+            Number(user.userid),
+            Number(data?.senderId),
+          ];
           const newMsg = {
             senderid: user.userid,
             content: text,
@@ -53,120 +56,120 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             participants,
             chatid: Number(chatid),
             senderName: user.name,
-          }
+          };
           if (socket?.connected) {
-            socket.emit("new-message", newMsg)
+            socket.emit('new-message', newMsg);
           }
         }
-        return
+        return;
       }
 
       // 2. Interactive Action: Group Invite Join or Default Tap on Group Invite
       if (
-        actionIdentifier === "JOIN_GROUP_ACTION" ||
-        type === "group-invite" ||
-        type === "group_invite"
+        actionIdentifier === 'JOIN_GROUP_ACTION' ||
+        type === 'group-invite' ||
+        type === 'group_invite'
       ) {
         setTimeout(() => {
-          router.push("/(tabs)/group-music")
-        }, 150)
-        return
+          router.push('/(tabs)/group-music');
+        }, 150);
+        return;
       }
 
       // 3. Interactive Action: Decline (no navigation needed)
       if (
-        actionIdentifier === "DECLINE_GROUP_ACTION" ||
-        actionIdentifier === "DECLINE_CALL_ACTION"
+        actionIdentifier === 'DECLINE_GROUP_ACTION' ||
+        actionIdentifier === 'DECLINE_CALL_ACTION'
       ) {
-        return
+        return;
       }
 
       // 4. Default / Open Chat Action: Route to specific conversation
       if (chatid) {
-        setPendingChatId(chatid)
+        setPendingChatId(chatid);
       }
     },
-    [user, users, socket],
-  )
+    [user, users, socket]
+  );
 
   // Handle initial notification on cold start (using non-deprecated getLastNotificationResponse)
   useEffect(() => {
     if (!appInitialized.current) {
-      appInitialized.current = true
+      appInitialized.current = true;
 
       try {
-        const lastResponse = Notifications.getLastNotificationResponse()
+        const lastResponse = Notifications.getLastNotificationResponse();
         if (lastResponse) {
-          handleNotificationResponse(lastResponse)
+          handleNotificationResponse(lastResponse);
         }
       } catch (err) {
-        console.error("Error retrieving last notification response:", err)
+        console.error('Error retrieving last notification response:', err);
       }
     }
-  }, [handleNotificationResponse])
+  }, [handleNotificationResponse]);
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
     const task = runAfterIdle(() => {
       registerForPushNotificationsAsync().then((token) => {
-        if (!cancelled) setExpoPushToken(token || null)
-      })
-    })
+        if (!cancelled) setExpoPushToken(token || null);
+      });
+    });
 
     notificationListener.current = Notifications.addNotificationReceivedListener((notif) => {
-      setNotification(notif)
-    })
+      setNotification(notif);
+    });
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      handleNotificationResponse,
-    )
+      handleNotificationResponse
+    );
 
     return () => {
-      cancelled = true
-      task.cancel()
+      cancelled = true;
+      task.cancel();
       if (notificationListener.current) {
-        notificationListener.current.remove()
+        notificationListener.current.remove();
       }
       if (responseListener.current) {
-        responseListener.current.remove()
+        responseListener.current.remove();
       }
-    }
-  }, [handleNotificationResponse])
+    };
+  }, [handleNotificationResponse]);
 
   // Process pending notifications when users and user are available
   useEffect(() => {
     if (pendingChatId && users.length > 0 && user?.userid) {
-      const chat = users.find((u) => String(u.chatid) === pendingChatId)
+      const chat = users.find((u) => String(u.chatid) === pendingChatId);
       if (chat) {
-        setCurrentChat(chat)
-        setPendingChatId(null)
+        setCurrentChat(chat);
+        setPendingChatId(null);
 
         setTimeout(() => {
-          router.push("/message")
-        }, 100)
+          router.push('/message');
+        }, 100);
       } else {
-        console.log("No matching chat found for ID:", pendingChatId)
+        console.log('No matching chat found for ID:', pendingChatId);
       }
     }
-  }, [pendingChatId, users, user, setCurrentChat])
+  }, [pendingChatId, users, user, setCurrentChat]);
 
   useEffect(() => {
     if (expoPushToken) {
-      if (user && (!user?.expoPushToken || user.expoPushToken !== expoPushToken)) setPushToken()
+      if (user && (!user?.expoPushToken || user.expoPushToken !== expoPushToken)) setPushToken();
     }
-  }, [expoPushToken, user])
+  }, [expoPushToken, user]);
 
   const setPushToken = async () => {
     if (expoPushToken) {
       try {
-        await api.post("/api/mobile/pushToken", {
+        await api.post('/api/mobile/pushToken', {
           expoPushToken,
-        })
+        });
       } catch (error) {
-        console.error("Error saving push token:", error)
+        console.error('Error saving push token:', error);
       }
     }
-  }
+  };
 
   return (
     <NotificationContext.Provider
@@ -177,13 +180,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     >
       {children}
     </NotificationContext.Provider>
-  )
+  );
 }
 
 export const useNotification = () => {
-  const context = useContext(NotificationContext)
+  const context = useContext(NotificationContext);
   if (context === undefined) {
-    throw new Error("useNotification must be used within a NotificationProvider")
+    throw new Error('useNotification must be used within a NotificationProvider');
   }
-  return context
-}
+  return context;
+};

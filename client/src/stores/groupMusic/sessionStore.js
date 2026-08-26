@@ -1,10 +1,10 @@
-import { create } from "zustand"
-import { ensureHttpsForDownloadUrls } from "@/Pages/Music/Common"
-import { toast } from "sonner"
-import axios from "axios"
-import _ from "lodash"
+import { create } from 'zustand';
+import { ensureHttpsForDownloadUrls } from '@/Pages/Music/Common';
+import { toast } from 'sonner';
+import axios from 'axios';
+import _ from 'lodash';
 
-const SESSION_KEY = "syncvibe_group_session"
+const SESSION_KEY = 'syncvibe_group_session';
 
 export const useGroupSessionStore = create((set, get) => ({
   currentGroup: null,
@@ -16,107 +16,107 @@ export const useGroupSessionStore = create((set, get) => ({
   isQueueOpen: false,
 
   isGroupModalOpen: false,
-  connectionState: "disconnected",
+  connectionState: 'disconnected',
   isRejoining: false,
   floatingReactions: [],
   activeSoundEffect: null,
   typingUsers: {},
 
   triggerSoundEffectAnimation: (sfx) => {
-    set({ activeSoundEffect: sfx })
+    set({ activeSoundEffect: sfx });
   },
 
   clearActiveSoundEffect: () => {
-    set({ activeSoundEffect: null })
+    set({ activeSoundEffect: null });
   },
 
   searchResults: [],
-  searchQuery: "",
+  searchQuery: '',
   isSearchOpen: false,
   isSearchLoading: false,
   quickPickRecs: [],
 
   getCurrentQueueItem: () => {
-    const { queue, currentQueueIndex } = get()
-    return currentQueueIndex >= 0 && queue[currentQueueIndex] ? queue[currentQueueIndex] : null
+    const { queue, currentQueueIndex } = get();
+    return currentQueueIndex >= 0 && queue[currentQueueIndex] ? queue[currentQueueIndex] : null;
   },
 
   getUpcomingQueue: () => {
-    const { queue, currentQueueIndex } = get()
-    return queue.filter((_, idx) => idx > currentQueueIndex)
+    const { queue, currentQueueIndex } = get();
+    return queue.filter((_, idx) => idx > currentQueueIndex);
   },
 
   getPlayedQueue: () => {
-    const { queue, currentQueueIndex } = get()
-    return queue.filter((_, idx) => idx < currentQueueIndex)
+    const { queue, currentQueueIndex } = get();
+    return queue.filter((_, idx) => idx < currentQueueIndex);
   },
 
   saveSession: (groupId) => {
     if (groupId) {
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ groupId, lastUpdate: Date.now() }))
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ groupId, lastUpdate: Date.now() }));
     }
   },
 
   clearSession: () => {
-    sessionStorage.removeItem(SESSION_KEY)
+    sessionStorage.removeItem(SESSION_KEY);
   },
 
   getStoredSession: () => {
     try {
-      const stored = sessionStorage.getItem(SESSION_KEY)
-      return stored ? JSON.parse(stored) : null
+      const stored = sessionStorage.getItem(SESSION_KEY);
+      return stored ? JSON.parse(stored) : null;
     } catch (e) {
-      console.error("Error reading session:", e)
-      return null
+      console.error('Error reading session:', e);
+      return null;
     }
   },
 
   createGroup: (socket, user, groupName) => {
     if (!groupName.trim()) {
-      toast.error("Please enter a group name")
-      return
+      toast.error('Please enter a group name');
+      return;
     }
-    socket.emit("create-music-group", {
+    socket.emit('create-music-group', {
       name: groupName,
       createdBy: user.userid,
       userName: user.name,
       profilePic: user.profilepic,
-    })
-    set({ isGroupModalOpen: false })
+    });
+    set({ isGroupModalOpen: false });
   },
 
   joinGroup: (socket, user, groupId) => {
-    if (!groupId.trim()) return
-    socket.emit("join-music-group", {
+    if (!groupId.trim()) return;
+    socket.emit('join-music-group', {
       groupId,
       userId: user.userid,
       userName: user.name,
       profilePic: user.profilepic,
-    })
-    set({ isGroupModalOpen: false })
+    });
+    set({ isGroupModalOpen: false });
   },
 
   rejoinGroup: (socket, user, groupId) => {
-    if (!groupId || !user?.userid || !socket) return
-    set({ isRejoining: true })
-    socket.emit("rejoin-music-group", {
+    if (!groupId || !user?.userid || !socket) return;
+    set({ isRejoining: true });
+    socket.emit('rejoin-music-group', {
       groupId,
       userId: user.userid,
       userName: user.name,
       profilePic: user.profilepic,
-    })
+    });
   },
 
   leaveGroup: (socket, user, resetPlayback) => {
-    const { currentGroup, clearSession } = get()
-    if (!currentGroup) return
+    const { currentGroup, clearSession } = get();
+    if (!currentGroup) return;
 
-    socket.emit("leave-group", {
+    socket.emit('leave-group', {
       groupId: currentGroup.id,
       userId: user.userid,
-    })
+    });
 
-    resetPlayback()
+    resetPlayback();
 
     set({
       currentGroup: null,
@@ -125,14 +125,14 @@ export const useGroupSessionStore = create((set, get) => ({
       groupMembers: [],
       queue: [],
       currentQueueIndex: -1,
-    })
-    clearSession()
-    toast.info(`Left group ${currentGroup.name}`)
+    });
+    clearSession();
+    toast.info(`Left group ${currentGroup.name}`);
   },
 
-  sendMessage: (socket, user, message, messageType = "text", extra = {}) => {
-    if (!message?.trim() && !extra?.soundUrl) return
-    const { currentGroup } = get()
+  sendMessage: (socket, user, message, messageType = 'text', extra = {}) => {
+    if (!message?.trim() && !extra?.soundUrl) return;
+    const { currentGroup } = get();
     const payload = {
       groupId: currentGroup?.id,
       senderId: user.userid,
@@ -140,44 +140,44 @@ export const useGroupSessionStore = create((set, get) => ({
       userName: user.name,
       messageType,
       ...extra,
-    }
-    if (messageType === "gif") {
-      payload.gifUrl = message
-      payload.message = ""
-    } else if (messageType === "sound") {
-      payload.soundUrl = extra.soundUrl || message
-      payload.soundName = extra.soundName || "Sound Effect"
-      payload.soundId = extra.soundId || ""
-      payload.message = extra.soundName || "Sound Effect"
+    };
+    if (messageType === 'gif') {
+      payload.gifUrl = message;
+      payload.message = '';
+    } else if (messageType === 'sound') {
+      payload.soundUrl = extra.soundUrl || message;
+      payload.soundName = extra.soundName || 'Sound Effect';
+      payload.soundId = extra.soundId || '';
+      payload.message = extra.soundName || 'Sound Effect';
     } else {
-      payload.message = message
+      payload.message = message;
     }
-    socket.emit("chat-message", payload)
+    socket.emit('chat-message', payload);
   },
 
   addToQueue: (socket, user, song) => {
-    const { currentGroup, queue } = get()
-    if (!currentGroup?.id || !user) return
+    const { currentGroup, queue } = get();
+    if (!currentGroup?.id || !user) return;
 
-    const maxQueueSize = currentGroup?.settings?.maxQueueSize || 3
+    const maxQueueSize = currentGroup?.settings?.maxQueueSize || 3;
     if (queue.length >= maxQueueSize) {
       set({
         upgradeDialog: {
           open: true,
-          feature: "queueLimit",
+          feature: 'queueLimit',
           message: `Free plan allows only ${maxQueueSize} songs in queue. Upgrade to PRO for up to 50.`,
         },
-      })
-      return
+      });
+      return;
     }
 
     if (queue.some((item) => item.song?.id === song?.id)) {
-      toast.info("Song is already in the queue")
-      return
+      toast.info('Song is already in the queue');
+      return;
     }
 
-    const securedSong = ensureHttpsForDownloadUrls(song)
-    socket.emit("add-to-queue", {
+    const securedSong = ensureHttpsForDownloadUrls(song);
+    socket.emit('add-to-queue', {
       groupId: currentGroup.id,
       song: securedSong,
       addedBy: {
@@ -185,18 +185,18 @@ export const useGroupSessionStore = create((set, get) => ({
         userName: user.name,
         profilePic: user.profilepic,
       },
-    })
+    });
 
-    set({ isSearchOpen: false, searchQuery: "", searchResults: [] })
-    toast.success("Added to queue")
+    set({ isSearchOpen: false, searchQuery: '', searchResults: [] });
+    toast.success('Added to queue');
   },
 
   playNow: (socket, user, song) => {
-    const { currentGroup } = get()
-    if (!currentGroup?.id || !user) return
+    const { currentGroup } = get();
+    if (!currentGroup?.id || !user) return;
 
-    const securedSong = ensureHttpsForDownloadUrls(song)
-    socket.emit("music-change", {
+    const securedSong = ensureHttpsForDownloadUrls(song);
+    socket.emit('music-change', {
       groupId: currentGroup.id,
       song: securedSong,
       currentTime: 0,
@@ -205,17 +205,17 @@ export const useGroupSessionStore = create((set, get) => ({
         userName: user.name,
         profilePic: user.profilepic,
       },
-    })
+    });
 
-    set({ isSearchOpen: false, searchQuery: "", searchResults: [] })
+    set({ isSearchOpen: false, searchQuery: '', searchResults: [] });
   },
 
   playNext: (socket, user, song) => {
-    const { currentGroup } = get()
-    if (!currentGroup?.id || !user) return
+    const { currentGroup } = get();
+    if (!currentGroup?.id || !user) return;
 
-    const securedSong = ensureHttpsForDownloadUrls(song)
-    socket.emit("play-next", {
+    const securedSong = ensureHttpsForDownloadUrls(song);
+    socket.emit('play-next', {
       groupId: currentGroup.id,
       song: securedSong,
       addedBy: {
@@ -223,30 +223,30 @@ export const useGroupSessionStore = create((set, get) => ({
         userName: user.name,
         profilePic: user.profilepic,
       },
-    })
+    });
 
-    set({ isSearchOpen: false, searchQuery: "", searchResults: [] })
-    toast.success("Playing next")
+    set({ isSearchOpen: false, searchQuery: '', searchResults: [] });
+    toast.success('Playing next');
   },
 
   addPlaylistToQueue: (socket, user, songs) => {
-    const { currentGroup, queue } = get()
-    if (!currentGroup?.id || !user || !songs?.length) return
+    const { currentGroup, queue } = get();
+    if (!currentGroup?.id || !user || !songs?.length) return;
 
-    const maxQueueSize = currentGroup?.settings?.maxQueueSize || 3
+    const maxQueueSize = currentGroup?.settings?.maxQueueSize || 3;
     if (queue.length >= maxQueueSize) {
       set({
         upgradeDialog: {
           open: true,
-          feature: "queueLimit",
+          feature: 'queueLimit',
           message: `Free plan allows only ${maxQueueSize} songs in queue. Upgrade to PRO for up to 50.`,
         },
-      })
-      return
+      });
+      return;
     }
 
-    const securedSongs = songs.map(ensureHttpsForDownloadUrls)
-    socket.emit("add-playlist-to-queue", {
+    const securedSongs = songs.map(ensureHttpsForDownloadUrls);
+    socket.emit('add-playlist-to-queue', {
       groupId: currentGroup.id,
       songs: securedSongs,
       addedBy: {
@@ -254,54 +254,55 @@ export const useGroupSessionStore = create((set, get) => ({
         userName: user.name,
         profilePic: user.profilepic,
       },
-    })
+    });
 
-    toast.success(`Adding ${songs.length} songs to queue`)
+    toast.success(`Adding ${songs.length} songs to queue`);
   },
 
   removeFromQueue: (socket, user, queueItemId) => {
-    const { currentGroup } = get()
-    if (!currentGroup?.id || !user) return
-    socket.emit("remove-from-queue", {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || !user) return;
+    socket.emit('remove-from-queue', {
       groupId: currentGroup.id,
       queueItemId,
       userId: user.userid,
-    })
+    });
   },
 
   skipSong: (socket, user) => {
-    const { currentGroup } = get()
-    if (!currentGroup?.id) return
-    socket.emit("skip-song", { groupId: currentGroup.id, userName: user?.name })
+    const { currentGroup } = get();
+    if (!currentGroup?.id) return;
+    socket.emit('skip-song', { groupId: currentGroup.id, userName: user?.name });
   },
 
   reorderQueue: (socket, fromIndex, toIndex) => {
-    const { currentGroup } = get()
-    if (!currentGroup?.id || fromIndex === toIndex) return
-    socket.emit("reorder-queue", {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || fromIndex === toIndex) return;
+    socket.emit('reorder-queue', {
       groupId: currentGroup.id,
       fromIndex,
       toIndex,
-    })
+    });
   },
 
   debouncedSearch: _.debounce(async (query) => {
     if (!query.trim()) {
-      useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false })
-      return
+      useGroupSessionStore.setState({ searchResults: [], isSearchLoading: false });
+      return;
     }
     try {
-      const response = await axios.get(`${import.meta.env.VITE_SONG_URL}/search/songs?q=${query}`)
-      useGroupSessionStore.setState({ searchResults: response.data?.data?.results || [] })
+      const response = await axios.get(`${import.meta.env.VITE_SONG_URL}/search/songs?q=${query}`);
+      useGroupSessionStore.setState({ searchResults: response.data?.data?.results || [] });
     } catch {
-      toast.error("Search failed. Please try again.")
+      toast.error('Search failed. Please try again.');
     } finally {
-      useGroupSessionStore.setState({ isSearchLoading: false })
+      useGroupSessionStore.setState({ isSearchLoading: false });
     }
   }, 400),
 
   handleGroupCreated: (group, user, setInviteSheetOpen) => {
-    const { saveSession } = get()
+    if (!group) return;
+    const { saveSession } = get();
     set({
       currentGroup: group,
       groupMembers: [
@@ -314,49 +315,52 @@ export const useGroupSessionStore = create((set, get) => ({
       ],
       queue: [],
       currentQueueIndex: -1,
-    })
-    saveSession(group.id)
-    toast.success(`Created group: ${group.name}`)
-    setInviteSheetOpen(true)
+      isRejoining: false,
+    });
+    saveSession(group.id);
+    toast.success(`Created group: ${group.name}`);
+    setInviteSheetOpen(true);
   },
 
   handleGroupJoined: (data) => {
-    const { group, members, queue: serverQueue, currentQueueIndex: serverQueueIndex } = data
-    const { saveSession } = get()
+    const { group, members, queue: serverQueue, currentQueueIndex: serverQueueIndex } = data || {};
+    if (!group) return;
+    const { saveSession } = get();
     set({
       currentGroup: group,
-      groupMembers: members,
-      queue: serverQueue || [],
-      currentQueueIndex: serverQueueIndex ?? -1,
-    })
-    saveSession(group.id)
-    toast.success(`Joined group: ${group.name}`)
+      groupMembers: members || group.members || [],
+      queue: serverQueue || group.queue || [],
+      currentQueueIndex: serverQueueIndex ?? group.currentQueueIndex ?? -1,
+      isRejoining: false,
+    });
+    saveSession(group.id);
+    toast.success(`Joined group: ${group.name}`);
   },
 
   handleGroupRejoined: (data) => {
-    const { group, members, queue: serverQueue, currentQueueIndex: serverQueueIndex } = data
-    const { saveSession } = get()
+    const { group, members, queue: serverQueue, currentQueueIndex: serverQueueIndex } = data;
+    const { saveSession } = get();
     set({
       currentGroup: group,
       groupMembers: members,
       queue: serverQueue || [],
       currentQueueIndex: serverQueueIndex ?? -1,
       isRejoining: false,
-    })
-    saveSession(group.id)
-    toast.success(`Rejoined group: ${group.name}`)
+    });
+    saveSession(group.id);
+    toast.success(`Rejoined group: ${group.name}`);
   },
 
   resetSession: (resetPlayback) => {
-    const { clearSession } = get()
-    resetPlayback()
+    const { clearSession } = get();
+    resetPlayback();
     set({
       currentGroup: null,
       messages: [],
       groupMembers: [],
       queue: [],
       currentQueueIndex: -1,
-    })
-    clearSession()
+    });
+    clearSession();
   },
-}))
+}));

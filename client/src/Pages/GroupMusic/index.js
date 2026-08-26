@@ -1,14 +1,14 @@
 // GroupMusic Components - Barrel Export
-export { default as QRScanner } from "./QRScanner"
-export { default as GroupModal } from "./GroupModal"
-export { default as NowPlayingCard } from "./NowPlayingCard"
-export { default as GroupChat } from "./GroupChat"
-export { default as MembersList } from "./MembersList"
-export { default as GroupHeader } from "./GroupHeader"
-export { default as QRCodeDialog } from "./QRCodeDialog"
-export { default as WelcomeView } from "./WelcomeView"
-export { default as QueueSheet } from "./QueueSheet"
-export { default as InviteSheet } from "./InviteSheet"
-export { default as SoundPicker } from "./SoundPicker"
-export { default as SoundMessage } from "./SoundMessage"
-export { default as GlobalSoundAnimation } from "./GlobalSoundAnimation"
+export { default as QRScanner } from './QRScanner';
+export { default as GroupModal } from './GroupModal';
+export { default as NowPlayingCard } from './NowPlayingCard';
+export { default as GroupChat } from './GroupChat';
+export { default as MembersList } from './MembersList';
+export { default as GroupHeader } from './GroupHeader';
+export { default as QRCodeDialog } from './QRCodeDialog';
+export { default as WelcomeView } from './WelcomeView';
+export { default as QueueSheet } from './QueueSheet';
+export { default as InviteSheet } from './InviteSheet';
+export { default as SoundPicker } from './SoundPicker';
+export { default as SoundMessage } from './SoundMessage';
+export { default as GlobalSoundAnimation } from './GlobalSoundAnimation';

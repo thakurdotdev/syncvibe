@@ -1,17 +1,17 @@
-import { useTheme } from "@/context/ThemeContext"
-import { usePlayerControls } from "@/stores/playerStore"
-import { Song } from "@/types/song"
-import { Ionicons } from "@expo/vector-icons"
-import { memo } from "react"
-import { Image, Pressable, StyleSheet, Text, View } from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { SongControls } from "../MusicCards"
+import { useTheme } from '@/context/ThemeContext';
+import { usePlayerControls } from '@/stores/playerStore';
+import { Song } from '@/types/song';
+import { Ionicons } from '@expo/vector-icons';
+import { memo } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SongControls } from '../MusicCards';
 
 interface PlayerTabProps {
-  currentSong: Song | null
-  artistName: string
-  artworkSize: number
-  nextSong: Song | null
+  currentSong: Song | null;
+  artistName: string;
+  artworkSize: number;
+  nextSong: Song | null;
 }
 
 export const PlayerTab = memo(function PlayerTab({
@@ -20,14 +20,12 @@ export const PlayerTab = memo(function PlayerTab({
   artworkSize,
   nextSong,
 }: PlayerTabProps) {
-  const { colors } = useTheme()
-  const { handleNextSong } = usePlayerControls()
-  const insets = useSafeAreaInsets()
+  const { colors } = useTheme();
+  const { handleNextSong } = usePlayerControls();
+  const insets = useSafeAreaInsets();
 
   const artworkUri =
-    currentSong?.image?.[2]?.link ||
-    currentSong?.image?.[1]?.link ||
-    currentSong?.image?.[0]?.link
+    currentSong?.image?.[2]?.link || currentSong?.image?.[1]?.link || currentSong?.image?.[0]?.link;
 
   return (
     <View style={styles.container}>
@@ -37,7 +35,7 @@ export const PlayerTab = memo(function PlayerTab({
             <Image
               source={{ uri: artworkUri }}
               style={[styles.albumArt, { width: artworkSize, height: artworkSize }]}
-              resizeMode="cover"
+              resizeMode='cover'
             />
           </View>
         </View>
@@ -46,14 +44,14 @@ export const PlayerTab = memo(function PlayerTab({
           <Text
             style={[styles.songTitle, { color: colors.text }]}
             numberOfLines={1}
-            ellipsizeMode="tail"
+            ellipsizeMode='tail'
           >
             {currentSong?.name}
           </Text>
           <Text
             style={[styles.artistName, { color: colors.mutedForeground }]}
             numberOfLines={1}
-            ellipsizeMode="tail"
+            ellipsizeMode='tail'
           >
             {artistName}
           </Text>
@@ -68,8 +66,8 @@ export const PlayerTab = memo(function PlayerTab({
             style={[
               styles.upNextCard,
               {
-                backgroundColor: colors.card + "60",
-                borderColor: colors.border + "30",
+                backgroundColor: colors.card + '60',
+                borderColor: colors.border + '30',
               },
             ]}
             onPress={() => handleNextSong()}
@@ -82,13 +80,13 @@ export const PlayerTab = memo(function PlayerTab({
                   nextSong.image?.[2]?.link,
               }}
               style={styles.upNextArt}
-              resizeMode="cover"
+              resizeMode='cover'
             />
             <Text style={[styles.upNextText, { color: colors.text }]} numberOfLines={1}>
               Next: {nextSong.name}
             </Text>
             <Ionicons
-              name="play-skip-forward"
+              name='play-skip-forward'
               size={12}
               color={colors.text}
               style={styles.upNextIcon}
@@ -97,7 +95,7 @@ export const PlayerTab = memo(function PlayerTab({
         ) : (
           <View style={styles.endOfQueueCard}>
             <Ionicons
-              name="musical-notes-outline"
+              name='musical-notes-outline'
               size={12}
               color={colors.mutedForeground}
               style={{ marginRight: 4 }}
@@ -109,24 +107,24 @@ export const PlayerTab = memo(function PlayerTab({
         )}
       </View>
     </View>
-  )
-})
+  );
+});
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    width: "100%",
-    justifyContent: "center",
-    alignItems: "center",
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   mainContent: {
-    width: "100%",
-    alignItems: "center",
+    width: '100%',
+    alignItems: 'center',
     paddingBottom: 40,
   },
   artworkWrapper: {
-    width: "100%",
-    alignItems: "center",
+    width: '100%',
+    alignItems: 'center',
     paddingHorizontal: 24,
   },
   artworkShadow: {
@@ -135,37 +133,37 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 20,
     elevation: 10,
-    shadowColor: "#000000",
+    shadowColor: '#000000',
   },
   albumArt: {
     borderRadius: 20,
   },
   songInfoContainer: {
-    width: "100%",
+    width: '100%',
     marginTop: 22,
     marginBottom: 6,
     paddingHorizontal: 24,
   },
   songTitle: {
     fontSize: 22,
-    fontWeight: "700",
+    fontWeight: '700',
     letterSpacing: 0.2,
   },
   artistName: {
     fontSize: 16,
     marginTop: 6,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   upNextWrapper: {
-    position: "absolute",
+    position: 'absolute',
     left: 0,
     right: 0,
-    alignItems: "center",
+    alignItems: 'center',
     paddingHorizontal: 24,
   },
   upNextCard: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 7,
     paddingHorizontal: 14,
     borderRadius: 22,
@@ -178,7 +176,7 @@ const styles = StyleSheet.create({
   },
   upNextText: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: '500',
     marginHorizontal: 8,
     maxWidth: 200,
   },
@@ -186,9 +184,9 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   endOfQueueCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 20,
@@ -196,6 +194,6 @@ const styles = StyleSheet.create({
   },
   endOfQueueText: {
     fontSize: 11,
-    fontWeight: "500",
+    fontWeight: '500',
   },
-})
+});

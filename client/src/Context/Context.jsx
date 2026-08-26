@@ -1,31 +1,39 @@
-import { useQueryClient } from "@tanstack/react-query"
-import { createContext, useContext, useEffect, useMemo, useState } from "react"
-import { profileKeys } from "@/api/auth/profile"
-import { useProfileQuery } from "@/hooks/queries/useProfileQuery"
+import { useQueryClient } from '@tanstack/react-query';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { profileKeys } from '@/api/auth/profile';
+import { useProfileQuery } from '@/hooks/queries/useProfileQuery';
 
-export const Context = createContext()
+export const Context = createContext();
 
-export const useProfile = () => useContext(Context)
+export const useProfile = () => useContext(Context);
 
 export const ContextProvider = ({ children }) => {
-  const queryClient = useQueryClient()
-  const { data: user, isLoading: loading, refetch } = useProfileQuery()
-  const [musicConfig, setMusicConfig] = useState({})
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loading, refetch } = useProfileQuery();
+  const [musicConfig, setMusicConfig] = useState({});
 
   useEffect(() => {
-    const dataFromStorage = localStorage.getItem("musicConfig")
+    const dataFromStorage = localStorage.getItem('musicConfig');
     if (dataFromStorage) {
-      setMusicConfig(JSON.parse(dataFromStorage))
+      setMusicConfig(JSON.parse(dataFromStorage));
     }
-  }, [])
+  }, []);
 
   const setUser = (newUser) => {
-    queryClient.setQueryData(profileKeys.current(), newUser)
-  }
+    if (!newUser) {
+      queryClient.cancelQueries();
+      queryClient.clear();
+      queryClient.setQueryData(profileKeys.current(), null);
+      sessionStorage.clear();
+      localStorage.removeItem('syncvibe_group_session');
+    } else {
+      queryClient.setQueryData(profileKeys.current(), newUser);
+    }
+  };
 
   const getProfile = () => {
-    refetch()
-  }
+    refetch();
+  };
 
   const memoizedValue = useMemo(
     () => ({
@@ -36,8 +44,8 @@ export const ContextProvider = ({ children }) => {
       musicConfig,
       setMusicConfig,
     }),
-    [user, loading, musicConfig],
-  )
+    [user, loading, musicConfig]
+  );
 
-  return <Context.Provider value={memoizedValue}>{children}</Context.Provider>
-}
+  return <Context.Provider value={memoizedValue}>{children}</Context.Provider>;
+};

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,25 +12,25 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Feather, Ionicons } from "@expo/vector-icons"
-import SwipeableModal from "@/components/SwipeableModal"
-import { Input } from "@/components/ui/input"
-import { useTheme } from "@/context/ThemeContext"
-import { useChat } from "@/context/SocketContext"
-import { useGroupMusic } from "@/context/GroupMusicContext"
-import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
-import { getProfileCloudinaryUrl } from "@/utils/Cloudinary"
-import useApi from "@/utils/hooks/useApi"
-import { useSharedValue } from "react-native-reanimated"
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import SwipeableModal from '@/components/SwipeableModal';
+import { Input } from '@/components/ui/input';
+import { useTheme } from '@/context/ThemeContext';
+import { useChat } from '@/context/SocketContext';
+import { useGroupMusic } from '@/context/GroupMusicContext';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
+import useApi from '@/utils/hooks/useApi';
+import { useSharedValue } from 'react-native-reanimated';
 
 interface InviteUser {
-  userid: number
-  name: string
-  username: string
-  profilepic: string
-  isFollowing?: boolean
+  userid: number;
+  name: string;
+  username: string;
+  profilepic: string;
+  isFollowing?: boolean;
 }
 
 const UserRow = React.memo(
@@ -42,26 +42,26 @@ const UserRow = React.memo(
     onInvite,
     colors,
   }: {
-    user: InviteUser
-    isOnline: boolean
-    isInvited: boolean
-    isInGroup: boolean
-    onInvite: (userId: number) => void
-    colors: any
+    user: InviteUser;
+    isOnline: boolean;
+    isInvited: boolean;
+    isInGroup: boolean;
+    onInvite: (userId: number) => void;
+    colors: any;
   }) => {
     return (
-      <View style={[styles.userRow, { borderBottomColor: colors.border + "30" }]}>
+      <View style={[styles.userRow, { borderBottomColor: colors.border + '30' }]}>
         <View style={styles.avatarContainer}>
           <Image
             source={{
-              uri: getProfileCloudinaryUrl(user.profilepic) || "https://via.placeholder.com/40",
+              uri: getProfileCloudinaryUrl(user.profilepic) || 'https://via.placeholder.com/40',
             }}
             style={[styles.avatar, { backgroundColor: colors.secondary }]}
           />
           <View
             style={[
               styles.onlineDot,
-              { backgroundColor: isOnline ? "#10b981" : colors.mutedForeground + "40" },
+              { backgroundColor: isOnline ? '#10b981' : colors.mutedForeground + '40' },
               { borderColor: colors.card },
             ]}
           />
@@ -73,14 +73,14 @@ const UserRow = React.memo(
               {user.name}
             </Text>
             {user.isFollowing && (
-              <View style={[styles.followBadge, { backgroundColor: colors.primary + "20" }]}>
+              <View style={[styles.followBadge, { backgroundColor: colors.primary + '20' }]}>
                 <Text style={[styles.followBadgeText, { color: colors.primary }]}>Following</Text>
               </View>
             )}
           </View>
           <Text style={[styles.userHandle, { color: colors.mutedForeground }]} numberOfLines={1}>
             @{user.username}
-            {isOnline && <Text style={{ color: "#10b981", fontWeight: "700" }}> · online</Text>}
+            {isOnline && <Text style={{ color: '#10b981', fontWeight: '700' }}> · online</Text>}
           </Text>
         </View>
 
@@ -90,8 +90,8 @@ const UserRow = React.memo(
               <Text style={[styles.statusText, { color: colors.mutedForeground }]}>In group</Text>
             </View>
           ) : isInvited ? (
-            <View style={[styles.sentBadge, { backgroundColor: "#10b981" + "15" }]}>
-              <Feather name="check" size={12} color="#10b981" />
+            <View style={[styles.sentBadge, { backgroundColor: '#10b981' + '15' }]}>
+              <Feather name='check' size={12} color='#10b981' />
               <Text style={styles.sentText}>Sent</Text>
             </View>
           ) : (
@@ -107,98 +107,101 @@ const UserRow = React.memo(
           )}
         </View>
       </View>
-    )
+    );
   }
-)
+);
 
 interface InviteSheetProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => {
-  const { colors } = useTheme()
-  const { onlineStatuses } = useChat()
-  const { sendInvite } = useGroupMusic()
-  const api = useApi()
-  const inputRef = useRef<TextInput>(null)
-  const insets = useSafeAreaInsets()
+  const { colors } = useTheme();
+  const { onlineStatuses } = useChat();
+  const { sendInvite } = useGroupMusic();
+  const api = useApi();
+  const inputRef = useRef<TextInput>(null);
+  const insets = useSafeAreaInsets();
 
-  const groupMembers = useGroupSessionStore((s) => s.groupMembers)
-  const memberIds = useMemo(() => new Set(groupMembers?.map((m) => m.userId) || []), [groupMembers])
+  const groupMembers = useGroupSessionStore((s) => s.groupMembers);
+  const memberIds = useMemo(
+    () => new Set(groupMembers?.map((m) => m.userId) || []),
+    [groupMembers]
+  );
 
-  const [searchQuery, setSearchQuery] = useState("")
-  const [users, setUsers] = useState<InviteUser[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [invitedUsers, setInvitedUsers] = useState<Set<number>>(new Set())
-  const [hasSearched, setHasSearched] = useState(false)
-  const searchTimer = useRef<any>(null)
-  const scrollOffset = useSharedValue(0)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [users, setUsers] = useState<InviteUser[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [invitedUsers, setInvitedUsers] = useState<Set<number>>(new Set());
+  const [hasSearched, setHasSearched] = useState(false);
+  const searchTimer = useRef<any>(null);
+  const scrollOffset = useSharedValue(0);
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollOffset.value = event.nativeEvent.contentOffset.y
+      scrollOffset.value = event.nativeEvent.contentOffset.y;
     },
     [scrollOffset]
-  )
+  );
 
   const fetchUsers = useCallback(
     async (query: string) => {
       try {
-        setIsLoading(true)
-        const params = query?.trim() ? `?search=${encodeURIComponent(query.trim())}` : ""
-        const response = await api.get(`/api/user/invite-list${params}`)
-        setUsers(response.data?.users || [])
-        setHasSearched(true)
+        setIsLoading(true);
+        const params = query?.trim() ? `?search=${encodeURIComponent(query.trim())}` : '';
+        const response = await api.get(`/api/user/invite-list${params}`);
+        setUsers(response.data?.users || []);
+        setHasSearched(true);
       } catch {
-        setUsers([])
+        setUsers([]);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     },
     [api]
-  )
+  );
 
   useEffect(() => {
     if (isOpen) {
-      fetchUsers("")
-      setInvitedUsers(new Set())
-      setSearchQuery("")
-      setHasSearched(false)
-      scrollOffset.value = 0
-      const timer = setTimeout(() => inputRef.current?.focus(), 350)
-      return () => clearTimeout(timer)
+      fetchUsers('');
+      setInvitedUsers(new Set());
+      setSearchQuery('');
+      setHasSearched(false);
+      scrollOffset.value = 0;
+      const timer = setTimeout(() => inputRef.current?.focus(), 350);
+      return () => clearTimeout(timer);
     }
-  }, [isOpen, fetchUsers])
+  }, [isOpen, fetchUsers]);
 
   const handleSearchChange = useCallback(
     (query: string) => {
-      setSearchQuery(query)
-      if (searchTimer.current) clearTimeout(searchTimer.current)
-      searchTimer.current = setTimeout(() => fetchUsers(query), 400)
+      setSearchQuery(query);
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+      searchTimer.current = setTimeout(() => fetchUsers(query), 400);
     },
     [fetchUsers]
-  )
+  );
 
   const handleInvite = useCallback(
     (userId: number) => {
-      setInvitedUsers((prev) => new Set(prev).add(userId))
-      sendInvite(userId)
+      setInvitedUsers((prev) => new Set(prev).add(userId));
+      sendInvite(userId);
     },
     [sendInvite]
-  )
+  );
 
   const sortedUsers = useMemo(() => {
     return [...users].sort((a, b) => {
-      const aOnline = onlineStatuses?.[a.userid] ? 1 : 0
-      const bOnline = onlineStatuses?.[b.userid] ? 1 : 0
-      const aFollow = a.isFollowing ? 1 : 0
-      const bFollow = b.isFollowing ? 1 : 0
-      if (aFollow !== bFollow) return bFollow - aFollow
-      if (aOnline !== bOnline) return bOnline - aOnline
-      return 0
-    })
-  }, [users, onlineStatuses])
+      const aOnline = onlineStatuses?.[a.userid] ? 1 : 0;
+      const bOnline = onlineStatuses?.[b.userid] ? 1 : 0;
+      const aFollow = a.isFollowing ? 1 : 0;
+      const bFollow = b.isFollowing ? 1 : 0;
+      if (aFollow !== bFollow) return bFollow - aFollow;
+      if (aOnline !== bOnline) return bOnline - aOnline;
+      return 0;
+    });
+  }, [users, onlineStatuses]);
 
   const renderItem = useCallback(
     ({ item }: { item: InviteUser }) => (
@@ -212,18 +215,18 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
       />
     ),
     [onlineStatuses, invitedUsers, memberIds, handleInvite, colors]
-  )
+  );
 
-  const keyExtractor = useCallback((item: InviteUser) => String(item.userid), [])
+  const keyExtractor = useCallback((item: InviteUser) => String(item.userid), []);
 
-  const statusBarHeight = Platform.OS === "android" ? StatusBar.currentHeight || 24 : insets.top
-  const topPadding = Math.max(statusBarHeight, insets.top || 0, 24)
+  const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 24 : insets.top;
+  const topPadding = Math.max(statusBarHeight, insets.top || 0, 24);
 
   return (
     <SwipeableModal
       isVisible={isOpen}
       onClose={onClose}
-      maxHeight="100%"
+      maxHeight='100%'
       scrollable={true}
       scrollOffset={scrollOffset}
       hideHandle={true}
@@ -233,7 +236,7 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
         <View style={[styles.header, { paddingTop: 16 }]}>
           <View style={styles.headerLeft}>
             <TouchableOpacity onPress={onClose} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color={colors.foreground} />
+              <Ionicons name='arrow-back' size={24} color={colors.foreground} />
             </TouchableOpacity>
             <View>
               <Text style={[styles.headerTitle, { color: colors.foreground }]}>Invite Friends</Text>
@@ -247,16 +250,16 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
         <View style={styles.searchContainer}>
           <Input
             ref={inputRef}
-            placeholder="Search friends..."
+            placeholder='Search friends...'
             value={searchQuery}
             onChangeText={handleSearchChange}
-            variant="filled"
-            size="sm"
-            leftIcon={<Feather name="search" size={16} color={colors.mutedForeground} />}
+            variant='filled'
+            size='sm'
+            leftIcon={<Feather name='search' size={16} color={colors.mutedForeground} />}
             rightIcon={
               searchQuery ? (
-                <TouchableOpacity onPress={() => handleSearchChange("")}>
-                  <Feather name="x" size={16} color={colors.mutedForeground} />
+                <TouchableOpacity onPress={() => handleSearchChange('')}>
+                  <Feather name='x' size={16} color={colors.mutedForeground} />
                 </TouchableOpacity>
               ) : null
             }
@@ -265,7 +268,7 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
 
         {isLoading ? (
           <View style={styles.centeredState}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size='large' color={colors.primary} />
           </View>
         ) : (
           <FlatList
@@ -276,32 +279,32 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
               <View style={styles.centeredState}>
                 <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}>
                   <Feather
-                    name={hasSearched ? "user-plus" : "users"}
+                    name={hasSearched ? 'user-plus' : 'users'}
                     size={20}
                     color={colors.mutedForeground}
                   />
                 </View>
                 <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                  {hasSearched ? "No results" : "No friends yet"}
+                  {hasSearched ? 'No results' : 'No friends yet'}
                 </Text>
                 <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
                   {hasSearched
-                    ? "Try a different name or username"
-                    : "Search by name to invite someone"}
+                    ? 'Try a different name or username'
+                    : 'Search by name to invite someone'}
                 </Text>
               </View>
             }
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps='handled'
             onScroll={handleScroll}
             scrollEventThrottle={16}
           />
         )}
       </View>
     </SwipeableModal>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -312,8 +315,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   headerLeft: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
   },
   backButton: {
@@ -322,7 +325,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   headerSubtitle: {
     fontSize: 12,
@@ -341,14 +344,14 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   userRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   avatarContainer: {
-    position: "relative",
+    position: 'relative',
   },
   avatar: {
     width: 44,
@@ -356,7 +359,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   onlineDot: {
-    position: "absolute",
+    position: 'absolute',
     bottom: -1,
     right: -1,
     width: 13,
@@ -369,13 +372,13 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   userName: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   followBadge: {
     paddingHorizontal: 6,
@@ -384,8 +387,8 @@ const styles = StyleSheet.create({
   },
   followBadgeText: {
     fontSize: 9,
-    fontWeight: "800",
-    textTransform: "uppercase",
+    fontWeight: '800',
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   userHandle: {
@@ -403,11 +406,11 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   sentBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -415,8 +418,8 @@ const styles = StyleSheet.create({
   },
   sentText: {
     fontSize: 11,
-    fontWeight: "700",
-    color: "#10b981",
+    fontWeight: '700',
+    color: '#10b981',
   },
   inviteButton: {
     paddingHorizontal: 16,
@@ -425,11 +428,11 @@ const styles = StyleSheet.create({
   },
   inviteButtonText: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   centeredState: {
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 48,
     paddingHorizontal: 32,
   },
@@ -437,17 +440,17 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyTitle: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: '600',
     marginTop: 12,
   },
   emptySubtitle: {
     fontSize: 13,
     marginTop: 4,
-    textAlign: "center",
+    textAlign: 'center',
   },
-})
+});

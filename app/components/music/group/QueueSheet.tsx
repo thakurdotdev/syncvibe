@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -10,30 +10,30 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Feather, Ionicons } from "@expo/vector-icons"
-import SwipeableModal from "@/components/SwipeableModal"
-import { Input } from "@/components/ui/input"
-import { useTheme } from "@/context/ThemeContext"
-import { useUser } from "@/context/UserContext"
-import useApi from "@/utils/hooks/useApi"
-import { useGroupMusic } from "@/context/GroupMusicContext"
-import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
-import { useGroupPlaybackStore } from "@/stores/groupMusic/groupPlaybackStore"
-import { QueueItem } from "@/stores/groupMusic/types"
-import { Song } from "@/types/song"
-import { searchSongs } from "@/utils/api/getSongs"
-import { ensureHttpsForSongUrls } from "@/utils/getHttpsUrls"
-import { useSharedValue } from "react-native-reanimated"
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import SwipeableModal from '@/components/SwipeableModal';
+import { Input } from '@/components/ui/input';
+import { useTheme } from '@/context/ThemeContext';
+import { useUser } from '@/context/UserContext';
+import useApi from '@/utils/hooks/useApi';
+import { useGroupMusic } from '@/context/GroupMusicContext';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
+import { QueueItem } from '@/stores/groupMusic/types';
+import { Song } from '@/types/song';
+import { searchSongs } from '@/utils/api/getSongs';
+import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
+import { useSharedValue } from 'react-native-reanimated';
 import {
   fetchSongRecommendations,
   getGroupHistory,
   getHomePageMusic,
   getMusicHistory,
-} from "@/api/music"
+} from '@/api/music';
 
-type TabKey = "queue" | "playlists" | "recommended"
+type TabKey = 'queue' | 'playlists' | 'recommended';
 
 const QueueItemRow = React.memo(
   ({
@@ -42,12 +42,12 @@ const QueueItemRow = React.memo(
     onPlayNext,
     colors,
   }: {
-    item: QueueItem
-    onRemove: (id: string) => void
-    onPlayNext?: (song: Song) => void
-    colors: any
+    item: QueueItem;
+    onRemove: (id: string) => void;
+    onPlayNext?: (song: Song) => void;
+    colors: any;
   }) => {
-    const artist = item.song?.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"
+    const artist = item.song?.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
 
     return (
       <View style={[styles.queueItem, { borderBottomColor: colors.border }]}>
@@ -81,12 +81,12 @@ const QueueItemRow = React.memo(
           style={[styles.removeButton, { backgroundColor: colors.secondary }]}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Feather name="x" size={14} color={colors.mutedForeground} />
+          <Feather name='x' size={14} color={colors.mutedForeground} />
         </TouchableOpacity>
       </View>
-    )
+    );
   }
-)
+);
 
 const SearchResultRow = React.memo(
   ({
@@ -96,13 +96,13 @@ const SearchResultRow = React.memo(
     onPlayNext,
     colors,
   }: {
-    song: Song
-    onAddToQueue: (song: Song) => void
-    onPlayNow: (song: Song) => void
-    onPlayNext: (song: Song) => void
-    colors: any
+    song: Song;
+    onAddToQueue: (song: Song) => void;
+    onPlayNow: (song: Song) => void;
+    onPlayNext: (song: Song) => void;
+    colors: any;
   }) => {
-    const artist = song.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"
+    const artist = song.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
 
     return (
       <View style={[styles.searchItem, { borderBottomColor: colors.border }]}>
@@ -123,80 +123,82 @@ const SearchResultRow = React.memo(
             onPress={() => onPlayNext(song)}
             style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
           >
-            <Feather name="skip-forward" size={13} color={colors.foreground} />
+            <Feather name='skip-forward' size={13} color={colors.foreground} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onPlayNow(song)}
             style={[styles.actionBtn, { backgroundColor: colors.primary }]}
           >
-            <Ionicons name="play" size={13} color={colors.primaryForeground} />
+            <Ionicons name='play' size={13} color={colors.primaryForeground} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onAddToQueue(song)}
             style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
           >
-            <Feather name="plus" size={14} color={colors.foreground} />
+            <Feather name='plus' size={14} color={colors.foreground} />
           </TouchableOpacity>
         </View>
       </View>
-    )
+    );
   }
-)
+);
 
 const PlaylistBrowser: React.FC<{
-  onPlayNow: (song: Song) => void
-  onPlayNext: (song: Song) => void
-  onAddToQueue: (song: Song) => void
-  onAddAll: (songs: Song[]) => void
-  colors: any
+  onPlayNow: (song: Song) => void;
+  onPlayNext: (song: Song) => void;
+  onAddToQueue: (song: Song) => void;
+  onAddAll: (songs: Song[]) => void;
+  colors: any;
 }> = ({ onPlayNow, onPlayNext, onAddToQueue, onAddAll, colors }) => {
-  const api = useApi()
-  const [playlists, setPlaylists] = useState<any[]>([])
-  const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(false)
-  const [selectedPlaylist, setSelectedPlaylist] = useState<{ id: string; name: string } | null>(null)
-  const [playlistDetail, setPlaylistDetail] = useState<any | null>(null)
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false)
+  const api = useApi();
+  const [playlists, setPlaylists] = useState<any[]>([]);
+  const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(false);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<{ id: string; name: string } | null>(
+    null
+  );
+  const [playlistDetail, setPlaylistDetail] = useState<any | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
   const fetchPlaylists = useCallback(async () => {
-    setIsLoadingPlaylists(true)
+    setIsLoadingPlaylists(true);
     try {
-      const response = await api.get("/api/playlist/get")
-      setPlaylists(response.data?.data || [])
+      const response = await api.get('/api/playlist/get');
+      setPlaylists(response.data?.data || []);
     } catch (err) {
-      console.error("Failed to fetch playlists:", err)
-      setPlaylists([])
+      console.error('Failed to fetch playlists:', err);
+      setPlaylists([]);
     } finally {
-      setIsLoadingPlaylists(false)
+      setIsLoadingPlaylists(false);
     }
-  }, [api])
+  }, [api]);
 
   useEffect(() => {
-    fetchPlaylists()
-  }, [fetchPlaylists])
+    fetchPlaylists();
+  }, [fetchPlaylists]);
 
   const handleSelectPlaylist = useCallback(
     async (pl: any) => {
-      setSelectedPlaylist({ id: pl.id, name: pl.name })
-      setIsLoadingDetail(true)
+      setSelectedPlaylist({ id: pl.id, name: pl.name });
+      setIsLoadingDetail(true);
       try {
-        const response = await api.get("/api/playlist/details", { params: { id: pl.id } })
-        setPlaylistDetail(response.data?.data || null)
+        const response = await api.get('/api/playlist/details', { params: { id: pl.id } });
+        setPlaylistDetail(response.data?.data || null);
       } catch (err) {
-        console.error("Failed to fetch playlist details:", err)
-        setPlaylistDetail(null)
+        console.error('Failed to fetch playlist details:', err);
+        setPlaylistDetail(null);
       } finally {
-        setIsLoadingDetail(false)
+        setIsLoadingDetail(false);
       }
     },
     [api]
-  )
+  );
 
   const songs: Song[] = useMemo(() => {
-    if (!playlistDetail?.songs) return []
+    if (!playlistDetail?.songs) return [];
     return playlistDetail.songs
       .map((item: any) => ensureHttpsForSongUrls(item.songData || item))
-      .filter((s: Song) => s?.id)
-  }, [playlistDetail])
+      .filter((s: Song) => s?.id);
+  }, [playlistDetail]);
 
   if (selectedPlaylist) {
     return (
@@ -204,12 +206,12 @@ const PlaylistBrowser: React.FC<{
         <View style={[styles.playlistDetailHeader, { borderBottomColor: colors.border }]}>
           <TouchableOpacity
             onPress={() => {
-              setSelectedPlaylist(null)
-              setPlaylistDetail(null)
+              setSelectedPlaylist(null);
+              setPlaylistDetail(null);
             }}
             style={[styles.backButton, { backgroundColor: colors.secondary }]}
           >
-            <Ionicons name="arrow-back" size={18} color={colors.foreground} />
+            <Ionicons name='arrow-back' size={18} color={colors.foreground} />
           </TouchableOpacity>
           <View style={styles.flex}>
             <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
@@ -224,7 +226,7 @@ const PlaylistBrowser: React.FC<{
               onPress={() => onAddAll(songs)}
               style={[styles.addAllBtn, { backgroundColor: colors.primary }]}
             >
-              <Feather name="plus" size={14} color={colors.primaryForeground} />
+              <Feather name='plus' size={14} color={colors.primaryForeground} />
               <Text style={[styles.addAllBtnText, { color: colors.primaryForeground }]}>
                 Add All
               </Text>
@@ -234,11 +236,11 @@ const PlaylistBrowser: React.FC<{
 
         {isLoadingDetail ? (
           <View style={styles.centeredState}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size='large' color={colors.primary} />
           </View>
         ) : songs.length === 0 ? (
           <View style={styles.centeredState}>
-            <Feather name="music" size={28} color={colors.mutedForeground + "40"} />
+            <Feather name='music' size={28} color={colors.mutedForeground + '40'} />
             <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
               This playlist is empty
             </Text>
@@ -260,27 +262,27 @@ const PlaylistBrowser: React.FC<{
           />
         )}
       </View>
-    )
+    );
   }
 
   if (isLoadingPlaylists) {
     return (
       <View style={styles.centeredState}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size='large' color={colors.primary} />
       </View>
-    )
+    );
   }
 
   if (playlists.length === 0) {
     return (
       <View style={styles.centeredState}>
-        <Feather name="disc" size={28} color={colors.mutedForeground + "40"} />
+        <Feather name='disc' size={28} color={colors.mutedForeground + '40'} />
         <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No playlists yet</Text>
         <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
           Create playlists from your music library
         </Text>
       </View>
-    )
+    );
   }
 
   return (
@@ -289,9 +291,9 @@ const PlaylistBrowser: React.FC<{
       keyExtractor={(item) => String(item.id)}
       renderItem={({ item }) => {
         const imageUrl =
-          typeof item.image === "string"
+          typeof item.image === 'string'
             ? item.image
-            : item.image?.[1]?.link || item.image?.[0]?.link || ""
+            : item.image?.[1]?.link || item.image?.[0]?.link || '';
         return (
           <TouchableOpacity
             onPress={() => handleSelectPlaylist(item)}
@@ -305,185 +307,188 @@ const PlaylistBrowser: React.FC<{
               <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
                 {item.name}
               </Text>
-              <Text style={[styles.itemArtist, { color: colors.mutedForeground }]} numberOfLines={1}>
-                {item.description || "Custom Playlist"}
+              <Text
+                style={[styles.itemArtist, { color: colors.mutedForeground }]}
+                numberOfLines={1}
+              >
+                {item.description || 'Custom Playlist'}
               </Text>
             </View>
-            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+            <Feather name='chevron-right' size={18} color={colors.mutedForeground} />
           </TouchableOpacity>
-        )
+        );
       }}
       showsVerticalScrollIndicator={false}
     />
-  )
-}
+  );
+};
 
 export const QueueSheet: React.FC = () => {
-  const api = useApi()
-  const { user } = useUser()
-  const { colors } = useTheme()
-  const { removeFromQueue, addToQueue, playNow, playNext, addPlaylistToQueue } = useGroupMusic()
-  const insets = useSafeAreaInsets()
+  const api = useApi();
+  const { user } = useUser();
+  const { colors } = useTheme();
+  const { removeFromQueue, addToQueue, playNow, playNext, addPlaylistToQueue } = useGroupMusic();
+  const insets = useSafeAreaInsets();
 
-  const isQueueOpen = useGroupSessionStore((s) => s.isQueueOpen)
-  const queue = useGroupSessionStore((s) => s.queue)
-  const currentQueueIndex = useGroupSessionStore((s) => s.currentQueueIndex)
-  const currentSong = useGroupPlaybackStore((s) => s.currentSong)
-  const isPlaying = useGroupPlaybackStore((s) => s.isPlaying)
+  const isQueueOpen = useGroupSessionStore((s) => s.isQueueOpen);
+  const queue = useGroupSessionStore((s) => s.queue);
+  const currentQueueIndex = useGroupSessionStore((s) => s.currentQueueIndex);
+  const currentSong = useGroupPlaybackStore((s) => s.currentSong);
+  const isPlaying = useGroupPlaybackStore((s) => s.isPlaying);
 
-  const [activeTab, setActiveTab] = useState<TabKey>("queue")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<Song[]>([])
-  const [isSearching, setIsSearching] = useState(false)
+  const [activeTab, setActiveTab] = useState<TabKey>('queue');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Song[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const recommendations = useGroupSessionStore((s) => s.quickPickRecs)
+  const recommendations = useGroupSessionStore((s) => s.quickPickRecs);
   const setRecommendations = useCallback((updater: Song[] | ((prev: Song[]) => Song[])) => {
-    if (typeof updater === "function") {
-      useGroupSessionStore.setState((s) => ({ quickPickRecs: updater(s.quickPickRecs) }))
+    if (typeof updater === 'function') {
+      useGroupSessionStore.setState((s) => ({ quickPickRecs: updater(s.quickPickRecs) }));
     } else {
-      useGroupSessionStore.setState({ quickPickRecs: updater })
+      useGroupSessionStore.setState({ quickPickRecs: updater });
     }
-  }, [])
+  }, []);
 
-  const lastRecsSongIdRef = useRef<string | null>(null)
-  const queueRef = useRef(queue)
-  const [recsLoading, setRecsLoading] = useState(false)
-  const [recsSourceName, setRecsSourceName] = useState("")
-  const [recsLockedSongId, setRecsLockedSongId] = useState<string | null>(null)
+  const lastRecsSongIdRef = useRef<string | null>(null);
+  const queueRef = useRef(queue);
+  const [recsLoading, setRecsLoading] = useState(false);
+  const [recsSourceName, setRecsSourceName] = useState('');
+  const [recsLockedSongId, setRecsLockedSongId] = useState<string | null>(null);
 
-  const searchTimer = useRef<any>(null)
-  const inputRef = useRef<TextInput>(null)
-  const scrollOffset = useSharedValue(0)
+  const searchTimer = useRef<any>(null);
+  const inputRef = useRef<TextInput>(null);
+  const scrollOffset = useSharedValue(0);
 
   useEffect(() => {
-    queueRef.current = queue
-  }, [queue])
+    queueRef.current = queue;
+  }, [queue]);
 
   useEffect(() => {
     if (queue.length === 0 && recsLockedSongId) {
-      setRecsLockedSongId(null)
+      setRecsLockedSongId(null);
     }
-  }, [queue.length, recsLockedSongId])
+  }, [queue.length, recsLockedSongId]);
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollOffset.value = event.nativeEvent.contentOffset.y
+      scrollOffset.value = event.nativeEvent.contentOffset.y;
     },
     [scrollOffset]
-  )
+  );
 
   const currentQueueItem = useMemo(
     () => (currentQueueIndex >= 0 && queue[currentQueueIndex] ? queue[currentQueueIndex] : null),
     [queue, currentQueueIndex]
-  )
+  );
 
   const upcomingQueue = useMemo(
     () => queue.filter((_, idx) => idx > currentQueueIndex),
     [queue, currentQueueIndex]
-  )
+  );
 
   useEffect(() => {
     if (isQueueOpen) {
-      setActiveTab("queue")
-      setSearchQuery("")
-      setSearchResults([])
-      scrollOffset.value = 0
+      setActiveTab('queue');
+      setSearchQuery('');
+      setSearchResults([]);
+      scrollOffset.value = 0;
     }
-  }, [isQueueOpen])
+  }, [isQueueOpen]);
 
   const fetchRecs = useCallback(
     async (songId: string, force = false) => {
-      if (!songId) return
-      if (!force && lastRecsSongIdRef.current === songId) return
-      lastRecsSongIdRef.current = songId
-      setRecsLoading(true)
-      const currentQueue = queueRef.current || []
-      const songItem = currentQueue.find((q) => q.song?.id === songId)
-      setRecsSourceName(songItem?.song?.name || "")
+      if (!songId) return;
+      if (!force && lastRecsSongIdRef.current === songId) return;
+      lastRecsSongIdRef.current = songId;
+      setRecsLoading(true);
+      const currentQueue = queueRef.current || [];
+      const songItem = currentQueue.find((q) => q.song?.id === songId);
+      setRecsSourceName(songItem?.song?.name || '');
       try {
-        const data = await fetchSongRecommendations(api, songId)
-        const existingIds = new Set(currentQueue.map((q) => q.song?.id))
-        const filtered = (data || []).filter((s) => !existingIds.has(s.id))
-        setRecommendations(filtered.slice(0, 15))
+        const data = await fetchSongRecommendations(api, songId);
+        const existingIds = new Set(currentQueue.map((q) => q.song?.id));
+        const filtered = (data || []).filter((s) => !existingIds.has(s.id));
+        setRecommendations(filtered.slice(0, 15));
       } catch {
-        setRecommendations([])
+        setRecommendations([]);
       } finally {
-        setRecsLoading(false)
+        setRecsLoading(false);
       }
     },
     [api, setRecommendations]
-  )
+  );
 
   const fetchSmartFallbackRecs = useCallback(
     async (force = false) => {
-      if (!force && lastRecsSongIdRef.current === "fallback") return
-      lastRecsSongIdRef.current = "fallback"
-      setRecsLoading(true)
+      if (!force && lastRecsSongIdRef.current === 'fallback') return;
+      lastRecsSongIdRef.current = 'fallback';
+      setRecsLoading(true);
 
       try {
         if (user?.userid) {
-          const groupHist = await getGroupHistory(api, String(user.userid))
+          const groupHist = await getGroupHistory(api, String(user.userid));
           if (groupHist && groupHist.length > 0) {
-            const lastSong = groupHist[groupHist.length - 1]?.songData
+            const lastSong = groupHist[groupHist.length - 1]?.songData;
             if (lastSong?.id) {
-              setRecsSourceName(`Last Session: ${lastSong.name}`)
-              const data = await fetchSongRecommendations(api, lastSong.id)
+              setRecsSourceName(`Last Session: ${lastSong.name}`);
+              const data = await fetchSongRecommendations(api, lastSong.id);
               if (data && data.length > 0) {
-                const currentQueue = queueRef.current || []
-                const existingIds = new Set(currentQueue.map((q) => q.song?.id))
-                const filtered = data.filter((s) => !existingIds.has(s.id))
-                setRecommendations(filtered.slice(0, 15))
-                return
+                const currentQueue = queueRef.current || [];
+                const existingIds = new Set(currentQueue.map((q) => q.song?.id));
+                const filtered = data.filter((s) => !existingIds.has(s.id));
+                setRecommendations(filtered.slice(0, 15));
+                return;
               }
             }
           }
         }
 
-        const musicHist = await getMusicHistory(api, { page: 1, limit: 5 })
+        const musicHist = await getMusicHistory(api, { page: 1, limit: 5 });
         if (musicHist?.songs && musicHist.songs.length > 0) {
-          const lastSong = musicHist.songs[0]
+          const lastSong = musicHist.songs[0];
           if (lastSong?.id) {
-            setRecsSourceName(`Music History: ${lastSong.name}`)
-            const data = await fetchSongRecommendations(api, lastSong.id)
+            setRecsSourceName(`Music History: ${lastSong.name}`);
+            const data = await fetchSongRecommendations(api, lastSong.id);
             if (data && data.length > 0) {
-              const currentQueue = queueRef.current || []
-              const existingIds = new Set(currentQueue.map((q) => q.song?.id))
-              const filtered = data.filter((s) => !existingIds.has(s.id))
-              setRecommendations(filtered.slice(0, 15))
-              return
+              const currentQueue = queueRef.current || [];
+              const existingIds = new Set(currentQueue.map((q) => q.song?.id));
+              const filtered = data.filter((s) => !existingIds.has(s.id));
+              setRecommendations(filtered.slice(0, 15));
+              return;
             }
           }
         }
 
-        const modules = await getHomePageMusic()
+        const modules = await getHomePageMusic();
         if (modules?.trending?.data && modules.trending.data.length > 0) {
-          setRecsSourceName("Trending Now")
-          const currentQueue = queueRef.current || []
-          const existingIds = new Set(currentQueue.map((q) => q.song?.id))
+          setRecsSourceName('Trending Now');
+          const currentQueue = queueRef.current || [];
+          const existingIds = new Set(currentQueue.map((q) => q.song?.id));
           const filtered = modules.trending.data
             .map(ensureHttpsForSongUrls)
-            .filter((s) => !existingIds.has(s.id))
-          setRecommendations(filtered.slice(0, 15))
+            .filter((s) => !existingIds.has(s.id));
+          setRecommendations(filtered.slice(0, 15));
         }
       } catch (err) {
-        console.error("Failed to load fallback recommendations:", err)
+        console.error('Failed to load fallback recommendations:', err);
       } finally {
-        setRecsLoading(false)
+        setRecsLoading(false);
       }
     },
     [api, user?.userid, setRecommendations]
-  )
+  );
 
   useEffect(() => {
-    if (recsLockedSongId) return
+    if (recsLockedSongId) return;
 
-    const activeSongId = currentQueueItem?.song?.id || currentSong?.id
+    const activeSongId = currentQueueItem?.song?.id || currentSong?.id;
     if (activeSongId) {
       if (activeSongId !== lastRecsSongIdRef.current) {
-        fetchRecs(activeSongId)
+        fetchRecs(activeSongId);
       }
     } else {
-      fetchSmartFallbackRecs()
+      fetchSmartFallbackRecs();
     }
   }, [
     currentQueueItem?.song?.id,
@@ -491,58 +496,58 @@ export const QueueSheet: React.FC = () => {
     recsLockedSongId,
     fetchRecs,
     fetchSmartFallbackRecs,
-  ])
+  ]);
 
   const handleClose = useCallback(() => {
-    useGroupSessionStore.setState({ isQueueOpen: false })
-  }, [])
+    useGroupSessionStore.setState({ isQueueOpen: false });
+  }, []);
 
   const handleRemove = useCallback(
     (queueItemId: string) => removeFromQueue(queueItemId),
     [removeFromQueue]
-  )
+  );
 
   const handleSearch = useCallback((query: string) => {
-    setSearchQuery(query)
-    if (searchTimer.current) clearTimeout(searchTimer.current)
+    setSearchQuery(query);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
     if (!query.trim()) {
-      setSearchResults([])
-      setIsSearching(false)
-      return
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
     }
     searchTimer.current = setTimeout(async () => {
-      setIsSearching(true)
+      setIsSearching(true);
       try {
-        const results = await searchSongs(query)
-        setSearchResults(results.map(ensureHttpsForSongUrls))
+        const results = await searchSongs(query);
+        setSearchResults(results.map(ensureHttpsForSongUrls));
       } catch {
-        setSearchResults([])
+        setSearchResults([]);
       } finally {
-        setIsSearching(false)
+        setIsSearching(false);
       }
-    }, 400)
-  }, [])
+    }, 400);
+  }, []);
 
   const handleAddToQueue = useCallback(
     (song: Song) => {
-      addToQueue(song)
-      setRecommendations((prev) => prev.filter((s) => s.id !== song.id))
+      addToQueue(song);
+      setRecommendations((prev) => prev.filter((s) => s.id !== song.id));
     },
     [addToQueue, setRecommendations]
-  )
+  );
 
-  const handlePlayNow = useCallback((song: Song) => playNow(song), [playNow])
+  const handlePlayNow = useCallback((song: Song) => playNow(song), [playNow]);
 
-  const handlePlayNext = useCallback((song: Song) => playNext(song), [playNext])
+  const handlePlayNext = useCallback((song: Song) => playNext(song), [playNext]);
 
-  const currentArtist = currentSong?.artist_map?.primary_artists?.[0]?.name || "Unknown Artist"
+  const currentArtist = currentSong?.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
 
   const renderQueueItem = useCallback(
     ({ item }: { item: QueueItem }) => (
       <QueueItemRow item={item} onRemove={handleRemove} colors={colors} />
     ),
     [handleRemove, colors]
-  )
+  );
 
   const renderSearchResult = useCallback(
     ({ item }: { item: Song }) => (
@@ -555,10 +560,10 @@ export const QueueSheet: React.FC = () => {
       />
     ),
     [handleAddToQueue, handlePlayNow, handlePlayNext, colors]
-  )
+  );
 
-  const queueKeyExtractor = useCallback((item: QueueItem) => item.id, [])
-  const songKeyExtractor = useCallback((item: Song) => item.id, [])
+  const queueKeyExtractor = useCallback((item: QueueItem) => item.id, []);
+  const songKeyExtractor = useCallback((item: Song) => item.id, []);
 
   const renderQueueHeader = useCallback(() => {
     if (!currentSong || !currentQueueItem) {
@@ -567,16 +572,16 @@ export const QueueSheet: React.FC = () => {
           <View style={styles.listHeader}>
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>UP NEXT</Text>
           </View>
-        )
+        );
       }
-      return null
+      return null;
     }
 
     return (
       <View>
         <View style={[styles.nowPlaying, { backgroundColor: colors.secondary }]}>
           <View style={styles.nowPlayingLabel}>
-            <Ionicons name="musical-note" size={12} color={colors.primary} />
+            <Ionicons name='musical-note' size={12} color={colors.primary} />
             <Text style={[styles.nowPlayingText, { color: colors.primary }]}>NOW PLAYING</Text>
           </View>
           <View style={styles.nowPlayingSong}>
@@ -607,22 +612,22 @@ export const QueueSheet: React.FC = () => {
           </View>
         )}
       </View>
-    )
-  }, [currentSong, currentQueueItem, upcomingQueue.length, colors, currentArtist, isPlaying])
+    );
+  }, [currentSong, currentQueueItem, upcomingQueue.length, colors, currentArtist, isPlaying]);
 
   const TABS: { key: TabKey; label: string; icon: string }[] = [
-    { key: "queue", label: "Queue", icon: "list" },
-    { key: "playlists", label: "Playlists", icon: "disc" },
-    { key: "recommended", label: "For You", icon: "zap" },
-  ]
+    { key: 'queue', label: 'Queue', icon: 'list' },
+    { key: 'playlists', label: 'Playlists', icon: 'disc' },
+    { key: 'recommended', label: 'For You', icon: 'zap' },
+  ];
 
-  const listBottomInset = Math.max(insets.bottom, 12) + 16
+  const listBottomInset = Math.max(insets.bottom, 12) + 16;
 
   return (
     <SwipeableModal
       isVisible={isQueueOpen}
       onClose={handleClose}
-      maxHeight="100%"
+      maxHeight='100%'
       scrollable={true}
       scrollOffset={scrollOffset}
       hideHandle={true}
@@ -634,10 +639,10 @@ export const QueueSheet: React.FC = () => {
             <TouchableOpacity
               onPress={handleClose}
               style={[styles.backButton, { backgroundColor: colors.secondary }]}
-              accessibilityRole="button"
-              accessibilityLabel="Close queue"
+              accessibilityRole='button'
+              accessibilityLabel='Close queue'
             >
-              <Ionicons name="arrow-back" size={20} color={colors.foreground} />
+              <Ionicons name='arrow-back' size={20} color={colors.foreground} />
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>Queue</Text>
             {upcomingQueue.length > 0 && (
@@ -652,16 +657,16 @@ export const QueueSheet: React.FC = () => {
         <View style={styles.searchBarContainer}>
           <Input
             ref={inputRef}
-            placeholder="Search songs to add..."
+            placeholder='Search songs to add...'
             value={searchQuery}
             onChangeText={handleSearch}
-            variant="filled"
-            size="sm"
-            leftIcon={<Feather name="search" size={16} color={colors.mutedForeground} />}
+            variant='filled'
+            size='sm'
+            leftIcon={<Feather name='search' size={16} color={colors.mutedForeground} />}
             rightIcon={
               searchQuery ? (
-                <TouchableOpacity onPress={() => handleSearch("")}>
-                  <Feather name="x" size={16} color={colors.mutedForeground} />
+                <TouchableOpacity onPress={() => handleSearch('')}>
+                  <Feather name='x' size={16} color={colors.mutedForeground} />
                 </TouchableOpacity>
               ) : null
             }
@@ -672,13 +677,13 @@ export const QueueSheet: React.FC = () => {
         {!searchQuery.trim() && (
           <View style={[styles.tabBar, { backgroundColor: colors.secondary }]}>
             {TABS.map((tab) => {
-              const active = activeTab === tab.key
+              const active = activeTab === tab.key;
               return (
                 <TouchableOpacity
                   key={tab.key}
                   onPress={() => {
-                    setActiveTab(tab.key)
-                    scrollOffset.value = 0
+                    setActiveTab(tab.key);
+                    scrollOffset.value = 0;
                   }}
                   style={[
                     styles.tab,
@@ -700,7 +705,7 @@ export const QueueSheet: React.FC = () => {
                     {tab.label}
                   </Text>
                 </TouchableOpacity>
-              )
+              );
             })}
           </View>
         )}
@@ -710,7 +715,7 @@ export const QueueSheet: React.FC = () => {
           <View style={styles.flex}>
             {isSearching ? (
               <View style={styles.centeredState}>
-                <ActivityIndicator size="large" color={colors.primary} />
+                <ActivityIndicator size='large' color={colors.primary} />
               </View>
             ) : (
               <FlatList
@@ -719,7 +724,7 @@ export const QueueSheet: React.FC = () => {
                 renderItem={renderSearchResult}
                 ListEmptyComponent={
                   <View style={styles.centeredState}>
-                    <Feather name="search" size={28} color={colors.mutedForeground + "40"} />
+                    <Feather name='search' size={28} color={colors.mutedForeground + '40'} />
                     <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
                       No results found
                     </Text>
@@ -727,7 +732,7 @@ export const QueueSheet: React.FC = () => {
                 }
                 contentContainerStyle={[styles.listContent, { paddingBottom: listBottomInset }]}
                 showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
+                keyboardShouldPersistTaps='handled'
                 onScroll={handleScroll}
                 scrollEventThrottle={16}
               />
@@ -736,7 +741,7 @@ export const QueueSheet: React.FC = () => {
         ) : (
           /* Tab Content */
           <View style={styles.flex}>
-            {activeTab === "queue" && (
+            {activeTab === 'queue' && (
               <FlatList
                 data={upcomingQueue}
                 keyExtractor={queueKeyExtractor}
@@ -744,7 +749,7 @@ export const QueueSheet: React.FC = () => {
                 ListHeaderComponent={renderQueueHeader}
                 ListEmptyComponent={
                   <View style={styles.emptyQueue}>
-                    <Feather name="music" size={32} color={colors.mutedForeground} />
+                    <Feather name='music' size={32} color={colors.mutedForeground} />
                     <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
                       Queue is empty
                     </Text>
@@ -760,7 +765,7 @@ export const QueueSheet: React.FC = () => {
               />
             )}
 
-            {activeTab === "playlists" && (
+            {activeTab === 'playlists' && (
               <PlaylistBrowser
                 onPlayNow={handlePlayNow}
                 onPlayNext={handlePlayNext}
@@ -770,11 +775,11 @@ export const QueueSheet: React.FC = () => {
               />
             )}
 
-            {activeTab === "recommended" && (
+            {activeTab === 'recommended' && (
               <View style={styles.flex}>
                 {recsLoading ? (
                   <View style={styles.centeredState}>
-                    <ActivityIndicator size="large" color={colors.primary} />
+                    <ActivityIndicator size='large' color={colors.primary} />
                     <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
                       Finding songs for you...
                     </Text>
@@ -792,23 +797,23 @@ export const QueueSheet: React.FC = () => {
                           </Text>
                           <TouchableOpacity
                             onPress={() => {
-                              const activeSongId = currentQueueItem?.song?.id || currentSong?.id
+                              const activeSongId = currentQueueItem?.song?.id || currentSong?.id;
                               if (activeSongId) {
-                                fetchRecs(activeSongId, true)
+                                fetchRecs(activeSongId, true);
                               } else {
-                                fetchSmartFallbackRecs(true)
+                                fetchSmartFallbackRecs(true);
                               }
                             }}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
-                            <Feather name="refresh-cw" size={12} color={colors.mutedForeground} />
+                            <Feather name='refresh-cw' size={12} color={colors.mutedForeground} />
                           </TouchableOpacity>
                         </View>
                       ) : null
                     }
                     ListEmptyComponent={
                       <View style={styles.centeredState}>
-                        <Feather name="zap" size={28} color={colors.mutedForeground + "40"} />
+                        <Feather name='zap' size={28} color={colors.mutedForeground + '40'} />
                         <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
                           No recommendations yet
                         </Text>
@@ -829,8 +834,8 @@ export const QueueSheet: React.FC = () => {
         )}
       </View>
     </SwipeableModal>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
@@ -845,35 +850,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
   headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   backButton: {
     width: 36,
     height: 36,
     borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: '700',
     letterSpacing: -0.3,
   },
   countText: {
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   tabBar: {
-    flexDirection: "row",
+    flexDirection: 'row',
     marginHorizontal: 20,
     marginTop: 2,
     marginBottom: 8,
@@ -882,9 +887,9 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: 5,
     minHeight: 38,
     borderRadius: 9,
@@ -892,10 +897,10 @@ const styles = StyleSheet.create({
   tabActive: {},
   tabText: {
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   tabTextActive: {
-    fontWeight: "700",
+    fontWeight: '700',
   },
   searchBarContainer: {
     paddingHorizontal: 20,
@@ -912,19 +917,19 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   nowPlayingLabel: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
     marginBottom: 8,
   },
   nowPlayingText: {
     fontSize: 10,
-    fontWeight: "700",
+    fontWeight: '700',
     letterSpacing: 1,
   },
   nowPlayingSong: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   nowPlayingArt: {
     width: 44,
@@ -937,15 +942,15 @@ const styles = StyleSheet.create({
   },
   nowPlayingName: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   nowPlayingArtist: {
     fontSize: 12,
     marginTop: 1,
   },
   playingIndicator: {
-    flexDirection: "row",
-    alignItems: "flex-end",
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     gap: 2,
     height: 14,
     marginLeft: 8,
@@ -953,54 +958,54 @@ const styles = StyleSheet.create({
   playingBar: {
     width: 2.5,
     borderRadius: 1,
-    height: "60%",
+    height: '60%',
   },
   sectionLabel: {
     fontSize: 10,
-    fontWeight: "700",
+    fontWeight: '700',
     letterSpacing: 1,
     paddingHorizontal: 4,
   },
   recsHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     marginTop: 12,
     marginBottom: 6,
   },
   queueItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   searchItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   playlistRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   playlistDetailHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 12,
   },
   addAllBtn: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -1008,7 +1013,7 @@ const styles = StyleSheet.create({
   },
   addAllBtnText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   itemArt: {
     width: 48,
@@ -1021,15 +1026,15 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   itemArtist: {
     fontSize: 12,
     marginTop: 1,
   },
   itemAddedBy: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 3,
     gap: 4,
   },
@@ -1042,7 +1047,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   searchActions: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 6,
     marginLeft: 8,
   },
@@ -1050,43 +1055,43 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   removeButton: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: 8,
   },
   emptyQueue: {
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 48,
     paddingHorizontal: 32,
   },
   centeredState: {
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 48,
     gap: 8,
   },
   emptyTitle: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: '600',
     marginTop: 8,
   },
   emptySubtitle: {
     fontSize: 13,
-    textAlign: "center",
+    textAlign: 'center',
     marginTop: 4,
     lineHeight: 18,
   },
   emptyButton: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -1095,6 +1100,6 @@ const styles = StyleSheet.create({
   },
   emptyButtonText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
-})
+});

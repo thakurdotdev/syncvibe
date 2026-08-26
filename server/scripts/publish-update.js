@@ -1,34 +1,34 @@
-const readline = require("readline")
-const sequelize = require("../utils/sequelize")
-const AppUpdate = require("../models/appUpdateModel")
+const readline = require('readline');
+const sequelize = require('../utils/sequelize');
+const AppUpdate = require('../models/appUpdateModel');
 
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
-})
+});
 
 const askQuestion = (query) => {
-  return new Promise((resolve) => rl.question(query, resolve))
-}
+  return new Promise((resolve) => rl.question(query, resolve));
+};
 
 async function main() {
   try {
-    await sequelize.authenticate()
-    await AppUpdate.sync({ alter: true })
+    await sequelize.authenticate();
+    await AppUpdate.sync({ alter: true });
 
-    console.log("Publish a New App Update")
-    const version = await askQuestion("App Version (e.g. 1.0.1): ")
+    console.log('Publish a New App Update');
+    const version = await askQuestion('App Version (e.g. 1.0.1): ');
     if (!version.trim()) {
-      console.error("Version is required")
-      process.exit(1)
+      console.error('Version is required');
+      process.exit(1);
     }
 
-    const releaseNotes = await askQuestion("Release Notes / Features (text): ")
-    const downloadUrl = await askQuestion("Download URL (link to APK): ")
-    const criticalInput = await askQuestion("Is this a critical update? (y/N): ")
-    const critical = criticalInput.toLowerCase().startsWith("y")
-    const sha256Input = await askQuestion("SHA-256 Checksum (optional): ")
-    const fileSizeInput = await askQuestion("File Size in bytes (optional): ")
+    const releaseNotes = await askQuestion('Release Notes / Features (text): ');
+    const downloadUrl = await askQuestion('Download URL (link to APK): ');
+    const criticalInput = await askQuestion('Is this a critical update? (y/N): ');
+    const critical = criticalInput.toLowerCase().startsWith('y');
+    const sha256Input = await askQuestion('SHA-256 Checksum (optional): ');
+    const fileSizeInput = await askQuestion('File Size in bytes (optional): ');
 
     const update = await AppUpdate.create({
       version: version.trim(),
@@ -37,17 +37,17 @@ async function main() {
       critical,
       sha256: sha256Input.trim() || null,
       fileSize: fileSizeInput.trim() ? Number(fileSizeInput.trim()) : null,
-    })
+    });
 
-    console.log("Successfully published app update:")
-    console.log(JSON.stringify(update.get({ plain: true }), null, 2))
+    console.log('Successfully published app update:');
+    console.log(JSON.stringify(update.get({ plain: true }), null, 2));
   } catch (error) {
-    console.error("Failed to publish app update:", error)
+    console.error('Failed to publish app update:', error);
   } finally {
-    rl.close()
-    await sequelize.close()
-    process.exit(0)
+    rl.close();
+    await sequelize.close();
+    process.exit(0);
   }
 }
 
-main()
+main();

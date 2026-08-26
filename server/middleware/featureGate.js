@@ -1,36 +1,36 @@
-const { getUserEntitlement, hasFeatureAccess } = require("../services/entitlementService")
+const { getUserEntitlement, hasFeatureAccess } = require('../services/entitlementService');
 
 const requirePro = async (req, res, next) => {
   try {
-    const userid = req.user?.userid
+    const userid = req.user?.userid;
     if (!userid) {
-      return res.status(401).json({ message: "Unauthorized" })
+      return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const hasPro = await hasFeatureAccess(userid, "PRO")
+    const hasPro = await hasFeatureAccess(userid, 'PRO');
     if (!hasPro) {
-      return res.status(403).json({ message: "PRO subscription required" })
+      return res.status(403).json({ message: 'PRO subscription required' });
     }
 
-    next()
+    next();
   } catch (error) {
-    return res.status(500).json({ message: "Feature access check failed" })
+    return res.status(500).json({ message: 'Feature access check failed' });
   }
-}
+};
 
 const attachEntitlement = async (req, res, next) => {
   try {
-    const userid = req.user?.userid
+    const userid = req.user?.userid;
     if (userid) {
-      req.entitlement = await getUserEntitlement(userid)
+      req.entitlement = await getUserEntitlement(userid);
     }
-    next()
+    next();
   } catch {
-    next()
+    next();
   }
-}
+};
 
 module.exports = {
   requirePro,
   attachEntitlement,
-}
+};

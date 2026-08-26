@@ -1,25 +1,25 @@
-import React, { useCallback, useRef } from "react"
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native"
-import { useTheme } from "@/context/ThemeContext"
-import { useGroupMusic } from "@/context/GroupMusicContext"
+import React, { useCallback, useRef } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '@/context/ThemeContext';
+import { useGroupMusic } from '@/context/GroupMusicContext';
 
-const REACTIONS = ["🔥", "❤️", "👏", "😍", "🎵"]
-const COOLDOWN_MS = 500
+const REACTIONS = ['🔥', '❤️', '👏', '😍', '🎵'];
+const COOLDOWN_MS = 500;
 
 export const ReactionBar: React.FC = () => {
-  const { colors } = useTheme()
-  const { sendReaction } = useGroupMusic()
-  const lastReactionTime = useRef(0)
+  const { colors } = useTheme();
+  const { sendReaction } = useGroupMusic();
+  const lastReactionTime = useRef(0);
 
   const handleReaction = useCallback(
     (emoji: string) => {
-      const now = Date.now()
-      if (now - lastReactionTime.current < COOLDOWN_MS) return
-      lastReactionTime.current = now
-      sendReaction(emoji)
+      const now = Date.now();
+      if (now - lastReactionTime.current < COOLDOWN_MS) return;
+      lastReactionTime.current = now;
+      sendReaction(emoji);
     },
     [sendReaction]
-  )
+  );
 
   return (
     <View style={styles.container}>
@@ -34,13 +34,13 @@ export const ReactionBar: React.FC = () => {
         </TouchableOpacity>
       ))}
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    justifyContent: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
     gap: 5,
     paddingVertical: 4,
   },
@@ -48,10 +48,10 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emoji: {
     fontSize: 18,
   },
-})
+});

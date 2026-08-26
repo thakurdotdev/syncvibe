@@ -3,11 +3,11 @@
  * Manages preview audio and room sound effect playback independently from the main music stream.
  */
 
-let previewAudio = null
-let previewUrl = null
-let currentOnEnd = null
+let previewAudio = null;
+let previewUrl = null;
+let currentOnEnd = null;
 
-const SFX_VOLUME = 0.75
+const SFX_VOLUME = 0.75;
 
 export const soundEffectsManager = {
   /**
@@ -19,43 +19,43 @@ export const soundEffectsManager = {
    */
   playPreview: (url, onEnd, onError) => {
     if (previewAudio) {
-      previewAudio.pause()
-      previewAudio.src = ""
+      previewAudio.pause();
+      previewAudio.src = '';
       if (currentOnEnd) {
-        currentOnEnd()
+        currentOnEnd();
       }
-      previewAudio = null
-      previewUrl = null
+      previewAudio = null;
+      previewUrl = null;
     }
 
-    const audio = new Audio(url)
-    audio.volume = SFX_VOLUME
-    audio.preload = "auto"
-    previewAudio = audio
-    previewUrl = url
-    currentOnEnd = onEnd
+    const audio = new Audio(url);
+    audio.volume = SFX_VOLUME;
+    audio.preload = 'auto';
+    previewAudio = audio;
+    previewUrl = url;
+    currentOnEnd = onEnd;
 
     const cleanup = () => {
       if (previewAudio === audio) {
-        previewAudio = null
-        previewUrl = null
-        currentOnEnd = null
+        previewAudio = null;
+        previewUrl = null;
+        currentOnEnd = null;
       }
-      onEnd?.()
-    }
+      onEnd?.();
+    };
 
-    audio.onended = cleanup
+    audio.onended = cleanup;
     audio.onerror = (e) => {
-      cleanup()
-      onError?.(e)
-    }
+      cleanup();
+      onError?.(e);
+    };
 
     audio.play().catch((err) => {
-      cleanup()
-      onError?.(err)
-    })
+      cleanup();
+      onError?.(err);
+    });
 
-    return audio
+    return audio;
   },
 
   /**
@@ -63,14 +63,14 @@ export const soundEffectsManager = {
    */
   stopPreview: () => {
     if (previewAudio) {
-      previewAudio.pause()
-      previewAudio.src = ""
-      previewAudio = null
-      previewUrl = null
+      previewAudio.pause();
+      previewAudio.src = '';
+      previewAudio = null;
+      previewUrl = null;
       if (currentOnEnd) {
-        const cb = currentOnEnd
-        currentOnEnd = null
-        cb()
+        const cb = currentOnEnd;
+        currentOnEnd = null;
+        cb();
       }
     }
   },
@@ -81,7 +81,7 @@ export const soundEffectsManager = {
    * @returns {boolean}
    */
   isPlayingPreview: (url) => {
-    return !!(previewAudio && previewUrl === url && !previewAudio.paused)
+    return !!(previewAudio && previewUrl === url && !previewAudio.paused);
   },
 
   /**
@@ -90,17 +90,17 @@ export const soundEffectsManager = {
    * @returns {Promise<void>}
    */
   playRoomEffect: async (url) => {
-    if (!url) return
+    if (!url) return;
     try {
-      const roomAudio = new Audio(url)
-      roomAudio.volume = SFX_VOLUME
-      await roomAudio.play()
+      const roomAudio = new Audio(url);
+      roomAudio.volume = SFX_VOLUME;
+      await roomAudio.play();
       roomAudio.onended = () => {
-        roomAudio.src = ""
-      }
+        roomAudio.src = '';
+      };
     } catch (err) {
       // Autoplay might be restricted by browser before user interaction
-      console.warn("Auto-play sound effect restricted or failed:", err)
+      console.warn('Auto-play sound effect restricted or failed:', err);
     }
   },
-}
+};

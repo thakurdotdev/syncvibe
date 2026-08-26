@@ -1,30 +1,30 @@
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom"
-import { SidebarProvider } from "@/components/ui/sidebar"
-import "./App.css"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { ChatProvider } from "./Context/ChatContext"
-import { ContextProvider } from "./Context/Context"
-import { GroupMusicProvider } from "./Context/GroupMusicContext"
-import { PlayerProvider } from "./Context/PlayerContext"
-import { ThemeProvider } from "./Context/ThemeProvider"
-import { Toaster } from "./components/ui/sonner"
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import './App.css';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ChatProvider } from './Context/ChatContext';
+import { ContextProvider } from './Context/Context';
+import { GroupMusicProvider } from './Context/GroupMusicContext';
+import { PlayerProvider } from './Context/PlayerContext';
+import { ThemeProvider } from './Context/ThemeProvider';
+import { Toaster } from './components/ui/sonner';
 import {
   ProtectedRoutes,
   PublicRoutes,
   privateRoutes,
   publicRoutes,
   musicOnlyRoutes,
-} from "./Routes"
-import { setQueryClient } from "./stores/uploadStore"
-import { useAppModeStore } from "./stores/appModeStore"
-import ClipboardGroupDetector from "./components/ClipboardGroupDetector"
+} from './Routes';
+import { setQueryClient } from './stores/uploadStore';
+import { useAppModeStore } from './stores/appModeStore';
+import ClipboardGroupDetector from './components/ClipboardGroupDetector';
 
-const queryClient = new QueryClient()
-setQueryClient(queryClient)
+const queryClient = new QueryClient();
+setQueryClient(queryClient);
 
 function AppRoutes() {
-  const mode = useAppModeStore((s) => s.mode)
-  const activePrivateRoutes = mode === "music" ? musicOnlyRoutes : privateRoutes
+  const mode = useAppModeStore((s) => s.mode);
+  const activePrivateRoutes = mode === 'music' ? musicOnlyRoutes : privateRoutes;
 
   return (
     <Routes>
@@ -40,20 +40,20 @@ function AppRoutes() {
         ))}
       </Route>
     </Routes>
-  )
+  );
 }
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+        <ThemeProvider defaultTheme='dark' storageKey='vite-ui-theme'>
           <SidebarProvider>
             <ContextProvider>
               <PlayerProvider>
                 <ChatProvider>
                   <GroupMusicProvider>
-                    <Toaster position="bottom-right" />
+                    <Toaster position='bottom-right' />
                     <ClipboardGroupDetector />
                     <AppRoutes />
                   </GroupMusicProvider>
@@ -64,7 +64,7 @@ function App() {
         </ThemeProvider>
       </Router>
     </QueryClientProvider>
-  )
+  );
 }
 
-export default App
+export default App;

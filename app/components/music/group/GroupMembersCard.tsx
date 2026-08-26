@@ -1,49 +1,50 @@
-import React, { useCallback, useState } from "react"
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native"
-import { Feather } from "@expo/vector-icons"
-import Card from "@/components/ui/card"
-import { useTheme } from "@/context/ThemeContext"
-import { getProfileCloudinaryUrl } from "@/utils/Cloudinary"
+import React, { useCallback, useState } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import Card from '@/components/ui/card';
+import { useTheme } from '@/context/ThemeContext';
+import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 
 interface Member {
-  userId: string | number
-  userName: string
-  profilePic?: string
+  userId: string | number;
+  userName: string;
+  profilePic?: string;
 }
 
 interface GroupMembersCardProps {
-  groupMembers: Member[]
-  hostId?: string | number
+  groupMembers: Member[];
+  hostId?: string | number;
 }
 
-const MAX_VISIBLE_AVATARS = 4
-const AVATAR_SIZE = 28
-const OVERLAP = 8
+const MAX_VISIBLE_AVATARS = 4;
+const AVATAR_SIZE = 28;
+const OVERLAP = 8;
 
 export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({ groupMembers, hostId }) => {
-  const { colors } = useTheme()
-  const [expanded, setExpanded] = useState(false)
+  const { colors } = useTheme();
+  const [expanded, setExpanded] = useState(false);
 
-  const toggleExpanded = useCallback(() => setExpanded((v) => !v), [])
+  const toggleExpanded = useCallback(() => setExpanded((v) => !v), []);
 
-  const visibleAvatars = groupMembers.slice(0, MAX_VISIBLE_AVATARS)
-  const overflow = groupMembers.length - MAX_VISIBLE_AVATARS
-  const pileWidth = visibleAvatars.length * (AVATAR_SIZE - OVERLAP) + OVERLAP + (overflow > 0 ? AVATAR_SIZE - OVERLAP + OVERLAP : 0)
+  const visibleAvatars = groupMembers.slice(0, MAX_VISIBLE_AVATARS);
+  const overflow = groupMembers.length - MAX_VISIBLE_AVATARS;
+  const pileWidth =
+    visibleAvatars.length * (AVATAR_SIZE - OVERLAP) +
+    OVERLAP +
+    (overflow > 0 ? AVATAR_SIZE - OVERLAP + OVERLAP : 0);
 
   return (
-    <Card variant="default" style={styles.container}>
+    <Card variant='default' style={styles.container}>
       <TouchableOpacity
         onPress={toggleExpanded}
         activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel="Toggle members list"
+        accessibilityRole='button'
+        accessibilityLabel='Toggle members list'
         style={styles.header}
       >
-        <Feather name="users" size={15} color={colors.mutedForeground} />
+        <Feather name='users' size={15} color={colors.mutedForeground} />
 
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          Listeners
-        </Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>Listeners</Text>
 
         <View style={[styles.countBadge, { backgroundColor: colors.secondary }]}>
           <Text style={[styles.countText, { color: colors.mutedForeground }]}>
@@ -57,8 +58,7 @@ export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({ groupMembers
             <Image
               key={member.userId.toString()}
               source={{
-                uri:
-                  getProfileCloudinaryUrl(member.profilePic) || "https://via.placeholder.com/28",
+                uri: getProfileCloudinaryUrl(member.profilePic) || 'https://via.placeholder.com/28',
               }}
               style={[
                 styles.pileAvatar,
@@ -90,17 +90,17 @@ export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({ groupMembers
         </View>
 
         <Feather
-          name={expanded ? "chevron-up" : "chevron-down"}
+          name={expanded ? 'chevron-up' : 'chevron-down'}
           size={16}
-          color={colors.mutedForeground + "60"}
+          color={colors.mutedForeground + '60'}
         />
       </TouchableOpacity>
 
       {expanded && (
-        <View style={[styles.memberList, { borderTopColor: colors.border + "30" }]}>
+        <View style={[styles.memberList, { borderTopColor: colors.border + '30' }]}>
           {groupMembers.map((item, index) => {
-            const isHost = hostId && item.userId.toString() === hostId.toString()
-            const isLast = index === groupMembers.length - 1
+            const isHost = hostId && item.userId.toString() === hostId.toString();
+            const isLast = index === groupMembers.length - 1;
 
             return (
               <View
@@ -109,15 +109,14 @@ export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({ groupMembers
                   styles.memberRow,
                   !isLast && {
                     borderBottomWidth: StyleSheet.hairlineWidth,
-                    borderBottomColor: colors.border + "30",
+                    borderBottomColor: colors.border + '30',
                   },
                 ]}
               >
                 <Image
                   source={{
                     uri:
-                      getProfileCloudinaryUrl(item.profilePic) ||
-                      "https://via.placeholder.com/32",
+                      getProfileCloudinaryUrl(item.profilePic) || 'https://via.placeholder.com/32',
                   }}
                   style={[styles.memberAvatar, { backgroundColor: colors.secondary }]}
                 />
@@ -125,18 +124,18 @@ export const GroupMembersCard: React.FC<GroupMembersCardProps> = ({ groupMembers
                   {item.userName}
                 </Text>
                 {isHost && (
-                  <View style={[styles.hostBadge, { backgroundColor: colors.primary + "15" }]}>
+                  <View style={[styles.hostBadge, { backgroundColor: colors.primary + '15' }]}>
                     <Text style={[styles.hostText, { color: colors.primary }]}>Host</Text>
                   </View>
                 )}
               </View>
-            )
+            );
           })}
         </View>
       )}
     </Card>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -146,46 +145,46 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   title: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   countBadge: {
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 5,
   },
   countText: {
     fontSize: 10,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   avatarPile: {
     flex: 1,
     height: AVATAR_SIZE,
-    flexDirection: "row",
+    flexDirection: 'row',
     marginLeft: 4,
   },
   pileAvatar: {
-    position: "absolute",
+    position: 'absolute',
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
     borderWidth: 2,
   },
   overflowBadge: {
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   overflowText: {
     fontSize: 9,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   memberList: {
     marginTop: 8,
@@ -193,8 +192,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
   memberRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 8,
     gap: 10,
   },
@@ -205,7 +204,7 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: '600',
     flex: 1,
   },
   hostBadge: {
@@ -215,6 +214,6 @@ const styles = StyleSheet.create({
   },
   hostText: {
     fontSize: 10,
-    fontWeight: "600",
+    fontWeight: '600',
   },
-})
+});

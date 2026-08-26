@@ -1,27 +1,27 @@
-const { Resend } = require("resend")
+const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_EMAIL = `SyncVibe <${process.env.RESEND_EMAIL ?? "noreply@thakur.dev"}>`
+const FROM_EMAIL = `SyncVibe <${process.env.RESEND_EMAIL ?? 'noreply@thakur.dev'}>`;
 const LOGO_URL =
-  "https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/r_max/f_auto/v1780744511/profiles/profiles_130_1780744510_4a18b0ed9043cc21.jpg"
-const APP_URL = "https://syncvibe.thakur.dev"
-const CURRENT_YEAR = new Date().getFullYear()
+  'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/r_max/f_auto/v1780744511/profiles/profiles_130_1780744510_4a18b0ed9043cc21.jpg';
+const APP_URL = 'https://syncvibe.thakur.dev';
+const CURRENT_YEAR = new Date().getFullYear();
 
 const BRAND = {
-  black: "#000000",
-  text: "#111111",
-  bodyText: "#444444",
-  muted: "#666666",
-  subtle: "#888888",
-  border: "#EAEAEA",
-  bg: "#FAFAFA",
-  cardBg: "#FFFFFF",
-  codeBg: "#F4F4F5",
-  codeText: "#000000",
-  accent: "#000000",
-  accentText: "#FFFFFF",
-}
+  black: '#000000',
+  text: '#111111',
+  bodyText: '#444444',
+  muted: '#666666',
+  subtle: '#888888',
+  border: '#EAEAEA',
+  bg: '#FAFAFA',
+  cardBg: '#FFFFFF',
+  codeBg: '#F4F4F5',
+  codeText: '#000000',
+  accent: '#000000',
+  accentText: '#FFFFFF',
+};
 
 const inlineStyles = {
   body: `margin:0;padding:0;background-color:${BRAND.bg};font-family:Geist,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;-webkit-text-size-adjust:100%;text-size-adjust:100%;`,
@@ -44,7 +44,7 @@ const inlineStyles = {
   urlFallback: `font-size:12px;line-height:1.5;color:${BRAND.subtle};margin:0;word-break:break-all;`,
   listItem: `font-size:14px;line-height:1.7;color:${BRAND.bodyText};margin-bottom:6px;`,
   badge: `display:inline-block;background-color:${BRAND.codeBg};border:1px solid ${BRAND.border};border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;color:${BRAND.text};letter-spacing:-0.2px;`,
-}
+};
 
 const renderLayout = (content) => `<!DOCTYPE html>
 <html lang="en">
@@ -86,19 +86,19 @@ const renderLayout = (content) => `<!DOCTYPE html>
 </td></tr>
 </table>
 </body>
-</html>`
+</html>`;
 
-const renderVerificationCode = (code) => `<div style="${inlineStyles.code}">${code}</div>`
+const renderVerificationCode = (code) => `<div style="${inlineStyles.code}">${code}</div>`;
 
 const renderButton = (text, href) =>
-  `<div style="${inlineStyles.buttonWrapper}"><a href="${href}" target="_blank" style="${inlineStyles.button}">${text}</a></div>`
+  `<div style="${inlineStyles.buttonWrapper}"><a href="${href}" target="_blank" style="${inlineStyles.button}">${text}</a></div>`;
 
-const renderText = (str, extraStyle = "") =>
-  `<p style="${inlineStyles.text}${extraStyle}">${str}</p>`
+const renderText = (str, extraStyle = '') =>
+  `<p style="${inlineStyles.text}${extraStyle}">${str}</p>`;
 
-const renderHeading = (str) => `<h1 style="${inlineStyles.heading}">${str}</h1>`
+const renderHeading = (str) => `<h1 style="${inlineStyles.heading}">${str}</h1>`;
 
-const renderDivider = () => `<hr style="${inlineStyles.divider}">`
+const renderDivider = () => `<hr style="${inlineStyles.divider}">`;
 
 const sendEmail = async (to, subject, html) => {
   const { data, error } = await resend.emails.send({
@@ -106,41 +106,41 @@ const sendEmail = async (to, subject, html) => {
     to: [to],
     subject,
     html,
-  })
+  });
 
   if (error) {
     throw {
       status: 500,
       message: `Error sending email: ${subject}`,
-      code: "EMAIL_ERROR",
+      code: 'EMAIL_ERROR',
       details: error,
-    }
+    };
   }
 
-  return data
-}
+  return data;
+};
 
 const resendOtp = async (email, otp) => {
   const html = renderLayout(
     [
-      renderHeading("Verify your email address"),
-      renderText("Use the verification code below to complete signing in to SyncVibe."),
+      renderHeading('Verify your email address'),
+      renderText('Use the verification code below to complete signing in to SyncVibe.'),
       renderVerificationCode(otp),
       renderText(
-        "This code will expire in 1 hour. If you did not request this code, no further action is required.",
+        'This code will expire in 1 hour. If you did not request this code, no further action is required.'
       ),
-    ].join(""),
-  )
+    ].join('')
+  );
 
-  return sendEmail(email, "Verify your email - SyncVibe", html)
-}
+  return sendEmail(email, 'Verify your email - SyncVibe', html);
+};
 
 const verifiedMailSender = async (email, username) => {
   const html = renderLayout(
     [
-      renderHeading("Welcome to SyncVibe"),
+      renderHeading('Welcome to SyncVibe'),
       renderText(`Hi ${username}, your email address has been successfully verified.`),
-      renderButton("Get Started", `${APP_URL}/login`),
+      renderButton('Get Started', `${APP_URL}/login`),
       renderDivider(),
       renderText("What's next:"),
       `<ul style="padding-left:18px;margin:0 0 16px;">
@@ -148,68 +148,68 @@ const verifiedMailSender = async (email, username) => {
         <li style="${inlineStyles.listItem}">Connect with friends and join rooms</li>
         <li style="${inlineStyles.listItem}">Explore trending sessions</li>
       </ul>`,
-    ].join(""),
-  )
+    ].join('')
+  );
 
-  return sendEmail(email, "Welcome to SyncVibe", html)
-}
+  return sendEmail(email, 'Welcome to SyncVibe', html);
+};
 
 const passwordResetMailSender = async (email, resetUrl) => {
   const html = renderLayout(
     [
-      renderHeading("Reset your password"),
+      renderHeading('Reset your password'),
       renderText(
-        "A request was received to reset the password for your SyncVibe account. Click below to continue.",
+        'A request was received to reset the password for your SyncVibe account. Click below to continue.'
       ),
-      renderButton("Reset Password", resetUrl),
-      renderText("This link will expire in 1 hour."),
+      renderButton('Reset Password', resetUrl),
+      renderText('This link will expire in 1 hour.'),
       renderDivider(),
       `<p style="${inlineStyles.urlFallback}">If the button doesn't work, copy and paste this URL into your browser:<br><a href="${resetUrl}" style="${inlineStyles.footerLink}">${resetUrl}</a></p>`,
-    ].join(""),
-  )
+    ].join('')
+  );
 
-  return sendEmail(email, "Reset your SyncVibe password", html)
-}
+  return sendEmail(email, 'Reset your SyncVibe password', html);
+};
 
 const otpForDeleteMailSender = async (email, otp) => {
   const html = renderLayout(
     [
-      renderHeading("Confirm account deletion"),
-      renderText("Enter the security code below to confirm deletion of your SyncVibe account."),
+      renderHeading('Confirm account deletion'),
+      renderText('Enter the security code below to confirm deletion of your SyncVibe account.'),
       renderVerificationCode(otp),
       renderText(
-        "This code is valid for 10 minutes. If you did not request account deletion, please secure your account immediately.",
+        'This code is valid for 10 minutes. If you did not request account deletion, please secure your account immediately.'
       ),
-    ].join(""),
-  )
+    ].join('')
+  );
 
-  return sendEmail(email, "Confirm account deletion - SyncVibe", html)
-}
+  return sendEmail(email, 'Confirm account deletion - SyncVibe', html);
+};
 
 const accountDeletedMailSender = async (email) => {
   const html = renderLayout(
     [
-      renderHeading("Account deleted"),
+      renderHeading('Account deleted'),
       renderText(
-        "Your SyncVibe account has been permanently deleted along with all associated user data.",
+        'Your SyncVibe account has been permanently deleted along with all associated user data.'
       ),
-      renderText("If you believe this was an error, please reach out to support immediately."),
-    ].join(""),
-  )
+      renderText('If you believe this was an error, please reach out to support immediately.'),
+    ].join('')
+  );
 
-  return sendEmail(email, "Your SyncVibe account has been deleted", html)
-}
+  return sendEmail(email, 'Your SyncVibe account has been deleted', html);
+};
 
 const buildPublishedMailSender = async (email, build) => {
-  const { version, releaseNotes, downloadUrl, fileSize, sha256, platform = "Android" } = build
-  const formattedSize = fileSize ? `${(fileSize / (1024 * 1024)).toFixed(2)} MB` : "N/A"
+  const { version, releaseNotes, downloadUrl, fileSize, sha256, platform = 'Android' } = build;
+  const formattedSize = fileSize ? `${(fileSize / (1024 * 1024)).toFixed(2)} MB` : 'N/A';
 
   const html = renderLayout(
     [
       `<div style="margin-bottom:12px;"><span style="${inlineStyles.badge}">v${version}</span> <span style="font-size:12px;color:${BRAND.subtle};margin-left:6px;">${platform} Build</span></div>`,
       renderHeading(`SyncVibe v${version} Published`),
       renderText(
-        `A new ${platform} release (v${version}) has been built, uploaded to Cloudflare R2, and is now ready for deployment.`,
+        `A new ${platform} release (v${version}) has been built, uploaded to Cloudflare R2, and is now ready for deployment.`
       ),
       `<div style="background-color:${BRAND.bg};border:1px solid ${BRAND.border};border-radius:8px;padding:16px 18px;margin:20px 0;">
         <table style="width:100%;font-size:13px;line-height:1.6;color:${BRAND.text};border-collapse:collapse;">
@@ -225,27 +225,28 @@ const buildPublishedMailSender = async (email, build) => {
             <td style="font-weight:600;padding:5px 0;color:${BRAND.muted};">Package Size:</td>
             <td style="padding:5px 0;color:${BRAND.text};">${formattedSize}</td>
           </tr>
-          ${sha256
-        ? `<tr>
+          ${
+            sha256
+              ? `<tr>
             <td style="font-weight:600;padding:5px 0;color:${BRAND.muted};">SHA-256:</td>
             <td style="font-family:'Geist Mono',SFMono-Regular,Consolas,monospace;font-size:11px;padding:5px 0;word-break:break-all;color:${BRAND.muted};">${sha256}</td>
           </tr>`
-        : ""
-      }
+              : ''
+          }
           <tr>
             <td style="font-weight:600;padding:5px 0;color:${BRAND.muted};vertical-align:top;">Release Notes:</td>
-            <td style="padding:5px 0;white-space:pre-wrap;color:${BRAND.text};">${releaseNotes || "No release notes provided."}</td>
+            <td style="padding:5px 0;white-space:pre-wrap;color:${BRAND.text};">${releaseNotes || 'No release notes provided.'}</td>
           </tr>
         </table>
       </div>`,
-      renderButton("Download APK", downloadUrl),
+      renderButton('Download APK', downloadUrl),
       renderDivider(),
       `<p style="${inlineStyles.urlFallback}">Direct APK Link:<br><a href="${downloadUrl}" style="${inlineStyles.footerLink}">${downloadUrl}</a></p>`,
-    ].join(""),
-  )
+    ].join('')
+  );
 
-  return sendEmail(email, `[SyncVibe] New Build v${version} Published`, html)
-}
+  return sendEmail(email, `[SyncVibe] New Build v${version} Published`, html);
+};
 
 module.exports = {
   resendOtp,
@@ -254,5 +255,4 @@ module.exports = {
   otpForDeleteMailSender,
   accountDeletedMailSender,
   buildPublishedMailSender,
-}
-
+};

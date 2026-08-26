@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect, useRef, useCallback } from "react"
+import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -11,29 +11,29 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native"
-import { Feather, Ionicons } from "@expo/vector-icons"
-import { useSharedValue } from "react-native-reanimated"
-import SwipeableModal from "@/components/SwipeableModal"
-import { useTheme } from "@/context/ThemeContext"
+} from 'react-native';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import { useSharedValue } from 'react-native-reanimated';
+import SwipeableModal from '@/components/SwipeableModal';
+import { useTheme } from '@/context/ThemeContext';
 import {
   fetchSoundFeed,
   searchSounds,
   QUICK_SOUND_PRESETS,
   SoundEffectItem,
   SoundPreset,
-} from "@/utils/api/soundEffects"
-import { soundEffectsManager } from "@/utils/soundEffectsManager"
+} from '@/utils/api/soundEffects';
+import { soundEffectsManager } from '@/utils/soundEffectsManager';
 
 interface SoundItemCardProps {
-  sound: SoundEffectItem
-  isPlaying: boolean
-  onTogglePlay: (sound: SoundEffectItem) => void
-  onSend: (sound: SoundEffectItem) => void
+  sound: SoundEffectItem;
+  isPlaying: boolean;
+  onTogglePlay: (sound: SoundEffectItem) => void;
+  onSend: (sound: SoundEffectItem) => void;
 }
 
 const SoundItemCard = memo<SoundItemCardProps>(({ sound, isPlaying, onTogglePlay, onSend }) => {
-  const { colors } = useTheme()
+  const { colors } = useTheme();
 
   return (
     <View
@@ -41,9 +41,9 @@ const SoundItemCard = memo<SoundItemCardProps>(({ sound, isPlaying, onTogglePlay
         styles.soundCard,
         {
           backgroundColor: isPlaying
-            ? colors.primary + "15"
-            : colors.card || colors.secondary + "60",
-          borderColor: isPlaying ? colors.primary + "50" : colors.border + "35",
+            ? colors.primary + '15'
+            : colors.card || colors.secondary + '60',
+          borderColor: isPlaying ? colors.primary + '50' : colors.border + '35',
         },
       ]}
     >
@@ -59,7 +59,7 @@ const SoundItemCard = memo<SoundItemCardProps>(({ sound, isPlaying, onTogglePlay
         ]}
       >
         <Ionicons
-          name={isPlaying ? "stop" : "play"}
+          name={isPlaying ? 'stop' : 'play'}
           size={14}
           color={isPlaying ? colors.primaryForeground : colors.foreground}
           style={!isPlaying ? { marginLeft: 1.5 } : undefined}
@@ -78,10 +78,10 @@ const SoundItemCard = memo<SoundItemCardProps>(({ sound, isPlaying, onTogglePlay
         <Text
           style={[
             styles.soundSub,
-            { color: isPlaying ? colors.primary : colors.mutedForeground + "70" },
+            { color: isPlaying ? colors.primary : colors.mutedForeground + '70' },
           ]}
         >
-          {isPlaying ? "Playing preview..." : "Tap to preview"}
+          {isPlaying ? 'Playing preview...' : 'Tap to preview'}
         </Text>
       </TouchableOpacity>
 
@@ -91,17 +91,17 @@ const SoundItemCard = memo<SoundItemCardProps>(({ sound, isPlaying, onTogglePlay
         activeOpacity={0.8}
         style={[styles.sendSoundBtn, { backgroundColor: colors.primary }]}
       >
-        <Feather name="send" size={12} color={colors.primaryForeground} />
+        <Feather name='send' size={12} color={colors.primaryForeground} />
         <Text style={[styles.sendSoundBtnText, { color: colors.primaryForeground }]}>Send</Text>
       </TouchableOpacity>
     </View>
-  )
-})
+  );
+});
 
 interface SoundPickerModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSelectSound: (sound: SoundEffectItem) => void
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectSound: (sound: SoundEffectItem) => void;
 }
 
 export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
@@ -109,138 +109,135 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
   onClose,
   onSelectSound,
 }) => {
-  const { colors } = useTheme()
-  const [query, setQuery] = useState("")
-  const [sounds, setSounds] = useState<SoundEffectItem[]>([])
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(true)
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [playingId, setPlayingId] = useState<string | null>(null)
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
+  const { colors } = useTheme();
+  const [query, setQuery] = useState('');
+  const [sounds, setSounds] = useState<SoundEffectItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
-  const searchTimeoutRef = useRef<any>(null)
-  const abortControllerRef = useRef<AbortController | null>(null)
+  const searchTimeoutRef = useRef<any>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const scrollOffset = useSharedValue(0)
+  const scrollOffset = useSharedValue(0);
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollOffset.value = event.nativeEvent.contentOffset.y
+      scrollOffset.value = event.nativeEvent.contentOffset.y;
     },
-    [scrollOffset],
-  )
+    [scrollOffset]
+  );
 
-  const loadSounds = useCallback(
-    async (searchQuery: string, pageNum = 1, append = false) => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
-      abortControllerRef.current = new AbortController()
+  const loadSounds = useCallback(async (searchQuery: string, pageNum = 1, append = false) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
 
-      if (pageNum === 1) {
-        setLoading(true)
+    if (pageNum === 1) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      let res;
+      if (searchQuery.trim()) {
+        res = await searchSounds(searchQuery.trim(), pageNum, abortControllerRef.current.signal);
       } else {
-        setLoadingMore(true)
+        res = await fetchSoundFeed(pageNum, abortControllerRef.current.signal);
       }
 
-      try {
-        let res
-        if (searchQuery.trim()) {
-          res = await searchSounds(searchQuery.trim(), pageNum, abortControllerRef.current.signal)
-        } else {
-          res = await fetchSoundFeed(pageNum, abortControllerRef.current.signal)
-        }
-
-        const newItems = res.data || []
-        setSounds((prev) => (append ? [...prev, ...newItems] : newItems))
-        setHasMore(newItems.length > 0)
-        setPage(pageNum)
-      } catch (err: any) {
-        if (err.name !== "CanceledError" && err.name !== "AbortError") {
-          console.error("Failed to load soundboard sounds:", err)
-        }
-      } finally {
-        setLoading(false)
-        setLoadingMore(false)
+      const newItems = res.data || [];
+      setSounds((prev) => (append ? [...prev, ...newItems] : newItems));
+      setHasMore(newItems.length > 0);
+      setPage(pageNum);
+    } catch (err: any) {
+      if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
+        console.error('Failed to load soundboard sounds:', err);
       }
-    },
-    [],
-  )
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
-      loadSounds("", 1, false)
+      loadSounds('', 1, false);
     } else {
-      soundEffectsManager.stopPreview()
-      setPlayingId(null)
+      soundEffectsManager.stopPreview();
+      setPlayingId(null);
     }
     return () => {
-      soundEffectsManager.stopPreview()
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
-      if (abortControllerRef.current) abortControllerRef.current.abort()
-    }
-  }, [isOpen, loadSounds])
+      soundEffectsManager.stopPreview();
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, [isOpen, loadSounds]);
 
   const handleSearchChange = useCallback(
     (text: string) => {
-      setQuery(text)
-      setSelectedPreset(null)
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
+      setQuery(text);
+      setSelectedPreset(null);
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
       searchTimeoutRef.current = setTimeout(() => {
-        loadSounds(text, 1, false)
-      }, 350)
+        loadSounds(text, 1, false);
+      }, 350);
     },
-    [loadSounds],
-  )
+    [loadSounds]
+  );
 
   const handlePresetClick = useCallback(
     (preset: SoundPreset) => {
       if (selectedPreset === preset.id) {
-        setSelectedPreset(null)
-        setQuery("")
-        loadSounds("", 1, false)
-        return
+        setSelectedPreset(null);
+        setQuery('');
+        loadSounds('', 1, false);
+        return;
       }
-      setSelectedPreset(preset.id)
-      setQuery(preset.query)
-      loadSounds(preset.query, 1, false)
+      setSelectedPreset(preset.id);
+      setQuery(preset.query);
+      loadSounds(preset.query, 1, false);
     },
-    [selectedPreset, loadSounds],
-  )
+    [selectedPreset, loadSounds]
+  );
 
   const handleTogglePlay = useCallback(
     (sound: SoundEffectItem) => {
       if (playingId === sound.id) {
-        soundEffectsManager.stopPreview()
-        setPlayingId(null)
-        return
+        soundEffectsManager.stopPreview();
+        setPlayingId(null);
+        return;
       }
 
-      setPlayingId(sound.id)
+      setPlayingId(sound.id);
       soundEffectsManager.playPreview(
         sound.url,
         () => setPlayingId(null),
-        () => setPlayingId(null),
-      )
+        () => setPlayingId(null)
+      );
     },
-    [playingId],
-  )
+    [playingId]
+  );
 
   const handleSend = useCallback(
     (sound: SoundEffectItem) => {
-      soundEffectsManager.stopPreview()
-      setPlayingId(null)
-      onSelectSound(sound)
-      onClose()
+      soundEffectsManager.stopPreview();
+      setPlayingId(null);
+      onSelectSound(sound);
+      onClose();
     },
-    [onSelectSound, onClose],
-  )
+    [onSelectSound, onClose]
+  );
 
   const handleLoadMore = useCallback(() => {
-    if (loadingMore || !hasMore || loading) return
-    loadSounds(query, page + 1, true)
-  }, [loadingMore, hasMore, loading, query, page, loadSounds])
+    if (loadingMore || !hasMore || loading) return;
+    loadSounds(query, page + 1, true);
+  }, [loadingMore, hasMore, loading, query, page, loadSounds]);
 
   const renderSoundCard = useCallback(
     ({ item }: { item: SoundEffectItem }) => (
@@ -251,15 +248,15 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
         onSend={handleSend}
       />
     ),
-    [playingId, handleTogglePlay, handleSend],
-  )
+    [playingId, handleTogglePlay, handleSend]
+  );
 
   return (
     <SwipeableModal
       isVisible={isOpen}
       onClose={onClose}
-      maxHeight={Dimensions.get("window").height * 0.85}
-      style={{ height: Dimensions.get("window").height * 0.85 }}
+      maxHeight={Dimensions.get('window').height * 0.85}
+      style={{ height: Dimensions.get('window').height * 0.85 }}
       scrollable={true}
       scrollOffset={scrollOffset}
     >
@@ -267,39 +264,42 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTitleWrap}>
-            <Ionicons name="volume-high" size={19} color={colors.primary} />
+            <Ionicons name='volume-high' size={19} color={colors.primary} />
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>Soundboard</Text>
-            <View style={[styles.liveBadge, { backgroundColor: colors.primary + "20" }]}>
+            <View style={[styles.liveBadge, { backgroundColor: colors.primary + '20' }]}>
               <Text style={[styles.liveBadgeText, { color: colors.primary }]}>LIVE</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Feather name="x" size={20} color={colors.mutedForeground} />
+          <TouchableOpacity
+            onPress={onClose}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Feather name='x' size={20} color={colors.mutedForeground} />
           </TouchableOpacity>
         </View>
 
         {/* Search Bar */}
         <View style={styles.searchBarWrap}>
           <View style={[styles.searchInputContainer, { backgroundColor: colors.secondary }]}>
-            <Feather name="search" size={15} color={colors.mutedForeground + "70"} />
+            <Feather name='search' size={15} color={colors.mutedForeground + '70'} />
             <TextInput
               value={query}
               onChangeText={handleSearchChange}
-              placeholder="Search sound effects (e.g. bruh, vine boom)..."
-              placeholderTextColor={colors.mutedForeground + "60"}
+              placeholder='Search sound effects (e.g. bruh, vine boom)...'
+              placeholderTextColor={colors.mutedForeground + '60'}
               style={[styles.searchInput, { color: colors.foreground }]}
-              autoCapitalize="none"
-              returnKeyType="search"
+              autoCapitalize='none'
+              returnKeyType='search'
             />
             {query.length > 0 && (
               <TouchableOpacity
                 onPress={() => {
-                  setQuery("")
-                  setSelectedPreset(null)
-                  loadSounds("", 1, false)
+                  setQuery('');
+                  setSelectedPreset(null);
+                  loadSounds('', 1, false);
                 }}
               >
-                <Feather name="x-circle" size={15} color={colors.mutedForeground + "80"} />
+                <Feather name='x-circle' size={15} color={colors.mutedForeground + '80'} />
               </TouchableOpacity>
             )}
           </View>
@@ -314,16 +314,16 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
           >
             <TouchableOpacity
               onPress={() => {
-                setSelectedPreset(null)
-                setQuery("")
-                loadSounds("", 1, false)
+                setSelectedPreset(null);
+                setQuery('');
+                loadSounds('', 1, false);
               }}
               activeOpacity={0.8}
               style={[
                 styles.presetChip,
                 !selectedPreset && !query
                   ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                  : { backgroundColor: colors.secondary, borderColor: colors.border + "30" },
+                  : { backgroundColor: colors.secondary, borderColor: colors.border + '30' },
               ]}
             >
               <Text
@@ -331,9 +331,7 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
                   styles.presetChipText,
                   {
                     color:
-                      !selectedPreset && !query
-                        ? colors.primaryForeground
-                        : colors.mutedForeground,
+                      !selectedPreset && !query ? colors.primaryForeground : colors.mutedForeground,
                   },
                 ]}
               >
@@ -342,7 +340,7 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
             </TouchableOpacity>
 
             {QUICK_SOUND_PRESETS.map((preset) => {
-              const isSelected = selectedPreset === preset.id
+              const isSelected = selectedPreset === preset.id;
               return (
                 <TouchableOpacity
                   key={preset.id}
@@ -352,7 +350,7 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
                     styles.presetChip,
                     isSelected
                       ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                      : { backgroundColor: colors.secondary, borderColor: colors.border + "30" },
+                      : { backgroundColor: colors.secondary, borderColor: colors.border + '30' },
                   ]}
                 >
                   <Text
@@ -366,7 +364,7 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
                     {preset.name}
                   </Text>
                 </TouchableOpacity>
-              )
+              );
             })}
           </ScrollView>
         </View>
@@ -374,16 +372,20 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
         {/* Sounds List */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={colors.primary} />
+            <ActivityIndicator size='small' color={colors.primary} />
             <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
               Loading sounds...
             </Text>
           </View>
         ) : sounds.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="musical-notes-outline" size={36} color={colors.mutedForeground + "40"} />
+            <Ionicons
+              name='musical-notes-outline'
+              size={36}
+              color={colors.mutedForeground + '40'}
+            />
             <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
-              {query ? `No sound effects found for "${query}"` : "No sound effects found"}
+              {query ? `No sound effects found for "${query}"` : 'No sound effects found'}
             </Text>
           </View>
         ) : (
@@ -400,11 +402,11 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
             ListFooterComponent={
               loadingMore ? (
                 <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color={colors.primary} />
+                  <ActivityIndicator size='small' color={colors.primary} />
                 </View>
               ) : (
                 <View style={styles.footerBranding}>
-                  <Text style={[styles.brandingText, { color: colors.mutedForeground + "50" }]}>
+                  <Text style={[styles.brandingText, { color: colors.mutedForeground + '50' }]}>
                     Powered by MyInstants
                   </Text>
                 </View>
@@ -414,28 +416,28 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
         )}
       </View>
     </SwipeableModal>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
   headerTitleWrap: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   headerTitle: {
     fontSize: 17,
-    fontWeight: "700",
+    fontWeight: '700',
     letterSpacing: -0.3,
   },
   liveBadge: {
@@ -445,7 +447,7 @@ const styles = StyleSheet.create({
   },
   liveBadgeText: {
     fontSize: 9.5,
-    fontWeight: "800",
+    fontWeight: '800',
     letterSpacing: 0.5,
   },
   searchBarWrap: {
@@ -453,8 +455,8 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   searchInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     borderRadius: 14,
     height: 40,
@@ -480,7 +482,7 @@ const styles = StyleSheet.create({
   },
   presetChipText: {
     fontSize: 11.5,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   listContent: {
     paddingHorizontal: 16,
@@ -488,8 +490,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   soundCard: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 14,
@@ -500,24 +502,24 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   soundInfo: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: 'center',
     gap: 2,
   },
   soundTitle: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   soundSub: {
     fontSize: 10.5,
   },
   sendSoundBtn: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
@@ -525,12 +527,12 @@ const styles = StyleSheet.create({
   },
   sendSoundBtnText: {
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   loadingContainer: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 10,
   },
   loadingText: {
@@ -538,28 +540,28 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 32,
     gap: 8,
   },
   emptyTitle: {
     fontSize: 13,
-    textAlign: "center",
+    textAlign: 'center',
   },
   footerLoader: {
     paddingVertical: 16,
-    alignItems: "center",
+    alignItems: 'center',
   },
   footerBranding: {
     paddingVertical: 14,
-    alignItems: "center",
+    alignItems: 'center',
   },
   brandingText: {
     fontSize: 10,
     letterSpacing: 0.5,
-    textTransform: "uppercase",
+    textTransform: 'uppercase',
   },
-})
+});
 
-export default SoundPickerModal
+export default SoundPickerModal;

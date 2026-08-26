@@ -1,16 +1,16 @@
-import { GoogleSignin, statusCodes } from "@react-native-google-signin/google-signin"
-import { GOOGLE_WEB_CLIENT_ID } from "@/constants"
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { GOOGLE_WEB_CLIENT_ID } from '@/constants';
 
 export interface NativeGoogleUser {
-  id: string
-  email: string
-  name: string
-  picture?: string
+  id: string;
+  email: string;
+  name: string;
+  picture?: string;
 }
 
 export interface NativeGoogleSignInResult {
-  token?: string
-  user: NativeGoogleUser
+  token?: string;
+  user: NativeGoogleUser;
 }
 
 /**
@@ -21,8 +21,8 @@ export const configureGoogleSignIn = () => {
     webClientId: GOOGLE_WEB_CLIENT_ID,
     offlineAccess: true,
     forceCodeForRefreshToken: true,
-  })
-}
+  });
+};
 
 /**
  * Executes the native Google Sign-In prompt.
@@ -30,24 +30,24 @@ export const configureGoogleSignIn = () => {
  */
 export const performNativeGoogleSignIn = async (): Promise<NativeGoogleSignInResult | null> => {
   try {
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true })
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
     // Clear any existing native Google session to guarantee the account picker dialog opens every time
     try {
-      await GoogleSignin.signOut()
+      await GoogleSignin.signOut();
     } catch {
       // Ignore if no session was active
     }
 
-    const response = await GoogleSignin.signIn()
+    const response = await GoogleSignin.signIn();
 
     // Handle v13+ response structure (response.data) as well as legacy structure
-    const data = response.data || (response as any)
-    const googleUser = data?.user
-    const idToken = data?.idToken
+    const data = response.data || (response as any);
+    const googleUser = data?.user;
+    const idToken = data?.idToken;
 
     if (!googleUser || !googleUser.email) {
-      throw new Error("Failed to retrieve profile information from Google.")
+      throw new Error('Failed to retrieve profile information from Google.');
     }
 
     return {
@@ -55,34 +55,34 @@ export const performNativeGoogleSignIn = async (): Promise<NativeGoogleSignInRes
       user: {
         id: googleUser.id,
         email: googleUser.email,
-        name: googleUser.name || googleUser.givenName || googleUser.email.split("@")[0],
+        name: googleUser.name || googleUser.givenName || googleUser.email.split('@')[0],
         picture: googleUser.photo || undefined,
       },
-    }
+    };
   } catch (error: any) {
     if (error.code === statusCodes.SIGN_IN_CANCELLED) {
       // User dismissed / cancelled the bottom-sheet
-      return null
+      return null;
     }
     if (error.code === statusCodes.IN_PROGRESS) {
       // Sign-in operation already in progress
-      return null
+      return null;
     }
     if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-      throw new Error("Google Play Services is not available or outdated on this device.")
+      throw new Error('Google Play Services is not available or outdated on this device.');
     }
 
-    throw error
+    throw error;
   }
-}
+};
 
 /**
  * Signs the user out of the native Google session
  */
 export const signOutGoogle = async (): Promise<void> => {
   try {
-    await GoogleSignin.signOut()
+    await GoogleSignin.signOut();
   } catch (error) {
-    console.error("Google sign out error:", error)
+    console.error('Google sign out error:', error);
   }
-}
+};

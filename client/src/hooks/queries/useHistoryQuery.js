@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query"
-import { fetchHistory, historyKeys } from "@/api/music/history"
+import { useQuery } from '@tanstack/react-query';
+import { fetchHistory, historyKeys } from '@/api/music/history';
 
 export const useHistoryQuery = ({ page, limit, sortBy, sortOrder, searchQuery }, options = {}) => {
   return useQuery({
@@ -7,5 +7,5 @@ export const useHistoryQuery = ({ page, limit, sortBy, sortOrder, searchQuery },
     queryFn: () => fetchHistory({ page, limit, sortBy, sortOrder, searchQuery }),
     staleTime: 1000 * 60 * 5,
     ...options,
-  })
-}
+  });
+};

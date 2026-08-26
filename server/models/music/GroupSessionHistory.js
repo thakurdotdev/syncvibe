@@ -1,8 +1,8 @@
-const { DataTypes } = require("sequelize")
-const sequelize = require("../../utils/sequelize")
+const { DataTypes } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
 
 const GroupSessionHistory = sequelize.define(
-  "GroupSessionHistory",
+  'GroupSessionHistory',
   {
     id: {
       type: DataTypes.INTEGER,
@@ -21,16 +21,16 @@ const GroupSessionHistory = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: "songs",
-        key: "id",
+        model: 'songs',
+        key: 'id',
       },
     },
     addedByUserId: {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: "users",
-        key: "userid",
+        model: 'users',
+        key: 'userid',
       },
     },
     playedAt: {
@@ -44,15 +44,15 @@ const GroupSessionHistory = sequelize.define(
   },
   {
     sequelize,
-    modelName: "GroupSessionHistory",
-    tableName: "group_session_history",
+    modelName: 'GroupSessionHistory',
+    tableName: 'group_session_history',
     timestamps: true,
     indexes: [
-      { fields: ["groupId", "sessionId"] },
-      { fields: ["addedByUserId"] },
-      { fields: ["playedAt"] },
+      { fields: ['groupId', 'sessionId'] },
+      { fields: ['addedByUserId'] },
+      { fields: ['playedAt'] },
     ],
-  },
-)
+  }
+);
 
-module.exports = GroupSessionHistory
+module.exports = GroupSessionHistory;

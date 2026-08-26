@@ -1,22 +1,22 @@
-import { useForm } from "react-hook-form"
-import { yupResolver } from "@hookform/resolvers/yup"
-import * as Yup from "yup"
-import { useUpdatePostMutation } from "@/hooks/mutations/usePostMutations"
-import { toast } from "sonner"
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as Yup from 'yup';
+import { useUpdatePostMutation } from '@/hooks/mutations/usePostMutations';
+import { toast } from 'sonner';
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
-} from "@/components/ui/revola"
-import RichTextEditor from "@/components/ui/RichTextEditor"
-import { Button } from "@/components/ui/button"
-import { Form, FormField, FormItem, FormMessage } from "@/components/ui/form"
-import { Loader2 } from "lucide-react"
+} from '@/components/ui/revola';
+import RichTextEditor from '@/components/ui/RichTextEditor';
+import { Button } from '@/components/ui/button';
+import { Form, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { Loader2 } from 'lucide-react';
 
 const validationSchema = Yup.object().shape({
-  content: Yup.string().required("Content is required"),
-})
+  content: Yup.string().required('Content is required'),
+});
 
 const UpdatePost = ({ isOpen, toggleDialog, post }) => {
   const form = useForm({
@@ -24,44 +24,44 @@ const UpdatePost = ({ isOpen, toggleDialog, post }) => {
     defaultValues: {
       content: post?.content,
     },
-  })
+  });
 
-  const updateMutation = useUpdatePostMutation()
+  const updateMutation = useUpdatePostMutation();
 
   const onSubmit = (values) => {
     updateMutation.mutate(
       { postid: post?.postid, content: values.content },
       {
         onSuccess: () => {
-          toast.success("Post updated successfully")
-          toggleDialog()
-          form.reset({ content: post?.content })
+          toast.success('Post updated successfully');
+          toggleDialog();
+          form.reset({ content: post?.content });
         },
         onError: (error) => {
-          toast.error(error.response?.data?.message || "Failed to update post")
+          toast.error(error.response?.data?.message || 'Failed to update post');
         },
-      },
-    )
-  }
+      }
+    );
+  };
 
   return (
     <ResponsiveDialog
       open={isOpen}
       onOpenChange={() => {
-        toggleDialog()
-        form.reset({ content: post?.content })
+        toggleDialog();
+        form.reset({ content: post?.content });
       }}
     >
-      <ResponsiveDialogContent className="sm:max-w-[425px] p-0 flex flex-col max-sm:h-auto max-sm:max-h-[90%]">
-        <ResponsiveDialogHeader className="px-4 pt-4 sm:px-6 sm:pt-6 shrink-0">
+      <ResponsiveDialogContent className='sm:max-w-[425px] p-0 flex flex-col max-sm:h-auto max-sm:max-h-[90%]'>
+        <ResponsiveDialogHeader className='px-4 pt-4 sm:px-6 sm:pt-6 shrink-0'>
           <ResponsiveDialogTitle>Update Post</ResponsiveDialogTitle>
         </ResponsiveDialogHeader>
-        <div className="px-4 pb-4 sm:px-6 sm:pb-6 overflow-y-auto flex-1">
+        <div className='px-4 pb-4 sm:px-6 sm:pb-6 overflow-y-auto flex-1'>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
               <FormField
                 control={form.control}
-                name="content"
+                name='content'
                 render={({ field }) => (
                   <FormItem>
                     <RichTextEditor
@@ -75,27 +75,27 @@ const UpdatePost = ({ isOpen, toggleDialog, post }) => {
               />
 
               {post?.images?.length > 0 && (
-                <div className="grid grid-cols-2 gap-2">
+                <div className='grid grid-cols-2 gap-2'>
                   {post.images.map((image, index) => (
                     <img
                       key={index}
                       src={image.image}
                       alt={`Post image ${index + 1}`}
-                      className="w-full h-auto object-cover rounded-lg"
-                      loading="lazy"
+                      className='w-full h-auto object-cover rounded-lg'
+                      loading='lazy'
                     />
                   ))}
                 </div>
               )}
 
-              <Button type="submit" className="w-full" disabled={updateMutation.isPending}>
+              <Button type='submit' className='w-full' disabled={updateMutation.isPending}>
                 {updateMutation.isPending ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                     Updating...
                   </>
                 ) : (
-                  "Update"
+                  'Update'
                 )}
               </Button>
             </form>
@@ -103,7 +103,7 @@ const UpdatePost = ({ isOpen, toggleDialog, post }) => {
         </div>
       </ResponsiveDialogContent>
     </ResponsiveDialog>
-  )
-}
+  );
+};
 
-export default UpdatePost
+export default UpdatePost;

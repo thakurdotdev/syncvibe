@@ -1,9 +1,9 @@
-const express = require("express")
-const authMiddleware = require("../middleware/authMiddleware")
-const { getUploadSignature } = require("../controllers/upload/cloudinaryUpload")
+const express = require('express');
+const authMiddleware = require('../middleware/authMiddleware');
+const { getUploadSignature } = require('../controllers/upload/cloudinaryUpload');
 
-const uploadRouter = express.Router()
+const uploadRouter = express.Router();
 
-uploadRouter.route("/upload/signature").get(authMiddleware, getUploadSignature)
+uploadRouter.route('/upload/signature').get(authMiddleware, getUploadSignature);
 
-module.exports = uploadRouter
+module.exports = uploadRouter;

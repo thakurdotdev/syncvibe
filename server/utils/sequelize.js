@@ -1,10 +1,10 @@
-const { configDotenv } = require("dotenv")
-const { Sequelize } = require("sequelize")
+const { configDotenv } = require('dotenv');
+const { Sequelize } = require('sequelize');
 
-configDotenv()
+configDotenv();
 
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
-  dialect: "postgres",
+  dialect: 'postgres',
   logging: false,
   pool: {
     max: 5,
@@ -17,6 +17,6 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
       rejectUnauthorized: false,
     },
   },
-})
+});
 
-module.exports = sequelize
+module.exports = sequelize;

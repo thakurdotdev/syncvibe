@@ -1,8 +1,8 @@
-const { DataTypes, Model } = require("sequelize")
-const sequelize = require("../../utils/sequelize")
-const User = require("../auth/userModel")
-const Plan = require("./planModel")
-const Payment = require("./paymentModel")
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
+const User = require('../auth/userModel');
+const Plan = require('./planModel');
+const Payment = require('./paymentModel');
 
 class UserEntitlement extends Model {}
 
@@ -19,7 +19,7 @@ UserEntitlement.init(
       allowNull: false,
       references: {
         model: User,
-        key: "userid",
+        key: 'userid',
       },
     },
 
@@ -28,7 +28,7 @@ UserEntitlement.init(
       allowNull: false,
       references: {
         model: Plan,
-        key: "planid",
+        key: 'planid',
       },
     },
 
@@ -37,14 +37,14 @@ UserEntitlement.init(
       allowNull: true,
       references: {
         model: Payment,
-        key: "paymentid",
+        key: 'paymentid',
       },
     },
 
     status: {
       type: DataTypes.STRING(20),
       allowNull: false,
-      defaultValue: "ACTIVE",
+      defaultValue: 'ACTIVE',
     },
 
     startsAt: {
@@ -66,27 +66,27 @@ UserEntitlement.init(
   },
   {
     sequelize,
-    modelName: "UserEntitlement",
-    tableName: "user_entitlements",
+    modelName: 'UserEntitlement',
+    tableName: 'user_entitlements',
     timestamps: false,
     indexes: [
       {
         unique: true,
-        fields: ["userid", "planid", "status"],
-        where: { status: "ACTIVE" },
-        name: "unique_active_entitlement_per_plan",
+        fields: ['userid', 'planid', 'status'],
+        where: { status: 'ACTIVE' },
+        name: 'unique_active_entitlement_per_plan',
       },
     ],
-  },
-)
+  }
+);
 
-User.hasMany(UserEntitlement, { foreignKey: "userid", as: "entitlements" })
-UserEntitlement.belongsTo(User, { foreignKey: "userid", as: "user" })
+User.hasMany(UserEntitlement, { foreignKey: 'userid', as: 'entitlements' });
+UserEntitlement.belongsTo(User, { foreignKey: 'userid', as: 'user' });
 
-Plan.hasMany(UserEntitlement, { foreignKey: "planid", as: "entitlements" })
-UserEntitlement.belongsTo(Plan, { foreignKey: "planid", as: "plan" })
+Plan.hasMany(UserEntitlement, { foreignKey: 'planid', as: 'entitlements' });
+UserEntitlement.belongsTo(Plan, { foreignKey: 'planid', as: 'plan' });
 
-Payment.hasOne(UserEntitlement, { foreignKey: "paymentid", as: "entitlement" })
-UserEntitlement.belongsTo(Payment, { foreignKey: "paymentid", as: "payment" })
+Payment.hasOne(UserEntitlement, { foreignKey: 'paymentid', as: 'entitlement' });
+UserEntitlement.belongsTo(Payment, { foreignKey: 'paymentid', as: 'payment' });
 
-module.exports = UserEntitlement
+module.exports = UserEntitlement;

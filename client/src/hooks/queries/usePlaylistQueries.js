@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query"
-import { fetchPlaylistDetails, fetchUserPlaylists, playlistKeys } from "@/api/music/playlist"
+import { useQuery } from '@tanstack/react-query';
+import { fetchPlaylistDetails, fetchUserPlaylists, playlistKeys } from '@/api/music/playlist';
 
 export const useUserPlaylistsQuery = (options = {}) => {
   return useQuery({
@@ -7,8 +7,8 @@ export const useUserPlaylistsQuery = (options = {}) => {
     queryFn: fetchUserPlaylists,
     staleTime: 1000 * 60 * 5,
     ...options,
-  })
-}
+  });
+};
 
 export const usePlaylistDetailsQuery = (id, options = {}) => {
   return useQuery({
@@ -17,5 +17,5 @@ export const usePlaylistDetailsQuery = (id, options = {}) => {
     enabled: !!id,
     staleTime: 1000 * 60 * 5,
     ...options,
-  })
-}
+  });
+};

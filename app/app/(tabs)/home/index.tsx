@@ -4,15 +4,15 @@ import {
   PlaylistsGrid,
   RecommendationGrid,
   TrendingSongs,
-} from "@/components/music/MusicLists"
-import { useTheme } from "@/context/ThemeContext"
-import { useUser } from "@/context/UserContext"
-import { useHomePageMusic, useRecentMusic } from "@/queries/useMusic"
-import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import { router } from "expo-router"
-import { memo, useCallback, useEffect, useMemo, useRef } from "react"
-import { Pressable, RefreshControl, Text, View } from "react-native"
+} from '@/components/music/MusicLists';
+import { useTheme } from '@/context/ThemeContext';
+import { useUser } from '@/context/UserContext';
+import { useHomePageMusic, useRecentMusic } from '@/queries/useMusic';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import { Pressable, RefreshControl, Text, View } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -23,31 +23,31 @@ import Animated, {
   withRepeat,
   withSequence,
   withTiming,
-} from "react-native-reanimated"
-import { TabSafeAreaView } from "@/components/ui/TabSafeAreaView"
+} from 'react-native-reanimated';
+import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 
 const SearchBar = memo(function SearchBar({
   colors,
   theme,
 }: {
-  colors: ReturnType<typeof useTheme>["colors"]
-  theme: string
+  colors: ReturnType<typeof useTheme>['colors'];
+  theme: string;
 }) {
-  const bg = theme === "light" ? `${colors.card}F0` : `${colors.muted}CC`
+  const bg = theme === 'light' ? `${colors.card}F0` : `${colors.muted}CC`;
 
   const handlePress = useCallback(() => {
-    router.navigate("/search")
-  }, [])
+    router.navigate('/search');
+  }, []);
 
   return (
     <Pressable
       onPress={handlePress}
       style={{
         backgroundColor: bg,
-        borderWidth: theme === "light" ? 0.5 : 0,
+        borderWidth: theme === 'light' ? 0.5 : 0,
         borderColor: colors.border,
-        flexDirection: "row",
-        alignItems: "center",
+        flexDirection: 'row',
+        alignItems: 'center',
         borderRadius: 100,
         paddingHorizontal: 16,
         height: 44,
@@ -55,10 +55,10 @@ const SearchBar = memo(function SearchBar({
         marginBottom: 4,
       }}
       accessible
-      accessibilityRole="button"
-      accessibilityLabel="Search for songs"
+      accessibilityRole='button'
+      accessibilityLabel='Search for songs'
     >
-      <Ionicons name="search" size={18} color={colors.mutedForeground} />
+      <Ionicons name='search' size={18} color={colors.mutedForeground} />
       <Text
         style={{
           color: colors.mutedForeground,
@@ -71,23 +71,23 @@ const SearchBar = memo(function SearchBar({
         Search for songs…
       </Text>
     </Pressable>
-  )
-})
+  );
+});
 
-function HomeSkeleton({ colors }: { colors: ReturnType<typeof useTheme>["colors"] }) {
-  const opacity = useSharedValue(0.45)
+function HomeSkeleton({ colors }: { colors: ReturnType<typeof useTheme>['colors'] }) {
+  const opacity = useSharedValue(0.45);
 
   useEffect(() => {
     opacity.value = withRepeat(
       withSequence(withTiming(0.85, { duration: 750 }), withTiming(0.45, { duration: 750 })),
       -1,
-      false,
-    )
+      false
+    );
 
-    return () => cancelAnimation(opacity)
-  }, [opacity])
+    return () => cancelAnimation(opacity);
+  }, [opacity]);
 
-  const pulseStyle = useAnimatedStyle(() => ({ opacity: opacity.value }))
+  const pulseStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   const Block = ({
     w,
@@ -96,11 +96,11 @@ function HomeSkeleton({ colors }: { colors: ReturnType<typeof useTheme>["colors"
     mb = 0,
     mr = 0,
   }: {
-    w: number | `${number}%`
-    h: number
-    r?: number
-    mb?: number
-    mr?: number
+    w: number | `${number}%`;
+    h: number;
+    r?: number;
+    mb?: number;
+    mr?: number;
   }) => (
     <Animated.View
       style={[
@@ -115,65 +115,65 @@ function HomeSkeleton({ colors }: { colors: ReturnType<typeof useTheme>["colors"
         pulseStyle,
       ]}
     />
-  )
+  );
 
   return (
     <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 16 }}>
-      <Block w="38%" h={14} r={8} mb={12} />
-      <View style={{ flexDirection: "row", marginBottom: 24 }}>
+      <Block w='38%' h={14} r={8} mb={12} />
+      <View style={{ flexDirection: 'row', marginBottom: 24 }}>
         {[0, 1, 2].map((i) => (
           <Block key={i} w={108} h={108} r={14} mr={12} />
         ))}
       </View>
-      <Block w="44%" h={14} r={8} mb={12} />
-      <View style={{ flexDirection: "row", marginBottom: 24 }}>
+      <Block w='44%' h={14} r={8} mb={12} />
+      <View style={{ flexDirection: 'row', marginBottom: 24 }}>
         {[0, 1, 2, 3].map((i) => (
           <Block key={i} w={86} h={86} r={10} mr={10} />
         ))}
       </View>
-      <Block w="52%" h={14} r={8} mb={12} />
-      <View style={{ flexDirection: "row" }}>
+      <Block w='52%' h={14} r={8} mb={12} />
+      <View style={{ flexDirection: 'row' }}>
         {[0, 1, 2].map((i) => (
           <Block key={i} w={130} h={148} r={14} mr={12} />
         ))}
       </View>
     </View>
-  )
+  );
 }
 
-const HEADER_H = 360
+const HEADER_H = 360;
 
 function HomeScreen() {
-  const { user } = useUser()
-  const { colors, theme } = useTheme()
-  const scrollY = useSharedValue(0)
-  const scrollRef = useRef<any>(null)
+  const { user } = useUser();
+  const { colors, theme } = useTheme();
+  const scrollY = useSharedValue(0);
+  const scrollRef = useRef<any>(null);
 
-  const { data: homePageData, isLoading: loadingHome } = useHomePageMusic()
-  const { data: recommendations, refetch, isRefetching } = useRecentMusic()
+  const { data: homePageData, isLoading: loadingHome } = useHomePageMusic();
+  const { data: recommendations, refetch, isRefetching } = useRecentMusic();
 
   const headerGradient = useMemo(
     () => colors.gradients.header as unknown as readonly [string, string, ...string[]],
-    [colors.gradients.header],
-  )
+    [colors.gradients.header]
+  );
 
   const onRefresh = useCallback(() => {
-    if (user?.userid) refetch()
-  }, [user?.userid, refetch])
+    if (user?.userid) refetch();
+  }, [user?.userid, refetch]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (e) => {
-      "worklet"
-      scrollY.value = e.contentOffset.y
+      'worklet';
+      scrollY.value = e.contentOffset.y;
     },
-  })
+  });
 
   const headerStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
       scrollY.value,
       [0, HEADER_H * 0.5, HEADER_H],
       [1, 0.5, 0],
-      Extrapolation.CLAMP,
+      Extrapolation.CLAMP
     ),
     transform: [
       {
@@ -181,21 +181,21 @@ function HomeScreen() {
           scrollY.value,
           [0, HEADER_H],
           [0, -HEADER_H * 0.2],
-          Extrapolation.CLAMP,
+          Extrapolation.CLAMP
         ),
       },
     ],
-  }))
+  }));
 
   // Search bar barely moves — stays readable at all times
   const searchStyle = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [0, 100], [1, 0.88], Extrapolation.CLAMP),
-  }))
+  }));
 
   const trendingSongs = useMemo(
-    () => homePageData?.trending?.data?.filter((i) => i?.type === "song") ?? [],
-    [homePageData?.trending],
-  )
+    () => homePageData?.trending?.data?.filter((i) => i?.type === 'song') ?? [],
+    [homePageData?.trending]
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -203,7 +203,7 @@ function HomeScreen() {
         <Animated.View
           style={[
             {
-              position: "absolute",
+              position: 'absolute',
               top: 0,
               left: 0,
               right: 0,
@@ -211,11 +211,11 @@ function HomeScreen() {
               zIndex: 0,
               borderBottomLeftRadius: 28,
               borderBottomRightRadius: 28,
-              overflow: "hidden",
+              overflow: 'hidden',
             },
             headerStyle,
           ]}
-          pointerEvents="none"
+          pointerEvents='none'
         >
           <LinearGradient
             colors={headerGradient}
@@ -253,7 +253,7 @@ function HomeScreen() {
               {(recommendations?.recentlyPlayed ?? []).length > 0 && (
                 <RecommendationGrid
                   recommendations={recommendations!.recentlyPlayed}
-                  title="Recently Played"
+                  title='Recently Played'
                   showMore
                 />
               )}
@@ -261,25 +261,25 @@ function HomeScreen() {
               {(recommendations?.songs ?? []).length > 0 && (
                 <RecommendationGrid
                   recommendations={recommendations!.songs}
-                  title="Your Favourite"
+                  title='Your Favourite'
                   showMore
                 />
               )}
 
               {trendingSongs.length > 0 && (
-                <TrendingSongs songs={trendingSongs} title="Trending Now" />
+                <TrendingSongs songs={trendingSongs} title='Trending Now' />
               )}
 
               {(homePageData?.playlists?.data?.length ?? 0) > 0 && (
-                <PlaylistsGrid playlists={homePageData!.playlists.data} title="Popular Playlists" />
+                <PlaylistsGrid playlists={homePageData!.playlists.data} title='Popular Playlists' />
               )}
 
               {(homePageData?.charts?.data?.length ?? 0) > 0 && (
-                <PlaylistsGrid playlists={homePageData!.charts.data} title="Top Charts" />
+                <PlaylistsGrid playlists={homePageData!.charts.data} title='Top Charts' />
               )}
 
               {(homePageData?.albums?.data?.length ?? 0) > 0 && (
-                <AlbumsGrid albums={homePageData!.albums.data} title="New Albums" />
+                <AlbumsGrid albums={homePageData!.albums.data} title='New Albums' />
               )}
 
               {(homePageData?.artist_recos?.data?.length ?? 0) > 0 && (
@@ -290,7 +290,7 @@ function HomeScreen() {
         )}
       </TabSafeAreaView>
     </View>
-  )
+  );
 }
 
-export default memo(HomeScreen)
+export default memo(HomeScreen);

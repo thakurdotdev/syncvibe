@@ -1,77 +1,77 @@
-const Redis = require("ioredis")
+const Redis = require('ioredis');
 
-let redis = null
+let redis = null;
 
 const getRedis = () => {
   if (!redis) {
-    const url = process.env.REDIS_URL
+    const url = process.env.REDIS_URL;
     if (!url) {
-      console.warn("REDIS_URL not set, using in-memory fallback")
-      return null
+      console.warn('REDIS_URL not set, using in-memory fallback');
+      return null;
     }
     redis = new Redis(url, {
       maxRetriesPerRequest: 3,
       retryDelayOnFailover: 100,
       lazyConnect: true,
-    })
-    redis.on("error", (err) => console.error("Redis error:", err.message))
-    redis.on("connect", () => console.log("Redis connected"))
+    });
+    redis.on('error', (err) => console.error('Redis error:', err.message));
+    redis.on('connect', () => console.log('Redis connected'));
   }
-  return redis
-}
+  return redis;
+};
 
 const cache = {
   async get(key) {
-    const client = getRedis()
-    if (!client) return null
+    const client = getRedis();
+    if (!client) return null;
     try {
-      const data = await client.get(key)
-      return data ? JSON.parse(data) : null
+      const data = await client.get(key);
+      return data ? JSON.parse(data) : null;
     } catch {
-      return null
+      return null;
     }
   },
 
   async set(key, value, ttlSeconds = 300) {
-    const client = getRedis()
-    if (!client) return false
+    const client = getRedis();
+    if (!client) return false;
     try {
-      const data = JSON.stringify(value)
+      const data = JSON.stringify(value);
       if (ttlSeconds > 0) {
-        await client.setex(key, ttlSeconds, data)
+        await client.setex(key, ttlSeconds, data);
       } else {
-        await client.set(key, data)
+        await client.set(key, data);
       }
-      return true
+      return true;
     } catch {
-      return false
+      return false;
     }
   },
 
   async del(key) {
-    const client = getRedis()
-    if (!client) return false
+    const client = getRedis();
+    if (!client) return false;
     try {
-      await client.del(key)
-      return true
+      await client.del(key);
+      return true;
     } catch {
-      return false
+      return false;
     }
   },
 
   async delPattern(pattern) {
-    const client = getRedis()
-    if (!client) return false
+    const client = getRedis();
+    if (!client) return false;
     try {
-      const keys = await client.keys(pattern)
+      const keys = await client.keys(pattern);
       if (keys.length > 0) {
-        await client.del(...keys)
+        await client.del(...keys);
       }
-      return true
+      return true;
     } catch {
-      return false
+      return false;
     }
   },
-}
+};
 
-module.exports = { getRedis, cache }
+module.exports = { getRedis, cache };

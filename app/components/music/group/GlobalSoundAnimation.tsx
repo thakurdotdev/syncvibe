@@ -1,5 +1,5 @@
-import React, { useEffect } from "react"
-import { StyleSheet, Text, View, Image } from "react-native"
+import React, { useEffect } from 'react';
+import { StyleSheet, Text, View, Image } from 'react-native';
 import Animated, {
   FadeInUp,
   FadeOutUp,
@@ -8,86 +8,85 @@ import Animated, {
   withRepeat,
   withSequence,
   withTiming,
-} from "react-native-reanimated"
-import { Feather } from "@expo/vector-icons"
-import { useTheme } from "@/context/ThemeContext"
-import { useGroupSessionStore } from "@/stores/groupMusic/groupSessionStore"
-import { getProfileCloudinaryUrl } from "@/utils/Cloudinary"
+} from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
+import { useTheme } from '@/context/ThemeContext';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 
 const EqualizerBar = ({ delay, minH, maxH }: { delay: number; minH: number; maxH: number }) => {
-  const { colors } = useTheme()
-  const height = useSharedValue(minH)
+  const { colors } = useTheme();
+  const height = useSharedValue(minH);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       height.value = withRepeat(
-        withSequence(
-          withTiming(maxH, { duration: 250 }),
-          withTiming(minH, { duration: 250 }),
-        ),
+        withSequence(withTiming(maxH, { duration: 250 }), withTiming(minH, { duration: 250 })),
         -1,
-        true,
-      )
-    }, delay)
-    return () => clearTimeout(timer)
-  }, [delay, minH, maxH, height])
+        true
+      );
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [delay, minH, maxH, height]);
 
   const animStyle = useAnimatedStyle(() => ({
     height: height.value,
-  }))
+  }));
 
-  return <Animated.View style={[styles.eqBar, { backgroundColor: colors.primary }, animStyle]} />
-}
+  return <Animated.View style={[styles.eqBar, { backgroundColor: colors.primary }, animStyle]} />;
+};
 
 interface GlobalSoundAnimationProps {
-  currentUserId?: number | string
+  currentUserId?: number | string;
 }
 
 export const GlobalSoundAnimation: React.FC<GlobalSoundAnimationProps> = ({ currentUserId }) => {
-  const { colors } = useTheme()
-  const activeSoundEffect = useGroupSessionStore((s) => s.activeSoundEffect)
-  const clearActiveSoundEffect = useGroupSessionStore((s) => s.clearActiveSoundEffect)
+  const { colors } = useTheme();
+  const activeSoundEffect = useGroupSessionStore((s) => s.activeSoundEffect);
+  const clearActiveSoundEffect = useGroupSessionStore((s) => s.clearActiveSoundEffect);
 
   useEffect(() => {
-    if (!activeSoundEffect) return
+    if (!activeSoundEffect) return;
     const timer = setTimeout(() => {
-      clearActiveSoundEffect()
-    }, 3200)
-    return () => clearTimeout(timer)
-  }, [activeSoundEffect, clearActiveSoundEffect])
+      clearActiveSoundEffect();
+    }, 3200);
+    return () => clearTimeout(timer);
+  }, [activeSoundEffect, clearActiveSoundEffect]);
 
-  if (!activeSoundEffect) return null
+  if (!activeSoundEffect) return null;
 
-  const isOwn = String(activeSoundEffect.senderId) === String(currentUserId)
-  const displayName = isOwn ? "You" : activeSoundEffect.userName || "Someone"
+  const isOwn = String(activeSoundEffect.senderId) === String(currentUserId);
+  const displayName = isOwn ? 'You' : activeSoundEffect.userName || 'Someone';
 
   return (
     <Animated.View
       entering={FadeInUp.springify().damping(18).stiffness(350)}
       exiting={FadeOutUp.duration(200)}
       style={styles.floatingContainer}
-      pointerEvents="none"
+      pointerEvents='none'
     >
       <View
         style={[
           styles.pill,
           {
-            backgroundColor: colors.card || "#1a1a1a",
-            borderColor: colors.primary + "60",
-            shadowColor: "#000",
+            backgroundColor: colors.card || '#1a1a1a',
+            borderColor: colors.primary + '60',
+            shadowColor: '#000',
           },
         ]}
       >
         {activeSoundEffect.profilePic ? (
           <Image
             source={{
-              uri: getProfileCloudinaryUrl(activeSoundEffect.profilePic) || "https://via.placeholder.com/26",
+              uri:
+                getProfileCloudinaryUrl(activeSoundEffect.profilePic) ||
+                'https://via.placeholder.com/26',
             }}
-            style={[styles.avatar, { borderColor: colors.primary + "80" }]}
+            style={[styles.avatar, { borderColor: colors.primary + '80' }]}
           />
         ) : (
-          <View style={[styles.iconWrap, { backgroundColor: colors.primary + "25" }]}>
-            <Feather name="volume-2" size={13} color={colors.primary} />
+          <View style={[styles.iconWrap, { backgroundColor: colors.primary + '25' }]}>
+            <Feather name='volume-2' size={13} color={colors.primary} />
           </View>
         )}
 
@@ -96,10 +95,7 @@ export const GlobalSoundAnimation: React.FC<GlobalSoundAnimationProps> = ({ curr
             {displayName}
           </Text>
           <Text style={[styles.actionText, { color: colors.mutedForeground }]}>played</Text>
-          <Text
-            style={[styles.soundTitle, { color: colors.primary }]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.soundTitle, { color: colors.primary }]} numberOfLines={1}>
             {activeSoundEffect.soundName}
           </Text>
         </View>
@@ -112,26 +108,26 @@ export const GlobalSoundAnimation: React.FC<GlobalSoundAnimationProps> = ({ curr
         </View>
       </View>
     </Animated.View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   floatingContainer: {
-    position: "absolute",
+    position: 'absolute',
     top: 54,
     left: 0,
     right: 0,
-    alignItems: "center",
+    alignItems: 'center',
     zIndex: 9999,
   },
   pill: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 24,
     borderWidth: 1.5,
-    maxWidth: "92%",
+    maxWidth: '92%',
     gap: 8,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
@@ -148,31 +144,31 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
     flexShrink: 1,
   },
   senderName: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   actionText: {
     fontSize: 11,
-    fontWeight: "400",
+    fontWeight: '400',
   },
   soundTitle: {
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: '700',
     maxWidth: 130,
   },
   eqContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 2.5,
     height: 16,
     paddingLeft: 4,
@@ -181,6 +177,6 @@ const styles = StyleSheet.create({
     width: 2.5,
     borderRadius: 2,
   },
-})
+});
 
-export default React.memo(GlobalSoundAnimation)
+export default React.memo(GlobalSoundAnimation);

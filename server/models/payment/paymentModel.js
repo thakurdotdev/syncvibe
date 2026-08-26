@@ -1,6 +1,6 @@
-const { DataTypes, Model } = require("sequelize")
-const sequelize = require("../../utils/sequelize")
-const User = require("../auth/userModel")
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../../utils/sequelize');
+const User = require('../auth/userModel');
 
 class Payment extends Model {}
 
@@ -17,7 +17,7 @@ Payment.init(
       allowNull: false,
       references: {
         model: User,
-        key: "userid",
+        key: 'userid',
       },
     },
 
@@ -41,13 +41,13 @@ Payment.init(
     currency: {
       type: DataTypes.STRING(10),
       allowNull: false,
-      defaultValue: "INR",
+      defaultValue: 'INR',
     },
 
     status: {
       type: DataTypes.STRING(20),
       allowNull: false,
-      defaultValue: "CREATED",
+      defaultValue: 'CREATED',
       // CREATED | PAYMENT_PENDING | PAID | FAILED
     },
 
@@ -64,14 +64,14 @@ Payment.init(
   },
   {
     sequelize,
-    modelName: "Payment",
-    tableName: "payments",
+    modelName: 'Payment',
+    tableName: 'payments',
     timestamps: false,
-  },
-)
+  }
+);
 
 /* Associations */
-User.hasMany(Payment, { foreignKey: "userid", as: "payments" })
-Payment.belongsTo(User, { foreignKey: "userid", as: "user" })
+User.hasMany(Payment, { foreignKey: 'userid', as: 'payments' });
+Payment.belongsTo(User, { foreignKey: 'userid', as: 'user' });
 
-module.exports = Payment
+module.exports = Payment;

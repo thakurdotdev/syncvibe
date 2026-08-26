@@ -1,85 +1,85 @@
 /** biome-ignore-all lint/a11y/useButtonType: <explanation> */
 
-import { ChevronDownIcon, Disc3, ListMusic, MoreHorizontal, User, X } from "lucide-react"
-import { memo, useCallback, useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { ChevronDownIcon, Disc3, ListMusic, MoreHorizontal, User, X } from 'lucide-react';
+import { memo, useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Sheet, SheetContent } from "@/components/ui/sheet"
-import { usePlayerStore } from "@/stores/playerStore"
-import DesktopQueuePanel from "./DesktopQueuePanel"
-import NowPlayingTab from "./NowPlayingTab"
-import QueueTab from "./QueueTab"
+} from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { usePlayerStore } from '@/stores/playerStore';
+import DesktopQueuePanel from './DesktopQueuePanel';
+import NowPlayingTab from './NowPlayingTab';
+import QueueTab from './QueueTab';
 
 const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
-  const [mobileQueueOpen, setMobileQueueOpen] = useState(false)
-  const [queueReady, setQueueReady] = useState(false)
-  const playlistLength = usePlayerStore((s) => s.playlist.length)
-  const navigate = useNavigate()
+  const [mobileQueueOpen, setMobileQueueOpen] = useState(false);
+  const [queueReady, setQueueReady] = useState(false);
+  const playlistLength = usePlayerStore((s) => s.playlist.length);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen) {
-      const timer = setTimeout(() => setQueueReady(true), 500)
-      return () => clearTimeout(timer)
+      const timer = setTimeout(() => setQueueReady(true), 500);
+      return () => clearTimeout(timer);
     }
-    setQueueReady(false)
-  }, [isOpen])
+    setQueueReady(false);
+  }, [isOpen]);
 
   const handleGoToAlbum = useCallback(
     (e) => {
-      e.stopPropagation()
+      e.stopPropagation();
       if (currentSong?.album_id) {
-        navigate(`/music/album/${currentSong.album_id}`, { state: currentSong.album_id })
-        onClose()
+        navigate(`/music/album/${currentSong.album_id}`, { state: currentSong.album_id });
+        onClose();
       }
     },
-    [currentSong?.album_id, navigate, onClose],
-  )
+    [currentSong?.album_id, navigate, onClose]
+  );
 
   const handleGoToArtist = useCallback(
     (e) => {
-      e.stopPropagation()
+      e.stopPropagation();
       if (currentSong?.artist_map?.primary_artists?.[0]?.id) {
         navigate(`/music/artist/${currentSong.artist_map.primary_artists[0].id}`, {
           state: currentSong.artist_map.primary_artists[0].id,
-        })
-        onClose()
+        });
+        onClose();
       }
     },
-    [currentSong?.artist_map?.primary_artists, navigate, onClose],
-  )
+    [currentSong?.artist_map?.primary_artists, navigate, onClose]
+  );
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side="bottom" className="h-full w-full p-0 overflow-hidden border-0 bg-black">
-        <div className="h-full w-full relative">
+      <SheetContent side='bottom' className='h-full w-full p-0 overflow-hidden border-0 bg-black'>
+        <div className='h-full w-full relative'>
           <NowPlayingTab currentSong={currentSong} onOpenModal={onOpenModal} isDesktop />
 
-          <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-30">
+          <div className='absolute top-4 left-4 right-4 flex items-center justify-between z-30'>
             <Button
-              variant="ghost"
-              size="icon"
+              variant='ghost'
+              size='icon'
               onClick={onClose}
-              className="h-10 w-10 bg-white/10 hover:bg-white/20 rounded-full transition-colors duration-300"
+              className='h-10 w-10 bg-white/10 hover:bg-white/20 rounded-full transition-colors duration-300'
             >
-              <ChevronDownIcon className="h-5 w-5 text-white" />
+              <ChevronDownIcon className='h-5 w-5 text-white' />
             </Button>
 
-            <div className="flex items-center gap-2">
+            <div className='flex items-center gap-2'>
               <Button
-                variant="ghost"
-                size="icon"
+                variant='ghost'
+                size='icon'
                 onClick={() => setMobileQueueOpen(true)}
-                className="lg:hidden h-10 w-10 bg-white/10 hover:bg-white/20 rounded-full transition-colors duration-300 relative"
+                className='lg:hidden h-10 w-10 bg-white/10 hover:bg-white/20 rounded-full transition-colors duration-300 relative'
               >
-                <ListMusic className="h-5 w-5 text-white" />
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-white/25 text-[10px] text-white font-semibold flex items-center justify-center px-1">
+                <ListMusic className='h-5 w-5 text-white' />
+                <span className='absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-white/25 text-[10px] text-white font-semibold flex items-center justify-center px-1'>
                   {playlistLength}
                 </span>
               </Button>
@@ -87,28 +87,28 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-10 w-10 bg-white/10 hover:bg-white/20 rounded-full transition-colors duration-300"
+                    variant='ghost'
+                    size='icon'
+                    className='h-10 w-10 bg-white/10 hover:bg-white/20 rounded-full transition-colors duration-300'
                   >
-                    <MoreHorizontal className="h-5 w-5 text-white" />
+                    <MoreHorizontal className='h-5 w-5 text-white' />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-[#111] border-white/10">
-                  <DropdownMenuItem onClick={onOpenModal} className="cursor-pointer">
-                    <ListMusic className="mr-2 h-4 w-4" />
+                <DropdownMenuContent align='end' className='w-56 bg-[#111] border-white/10'>
+                  <DropdownMenuItem onClick={onOpenModal} className='cursor-pointer'>
+                    <ListMusic className='mr-2 h-4 w-4' />
                     Add to Playlist
                   </DropdownMenuItem>
 
                   {currentSong?.album_id && (
-                    <DropdownMenuItem onClick={handleGoToAlbum} className="cursor-pointer text-sm">
-                      <Disc3 className="w-3.5 h-3.5 mr-2" />
+                    <DropdownMenuItem onClick={handleGoToAlbum} className='cursor-pointer text-sm'>
+                      <Disc3 className='w-3.5 h-3.5 mr-2' />
                       Go to Album
                     </DropdownMenuItem>
                   )}
                   {currentSong?.artist_map?.primary_artists?.[0] && (
-                    <DropdownMenuItem onClick={handleGoToArtist} className="cursor-pointer text-sm">
-                      <User className="w-3.5 h-3.5 mr-2" />
+                    <DropdownMenuItem onClick={handleGoToArtist} className='cursor-pointer text-sm'>
+                      <User className='w-3.5 h-3.5 mr-2' />
                       Go to Artist
                     </DropdownMenuItem>
                   )}
@@ -118,42 +118,42 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
           </div>
 
           {/* Desktop: always-visible queue panel, content delayed */}
-          <div className="hidden lg:block">
+          <div className='hidden lg:block'>
             <DesktopQueuePanel ready={queueReady} />
           </div>
 
           {/* Mobile: full-screen slide-over queue */}
           <div
-            className={`lg:hidden absolute inset-0 z-40 transition-all duration-500 ease-out ${mobileQueueOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+            className={`lg:hidden absolute inset-0 z-40 transition-all duration-500 ease-out ${mobileQueueOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
           >
             <div
-              className={`absolute inset-0 bg-black/70 transition-opacity duration-500 ${mobileQueueOpen ? "opacity-100" : "opacity-0"}`}
+              className={`absolute inset-0 bg-black/70 transition-opacity duration-500 ${mobileQueueOpen ? 'opacity-100' : 'opacity-0'}`}
               onClick={() => setMobileQueueOpen(false)}
             />
             <div
-              className={`absolute top-0 right-0 bottom-0 w-full sm:w-105 bg-black/10 backdrop-blur-xl transition-transform duration-500 ease-out flex flex-col border-l border-white/4 ${mobileQueueOpen ? "translate-x-0" : "translate-x-full"}`}
+              className={`absolute top-0 right-0 bottom-0 w-full sm:w-105 bg-black/10 backdrop-blur-xl transition-transform duration-500 ease-out flex flex-col border-l border-white/4 ${mobileQueueOpen ? 'translate-x-0' : 'translate-x-full'}`}
             >
-              <div className="h-16 px-5 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                  <ListMusic className="w-5 h-5 text-white/60" />
-                  <span className="text-lg font-semibold text-white/90">Queue</span>
+              <div className='h-16 px-5 flex items-center justify-between shrink-0'>
+                <div className='flex items-center gap-3'>
+                  <ListMusic className='w-5 h-5 text-white/60' />
+                  <span className='text-lg font-semibold text-white/90'>Queue</span>
                   <Badge
-                    variant="secondary"
-                    className="h-5 text-xs bg-white/10 text-white/60 border-0"
+                    variant='secondary'
+                    className='h-5 text-xs bg-white/10 text-white/60 border-0'
                   >
                     {playlistLength}
                   </Badge>
                 </div>
                 <Button
-                  variant="ghost"
-                  size="icon"
+                  variant='ghost'
+                  size='icon'
                   onClick={() => setMobileQueueOpen(false)}
-                  className="h-9 w-9 bg-white/10 hover:bg-white/20 rounded-full transition-colors duration-300"
+                  className='h-9 w-9 bg-white/10 hover:bg-white/20 rounded-full transition-colors duration-300'
                 >
-                  <X className="h-4 w-4 text-white" />
+                  <X className='h-4 w-4 text-white' />
                 </Button>
               </div>
-              <div className="flex-1 overflow-y-auto">
+              <div className='flex-1 overflow-y-auto'>
                 <QueueTab />
               </div>
             </div>
@@ -161,8 +161,8 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
         </div>
       </SheetContent>
     </Sheet>
-  )
-})
+  );
+});
 
-PlayerSheet.displayName = "PlayerSheet"
-export default PlayerSheet
+PlayerSheet.displayName = 'PlayerSheet';
+export default PlayerSheet;

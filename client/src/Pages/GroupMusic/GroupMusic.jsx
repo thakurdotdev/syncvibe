@@ -1,8 +1,8 @@
-import { useState, useCallback, useMemo, memo } from "react"
-import { useProfile } from "@/Context/Context"
-import { useGroupMusic } from "@/Context/GroupMusicContext"
-import { useFeatureAccess } from "@/hooks/useFeatureAccess"
-import { AnimatePresence, motion } from "framer-motion"
+import { useState, useCallback, useMemo, memo } from 'react';
+import { useProfile } from '@/Context/Context';
+import { useGroupMusic } from '@/Context/GroupMusicContext';
+import { useFeatureAccess } from '@/hooks/useFeatureAccess';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import {
   GroupModal,
@@ -15,35 +15,35 @@ import {
   QueueSheet,
   InviteSheet,
   GlobalSoundAnimation,
-} from "./index"
+} from './index';
 
-import "../Music/music.css"
+import '../Music/music.css';
 
 const AmbientGlow = memo(({ imageUrl }) => {
   const bgStyle = useMemo(
     () => ({
       backgroundImage: `url(${imageUrl})`,
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      filter: "blur(80px) saturate(1.5)",
-      transform: "scale(1.4)",
-      willChange: "transform",
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      filter: 'blur(80px) saturate(1.5)',
+      transform: 'scale(1.4)',
+      willChange: 'transform',
     }),
-    [imageUrl],
-  )
+    [imageUrl]
+  );
 
-  if (!imageUrl) return null
+  if (!imageUrl) return null;
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      <div className="absolute inset-0 opacity-[0.08]" style={bgStyle} />
-      <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background" />
+    <div className='absolute inset-0 overflow-hidden pointer-events-none' aria-hidden='true'>
+      <div className='absolute inset-0 opacity-[0.08]' style={bgStyle} />
+      <div className='absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background' />
     </div>
-  )
-})
+  );
+});
 
 const GroupMusic = () => {
-  const { user } = useProfile()
-  const { isPro, canChat, maxGroupMembers } = useFeatureAccess()
+  const { user } = useProfile();
+  const { isPro, canChat, maxGroupMembers } = useFeatureAccess();
   const {
     currentGroup,
     isPlaying,
@@ -83,54 +83,57 @@ const GroupMusic = () => {
     connectionQuality,
     playNow,
     addToQueue,
-  } = useGroupMusic()
+  } = useGroupMusic();
 
-  const [isQrCodeOpen, setQrCodeOpen] = useState(false)
-  const [modalDefaultTab, setModalDefaultTab] = useState("join")
+  const [isQrCodeOpen, setQrCodeOpen] = useState(false);
+  const [modalDefaultTab, setModalDefaultTab] = useState('join');
 
   const activeQueueCount = useMemo(
     () => (currentQueueItem ? 1 : 0) + upcomingQueue.length,
-    [currentQueueItem, upcomingQueue.length],
-  )
+    [currentQueueItem, upcomingQueue.length]
+  );
 
-  const albumArt = useMemo(() => currentSong?.image?.[2]?.link, [currentSong?.image])
+  const albumArt = useMemo(() => currentSong?.image?.[2]?.link, [currentSong?.image]);
 
-  const handleOpenSearch = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen])
-  const handleOpenQrCode = useCallback(() => setQrCodeOpen(true), [])
-  const handleCloseQrCode = useCallback(() => setQrCodeOpen(false), [])
+  const handleOpenSearch = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen]);
+  const handleOpenQrCode = useCallback(() => setQrCodeOpen(true), []);
+  const handleCloseQrCode = useCallback(() => setQrCodeOpen(false), []);
   const handleOpenGroupModal = useCallback(
-    (tab = "join") => {
-      setModalDefaultTab(tab)
-      setIsGroupModalOpen(true)
+    (tab = 'join') => {
+      setModalDefaultTab(tab);
+      setIsGroupModalOpen(true);
     },
-    [setIsGroupModalOpen],
-  )
-  const handleCloseGroupModal = useCallback(() => setIsGroupModalOpen(false), [setIsGroupModalOpen])
+    [setIsGroupModalOpen]
+  );
+  const handleCloseGroupModal = useCallback(
+    () => setIsGroupModalOpen(false),
+    [setIsGroupModalOpen]
+  );
   const handleClipboardJoin = useCallback(
     (code) => {
-      joinGroup(code)
+      joinGroup(code);
     },
-    [joinGroup],
-  )
-  const handleOpenQueue = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen])
-  const handleOpenInvite = useCallback(() => setIsInviteSheetOpen(true), [setIsInviteSheetOpen])
+    [joinGroup]
+  );
+  const handleOpenQueue = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen]);
+  const handleOpenInvite = useCallback(() => setIsInviteSheetOpen(true), [setIsInviteSheetOpen]);
 
-  const userId = useMemo(() => user?.userid, [user?.userid])
-  const groupMaxMembers = Math.max(currentGroup?.maxMembers || 0, maxGroupMembers)
-  const isChatAllowed = canChat || Boolean(currentGroup?.features?.realtimeChat)
+  const userId = useMemo(() => user?.userid, [user?.userid]);
+  const groupMaxMembers = Math.max(currentGroup?.maxMembers || 0, maxGroupMembers);
+  const isChatAllowed = canChat || Boolean(currentGroup?.features?.realtimeChat);
 
   return (
-    <div className="mx-auto max-w-7xl px-2 md:px-4 py-2 md:py-4">
+    <div className='mx-auto max-w-7xl px-2 md:px-4 py-2 md:py-4'>
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
       >
-        <div className="relative rounded-2xl md:rounded-3xl overflow-hidden liquid-panel-elevated">
+        <div className='relative rounded-2xl md:rounded-3xl overflow-hidden liquid-panel-elevated'>
           <AmbientGlow imageUrl={albumArt} />
 
-          <div className="relative z-10">
-            <div className="px-3 md:px-6 pt-3 md:pt-4 pb-2">
+          <div className='relative z-10'>
+            <div className='px-3 md:px-6 pt-3 md:pt-4 pb-2'>
               <GroupHeader
                 currentGroup={currentGroup}
                 isRejoining={isRejoining}
@@ -144,44 +147,44 @@ const GroupMusic = () => {
               />
             </div>
 
-            <div className="px-3 md:px-6 pb-5 md:pb-6">
-              <AnimatePresence mode="popLayout">
+            <div className='px-3 md:px-6 pb-5 md:pb-6'>
+              <AnimatePresence mode='popLayout'>
                 {isRejoining && !currentGroup ? (
                   <motion.div
-                    key="rejoining"
+                    key='rejoining'
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.3 }}
-                    className="flex flex-col items-center justify-center py-24 gap-5"
+                    className='flex flex-col items-center justify-center py-24 gap-5'
                   >
-                    <div className="relative">
-                      <div className="h-14 w-14 rounded-full border-[3px] border-primary/20 border-t-primary animate-spin" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="h-6 w-6 rounded-full bg-primary/10 animate-pulse" />
+                    <div className='relative'>
+                      <div className='h-14 w-14 rounded-full border-[3px] border-primary/20 border-t-primary animate-spin' />
+                      <div className='absolute inset-0 flex items-center justify-center'>
+                        <div className='h-6 w-6 rounded-full bg-primary/10 animate-pulse' />
                       </div>
                     </div>
-                    <div className="text-center space-y-1.5">
-                      <p className="text-sm font-semibold text-foreground">
+                    <div className='text-center space-y-1.5'>
+                      <p className='text-sm font-semibold text-foreground'>
                         Reconnecting to your session
                       </p>
-                      <p className="text-xs text-muted-foreground/60">Syncing playback state...</p>
+                      <p className='text-xs text-muted-foreground/60'>Syncing playback state...</p>
                     </div>
                   </motion.div>
                 ) : !currentGroup ? (
                   <WelcomeView
-                    key="welcome"
+                    key='welcome'
                     onOpenModal={handleOpenGroupModal}
                     onClipboardJoin={handleClipboardJoin}
                   />
                 ) : (
                   <motion.div
-                    key="group-content"
+                    key='group-content'
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -12 }}
                     transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                    className="space-y-4 md:space-y-5"
+                    className='space-y-4 md:space-y-5'
                   >
                     <NowPlayingCard
                       currentSong={currentSong}
@@ -208,8 +211,8 @@ const GroupMusic = () => {
                       onAddToQueue={addToQueue}
                     />
 
-                    <div className="flex flex-col lg:flex-row gap-4">
-                      <div className="flex-1 min-w-0">
+                    <div className='flex flex-col lg:flex-row gap-4'>
+                      <div className='flex-1 min-w-0'>
                         <GroupChat
                           messages={messages}
                           currentUserId={userId}
@@ -220,7 +223,7 @@ const GroupMusic = () => {
                           onTypingStop={onTypingStop}
                         />
                       </div>
-                      <div className="w-full lg:w-[280px] lg:shrink-0 lg:max-h-[380px]">
+                      <div className='w-full lg:w-[280px] lg:shrink-0 lg:max-h-[380px]'>
                         <MembersList
                           members={groupMembers}
                           currentUserId={userId}
@@ -262,7 +265,7 @@ const GroupMusic = () => {
 
       <GlobalSoundAnimation currentUserId={userId} />
     </div>
-  )
-}
+  );
+};
 
-export default memo(GroupMusic)
+export default memo(GroupMusic);

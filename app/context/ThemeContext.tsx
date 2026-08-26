@@ -1,5 +1,5 @@
-import { colorPalettes, ColorTheme, ThemeColors } from "@/theme/color"
-import { storageCache } from "@/utils/storageCache"
+import { colorPalettes, ColorTheme, ThemeColors } from '@/theme/color';
+import { storageCache } from '@/utils/storageCache';
 import React, {
   createContext,
   ReactNode,
@@ -9,129 +9,129 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from "react"
-import { Appearance, AppState, useColorScheme } from "react-native"
+} from 'react';
+import { Appearance, AppState, useColorScheme } from 'react-native';
 
-const THEME_PREFERENCE_KEY = "@theme_preference"
+const THEME_PREFERENCE_KEY = '@theme_preference';
 
-type ThemePreference = ColorTheme | "system"
+type ThemePreference = ColorTheme | 'system';
 
 interface ThemeContextType {
-  theme: ColorTheme
-  colors: ThemeColors
-  isLoading: boolean
-  toggleTheme: () => void
-  setTheme: (theme: ThemePreference) => void
-  setSystemTheme: () => void
-  themePreference: ThemePreference
+  theme: ColorTheme;
+  colors: ThemeColors;
+  isLoading: boolean;
+  toggleTheme: () => void;
+  setTheme: (theme: ThemePreference) => void;
+  setSystemTheme: () => void;
+  themePreference: ThemePreference;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 interface ThemeProviderProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const deviceColorScheme = useColorScheme() as ColorTheme | null
-  const [theme, setThemeState] = useState<ColorTheme>(deviceColorScheme || "light")
-  const [themePreference, setThemePreference] = useState<ThemePreference>("system")
-  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const deviceColorScheme = useColorScheme() as ColorTheme | null;
+  const [theme, setThemeState] = useState<ColorTheme>(deviceColorScheme || 'light');
+  const [themePreference, setThemePreference] = useState<ThemePreference>('system');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const prevThemeRef = useRef<ThemePreference>(themePreference)
-  const pendingThemeUpdate = useRef<any>(null)
+  const prevThemeRef = useRef<ThemePreference>(themePreference);
+  const pendingThemeUpdate = useRef<any>(null);
 
   const updateTheme = useCallback(
     (newTheme: ThemePreference) => {
       if (newTheme === prevThemeRef.current) {
-        return
+        return;
       }
 
-      prevThemeRef.current = newTheme
+      prevThemeRef.current = newTheme;
 
       if (pendingThemeUpdate.current) {
-        clearTimeout(pendingThemeUpdate.current)
+        clearTimeout(pendingThemeUpdate.current);
       }
 
-      if (newTheme === "system") {
-        setThemeState(deviceColorScheme || "light")
+      if (newTheme === 'system') {
+        setThemeState(deviceColorScheme || 'light');
       } else {
-        setThemeState(newTheme as ColorTheme)
+        setThemeState(newTheme as ColorTheme);
       }
 
       // Keep the visible theme update synchronous. A transition here makes
       // the profile toggle feel unresponsive while the whole app repaints.
-      setThemePreference(newTheme)
+      setThemePreference(newTheme);
       pendingThemeUpdate.current = setTimeout(() => {
         storageCache.setItem(THEME_PREFERENCE_KEY, newTheme).catch((error) => {
-          console.log("Error saving theme preference:", error)
-        })
-      }, 300)
+          console.log('Error saving theme preference:', error);
+        });
+      }, 300);
     },
-    [deviceColorScheme],
-  )
+    [deviceColorScheme]
+  );
 
   useEffect(() => {
-    let isMounted = true
+    let isMounted = true;
 
     const loadPreferences = async () => {
       try {
-        const savedTheme = await storageCache.getItem(THEME_PREFERENCE_KEY)
+        const savedTheme = await storageCache.getItem(THEME_PREFERENCE_KEY);
 
-        if (!isMounted) return
+        if (!isMounted) return;
 
         if (savedTheme !== null) {
-          setThemePreference(savedTheme as ThemePreference)
-          if (savedTheme === "system") {
-            setThemeState(deviceColorScheme || "light")
+          setThemePreference(savedTheme as ThemePreference);
+          if (savedTheme === 'system') {
+            setThemeState(deviceColorScheme || 'light');
           } else {
-            setThemeState(savedTheme as ColorTheme)
+            setThemeState(savedTheme as ColorTheme);
           }
         } else {
-          setThemePreference("system")
-          setThemeState(deviceColorScheme || "light")
+          setThemePreference('system');
+          setThemeState(deviceColorScheme || 'light');
         }
       } catch (error) {
-        console.log("Error loading preferences:", error)
+        console.log('Error loading preferences:', error);
       } finally {
         if (isMounted) {
-          setIsLoading(false)
+          setIsLoading(false);
         }
       }
-    }
+    };
 
-    loadPreferences()
+    loadPreferences();
 
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "active" && themePreference === "system") {
-        const currentColorScheme = Appearance.getColorScheme() as ColorTheme | null
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active' && themePreference === 'system') {
+        const currentColorScheme = Appearance.getColorScheme() as ColorTheme | null;
         if (currentColorScheme && currentColorScheme !== theme) {
-          setThemeState(currentColorScheme)
+          setThemeState(currentColorScheme);
         }
       }
-    })
+    });
 
     return () => {
-      isMounted = false
-      subscription.remove()
-    }
-  }, [])
+      isMounted = false;
+      subscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
-    if (deviceColorScheme && themePreference === "system") {
-      setThemeState(deviceColorScheme)
+    if (deviceColorScheme && themePreference === 'system') {
+      setThemeState(deviceColorScheme);
     }
-  }, [deviceColorScheme, themePreference])
+  }, [deviceColorScheme, themePreference]);
 
-  const setTheme = useCallback((newTheme: ThemePreference) => updateTheme(newTheme), [updateTheme])
+  const setTheme = useCallback((newTheme: ThemePreference) => updateTheme(newTheme), [updateTheme]);
 
   const toggleTheme = useCallback(() => {
-    updateTheme(theme === "light" ? "dark" : "light")
-  }, [theme, updateTheme])
+    updateTheme(theme === 'light' ? 'dark' : 'light');
+  }, [theme, updateTheme]);
 
-  const setSystemTheme = useCallback(() => updateTheme("system"), [updateTheme])
+  const setSystemTheme = useCallback(() => updateTheme('system'), [updateTheme]);
 
-  const themeColors = useMemo(() => colorPalettes["default"][theme], [theme])
+  const themeColors = useMemo(() => colorPalettes['default'][theme], [theme]);
 
   const contextValue = useMemo(
     () => ({
@@ -143,16 +143,16 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       setSystemTheme,
       themePreference,
     }),
-    [theme, themeColors, isLoading, toggleTheme, themePreference],
-  )
+    [theme, themeColors, isLoading, toggleTheme, themePreference]
+  );
 
-  return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>
-}
+  return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>;
+};
 
 export const useTheme = (): ThemeContextType => {
-  const context = useContext(ThemeContext)
+  const context = useContext(ThemeContext);
   if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider")
+    throw new Error('useTheme must be used within a ThemeProvider');
   }
-  return context
-}
+  return context;
+};

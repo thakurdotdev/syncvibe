@@ -1,6 +1,6 @@
-import { Ionicons } from "@expo/vector-icons"
-import { router } from "expo-router"
-import React, { useCallback, useEffect, useRef, useState } from "react"
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,26 +9,26 @@ import {
   Text,
   TextInput,
   View,
-} from "react-native"
-import { TabSafeAreaView } from "@/components/ui/TabSafeAreaView"
-import { useChat } from "@/context/SocketContext"
-import useApi from "@/utils/hooks/useApi"
-import { useUser } from "@/context/UserContext"
-import { useTheme } from "@/context/ThemeContext"
-import LoginScreen from "@/components/LoginScreen"
-import ChatSearchBar from "@/components/chat/ChatSearchBar"
-import ChatListItem from "@/components/chat/ChatListItem"
+} from 'react-native';
+import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
+import { useChat } from '@/context/SocketContext';
+import useApi from '@/utils/hooks/useApi';
+import { useUser } from '@/context/UserContext';
+import { useTheme } from '@/context/ThemeContext';
+import LoginScreen from '@/components/LoginScreen';
+import ChatSearchBar from '@/components/chat/ChatSearchBar';
+import ChatListItem from '@/components/chat/ChatListItem';
 
 interface SearchUser {
-  userid: string
-  name: string
-  profilepic?: string
+  userid: string;
+  name: string;
+  profilepic?: string;
 }
 
 const ChatListScreen: React.FC = () => {
-  const { user } = useUser()
-  const api = useApi()
-  const { colors } = useTheme()
+  const { user } = useUser();
+  const api = useApi();
+  const { colors } = useTheme();
   const {
     users,
     loading,
@@ -37,114 +37,110 @@ const ChatListScreen: React.FC = () => {
     getAllExistingChats,
     socket,
     onlineStatuses,
-  } = useChat()
+  } = useChat();
 
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<SearchUser[]>([])
-  const [refreshing, setRefreshing] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const inputRef = useRef<TextInput>(null)
-  const flatListRef = useRef<FlatList>(null)
+  const inputRef = useRef<TextInput>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   const searchUsers = useCallback(
     async (query: string) => {
       if (!query.trim()) {
-        setSearchResults([])
-        return
+        setSearchResults([]);
+        return;
       }
 
-      setLoading(true)
+      setLoading(true);
       try {
-        const response = await api.get(`/api/user/search?name=${query}`)
-        setSearchResults(response.data.users || [])
+        const response = await api.get(`/api/user/search?name=${query}`);
+        setSearchResults(response.data.users || []);
       } catch (error: any) {
-        setSearchResults([])
-        console.error("Search error:", error)
+        setSearchResults([]);
+        console.error('Search error:', error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     },
-    [api, setLoading],
-  )
+    [api, setLoading]
+  );
 
   const createChat = useCallback(
     async (userid: string) => {
       try {
-        setLoading(true)
+        setLoading(true);
         const response = await api.post(`/api/create/chat`, {
           recieverid: userid,
-        })
+        });
 
         if (response.status === 200) {
-          setCurrentChat(response.data.chat)
-          socket?.emit("join-room", response.data.chat.chatid)
-          await getAllExistingChats()
-          setSearchResults([])
-          setSearchQuery("")
-          Keyboard.dismiss()
-          router.push("/message")
+          setCurrentChat(response.data.chat);
+          socket?.emit('join-room', response.data.chat.chatid);
+          await getAllExistingChats();
+          setSearchResults([]);
+          setSearchQuery('');
+          Keyboard.dismiss();
+          router.push('/message');
         }
       } catch (error) {
-        console.error("Create chat error:", error)
+        console.error('Create chat error:', error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     },
-    [api, setLoading, setCurrentChat, socket, getAllExistingChats],
-  )
+    [api, setLoading, setCurrentChat, socket, getAllExistingChats]
+  );
 
   const handleUserSelect = useCallback(
     (item: any, isSearchResult = false) => {
       if (isSearchResult) {
-        createChat(item.userid)
+        createChat(item.userid);
       } else {
-        setCurrentChat(item)
-        router.push("/message")
+        setCurrentChat(item);
+        router.push('/message');
       }
     },
-    [createChat, setCurrentChat],
-  )
+    [createChat, setCurrentChat]
+  );
 
   const clearSearch = useCallback(() => {
-    setSearchQuery("")
-    setSearchResults([])
-    Keyboard.dismiss()
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
-  }, [])
+    setSearchQuery('');
+    setSearchResults([]);
+    Keyboard.dismiss();
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, []);
 
   const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await getAllExistingChats()
-    setRefreshing(false)
-  }, [getAllExistingChats])
+    setRefreshing(true);
+    await getAllExistingChats();
+    setRefreshing(false);
+  }, [getAllExistingChats]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
       if (searchQuery.trim()) {
-        searchUsers(searchQuery)
+        searchUsers(searchQuery);
       } else {
-        setSearchResults([])
+        setSearchResults([]);
       }
-    }, 400)
+    }, 400);
 
-    return () => clearTimeout(handler)
-  }, [searchQuery, searchUsers])
+    return () => clearTimeout(handler);
+  }, [searchQuery, searchUsers]);
 
-  const isSearching = searchResults.length > 0
+  const isSearching = searchResults.length > 0;
 
   const renderItem = useCallback(
     ({ item }: { item: any }) => {
       if (isSearching) {
         return (
-          <ChatListItem
-            user={item}
-            isSearchResult
-            onPress={() => handleUserSelect(item, true)}
-          />
-        )
+          <ChatListItem user={item} isSearchResult onPress={() => handleUserSelect(item, true)} />
+        );
       }
 
-      const otherUser = item.otherUser
+      const otherUser = item.otherUser;
       return (
         <ChatListItem
           user={otherUser}
@@ -154,52 +150,50 @@ const ChatListScreen: React.FC = () => {
           isTyping={item.isTyping}
           onPress={() => handleUserSelect(item)}
         />
-      )
+      );
     },
-    [isSearching, handleUserSelect, onlineStatuses],
-  )
+    [isSearching, handleUserSelect, onlineStatuses]
+  );
 
-  const renderEmpty = useCallback(() => (
-    <View style={styles.emptyContainer}>
-      <Ionicons
-        name="chatbubble-ellipses-outline"
-        size={48}
-        color={colors.mutedForeground}
-      />
-      <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
-        {searchQuery.length > 0 ? "No users found" : "No conversations yet"}
-      </Text>
-      <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-        {searchQuery.length > 0
-          ? "Try a different search term"
-          : "Search for users to start messaging"}
-      </Text>
-    </View>
-  ), [colors, searchQuery])
+  const renderEmpty = useCallback(
+    () => (
+      <View style={styles.emptyContainer}>
+        <Ionicons name='chatbubble-ellipses-outline' size={48} color={colors.mutedForeground} />
+        <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
+          {searchQuery.length > 0 ? 'No users found' : 'No conversations yet'}
+        </Text>
+        <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
+          {searchQuery.length > 0
+            ? 'Try a different search term'
+            : 'Search for users to start messaging'}
+        </Text>
+      </View>
+    ),
+    [colors, searchQuery]
+  );
 
-  const renderHeader = useCallback(() => (
-    <View style={styles.listHeader}>
-      <Text style={[styles.listHeaderText, { color: colors.mutedForeground }]}>
-        {isSearching
-          ? `Search Results (${searchResults.length})`
-          : "Recent Conversations"}
-      </Text>
-    </View>
-  ), [colors, isSearching, searchResults.length])
+  const renderHeader = useCallback(
+    () => (
+      <View style={styles.listHeader}>
+        <Text style={[styles.listHeaderText, { color: colors.mutedForeground }]}>
+          {isSearching ? `Search Results (${searchResults.length})` : 'Recent Conversations'}
+        </Text>
+      </View>
+    ),
+    [colors, isSearching, searchResults.length]
+  );
 
   if (!user) {
-    return <LoginScreen />
+    return <LoginScreen />;
   }
 
   return (
     <TabSafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
-      edges={["top"]}
+      edges={['top']}
     >
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-          Messages
-        </Text>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Messages</Text>
       </View>
 
       <ChatSearchBar
@@ -210,8 +204,8 @@ const ChatListScreen: React.FC = () => {
       />
 
       {loading && (
-        <View pointerEvents="none" style={styles.loadingOverlay}>
-          <ActivityIndicator size="small" color={colors.primary} />
+        <View pointerEvents='none' style={styles.loadingOverlay}>
+          <ActivityIndicator size='small' color={colors.primary} />
         </View>
       )}
 
@@ -235,8 +229,8 @@ const ChatListScreen: React.FC = () => {
         windowSize={10}
       />
     </TabSafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -248,17 +242,17 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   loadingOverlay: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     height: 42,
     zIndex: 2,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   listContent: {
     paddingBottom: 120,
@@ -270,24 +264,24 @@ const styles = StyleSheet.create({
   },
   listHeaderText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   emptyContainer: {
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 60,
   },
   emptyTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     marginTop: 16,
   },
   emptySubtitle: {
     fontSize: 13,
     marginTop: 8,
-    textAlign: "center",
-    maxWidth: "80%",
+    textAlign: 'center',
+    maxWidth: '80%',
   },
-})
+});
 
-export default ChatListScreen
+export default ChatListScreen;

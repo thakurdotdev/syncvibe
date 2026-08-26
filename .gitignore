@@ -3,6 +3,5 @@ node_modules
 dist
 bun.lock
 bun.lockb
-pnpm-lock.yaml
 package-lock.json
 !app/package-lock.json
