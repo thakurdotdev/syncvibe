@@ -9,4 +9,6 @@ allowBuilds:
   unrs-resolver: true
 
 overrides:
+  react: 19.2.3
+  react-dom: 19.2.3
   lightningcss: 1.30.1
