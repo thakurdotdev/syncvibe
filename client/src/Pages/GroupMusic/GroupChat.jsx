@@ -23,6 +23,7 @@ import UpgradeDialog from '@/components/UpgradeDialog';
 import ReactDOM from 'react-dom';
 import SoundPicker from './SoundPicker';
 import SoundMessage from './SoundMessage';
+import { fetchTrendingGifs, searchGifs } from '@/api/gifs';
 
 const EMOJI_ONLY_REGEX =
   /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\s*(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)){0,2}$/u;
@@ -302,14 +303,13 @@ const GifPreviewCard = memo(({ still, animated, title, onSelect }) => {
   );
 });
 
-const GIPHY_KEY = 'fNEK945T8rNeZZKqkghYw1zFKWV0Se1M';
-
 const GifPicker = memo(({ anchorRef, toggleRef, onSelect, onClose }) => {
   const [query, setQuery] = useState('');
   const [gifs, setGifs] = useState([]);
   const [trending, setTrending] = useState([]);
   const [loading, setLoading] = useState(true);
   const searchTimeout = useRef(null);
+  const abortControllerRef = useRef(null);
   const pickerRef = useRef(null);
   const [pos, setPos] = useState(null);
 
@@ -324,11 +324,15 @@ const GifPicker = memo(({ anchorRef, toggleRef, onSelect, onClose }) => {
   }, [anchorRef]);
 
   useEffect(() => {
-    fetch(`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=30&rating=g`)
-      .then((r) => r.json())
-      .then((d) => setTrending(d.data || []))
+    const controller = new AbortController();
+    setLoading(true);
+
+    fetchTrendingGifs(controller.signal)
+      .then((data) => setTrending(data || []))
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -356,19 +360,21 @@ const GifPicker = memo(({ anchorRef, toggleRef, onSelect, onClose }) => {
   const handleSearch = useCallback((value) => {
     setQuery(value);
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+
     if (!value.trim()) {
       setGifs([]);
       setLoading(false);
       return;
     }
+
     setLoading(true);
     searchTimeout.current = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(value)}&limit=30&rating=g`
-        );
-        const data = await res.json();
-        setGifs(data.data || []);
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+        const data = await searchGifs(value, controller.signal);
+        setGifs(data || []);
       } catch {}
       setLoading(false);
     }, 350);
@@ -377,6 +383,7 @@ const GifPicker = memo(({ anchorRef, toggleRef, onSelect, onClose }) => {
   useEffect(() => {
     return () => {
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, []);
 
@@ -437,7 +444,7 @@ const GifPicker = memo(({ anchorRef, toggleRef, onSelect, onClose }) => {
       </div>
 
       <div className='flex-1 overflow-y-auto chat-scroll-area px-3 pb-2 min-h-0'>
-        {loading ? (
+        {loading && displayGifs.length === 0 ? (
           <div className='gif-picker-grid'>
             {Array.from({ length: 6 }).map((_, i) => (
               <div
@@ -456,27 +463,22 @@ const GifPicker = memo(({ anchorRef, toggleRef, onSelect, onClose }) => {
           </div>
         ) : (
           <div className='gif-picker-grid'>
-            {displayGifs.map((gif) => {
-              const still = gif.images?.fixed_width_still?.url;
-              const animated = gif.images?.fixed_width?.url;
-              const full = gif.images?.original?.url || animated;
-              return (
-                <GifPreviewCard
-                  key={gif.id}
-                  still={still}
-                  animated={animated}
-                  title={gif.title}
-                  onSelect={() => onSelect(full)}
-                />
-              );
-            })}
+            {displayGifs.map((gif) => (
+              <GifPreviewCard
+                key={gif.id}
+                still={gif.still || gif.animated}
+                animated={gif.animated || gif.still}
+                title={gif.title}
+                onSelect={() => onSelect(gif.full || gif.animated)}
+              />
+            ))}
           </div>
         )}
       </div>
 
       <div className='shrink-0 flex items-center justify-center py-1.5 border-t border-border/10'>
         <span className='text-[9px] text-muted-foreground/25 tracking-wider uppercase'>
-          Powered by GIPHY
+          Powered by KLIPY
         </span>
       </div>
     </motion.div>,

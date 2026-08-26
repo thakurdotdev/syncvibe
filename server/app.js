@@ -18,6 +18,7 @@ const webhookRoutes = require('./routes/webhookRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const turnRoutes = require('./routes/turnRoutes');
 const appUpdateRoutes = require('./routes/appUpdateRoutes');
+const gifRoutes = require('./routes/gifRoutes');
 
 require('./passport');
 
@@ -91,10 +92,11 @@ app.use(
   uploadRoutes,
   paymentRoutes,
   turnRoutes,
-  appUpdateRoutes
+  appUpdateRoutes,
+  gifRoutes
 );
 
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   console.error(err);
   if (req.timedout) {
     return res.status(408).json({ message: 'Request timeout' });

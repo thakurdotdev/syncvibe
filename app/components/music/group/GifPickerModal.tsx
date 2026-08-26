@@ -1,3 +1,7 @@
+import { fetchTrendingGifs, searchGifs, type GifItem } from '@/api/gifs';
+import SwipeableModal from '@/components/SwipeableModal';
+import { useTheme } from '@/context/ThemeContext';
+import { Feather } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,29 +14,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import SwipeableModal from '@/components/SwipeableModal';
-import { useTheme } from '@/context/ThemeContext';
 
-const GIPHY_KEY = 'fNEK945T8rNeZZKqkghYw1zFKWV0Se1M';
 const COLUMN_GAP = 6;
 const NUM_COLUMNS = 2;
-
-interface GiphyImage {
-  url: string;
-  width: string;
-  height: string;
-}
-
-interface GiphyGif {
-  id: string;
-  title: string;
-  images: {
-    fixed_width_still: GiphyImage;
-    fixed_width: GiphyImage;
-    original: GiphyImage;
-  };
-}
 
 interface GifPickerModalProps {
   isOpen: boolean;
@@ -47,16 +31,15 @@ const GifThumbnail = React.memo(
     onSelect,
     colors,
   }: {
-    gif: GiphyGif;
+    gif: GifItem;
     itemWidth: number;
     onSelect: (url: string) => void;
     colors: any;
   }) => {
-    const still = gif.images?.fixed_width_still?.url;
-    const animated = gif.images?.fixed_width?.url;
-    const full = gif.images?.original?.url || animated;
-    const aspectRatio =
-      Number(gif.images?.fixed_width?.width) / Number(gif.images?.fixed_width?.height) || 1;
+    const still = gif.still;
+    const animated = gif.animated;
+    const full = gif.full || animated;
+    const aspectRatio = gif.aspectRatio || 1;
 
     return (
       <TouchableOpacity
@@ -89,8 +72,8 @@ const thumbnailStyles = StyleSheet.create({
 export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose, onSelect }) => {
   const { colors } = useTheme();
   const [query, setQuery] = useState('');
-  const [gifs, setGifs] = useState<GiphyGif[]>([]);
-  const [trending, setTrending] = useState<GiphyGif[]>([]);
+  const [gifs, setGifs] = useState<GifItem[]>([]);
+  const [trending, setTrending] = useState<GifItem[]>([]);
   const [loading, setLoading] = useState(true);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -102,10 +85,9 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
     if (!isOpen) return;
 
     setLoading(true);
-    fetch(`https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=30&rating=g`)
-      .then((r) => r.json())
-      .then((d) => {
-        setTrending(d.data || []);
+    fetchTrendingGifs()
+      .then((data) => {
+        setTrending(data || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -120,17 +102,13 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
       return;
     }
 
-    searchTimeout.current = setTimeout(() => {
+    searchTimeout.current = setTimeout(async () => {
       setLoading(true);
-      fetch(
-        `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(text)}&limit=30&rating=g`
-      )
-        .then((r) => r.json())
-        .then((d) => {
-          setGifs(d.data || []);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
+      try {
+        const data = await searchGifs(text);
+        setGifs(data || []);
+      } catch {}
+      setLoading(false);
     }, 350);
   }, []);
 
@@ -147,13 +125,13 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
   const displayGifs = query.trim() ? gifs : trending;
 
   const renderItem = useCallback(
-    ({ item }: { item: GiphyGif }) => (
+    ({ item }: { item: GifItem }) => (
       <GifThumbnail gif={item} itemWidth={itemWidth} onSelect={handleSelect} colors={colors} />
     ),
     [itemWidth, handleSelect, colors]
   );
 
-  const keyExtractor = useCallback((item: GiphyGif) => item.id, []);
+  const keyExtractor = useCallback((item: GifItem) => item.id, []);
 
   return (
     <SwipeableModal
@@ -167,7 +145,7 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>GIFs</Text>
           <Text style={[styles.attribution, { color: colors.mutedForeground }]}>
-            Powered by GIPHY
+            Powered by KLIPY
           </Text>
           <TouchableOpacity
             onPress={onClose}
