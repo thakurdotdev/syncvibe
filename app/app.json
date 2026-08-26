@@ -2,7 +2,7 @@
   "expo": {
     "name": "SyncVibe",
     "slug": "syncvibe",
-    "version": "1.1.5",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/syncvibe.png",
     "scheme": "syncvibe",
@@ -10,7 +10,10 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "audio"
+        ]
       },
       "bundleIdentifier": "com.thakurdotdev.syncvibe"
     },
@@ -78,15 +81,13 @@
       ],
       "expo-media-library",
       "expo-system-ui",
-      "expo-asset",
       "expo-web-browser",
       "expo-audio",
-      "@react-native-google-signin/google-signin",
-      "expo-font",
-      "expo-status-bar"
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "reactCompiler": true
     },
     "extra": {
       "router": {

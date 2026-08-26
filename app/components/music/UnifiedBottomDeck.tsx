@@ -1,21 +1,21 @@
 import { useTheme } from '@/context/ThemeContext';
-import { router } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import { openFullPlayer, usePlaybackState, usePlayerControls } from '@/stores/playerStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useProgress } from '@rntp/player';
-import React, { memo, useCallback, useEffect, useMemo } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { router } from 'expo-router';
+import { memo, useCallback, useMemo } from 'react';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
+  Extrapolation,
+  interpolate,
   useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
   withSpring,
   withTiming,
-  interpolate,
-  Extrapolation,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePlaybackState, usePlayerControls, openFullPlayer } from '@/stores/playerStore';
 
 export const TAB_BAR_HEIGHT = 110;
 
@@ -93,11 +93,9 @@ const TabButton = memo(function TabButton({
   activeColor,
   inactiveColor,
 }: TabButtonProps) {
-  const focusAnim = useSharedValue(isFocused ? 1 : 0);
-
-  useEffect(() => {
-    focusAnim.value = withSpring(isFocused ? 1 : 0, SPRING_SNAPPY);
-  }, [isFocused, focusAnim]);
+  const focusAnim = useDerivedValue(() => {
+    return withSpring(isFocused ? 1 : 0, SPRING_SNAPPY);
+  }, [isFocused]);
 
   const iconStyle = useAnimatedStyle(() => ({
     opacity: interpolate(focusAnim.value, [0, 1], [0.5, 1], Extrapolation.CLAMP),
@@ -107,14 +105,9 @@ const TabButton = memo(function TabButton({
     opacity: interpolate(focusAnim.value, [0, 1], [0.5, 1], Extrapolation.CLAMP),
   }));
 
-  const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onPress();
-  };
-
   return (
     <Pressable
-      onPress={handlePress}
+      onPress={onPress}
       style={styles.tabButton}
       accessibilityRole='tab'
       accessibilityState={{ selected: isFocused }}
@@ -196,9 +189,11 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
           style={styles.miniPlayerPressable}
           onPress={handleOpenPlayer}
           onPressIn={() => {
+            // oxlint-disable-next-line react/immutability
             pressScale.value = withTiming(0.98, { duration: 70 });
           }}
           onPressOut={() => {
+            // oxlint-disable-next-line react/immutability
             pressScale.value = withSpring(1, { damping: 15, stiffness: 350 });
           }}
         >
@@ -224,13 +219,14 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
             <Pressable
               onPress={(e) => {
                 e.stopPropagation();
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 handlePlayPause();
               }}
               onPressIn={() => {
+                // oxlint-disable-next-line react/immutability
                 playBtnScale.value = withTiming(0.85, { duration: 60 });
               }}
               onPressOut={() => {
+                // oxlint-disable-next-line react/immutability
                 playBtnScale.value = withSpring(1, SPRING_SNAPPY);
               }}
               hitSlop={8}
@@ -250,13 +246,14 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
             <Pressable
               onPress={(e) => {
                 e.stopPropagation();
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 handleNextSong();
               }}
               onPressIn={() => {
+                // oxlint-disable-next-line react/immutability
                 nextBtnScale.value = withTiming(0.82, { duration: 60 });
               }}
               onPressOut={() => {
+                // oxlint-disable-next-line react/immutability
                 nextBtnScale.value = withSpring(1, SPRING_SNAPPY);
               }}
               style={styles.nextButton}
@@ -301,9 +298,8 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
 
   const isDark = theme === 'dark';
 
-  const glassBg = isDark ? 'rgba(18, 18, 24, 0.93)' : 'rgba(255, 255, 255, 0.94)';
-  const borderColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)';
-  const highlightColor = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.9)';
+  const glassBg = isDark ? 'rgba(18, 18, 24, 0.88)' : 'rgba(255, 255, 255, 0.92)';
+  const borderColor = isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)';
 
   const showMiniPlayer = activePlayerMode === 'normal' && !!currentSong;
 
@@ -325,8 +321,6 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
             },
           ]}
         >
-          <View style={[styles.specularHighlight, { backgroundColor: highlightColor }]} />
-
           {showMiniPlayer && (
             <>
               <MiniPlayerRow
@@ -340,7 +334,7 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
               <View
                 style={[
                   styles.divider,
-                  { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
+                  { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
                 ]}
               />
             </>
@@ -377,39 +371,31 @@ const styles = StyleSheet.create({
   surfaceWrapper: {
     width: '100%',
     overflow: 'hidden',
-    elevation: 20,
+    elevation: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
   },
   blurContainer: {
     width: '100%',
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderLeftWidth: 0,
     borderRightWidth: 0,
     borderBottomWidth: 0,
     overflow: 'hidden',
   },
-  specularHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    opacity: 0.6,
-  },
 
   progressTrack: {
     width: '100%',
-    height: 2.5,
-    backgroundColor: 'rgba(128, 128, 128, 0.15)',
+    height: 2,
+    backgroundColor: 'rgba(128, 128, 128, 0.12)',
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderTopRightRadius: 2,
-    borderBottomRightRadius: 2,
+    borderTopRightRadius: 1,
+    borderBottomRightRadius: 1,
   },
 
   miniPlayerWrapper: {
@@ -426,13 +412,13 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   artworkContainer: {
-    borderRadius: 10,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   artwork: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+    width: 42,
+    height: 42,
+    borderRadius: 8,
   },
   songInfo: {
     flex: 1,
@@ -447,7 +433,7 @@ const styles = StyleSheet.create({
   },
   artistName: {
     fontSize: 11.5,
-    marginTop: 1.5,
+    marginTop: 1,
     opacity: 0.7,
   },
   controls: {

@@ -4,7 +4,7 @@ import { signOutGoogle } from '@/lib/googleAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
 interface UserContextType {
   user: User | null;
@@ -37,7 +37,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [musicConfig, setMusicConfig] = useState<Record<string, any>>({});
   const [selectedLanguages, setSelectedLanguages] = useState<string>('hindi');
 
-  const getProfile = useCallback(async () => {
+  const getProfile = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
       if (!token) {
@@ -65,25 +65,59 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
-  }, [api]);
-
-  const loadMusicConfig = useCallback(async () => {
-    try {
-      const data = await AsyncStorage.getItem('language-preferance');
-      if (data) {
-        setSelectedLanguages(data);
-      }
-    } catch (error) {
-      console.error('Error loading music config:', error);
-    }
-  }, []);
+  };
 
   useEffect(() => {
-    getProfile();
-    loadMusicConfig();
-  }, [getProfile, loadMusicConfig]);
+    let isMounted = true;
 
-  const logout = useCallback(async () => {
+    const bootstrap = async () => {
+      try {
+        const [token, cachedProfile, langPref] = await Promise.all([
+          AsyncStorage.getItem('token'),
+          AsyncStorage.getItem('@user_profile'),
+          AsyncStorage.getItem('language-preferance'),
+        ]);
+
+        if (langPref && isMounted) {
+          setSelectedLanguages(langPref);
+        }
+
+        if (!token) {
+          if (isMounted) setLoading(false);
+          return;
+        }
+
+        if (cachedProfile && isMounted) {
+          setUser(JSON.parse(cachedProfile));
+          setLoading(false);
+        }
+
+        const response = await api.get('/api/profile');
+        if (response.status === 200 && isMounted) {
+          const freshUser = response.data.user;
+          setUser(freshUser);
+          await AsyncStorage.setItem('@user_profile', JSON.stringify(freshUser));
+        }
+      } catch (error: any) {
+        console.error('Error fetching profile:', error);
+        if (error.response?.status === 401) {
+          await AsyncStorage.multiRemove(['token', '@user_profile']);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void bootstrap();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [api]);
+
+  const logout = async () => {
     try {
       queryClient.cancelQueries();
       queryClient.clear();
@@ -91,43 +125,42 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       router.reload();
     } catch (error) {
+      console.error('Error logging out:', error);
       setUser(null);
       router.reload();
     }
-  }, [queryClient]);
+  };
 
-  const updateUser = useCallback(
-    async (userData: Partial<User>) => {
-      try {
-        const response = await api.post('/api/update-profile', userData);
-        if (response.status === 200) {
-          const updated = response.data.user;
-          setUser(updated);
-          await AsyncStorage.setItem('@user_profile', JSON.stringify(updated));
-        }
-      } catch (error) {
-        console.error('Error updating profile:', error);
-        throw error;
+  const updateUser = async (userData: Partial<User>) => {
+    try {
+      const response = await api.post('/api/update-profile', userData);
+      if (response.status === 200) {
+        const updated = response.data.user;
+        setUser(updated);
+        await AsyncStorage.setItem('@user_profile', JSON.stringify(updated));
       }
-    },
-    [api]
-  );
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
+  };
 
-  const memoizedValue = useMemo(
-    () => ({
-      user,
-      setUser,
-      getProfile,
-      loading,
-      musicConfig,
-      setMusicConfig,
-      logout,
-      selectedLanguages,
-      setSelectedLanguages,
-      updateUser,
-    }),
-    [user, loading, musicConfig, logout, selectedLanguages, updateUser]
+  return (
+    <UserContext.Provider
+      value={{
+        user,
+        setUser,
+        getProfile,
+        loading,
+        musicConfig,
+        setMusicConfig,
+        logout,
+        selectedLanguages,
+        setSelectedLanguages,
+        updateUser,
+      }}
+    >
+      {children}
+    </UserContext.Provider>
   );
-
-  return <UserContext.Provider value={memoizedValue}>{children}</UserContext.Provider>;
 };

@@ -20,9 +20,6 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           lazy: true,
-          // The custom deck drives tab changes, so avoid an extra native
-          // transition. Safe-area insets are provided synchronously at the
-          // app root, so inactive scene detaching no longer causes a jump.
           animation: 'none',
           freezeOnBlur: true,
           sceneStyle: { backgroundColor: colors.background },
