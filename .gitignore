@@ -4,4 +4,3 @@ dist
 bun.lock
 bun.lockb
 package-lock.json
-!app/package-lock.json
