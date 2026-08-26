@@ -17,6 +17,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import * as Notifications from 'expo-notifications';
 import { NotificationBehavior } from 'expo-notifications';
 import { Stack } from 'expo-router/js-stack';
+import { ObserveRoot, useObserve } from 'expo-observe';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
@@ -97,12 +98,14 @@ function RootLayout() {
 
 function RootLayoutNav() {
   const { colors, theme, isLoading: themeLoading } = useTheme();
+  const { markInteractive } = useObserve();
 
   useEffect(() => {
     if (!themeLoading) {
       SplashScreen.hideAsync();
+      markInteractive();
     }
-  }, [themeLoading]);
+  }, [themeLoading, markInteractive]);
 
   const sharedAxisZ = ({ current, next }: any) => {
     const progress = current.progress;
@@ -283,4 +286,4 @@ function RootLayoutNav() {
   );
 }
 
-export default RootLayout;
+export default ObserveRoot.wrap(RootLayout);
