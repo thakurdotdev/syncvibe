@@ -62,11 +62,13 @@ const ProfileDropdownMenu = ({ fromSidebar = true }) => {
         cleanUpSocket();
         stopSong();
         setUser(null);
+        navigate('/login');
       }
     } catch (error) {
       cleanUpSocket();
       stopSong();
       setUser(null);
+      navigate('/login');
     }
   };
 

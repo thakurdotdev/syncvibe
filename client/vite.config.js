@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   server: {
-    allowedHosts: ['.thakur.dev'],
+    allowedHosts: ['.thakur.dev', '.tunl.online'],
   },
   plugins: [
     react({

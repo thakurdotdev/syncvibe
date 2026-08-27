@@ -1,23 +1,21 @@
-import { useState, useCallback, useMemo, memo } from 'react';
 import { useProfile } from '@/Context/Context';
 import { useGroupMusic } from '@/Context/GroupMusicContext';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { AnimatePresence, motion } from 'framer-motion';
-
-import {
-  GroupModal,
-  NowPlayingCard,
-  GroupChat,
-  MembersList,
-  GroupHeader,
-  QRCodeDialog,
-  WelcomeView,
-  QueueSheet,
-  InviteSheet,
-  GlobalSoundAnimation,
-} from './index';
-
+import { memo, useCallback, useMemo, useState } from 'react';
 import '../Music/music.css';
+import {
+  GlobalSoundAnimation,
+  GroupChat,
+  GroupHeader,
+  GroupModal,
+  InviteSheet,
+  MembersList,
+  NowPlayingCard,
+  QRCodeDialog,
+  QueueSheet,
+  WelcomeView,
+} from './index';
 
 const AmbientGlow = memo(({ imageUrl }) => {
   const bgStyle = useMemo(
@@ -43,7 +41,7 @@ const AmbientGlow = memo(({ imageUrl }) => {
 
 const GroupMusic = () => {
   const { user } = useProfile();
-  const { isPro, canChat, maxGroupMembers } = useFeatureAccess();
+  const { canChat, maxGroupMembers } = useFeatureAccess();
   const {
     currentGroup,
     isPlaying,
@@ -66,10 +64,8 @@ const GroupMusic = () => {
     leaveGroup,
     sendMessage,
     skipSong,
-    queue,
     currentQueueItem,
     upcomingQueue,
-    isQueueOpen,
     setIsQueueOpen,
     isSyncing,
     syncCountdown,
@@ -108,12 +104,6 @@ const GroupMusic = () => {
   const handleCloseGroupModal = useCallback(
     () => setIsGroupModalOpen(false),
     [setIsGroupModalOpen]
-  );
-  const handleClipboardJoin = useCallback(
-    (code) => {
-      joinGroup(code);
-    },
-    [joinGroup]
   );
   const handleOpenQueue = useCallback(() => setIsQueueOpen(true), [setIsQueueOpen]);
   const handleOpenInvite = useCallback(() => setIsInviteSheetOpen(true), [setIsInviteSheetOpen]);
@@ -172,11 +162,7 @@ const GroupMusic = () => {
                     </div>
                   </motion.div>
                 ) : !currentGroup ? (
-                  <WelcomeView
-                    key='welcome'
-                    onOpenModal={handleOpenGroupModal}
-                    onClipboardJoin={handleClipboardJoin}
-                  />
+                  <WelcomeView key='welcome' onOpenModal={handleOpenGroupModal} />
                 ) : (
                   <motion.div
                     key='group-content'

@@ -1,6 +1,5 @@
 import axios from 'axios';
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { Context } from './Context';
 import { useVideoCallStore } from '../stores/videoCallStore';
@@ -11,7 +10,6 @@ export const useSocket = () => useContext(ChatContext);
 
 export const ChatProvider = ({ children }) => {
   const { user } = useContext(Context);
-  const navigate = useNavigate();
 
   const [users, setUsers] = useState([]);
   const [onlineStatuses, setOnlineStatuses] = useState({});
@@ -20,7 +18,7 @@ export const ChatProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const socketRef = useRef(null);
 
-  const getAllExistingChats = useCallback(async () => {
+  const getAllExistingChats = async () => {
     if (!user?.userid) return;
 
     try {
@@ -30,7 +28,7 @@ export const ChatProvider = ({ children }) => {
       });
 
       if (response.status === 200) {
-        const updatedChatList = response.data.chatList.map((chat) => ({
+        const updatedChatList = (response.data.chatList || []).map((chat) => ({
           ...chat,
           isTyping: false,
         }));
@@ -41,51 +39,26 @@ export const ChatProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [user?.userid]);
+  };
 
-  const updateCurrentChatStatus = useCallback((userId, isOnline) => {
-    setCurrentChat((prevChat) => {
-      if (prevChat?.otherUser?.userid === userId) {
-        return { ...prevChat, isOnline };
-      }
-      return prevChat;
-    });
-  }, []);
+  const cleanUpSocket = () => {
+    const videoCallStore = useVideoCallStore.getState();
+    videoCallStore.removeCallSocketListeners(socketRef.current);
+    videoCallStore.cleanupMediaStreams();
 
-  const showNotification = useCallback(
-    (message) => {
-      if (!('Notification' in window) || Notification.permission !== 'granted') return;
-      if (document.hasFocus()) return;
+    setUsers([]);
+    setOnlineStatuses({});
+    setCurrentChat(null);
 
-      const notification = new Notification(`${message?.senderName} sent you a message`, {
-        body: message?.content ? message.content : 'Sent an attachment',
-        icon: 'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/r_max/f_auto/v1780744511/profiles/profiles_130_1780744510_4a18b0ed9043cc21.jpg',
-        tag: `msg-${message?.chatid}`,
-      });
-
-      notification.onclick = () => {
-        window.focus();
-        navigate('/chat', { state: { chatData: message } });
-        notification.close();
-      };
-    },
-    [navigate]
-  );
-
-  const handleMessageReceived = useCallback(
-    (messageData) => {
-      const { senderid } = messageData;
-
-      setUsers((prevUsers) =>
-        prevUsers.map((u) =>
-          u?.otherUser?.userid === senderid ? { ...u, lastmessage: messageData.content } : u
-        )
-      );
-
-      showNotification(messageData);
-    },
-    [showNotification]
-  );
+    if (socketRef.current) {
+      socketRef.current.emit('user_offline');
+      socketRef.current.removeAllListeners();
+      socketRef.current.io.removeAllListeners();
+      socketRef.current.disconnect();
+      socketRef.current = null;
+      setSocket(null);
+    }
+  };
 
   useEffect(() => {
     if (!user?.userid) {
@@ -98,6 +71,7 @@ export const ChatProvider = ({ children }) => {
     if (socketRef.current?.connected) return;
 
     const newSocket = io(import.meta.env.VITE_API_URL, {
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
@@ -108,6 +82,44 @@ export const ChatProvider = ({ children }) => {
     socketRef.current = newSocket;
 
     const typingTimeouts = {};
+
+    const updateCurrentChatStatus = (userId, isOnline) => {
+      setCurrentChat((prevChat) => {
+        if (prevChat?.otherUser?.userid === userId) {
+          return { ...prevChat, isOnline };
+        }
+        return prevChat;
+      });
+    };
+
+    const showNotification = (message) => {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      if (document.hasFocus()) return;
+
+      const notification = new Notification(`${message?.senderName} sent you a message`, {
+        body: message?.content ? message.content : 'Sent an attachment',
+        icon: 'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/r_max/f_auto/v1780744511/profiles/profiles_130_1780744510_4a18b0ed9043cc21.jpg',
+        tag: `msg-${message?.chatid}`,
+      });
+
+      notification.onclick = () => {
+        window.focus();
+        window.location.href = '/chat';
+        notification.close();
+      };
+    };
+
+    const handleMessageReceived = (messageData) => {
+      const { senderid } = messageData;
+
+      setUsers((prevUsers) =>
+        prevUsers.map((u) =>
+          u?.otherUser?.userid === senderid ? { ...u, lastmessage: messageData.content } : u
+        )
+      );
+
+      showNotification(messageData);
+    };
 
     const handleConnect = () => {
       newSocket.emit('setup', { userid: user.userid, name: user.name });
@@ -121,17 +133,19 @@ export const ChatProvider = ({ children }) => {
       videoCallStore.setSocket(newSocket);
     };
 
-    const handleTypingStatus = ({ userId, isTyping }) => {
-      if (typingTimeouts[userId]) {
-        clearTimeout(typingTimeouts[userId]);
+    const handleTypingStatus = ({ userId: targetUserId, isTyping }) => {
+      if (typingTimeouts[targetUserId]) {
+        clearTimeout(typingTimeouts[targetUserId]);
       }
 
       const updateTypingStatus = (status) => {
         setUsers((prevUsers) =>
-          prevUsers.map((u) => (u?.otherUser?.userid === userId ? { ...u, isTyping: status } : u))
+          prevUsers.map((u) =>
+            u?.otherUser?.userid === targetUserId ? { ...u, isTyping: status } : u
+          )
         );
         setCurrentChat((prevChat) =>
-          prevChat && prevChat?.otherUser?.userid === userId
+          prevChat && prevChat?.otherUser?.userid === targetUserId
             ? { ...prevChat, isTyping: status }
             : prevChat
         );
@@ -140,20 +154,20 @@ export const ChatProvider = ({ children }) => {
       updateTypingStatus(isTyping);
 
       if (isTyping) {
-        typingTimeouts[userId] = setTimeout(() => updateTypingStatus(false), 3000);
+        typingTimeouts[targetUserId] = setTimeout(() => updateTypingStatus(false), 3000);
       }
     };
 
     newSocket.on('connect', handleConnect);
     newSocket.io.on('reconnect', handleReconnect);
     newSocket.on('typing_status', handleTypingStatus);
-    newSocket.on('user_online', (userId) => {
-      setOnlineStatuses((prev) => ({ ...prev, [userId]: true }));
-      updateCurrentChatStatus(userId, true);
+    newSocket.on('user_online', (onlineUserId) => {
+      setOnlineStatuses((prev) => ({ ...prev, [onlineUserId]: true }));
+      updateCurrentChatStatus(onlineUserId, true);
     });
-    newSocket.on('user_offline', (userId) => {
-      setOnlineStatuses((prev) => ({ ...prev, [userId]: false }));
-      updateCurrentChatStatus(userId, false);
+    newSocket.on('user_offline', (offlineUserId) => {
+      setOnlineStatuses((prev) => ({ ...prev, [offlineUserId]: false }));
+      updateCurrentChatStatus(offlineUserId, false);
     });
     newSocket.on('initial_online_users', (onlineUserIds) => {
       setOnlineStatuses(onlineUserIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}));
@@ -196,32 +210,35 @@ export const ChatProvider = ({ children }) => {
       socketRef.current = null;
       setSocket(null);
     };
-  }, [user?.userid, user?.name, updateCurrentChatStatus, handleMessageReceived, showNotification]);
-
-  const cleanUpSocket = useCallback(() => {
-    const videoCallStore = useVideoCallStore.getState();
-    videoCallStore.removeCallSocketListeners(socketRef.current);
-    videoCallStore.cleanupMediaStreams();
-
-    setUsers([]);
-    setOnlineStatuses({});
-    setCurrentChat(null);
-
-    if (socketRef.current) {
-      socketRef.current.emit('user_offline');
-      socketRef.current.removeAllListeners();
-      socketRef.current.io.removeAllListeners();
-      socketRef.current.disconnect();
-      socketRef.current = null;
-      setSocket(null);
-    }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    if (user?.userid) {
-      getAllExistingChats();
-    }
-  }, [user?.userid, getAllExistingChats]);
+    if (!user?.userid) return;
+    let ignore = false;
+
+    axios
+      .get(`${import.meta.env.VITE_API_URL}/api/get/chatlist`, {
+        withCredentials: true,
+      })
+      .then((response) => {
+        if (!ignore && response.status === 200) {
+          const updatedChatList = (response.data.chatList || []).map((chat) => ({
+            ...chat,
+            isTyping: false,
+          }));
+          setUsers(updatedChatList);
+        }
+      })
+      .catch((error) => {
+        if (!ignore) {
+          console.error('Error fetching chats:', error);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [user?.userid]);
 
   const contextValue = {
     users,

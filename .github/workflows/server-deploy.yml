@@ -93,14 +93,12 @@ jobs:
             if [ -z "$PREV" ] || git diff --name-only "$PREV" HEAD | grep '^server/' >/dev/null; then
               echo "Backend code changed or initial deploy"
 
-              if [ -z "$PREV" ] || git diff --name-only "$PREV" HEAD | grep '^server/package.json$' >/dev/null; then
-                cd server
-                pnpm install
-                cd ..
-              fi
-
-              pm2 restart syncvibe-api
+              cd server
+              pnpm install
+              pnpm run build
+              pm2 reload ecosystem.config.cjs || pm2 restart syncvibe-api --update-env || pm2 start ecosystem.config.cjs
               pm2 save
+              cd ..
             else
               echo "Backend unchanged"
             fi

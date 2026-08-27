@@ -85,7 +85,7 @@ export function GroupMusicProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !session.currentGroup?.id) return;
 
     const syncWithServer = () => {
       const startTime = Date.now();
@@ -110,7 +110,7 @@ export function GroupMusicProvider({ children }) {
       if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
       socket.off('time-sync-response');
     };
-  }, [socket]);
+  }, [socket, session.currentGroup?.id]);
 
   useEffect(() => {
     const currentGroup = useGroupSessionStore.getState().currentGroup;

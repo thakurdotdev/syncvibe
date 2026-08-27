@@ -56,6 +56,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
   const ss = useGroupSessionStore;
   const inv = useGroupInviteStore;
 
+  const currentGroupId = ss((s) => s.currentGroup?.id);
+
   // --- TrackPlayer lifecycle ---
   useEffect(() => {
     let cancelled = false;
@@ -92,8 +94,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         } else {
           pb.getState().stopProgressPolling();
         }
-      } catch (error) {
-        console.error('Error handling IsPlayingChanged event:', error);
+      } catch (err) {
+        console.error('Error handling playback state:', err);
       }
     });
 
@@ -105,37 +107,19 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
           if (activePlayerMode !== 'group') return;
 
           if (state === PlaybackState.Ended) {
-            const groupId = ss.getState().currentGroup?.id;
-            const currentItem = ss.getState().getCurrentQueueItem();
-
-            if (groupId && currentItem) {
-              socket?.emit('song-ended', {
-                groupId,
-                songId: currentItem.id,
-              });
+            const currentGroup = ss.getState().currentGroup;
+            if (currentGroup && socket && user) {
+              ss.getState().skipSong(socket, user);
             }
-
-            pb.setState({ isPlaying: false });
-            pb.getState().stopProgressPolling();
           }
-        } catch (error) {
-          console.error('Error handling PlaybackStateChanged event:', error);
+        } catch (err) {
+          console.error('Error handling playback state:', err);
         }
       }
     );
 
-    const subPlaybackError = TrackPlayer.addEventListener(Event.PlaybackError, (event) => {
-      try {
-        const activePlayerMode = usePlayerStore.getState().activePlayerMode;
-        if (activePlayerMode !== 'group') return;
-
-        console.error('Playback error:', event.message);
-        Alert.alert('Playback Error', 'An error occurred during playback.');
-        pb.setState({ isPlaying: false });
-        pb.getState().stopProgressPolling();
-      } catch (error) {
-        console.error('Error handling PlaybackError event:', error);
-      }
+    const subPlaybackError = TrackPlayer.addEventListener(Event.PlaybackError, (error) => {
+      console.error('TrackPlayer error:', error);
     });
 
     return () => {
@@ -145,9 +129,9 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     };
   }, [socket]);
 
-  // --- Time sync ---
+  // --- Time sync (only active when in a group session) ---
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !currentGroupId) return;
 
     const syncWithServer = () => {
       socket.emit('time-sync-request', { clientTime: Date.now() });
@@ -164,7 +148,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
       socket.off('time-sync-response');
     };
-  }, [socket]);
+  }, [socket, currentGroupId]);
 
   // --- Session rejoin on socket connect ---
   useEffect(() => {

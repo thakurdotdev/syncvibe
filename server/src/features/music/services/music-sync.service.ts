@@ -1,0 +1,821 @@
+import { Op, fn } from 'sequelize';
+import { Song } from '@/models/index';
+
+const SONG_API_URL = process.env.SONG_API_URL || 'https://songapi.thakur.dev';
+const BATCH_SIZE = parseInt(process.env.MUSIC_SYNC_BATCH_SIZE || '3', 10);
+const BATCH_DELAY_MS = parseInt(process.env.MUSIC_SYNC_BATCH_DELAY_MS || '500', 10);
+const SYNC_INTERVAL_HOURS = parseInt(process.env.MUSIC_SYNC_INTERVAL_HOURS || '6', 10);
+
+interface ArtistEntry {
+  id: string;
+  name: string;
+}
+
+interface SongData {
+  id?: string;
+  type?: string;
+  name?: string;
+  title?: string;
+  download_url?: unknown[];
+  album?: string | { name?: string };
+  album_name?: string;
+  language?: string;
+  duration?: number;
+  artist_map?: { artists?: Array<{ name?: string }>; primary_artists?: Array<{ name?: string }> };
+  artists?: Array<{ name?: string }>;
+  [key: string]: unknown;
+}
+
+interface SyncStats {
+  songsAdded: number;
+  songsSkipped: number;
+  errors: number;
+  apiCalls: number;
+  modulesProcessed?: number;
+  artistsProcessed?: number;
+  queriesProcessed?: number;
+  playlistsProcessed?: number;
+  albumsProcessed?: number;
+  pagesProcessed?: number;
+  songsUpdated?: number;
+  albumsFetched?: number;
+  playlistsFetched?: number;
+  recommendationsFetched?: number;
+  artistsFetched?: number;
+  pagesFetched?: number;
+}
+
+interface SyncResult extends SyncStats {
+  durationSeconds: number;
+  type: string;
+  breakdown?: SyncResult[];
+  error?: string;
+}
+
+const POPULAR_ARTISTS: ArtistEntry[] = [
+  { id: '459320', name: 'Arijit Singh' },
+  { id: '455125', name: 'Shreya Ghoshal' },
+  { id: '456863', name: 'Sonu Nigam' },
+  { id: '455130', name: 'AR Rahman' },
+  { id: '455124', name: 'Kumar Sanu' },
+  { id: '455143', name: 'Udit Narayan' },
+  { id: '455127', name: 'Lata Mangeshkar' },
+  { id: '455128', name: 'Kishore Kumar' },
+  { id: '455789', name: 'Alka Yagnik' },
+  { id: '455132', name: 'Asha Bhosle' },
+  { id: '464656', name: 'Pritam' },
+  { id: '459633', name: 'Neha Kakkar' },
+  { id: '468245', name: 'Badshah' },
+  { id: '458946', name: 'Atif Aslam' },
+  { id: '459381', name: 'Jubin Nautiyal' },
+  { id: '455926', name: 'Honey Singh' },
+  { id: '461968', name: 'Vishal Mishra' },
+  { id: '455129', name: 'Mohammed Rafi' },
+  { id: '480516', name: 'Tanishk Bagchi' },
+  { id: '456323', name: 'Mithoon' },
+];
+
+const SEARCH_QUERIES = [
+  '90s bollywood hits',
+  '2000s hindi songs',
+  'romantic bollywood songs',
+  'sad songs hindi',
+  'party songs bollywood',
+  'old hindi classics',
+  'retro bollywood',
+  'love songs hindi',
+  'dance songs bollywood',
+  'unplugged hindi',
+  'sufi songs',
+  'ghazals hindi',
+  'devotional songs',
+  'wedding songs bollywood',
+  'rain songs hindi',
+];
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+  }
+  return shuffled;
+}
+
+function addCacheBuster(url: string): string {
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}_t=${Date.now()}`;
+}
+
+async function fetchWithRetry(
+  url: string,
+  retries = 2,
+  bypassCache = false
+): Promise<Record<string, unknown>> {
+  const finalUrl = bypassCache ? addCacheBuster(url) : url;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const headers: Record<string, string> = bypassCache
+        ? { 'Cache-Control': 'no-cache, no-store', Pragma: 'no-cache' }
+        : {};
+      const response = await fetch(finalUrl, { headers });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return (await response.json()) as Record<string, unknown>;
+    } catch (err) {
+      if (i === retries) throw err;
+      await delay(1000 * (i + 1));
+    }
+  }
+  throw new Error('fetchWithRetry exhausted');
+}
+
+async function fetchModulesData(
+  lang = 'hindi',
+  bypassCache = false
+): Promise<Record<string, unknown>> {
+  const url = `${SONG_API_URL}/modules?lang=${lang}&mini=true`;
+  console.log(`[MusicSync] Fetching modules: ${url}${bypassCache ? ' (bypassing cache)' : ''}`);
+  const response = await fetchWithRetry(url, 2, bypassCache);
+  return (response?.data as Record<string, unknown>) || {};
+}
+
+async function fetchTopAlbums(
+  lang = 'hindi',
+  bypassCache = false
+): Promise<Array<{ id?: string }>> {
+  const url = `${SONG_API_URL}/get/top-albums?lang=${lang}`;
+  console.log(`[MusicSync] Fetching top albums`);
+  const response = await fetchWithRetry(url, 2, bypassCache);
+  return (response?.data as Array<{ id?: string }>) || [];
+}
+
+async function fetchFeaturedPlaylists(
+  lang = 'hindi',
+  bypassCache = false
+): Promise<Array<{ id?: string }>> {
+  const url = `${SONG_API_URL}/get/featured-playlists?lang=${lang}`;
+  console.log(`[MusicSync] Fetching featured playlists`);
+  const response = await fetchWithRetry(url, 2, bypassCache);
+  return (response?.data as Array<{ id?: string }>) || [];
+}
+
+async function fetchAlbumSongs(albumId: string, bypassCache = false): Promise<SongData[]> {
+  const url = `${SONG_API_URL}/album?id=${albumId}`;
+  console.log(`[MusicSync] Fetching album: ${albumId}`);
+  const response = await fetchWithRetry(url, 2, bypassCache);
+  return ((response?.data as Record<string, unknown>)?.songs as SongData[]) || [];
+}
+
+async function fetchPlaylistSongs(playlistId: string, bypassCache = false): Promise<SongData[]> {
+  const url = `${SONG_API_URL}/playlist?id=${playlistId}`;
+  console.log(`[MusicSync] Fetching playlist: ${playlistId}`);
+  const response = await fetchWithRetry(url, 2, bypassCache);
+  return ((response?.data as Record<string, unknown>)?.songs as SongData[]) || [];
+}
+
+async function fetchArtistTopSongs(artistId: string, limit = 50): Promise<SongData[]> {
+  const url = `${SONG_API_URL}/artist?id=${artistId}`;
+  console.log(`[MusicSync] Fetching artist top songs: ${artistId}`);
+  const response = await fetchWithRetry(url);
+  const songs = ((response?.data as Record<string, unknown>)?.top_songs as SongData[]) || [];
+  return songs.slice(0, limit);
+}
+
+async function fetchArtistSongs(artistId: string, page = 0): Promise<SongData[]> {
+  const url = `${SONG_API_URL}/artist/songs?id=${artistId}&page=${page}`;
+  console.log(`[MusicSync] Fetching artist songs: ${artistId}, page: ${page}`);
+  const response = await fetchWithRetry(url);
+  const topSongs = (response?.data as Record<string, unknown>)?.top_songs as
+    | Record<string, unknown>
+    | undefined;
+  return (topSongs?.songs as SongData[]) || [];
+}
+
+async function fetchSongsByIds(songIds: string[]): Promise<SongData[]> {
+  if (!songIds.length) return [];
+  const idsParam = songIds.slice(0, 20).join(',');
+  const url = `${SONG_API_URL}/song?id=${idsParam}`;
+  console.log(`[MusicSync] Fetching ${songIds.length} songs by ID`);
+  const response = await fetchWithRetry(url);
+  const data = response?.data as Record<string, unknown> | SongData[];
+  return (Array.isArray(data) ? data : (data?.songs as SongData[])) || [];
+}
+
+async function fetchSearchSongs(query: string, page = 0, limit = 30): Promise<SongData[]> {
+  const url = `${SONG_API_URL}/search/songs?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`;
+  console.log(`[MusicSync] Searching songs: ${query}`);
+  const response = await fetchWithRetry(url);
+  const results = ((response?.data as Record<string, unknown>)?.results as SongData[]) || [];
+  if (results.length === 0) return [];
+  const songIds = results.map((s) => s.id).filter((id): id is string => !!id);
+  return fetchSongsByIds(songIds);
+}
+
+async function fetchSongRecommendations(songId: string): Promise<SongData[]> {
+  const url = `${SONG_API_URL}/song/recommend?id=${songId}`;
+  const response = await fetchWithRetry(url);
+  return (response?.data as SongData[]) || [];
+}
+
+function extractSongsFromModules(modulesData: Record<string, unknown>): {
+  songs: SongData[];
+  albumIds: string[];
+  playlistIds: string[];
+} {
+  const songs: SongData[] = [];
+  const albumIds = new Set<string>();
+  const playlistIds = new Set<string>();
+  const seenSongIds = new Set<string>();
+
+  const processItem = (item: SongData) => {
+    if (!item?.id) return;
+    if (item.type === 'song' && (item.download_url as unknown[])?.length > 0) {
+      if (!seenSongIds.has(item.id)) {
+        seenSongIds.add(item.id);
+        songs.push(item);
+      }
+    } else if (item.type === 'album') {
+      albumIds.add(item.id);
+    } else if (item.type === 'playlist') {
+      playlistIds.add(item.id);
+    }
+  };
+
+  const sections = ['trending', 'charts', 'albums', 'playlists', 'artist_recos'];
+  for (const section of sections) {
+    const sectionData = modulesData[section] as Record<string, unknown> | undefined;
+    const data = (sectionData?.data as SongData[]) || [];
+    data.forEach(processItem);
+  }
+
+  return { songs, albumIds: [...albumIds], playlistIds: [...playlistIds] };
+}
+
+async function filterExistingSongIds(songIds: string[]): Promise<string[]> {
+  if (!songIds.length) return songIds;
+  const existing = await Song.findAll({
+    where: { songId: songIds },
+    attributes: ['songId'],
+    raw: true,
+  });
+  const existingSet = new Set(existing.map((s) => s.songId));
+  return songIds.filter((id) => !existingSet.has(id));
+}
+
+async function batchFetchAlbums(albumIds: string[]): Promise<SongData[]> {
+  const allSongs: SongData[] = [];
+  for (let i = 0; i < albumIds.length; i += BATCH_SIZE) {
+    const batch = albumIds.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map(async (id) => {
+        try {
+          return await fetchAlbumSongs(id);
+        } catch (err) {
+          console.error(`[MusicSync] Failed to fetch album ${id}:`, (err as Error).message);
+          return [];
+        }
+      })
+    );
+    results.forEach((songs) => allSongs.push(...songs));
+    if (i + BATCH_SIZE < albumIds.length) await delay(BATCH_DELAY_MS);
+  }
+  return allSongs;
+}
+
+async function batchFetchPlaylists(playlistIds: string[]): Promise<SongData[]> {
+  const allSongs: SongData[] = [];
+  for (let i = 0; i < playlistIds.length; i += BATCH_SIZE) {
+    const batch = playlistIds.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map(async (id) => {
+        try {
+          return await fetchPlaylistSongs(id);
+        } catch (err) {
+          console.error(`[MusicSync] Failed to fetch playlist ${id}:`, (err as Error).message);
+          return [];
+        }
+      })
+    );
+    results.forEach((songs) => allSongs.push(...songs));
+    if (i + BATCH_SIZE < playlistIds.length) await delay(BATCH_DELAY_MS);
+  }
+  return allSongs;
+}
+
+async function batchFetchRecommendations(songIds: string[]): Promise<SongData[]> {
+  const allSongs: SongData[] = [];
+  const batchSize = 3;
+  for (let i = 0; i < songIds.length; i += batchSize) {
+    const batch = songIds.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map(async (id) => {
+        try {
+          return await fetchSongRecommendations(id);
+        } catch {
+          return [];
+        }
+      })
+    );
+    results.forEach((songs) => allSongs.push(...songs));
+    if (i + batchSize < songIds.length) await delay(BATCH_DELAY_MS);
+  }
+  return allSongs;
+}
+
+async function processSongsForDb(songs: SongData[], stats: SyncStats): Promise<number> {
+  const songMap = new Map<string, SongData>();
+  for (const song of songs) {
+    if (song?.id && (song.download_url as unknown[])?.length > 0) {
+      songMap.set(song.id, song);
+    }
+  }
+
+  const uniqueSongs = [...songMap.values()];
+  const songIds = uniqueSongs.map((s) => s.id!);
+  const newSongIds = await filterExistingSongIds(songIds);
+  const songsToAdd = uniqueSongs.filter((s) => newSongIds.includes(s.id!));
+
+  if (songsToAdd.length > 0) {
+    try {
+      const result = await Song.bulkGetOrCreate(songsToAdd as Array<Record<string, unknown>>);
+      stats.songsAdded += result.created || result.total || 0;
+    } catch (err) {
+      stats.errors++;
+      console.error(`[MusicSync] Bulk insert failed:`, (err as Error).message);
+    }
+  }
+
+  stats.songsSkipped += uniqueSongs.length - songsToAdd.length;
+  return songsToAdd.length;
+}
+
+async function syncModulesData(languages = ['hindi'], bypassCache = false): Promise<SyncResult> {
+  const startTime = Date.now();
+  const stats: SyncStats = {
+    songsAdded: 0,
+    songsSkipped: 0,
+    albumsFetched: 0,
+    playlistsFetched: 0,
+    recommendationsFetched: 0,
+    errors: 0,
+    apiCalls: 0,
+  };
+
+  console.log(
+    `[MusicSync] Starting modules sync for languages: ${languages.join(', ')}${bypassCache ? ' (bypassing cache)' : ''}`
+  );
+
+  for (const lang of languages) {
+    try {
+      const modulesData = await fetchModulesData(lang, bypassCache);
+      stats.apiCalls++;
+      const { songs: inlineSongs, albumIds, playlistIds } = extractSongsFromModules(modulesData);
+      console.log(
+        `[MusicSync] ${lang}: Found ${inlineSongs.length} inline songs, ${albumIds.length} albums, ${playlistIds.length} playlists`
+      );
+
+      const shuffledAlbumIds = shuffleArray(albumIds).slice(0, 5);
+      const albumSongs = await batchFetchAlbums(shuffledAlbumIds);
+      stats.albumsFetched = shuffledAlbumIds.length;
+      stats.apiCalls += shuffledAlbumIds.length;
+
+      const shuffledPlaylistIds = shuffleArray(playlistIds).slice(0, 5);
+      const playlistSongs = await batchFetchPlaylists(shuffledPlaylistIds);
+      stats.playlistsFetched = shuffledPlaylistIds.length;
+      stats.apiCalls += shuffledPlaylistIds.length;
+
+      const shuffledSeedSongs = shuffleArray(inlineSongs).slice(0, 3);
+      const seedSongIds = shuffledSeedSongs.map((s) => s.id!);
+      const recommendedSongs = await batchFetchRecommendations(seedSongIds);
+      stats.recommendationsFetched = seedSongIds.length;
+      stats.apiCalls += seedSongIds.length;
+      console.log(`[MusicSync] ${lang}: Fetched ${recommendedSongs.length} recommended songs`);
+
+      const allSongs = [...inlineSongs, ...albumSongs, ...playlistSongs, ...recommendedSongs];
+      await processSongsForDb(allSongs, stats);
+    } catch (err) {
+      stats.errors++;
+      console.error(`[MusicSync] Failed to sync ${lang}:`, (err as Error).message);
+    }
+  }
+
+  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+  console.log(`[MusicSync] Modules sync completed in ${duration}s:`, stats);
+  return { ...stats, durationSeconds: parseFloat(duration), type: 'modules' };
+}
+
+async function syncArtistCatalogs(
+  artistIds: string[] | null = null,
+  topSongsLimit = 50
+): Promise<SyncResult> {
+  const startTime = Date.now();
+  const stats: SyncStats = {
+    songsAdded: 0,
+    songsSkipped: 0,
+    artistsFetched: 0,
+    errors: 0,
+    apiCalls: 0,
+  };
+  const artists = artistIds
+    ? POPULAR_ARTISTS.filter((a) => artistIds.includes(a.id))
+    : shuffleArray(POPULAR_ARTISTS).slice(0, 5);
+
+  console.log(`[MusicSync] Starting artist catalog sync for ${artists.length} artists`);
+  for (const artist of artists) {
+    try {
+      const songs = await fetchArtistTopSongs(artist.id, topSongsLimit);
+      stats.apiCalls++;
+      stats.artistsFetched = (stats.artistsFetched || 0) + 1;
+      console.log(`[MusicSync] ${artist.name}: Fetched ${songs.length} top songs`);
+      await processSongsForDb(songs, stats);
+      await delay(BATCH_DELAY_MS);
+    } catch (err) {
+      stats.errors++;
+      console.error(`[MusicSync] Failed to fetch artist ${artist.name}:`, (err as Error).message);
+    }
+  }
+
+  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+  console.log(`[MusicSync] Artist sync completed in ${duration}s:`, stats);
+  return { ...stats, durationSeconds: parseFloat(duration), type: 'artist' };
+}
+
+async function syncArtistDeepCatalog(artistId: string, pages = 3): Promise<SyncResult> {
+  const startTime = Date.now();
+  const stats: SyncStats = {
+    songsAdded: 0,
+    songsSkipped: 0,
+    pagesFetched: 0,
+    errors: 0,
+    apiCalls: 0,
+  };
+  console.log(`[MusicSync] Starting deep catalog sync for artist: ${artistId}`);
+
+  const allSongs: SongData[] = [];
+  for (let page = 0; page < pages; page++) {
+    try {
+      const songs = await fetchArtistSongs(artistId, page);
+      stats.apiCalls++;
+      stats.pagesFetched = (stats.pagesFetched || 0) + 1;
+      if (songs.length === 0) break;
+      allSongs.push(...songs);
+      console.log(`[MusicSync] Page ${page}: Fetched ${songs.length} songs`);
+      await delay(BATCH_DELAY_MS);
+    } catch (err) {
+      stats.errors++;
+      console.error(`[MusicSync] Failed page ${page}:`, (err as Error).message);
+      break;
+    }
+  }
+
+  console.log(
+    `[MusicSync] Total fetched: ${allSongs.length} songs across ${stats.pagesFetched} pages`
+  );
+  await processSongsForDb(allSongs, stats);
+  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+  console.log(`[MusicSync] Deep artist sync completed in ${duration}s:`, stats);
+  return { ...stats, durationSeconds: parseFloat(duration), type: 'artist-deep' };
+}
+
+async function syncSearchQueries(queries: string[] | null = null, limit = 3): Promise<SyncResult> {
+  const startTime = Date.now();
+  const stats: SyncStats = {
+    songsAdded: 0,
+    songsSkipped: 0,
+    queriesProcessed: 0,
+    errors: 0,
+    apiCalls: 0,
+  };
+  const searchBatch = queries || shuffleArray(SEARCH_QUERIES).slice(0, limit);
+  console.log(`[MusicSync] Starting search-based sync for ${searchBatch.length} queries`);
+
+  for (const query of searchBatch) {
+    try {
+      const songs = await fetchSearchSongs(query, 0, 30);
+      stats.apiCalls++;
+      stats.queriesProcessed = (stats.queriesProcessed || 0) + 1;
+      console.log(`[MusicSync] "${query}": Found ${songs.length} songs`);
+      await processSongsForDb(songs, stats);
+      await delay(BATCH_DELAY_MS);
+    } catch (err) {
+      stats.errors++;
+      console.error(`[MusicSync] Search failed for "${query}":`, (err as Error).message);
+    }
+  }
+
+  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+  console.log(`[MusicSync] Search sync completed in ${duration}s:`, stats);
+  return { ...stats, durationSeconds: parseFloat(duration), type: 'search' };
+}
+
+async function syncFeaturedPlaylists(languages = ['hindi'], limit = 5): Promise<SyncResult> {
+  const startTime = Date.now();
+  const stats: SyncStats = {
+    songsAdded: 0,
+    songsSkipped: 0,
+    playlistsFetched: 0,
+    errors: 0,
+    apiCalls: 0,
+  };
+  console.log(`[MusicSync] Starting featured playlists sync`);
+
+  for (const lang of languages) {
+    try {
+      const playlists = await fetchFeaturedPlaylists(lang);
+      stats.apiCalls++;
+      const playlistIds = playlists
+        .filter((p) => p?.id)
+        .slice(0, limit)
+        .map((p) => p.id!);
+      const allSongs = await batchFetchPlaylists(playlistIds);
+      stats.playlistsFetched = (stats.playlistsFetched || 0) + playlistIds.length;
+      stats.apiCalls += playlistIds.length;
+      console.log(
+        `[MusicSync] ${lang}: Fetched ${allSongs.length} songs from ${playlistIds.length} playlists`
+      );
+      await processSongsForDb(allSongs, stats);
+    } catch (err) {
+      stats.errors++;
+      console.error(`[MusicSync] Featured playlists failed for ${lang}:`, (err as Error).message);
+    }
+  }
+
+  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+  console.log(`[MusicSync] Featured playlists sync completed in ${duration}s:`, stats);
+  return { ...stats, durationSeconds: parseFloat(duration), type: 'featured-playlists' };
+}
+
+async function syncTopAlbums(languages = ['hindi'], limit = 5): Promise<SyncResult> {
+  const startTime = Date.now();
+  const stats: SyncStats = {
+    songsAdded: 0,
+    songsSkipped: 0,
+    albumsFetched: 0,
+    errors: 0,
+    apiCalls: 0,
+  };
+  console.log(`[MusicSync] Starting top albums sync`);
+
+  for (const lang of languages) {
+    try {
+      const albums = await fetchTopAlbums(lang);
+      stats.apiCalls++;
+      const albumIds = albums
+        .filter((a) => a?.id)
+        .slice(0, limit)
+        .map((a) => a.id!);
+      const allSongs = await batchFetchAlbums(albumIds);
+      stats.albumsFetched = (stats.albumsFetched || 0) + albumIds.length;
+      stats.apiCalls += albumIds.length;
+      console.log(
+        `[MusicSync] ${lang}: Fetched ${allSongs.length} songs from ${albumIds.length} albums`
+      );
+      await processSongsForDb(allSongs, stats);
+    } catch (err) {
+      stats.errors++;
+      console.error(`[MusicSync] Top albums failed for ${lang}:`, (err as Error).message);
+    }
+  }
+
+  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+  console.log(`[MusicSync] Top albums sync completed in ${duration}s:`, stats);
+  return { ...stats, durationSeconds: parseFloat(duration), type: 'top-albums' };
+}
+
+async function syncByPlaylistIds(playlistIds: string[], bypassCache = false): Promise<SyncResult> {
+  const startTime = Date.now();
+  const stats: SyncStats = {
+    songsAdded: 0,
+    songsSkipped: 0,
+    playlistsFetched: 0,
+    errors: 0,
+    apiCalls: 0,
+  };
+
+  if (!playlistIds?.length) {
+    return { ...stats, error: 'No playlist IDs provided', durationSeconds: 0, type: 'playlists' };
+  }
+
+  console.log(
+    `[MusicSync] Starting sync for ${playlistIds.length} playlists${bypassCache ? ' (bypassing cache)' : ''}`
+  );
+
+  const allSongs: SongData[] = [];
+  for (let i = 0; i < playlistIds.length; i += BATCH_SIZE) {
+    const batch = playlistIds.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map(async (id) => {
+        try {
+          stats.apiCalls++;
+          return await fetchPlaylistSongs(id, bypassCache);
+        } catch (err) {
+          stats.errors++;
+          console.error(`[MusicSync] Failed to fetch playlist ${id}:`, (err as Error).message);
+          return [];
+        }
+      })
+    );
+    results.forEach((songs) => {
+      if (songs.length) {
+        stats.playlistsFetched = (stats.playlistsFetched || 0) + 1;
+        allSongs.push(...songs);
+      }
+    });
+    if (i + BATCH_SIZE < playlistIds.length) await delay(BATCH_DELAY_MS);
+  }
+
+  console.log(
+    `[MusicSync] Fetched ${allSongs.length} songs from ${stats.playlistsFetched} playlists`
+  );
+  await processSongsForDb(allSongs, stats);
+
+  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+  console.log(`[MusicSync] Playlist sync completed in ${duration}s:`, stats);
+  return { ...stats, durationSeconds: parseFloat(duration), type: 'playlists' };
+}
+
+async function syncByAlbumIds(albumIds: string[], bypassCache = false): Promise<SyncResult> {
+  const startTime = Date.now();
+  const stats: SyncStats = {
+    songsAdded: 0,
+    songsSkipped: 0,
+    albumsFetched: 0,
+    errors: 0,
+    apiCalls: 0,
+  };
+
+  if (!albumIds?.length) {
+    return { ...stats, error: 'No album IDs provided', durationSeconds: 0, type: 'albums' };
+  }
+
+  console.log(
+    `[MusicSync] Starting sync for ${albumIds.length} albums${bypassCache ? ' (bypassing cache)' : ''}`
+  );
+
+  const allSongs: SongData[] = [];
+  for (let i = 0; i < albumIds.length; i += BATCH_SIZE) {
+    const batch = albumIds.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map(async (id) => {
+        try {
+          stats.apiCalls++;
+          return await fetchAlbumSongs(id, bypassCache);
+        } catch (err) {
+          stats.errors++;
+          console.error(`[MusicSync] Failed to fetch album ${id}:`, (err as Error).message);
+          return [];
+        }
+      })
+    );
+    results.forEach((songs) => {
+      if (songs.length) {
+        stats.albumsFetched = (stats.albumsFetched || 0) + 1;
+        allSongs.push(...songs);
+      }
+    });
+    if (i + BATCH_SIZE < albumIds.length) await delay(BATCH_DELAY_MS);
+  }
+
+  console.log(`[MusicSync] Fetched ${allSongs.length} songs from ${stats.albumsFetched} albums`);
+  await processSongsForDb(allSongs, stats);
+
+  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+  console.log(`[MusicSync] Album sync completed in ${duration}s:`, stats);
+  return { ...stats, durationSeconds: parseFloat(duration), type: 'albums' };
+}
+
+async function syncFull(options: { languages?: string[] } = {}): Promise<SyncResult> {
+  const startTime = Date.now();
+  const languages = options.languages || ['hindi'];
+  const results: SyncResult[] = [];
+
+  console.log(`[MusicSync] Starting FULL sync...`);
+
+  const modulesResult = await syncModulesData(languages);
+  results.push(modulesResult);
+  await delay(1000);
+
+  const artistResult = await syncArtistCatalogs(null, 50);
+  results.push(artistResult);
+  await delay(1000);
+
+  const searchResult = await syncSearchQueries(null, 5);
+  results.push(searchResult);
+  await delay(1000);
+
+  const featuredResult = await syncFeaturedPlaylists(languages, 5);
+  results.push(featuredResult);
+  await delay(1000);
+
+  const topAlbumsResult = await syncTopAlbums(languages, 5);
+  results.push(topAlbumsResult);
+
+  const totalStats: SyncResult = {
+    songsAdded: results.reduce((sum, r) => sum + r.songsAdded, 0),
+    songsSkipped: results.reduce((sum, r) => sum + r.songsSkipped, 0),
+    errors: results.reduce((sum, r) => sum + r.errors, 0),
+    apiCalls: results.reduce((sum, r) => sum + r.apiCalls, 0),
+    durationSeconds: parseFloat(((Date.now() - startTime) / 1000).toFixed(2)),
+    type: 'full',
+    breakdown: results,
+  };
+
+  console.log(`[MusicSync] FULL sync completed:`, {
+    songsAdded: totalStats.songsAdded,
+    songsSkipped: totalStats.songsSkipped,
+    apiCalls: totalStats.apiCalls,
+    duration: `${totalStats.durationSeconds}s`,
+  });
+
+  return totalStats;
+}
+
+async function getSyncStats() {
+  const totalSongs = await Song.count();
+  const languageStats = (await Song.findAll({
+    attributes: ['language', [fn('COUNT', '*'), 'count']],
+    group: ['language'],
+    raw: true,
+  })) as unknown as Array<{ language: string | null; count: string }>;
+
+  const recentSongs = await Song.count({
+    where: {
+      createdAt: { [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+    },
+  });
+
+  return {
+    totalSongs,
+    songsAddedLast24h: recentSongs,
+    byLanguage: languageStats.reduce<Record<string, number>>((acc, { language, count }) => {
+      acc[language || 'unknown'] = parseInt(count);
+      return acc;
+    }, {}),
+    availableArtists: POPULAR_ARTISTS.map((a) => ({ id: a.id, name: a.name })),
+    availableQueries: SEARCH_QUERIES,
+  };
+}
+
+let syncInterval: ReturnType<typeof setInterval> | null = null;
+let lastSyncResult: SyncResult | null = null;
+
+function startScheduledSync(
+  intervalHours = SYNC_INTERVAL_HOURS,
+  mode = 'modules'
+): ReturnType<typeof setInterval> {
+  if (syncInterval) clearInterval(syncInterval);
+
+  const intervalMs = intervalHours * 60 * 60 * 1000;
+  console.log(`[MusicSync] Starting scheduled ${mode} sync every ${intervalHours} hours`);
+
+  const runSync = async () => {
+    try {
+      if (mode === 'full') {
+        lastSyncResult = await syncFull();
+      } else {
+        lastSyncResult = await syncModulesData();
+      }
+    } catch (err) {
+      console.error('[MusicSync] Scheduled sync failed:', err);
+    }
+  };
+
+  runSync();
+  syncInterval = setInterval(runSync, intervalMs);
+  return syncInterval;
+}
+
+function stopScheduledSync(): void {
+  if (syncInterval) {
+    clearInterval(syncInterval);
+    syncInterval = null;
+    console.log('[MusicSync] Stopped scheduled sync');
+  }
+}
+
+function getLastSyncResult(): SyncResult | null {
+  return lastSyncResult;
+}
+
+export {
+  syncModulesData,
+  syncArtistCatalogs,
+  syncArtistDeepCatalog,
+  syncSearchQueries,
+  syncFeaturedPlaylists,
+  syncTopAlbums,
+  syncByPlaylistIds,
+  syncByAlbumIds,
+  syncFull,
+  getSyncStats,
+  startScheduledSync,
+  stopScheduledSync,
+  getLastSyncResult,
+  fetchModulesData,
+  fetchAlbumSongs,
+  fetchPlaylistSongs,
+  POPULAR_ARTISTS,
+  SEARCH_QUERIES,
+};

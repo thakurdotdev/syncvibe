@@ -2,20 +2,10 @@ import { API_URL } from '@/constants';
 import { User } from '@/types/user';
 import useApi from '@/utils/hooks/useApi';
 import * as Notifications from 'expo-notifications';
-import {
-  createContext,
-  ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 import { useUser } from './UserContext';
-import { runAfterIdle } from '@/utils/runAfterIdle';
 
 export interface ChatUser {
   chatid: number;
@@ -62,10 +52,8 @@ interface ChatProviderProps {
   children: ReactNode;
 }
 
-// Create context
 export const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
-// Create hook to use the chat context
 export const useChat = (): ChatContextType => {
   const context = useContext(ChatContext);
   if (context === undefined) {
@@ -74,7 +62,6 @@ export const useChat = (): ChatContextType => {
   return context;
 };
 
-// Provider component
 export const ChatProvider = ({ children }: ChatProviderProps) => {
   const api = useApi();
   const { user } = useUser();
@@ -89,50 +76,9 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
   const socketRef = useRef<Socket | null>(null);
   const currentChatRef = useRef<ChatUser | null>(null);
-  const typingTimeouts = useRef<Record<string, any>>({});
+  const typingTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  useEffect(() => {
-    currentChatRef.current = currentChat;
-  }, [currentChat]);
-
-  const updateCurrentChatStatus = useCallback((targetUserId: number, isOnline: boolean) => {
-    setCurrentChat((prevChat) => {
-      if (prevChat?.otherUser?.userid === targetUserId) {
-        return { ...prevChat, isOnline };
-      }
-      return prevChat;
-    });
-  }, []);
-
-  const showNotification = useCallback((message: Message) => {
-    if (currentChatRef.current?.otherUser?.userid !== message.senderid) {
-      if (Platform.OS !== 'web') {
-        Notifications.scheduleNotificationAsync({
-          content: {
-            title: `New message from ${message.senderName}`,
-            body: message?.content ? message.content : 'Sent an attachment',
-          },
-          trigger: null,
-        });
-      }
-    }
-  }, []);
-
-  const handleMessageReceived = useCallback(
-    (messageData: Message) => {
-      const { senderid } = messageData;
-      const lastMsg = messageData.content || (messageData.fileurl ? 'Sent an attachment' : '');
-
-      setUsers((prevUsers) =>
-        prevUsers.map((u) => (u.otherUser.userid === senderid ? { ...u, lastmessage: lastMsg } : u))
-      );
-
-      showNotification(messageData);
-    },
-    [showNotification]
-  );
-
-  const getAllExistingChats = useCallback(async () => {
+  const getAllExistingChats = async () => {
     if (!userId) return;
 
     try {
@@ -140,7 +86,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       const response = await api.get(`/api/get/chatlist`);
 
       if (response.status === 200) {
-        const updatedChatList = response.data.chatList.map((chat: any) => ({
+        const updatedChatList = (response.data.chatList || []).map((chat: any) => ({
           ...chat,
           isTyping: false,
         }));
@@ -151,14 +97,15 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     } finally {
       setLoading(false);
     }
-  }, [userId, api]);
+  };
 
-  const cleanUpSocket = useCallback(() => {
+  const cleanUpSocket = () => {
     Object.values(typingTimeouts.current).forEach(clearTimeout);
     typingTimeouts.current = {};
     setUsers([]);
     setOnlineStatuses({});
     setCurrentChat(null);
+    currentChatRef.current = null;
 
     const s = socketRef.current;
     if (s) {
@@ -171,7 +118,15 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       socketRef.current = null;
       setSocket(null);
     }
-  }, [userId]);
+  };
+
+  const handleSetCurrentChat: React.Dispatch<React.SetStateAction<ChatUser | null>> = (action) => {
+    setCurrentChat((prev) => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      currentChatRef.current = next;
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!userId) return;
@@ -179,6 +134,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     if (socketRef.current?.connected) return;
 
     const newSocket = io(API_URL!, {
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
@@ -189,7 +145,42 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     socketRef.current = newSocket;
     setSocket(newSocket);
 
-    // Socket event handlers
+    const updateCurrentChatStatus = (targetUserId: number, isOnline: boolean) => {
+      setCurrentChat((prevChat) => {
+        if (prevChat?.otherUser?.userid === targetUserId) {
+          const updated = { ...prevChat, isOnline };
+          currentChatRef.current = updated;
+          return updated;
+        }
+        return prevChat;
+      });
+    };
+
+    const showNotification = (message: Message) => {
+      if (currentChatRef.current?.otherUser?.userid !== message.senderid) {
+        if (Platform.OS !== 'web') {
+          Notifications.scheduleNotificationAsync({
+            content: {
+              title: `New message from ${message.senderName}`,
+              body: message?.content ? message.content : 'Sent an attachment',
+            },
+            trigger: null,
+          });
+        }
+      }
+    };
+
+    const handleMessageReceived = (messageData: Message) => {
+      const { senderid } = messageData;
+      const lastMsg = messageData.content || (messageData.fileurl ? 'Sent an attachment' : '');
+
+      setUsers((prevUsers) =>
+        prevUsers.map((u) => (u.otherUser.userid === senderid ? { ...u, lastmessage: lastMsg } : u))
+      );
+
+      showNotification(messageData);
+    };
+
     const handleConnect = () => {
       newSocket.emit('setup', { userid: userId, name: userName });
       newSocket.emit('user_online', userId);
@@ -213,11 +204,14 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             u.otherUser.userid === typingUserId ? { ...u, isTyping: status } : u
           )
         );
-        setCurrentChat((prevChat) =>
-          prevChat && prevChat?.otherUser?.userid === typingUserId
-            ? { ...prevChat, isTyping: status }
-            : prevChat
-        );
+        setCurrentChat((prevChat) => {
+          if (prevChat && prevChat?.otherUser?.userid === typingUserId) {
+            const updated = { ...prevChat, isTyping: status };
+            currentChatRef.current = updated;
+            return updated;
+          }
+          return prevChat;
+        });
       };
 
       updateTypingStatus(isTyping);
@@ -243,12 +237,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     });
     newSocket.on('message-received', handleMessageReceived);
 
-    const task = runAfterIdle(() => {
-      void getAllExistingChats();
-    });
-
     return () => {
-      task.cancel();
       Object.values(typingTimeouts.current).forEach(clearTimeout);
       typingTimeouts.current = {};
       if (userId) {
@@ -260,9 +249,34 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       socketRef.current = null;
       setSocket(null);
     };
-  }, [userId, userName, updateCurrentChatStatus, handleMessageReceived, getAllExistingChats]);
+  }, [userId, userName]);
 
-  // Reconnect immediately on app foreground only if user is logged in
+  useEffect(() => {
+    if (!userId) return;
+    let ignore = false;
+
+    api
+      .get(`/api/get/chatlist`)
+      .then((response) => {
+        if (!ignore && response.status === 200) {
+          const updatedChatList = (response.data.chatList || []).map((chat: any) => ({
+            ...chat,
+            isTyping: false,
+          }));
+          setUsers(updatedChatList);
+        }
+      })
+      .catch((error) => {
+        if (!ignore) {
+          console.error('Error fetching chats:', error);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [userId, api]);
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (
@@ -277,22 +291,19 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     return () => subscription.remove();
   }, [userId]);
 
-  const contextValue = useMemo<ChatContextType>(
-    () => ({
-      users,
-      setUsers,
-      loading,
-      setLoading,
-      onlineStatuses,
-      setOnlineStatuses,
-      currentChat,
-      setCurrentChat,
-      socket,
-      getAllExistingChats,
-      cleanUpSocket,
-    }),
-    [users, loading, onlineStatuses, currentChat, socket, getAllExistingChats, cleanUpSocket]
-  );
+  const contextValue: ChatContextType = {
+    users,
+    setUsers,
+    loading,
+    setLoading,
+    onlineStatuses,
+    setOnlineStatuses,
+    currentChat,
+    setCurrentChat: handleSetCurrentChat,
+    socket,
+    getAllExistingChats,
+    cleanUpSocket,
+  };
 
   return <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>;
 };

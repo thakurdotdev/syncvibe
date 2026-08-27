@@ -11,9 +11,7 @@
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": [
-          "audio"
-        ]
+        "UIBackgroundModes": ["audio"]
       },
       "bundleIdentifier": "com.thakurdotdev.syncvibe"
     },

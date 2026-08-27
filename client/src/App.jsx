@@ -1,23 +1,22 @@
-import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import './App.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import './App.css';
+import { Toaster } from './components/ui/sonner';
 import { ChatProvider } from './Context/ChatContext';
 import { ContextProvider } from './Context/Context';
 import { GroupMusicProvider } from './Context/GroupMusicContext';
 import { PlayerProvider } from './Context/PlayerContext';
 import { ThemeProvider } from './Context/ThemeProvider';
-import { Toaster } from './components/ui/sonner';
 import {
   ProtectedRoutes,
   PublicRoutes,
+  musicOnlyRoutes,
   privateRoutes,
   publicRoutes,
-  musicOnlyRoutes,
 } from './Routes';
-import { setQueryClient } from './stores/uploadStore';
 import { useAppModeStore } from './stores/appModeStore';
-import ClipboardGroupDetector from './components/ClipboardGroupDetector';
+import { setQueryClient } from './stores/uploadStore';
 
 const queryClient = new QueryClient();
 setQueryClient(queryClient);
@@ -54,7 +53,6 @@ function App() {
                 <ChatProvider>
                   <GroupMusicProvider>
                     <Toaster position='bottom-right' />
-                    <ClipboardGroupDetector />
                     <AppRoutes />
                   </GroupMusicProvider>
                 </ChatProvider>
