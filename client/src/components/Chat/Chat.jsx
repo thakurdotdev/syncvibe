@@ -70,8 +70,8 @@ const Chat = () => {
   }
 
   return (
-    <div className='flex mx-auto'>
-      <div className='w-[30%]'>
+    <div className='flex mx-auto h-[calc(100vh-60px)] overflow-hidden'>
+      <div className='w-[30%] min-w-[280px] max-w-[380px] h-full'>
         <SearchUser
           setUsers={setUsers}
           users={usersWithStatus}
@@ -82,7 +82,7 @@ const Chat = () => {
           socket={socket}
         />
       </div>
-      <div className='w-[70%]'>
+      <div className='flex-1 h-full min-w-0'>
         <ChatWithUser
           setCurrentChat={setCurrentChat}
           currentChat={currentChat}

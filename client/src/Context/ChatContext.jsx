@@ -216,6 +216,7 @@ export const ChatProvider = ({ children }) => {
     if (!user?.userid) return;
     let ignore = false;
 
+    setLoading(true);
     axios
       .get(`${import.meta.env.VITE_API_URL}/api/get/chatlist`, {
         withCredentials: true,
@@ -232,6 +233,11 @@ export const ChatProvider = ({ children }) => {
       .catch((error) => {
         if (!ignore) {
           console.error('Error fetching chats:', error);
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoading(false);
         }
       });
 

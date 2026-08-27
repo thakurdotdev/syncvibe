@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { Op } from 'sequelize';
-import { User, Follower, OTP } from '@/models/index';
+import { User, Follower, OTP, Chat } from '@/models/index';
 import { otpForDeleteMailSender, accountDeletedMailSender } from '@/utils/resend';
 import sequelize from '@/utils/sequelize';
 import { AuthError } from '../auth.errors';
@@ -123,21 +123,19 @@ export const deleteUserAccountService = async (
   }
 
   const userEmail = user.email;
-  const tableName = User.getTableName() as string;
 
-  const transaction = await sequelize.transaction();
-  try {
-    await sequelize.query(`ALTER TABLE "${tableName}" DISABLE TRIGGER ALL`, { transaction });
-    await sequelize.query(`DELETE FROM "${tableName}" WHERE userid = :userid`, {
-      replacements: { userid },
+  await sequelize.transaction(async (transaction) => {
+    await Chat.destroy({
+      where: {
+        participants: {
+          [Op.contains]: [userid],
+        },
+      },
       transaction,
     });
-    await sequelize.query(`ALTER TABLE "${tableName}" ENABLE TRIGGER ALL`, { transaction });
-    await transaction.commit();
-  } catch (err) {
-    await transaction.rollback();
-    throw err;
-  }
+
+    await user.destroy({ transaction });
+  });
 
   await accountDeletedMailSender(userEmail);
 };

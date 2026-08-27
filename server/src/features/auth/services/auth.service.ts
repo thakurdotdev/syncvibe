@@ -7,11 +7,7 @@ import { JWTExpiryDate, SALT_ROUNDS } from '@/config/constants';
 import { AuthError } from '../auth.errors';
 import { verifyTOTP, generateTOTPSecret } from '@/utils/totp';
 import { decrypt, encrypt } from '@/utils/crypto';
-import {
-  resendOtp,
-  verifiedMailSender,
-  passwordResetMailSender,
-} from '@/utils/resend';
+import { resendOtp, verifiedMailSender, passwordResetMailSender } from '@/utils/resend';
 
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000;
 const OTP_EXPIRATION_TIME = 60 * 60 * 1000;
@@ -243,9 +239,7 @@ export const forgotPasswordService = async (email: string): Promise<string> => {
   );
 
   const clientUrl =
-    process.env.NODE_ENV === 'production'
-      ? 'https://syncvibe.thakur.dev'
-      : 'http://localhost:5173';
+    process.env.NODE_ENV === 'production' ? 'https://syncvibe.thakur.dev' : 'http://localhost:5173';
   const resetUrl = `${clientUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
 
   await passwordResetMailSender(email, resetUrl);
@@ -399,7 +393,10 @@ export const disable2FAService = async (userId: number, password: string): Promi
   );
 };
 
-export const verifyUserEmailService = async (email: string, otp: string | number): Promise<void> => {
+export const verifyUserEmailService = async (
+  email: string,
+  otp: string | number
+): Promise<void> => {
   const user = await User.findOne({ where: { email } });
   if (!user) {
     throw new AuthError('User not found', 400);

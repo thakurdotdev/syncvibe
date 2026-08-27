@@ -58,7 +58,11 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
       abortEarly: false,
       stripUnknown: true,
     });
-    const result = await registerUserService(validated.name!, validated.email!, validated.password!);
+    const result = await registerUserService(
+      validated.name!,
+      validated.email!,
+      validated.password!
+    );
 
     res.status(201).json({
       status: 'success',
@@ -321,7 +325,9 @@ export const disable2FA = async (req: Request, res: Response): Promise<void> => 
     }
 
     await disable2FAService(userId, password);
-    res.status(200).json({ success: true, message: 'Two-Factor Authentication disabled successfully' });
+    res
+      .status(200)
+      .json({ success: true, message: 'Two-Factor Authentication disabled successfully' });
   } catch (error) {
     if (error instanceof AuthError) {
       res.status(error.statusCode).json({ message: error.message });

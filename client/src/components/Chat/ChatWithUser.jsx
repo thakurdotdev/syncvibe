@@ -1,6 +1,6 @@
 import { useIsMobile } from '@/hooks/use-mobile';
 import axios from 'axios';
-import { ImageIcon } from 'lucide-react';
+import { MessagesSquare } from 'lucide-react';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -428,13 +428,18 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
   // If no current chat is selected
   if (!currentChat) {
     return (
-      <div className='flex flex-col h-[calc(100vh-60px)] justify-center items-center bg-card'>
-        <div className='text-center p-4'>
-          <div className='mb-4'>
-            <ImageIcon className='h-12 w-12 mx-auto text-muted-foreground/50' />
+      <div className='flex flex-col h-[calc(100vh-60px)] justify-center items-center bg-background/50'>
+        <div className='flex flex-col items-center text-center p-8 max-w-md gap-4'>
+          <div className='p-5 rounded-3xl bg-primary/10 text-primary ring-12 ring-primary/5 transition-transform hover:scale-105'>
+            <MessagesSquare className='h-12 w-12 stroke-[1.5]' />
           </div>
-          <h3 className='text-xl font-semibold text-foreground mb-2'>Select a conversation</h3>
-          <p className='text-muted-foreground'>Choose a chat from the sidebar to start messaging</p>
+          <div className='space-y-2'>
+            <h3 className='text-2xl font-bold tracking-tight text-foreground'>Your Messages</h3>
+            <p className='text-sm text-muted-foreground leading-relaxed'>
+              Select a conversation from the list or search for someone new to start chatting in
+              real time.
+            </p>
+          </div>
         </div>
       </div>
     );
