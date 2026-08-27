@@ -79,7 +79,6 @@ const QueueSongItem = memo(
     isLoadingRecs,
     variant,
   }) => {
-    const isDesktop = variant === 'desktop';
     const navigate = useNavigate();
 
     const name = useMemo(() => he.decode(song.name || song.title || ''), [song.name, song.title]);
@@ -138,255 +137,93 @@ const QueueSongItem = memo(
       [onFetchRecommendations, song.id, song.name, song.title]
     );
 
-    const desktopClasses = isDesktop ? (isCurrentSong ? 'dqp-item-active' : 'dqp-item') : '';
-
-    if (isDesktop) {
-      return (
-        <div
-          className={cn(
-            'group flex items-center gap-2 py-1.5 px-1 rounded-lg transition-opacity duration-200',
-            desktopClasses,
-            isDragging && 'opacity-30'
-          )}
-        >
-          <div
-            {...dragHandleProps}
-            className='cursor-grab active:cursor-grabbing p-0.5 text-white/30 hover:text-white/60 touch-none'
-          >
-            <GripVertical className='w-3.5 h-3.5' />
-          </div>
-
-          <div
-            className='relative w-9 h-9 shrink-0 cursor-pointer rounded-md overflow-hidden'
-            onClick={handlePlay}
-          >
-            <LazyImage
-              src={Array.isArray(song.image) ? song.image?.[1]?.link : song.image}
-              alt={name}
-              className='w-full h-full object-cover'
-            />
-            <div
-              className='absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity duration-150'
-              style={{ opacity: isCurrentSong ? 1 : 0 }}
-            >
-              {isCurrentSong && isPlaying ? (
-                <Pause className='w-3.5 h-3.5 text-white fill-white' />
-              ) : (
-                <Play className='w-3.5 h-3.5 text-white fill-white' />
-              )}
-            </div>
-          </div>
-
-          <div className='flex-1 min-w-0 cursor-pointer' onClick={handlePlay}>
-            <p
-              className={cn(
-                'text-xs font-medium line-clamp-1 text-white/90',
-                isCurrentSong && 'text-white'
-              )}
-            >
-              {name}
-            </p>
-            {artistName && <p className='text-[11px] text-white/40 line-clamp-1'>{artistName}</p>}
-          </div>
-
-          {isCurrentSong && isPlaying && (
-            <div className='flex items-center gap-0.5 mr-1'>
-              <span className='dqp-eq-bar dqp-eq-1' />
-              <span className='dqp-eq-bar dqp-eq-2' />
-              <span className='dqp-eq-bar dqp-eq-3' />
-            </div>
-          )}
-
-          {!isCurrentSong && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileHover={{ opacity: 1 }}
-              className='opacity-0 group-hover:opacity-100'
-            >
-              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                <Button
-                  variant='ghost'
-                  size='icon'
-                  className='h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer'
-                  onClick={handleRemove}
-                >
-                  <X className='w-3.5 h-3.5' />
-                </Button>
-              </motion.div>
-            </motion.div>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant='ghost'
-                size='icon'
-                className='h-6 w-6 text-white/30 hover:text-white/60'
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreHorizontal className='w-3.5 h-3.5' />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align='end' className='w-48'>
-              <DropdownMenuItem
-                onClick={handleFetchRecs}
-                disabled={isLoadingRecs}
-                className='cursor-pointer text-sm'
-              >
-                {isLoadingRecs ? (
-                  <Loader2 className='w-3.5 h-3.5 mr-2 animate-spin' />
-                ) : (
-                  <Sparkles className='w-3.5 h-3.5 mr-2' />
-                )}
-                Get similar songs
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {song?.album_id && (
-                <DropdownMenuItem onClick={handleGoToAlbum} className='cursor-pointer text-sm'>
-                  <Disc3 className='w-3.5 h-3.5 mr-2' />
-                  Go to Album
-                </DropdownMenuItem>
-              )}
-              {song?.artist_map?.primary_artists?.[0] && (
-                <DropdownMenuItem onClick={handleGoToArtist} className='cursor-pointer text-sm'>
-                  <User className='w-3.5 h-3.5 mr-2' />
-                  Go to Artist
-                </DropdownMenuItem>
-              )}
-              {!isCurrentSong && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleRemove}
-                    className='cursor-pointer text-sm text-destructive focus:text-destructive'
-                  >
-                    <X className='w-3.5 h-3.5 mr-2' />
-                    Remove
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      );
-    }
-
     return (
-      <motion.div
-        layout
-        initial={!isOverlay ? { opacity: 0, y: 8 } : false}
-        animate={{ opacity: isDragging ? 0.3 : 1, y: 0 }}
-        exit={{ opacity: 0, x: -20 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
+      <div
         className={cn(
-          'group flex items-center gap-2 py-1.5 px-1 rounded-lg',
-          isCurrentSong ? 'bg-primary/10' : 'hover:bg-accent/50',
-          isOverlay && 'bg-background shadow-lg border border-border'
+          'group flex items-center gap-2.5 py-1.5 px-2 rounded-xl transition-colors duration-150 select-none cursor-pointer',
+          isCurrentSong
+            ? 'bg-white/10 ring-1 ring-white/15 shadow-sm my-0.5'
+            : 'hover:bg-white/[0.05] my-0.5',
+          isDragging && 'opacity-30',
+          isOverlay && 'bg-[#141722]/95 backdrop-blur-xl shadow-2xl ring-1 ring-white/20 text-white'
         )}
+        onClick={handlePlay}
       >
-        <motion.div
+        <div
           {...dragHandleProps}
-          whileHover={{ scale: 1.1 }}
-          className='cursor-grab active:cursor-grabbing p-0.5 text-muted-foreground/40 hover:text-muted-foreground touch-none'
+          className='cursor-grab active:cursor-grabbing p-0.5 text-white/30 hover:text-white/70 touch-none transition-colors shrink-0'
+          onClick={(e) => e.stopPropagation()}
         >
           <GripVertical className='w-3.5 h-3.5' />
-        </motion.div>
+        </div>
 
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className='relative w-10 h-10 shrink-0 cursor-pointer rounded-md overflow-hidden shadow-xs'
-          onClick={handlePlay}
-        >
+        <div className='relative w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-lg overflow-hidden bg-white/5'>
           <LazyImage
             src={Array.isArray(song.image) ? song.image?.[1]?.link : song.image}
             alt={name}
             className='w-full h-full object-cover'
           />
-          <motion.div
-            initial={false}
-            animate={{ opacity: isCurrentSong ? 1 : 0 }}
-            whileHover={{ opacity: 1 }}
-            transition={{ duration: 0.15 }}
-            className='absolute inset-0 bg-black/50 flex items-center justify-center'
+          <div
+            className='absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity duration-150'
+            style={{ opacity: isCurrentSong ? 1 : 0 }}
           >
-            <AnimatePresence mode='wait' initial={false}>
-              <motion.span
-                key={isCurrentSong && isPlaying ? 'pause' : 'play'}
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.5, opacity: 0 }}
-                transition={{ duration: 0.1 }}
-              >
-                {isCurrentSong && isPlaying ? (
-                  <Pause className='w-4 h-4 text-white fill-white' />
-                ) : (
-                  <Play className='w-4 h-4 text-white fill-white' />
-                )}
-              </motion.span>
-            </AnimatePresence>
-          </motion.div>
-        </motion.div>
+            {isCurrentSong && isPlaying ? (
+              <Pause className='w-3.5 h-3.5 text-white fill-white' />
+            ) : (
+              <Play className='w-3.5 h-3.5 text-white fill-white ml-0.5' />
+            )}
+          </div>
+        </div>
 
-        <div className='flex-1 min-w-0 cursor-pointer' onClick={handlePlay}>
+        <div className='flex-1 min-w-0 text-left'>
           <p
             className={cn(
-              'text-sm font-medium line-clamp-1 transition-colors',
-              isCurrentSong && 'text-primary'
+              'text-[13px] line-clamp-1 transition-colors leading-snug',
+              isCurrentSong
+                ? 'text-white font-semibold'
+                : 'text-white/85 font-medium group-hover:text-white'
             )}
           >
             {name}
           </p>
-          {artistName && <p className='text-xs text-muted-foreground line-clamp-1'>{artistName}</p>}
+          {artistName && (
+            <p
+              className={cn(
+                'text-[11px] line-clamp-1 transition-colors leading-tight mt-0.5',
+                isCurrentSong
+                  ? 'text-white/60 font-normal'
+                  : 'text-white/40 group-hover:text-white/60 font-normal'
+              )}
+            >
+              {artistName}
+            </p>
+          )}
         </div>
 
-        <AnimatePresence>
-          {isCurrentSong && isPlaying && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className='flex items-center gap-0.5 mr-1'
-            >
-              <motion.span
-                animate={{ height: [12, 16, 8, 12] }}
-                transition={{ repeat: Infinity, duration: 1, ease: 'easeInOut' }}
-                className='w-0.5 bg-primary rounded-full'
-                style={{ height: 12 }}
-              />
-              <motion.span
-                animate={{ height: [16, 8, 12, 16] }}
-                transition={{ repeat: Infinity, duration: 1, ease: 'easeInOut', delay: 0.15 }}
-                className='w-0.5 bg-primary rounded-full'
-                style={{ height: 16 }}
-              />
-              <motion.span
-                animate={{ height: [8, 12, 16, 8] }}
-                transition={{ repeat: Infinity, duration: 1, ease: 'easeInOut', delay: 0.3 }}
-                className='w-0.5 bg-primary rounded-full'
-                style={{ height: 8 }}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {isCurrentSong && isPlaying && (
+          <div className='flex items-center gap-[2px] px-1.5 py-1 rounded-md bg-white/15 shrink-0 mr-0.5'>
+            <span className='w-[2px] h-2.5 rounded-full bg-white animate-pulse' />
+            <span
+              className='w-[2px] h-3.5 rounded-full bg-white animate-pulse'
+              style={{ animationDelay: '150ms' }}
+            />
+            <span
+              className='w-[2px] h-2 rounded-full bg-white animate-pulse'
+              style={{ animationDelay: '300ms' }}
+            />
+          </div>
+        )}
 
         {!isCurrentSong && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileHover={{ opacity: 1 }}
-            className='opacity-0 group-hover:opacity-100'
+          <Button
+            variant='ghost'
+            size='icon'
+            className='h-7 w-7 text-white/40 hover:text-red-400 hover:bg-white/10 rounded-lg cursor-pointer transition-colors shrink-0'
+            onClick={handleRemove}
+            aria-label='Remove song'
           >
-            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-              <Button
-                variant='ghost'
-                size='icon'
-                className='h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10'
-                onClick={handleRemove}
-              >
-                <X className='w-3.5 h-3.5' />
-              </Button>
-            </motion.div>
-          </motion.div>
+            <X className='w-3.5 h-3.5' />
+          </Button>
         )}
 
         <DropdownMenu>
@@ -394,44 +231,54 @@ const QueueSongItem = memo(
             <Button
               variant='ghost'
               size='icon'
-              className='h-7 w-7 text-muted-foreground/60 hover:text-muted-foreground'
+              className='h-7 w-7 text-white/40 hover:text-white hover:bg-white/10 rounded-lg cursor-pointer transition-colors shrink-0'
               onClick={(e) => e.stopPropagation()}
+              aria-label='More options'
             >
-              <MoreHorizontal className='w-4 h-4' />
+              <MoreHorizontal className='w-3.5 h-3.5' />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align='end' className='w-48'>
+          <DropdownMenuContent
+            align='end'
+            className='w-52 bg-[#161822]/95 backdrop-blur-xl border-white/10 text-white shadow-2xl rounded-xl p-1.5 z-50'
+          >
             <DropdownMenuItem
               onClick={handleFetchRecs}
               disabled={isLoadingRecs}
-              className='cursor-pointer text-sm'
+              className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
             >
               {isLoadingRecs ? (
                 <Loader2 className='w-3.5 h-3.5 mr-2 animate-spin' />
               ) : (
-                <Sparkles className='w-3.5 h-3.5 mr-2' />
+                <Sparkles className='w-3.5 h-3.5 mr-2 text-white/70' />
               )}
               Get similar songs
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className='bg-white/10 my-1' />
             {song?.album_id && (
-              <DropdownMenuItem onClick={handleGoToAlbum} className='cursor-pointer text-sm'>
-                <Disc3 className='w-3.5 h-3.5 mr-2' />
+              <DropdownMenuItem
+                onClick={handleGoToAlbum}
+                className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+              >
+                <Disc3 className='w-3.5 h-3.5 mr-2 text-white/70' />
                 Go to Album
               </DropdownMenuItem>
             )}
             {song?.artist_map?.primary_artists?.[0] && (
-              <DropdownMenuItem onClick={handleGoToArtist} className='cursor-pointer text-sm'>
-                <User className='w-3.5 h-3.5 mr-2' />
+              <DropdownMenuItem
+                onClick={handleGoToArtist}
+                className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+              >
+                <User className='w-3.5 h-3.5 mr-2 text-white/70' />
                 Go to Artist
               </DropdownMenuItem>
             )}
             {!isCurrentSong && (
               <>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className='bg-white/10 my-1' />
                 <DropdownMenuItem
                   onClick={handleRemove}
-                  className='cursor-pointer text-sm text-destructive focus:text-destructive'
+                  className='cursor-pointer text-sm text-red-400 hover:text-red-300 focus:bg-red-500/15 focus:text-red-300 rounded-lg transition-colors'
                 >
                   <X className='w-3.5 h-3.5 mr-2' />
                   Remove
@@ -440,7 +287,7 @@ const QueueSongItem = memo(
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-      </motion.div>
+      </div>
     );
   }
 );
@@ -490,7 +337,7 @@ const SortableSongItem = memo(
 SortableSongItem.displayName = 'SortableSongItem';
 
 // Main QueueTab
-const QueueTab = memo(({ variant } = {}) => {
+const QueueTab = memo(({ variant, showHeader = false } = {}) => {
   const playlist = usePlayerStore((s) => s.playlist);
   const currentSong = usePlayerStore((s) => s.currentSong);
   const currentSongId = currentSong?.id;
@@ -635,8 +482,8 @@ const QueueTab = memo(({ variant } = {}) => {
   if (!playlist?.length) {
     return (
       <div className='flex flex-col justify-center items-center h-[70vh] gap-3'>
-        <ListMusic className='w-10 h-10 text-muted-foreground/30' />
-        <p className='text-sm text-muted-foreground'>Queue is empty</p>
+        <ListMusic className='w-10 h-10 text-white/20' />
+        <p className='text-sm text-white/45 font-medium'>Queue is empty</p>
       </div>
     );
   }
@@ -644,21 +491,11 @@ const QueueTab = memo(({ variant } = {}) => {
   return (
     <TooltipProvider delayDuration={300}>
       <div className='h-full'>
-        <div className='px-3 py-2'>
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
-            className='flex items-center justify-between mb-3'
-          >
-            <motion.p
-              key={playlist.length}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className='text-xs text-muted-foreground'
-            >
+        {showHeader && (
+          <div className='flex items-center justify-between mb-3 px-2 pt-1'>
+            <p className='text-xs text-white/50 font-medium'>
               {playlist.length} song{playlist.length !== 1 ? 's' : ''}
-            </motion.p>
+            </p>
             <div className='flex items-center gap-1'>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -666,9 +503,10 @@ const QueueTab = memo(({ variant } = {}) => {
                     <Button
                       variant='ghost'
                       size='icon'
-                      className='h-7 w-7 text-muted-foreground hover:text-destructive transition-colors'
+                      className='h-7 w-7 text-white/50 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors cursor-pointer'
                       onClick={handleClearQueue}
                       disabled={playlist.length <= 1}
+                      aria-label='Clear queue'
                     >
                       <Trash2 className='h-3.5 w-3.5' />
                     </Button>
@@ -686,11 +524,12 @@ const QueueTab = memo(({ variant } = {}) => {
                       <Button
                         variant='ghost'
                         size='icon'
-                        className='h-7 w-7 text-muted-foreground'
+                        className='h-7 w-7 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer'
                         disabled={fetchingRecs}
+                        aria-label='Recommendations'
                       >
                         {fetchingRecs ? (
-                          <Loader2 className='h-3.5 w-3.5 animate-spin' />
+                          <Loader2 className='h-3.5 w-3.5 animate-spin text-white/70' />
                         ) : (
                           <Sparkles className='h-3.5 w-3.5' />
                         )}
@@ -701,77 +540,83 @@ const QueueTab = memo(({ variant } = {}) => {
                     Recommendations
                   </TooltipContent>
                 </Tooltip>
-                <DropdownMenuContent align='end' className='w-48'>
-                  <DropdownMenuItem onClick={handleFetchAndAdd} className='cursor-pointer text-sm'>
-                    <RefreshCw className='w-3.5 h-3.5 mr-2' />
+                <DropdownMenuContent
+                  align='end'
+                  className='w-52 bg-[#161822]/95 backdrop-blur-xl border-white/10 text-white shadow-2xl rounded-xl p-1.5'
+                >
+                  <DropdownMenuItem
+                    onClick={handleFetchAndAdd}
+                    className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                  >
+                    <RefreshCw className='w-3.5 h-3.5 mr-2 text-white/70' />
                     Add to queue
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={handleFetchAndReplace}
-                    className='cursor-pointer text-sm'
+                    className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
                   >
-                    <Sparkles className='w-3.5 h-3.5 mr-2' />
+                    <Sparkles className='w-3.5 h-3.5 mr-2 text-white/70' />
                     Replace queue
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className='bg-white/10 my-1' />
                   <DropdownMenuItem
                     onClick={handleToggleAutoFetch}
-                    className='cursor-pointer text-sm'
+                    className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
                   >
                     {autoFetchRecommendations ? (
-                      <ToggleRight className='w-3.5 h-3.5 mr-2 text-primary' />
+                      <ToggleRight className='w-3.5 h-3.5 mr-2 text-white' />
                     ) : (
-                      <ToggleLeft className='w-3.5 h-3.5 mr-2' />
+                      <ToggleLeft className='w-3.5 h-3.5 mr-2 text-white/50' />
                     )}
                     Auto-fetch: {autoFetchRecommendations ? 'On' : 'Off'}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          </motion.div>
+          </div>
+        )}
 
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onDragCancel={handleDragCancel}
-          >
-            <SortableContext items={playlistIds} strategy={verticalListSortingStrategy}>
-              <div className='space-y-0.5'>
-                {playlist.map((song) => (
-                  <SortableSongItem
-                    key={song.id}
-                    song={song}
-                    isCurrentSong={currentSongId === song.id}
-                    isPlaying={isPlaying}
-                    onPlay={handlePlay}
-                    onRemove={handleRemove}
-                    onFetchRecommendations={handleSongFetchRecs}
-                    isLoadingRecs={loadingSongId === song.id}
-                    variant={variant}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-
-            <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }}>
-              {activeSong && (
-                <QueueSongItem
-                  song={activeSong}
-                  isCurrentSong={currentSongId === activeSong.id}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <SortableContext items={playlistIds} strategy={verticalListSortingStrategy}>
+            <div className='space-y-0.5'>
+              {playlist.map((song) => (
+                <SortableSongItem
+                  key={song.id}
+                  song={song}
+                  isCurrentSong={currentSongId === song.id}
                   isPlaying={isPlaying}
-                  isOverlay
                   onPlay={handlePlay}
                   onRemove={handleRemove}
                   onFetchRecommendations={handleSongFetchRecs}
-                  isLoadingRecs={loadingSongId === activeSong.id}
+                  isLoadingRecs={loadingSongId === song.id}
                   variant={variant}
                 />
-              )}
-            </DragOverlay>
-          </DndContext>
-        </div>
+              ))}
+            </div>
+          </SortableContext>
+
+          <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }}>
+            {activeSong && (
+              <QueueSongItem
+                song={activeSong}
+                isCurrentSong={currentSongId === activeSong.id}
+                isPlaying={isPlaying}
+                isOverlay
+                onPlay={handlePlay}
+                onRemove={handleRemove}
+                onFetchRecommendations={handleSongFetchRecs}
+                isLoadingRecs={loadingSongId === activeSong.id}
+                variant={variant}
+              />
+            )}
+          </DragOverlay>
+        </DndContext>
       </div>
     </TooltipProvider>
   );

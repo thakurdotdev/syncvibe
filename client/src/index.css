@@ -22,6 +22,9 @@
 
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-hover: hsl(var(--primary-hover));
+  --color-primary-active: hsl(var(--primary-active));
+  --color-primary-disabled: hsl(var(--primary-disabled));
 
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
@@ -122,37 +125,40 @@
 
 @layer base {
   :root {
-    /* ═══ Light Mode — Crisp & Refined ═══ */
-    --background: 220 20% 97%;
-    --foreground: 224 30% 10%;
+    /* ═══ Light Mode — Crisp & Refined (Rose Palette) ═══ */
+    --background: 220 14% 96%;
+    --foreground: 240 8% 9.4%;
     --card: 0 0% 100%;
-    --card-foreground: 224 30% 10%;
+    --card-foreground: 240 8% 9.4%;
     --popover: 0 0% 100%;
-    --popover-foreground: 224 30% 10%;
-    --primary: 224 65% 48%;
+    --popover-foreground: 240 8% 9.4%;
+    --primary: 333 71% 51%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 16% 93%;
-    --secondary-foreground: 224 20% 18%;
-    --muted: 220 16% 93%;
-    --muted-foreground: 220 10% 46%;
-    --accent: 220 16% 93%;
-    --accent-foreground: 224 20% 18%;
-    --destructive: 0 72% 51%;
+    --primary-hover: 332 74% 43%;
+    --primary-active: 331 75% 36%;
+    --primary-disabled: 332 70% 80%;
+    --secondary: 240 3% 95.5%;
+    --secondary-foreground: 240 8% 9.4%;
+    --muted: 240 3% 95.5%;
+    --muted-foreground: 240 2.3% 43%;
+    --accent: 330 75% 94%;
+    --accent-foreground: 331 74% 27.5%;
+    --destructive: 5 78% 45%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 88%;
-    --input: 220 13% 88%;
-    --ring: 224 65% 48%;
-    --chart-1: 224 65% 48%;
-    --chart-2: 160 55% 42%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 60% 55%;
-    --chart-5: 340 70% 52%;
+    --border: 240 3% 90.2%;
+    --input: 240 3% 90.2%;
+    --ring: 333 71% 51%;
+    --chart-1: 333 71% 51%;
+    --chart-2: 280 65% 60%;
+    --chart-3: 18 85% 58%;
+    --chart-4: 165 60% 48%;
+    --chart-5: 330 75% 70%;
     --radius: 0.625rem;
-    --color-1: 224 65% 48%;
-    --color-2: 160 55% 42%;
-    --color-3: 30 80% 55%;
-    --color-4: 280 60% 55%;
-    --color-5: 340 70% 52%;
+    --color-1: 333 71% 51%;
+    --color-2: 280 65% 60%;
+    --color-3: 18 85% 58%;
+    --color-4: 165 60% 48%;
+    --color-5: 330 75% 70%;
 
     /* Glass System — Light */
     --glass-bg: rgba(255, 255, 255, 0.65);
@@ -169,52 +175,55 @@
     --glass-input-bg: rgba(0, 0, 0, 0.03);
     --glass-input-focus: rgba(0, 0, 0, 0.05);
     --glass-inset: rgba(255, 255, 255, 0.6);
-    --glass-message-own: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0.06));
+    --glass-message-own: linear-gradient(135deg, rgba(219, 39, 119, 0.12), rgba(219, 39, 119, 0.06));
     --glass-message-other: rgba(0, 0, 0, 0.03);
     --glass-sheet-bg: rgba(255, 255, 255, 0.92);
 
     /* Sidebar */
-    --sidebar-background: 220 20% 97%;
-    --sidebar-foreground: 224 20% 28%;
-    --sidebar-primary: 224 65% 48%;
+    --sidebar-background: 220 14% 96%;
+    --sidebar-foreground: 240 8% 9.4%;
+    --sidebar-primary: 333 71% 51%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 16% 93%;
-    --sidebar-accent-foreground: 224 20% 18%;
-    --sidebar-border: 220 13% 88%;
-    --sidebar-ring: 224 65% 48%;
+    --sidebar-accent: 330 75% 94%;
+    --sidebar-accent-foreground: 331 74% 27.5%;
+    --sidebar-border: 240 3% 90.2%;
+    --sidebar-ring: 333 71% 51%;
   }
 
   .dark {
-    /* ═══ Dark Mode — Deep & Immersive ═══ */
-    --background: 228 25% 5%;
-    --foreground: 210 20% 96%;
-    --card: 228 20% 7%;
-    --card-foreground: 210 20% 96%;
-    --popover: 228 20% 7%;
-    --popover-foreground: 210 20% 96%;
-    --primary: 210 20% 96%;
-    --primary-foreground: 228 25% 8%;
-    --secondary: 225 15% 13%;
-    --secondary-foreground: 210 20% 96%;
-    --muted: 225 15% 13%;
-    --muted-foreground: 220 12% 62%;
-    --accent: 225 15% 13%;
-    --accent-foreground: 210 20% 96%;
-    --destructive: 0 62% 35%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 225 12% 14%;
-    --input: 225 12% 14%;
-    --ring: 210 20% 80%;
-    --chart-1: 220 70% 55%;
-    --chart-2: 165 60% 48%;
-    --chart-3: 32 80% 55%;
-    --chart-4: 280 65% 62%;
-    --chart-5: 340 75% 58%;
-    --color-1: 220 70% 55%;
-    --color-2: 165 60% 48%;
-    --color-3: 32 80% 55%;
-    --color-4: 280 65% 62%;
-    --color-5: 340 75% 58%;
+    /* ═══ Dark Mode — Deep & Immersive (Rose Palette) ═══ */
+    --background: 240 4% 4.5%;
+    --foreground: 240 5% 96%;
+    --card: 240 4% 10.2%;
+    --card-foreground: 240 5% 96%;
+    --popover: 240 3% 12.9%;
+    --popover-foreground: 240 5% 96%;
+    --primary: 331 100% 65.5%;
+    --primary-foreground: 240 4% 4.5%;
+    --primary-hover: 331 100% 72%;
+    --primary-active: 330 78% 56%;
+    --primary-disabled: 328 35% 35%;
+    --secondary: 240 3% 13.7%;
+    --secondary-foreground: 240 5% 96%;
+    --muted: 240 3% 13.7%;
+    --muted-foreground: 240 2.5% 63.5%;
+    --accent: 329 41% 14%;
+    --accent-foreground: 333 100% 77.6%;
+    --destructive: 5 100% 66%;
+    --destructive-foreground: 240 4% 4.5%;
+    --border: 240 3.5% 17.1%;
+    --input: 240 3.5% 17.1%;
+    --ring: 331 100% 65.5%;
+    --chart-1: 331 100% 65.5%;
+    --chart-2: 280 65% 65%;
+    --chart-3: 18 90% 62%;
+    --chart-4: 165 60% 52%;
+    --chart-5: 330 85% 75%;
+    --color-1: 331 100% 65.5%;
+    --color-2: 280 65% 65%;
+    --color-3: 18 90% 62%;
+    --color-4: 165 60% 52%;
+    --color-5: 330 85% 75%;
 
     /* Glass System — Dark */
     --glass-bg: rgba(255, 255, 255, 0.03);
@@ -233,21 +242,21 @@
     --glass-inset: rgba(255, 255, 255, 0.05);
     --glass-message-own: linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.08),
-      rgba(255, 255, 255, 0.04)
+      rgba(255, 79, 163, 0.12),
+      rgba(255, 79, 163, 0.04)
     );
     --glass-message-other: rgba(255, 255, 255, 0.04);
-    --glass-sheet-bg: rgba(10, 12, 18, 0.88);
+    --glass-sheet-bg: rgba(11, 11, 12, 0.88);
 
     /* Sidebar */
-    --sidebar-background: 228 20% 7%;
-    --sidebar-foreground: 210 15% 90%;
-    --sidebar-primary: 210 20% 96%;
-    --sidebar-primary-foreground: 228 25% 8%;
-    --sidebar-accent: 225 15% 13%;
-    --sidebar-accent-foreground: 210 15% 90%;
-    --sidebar-border: 225 12% 14%;
-    --sidebar-ring: 210 20% 80%;
+    --sidebar-background: 240 4% 10.2%;
+    --sidebar-foreground: 240 5% 96%;
+    --sidebar-primary: 331 100% 65.5%;
+    --sidebar-primary-foreground: 240 4% 4.5%;
+    --sidebar-accent: 329 41% 14%;
+    --sidebar-accent-foreground: 333 100% 77.6%;
+    --sidebar-border: 240 3.5% 17.1%;
+    --sidebar-ring: 331 100% 65.5%;
   }
 }
 

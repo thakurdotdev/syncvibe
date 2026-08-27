@@ -45,13 +45,14 @@ const SleepTimerModal = () => {
         <Button
           variant='ghost'
           size='icon'
-          className='hover:scale-105 relative transition-all'
+          className='h-9 w-9 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer relative'
           type='button'
           onClick={(e) => e.stopPropagation()}
+          aria-label='Sleep timer'
         >
           <Clock size={18} />
           {isActive && (
-            <span className='absolute -top-1 -right-1 h-2 w-2 bg-destructive rounded-full animate-pulse' />
+            <span className='absolute -top-0.5 -right-0.5 h-2 w-2 bg-destructive rounded-full animate-pulse' />
           )}
         </Button>
       </ResponsiveDialogTrigger>

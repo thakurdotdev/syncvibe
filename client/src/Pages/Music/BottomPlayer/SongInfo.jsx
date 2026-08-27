@@ -81,7 +81,7 @@ const SongInfo = memo(({ currentSong, onOpenSheet }) => {
           className='text-left bg-transparent border-0 p-0 cursor-pointer focus-visible:outline-none group/text w-full'
           onClick={onOpenSheet}
         >
-          <p className='text-xs sm:text-[14px] font-semibold text-white truncate group-hover/text:text-primary transition-colors leading-tight'>
+          <p className='text-xs sm:text-[14px] font-semibold text-white truncate group-hover/text:text-white/80 transition-colors leading-tight'>
             {decodedName}
           </p>
           <p className='text-[10.5px] sm:text-xs text-white/55 truncate mt-0.5 font-normal'>
@@ -121,7 +121,7 @@ const SongInfo = memo(({ currentSong, onOpenSheet }) => {
               'relative h-2 cursor-pointer',
               '[&>span:first-child]:h-[2.5px] sm:[&>span:first-child]:h-[3px] [&>span:first-child]:bg-white/15 [&>span:first-child]:rounded-full [&>span:first-child]:transition-[height,background-color] [&>span:first-child]:duration-150',
               'group-hover/slider:[&>span:first-child]:h-[4px] group-hover/slider:[&>span:first-child]:bg-white/25',
-              '[&>span:first-child>span]:bg-white group-hover/slider:[&>span:first-child>span]:bg-primary [&>span:first-child>span]:rounded-full',
+              '[&>span:first-child>span]:bg-white group-hover/slider:[&>span:first-child>span]:bg-white [&>span:first-child>span]:rounded-full',
               '**:[[role=slider]]:h-2.5 **:[[role=slider]]:w-2.5 **:[[role=slider]]:bg-white **:[[role=slider]]:border-0 **:[[role=slider]]:shadow-[0_0_8px_rgba(255,255,255,0.9)]',
               '**:[[role=slider]]:opacity-0 group-hover/slider:**:[[role=slider]]:opacity-100 **:[[role=slider]]:transition-opacity'
             )}

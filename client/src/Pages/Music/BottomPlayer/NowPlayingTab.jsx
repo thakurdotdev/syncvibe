@@ -268,7 +268,7 @@ const NowPlayingTab = memo(({ currentSong, onOpenModal }) => {
   );
 
   return (
-    <div className='w-full h-full relative overflow-hidden bg-[#050508] lg:pr-[300px]'>
+    <div className='w-full h-full relative overflow-hidden bg-[#050508] text-white lg:pr-[360px]'>
       {/* === MOBILE BG: Pre-blurred canvas, zero CSS filter cost === */}
       {blurredBg.previous && (
         <div

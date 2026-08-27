@@ -684,7 +684,7 @@
 
 .audio-bar {
   width: 3px;
-  background: linear-gradient(to top, #10b981, #14b8a6);
+  background: linear-gradient(to top, hsl(var(--primary)), hsl(var(--primary) / 0.7));
   border-radius: 2px;
   animation: audio-wave 1s ease-in-out infinite;
 }

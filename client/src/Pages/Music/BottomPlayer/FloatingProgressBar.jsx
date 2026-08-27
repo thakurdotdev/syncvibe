@@ -114,7 +114,7 @@ const FloatingProgressBar = memo(() => {
       {/* Inset Rounded Track */}
       <div className='w-full h-[2px] group-hover/bar:h-[3.5px] bg-white/12 group-hover/bar:bg-white/20 rounded-full transition-all duration-200 overflow-hidden relative'>
         <div
-          className='h-full bg-gradient-to-r from-white/90 via-primary to-primary rounded-full transition-[width] duration-75 ease-linear relative'
+          className='h-full bg-gradient-to-r from-white/90 via-white to-white rounded-full transition-[width] duration-75 ease-linear relative'
           style={{ width: `${progressPct}%` }}
         >
           <div className='absolute top-0 right-0 bottom-0 w-3 bg-white/50 blur-[1px] rounded-full' />
