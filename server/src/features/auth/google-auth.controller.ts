@@ -1,10 +1,15 @@
 import type { Request, Response, NextFunction } from 'express';
 import passport from 'passport';
 import jwt from 'jsonwebtoken';
-import { Op } from 'sequelize';
-import { User, Follower, LoginLog } from '@/models/index';
-import { CookieExpiryDate, UserLoginType } from '@/constants';
+import { User, LoginLog } from '@/models/index';
+import { CookieExpiryDate, UserLoginType } from '@/config/constants';
 import { parseUserAgent, getClientIp, getClientLocation } from '@/utils/helpers';
+import {
+  getInviteListService,
+  updatePushTokenService,
+  getUserProfileService,
+} from './services/user.service';
+import { AuthError } from './auth.errors';
 
 function isValidUrl(u: string): boolean {
   try {
@@ -171,17 +176,21 @@ export const mobileGoogleAuth = async (req: Request, res: Response): Promise<voi
 
 export const updatePushToken = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { expoPushToken } = req.body as { expoPushToken?: string };
-    const userid = req.user!.userid;
+    const { expoPushToken, token } = req.body as { expoPushToken?: string; token?: string };
+    const pushToken = expoPushToken || token;
 
-    if (!expoPushToken) {
-      res.status(400).json({ success: false, message: 'Expo push token is required' });
+    if (!pushToken) {
+      res.status(400).json({ success: false, message: 'Push token is required' });
       return;
     }
 
-    await User.update({ expoPushToken }, { where: { userid } });
+    await updatePushTokenService(req.user!.userid, req.user!.role, pushToken);
     res.status(200).json({ success: true, message: 'Push token updated successfully' });
   } catch (error) {
+    if (error instanceof AuthError) {
+      res.status(error.statusCode).json({ message: error.message });
+      return;
+    }
     console.error('Error updating push token:', error);
     res.status(500).json({
       success: false,
@@ -193,23 +202,16 @@ export const updatePushToken = async (req: Request, res: Response): Promise<void
 
 export const getUserProfile = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userid = req.user!.userid;
-    if (!userid) {
-      res.status(401).json({ message: 'Unauthorized' });
+    const user = await getUserProfileService(req.user!.userid);
+    const plainUser = user.get({ plain: true }) as Record<string, unknown>;
+    plainUser.isAdmin = plainUser.email === process.env.ADMIN_EMAIL;
+    res.status(200).json({ user: plainUser });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      res.status(error.statusCode).json({ message: error.message });
       return;
     }
-
-    const user = (await User.findOne({
-      where: { userid },
-      attributes: { exclude: ['password'] },
-      raw: true,
-    })) as Record<string, unknown> | null;
-    if (user) {
-      user.isAdmin = user.email === process.env.ADMIN_EMAIL;
-    }
-    res.status(200).json({ user });
-  } catch (error) {
-    if (res.headersSent) return;
+    console.error('Error fetching user profile:', error);
     res.status(500).json({ message: 'Failed to fetch profile' });
   }
 };
@@ -227,49 +229,10 @@ export const logoutUser = (_req: Request, res: Response): void => {
 export const getInviteList = async (req: Request, res: Response): Promise<void> => {
   try {
     const currentUserId = req.user!.userid;
-    const search = (req.query.search as string)?.trim();
+    const search = req.query.search as string | undefined;
 
-    const followingRows = await Follower.findAll({
-      where: { followerid: currentUserId },
-      attributes: ['followid'],
-      raw: true,
-    });
-    const followingIds = new Set(followingRows.map((r) => r.followid));
-
-    if (!search) {
-      if (followingIds.size === 0) {
-        res.status(200).json({ users: [] });
-        return;
-      }
-
-      const followingUsers = await User.findAll({
-        where: { userid: { [Op.in]: [...followingIds] }, isDeleted: false },
-        attributes: ['userid', 'name', 'username', 'profilepic'],
-        limit: 50,
-        raw: true,
-      });
-
-      const result = followingUsers.map((u) => ({ ...u, isFollowing: true }));
-      res.status(200).json({ users: result });
-      return;
-    }
-
-    const users = await User.findAll({
-      where: {
-        userid: { [Op.ne]: currentUserId },
-        isDeleted: false,
-        name: { [Op.iLike]: `%${search}%` },
-      },
-      attributes: ['userid', 'name', 'username', 'profilepic'],
-      limit: 50,
-      raw: true,
-    });
-
-    const result = users
-      .map((u) => ({ ...u, isFollowing: followingIds.has(u.userid) }))
-      .sort((a, b) => (a.isFollowing === b.isFollowing ? 0 : a.isFollowing ? -1 : 1));
-
-    res.status(200).json({ users: result });
+    const users = await getInviteListService(currentUserId, search);
+    res.status(200).json({ users });
   } catch (error) {
     console.error('Error fetching invite list:', error);
     res.status(500).json({ message: 'Failed to fetch users' });

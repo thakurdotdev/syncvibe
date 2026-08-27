@@ -2,32 +2,14 @@ import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '@/models/index';
 import type { UserAttributes } from '@/models/auth/user.model';
+import { cache } from '@/utils/redis';
 
 interface JwtPayload {
   email: string;
   role?: string;
 }
 
-interface CacheEntry {
-  user: UserAttributes;
-  expiresAt: number;
-}
-
-const userCache = new Map<string, CacheEntry>();
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
-
-// Clean up expired cache entries every 5 minutes
-setInterval(
-  () => {
-    const now = Date.now();
-    for (const [key, value] of userCache.entries()) {
-      if (now > value.expiresAt) {
-        userCache.delete(key);
-      }
-    }
-  },
-  5 * 60 * 1000
-);
+const USER_SESSION_TTL_SECONDS = 10 * 60; // 10 minutes
 
 export const authMiddleware = async (
   req: Request,
@@ -48,12 +30,11 @@ export const authMiddleware = async (
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET) as JwtPayload;
-    const cacheKey = decoded.email;
-    const now = Date.now();
+    const cacheKey = `user:session:${decoded.email}`;
 
-    const cached = userCache.get(cacheKey);
-    if (cached && cached.expiresAt > now) {
-      req.user = { ...cached.user, role: decoded.role ?? 'user' };
+    const cachedUser = await cache.get<UserAttributes>(cacheKey);
+    if (cachedUser) {
+      req.user = { ...cachedUser, role: decoded.role ?? 'user' };
       next();
       return;
     }
@@ -69,11 +50,7 @@ export const authMiddleware = async (
     }
 
     const userData = existingUser as unknown as UserAttributes;
-
-    userCache.set(cacheKey, {
-      user: userData,
-      expiresAt: now + CACHE_TTL,
-    });
+    await cache.set(cacheKey, userData, USER_SESSION_TTL_SECONDS);
 
     req.user = { ...userData, role: decoded.role ?? 'user' };
     next();
@@ -97,12 +74,11 @@ export const optionalAuthMiddleware = async (
 
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET) as JwtPayload;
-      const cacheKey = decoded.email;
-      const now = Date.now();
+      const cacheKey = `user:session:${decoded.email}`;
 
-      const cached = userCache.get(cacheKey);
-      if (cached && cached.expiresAt > now) {
-        req.user = { ...cached.user, role: decoded.role ?? 'user' };
+      const cachedUser = await cache.get<UserAttributes>(cacheKey);
+      if (cachedUser) {
+        req.user = { ...cachedUser, role: decoded.role ?? 'user' };
       } else {
         const existingUser = await User.findOne({
           where: { email: decoded.email },
@@ -110,10 +86,7 @@ export const optionalAuthMiddleware = async (
         });
         if (existingUser) {
           const userData = existingUser as unknown as UserAttributes;
-          userCache.set(cacheKey, {
-            user: userData,
-            expiresAt: now + CACHE_TTL,
-          });
+          await cache.set(cacheKey, userData, USER_SESSION_TTL_SECONDS);
           req.user = { ...userData, role: decoded.role ?? 'user' };
         }
       }

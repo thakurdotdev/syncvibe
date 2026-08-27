@@ -5,7 +5,7 @@ import {
   type VerifyCallback,
 } from 'passport-google-oauth20';
 import jwt from 'jsonwebtoken';
-import { UserLoginType, JWTExpiryDate } from '@/constants';
+import { UserLoginType, JWTExpiryDate } from '@/config/constants';
 import { User } from '@/models/index';
 import type { Request } from 'express';
 

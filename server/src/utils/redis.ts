@@ -72,4 +72,18 @@ export const cache = {
       return false;
     }
   },
+
+  async incr(key: string, ttlSeconds?: number): Promise<number | null> {
+    const client = getRedis();
+    if (!client) return null;
+    try {
+      const count = await client.incr(key);
+      if (count === 1 && ttlSeconds && ttlSeconds > 0) {
+        await client.expire(key, ttlSeconds);
+      }
+      return count;
+    } catch {
+      return null;
+    }
+  },
 };

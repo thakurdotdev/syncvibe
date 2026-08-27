@@ -10,7 +10,7 @@ import jwt from 'jsonwebtoken';
 import { User, Authenticator, LoginLog } from '@/models/index';
 import sequelize from '@/utils/sequelize';
 import { parseUserAgent, getClientIp, getClientLocation } from '@/utils/helpers';
-import { JWTExpiryDate, CookieExpiryDate } from '@/constants';
+import { JWTExpiryDate, CookieExpiryDate } from '@/config/constants';
 
 type RegistrationResponse = Parameters<typeof verifyRegistrationResponse>[0]['response'];
 type AuthenticationResponse = Parameters<typeof verifyAuthenticationResponse>[0]['response'];

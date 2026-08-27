@@ -8,7 +8,7 @@ import hpp from 'hpp';
 import type { Request, Response, NextFunction } from 'express';
 import { security, apiLimiter, speedLimiter, authLimiter, uploadLimiter } from '@/config/index';
 import { apiRouters, webhookRouter } from '@/routes/index';
-import '@/passport';
+import '@/config/passport';
 
 const app: express.Express = express();
 

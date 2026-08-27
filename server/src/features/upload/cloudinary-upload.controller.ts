@@ -2,40 +2,14 @@ import type { Request, Response } from 'express';
 import { v2 as Cloudinary } from 'cloudinary';
 import crypto from 'node:crypto';
 import { UPLOAD_CONFIG, FOLDER_CONFIG, RATE_LIMIT, type UploadFolder } from '@/config/upload';
+import { cache } from '@/utils/redis';
 
-interface RateLimitEntry {
-  count: number;
-  windowStart: number;
-}
-
-const userSignatureCache = new Map<number, RateLimitEntry>();
-
-const cleanupExpiredEntries = (): void => {
-  const now = Date.now();
-  for (const [userId, data] of userSignatureCache.entries()) {
-    if (now - data.windowStart > RATE_LIMIT.windowMs) {
-      userSignatureCache.delete(userId);
-    }
-  }
-};
-
-setInterval(cleanupExpiredEntries, 60 * 1000);
-
-const checkRateLimit = (userId: number): boolean => {
-  const now = Date.now();
-  const userData = userSignatureCache.get(userId);
-
-  if (!userData || now - userData.windowStart > RATE_LIMIT.windowMs) {
-    userSignatureCache.set(userId, { count: 1, windowStart: now });
-    return true;
-  }
-
-  if (userData.count >= RATE_LIMIT.maxSignatures) {
-    return false;
-  }
-
-  userData.count++;
-  return true;
+const checkRateLimit = async (userId: number): Promise<boolean> => {
+  const windowSeconds = Math.ceil(RATE_LIMIT.windowMs / 1000);
+  const key = `ratelimit:upload_sig:${userId}`;
+  const count = await cache.incr(key, windowSeconds);
+  if (count === null) return true;
+  return count <= RATE_LIMIT.maxSignatures;
 };
 
 const INTENT_TO_FOLDER: Record<string, UploadFolder> = {
@@ -62,7 +36,8 @@ export const getUploadSignature = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    if (!checkRateLimit(userid)) {
+    const isAllowed = await checkRateLimit(userid);
+    if (!isAllowed) {
       res.status(429).json({
         message: 'Too many upload requests. Please try again later.',
         code: 'RATE_LIMIT_EXCEEDED',
