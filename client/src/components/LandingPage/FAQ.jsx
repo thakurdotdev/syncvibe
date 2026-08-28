@@ -38,16 +38,16 @@ const FAQ = memo(() => {
   };
 
   return (
-    <section id='faq' className='py-20 px-4 sm:px-6 relative border-t border-zinc-800/60'>
+    <section id='faq' className='py-20 px-4 sm:px-6 relative border-t border-border/60'>
       <div className='max-w-3xl mx-auto'>
         <div className='text-center max-w-md mx-auto mb-14 space-y-2.5'>
-          <span className='text-xs font-mono font-medium text-zinc-500 uppercase tracking-widest'>
+          <span className='text-xs font-mono font-medium text-primary uppercase tracking-widest'>
             FAQ
           </span>
-          <h2 className='text-2xl sm:text-4xl font-bold text-white tracking-tight'>
+          <h2 className='text-2xl sm:text-4xl font-bold text-foreground tracking-tight'>
             Common questions
           </h2>
-          <p className='text-xs sm:text-sm text-zinc-400 leading-relaxed font-normal'>
+          <p className='text-xs sm:text-sm text-muted-foreground leading-relaxed font-normal'>
             Everything you need to know about rooms, sync, and subscriptions.
           </p>
         </div>
@@ -61,8 +61,8 @@ const FAQ = memo(() => {
                 className={cn(
                   'rounded-xl border transition-all duration-200 overflow-hidden',
                   isOpen
-                    ? 'border-zinc-700 bg-zinc-900/60'
-                    : 'border-zinc-800/80 bg-zinc-950/40 hover:border-zinc-700'
+                    ? 'border-primary/40 bg-card/70 shadow-sm'
+                    : 'border-border/80 bg-card/40 hover:border-border'
                 )}
               >
                 <button
@@ -70,18 +70,25 @@ const FAQ = memo(() => {
                   onClick={() => toggle(index)}
                   className='w-full px-5 py-4 text-left flex items-center justify-between gap-4 cursor-pointer'
                 >
-                  <span className='text-sm font-medium text-zinc-200'>{faq.question}</span>
+                  <span
+                    className={cn(
+                      'text-sm font-medium transition-colors',
+                      isOpen ? 'text-foreground' : 'text-muted-foreground'
+                    )}
+                  >
+                    {faq.question}
+                  </span>
                   <ChevronDown
                     size={15}
                     className={cn(
-                      'text-zinc-500 transition-transform duration-200 shrink-0',
-                      isOpen && 'transform rotate-180 text-white'
+                      'text-muted-foreground transition-transform duration-200 shrink-0',
+                      isOpen && 'transform rotate-180 text-primary'
                     )}
                   />
                 </button>
 
                 {isOpen && (
-                  <div className='px-5 pb-4 pt-1 text-xs text-zinc-400 leading-relaxed border-t border-zinc-800/60'>
+                  <div className='px-5 pb-4 pt-1 text-xs text-muted-foreground leading-relaxed border-t border-border/60'>
                     {faq.answer}
                   </div>
                 )}

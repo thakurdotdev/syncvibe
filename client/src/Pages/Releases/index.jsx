@@ -88,20 +88,20 @@ const ReleasesPage = () => {
   const formattedSize = formatBytes(latestUpdate?.fileSize);
 
   return (
-    <div className='min-h-screen bg-[#050505] text-white selection:bg-white/20 selection:text-white px-4 sm:px-6 pt-28 pb-24'>
+    <div className='min-h-screen bg-background text-foreground selection:bg-primary/30 selection:text-foreground px-4 sm:px-6 pt-28 pb-24'>
       <div className='max-w-4xl mx-auto space-y-12'>
         {/* Header Title */}
         <div className='text-center max-w-xl mx-auto space-y-3'>
-          <div className='inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-300'>
-            <Smartphone size={13} className='text-zinc-400' />
+          <div className='inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary border border-border text-xs font-mono text-muted-foreground'>
+            <Smartphone size={13} className='text-primary' />
             <span>SyncVibe for Android</span>
           </div>
 
-          <h1 className='text-3xl sm:text-5xl font-bold tracking-tight text-white leading-tight'>
+          <h1 className='text-3xl sm:text-5xl font-bold tracking-tight text-foreground leading-tight'>
             Downloads & Releases
           </h1>
 
-          <p className='text-xs sm:text-sm text-zinc-400 leading-relaxed font-normal'>
+          <p className='text-xs sm:text-sm text-muted-foreground leading-relaxed font-normal'>
             Download the latest APK build directly or review past release notes and checksums.
           </p>
         </div>
@@ -109,30 +109,30 @@ const ReleasesPage = () => {
         {/* Loading State */}
         {loading ? (
           <div className='py-20 flex flex-col items-center justify-center space-y-3'>
-            <Loader2 className='w-6 h-6 animate-spin text-zinc-500' />
-            <span className='text-xs text-zinc-500 font-mono'>Fetching latest build...</span>
+            <Loader2 className='w-6 h-6 animate-spin text-primary' />
+            <span className='text-xs text-muted-foreground font-mono'>Fetching latest build...</span>
           </div>
         ) : (
           <>
             {/* Latest Release Primary Card */}
-            <div className='rounded-2xl border border-zinc-800 bg-zinc-950/80 backdrop-blur-xl p-6 sm:p-8 space-y-6 shadow-2xl'>
+            <div className='rounded-2xl border border-border bg-card/80 backdrop-blur-xl p-6 sm:p-8 space-y-6 shadow-2xl'>
               {/* Header Info */}
-              <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-800/80'>
+              <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/80'>
                 <div className='space-y-1.5'>
                   <div className='flex items-center gap-2.5'>
-                    <h2 className='text-xl sm:text-2xl font-bold text-white tracking-tight font-mono'>
+                    <h2 className='text-xl sm:text-2xl font-bold text-foreground tracking-tight font-mono'>
                       v{version}
                     </h2>
-                    <span className='px-2.5 py-0.5 rounded-full bg-white text-black text-[11px] font-bold font-mono'>
+                    <span className='px-2.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold font-mono'>
                       LATEST
                     </span>
                     {latestUpdate?.critical && (
-                      <span className='px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-semibold'>
+                      <span className='px-2.5 py-0.5 rounded-full bg-destructive/20 text-destructive border border-destructive/30 text-[10px] font-semibold'>
                         CRITICAL
                       </span>
                     )}
                   </div>
-                  <p className='text-xs text-zinc-400 font-mono'>
+                  <p className='text-xs text-muted-foreground font-mono'>
                     Released on {formatDate(latestUpdate?.createdAt || new Date())}
                   </p>
                 </div>
@@ -140,7 +140,7 @@ const ReleasesPage = () => {
                 <a href={downloadUrl} target='_blank' rel='noopener noreferrer'>
                   <Button
                     size='lg'
-                    className='w-full sm:w-auto h-11 px-6 rounded-full bg-white text-black hover:bg-zinc-200 font-semibold text-xs cursor-pointer shadow-sm transition-all active:scale-98'
+                    className='w-full sm:w-auto h-11 px-6 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs cursor-pointer shadow-lg shadow-primary/25 transition-all active:scale-98'
                   >
                     <ArrowDownToLine className='mr-2 h-4 w-4' />
                     <span>Download APK {formattedSize ? `(${formattedSize})` : ''}</span>
@@ -150,22 +150,22 @@ const ReleasesPage = () => {
 
               {/* Release Metadata */}
               <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
-                <div className='p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/60 space-y-1'>
-                  <div className='text-[10.5px] font-mono text-zinc-500 uppercase'>
+                <div className='p-3.5 rounded-xl bg-secondary/60 border border-border space-y-1'>
+                  <div className='text-[10.5px] font-mono text-muted-foreground uppercase'>
                     Architecture
                   </div>
-                  <div className='text-xs font-semibold text-white font-mono'>Universal APK</div>
+                  <div className='text-xs font-semibold text-foreground font-mono'>Universal APK</div>
                 </div>
 
-                <div className='p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/60 space-y-1'>
-                  <div className='text-[10.5px] font-mono text-zinc-500 uppercase'>
+                <div className='p-3.5 rounded-xl bg-secondary/60 border border-border space-y-1'>
+                  <div className='text-[10.5px] font-mono text-muted-foreground uppercase'>
                     Compatibility
                   </div>
-                  <div className='text-xs font-semibold text-white'>Android 8.0 & Higher</div>
+                  <div className='text-xs font-semibold text-foreground'>Android 8.0 & Higher</div>
                 </div>
 
-                <div className='p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/60 space-y-1'>
-                  <div className='text-[10.5px] font-mono text-zinc-500 uppercase'>
+                <div className='p-3.5 rounded-xl bg-secondary/60 border border-border space-y-1'>
+                  <div className='text-[10.5px] font-mono text-muted-foreground uppercase'>
                     Package Verification
                   </div>
                   <div className='text-xs font-semibold text-emerald-400 flex items-center gap-1'>
@@ -177,12 +177,12 @@ const ReleasesPage = () => {
 
               {/* SHA-256 Checksum Box */}
               {latestUpdate?.sha256 && (
-                <div className='p-3.5 rounded-xl bg-zinc-900/40 border border-zinc-800/60 flex items-center justify-between gap-3 text-xs'>
+                <div className='p-3.5 rounded-xl bg-secondary/40 border border-border flex items-center justify-between gap-3 text-xs'>
                   <div className='min-w-0 space-y-0.5'>
-                    <div className='text-[10.5px] font-mono text-zinc-500 uppercase'>
+                    <div className='text-[10.5px] font-mono text-muted-foreground uppercase'>
                       SHA-256 Checksum
                     </div>
-                    <div className='font-mono text-[11px] text-zinc-300 truncate'>
+                    <div className='font-mono text-[11px] text-foreground truncate'>
                       {latestUpdate.sha256}
                     </div>
                   </div>
@@ -191,7 +191,7 @@ const ReleasesPage = () => {
                     variant='ghost'
                     size='sm'
                     onClick={() => handleCopySha(latestUpdate.sha256)}
-                    className='h-8 px-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 shrink-0 text-xs'
+                    className='h-8 px-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary shrink-0 text-xs'
                   >
                     {copiedSha ? (
                       <span className='text-emerald-400 flex items-center gap-1'>
@@ -209,10 +209,10 @@ const ReleasesPage = () => {
               {/* Release Notes */}
               {latestUpdate?.releaseNotes && (
                 <div className='space-y-2 pt-2'>
-                  <h3 className='text-xs font-semibold text-zinc-300 uppercase tracking-wider font-mono'>
+                  <h3 className='text-xs font-semibold text-foreground uppercase tracking-wider font-mono'>
                     What's New in v{version}
                   </h3>
-                  <div className='p-4 rounded-xl bg-zinc-900/30 border border-zinc-800/50 text-xs sm:text-sm text-zinc-300 leading-relaxed whitespace-pre-line'>
+                  <div className='p-4 rounded-xl bg-secondary/30 border border-border text-xs sm:text-sm text-foreground/90 leading-relaxed whitespace-pre-line'>
                     {latestUpdate.releaseNotes}
                   </div>
                 </div>
@@ -220,23 +220,23 @@ const ReleasesPage = () => {
             </div>
 
             {/* How to Install Guide */}
-            <div className='rounded-2xl border border-zinc-800/80 bg-zinc-950/40 p-6 space-y-4'>
-              <h3 className='text-sm font-semibold text-white flex items-center gap-2'>
-                <Info size={15} className='text-zinc-400' />
+            <div className='rounded-2xl border border-border bg-card/60 p-6 space-y-4'>
+              <h3 className='text-sm font-semibold text-foreground flex items-center gap-2'>
+                <Info size={15} className='text-primary' />
                 How to install the APK on Android
               </h3>
 
-              <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-zinc-400'>
+              <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-muted-foreground'>
                 <div className='space-y-1'>
-                  <span className='font-mono text-white font-semibold'>1. Download</span>
+                  <span className='font-mono text-foreground font-semibold'>1. Download</span>
                   <p>Tap the Download APK button above to save the file to your device.</p>
                 </div>
                 <div className='space-y-1'>
-                  <span className='font-mono text-white font-semibold'>2. Allow Install</span>
+                  <span className='font-mono text-foreground font-semibold'>2. Allow Install</span>
                   <p>When prompted, allow your browser to install apps from this source.</p>
                 </div>
                 <div className='space-y-1'>
-                  <span className='font-mono text-white font-semibold'>3. Open & Sync</span>
+                  <span className='font-mono text-foreground font-semibold'>3. Open & Sync</span>
                   <p>Open SyncVibe, log in to your account, and start streaming in sync!</p>
                 </div>
               </div>
@@ -246,8 +246,8 @@ const ReleasesPage = () => {
             {allUpdates.length > 1 && (
               <div className='space-y-4 pt-4'>
                 <div className='flex items-center gap-2'>
-                  <History size={15} className='text-zinc-400' />
-                  <h3 className='text-sm font-semibold text-white'>Release History</h3>
+                  <History size={15} className='text-muted-foreground' />
+                  <h3 className='text-sm font-semibold text-foreground'>Release History</h3>
                 </div>
 
                 <div className='space-y-2.5'>
@@ -259,23 +259,23 @@ const ReleasesPage = () => {
                       return (
                         <div
                           key={update.id || update.version}
-                          className='rounded-xl border border-zinc-800/70 bg-zinc-950/40 overflow-hidden transition-colors'
+                          className='rounded-xl border border-border bg-card/40 overflow-hidden transition-colors'
                         >
                           <div
-                            className='p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-zinc-900/30'
+                            className='p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-secondary/40'
                             onClick={() => toggleVersion(update.version)}
                           >
                             <div className='flex items-center gap-3 min-w-0'>
-                              <span className='font-mono font-semibold text-xs text-white'>
+                              <span className='font-mono font-semibold text-xs text-foreground'>
                                 v{update.version}
                               </span>
-                              <span className='text-zinc-500 text-xs font-mono'>
+                              <span className='text-muted-foreground/60 text-xs font-mono'>
                                 {formatDate(update.createdAt)}
                               </span>
                               {updateSize && (
                                 <>
-                                  <span className='text-zinc-600 text-xs'>•</span>
-                                  <span className='text-zinc-400 text-xs font-mono'>
+                                  <span className='text-muted-foreground/40 text-xs'>•</span>
+                                  <span className='text-muted-foreground text-xs font-mono'>
                                     {updateSize}
                                   </span>
                                 </>
@@ -289,7 +289,7 @@ const ReleasesPage = () => {
                                   target='_blank'
                                   rel='noopener noreferrer'
                                   onClick={(e) => e.stopPropagation()}
-                                  className='text-xs text-zinc-400 hover:text-white font-medium flex items-center gap-1 py-1 px-2.5 rounded-lg bg-zinc-900 border border-zinc-800'
+                                  className='text-xs text-muted-foreground hover:text-foreground font-medium flex items-center gap-1 py-1 px-2.5 rounded-lg bg-secondary border border-border'
                                 >
                                   <Download size={12} />
                                   <span>APK</span>
@@ -298,7 +298,7 @@ const ReleasesPage = () => {
                               <ChevronDown
                                 size={14}
                                 className={cn(
-                                  'text-zinc-500 transition-transform duration-200',
+                                  'text-muted-foreground transition-transform duration-200',
                                   isExpanded && 'transform rotate-180'
                                 )}
                               />
@@ -306,7 +306,7 @@ const ReleasesPage = () => {
                           </div>
 
                           {isExpanded && update.releaseNotes && (
-                            <div className='px-4 pb-4 pt-1 text-xs text-zinc-400 leading-relaxed border-t border-zinc-800/50 whitespace-pre-line'>
+                            <div className='px-4 pb-4 pt-1 text-xs text-muted-foreground leading-relaxed border-t border-border whitespace-pre-line'>
                               {update.releaseNotes}
                             </div>
                           )}

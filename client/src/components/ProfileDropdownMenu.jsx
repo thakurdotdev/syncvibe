@@ -59,16 +59,16 @@ const ProfileDropdownMenu = ({ fromSidebar = true }) => {
       });
 
       if (status === 200) {
+        navigate('/login');
         cleanUpSocket();
         stopSong();
         setUser(null);
-        navigate('/login');
       }
     } catch (error) {
+      navigate('/login');
       cleanUpSocket();
       stopSong();
       setUser(null);
-      navigate('/login');
     }
   };
 

@@ -7,11 +7,12 @@ import {
   Copy,
   Download,
   Headphones,
+  ListMusic,
   LogOut,
   Music,
   Pause,
   Play,
-  Search,
+  QrCode,
   Send,
   SkipForward,
   UserPlus,
@@ -31,65 +32,65 @@ const formatTime = (seconds) => {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 };
 
+const REACTIONS = ['🔥', '❤️', '👏', '😍', '🎵'];
+
 const INITIAL_MESSAGES = [
   { id: 1, sender: 'Sarah', text: 'Love this song! 🎵', isMe: false },
-  { id: 2, sender: 'Pankaj Thakur', text: 'Hello everyone, enjoy the vibes!', isMe: true },
+  { id: 2, sender: 'Alex', text: '0ms delay, syncing is so smooth 🎧', isMe: false },
 ];
-
-const EMOJIS = ['🔥', '❤️', '👏', '😍', '🎵'];
 
 const Hero = memo(() => {
   const audioRef = useRef(null);
   const chatScrollRef = useRef(null);
+  const reactionIdRef = useRef(0);
 
-  // Playlist & Active Song State
+  // Active track state
   const [songIndex, setSongIndex] = useState(0);
   const currentSong = DEMO_PLAYLIST[songIndex] || DEMO_PLAYLIST[0];
 
-  // Playback State
+  // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(currentSong?.duration || 308);
-  const [volume, setVolume] = useState(80);
+  const [volume, setVolume] = useState(85);
+  const [prevVolume, setPrevVolume] = useState(85);
   const [copiedCode, setCopiedCode] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
 
-  // Floating Reactions State
+  // Floating Reactions
   const [floatingReactions, setFloatingReactions] = useState([]);
-  const reactionIdRef = useRef(0);
 
-  // Live Chat & Typing State
+  // Live Chat state
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [chatInput, setChatInput] = useState('');
   const [typingUser, setTypingUser] = useState(null);
 
-  // Auto-scroll chat on new messages
+  // Auto-scroll chat on new message
   useEffect(() => {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
   }, [messages, typingUser]);
 
-  // Spawn animated floating emoji burst
+  // Trigger floating reaction burst
   const triggerReaction = useCallback((emoji) => {
     const id = ++reactionIdRef.current;
     const randomX = Math.floor(Math.random() * 80) - 40;
     const newReaction = { id, emoji, x: randomX };
 
-    setFloatingReactions((prev) => [...prev.slice(-15), newReaction]);
+    setFloatingReactions((prev) => [...prev.slice(-10), newReaction]);
 
     setTimeout(() => {
       setFloatingReactions((prev) => prev.filter((r) => r.id !== id));
     }, 1400);
   }, []);
 
-  // User manually sends a reaction
   const handleSendReaction = (emoji, e) => {
     if (e) e.stopPropagation();
     triggerReaction(emoji);
   };
 
-  // When song changes, update audio src and auto-play if active
+  // Audio track switch logic
   useEffect(() => {
     if (audioRef.current && currentSong?.audioSrc) {
       audioRef.current.src = currentSong.audioSrc;
@@ -99,91 +100,69 @@ const Hero = memo(() => {
       if (isPlaying) {
         audioRef.current
           .play()
-          .catch((e) => console.warn('Auto-playback on track change policy:', e));
+          .catch((err) => console.warn('Autoplay policy:', err));
       }
     }
-  }, [currentSong, isPlaying]);
+  }, [currentSong]);
 
-  // Automated Social Simulation when song is playing (reactions + typing + listener comments)
+  // Simulated social activity when playing
   useEffect(() => {
     if (!isPlaying) {
       setTypingUser(null);
       return;
     }
 
-    // 1. Periodic automated emoji reaction bursts
-    const reactionInterval = setInterval(() => {
-      const randomEmoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
-      triggerReaction(randomEmoji);
-    }, 3200);
+    const interval = setInterval(() => {
+      const emoji = REACTIONS[Math.floor(Math.random() * REACTIONS.length)];
+      triggerReaction(emoji);
+    }, 3800);
 
-    // 2. Sequential social chat simulation
-    const timer1 = setTimeout(() => {
+    const t1 = setTimeout(() => {
       setTypingUser('Sarah');
-    }, 2500);
+    }, 2800);
 
-    const timer2 = setTimeout(() => {
+    const t2 = setTimeout(() => {
       setTypingUser(null);
       setMessages((prev) => [
         ...prev,
         {
-          id: Date.now() + 10,
+          id: Date.now() + 1,
           sender: 'Sarah',
           text: 'This track hits so good! ❤️',
           isMe: false,
         },
       ]);
       triggerReaction('❤️');
-    }, 4500);
+    }, 4800);
 
-    const timer3 = setTimeout(() => {
+    const t3 = setTimeout(() => {
       setTypingUser('Alex');
-    }, 9000);
+    }, 10000);
 
-    const timer4 = setTimeout(() => {
+    const t4 = setTimeout(() => {
       setTypingUser(null);
       setMessages((prev) => [
         ...prev,
         {
-          id: Date.now() + 20,
+          id: Date.now() + 2,
           sender: 'Alex',
-          text: '0ms delay, syncing is so smooth 🎧',
-          isMe: false,
-        },
-      ]);
-      triggerReaction('🔥');
-    }, 11500);
-
-    const timer5 = setTimeout(() => {
-      setTypingUser('Sarah');
-    }, 17000);
-
-    const timer6 = setTimeout(() => {
-      setTypingUser(null);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 30,
-          sender: 'Sarah',
-          text: 'Queue the next one in the list! 👏',
+          text: 'Next one is in the queue! 👏',
           isMe: false,
         },
       ]);
       triggerReaction('👏');
-    }, 19500);
+    }, 12500);
 
     return () => {
-      clearInterval(reactionInterval);
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timer4);
-      clearTimeout(timer5);
-      clearTimeout(timer6);
+      clearInterval(interval);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
     };
   }, [isPlaying, currentSong, triggerReaction]);
 
-  // Sync audio time & duration
+  // Audio time update
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       setCurrentTime(audioRef.current.currentTime);
@@ -193,7 +172,7 @@ const Hero = memo(() => {
     }
   };
 
-  // Handle Play/Pause toggle with real HTML5 audio
+  // Play / Pause toggle
   const togglePlayPause = async () => {
     if (!audioRef.current) return;
 
@@ -206,13 +185,13 @@ const Hero = memo(() => {
         setIsPlaying(true);
         toast.success(`Playing: ${currentSong.name}`);
       } catch (err) {
-        console.warn('Audio play policy:', err);
+        console.warn('Audio play error:', err);
         setIsPlaying(true);
       }
     }
   };
 
-  // Handle track skip
+  // Next track
   const handleSkipNext = () => {
     const nextIndex = (songIndex + 1) % DEMO_PLAYLIST.length;
     setSongIndex(nextIndex);
@@ -220,7 +199,7 @@ const Hero = memo(() => {
     toast.info(`Now playing: ${DEMO_PLAYLIST[nextIndex].name}`);
   };
 
-  // Handle selecting song from queue
+  // Select track from queue
   const handleSelectSong = (index) => {
     setSongIndex(index);
     setIsPlaying(true);
@@ -228,7 +207,7 @@ const Hero = memo(() => {
     toast.info(`Now playing: ${DEMO_PLAYLIST[index].name}`);
   };
 
-  // Handle seeking
+  // Seek bar
   const handleSeek = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -240,7 +219,7 @@ const Hero = memo(() => {
     }
   };
 
-  // Handle volume change
+  // Volume slider
   const handleVolumeChange = (e) => {
     const newVol = Number(e.target.value);
     setVolume(newVol);
@@ -249,22 +228,41 @@ const Hero = memo(() => {
     }
   };
 
-  // Send user chat message
+  const toggleMute = () => {
+    if (volume > 0) {
+      setPrevVolume(volume);
+      setVolume(0);
+      if (audioRef.current) audioRef.current.volume = 0;
+    } else {
+      const restored = prevVolume || 80;
+      setVolume(restored);
+      if (audioRef.current) audioRef.current.volume = restored / 100;
+    }
+  };
+
+  // Copy code
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText('798859');
+    setCopiedCode(true);
+    toast.success('Room code 798859 copied!');
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  // Send user message
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
-    const userMsg = {
+    const newMsg = {
       id: Date.now(),
       sender: 'Pankaj Thakur',
       text: chatInput.trim(),
       isMe: true,
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, newMsg]);
     setChatInput('');
 
-    // Simulated quick response
     setTimeout(() => {
       setTypingUser('Alex');
       setTimeout(() => {
@@ -274,27 +272,19 @@ const Hero = memo(() => {
           {
             id: Date.now() + 1,
             sender: 'Alex',
-            text: 'Loving this session! 🔥',
+            text: 'Vibing to this! 🔥',
             isMe: false,
           },
         ]);
         triggerReaction('🔥');
-      }, 1500);
-    }, 1000);
-  };
-
-  // Copy room code
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText('267477');
-    setCopiedCode(true);
-    toast.success('Room code 267477 copied to clipboard!');
-    setTimeout(() => setCopiedCode(false), 2000);
+      }, 1400);
+    }, 800);
   };
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <section className='relative pt-24 sm:pt-28 pb-16 px-4 sm:px-6 overflow-hidden'>
+    <section className='relative pt-24 sm:pt-32 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden'>
       {/* Hidden Real HTML5 Audio Element */}
       <audio
         ref={audioRef}
@@ -306,58 +296,32 @@ const Hero = memo(() => {
         onPause={() => setIsPlaying(false)}
       />
 
-      {/* Ambient Lighting */}
-      <div className='absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-white/[0.03] rounded-full blur-[100px] pointer-events-none' />
-
-      <div className='max-w-5xl mx-auto text-center relative z-10'>
-        {/* Pill Badge */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className='inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/90 border border-zinc-800 text-xs font-medium text-zinc-300 backdrop-blur-md mb-8 hover:border-zinc-700 transition-colors cursor-default'
-        >
-          <span className='flex h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse' />
+      <div className='max-w-6xl mx-auto text-center relative z-10'>
+        {/* Top Tag */}
+        <div className='inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-secondary border border-border text-xs font-medium text-muted-foreground mb-8 shadow-xs'>
+          <span className='h-1.5 w-1.5 rounded-full bg-primary animate-pulse' />
           <span>Real-time Group Music Sync</span>
-          <span className='text-zinc-600'>•</span>
-          <span className='text-zinc-400'>Low-latency audio streaming</span>
-        </motion.div>
+          <span className='text-muted-foreground/60'>•</span>
+          <span className='text-muted-foreground'>Low-latency audio streaming</span>
+        </div>
 
-        {/* Main Headline */}
-        <motion.h1
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className='text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white leading-[1.1] mb-6 max-w-3xl mx-auto'
-        >
-          Music is better{' '}
-          <span className='bg-gradient-to-b from-white via-white to-zinc-400 bg-clip-text text-transparent'>
-            together.
-          </span>
-        </motion.h1>
+        {/* Spacious, Grand Headline */}
+        <h1 className='text-4xl sm:text-6xl md:text-7xl lg:text-[76px] font-bold tracking-tight text-foreground leading-[1.08] mb-6 max-w-5xl mx-auto'>
+          Music is better together.
+        </h1>
 
-        {/* Subtitle */}
-        <motion.p
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className='text-base sm:text-lg text-zinc-400 max-w-xl mx-auto mb-10 leading-relaxed font-normal'
-        >
-          Stream music in real-time sync with friends. Hop on voice, share video reactions, and
-          build shared queues without delay.
-        </motion.p>
+        {/* Spacious Subtitle */}
+        <p className='text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed font-normal'>
+          Stream music in real-time sync with friends. Hop on voice, share reactions, and build
+          shared queues without delay.
+        </p>
 
         {/* Action Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className='flex flex-col sm:flex-row items-center justify-center gap-3 mb-10'
-        >
+        <div className='flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-16'>
           <Link to='/register'>
             <Button
               size='lg'
-              className='h-11 px-6 rounded-full bg-white text-black hover:bg-zinc-200 font-medium text-xs sm:text-sm cursor-pointer transition-all active:scale-98 shadow-sm'
+              className='h-12 px-8 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm cursor-pointer transition-all active:scale-98 shadow-lg shadow-primary/25'
             >
               <span>Get Started Free</span>
               <ArrowRight className='ml-2 h-4 w-4' />
@@ -367,51 +331,31 @@ const Hero = memo(() => {
             <Button
               size='lg'
               variant='outline'
-              className='h-11 px-5 rounded-full border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300 hover:text-white text-xs sm:text-sm cursor-pointer transition-all'
+              className='h-12 px-6 rounded-full border-border bg-secondary/50 hover:bg-secondary text-foreground text-sm cursor-pointer transition-all'
             >
-              <Download className='mr-2 h-3.5 w-3.5 text-zinc-400' />
+              <Download className='mr-2 h-4 w-4 text-muted-foreground' />
               <span>Download Android App</span>
             </Button>
           </Link>
-        </motion.div>
+        </div>
 
-        {/* Interactive Helper Badge */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.35 }}
-          className='flex items-center justify-center mb-4'
-        >
-          <div className='inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-zinc-900/90 border border-zinc-800 text-[11.5px] text-zinc-300 backdrop-blur-md shadow-sm'>
-            <span className='w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse' />
-            <span className='font-medium text-white'>Live Interactive Demo</span>
-            <span className='text-zinc-600'>•</span>
-            <span className='text-zinc-400'>Tap Play, Reactions, or Queue to test</span>
-          </div>
-        </motion.div>
-
-        {/* Interactive Group Music Product UI Mockup */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.98, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className='relative max-w-4xl mx-auto'
-        >
+        {/* ═══ SPACIOUS INTERACTIVE GROUP MUSIC DEMO (Full Desktop Breadth) ═══ */}
+        <div className='relative max-w-5xl mx-auto text-left'>
           {/* Floating Emoji Particles Layer */}
           <div className='absolute inset-0 pointer-events-none z-50 overflow-hidden'>
             <AnimatePresence>
               {floatingReactions.map((reaction) => (
                 <motion.div
                   key={reaction.id}
-                  initial={{ opacity: 1, y: 320, x: 280 + reaction.x, scale: 0.7 }}
+                  initial={{ opacity: 1, y: 240, x: 260 + reaction.x, scale: 0.8 }}
                   animate={{
                     opacity: 0,
-                    y: 100,
-                    x: 280 + reaction.x * 2.2,
+                    y: 40,
+                    x: 260 + reaction.x * 2.2,
                     scale: 1.6,
                   }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 1.4, ease: 'easeOut' }}
+                  transition={{ duration: 1.3, ease: 'easeOut' }}
                   className='absolute text-2xl drop-shadow-lg select-none'
                 >
                   {reaction.emoji}
@@ -420,26 +364,26 @@ const Hero = memo(() => {
             </AnimatePresence>
           </div>
 
-          <div className='rounded-2xl border border-zinc-800/90 bg-[#121214] p-4 sm:p-5 shadow-2xl text-left space-y-3.5 relative overflow-hidden'>
+          {/* Spacious App Container matching actual GroupMusic UI */}
+          <div className='rounded-3xl border border-border bg-card p-5 sm:p-7 shadow-2xl space-y-5'>
             {/* Top Room Header Bar */}
-            <div className='flex items-center justify-between gap-2 flex-wrap relative z-20'>
-              <div className='flex items-center gap-2'>
-                <div className='flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-xs font-semibold'>
-                  <div className='w-6 h-6 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-300'>
+            <div className='flex items-center justify-between gap-3 flex-wrap pb-1'>
+              <div className='flex items-center gap-2.5'>
+                {/* Room Pill */}
+                <div className='flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-secondary border border-border text-foreground text-xs font-semibold'>
+                  <div className='w-5 h-5 rounded-lg bg-primary/15 flex items-center justify-center text-primary'>
                     <Music size={13} />
                   </div>
-                  <span>Bollywood 90s Magic 🎬</span>
-                  {/* Animated Sound Wave Equalizer */}
-                  <div className='flex items-end gap-[2px] h-3.5 px-0.5'>
-                    {[0.3, 0.7, 0.4, 0.9].map((val, idx) => (
+                  <span>Hello</span>
+                  {/* Equalizer Bars */}
+                  <div className='flex items-end gap-[2.5px] h-3.5 px-0.5'>
+                    {[0.3, 0.8, 0.4, 0.9].map((val, idx) => (
                       <motion.span
                         key={idx}
-                        className='w-[2.5px] rounded-full bg-amber-400'
+                        className='w-[2px] rounded-full bg-amber-400'
                         animate={
                           isPlaying
-                            ? {
-                                height: ['25%', '100%', '40%', '85%', '25%'],
-                              }
+                            ? { height: ['25%', '100%', '35%', '90%', '25%'] }
                             : { height: '25%' }
                         }
                         transition={{
@@ -454,75 +398,80 @@ const Hero = memo(() => {
                   </div>
                 </div>
 
+                {/* Room Code Badge */}
                 <button
                   type='button'
                   onClick={handleCopyCode}
-                  className='flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-zinc-900/80 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-mono cursor-pointer transition-colors'
+                  className='flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary/80 border border-border text-muted-foreground hover:text-foreground text-xs font-mono cursor-pointer transition-colors'
                   title='Click to copy room code'
                 >
-                  <span>267477</span>
+                  <span>798859</span>
                   {copiedCode ? (
-                    <Check size={11} className='text-emerald-400' />
+                    <Check size={12} className='text-emerald-400' />
                   ) : (
-                    <Copy size={11} className='text-zinc-500' />
+                    <Copy size={12} className='text-muted-foreground/60' />
                   )}
+                  <QrCode size={12} className='text-muted-foreground/60' />
                 </button>
               </div>
 
-              <div className='flex items-center gap-1.5 relative'>
-                {/* Interactive Queue Button */}
+              {/* Right Action Icons */}
+              <div className='flex items-center gap-2 relative'>
+                <div className='hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-mono text-emerald-400'>
+                  <span className='w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse' />
+                  <span>0ms Sync</span>
+                </div>
+
                 <button
                   type='button'
                   onClick={() => setIsQueueOpen((prev) => !prev)}
-                  className='flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-medium cursor-pointer transition-colors'
+                  className='flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-secondary border border-border text-muted-foreground hover:text-foreground text-xs font-medium cursor-pointer transition-colors'
                 >
-                  <Search size={12} className='text-zinc-400' />
+                  <ListMusic size={14} className='text-muted-foreground' />
                   <span>Queue</span>
-                  <span className='px-1.5 py-0.2 rounded-full bg-white text-black font-bold text-[10px]'>
+                  <span className='px-1.5 py-0.2 rounded-full bg-primary text-primary-foreground font-bold text-[10px]'>
                     {DEMO_PLAYLIST.length}
                   </span>
                 </button>
 
                 <div
                   onClick={() => toast.info('Direct friend invite link ready to share!')}
-                  className='w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300 cursor-pointer hover:bg-zinc-800 transition-colors'
+                  className='w-8 h-8 rounded-xl bg-secondary border border-border flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors'
                   title='Invite friends'
                 >
-                  <UserPlus size={13} />
+                  <UserPlus size={14} />
                 </div>
                 <div
-                  onClick={() => toast.info('Interactive preview session')}
-                  className='w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300 cursor-pointer hover:bg-zinc-800 transition-colors'
+                  onClick={() => toast.info('Interactive preview room')}
+                  className='w-8 h-8 rounded-xl bg-secondary border border-border flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors'
                   title='Leave room'
                 >
-                  <LogOut size={13} />
+                  <LogOut size={14} />
                 </div>
 
-                {/* Interactive Queue Dropdown */}
+                {/* Queue Dropdown */}
                 <AnimatePresence>
                   {isQueueOpen && (
                     <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
                       transition={{ duration: 0.15 }}
-                      className='absolute right-0 top-11 w-72 rounded-xl border border-zinc-800 bg-zinc-950 shadow-2xl z-50 overflow-hidden flex flex-col'
+                      className='absolute right-0 top-11 w-80 rounded-2xl border border-border bg-popover text-popover-foreground shadow-2xl z-50 overflow-hidden flex flex-col'
                     >
-                      {/* Fixed Non-Scrolling Header */}
-                      <div className='flex items-center justify-between text-xs px-3.5 py-2.5 border-b border-zinc-800 bg-zinc-950 shrink-0'>
-                        <span className='font-semibold text-white'>
+                      <div className='flex items-center justify-between text-xs px-4 py-3 border-b border-border bg-secondary shrink-0'>
+                        <span className='font-semibold text-foreground'>
                           Room Queue ({DEMO_PLAYLIST.length})
                         </span>
                         <button
                           type='button'
-                          className='p-1 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer'
+                          className='p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer'
                           onClick={() => setIsQueueOpen(false)}
                         >
                           <X size={13} />
                         </button>
                       </div>
 
-                      {/* Scrollable Song List Container */}
                       <div className='overflow-y-auto max-h-64 p-2 space-y-1'>
                         {DEMO_PLAYLIST.map((item, idx) => {
                           const isCurrent = idx === songIndex;
@@ -530,13 +479,13 @@ const Hero = memo(() => {
                             <div
                               key={item.id}
                               onClick={() => handleSelectSong(idx)}
-                              className={`p-2 rounded-lg text-xs flex items-center justify-between gap-2.5 cursor-pointer transition-colors ${
+                              className={`p-2.5 rounded-xl text-xs flex items-center justify-between gap-3 cursor-pointer transition-colors ${
                                 isCurrent
-                                  ? 'bg-zinc-900 text-white font-medium border border-zinc-700/80'
-                                  : 'text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-200'
+                                  ? 'bg-primary/15 text-foreground font-medium border border-primary/30'
+                                  : 'text-muted-foreground hover:bg-accent/40 hover:text-foreground'
                               }`}
                             >
-                              <div className='w-8 h-8 rounded-md overflow-hidden bg-zinc-800 shrink-0 border border-white/5'>
+                              <div className='w-9 h-9 rounded-lg overflow-hidden bg-muted shrink-0'>
                                 <img
                                   src={item.cover}
                                   alt={item.name}
@@ -544,16 +493,16 @@ const Hero = memo(() => {
                                 />
                               </div>
                               <div className='min-w-0 flex-1'>
-                                <div className='truncate text-white text-[11.5px]'>{item.name}</div>
-                                <div className='text-[10px] text-zinc-500 truncate'>
+                                <div className='truncate text-foreground text-xs'>{item.name}</div>
+                                <div className='text-[10.5px] text-muted-foreground truncate'>
                                   {item.artists}
                                 </div>
                               </div>
                               <span className='text-[10px] font-mono shrink-0'>
                                 {isCurrent ? (
-                                  <span className='text-emerald-400 font-semibold'>Playing</span>
+                                  <span className='text-primary font-semibold'>Playing</span>
                                 ) : (
-                                  <span className='text-zinc-400'>+{item.votes}</span>
+                                  <span className='text-muted-foreground/80'>+{item.votes}</span>
                                 )}
                               </span>
                             </div>
@@ -566,89 +515,118 @@ const Hero = memo(() => {
               </div>
             </div>
 
-            {/* Main NowPlayingCard */}
-            <div className='rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 sm:p-5 space-y-3.5 relative z-10'>
-              <div className='flex items-start gap-4'>
-                <motion.div
-                  animate={isPlaying ? { scale: [1, 1.02, 1] } : { scale: 1 }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                  className='relative w-18 h-18 sm:w-20 sm:h-20 rounded-xl overflow-hidden ring-1 ring-zinc-800 shrink-0 bg-neutral-900 shadow-xl'
-                >
+            {/* Now Playing Deck (Spacious) */}
+            <div className='rounded-2xl border border-border/80 bg-secondary/40 p-5 sm:p-6 space-y-5'>
+              <div className='flex items-start gap-5'>
+                <div className='relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden ring-1 ring-border shrink-0 bg-muted shadow-md'>
                   <img
                     src={currentSong?.cover}
                     alt={currentSong?.name}
                     className='w-full h-full object-cover'
                   />
-                </motion.div>
-                <div className='min-w-0 space-y-1'>
-                  <h3 className='text-base sm:text-xl font-bold text-white truncate'>
+                  {isPlaying && (
+                    <div className='absolute bottom-0 inset-x-0 h-7 bg-gradient-to-t from-black/80 to-transparent flex items-end justify-center pb-1.5'>
+                      <div className='flex items-end gap-[3px] h-3'>
+                        {[0, 1, 2, 3].map((i) => (
+                          <motion.span
+                            key={i}
+                            className='w-[2.5px] bg-primary rounded-full'
+                            animate={{ height: ['25%', '100%', '40%', '90%', '25%'] }}
+                            transition={{
+                              duration: 0.5 + i * 0.12,
+                              repeat: Infinity,
+                              repeatType: 'mirror',
+                              ease: 'easeInOut',
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className='min-w-0 space-y-1.5 flex-1 pt-1'>
+                  <h3 className='text-xl sm:text-2xl md:text-3xl font-bold text-foreground tracking-tight truncate'>
                     {currentSong?.name}
                   </h3>
-                  <div className='flex items-center gap-1.5 text-xs text-zinc-400 truncate'>
-                    <span>{currentSong?.artists}</span>
-                    <span className='text-zinc-600'>•</span>
-                    <span className='text-zinc-300 font-medium'>Pankaj Thakur</span>
+                  <div className='flex items-center gap-2 text-xs sm:text-sm text-muted-foreground truncate'>
+                    <span className='text-foreground/90'>{currentSong?.artists}</span>
+                    <span className='text-muted-foreground/40'>•</span>
+                    <span className='text-foreground/70 font-medium'>Pankaj Thakur</span>
                   </div>
-                  <p className='text-xs text-zinc-500 truncate'>{currentSong?.album}</p>
+                  <p className='text-xs text-muted-foreground/60 truncate'>{currentSong?.album}</p>
                 </div>
               </div>
 
-              {/* Scrubber */}
-              <div className='space-y-1'>
+              {/* Progress Scrubber Bar */}
+              <div className='space-y-1.5'>
                 <div
-                  className='relative w-full h-2 bg-zinc-800 rounded-full cursor-pointer overflow-hidden group'
+                  className='relative w-full h-2.5 bg-muted rounded-full cursor-pointer overflow-hidden group'
                   onClick={handleSeek}
                 >
                   <motion.div
-                    className='h-full bg-white rounded-full relative'
+                    className='h-full bg-primary rounded-full relative'
                     style={{ width: `${progressPercent}%` }}
                   >
-                    <div className='absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white ring-2 ring-black opacity-0 group-hover:opacity-100 transition-opacity' />
+                    <div className='absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary-foreground ring-2 ring-primary opacity-0 group-hover:opacity-100 transition-opacity' />
                   </motion.div>
                 </div>
-                <div className='flex justify-between text-[11px] font-mono text-zinc-500'>
+                <div className='flex justify-between text-xs font-mono text-muted-foreground'>
                   <span>{formatTime(currentTime)}</span>
                   <span>{formatTime(duration)}</span>
                 </div>
               </div>
 
-              {/* Controls Bar */}
-              <div className='flex items-center justify-between pt-1 gap-2 flex-wrap'>
-                <div className='flex items-center gap-2'>
-                  {/* Play / Pause Toggle Button */}
-                  <button
-                    type='button'
-                    onClick={togglePlayPause}
-                    className='w-8 h-8 rounded-full bg-white text-black hover:bg-zinc-200 flex items-center justify-center cursor-pointer transition-all active:scale-95 shadow-sm'
-                    title={isPlaying ? 'Pause playback' : 'Play music'}
-                  >
-                    {isPlaying ? (
-                      <Pause size={13} className='fill-black text-black' />
-                    ) : (
-                      <Play size={13} className='fill-black text-black ml-0.5' />
+              {/* Controls Row (Spacious) */}
+              <div className='flex items-center justify-between pt-1 gap-3 flex-wrap'>
+                <div className='flex items-center gap-3'>
+                  {/* Animated Interactive Play/Pause Button */}
+                  <div className='relative flex items-center justify-center'>
+                    {!isPlaying && (
+                      <span className='absolute -inset-1 rounded-full bg-primary/40 animate-ping pointer-events-none' />
                     )}
-                  </button>
+                    <motion.button
+                      type='button'
+                      whileTap={{ scale: 0.92 }}
+                      onClick={togglePlayPause}
+                      className={`relative z-10 w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center cursor-pointer transition-all active:scale-95 shadow-md ${
+                        isPlaying
+                          ? 'bg-secondary hover:bg-secondary/80 text-foreground'
+                          : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/30 ring-2 ring-primary/50'
+                      }`}
+                      title={isPlaying ? 'Pause playback' : 'Click to Play live interactive demo'}
+                    >
+                      {isPlaying ? (
+                        <Pause size={16} className='fill-current' />
+                      ) : (
+                        <Play size={16} className='fill-current ml-0.5' />
+                      )}
+                    </motion.button>
+                  </div>
 
+                  {/* Next */}
                   <button
                     type='button'
                     onClick={handleSkipNext}
-                    className='w-8 h-8 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors active:scale-95'
-                    title='Skip to next track'
+                    className='w-9 h-9 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center cursor-pointer transition-colors active:scale-95'
+                    title='Next track'
                   >
-                    <SkipForward size={13} />
+                    <SkipForward size={16} />
                   </button>
 
-                  {/* Interactive Emoji Reactions Bar */}
-                  <div className='flex items-center gap-1.5 pl-2 text-sm select-none'>
-                    {EMOJIS.map((emoji, idx) => (
+                  <div className='h-5 w-px bg-border mx-1 hidden sm:block' />
+
+                  {/* Reaction Emojis */}
+                  <div className='flex items-center gap-1 text-base select-none'>
+                    {REACTIONS.map((emoji, idx) => (
                       <motion.button
                         key={idx}
                         type='button'
-                        whileHover={{ scale: 1.3 }}
+                        whileHover={{ scale: 1.25 }}
                         whileTap={{ scale: 0.85 }}
                         onClick={(e) => handleSendReaction(emoji, e)}
-                        className='cursor-pointer p-1 rounded-md hover:bg-zinc-800/80 transition-colors'
-                        title={`Send ${emoji} reaction`}
+                        className='cursor-pointer p-1.5 rounded-lg hover:bg-muted transition-colors'
+                        title={`Send ${emoji}`}
                       >
                         {emoji}
                       </motion.button>
@@ -656,86 +634,90 @@ const Hero = memo(() => {
                   </div>
                 </div>
 
-                <div className='flex items-center gap-3'>
+                {/* Right: Queue & Volume */}
+                <div className='flex items-center gap-4'>
                   <div
                     onClick={() => setIsQueueOpen((prev) => !prev)}
-                    className='flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium cursor-pointer transition-colors'
+                    className='flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary hover:bg-secondary/80 text-foreground text-xs font-medium cursor-pointer transition-colors border border-border/50'
                   >
-                    <span className='font-mono text-xs'>≡ Queue</span>
-                    <span className='px-1.5 py-0.2 rounded-full bg-white text-black font-bold text-[10px]'>
+                    <span className='text-xs'>≡ Queue</span>
+                    <span className='px-1.5 py-0.2 rounded-full bg-primary text-primary-foreground font-bold text-[10px]'>
                       {DEMO_PLAYLIST.length}
                     </span>
                   </div>
 
-                  {/* Interactive Volume Control */}
-                  <div className='flex items-center gap-2 text-zinc-400'>
-                    {volume === 0 ? (
-                      <VolumeX size={14} className='text-zinc-500' />
-                    ) : (
-                      <Volume2 size={14} />
-                    )}
+                  <div className='flex items-center gap-2.5 text-muted-foreground'>
+                    <button
+                      type='button'
+                      onClick={toggleMute}
+                      className='cursor-pointer hover:text-foreground'
+                    >
+                      {volume === 0 ? (
+                        <VolumeX size={16} className='text-muted-foreground/60' />
+                      ) : (
+                        <Volume2 size={16} />
+                      )}
+                    </button>
                     <input
                       type='range'
                       min='0'
                       max='100'
                       value={volume}
                       onChange={handleVolumeChange}
-                      className='w-16 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white'
+                      className='w-20 sm:w-24 h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary'
                       title={`Volume: ${volume}%`}
                     />
                   </div>
                 </div>
               </div>
 
-              <div className='flex items-center gap-1.5 text-xs text-zinc-500 pt-1'>
-                <Headphones size={13} />
+              {/* Listening count */}
+              <div className='flex items-center gap-2 text-xs text-muted-foreground pt-1'>
+                <Headphones size={14} />
                 <span>3 listening in sync</span>
               </div>
             </div>
 
-            {/* Bottom Split Row: Chat & Listeners */}
-            <div className='grid grid-cols-1 md:grid-cols-12 gap-3.5'>
-              {/* Interactive Chat Panel (8 Cols) */}
-              <div className='md:col-span-8 rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-3.5 space-y-3 flex flex-col justify-between'>
-                <div className='flex items-center justify-between text-xs text-zinc-300'>
-                  <span className='font-semibold'>💬 Live Room Chat</span>
-                  {typingUser && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className='flex items-center gap-1 text-[11px] text-emerald-400 font-mono'
-                    >
-                      <span>{typingUser} is typing</span>
-                      <span className='flex items-center gap-0.5'>
-                        <span className='w-1 h-1 bg-emerald-400 rounded-full animate-bounce [animation-delay:-0.3s]' />
-                        <span className='w-1 h-1 bg-emerald-400 rounded-full animate-bounce [animation-delay:-0.15s]' />
-                        <span className='w-1 h-1 bg-emerald-400 rounded-full animate-bounce' />
+            {/* Bottom Split: Chat & Listeners (Spacious 12-col grid) */}
+            <div className='grid grid-cols-1 md:grid-cols-12 gap-4'>
+              {/* Chat Panel (8 cols) */}
+              <div className='md:col-span-8 rounded-2xl border border-border/80 bg-secondary/30 p-4 space-y-3.5 flex flex-col justify-between min-h-[180px]'>
+                <div className='flex items-center justify-between text-xs text-foreground'>
+                  <span className='font-semibold flex items-center gap-2'>
+                    <span>💬</span>
+                    <span>Chat</span>
+                  </span>
+                  <div className='flex items-center gap-2'>
+                    {typingUser && (
+                      <span className='text-[11px] text-emerald-400 font-mono'>
+                        {typingUser} is typing...
                       </span>
-                    </motion.div>
-                  )}
+                    )}
+                    <span className='px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 text-[10px] font-mono'>
+                      SFX ON
+                    </span>
+                  </div>
                 </div>
 
-                {/* Chat Message Stream */}
-                <div ref={chatScrollRef} className='space-y-2 max-h-28 overflow-y-auto pr-1'>
+                {/* Chat stream */}
+                <div ref={chatScrollRef} className='space-y-2 max-h-36 overflow-y-auto pr-1'>
                   <AnimatePresence initial={false}>
                     {messages.map((msg) => (
                       <motion.div
                         key={msg.id}
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        transition={{ duration: 0.2 }}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
                         className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`px-3 py-1.5 rounded-xl text-xs max-w-[85%] ${
+                          className={`px-3.5 py-2 rounded-xl text-xs max-w-[85%] ${
                             msg.isMe
-                              ? 'bg-zinc-800 text-white'
-                              : 'bg-zinc-900/90 border border-zinc-800 text-zinc-300'
+                              ? 'bg-primary/15 border border-primary/30 text-foreground'
+                              : 'bg-secondary border border-border text-muted-foreground'
                           }`}
                         >
                           {!msg.isMe && (
-                            <span className='text-[10px] text-zinc-500 block font-mono'>
+                            <span className='text-[10px] text-muted-foreground/60 block font-mono mb-0.5'>
                               {msg.sender}
                             </span>
                           )}
@@ -746,38 +728,39 @@ const Hero = memo(() => {
                   </AnimatePresence>
                 </div>
 
-                {/* Chat Form */}
+                {/* Chat input */}
                 <form onSubmit={handleSendMessage} className='flex items-center gap-2 pt-1'>
                   <input
                     type='text'
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     placeholder='Type a message and hit Enter...'
-                    className='flex-1 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-700'
+                    className='flex-1 px-3.5 py-2 rounded-xl bg-secondary border border-border text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50'
                   />
                   <button
                     type='submit'
-                    className='w-7 h-7 rounded-lg bg-white text-black hover:bg-zinc-200 flex items-center justify-center transition-colors cursor-pointer shrink-0'
+                    className='w-8 h-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center transition-colors cursor-pointer shrink-0'
                     title='Send message'
                   >
-                    <Send size={12} />
+                    <Send size={13} />
                   </button>
                 </form>
               </div>
 
-              {/* Listeners Panel (4 Cols) */}
-              <div className='md:col-span-4 rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-3.5 space-y-3'>
-                <div className='flex items-center justify-between text-xs text-zinc-400'>
-                  <span className='font-semibold text-zinc-300 flex items-center gap-1'>
-                    <Users size={12} />
+              {/* Listeners Panel (4 cols) */}
+              <div className='md:col-span-4 rounded-2xl border border-border/80 bg-secondary/30 p-4 space-y-3.5'>
+                <div className='flex items-center justify-between text-xs text-muted-foreground'>
+                  <span className='font-semibold text-foreground flex items-center gap-1.5'>
+                    <Users size={13} />
                     Listeners
                   </span>
                   <span className='text-[11px] font-mono text-emerald-400'>● Live 3/10</span>
                 </div>
 
-                <div className='space-y-1.5'>
-                  <div className='flex items-center gap-2.5 p-1.5 rounded-xl bg-zinc-900/60 border border-zinc-800/50'>
-                    <div className='relative w-7 h-7 rounded-full bg-zinc-800 ring-1 ring-zinc-700 overflow-hidden shrink-0'>
+                <div className='space-y-2'>
+                  {/* Pankaj Thakur */}
+                  <div className='flex items-center gap-3 p-2 rounded-xl bg-secondary/60 border border-border/50'>
+                    <div className='relative w-8 h-8 rounded-full bg-muted ring-1 ring-border overflow-hidden shrink-0'>
                       <img
                         src='https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/r_max/f_auto/v1780744511/profiles/profiles_130_1780744510_4a18b0ed9043cc21.jpg'
                         alt='Host'
@@ -786,32 +769,46 @@ const Hero = memo(() => {
                       <div className='absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-black' />
                     </div>
                     <div className='min-w-0 flex-1'>
-                      <div className='flex items-center gap-1'>
-                        <span className='text-xs font-semibold text-white truncate'>
+                      <div className='flex items-center gap-1.5'>
+                        <span className='text-xs font-semibold text-foreground truncate'>
                           Pankaj Thakur
                         </span>
-                        <span className='text-[10px] text-zinc-400'>You</span>
+                        <span className='text-[10px] text-muted-foreground'>You</span>
                       </div>
                       <div className='text-[10px] text-amber-400 font-medium'>👑 Creator</div>
                     </div>
                   </div>
 
-                  <div className='flex items-center gap-2.5 p-1.5 rounded-xl bg-zinc-900/40 border border-zinc-800/30'>
-                    <div className='w-7 h-7 rounded-full bg-zinc-800 text-zinc-300 text-[11px] font-bold flex items-center justify-center shrink-0'>
+                  {/* Alex Rivera */}
+                  <div className='flex items-center gap-3 p-2 rounded-xl bg-secondary/40 border border-border/30'>
+                    <div className='w-8 h-8 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0'>
                       A
                     </div>
                     <div className='min-w-0 flex-1'>
-                      <span className='text-xs font-medium text-zinc-300 truncate block'>
+                      <span className='text-xs font-medium text-foreground truncate block'>
                         Alex Rivera
                       </span>
-                      <span className='text-[9.5px] text-emerald-400 font-mono'>Synced • 0ms</span>
+                      <span className='text-[10px] text-emerald-400 font-mono'>Synced • 0ms</span>
+                    </div>
+                  </div>
+
+                  {/* Sarah */}
+                  <div className='flex items-center gap-3 p-2 rounded-xl bg-secondary/40 border border-border/30'>
+                    <div className='w-8 h-8 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0'>
+                      S
+                    </div>
+                    <div className='min-w-0 flex-1'>
+                      <span className='text-xs font-medium text-foreground truncate block'>
+                        Sarah
+                      </span>
+                      <span className='text-[10px] text-emerald-400 font-mono'>Synced • 0ms</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );
