@@ -56,7 +56,7 @@
     "react-infinite-scroll-component": "^6.1.0",
     "react-intersection-observer": "^9.13.1",
     "react-lazy-load-image-component": "^1.6.3",
-    "react-router-dom": "^6.27.0",
+    "react-router-dom": "^7.18.0",
     "react-virtualized": "^9.22.6",
     "simplebar-react": "^3.2.6",
     "socket.io-client": "^4.8.1",
@@ -76,6 +76,6 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^4.1.18",
-    "vite": "^5.4.10"
+    "vite": "^6.4.3"
   }
 }
