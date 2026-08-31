@@ -502,7 +502,11 @@ export const PlaylistCard = memo(({ playlist, isUser, onLongPress }: any) => {
     [playlist.previewSongs]
   );
   const previewImages = useMemo(
-    () => previewSongs.map((song) => getImageUrl(song.image)).filter(Boolean).slice(0, 5),
+    () =>
+      previewSongs
+        .map((song) => getImageUrl(song.image))
+        .filter(Boolean)
+        .slice(0, 5),
     [previewSongs]
   );
   const sideImages = previewImages.slice(1);

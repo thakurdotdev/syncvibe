@@ -16,14 +16,11 @@ const isLocalHostname = (hostname: string): boolean =>
  */
 export const getAuthCookieOptions = (req: Request): CookieOptions => {
   const hostname = req.hostname?.toLowerCase() || '';
-  const isProductionDomain =
-    hostname === 'thakur.dev' || hostname.endsWith('.thakur.dev');
+  const isProductionDomain = hostname === 'thakur.dev' || hostname.endsWith('.thakur.dev');
   const secure = process.env.NODE_ENV === 'production' || req.secure;
 
   return {
-    ...(isProductionDomain && !isLocalHostname(hostname)
-      ? { domain: SHARED_COOKIE_DOMAIN }
-      : {}),
+    ...(isProductionDomain && !isLocalHostname(hostname) ? { domain: SHARED_COOKIE_DOMAIN } : {}),
     secure,
     httpOnly: true,
     sameSite: secure ? 'none' : 'lax',

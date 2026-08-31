@@ -31,7 +31,7 @@ type SortOption = {
 
 type SortOrder = 'ASC' | 'DESC';
 
-const sortOptions: SortOption[] = [
+const baseSortOptions: SortOption[] = [
   {
     label: 'Recently Played',
     value: 'lastPlayedAt',
@@ -54,6 +54,15 @@ const sortOptions: SortOption[] = [
   },
 ];
 
+const searchSortOptions: SortOption[] = [
+  {
+    label: 'Most Relevant',
+    value: 'relevance',
+    icon: <Ionicons name='sparkles-outline' size={20} color='white' />,
+  },
+  ...baseSortOptions,
+];
+
 const SongHistory = () => {
   const api = useApi();
   const { user } = useUser();
@@ -71,6 +80,8 @@ const SongHistory = () => {
   const [sortBy, setSortBy] = useState('lastPlayedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('DESC');
   const [isFiltering, setIsFiltering] = useState(false);
+
+  const activeSortOptions = debouncedSearchQuery ? searchSortOptions : baseSortOptions;
 
   const [currentDataPage, setCurrentDataPage] = useState(1);
 
@@ -215,7 +226,9 @@ const SongHistory = () => {
               <Feather name='chevron-left' size={24} color={colors.foreground} />
             </TouchableOpacity>
             <View>
-              <Text style={[styles.headerTitle, { color: colors.foreground }]}>Listening history</Text>
+              <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+                Listening history
+              </Text>
               <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
                 {totalSongs} tracks
               </Text>
@@ -263,7 +276,7 @@ const SongHistory = () => {
   const renderSortIndicator = () => {
     if (!sortBy || (sortBy === 'lastPlayedAt' && sortOrder === 'DESC')) return null;
 
-    const currentSort = sortOptions.find((option) => option.value === sortBy);
+    const currentSort = activeSortOptions.find((option) => option.value === sortBy);
     if (!currentSort) return null;
 
     const directionLabel =
@@ -272,12 +285,12 @@ const SongHistory = () => {
           ? 'Oldest first'
           : 'Newest first'
         : sortBy === 'playedCount'
-        ? sortOrder === 'ASC'
-          ? 'Least played'
-          : 'Most played'
-        : sortOrder === 'ASC'
-          ? 'A–Z'
-          : 'Z–A';
+          ? sortOrder === 'ASC'
+            ? 'Least played'
+            : 'Most played'
+          : sortOrder === 'ASC'
+            ? 'A–Z'
+            : 'Z–A';
 
     return (
       <View style={[styles.sortIndicator, { backgroundColor: colors.secondary }]}>
@@ -392,7 +405,7 @@ const SongHistory = () => {
         <View style={styles.sortModalContent}>
           <Text style={[styles.sortModalTitle, { color: colors.foreground }]}>Sort by</Text>
 
-          {sortOptions.map((option) => (
+          {activeSortOptions.map((option) => (
             <View
               key={option.value}
               style={[

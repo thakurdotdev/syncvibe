@@ -763,7 +763,6 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
             </div>
           )}
 
-
           <div className='action-buttons absolute top-1.5 right-1.5 flex flex-col gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150'>
             <Button
               size='icon'
@@ -792,8 +791,8 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
 
         <div className='space-y-0.5 px-0.5'>
           <p className='font-semibold text-[13px] truncate group-hover:text-primary transition-colors duration-150'>
-           {playlist.name}
-         </p>
+            {playlist.name}
+          </p>
           <p className='text-[11px] text-foreground/80 font-semibold truncate'>{metaLabel}</p>
           {playlist.description && (
             <p className='text-[11px] text-muted-foreground/70 font-medium truncate'>

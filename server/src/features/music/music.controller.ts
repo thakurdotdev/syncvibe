@@ -125,9 +125,7 @@ export const getPlaylists = async (req: Request, res: Response): Promise<void> =
         'createdat',
         [fn('COUNT', col('songs.id')), 'songCount'],
       ],
-      include: [
-        { model: PlaylistSong, as: 'songs', attributes: [] },
-      ],
+      include: [{ model: PlaylistSong, as: 'songs', attributes: [] }],
       order: [['createdat', 'DESC']],
       group: ['Playlist.id'],
     });

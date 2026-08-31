@@ -26,7 +26,14 @@ import { useHistoryQuery } from '@/hooks/queries/useHistoryQuery';
 import { SongCard } from './Cards';
 import { usePlayerStore } from '@/stores/playerStore';
 
-const SORT_OPTIONS = [
+const BASE_SORT_OPTIONS = [
+  { value: 'lastPlayedAt', label: 'Recently Played' },
+  { value: 'playedCount', label: 'Most Played' },
+  { value: 'songName', label: 'Name' },
+];
+
+const SEARCH_SORT_OPTIONS = [
+  { value: 'relevance', label: 'Most Relevant' },
   { value: 'lastPlayedAt', label: 'Recently Played' },
   { value: 'playedCount', label: 'Most Played' },
   { value: 'songName', label: 'Name' },
@@ -291,19 +298,20 @@ const HistoryPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(28);
   const [showFilters, setShowFilters] = useState(false);
-  const isSearchActive = debouncedSearch && debouncedSearch.length >= 3;
+  const isSearchActive = Boolean(debouncedSearch && debouncedSearch.trim().length >= 1);
+  const activeSortOptions = isSearchActive ? SEARCH_SORT_OPTIONS : BASE_SORT_OPTIONS;
 
   useEffect(() => {
     const q = (searchQuery ?? '').trim();
 
     const timer = setTimeout(() => {
-      if (q.length >= 3) {
+      if (q.length >= 1) {
         setDebouncedSearch(q);
       } else {
         setDebouncedSearch('');
       }
       setCurrentPage(1);
-    }, 500);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
@@ -323,6 +331,9 @@ const HistoryPage = () => {
   const handleClearSearch = () => {
     setSearchQuery('');
     setDebouncedSearch('');
+    if (sortBy === 'relevance') {
+      setSortBy('lastPlayedAt');
+    }
   };
 
   const handleResetFilters = () => {
@@ -415,7 +426,7 @@ const HistoryPage = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {SORT_OPTIONS.map((option) => (
+                          {activeSortOptions.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
                             </SelectItem>
