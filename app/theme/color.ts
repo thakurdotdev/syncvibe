@@ -156,55 +156,53 @@ const emberPalette: ColorPalette = {
   },
 };
 
-// Professional, vibrant music player palette — magenta/rose accent variant.
-// This is now the ACTIVE default (see colorPalettes export below).
+// Professional, vibrant music player palette — refined magenta/rose accent variant.
+// This is the ACTIVE default (see colorPalettes export below).
 // Calibration notes specific to this variant:
-// - Primary is a deepened magenta-rose, not candy/hot pink — reads as
-//   confident and premium rather than playful or "dating app." Light
-//   mode primary (#DB2777) is calibrated to 4.60:1 contrast with white
-//   text; dark mode primary (#FF4FA3) hits 6.46:1 with near-black text.
+// - Primary is a slightly muted rose, so it feels premium instead of neon
+//   while remaining easy to recognize for playback and active states.
 // - Destructive was deliberately pulled to a true red (not the usual
 //   rose-adjacent red) to keep ~30°+ of hue separation from primary —
 //   with a pink primary, "delete" and "the brand color" sit too close
 //   on the wheel unless destructive is pushed further away.
 const rosePalette: ColorPalette = {
   name: 'Rose',
-  description: 'Professional, vibrant music player palette with a magenta-rose accent',
+  description: 'Professional music player palette with a refined magenta-rose accent',
   light: {
     // Main palette
-    background: '#F3F4F6',
+    background: '#F7F7F8',
     foreground: '#16161A', // True near-black, zero hue tint
     card: '#FFFFFF',
     cardForeground: '#16161A',
     popover: '#FFFFFF',
     popoverForeground: '#16161A',
-    primary: '#DB2777', // Magenta-rose — calibrated to pass 4.5:1 AA with white text
+    primary: '#C92D70', // Refined rose — strong contrast with white text
     primaryForeground: '#FFFFFF',
-    secondary: '#F3F3F4', // Neutral gray, no hue cast
+    secondary: '#F0F1F3', // Neutral gray, no hue cast
     secondaryForeground: '#16161A',
-    muted: '#F3F3F4',
-    mutedForeground: '#6B6B70', // Neutral mid-gray, AA-safe for secondary text
-    accent: '#FCE4F0', // Quiet rose wash — selection / now-playing state only
-    accentForeground: '#7A1245',
+    muted: '#F0F1F3',
+    mutedForeground: '#66676D', // Neutral mid-gray, AA-safe for secondary text
+    accent: '#F9E5EE', // Quiet rose wash — selection / now-playing state only
+    accentForeground: '#72173D',
     destructive: '#CC2819', // True red, deliberately hue-separated from primary
     destructiveForeground: '#FFFFFF',
-    border: '#E5E5E7',
-    input: '#E5E5E7',
-    ring: '#DB2777',
+    border: '#E3E4E8',
+    input: '#E3E4E8',
+    ring: '#C92D70',
     text: '#16161A',
 
     // Button state variants
-    primaryHover: '#BE1C68',
-    primaryActive: '#A1175A',
-    primaryDisabled: '#EFA8C9',
+    primaryHover: '#B62564',
+    primaryActive: '#982052',
+    primaryDisabled: '#E8A5C1',
 
-    secondaryHover: '#E8E8EA',
-    secondaryActive: '#DCDCDE',
+    secondaryHover: '#E6E7EA',
+    secondaryActive: '#D9DADF',
     secondaryDisabled: '#FAFAFA',
 
-    accentHover: '#F9D2E5',
-    accentActive: '#F5BDD9',
-    accentDisabled: '#FDF0F7',
+    accentHover: '#F5D1E1',
+    accentActive: '#F0BCD3',
+    accentDisabled: '#FCEFF5',
 
     destructiveHover: '#B32316',
     destructiveActive: '#991E12',
@@ -212,13 +210,13 @@ const rosePalette: ColorPalette = {
 
     // Gradient colors
     gradients: {
-      primary: ['#EC4A93', '#DB2777', '#A1175A'],
-      background: ['#FFF8FA', '#F8F8FF'],
+      primary: ['#DF4D8A', '#C92D70', '#982052'],
+      background: ['#FFF8FA', '#F7F7F8'],
       card: ['#FFFFFF', '#FCFCFC'],
-      accent: ['#FCE4F0', '#F9D2E5'],
+      accent: ['#F9E5EE', '#F5D1E1'],
       destructive: ['#DC4A3D', '#CC2819', '#991E12'],
       // Soft warm header backdrop: low saturation wash (#FFF8FA -> #F8F8FF)
-      header: ['#FFF8FA', '#FBF7FD', '#F8F8FF'],
+      header: ['#FFF7FA', '#FBF7FC', '#F7F7F8'],
     },
   },
   dark: {
@@ -229,33 +227,33 @@ const rosePalette: ColorPalette = {
     cardForeground: '#F4F4F5',
     popover: '#202022',
     popoverForeground: '#F4F4F5',
-    primary: '#FF4FA3', // Magenta-rose, calibrated brighter for dark-surface legibility
+    primary: '#F05A9B', // Softer rose, calibrated for dark-surface legibility
     primaryForeground: '#0B0B0C',
     secondary: '#222224', // Neutral graphite — unselected chips, tabs, inactive controls
     secondaryForeground: '#F4F4F5',
     muted: '#222224',
     mutedForeground: '#A0A0A4', // Neutral light gray, AA-safe on dark bg
-    accent: '#321524', // Quiet rose-on-black — now-playing row only
-    accentForeground: '#FF8DC0',
+    accent: '#301723', // Quiet rose-on-black — now-playing row only
+    accentForeground: '#FF9AC3',
     destructive: '#FF6052', // True red, hue-distinct from primary magenta
     destructiveForeground: '#0B0B0C',
     border: '#2A2A2D',
     input: '#2A2A2D',
-    ring: '#FF4FA3',
+    ring: '#F05A9B',
     text: '#F4F4F5',
 
     // Button state variants
-    primaryHover: '#FF6FB4',
-    primaryActive: '#E8388F',
-    primaryDisabled: '#7A3A5C',
+    primaryHover: '#F776AD',
+    primaryActive: '#D94384',
+    primaryDisabled: '#71354F',
 
     secondaryHover: '#2B2B2E',
     secondaryActive: '#363639',
     secondaryDisabled: '#19191A',
 
-    accentHover: '#3C1A2D',
-    accentActive: '#482036',
-    accentDisabled: '#23101A',
+    accentHover: '#3B1C2B',
+    accentActive: '#482237',
+    accentDisabled: '#24121B',
 
     destructiveHover: '#FF7B70',
     destructiveActive: '#E84738',
@@ -263,24 +261,26 @@ const rosePalette: ColorPalette = {
 
     // Gradient colors
     gradients: {
-      primary: ['#FF7DBC', '#FF4FA3', '#E8388F'],
+      primary: ['#F982B6', '#F05A9B', '#D94384'],
       background: ['#0B0B0C', '#141415'],
       card: ['#19191B', '#212123'],
-      accent: ['#321524', '#3C1A2D'],
+      accent: ['#301723', '#3B1C2B'],
       destructive: ['#FF8A7F', '#FF6052', '#E84738'],
       // Hero header backdrop: rose glow fading into the page background —
       // gives the header real depth without becoming a full-strength
       // saturated banner.
-      header: ['#411A2D', '#28131E', '#0B0B0C'],
+      header: ['#3F1D2D', '#28151F', '#0B0B0C'],
     },
   },
 };
 
 // `default` now points at the rose palette — this is the active theme
-// your ThemeContext reads via colorPalettes['default'][theme]. Ember
+// your ThemeContext reads via colorPalettes.default[theme]. Ember
 // stays registered under its own key so it isn't lost if you ever want
 // to switch back or build a palette picker later.
-export const colorPalettes: Record<string, ColorPalette> = {
+export type ColorPaletteName = 'default' | 'rose' | 'ember';
+
+export const colorPalettes: Record<ColorPaletteName, ColorPalette> = {
   default: rosePalette,
   rose: rosePalette,
   ember: emberPalette,

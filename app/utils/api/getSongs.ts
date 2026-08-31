@@ -8,14 +8,11 @@ import { ensureHttpsForSongUrls } from '../getHttpsUrls';
  * @param query - Search term
  * @returns Array of songs
  */
-export const searchSongs = async (query: string): Promise<Song[]> => {
-  try {
-    const { data } = await axios.get(`${SONG_URL}/search/songs`, {
-      params: { q: query },
-    });
+export const searchSongs = async (query: string, signal?: AbortSignal): Promise<Song[]> => {
+  const { data } = await axios.get(`${SONG_URL}/search/songs`, {
+    params: { q: query },
+    signal,
+  });
 
-    return (data?.data?.results || []).map(ensureHttpsForSongUrls);
-  } catch {
-    return [];
-  }
+  return (data?.data?.results || []).map(ensureHttpsForSongUrls);
 };

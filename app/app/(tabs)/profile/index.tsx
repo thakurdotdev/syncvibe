@@ -641,7 +641,9 @@ export default function ProfileScreen() {
               <ThemeToggle />
               {Platform.OS === 'android' && (
                 <>
-                  <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 16 }} />
+                  <View
+                    style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 16 }}
+                  />
                   <VolumeControlToggle />
                 </>
               )}

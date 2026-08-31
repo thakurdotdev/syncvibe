@@ -185,12 +185,16 @@ export const usePlayerStore = create<PlayerStore>()(
 
       stopSong: () => {
         if (get().activePlayerMode === 'group') return;
+
+        // Let the native bridge capture the current position before the store
+        // clears the song. The bridge callback reads the current song
+        // synchronously before it awaits the storage write.
+        onStopSong?.();
         set({
           currentSong: null,
           isPlaying: false,
           isLoading: false,
         });
-        onStopSong?.();
       },
 
       handlePlayPause: () => {

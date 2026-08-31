@@ -16,12 +16,18 @@ import { useUser } from '@/context/UserContext';
 import { MusicHistoryParams } from '@/types/music';
 import { Song } from '@/types/song';
 import useApi from '@/utils/hooks/useApi';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export const useHomePageMusic = () => {
+  const { selectedLanguages } = useUser();
+  const language = selectedLanguages || 'hindi';
+
   return useQuery({
-    queryKey: ['homePageMusic'],
-    queryFn: () => getHomePageMusic(),
+    queryKey: ['homePageMusic', language],
+    queryFn: () => getHomePageMusic(language),
+    placeholderData: keepPreviousData,
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: true,
   });
 };
 
@@ -33,7 +39,8 @@ export const useRecentMusic = () => {
     queryKey: ['recentMusic'],
     queryFn: () => getRecentMusic(api),
     enabled: !!user?.userid, // Only fetch if user is logged in
-    refetchOnMount: 'always', // Always refetch when the component mounts
+    staleTime: 90 * 1000,
+    refetchOnMount: true,
   });
 };
 

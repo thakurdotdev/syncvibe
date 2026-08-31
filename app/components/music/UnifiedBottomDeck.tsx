@@ -306,11 +306,13 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   return (
     <Animated.View style={styles.outerContainer}>
       <View style={styles.surfaceWrapper}>
-        <BlurView
-          intensity={Platform.OS === 'android' ? 70 : 95}
-          tint={isDark ? 'dark' : 'light'}
-          style={StyleSheet.absoluteFill}
-        />
+        {Platform.OS === 'ios' && (
+          <BlurView
+            intensity={45}
+            tint={isDark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
+        )}
         <View
           style={[
             styles.blurContainer,

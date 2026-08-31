@@ -16,6 +16,12 @@ const THEME_PREFERENCE_KEY = '@theme_preference';
 
 type ThemePreference = ColorTheme | 'system';
 
+const isColorTheme = (value: string | null | undefined): value is ColorTheme =>
+  value === 'light' || value === 'dark';
+
+const parseThemePreference = (value: string | null): ThemePreference =>
+  value === 'system' || isColorTheme(value) ? value : 'system';
+
 interface ThemeContextType {
   theme: ColorTheme;
   colors: ThemeColors;
@@ -34,12 +40,14 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const deviceColorScheme = useColorScheme() as ColorTheme | null;
-  const [theme, setThemeState] = useState<ColorTheme>(deviceColorScheme || 'light');
+  const [theme, setThemeState] = useState<ColorTheme>(
+    isColorTheme(deviceColorScheme) ? deviceColorScheme : 'light'
+  );
   const [themePreference, setThemePreference] = useState<ThemePreference>('system');
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const prevThemeRef = useRef<ThemePreference>(themePreference);
-  const pendingThemeUpdate = useRef<any>(null);
+  const pendingThemeUpdate = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateTheme = useCallback(
     (newTheme: ThemePreference) => {
@@ -54,7 +62,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       }
 
       if (newTheme === 'system') {
-        setThemeState(deviceColorScheme || 'light');
+        setThemeState(isColorTheme(deviceColorScheme) ? deviceColorScheme : 'light');
       } else {
         setThemeState(newTheme as ColorTheme);
       }
@@ -80,17 +88,20 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
         if (!isMounted) return;
 
-        if (savedTheme !== null) {
-          setThemePreference(savedTheme as ThemePreference);
-          if (savedTheme === 'system') {
-            setThemeState(deviceColorScheme || 'light');
-          } else {
-            setThemeState(savedTheme as ColorTheme);
-          }
-        } else {
-          setThemePreference('system');
-          setThemeState(deviceColorScheme || 'light');
-        }
+        const preference = parseThemePreference(savedTheme);
+        const systemTheme = Appearance.getColorScheme();
+        const effectiveTheme =
+          preference === 'system'
+            ? isColorTheme(systemTheme)
+              ? systemTheme
+              : 'light'
+            : preference;
+
+        // Keep the ref in sync with the persisted preference. Without this,
+        // setSystemTheme() can be ignored after loading a saved light/dark value.
+        prevThemeRef.current = preference;
+        setThemePreference(preference);
+        setThemeState(effectiveTheme);
       } catch (error) {
         console.log('Error loading preferences:', error);
       } finally {
@@ -102,26 +113,37 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
     loadPreferences();
 
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'active' && themePreference === 'system') {
-        const currentColorScheme = Appearance.getColorScheme() as ColorTheme | null;
-        if (currentColorScheme && currentColorScheme !== theme) {
+        const currentColorScheme = Appearance.getColorScheme();
+        if (isColorTheme(currentColorScheme) && currentColorScheme !== theme) {
           setThemeState(currentColorScheme);
         }
       }
     });
 
-    return () => {
-      isMounted = false;
-      subscription.remove();
-    };
-  }, []);
+    return () => subscription.remove();
+  }, [theme, themePreference]);
 
   useEffect(() => {
     if (deviceColorScheme && themePreference === 'system') {
       setThemeState(deviceColorScheme);
     }
   }, [deviceColorScheme, themePreference]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingThemeUpdate.current) {
+        clearTimeout(pendingThemeUpdate.current);
+      }
+    };
+  }, []);
 
   const setTheme = useCallback((newTheme: ThemePreference) => updateTheme(newTheme), [updateTheme]);
 
@@ -131,7 +153,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   const setSystemTheme = useCallback(() => updateTheme('system'), [updateTheme]);
 
-  const themeColors = useMemo(() => colorPalettes['default'][theme], [theme]);
+  const themeColors = useMemo(() => colorPalettes.default[theme], [theme]);
 
   const contextValue = useMemo(
     () => ({
@@ -143,7 +165,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       setSystemTheme,
       themePreference,
     }),
-    [theme, themeColors, isLoading, toggleTheme, themePreference]
+    [theme, themeColors, isLoading, toggleTheme, setTheme, setSystemTheme, themePreference]
   );
 
   return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>;

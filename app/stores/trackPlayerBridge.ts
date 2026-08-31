@@ -47,6 +47,7 @@ const ERROR_COOLDOWN_MS = 8000;
 let initialized = false;
 let userId: number | undefined;
 let appStateSub: ReturnType<typeof AppState.addEventListener> | null = null;
+let pendingPlay: { song: Song; uid?: number } | null = null;
 
 let errorRetries = 0;
 let lastErrorTime = 0;
@@ -188,6 +189,7 @@ const loadPlaylist = (playlist: Song[], startIndex: number) => {
 
 let lastHistorySongId: string | null = null;
 let lastHistoryTimestamp = 0;
+let restoredSongId: string | null = null;
 
 const recordSongStart = (song: Song) => {
   if (!song?.id) return;
@@ -211,7 +213,16 @@ export const setBridgeUserId = (id?: number) => {
 };
 
 export const bridgePlaySong = (song: Song, uid?: number) => {
-  if (!initialized || !song?.id) return;
+  if (!song?.id) return;
+
+  // The UI can be interacted with before the deferred native player setup has
+  // completed. Keep the user's first play request instead of dropping it.
+  if (!initialized) {
+    pendingPlay = { song, uid };
+    store().setLoading(true);
+    return;
+  }
+
   if (store().activePlayerMode === 'group') return;
 
   stopGroupPlayback();
@@ -258,7 +269,13 @@ export const bridgeStopSong = async () => {
   if (!initialized) return;
   if (store().activePlayerMode === 'group') return;
   try {
-    await playbackHistory.stopPlayback().catch(console.error);
+    const currentSong = store().currentSong;
+    if (currentSong) {
+      const { position, duration } = TrackPlayer.getProgress();
+      await playbackHistory
+        .updatePlaybackProgress(currentSong, position, duration || currentSong.duration || 0, false)
+        .catch(console.error);
+    }
     TrackPlayer.stop();
     TrackPlayer.clear();
   } catch (error) {
@@ -515,9 +532,8 @@ const syncStoreFromNative = () => {
 
 // ─── Initialization ──────────────────────────────────
 
-export const initializeTrackPlayer = async (uid?: number): Promise<boolean> => {
+export const initializeTrackPlayer = async (): Promise<boolean> => {
   try {
-    setBridgeUserId(uid);
     await playbackHistory.preloadHistoryData().catch(console.error);
 
     const isSetup = setupPlayer();
@@ -528,11 +544,26 @@ export const initializeTrackPlayer = async (uid?: number): Promise<boolean> => {
       setupAppStateListener();
       bridgeSetRepeatMode(store().repeatMode);
       await restoreLastPlayedSong();
+
+      if (pendingPlay) {
+        const nextPlay = pendingPlay;
+        pendingPlay = null;
+        bridgePlaySong(nextPlay.song, nextPlay.uid);
+      }
+    }
+
+    if (!isSetup) {
+      pendingPlay = null;
+      store().setLoading(false);
+      store().setPlaying(false);
     }
 
     return isSetup;
   } catch (error) {
     console.error('Error initializing TrackPlayer:', error);
+    pendingPlay = null;
+    store().setLoading(false);
+    store().setPlaying(false);
     return false;
   }
 };
@@ -541,10 +572,45 @@ const restoreLastPlayedSong = async () => {
   const s = store();
   try {
     const lastPlayed = await playbackHistory.getLastPlayedSong();
-    const song = s.currentSong ?? lastPlayed?.song;
-    if (!song) return;
+    if (!lastPlayed?.song) return;
 
-    if (!s.currentSong) s.setCurrentSong(song);
+    const song = lastPlayed.song;
+    const existingPlaylist = s.playlist.filter((item) => item?.id);
+    const savedSongIndex = existingPlaylist.findIndex((item) => item.id === song.id);
+    const playlist = savedSongIndex >= 0 ? existingPlaylist : [song];
+    const startIndex = savedSongIndex >= 0 ? savedSongIndex : 0;
+    const tracks = toMediaItems(playlist.slice(startIndex, startIndex + QUEUE_LOOKAHEAD));
+
+    if (tracks.length === 0) return;
+
+    const duration = Number.isFinite(lastPlayed.duration)
+      ? lastPlayed.duration
+      : song.duration || 0;
+    const savedPosition = Number.isFinite(lastPlayed.position) ? lastPlayed.position : 0;
+    const position =
+      duration > 0
+        ? Math.min(Math.max(savedPosition, 0), Math.max(0, duration - 0.25))
+        : Math.max(savedPosition, 0);
+    const shouldPlay = lastPlayed.isPlaying;
+
+    // The native queue is empty after a cold start. Restore it directly rather
+    // than calling bridgePlaySong(), which intentionally records a new song at
+    // position 0.
+    if (s.currentSong?.id !== song.id) s.setCurrentSong(song);
+    s.setPlaying(shouldPlay);
+    s.setLoading(false);
+    restoredSongId = song.id;
+    TrackPlayer.setRepeatMode(toNativeRepeatMode(s.repeatMode));
+    TrackPlayer.setMediaItems(tracks, 0);
+    if (position > 0) TrackPlayer.seekTo(position);
+
+    if (shouldPlay) {
+      TrackPlayer.play();
+    } else {
+      TrackPlayer.pause();
+    }
+
+    fillQueue();
   } catch (error) {
     console.error('Error restoring last played song:', error);
   }
@@ -647,6 +713,13 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
         if (event.item && event.index !== undefined) {
           const trackId = (event.item as MediaItem).mediaId;
           if (trackId) {
+            const isRestoredTransition = restoredSongId === trackId;
+            if (isRestoredTransition) {
+              // Restoring a queue emits a transition event too. Do not
+              // overwrite the restored position with a fresh 0-second start.
+              restoredSongId = null;
+            }
+
             const playlist = s.playlist;
             const songIdx = playlist.findIndex((song) => song.id === trackId);
 
@@ -656,7 +729,9 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
                 s.setCurrentSong(song);
               }
 
-              recordSongStart(song);
+              if (!isRestoredTransition) {
+                recordSongStart(song);
+              }
             }
           }
         }
@@ -709,7 +784,6 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
       // ── Remote stop ──
       case Event.RemoteStop: {
         s.stopSong();
-        await bridgeStopSong();
         break;
       }
 
@@ -745,6 +819,8 @@ export const handleTrackPlayerEvents = dispatchTrackPlayerEvent;
 // ─── Cleanup ─────────────────────────────────────────
 
 export const destroyTrackPlayer = async () => {
+  pendingPlay = null;
+  restoredSongId = null;
   if (appStateSub) {
     appStateSub.remove();
     appStateSub = null;

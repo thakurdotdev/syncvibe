@@ -19,16 +19,11 @@ export default function PlayerInitializer() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    let cancelled = false;
-    const task = runAfterIdle(() => {
-      if (!cancelled) {
-        void initializeTrackPlayer(user?.userid);
-      }
-    });
+    // Native player setup is small but interaction-critical. Deferring it can
+    // make the first song tap disappear before the bridge is ready.
+    void initializeTrackPlayer();
 
     return () => {
-      cancelled = true;
-      task.cancel();
       destroyTrackPlayer();
     };
   }, []);

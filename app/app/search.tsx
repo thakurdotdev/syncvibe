@@ -33,6 +33,7 @@ export default function SearchMusic() {
   const inputRef = useRef<TextInput>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const searchRequestId = useRef(0);
 
   const executeSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
@@ -42,8 +43,10 @@ export default function SearchMusic() {
       setError('');
       return;
     }
+    const requestId = ++searchRequestId.current;
     abortRef.current?.abort();
-    abortRef.current = new AbortController();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     setIsLoading(true);
     setError('');
@@ -51,15 +54,21 @@ export default function SearchMusic() {
     setShowSuggestions(false);
 
     try {
-      const results = await searchSongs(query);
-      setSongs(results);
+      const results = await searchSongs(query, controller.signal);
+      if (requestId === searchRequestId.current) {
+        setSongs(results);
+      }
     } catch (err: any) {
-      if (err?.name !== 'AbortError') {
+      const wasCancelled =
+        err?.name === 'AbortError' || err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED';
+      if (!wasCancelled && requestId === searchRequestId.current) {
         setError('Failed to search songs. Please try again.');
         setSongs([]);
       }
     } finally {
-      setIsLoading(false);
+      if (requestId === searchRequestId.current) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -69,6 +78,7 @@ export default function SearchMusic() {
 
       if (text.trim().length === 0) {
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        searchRequestId.current += 1;
         abortRef.current?.abort();
         setSongs([]);
         setIsLoading(false);

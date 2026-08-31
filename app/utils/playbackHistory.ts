@@ -99,6 +99,8 @@ class PlaybackHistoryManager {
   public async getLastPlayedSong(): Promise<{
     song: Song;
     position: number;
+    duration: number;
+    isPlaying: boolean;
   } | null> {
     try {
       const progress = await this.getCurrentSongProgress();
@@ -106,6 +108,8 @@ class PlaybackHistoryManager {
         return {
           song: progress.songData,
           position: progress.position,
+          duration: progress.duration,
+          isPlaying: progress.isPlaying ?? false,
         };
       }
       return null;

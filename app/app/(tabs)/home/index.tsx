@@ -149,8 +149,17 @@ function HomeScreen() {
   const scrollY = useSharedValue(0);
   const scrollRef = useRef<any>(null);
 
-  const { data: homePageData, isLoading: loadingHome } = useHomePageMusic();
-  const { data: recommendations, refetch, isRefetching } = useRecentMusic();
+  const {
+    data: homePageData,
+    isLoading: loadingHome,
+    refetch: refetchHome,
+    isRefetching: isRefetchingHome,
+  } = useHomePageMusic();
+  const {
+    data: recommendations,
+    refetch: refetchRecent,
+    isRefetching: isRefetchingRecent,
+  } = useRecentMusic();
 
   const headerGradient = useMemo(
     () => colors.gradients.header as unknown as readonly [string, string, ...string[]],
@@ -158,8 +167,10 @@ function HomeScreen() {
   );
 
   const onRefresh = useCallback(() => {
-    if (user?.userid) refetch();
-  }, [user?.userid, refetch]);
+    const requests: Promise<unknown>[] = [refetchHome()];
+    if (user?.userid) requests.push(refetchRecent());
+    return Promise.allSettled(requests).then(() => undefined);
+  }, [user?.userid, refetchHome, refetchRecent]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (e) => {
@@ -241,7 +252,7 @@ function HomeScreen() {
             contentContainerStyle={{ paddingBottom: 130, paddingTop: 12 }}
             refreshControl={
               <RefreshControl
-                refreshing={isRefetching}
+                refreshing={isRefetchingHome || isRefetchingRecent}
                 onRefresh={onRefresh}
                 tintColor={colors.primary}
                 colors={[colors.primary]}

@@ -7,6 +7,7 @@ import { GroupMusicProvider } from '@/context/GroupMusicContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { ChatProvider } from '@/context/SocketContext';
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
+import { typography } from '@/theme/typography';
 import { ToastProvider } from '@/context/ToastContext';
 import { UserProvider } from '@/context/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,13 +17,14 @@ import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import * as Notifications from 'expo-notifications';
 import { NotificationBehavior } from 'expo-notifications';
-import { Stack } from 'expo-router/js-stack';
+import * as SystemUI from 'expo-system-ui';
+import { Stack } from 'expo-router';
 import { ObserveRoot, useObserve } from 'expo-observe';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { configureReanimatedLogger, Easing, ReanimatedLogLevel } from 'react-native-reanimated';
+import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
 import '../global.css';
 
@@ -51,11 +53,11 @@ TrackPlayer.registerBackgroundEventHandler(() => async (event) => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: true,
+      refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       retry: 1,
-      gcTime: Infinity,
-      staleTime: Infinity,
+      gcTime: 24 * 60 * 60 * 1000,
+      staleTime: 60 * 1000,
     },
   },
 });
@@ -107,72 +109,32 @@ function RootLayoutNav() {
     }
   }, [themeLoading, markInteractive]);
 
-  const sharedAxisZ = ({ current, next }: any) => {
-    const progress = current.progress;
-    const nextProgress = next?.progress;
-
-    const cardStyle = {
-      opacity: progress.interpolate({
-        inputRange: [0, 0.5, 1],
-        outputRange: [0, 0.6, 1],
-      }),
-      transform: [
-        {
-          scale: progress.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0.94, 1],
-          }),
-        },
-      ],
-    };
-
-    const overlayStyle = nextProgress
-      ? {
-          opacity: nextProgress.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, 0.3],
-          }),
-        }
-      : undefined;
-
-    return { cardStyle, overlayStyle };
-  };
-
-  const transitionSpec = {
-    open: {
-      animation: 'timing' as const,
-      config: { duration: 220, easing: Easing.out(Easing.cubic) },
-    },
-    close: {
-      animation: 'timing' as const,
-      config: { duration: 180, easing: Easing.in(Easing.cubic) },
-    },
-  };
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(colors.background).catch(() => {
+      // System UI background updates are unavailable on some web/dev runtimes.
+    });
+  }, [colors.background]);
 
   return (
     <>
       <StatusBar
         barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
-        backgroundColor='transparent'
+        backgroundColor={colors.background}
         translucent
+        animated
       />
       <Stack
         screenOptions={{
-          cardStyleInterpolator: sharedAxisZ,
-          transitionSpec,
-          cardOverlayEnabled: true,
+          animation: 'default',
           gestureEnabled: false,
           headerStyle: {
             backgroundColor: colors.background,
-            elevation: 0,
-            shadowOpacity: 0,
           },
-          headerTintColor: colors.text,
+          headerTintColor: colors.foreground,
           headerTitleStyle: {
-            fontWeight: '600',
-            fontSize: 18,
+            ...typography.headingMd,
           },
-          cardStyle: { backgroundColor: colors.background },
+          contentStyle: { backgroundColor: colors.background },
         }}
       >
         <Stack.Screen

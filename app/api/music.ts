@@ -1,19 +1,20 @@
-import { API_URL, SONG_URL } from '@/constants';
+import { SONG_URL } from '@/constants';
 import type {
-  MusicHistoryResponse,
-  HomePageResponse,
-  RecentMusicResponse,
-  MusicHistoryParams,
-  PlaylistDetails,
   AlbumDetails,
   ArtistDetails,
+  HomePageResponse,
+  MusicHistoryParams,
+  MusicHistoryResponse,
+  PlaylistDetails,
+  RecentMusicResponse,
 } from '@/types/music';
 import { Song } from '@/types/song';
 import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import axios from 'axios';
 
-export const getHomePageMusic = async (): Promise<HomePageResponse> => {
-  const response = await axios.get(`${SONG_URL}/modules?lang=${'hindi'}`, {
+export const getHomePageMusic = async (language = 'hindi'): Promise<HomePageResponse> => {
+  const response = await axios.get(`${SONG_URL}/modules`, {
+    params: { lang: language },
     headers: {
       'Cache-Control': 'no-cache',
     },
