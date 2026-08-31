@@ -56,7 +56,10 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side='bottom' className='dark h-full w-full p-0 overflow-hidden border-0 bg-black text-white'>
+      <SheetContent
+        side='bottom'
+        className='dark h-full w-full p-0 overflow-hidden border-0 bg-black text-white'
+      >
         <div className='h-full w-full relative'>
           <NowPlayingTab currentSong={currentSong} onOpenModal={onOpenModal} isDesktop />
 

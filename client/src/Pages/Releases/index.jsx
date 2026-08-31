@@ -110,7 +110,9 @@ const ReleasesPage = () => {
         {loading ? (
           <div className='py-20 flex flex-col items-center justify-center space-y-3'>
             <Loader2 className='w-6 h-6 animate-spin text-primary' />
-            <span className='text-xs text-muted-foreground font-mono'>Fetching latest build...</span>
+            <span className='text-xs text-muted-foreground font-mono'>
+              Fetching latest build...
+            </span>
           </div>
         ) : (
           <>
@@ -154,7 +156,9 @@ const ReleasesPage = () => {
                   <div className='text-[10.5px] font-mono text-muted-foreground uppercase'>
                     Architecture
                   </div>
-                  <div className='text-xs font-semibold text-foreground font-mono'>Universal APK</div>
+                  <div className='text-xs font-semibold text-foreground font-mono'>
+                    Universal APK
+                  </div>
                 </div>
 
                 <div className='p-3.5 rounded-xl bg-secondary/60 border border-border space-y-1'>

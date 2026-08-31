@@ -175,7 +175,11 @@
     --glass-input-bg: rgba(0, 0, 0, 0.03);
     --glass-input-focus: rgba(0, 0, 0, 0.05);
     --glass-inset: rgba(255, 255, 255, 0.6);
-    --glass-message-own: linear-gradient(135deg, rgba(219, 39, 119, 0.12), rgba(219, 39, 119, 0.06));
+    --glass-message-own: linear-gradient(
+      135deg,
+      rgba(219, 39, 119, 0.12),
+      rgba(219, 39, 119, 0.06)
+    );
     --glass-message-other: rgba(0, 0, 0, 0.03);
     --glass-sheet-bg: rgba(255, 255, 255, 0.92);
 

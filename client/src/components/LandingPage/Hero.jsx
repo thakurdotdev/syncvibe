@@ -98,9 +98,7 @@ const Hero = memo(() => {
       setCurrentTime(0);
       setDuration(currentSong.duration || 308);
       if (isPlaying) {
-        audioRef.current
-          .play()
-          .catch((err) => console.warn('Autoplay policy:', err));
+        audioRef.current.play().catch((err) => console.warn('Autoplay policy:', err));
       }
     }
   }, [currentSong]);
