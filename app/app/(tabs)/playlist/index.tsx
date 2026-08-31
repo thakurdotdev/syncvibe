@@ -7,14 +7,16 @@ import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import { useUser } from '@/context/UserContext';
 import { usePlaylistState } from '@/stores/playerStore';
-import { ensureHttpsForPlaylistUrls } from '@/utils/getHttpsUrls';
+import { convertToHttps, ensureHttpsForPlaylistUrls } from '@/utils/getHttpsUrls';
 import useApi from '@/utils/hooks/useApi';
+import type { PlaylistPreviewSong } from '@/types/music';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { AlertCircle, Edit3, Plus, Trash2, X } from 'lucide-react-native';
+import { AlertCircle, Edit3, History as HistoryIcon, Plus, Trash2, X } from 'lucide-react-native';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Keyboard,
   StyleSheet,
   Text,
@@ -33,6 +35,48 @@ const LoadingState = () => {
       <ActivityIndicator size='large' color={colors.primary} />
     </TabSafeAreaView>
   );
+};
+
+const getImageUrl = (image: unknown): string => {
+  if (typeof image === 'string') return convertToHttps(image);
+  if (image && typeof image === 'object' && !Array.isArray(image)) {
+    const link = (image as { link?: unknown }).link;
+    return typeof link === 'string' ? convertToHttps(link) : '';
+  }
+  if (!Array.isArray(image)) return '';
+
+  for (let index = image.length - 1; index >= 0; index -= 1) {
+    const item = image[index];
+    if (typeof item === 'string' && item) return convertToHttps(item);
+    if (item && typeof item === 'object') {
+      const link = (item as { link?: unknown }).link;
+      if (typeof link === 'string' && link) return convertToHttps(link);
+    }
+  }
+
+  return '';
+};
+
+const formatRelativeDate = (value?: string | null): string | null => {
+  if (!value) return null;
+
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return null;
+
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+  if (minutes < 1) return 'Added just now';
+  if (minutes < 60) return `Added ${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Added ${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `Added ${days}d ago`;
+
+  return `Added ${new Date(timestamp).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })}`;
 };
 
 const PlaylistScreen = () => {
@@ -222,17 +266,34 @@ const PlaylistScreen = () => {
           </Text>
         </View>
 
-        <TouchableOpacity
-          onPress={openCreateModal}
-          activeOpacity={0.8}
-          style={[
-            styles.headerCreateBtn,
-            { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
-          ]}
-        >
-          <Plus size={18} color={colors.primary} />
-          <Text style={[styles.headerCreateText, { color: colors.primary }]}>Create</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => router.push('/song-history')}
+            activeOpacity={0.8}
+            accessibilityLabel='Open listening history'
+            accessibilityRole='button'
+            style={[
+              styles.headerActionBtn,
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
+            ]}
+          >
+            <HistoryIcon size={17} color={colors.primary} />
+            <Text style={[styles.headerActionText, { color: colors.primary }]}>History</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={openCreateModal}
+            activeOpacity={0.8}
+            accessibilityLabel='Create playlist'
+            accessibilityRole='button'
+            style={[
+              styles.headerActionBtn,
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
+            ]}
+          >
+            <Plus size={18} color={colors.primary} />
+            <Text style={[styles.headerActionText, { color: colors.primary }]}>Create</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Playlist Grid */}
@@ -424,7 +485,7 @@ const PlaylistScreen = () => {
 };
 
 export const PlaylistCard = memo(({ playlist, isUser, onLongPress }: any) => {
-  const { colors, theme } = useTheme();
+  const { colors } = useTheme();
 
   const handlePress = useCallback(() => {
     router.push({
@@ -436,19 +497,21 @@ export const PlaylistCard = memo(({ playlist, isUser, onLongPress }: any) => {
   if (!playlist?.name) return null;
 
   const securedPlaylist = useMemo(() => ensureHttpsForPlaylistUrls(playlist), [playlist]);
-
-  const subtitle = securedPlaylist.description || 'Custom Playlist';
-  const imageUrl = useMemo(() => {
-    const img = securedPlaylist?.image;
-    if (!img) return '';
-    if (typeof img === 'string') return img;
-    if (Array.isArray(img) && img.length > 0) {
-      return (
-        img[2]?.link || img[1]?.link || img[0]?.link || (typeof img[0] === 'string' ? img[0] : '')
-      );
-    }
-    return '';
-  }, [securedPlaylist?.image]);
+  const previewSongs = useMemo<PlaylistPreviewSong[]>(
+    () => (Array.isArray(playlist.previewSongs) ? playlist.previewSongs : []),
+    [playlist.previewSongs]
+  );
+  const previewImages = useMemo(
+    () => previewSongs.map((song) => getImageUrl(song.image)).filter(Boolean).slice(0, 5),
+    [previewSongs]
+  );
+  const sideImages = previewImages.slice(1);
+  const imageUrl = getImageUrl(securedPlaylist?.image);
+  const songCount = Number(playlist.songCount) || 0;
+  const addedLabel = formatRelativeDate(playlist.lastAddedAt);
+  const metaLabel = `${songCount} ${songCount === 1 ? 'song' : 'songs'}${
+    addedLabel ? ` · ${addedLabel}` : ''
+  }`;
 
   return (
     <CardContainer
@@ -458,7 +521,45 @@ export const PlaylistCard = memo(({ playlist, isUser, onLongPress }: any) => {
       width={'100%'}
     >
       <View style={{ padding: 10, gap: 8 }}>
-        <CardImage uri={imageUrl} alt={`Playlist: ${securedPlaylist.name}`} />
+        {previewImages.length > 0 ? (
+          <View style={styles.previewCover}>
+            {previewImages.length === 1 ? (
+              <Image
+                source={{ uri: previewImages[0], cache: 'force-cache' }}
+                style={styles.previewSingle}
+                resizeMode='cover'
+                alt={`Playlist: ${securedPlaylist.name}`}
+              />
+            ) : (
+              <View style={styles.previewMosaic}>
+                <Image
+                  source={{ uri: previewImages[0], cache: 'force-cache' }}
+                  style={styles.previewHero}
+                  resizeMode='cover'
+                  alt={`Playlist: ${securedPlaylist.name}`}
+                />
+                <View style={styles.previewSide}>
+                  {sideImages.map((uri, index) => (
+                    <Image
+                      key={`${uri}-${index}`}
+                      source={{ uri, cache: 'force-cache' }}
+                      style={[
+                        styles.previewSmall,
+                        sideImages.length === 1 && styles.previewSideSingle,
+                        sideImages.length === 2 && styles.previewSideDouble,
+                        sideImages.length === 3 && index === 2 && styles.previewSideLast,
+                      ]}
+                      resizeMode='cover'
+                      alt={`Playlist song preview ${index + 2}`}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+        ) : (
+          <CardImage uri={imageUrl} alt={`Playlist: ${securedPlaylist.name}`} />
+        )}
 
         <View style={{ gap: 2, paddingHorizontal: 2 }}>
           <Text
@@ -475,15 +576,25 @@ export const PlaylistCard = memo(({ playlist, isUser, onLongPress }: any) => {
           </Text>
           <Text
             style={{
-              color: colors.mutedForeground,
+              color: colors.foreground,
               fontSize: 12.5,
-              lineHeight: 16,
+              lineHeight: 17,
+              fontWeight: '600',
             }}
             numberOfLines={1}
             ellipsizeMode='tail'
           >
-            {subtitle}
+            {metaLabel}
           </Text>
+          {securedPlaylist.description ? (
+            <Text
+              style={[styles.playlistDescription, { color: colors.mutedForeground }]}
+              numberOfLines={1}
+              ellipsizeMode='tail'
+            >
+              {securedPlaylist.description}
+            </Text>
+          ) : null}
         </View>
       </View>
     </CardContainer>
@@ -517,7 +628,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 2,
   },
-  headerCreateBtn: {
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -525,9 +641,56 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
-  headerCreateText: {
+  headerActionText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  previewCover: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  previewSingle: {
+    width: '100%',
+    height: '100%',
+  },
+  previewMosaic: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 2,
+  },
+  previewHero: {
+    width: '49%',
+    height: '100%',
+  },
+  previewSide: {
+    width: '49%',
+    height: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 2,
+  },
+  previewSmall: {
+    width: '49%',
+    height: '49%',
+  },
+  previewSideSingle: {
+    width: '100%',
+    height: '100%',
+  },
+  previewSideDouble: {
+    width: '100%',
+    height: '49%',
+  },
+  previewSideLast: {
+    width: '100%',
+    height: '49%',
+  },
+  playlistDescription: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   gridContent: {
     paddingHorizontal: 10,

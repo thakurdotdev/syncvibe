@@ -7,10 +7,10 @@ import { useUser } from '@/context/UserContext';
 import { Song } from '@/types/song';
 import useApi from '@/utils/hooks/useApi';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   FlatList,
   RefreshControl,
   TextInput as RNTextInput,
@@ -26,7 +26,7 @@ const ITEMS_PER_PAGE = 15;
 type SortOption = {
   label: string;
   value: string;
-  icon: React.ReactNode;
+  icon: React.ReactElement<{ color?: string }>;
 };
 
 type SortOrder = 'ASC' | 'DESC';
@@ -67,7 +67,6 @@ const SongHistory = () => {
   const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
   const [sortBy, setSortBy] = useState('lastPlayedAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('DESC');
@@ -76,8 +75,10 @@ const SongHistory = () => {
   const [currentDataPage, setCurrentDataPage] = useState(1);
 
   const searchInputRef = useRef<RNTextInput>(null);
-  const scrollY = new Animated.Value(0);
-  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const initialLoadingRef = useRef(true);
 
   // Debounce search input
   useEffect(() => {
@@ -86,7 +87,8 @@ const SongHistory = () => {
     }
 
     debounceTimeout.current = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
+      const nextQuery = searchQuery.trim();
+      setDebouncedSearchQuery(nextQuery.length >= 2 ? nextQuery : '');
     }, 500);
 
     return () => {
@@ -94,21 +96,20 @@ const SongHistory = () => {
         clearTimeout(debounceTimeout.current);
       }
     };
-  }, [searchQuery, songHistory.length]);
-
-  useEffect(() => {
-    if (user?.userid) {
-      getHistorySongs(1, false);
-    }
-  }, [debouncedSearchQuery, sortBy, sortOrder, user?.userid]);
+  }, [searchQuery]);
 
   const getHistorySongs = useCallback(
     async (pageNum = 1, append = false) => {
       if (!user?.userid) return;
 
+      const requestId = ++requestIdRef.current;
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       try {
         // Only set full loading state on initial load
-        if (pageNum === 1 && !append && initialLoading) {
+        if (pageNum === 1 && !append && initialLoadingRef.current) {
           setLoading(true);
         } else if (
           !append &&
@@ -130,9 +131,10 @@ const SongHistory = () => {
             sortBy,
             sortOrder,
           },
+          signal: controller.signal,
         });
 
-        if (response.status === 200) {
+        if (response.status === 200 && requestId === requestIdRef.current) {
           const { songs, count } = response.data.data;
 
           if (append) {
@@ -145,144 +147,142 @@ const SongHistory = () => {
           setHasMore(pageNum * ITEMS_PER_PAGE < count);
         }
       } catch (error) {
-        console.error('Error fetching song history:', error);
+        if (!controller.signal.aborted) {
+          console.error('Error fetching song history:', error);
+        }
       } finally {
-        setLoading(false);
-        setInitialLoading(false); // Initial loading is done
-        setIsFiltering(false);
-        setRefreshing(false);
-        setLoadingMore(false);
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+          initialLoadingRef.current = false;
+          setInitialLoading(false);
+          setIsFiltering(false);
+          setRefreshing(false);
+          setLoadingMore(false);
+        }
       }
     },
-    [user?.userid, api, debouncedSearchQuery, sortBy, sortOrder, initialLoading]
+    [user?.userid, api, debouncedSearchQuery, sortBy, sortOrder]
   );
+
+  useEffect(() => {
+    if (!user?.userid) return;
+
+    setCurrentDataPage(1);
+    void getHistorySongs(1, false);
+  }, [debouncedSearchQuery, sortBy, sortOrder, user?.userid, getHistorySongs]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     setCurrentDataPage(1);
-    getHistorySongs(1, false);
+    void getHistorySongs(1, false);
   }, [getHistorySongs]);
 
   const toggleSortOrder = useCallback(() => {
-    setIsFiltering(true);
     setSortOrder((prevOrder) => (prevOrder === 'ASC' ? 'DESC' : 'ASC'));
   }, []);
 
   const handleSortSelect = useCallback((option: string) => {
-    setIsFiltering(true);
     setSortBy(option);
     setShowSortModal(false);
   }, []);
 
-  const toggleSearch = useCallback(() => {
-    setShowSearch((prev) => {
-      const newState = !prev;
-      if (!newState) {
-        // Reset search when hiding
-        setSearchQuery('');
-        setDebouncedSearchQuery('');
-      } else {
-        // Focus input when showing
-        setTimeout(() => {
-          searchInputRef.current?.focus();
-        }, 100);
-      }
-      return newState;
-    });
-  }, []);
-
-  const loadMoreSongs = () => {
+  const loadMoreSongs = useCallback(() => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     const nextPage = currentDataPage + 1;
     setCurrentDataPage(nextPage);
-    getHistorySongs(nextPage, true);
-  };
+    void getHistorySongs(nextPage, true);
+  }, [currentDataPage, getHistorySongs, hasMore, loadingMore]);
 
   const renderHeader = () => {
-    const headerOpacity = scrollY.interpolate({
-      inputRange: [0, 80, 120],
-      outputRange: [1, 0.8, 0.8],
-      extrapolate: 'clamp',
-    });
-
-    const searchScale = scrollY.interpolate({
-      inputRange: [0, 100],
-      outputRange: [1, 0.95],
-      extrapolate: 'clamp',
-    });
-
     return (
-      <Animated.View
-        style={[styles.header, { opacity: headerOpacity }, { backgroundColor: colors.background }]}
-      >
-        {!showSearch ? (
-          <>
+      <View style={[styles.header, { backgroundColor: colors.background }]}>
+        <View style={styles.headerTopRow}>
+          <View style={styles.headerTitleBlock}>
+            <TouchableOpacity
+              accessibilityLabel='Go back'
+              accessibilityRole='button'
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <Feather name='chevron-left' size={24} color={colors.foreground} />
+            </TouchableOpacity>
             <View>
-              <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-                Your Listening History
-              </Text>
+              <Text style={[styles.headerTitle, { color: colors.foreground }]}>Listening history</Text>
               <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
                 {totalSongs} tracks
               </Text>
             </View>
-            <View style={styles.headerActions}>
-              <Button
-                variant='ghost'
-                size='icon'
-                icon={<Feather name='search' size={22} color={colors.foreground} />}
-                onPress={toggleSearch}
-                style={{ marginLeft: 8 }}
-              />
-              <Button
-                variant='ghost'
-                size='icon'
-                icon={<Feather name='sliders' size={22} color={colors.foreground} />}
-                onPress={() => setShowSortModal(true)}
-                style={{ marginLeft: 8 }}
-              />
-            </View>
-          </>
-        ) : (
-          <Animated.View
-            style={[
-              styles.searchContainer,
-              { transform: [{ scale: searchScale }] },
-              { flexGrow: 1, width: '100%' },
-            ]}
-          >
-            <Input
-              ref={searchInputRef}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder='Search songs...'
-              variant='filled'
-              leftIcon={<Feather name='search' size={20} color={colors.mutedForeground} />}
-              rightIcon={
-                <TouchableOpacity onPress={toggleSearch}>
-                  <Feather name='x' size={20} color={colors.mutedForeground} />
+          </View>
+          <Button
+            variant='ghost'
+            size='icon'
+            icon={<Feather name='sliders' size={21} color={colors.foreground} />}
+            onPress={() => setShowSortModal(true)}
+            accessibilityLabel='Sort listening history'
+          />
+        </View>
+        <View style={styles.searchContainer}>
+          <Input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder='Search songs, artists, albums'
+            variant='filled'
+            leftIcon={<Feather name='search' size={19} color={colors.mutedForeground} />}
+            rightIcon={
+              searchQuery ? (
+                <TouchableOpacity
+                  accessibilityLabel='Clear search'
+                  accessibilityRole='button'
+                  onPress={() => {
+                    setSearchQuery('');
+                    searchInputRef.current?.focus();
+                  }}
+                >
+                  <Feather name='x' size={19} color={colors.mutedForeground} />
                 </TouchableOpacity>
-              }
-              className='flex-1'
-              autoFocus
-            />
-          </Animated.View>
-        )}
-      </Animated.View>
+              ) : undefined
+            }
+            className='flex-1'
+            autoFocus={false}
+            returnKeyType='search'
+          />
+        </View>
+      </View>
     );
   };
 
   const renderSortIndicator = () => {
-    if (!sortBy || sortBy === 'lastPlayedAt') return null;
+    if (!sortBy || (sortBy === 'lastPlayedAt' && sortOrder === 'DESC')) return null;
 
     const currentSort = sortOptions.find((option) => option.value === sortBy);
     if (!currentSort) return null;
 
+    const directionLabel =
+      sortBy === 'lastPlayedAt'
+        ? sortOrder === 'ASC'
+          ? 'Oldest first'
+          : 'Newest first'
+        : sortBy === 'playedCount'
+        ? sortOrder === 'ASC'
+          ? 'Least played'
+          : 'Most played'
+        : sortOrder === 'ASC'
+          ? 'A–Z'
+          : 'Z–A';
+
     return (
       <View style={[styles.sortIndicator, { backgroundColor: colors.secondary }]}>
         <Text style={[styles.sortText, { color: colors.secondaryForeground }]}>
-          Sorted by: {currentSort.label}
-          {sortOrder === 'ASC' ? ' (A-Z)' : ' (Z-A)'}
+          {currentSort.label} · {directionLabel}
         </Text>
         <TouchableOpacity style={styles.sortOrderButton} onPress={toggleSortOrder}>
           <Feather
@@ -362,16 +362,13 @@ const SongHistory = () => {
       <FlatList
         data={songHistory}
         renderItem={({ item }) => <SongCard song={item} />}
-        keyExtractor={(item, index) => `${item.id}-${index}`}
+        keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.listContent, isFiltering && styles.dimmedContent]}
+        contentContainerStyle={styles.listContent}
         onEndReached={loadMoreSongs}
         onEndReachedThreshold={0.3}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmptyState}
-        ItemSeparatorComponent={() => (
-          <View style={[styles.separator, { backgroundColor: `${colors.border}33` }]} />
-        )}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -380,9 +377,6 @@ const SongHistory = () => {
             colors={[colors.primary]}
           />
         }
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-          useNativeDriver: false,
-        })}
         removeClippedSubviews={true}
         initialNumToRender={10}
         maxToRenderPerBatch={5}
@@ -399,7 +393,7 @@ const SongHistory = () => {
           <Text style={[styles.sortModalTitle, { color: colors.foreground }]}>Sort by</Text>
 
           {sortOptions.map((option) => (
-            <TouchableOpacity
+            <View
               key={option.value}
               style={[
                 styles.sortOption,
@@ -408,19 +402,26 @@ const SongHistory = () => {
                   { backgroundColor: colors.secondary },
                 ],
               ]}
-              onPress={() => handleSortSelect(option.value)}
             >
-              <View style={styles.sortOptionIcon}>
-                {React.cloneElement(option.icon as React.ReactElement, {
-                  color: colors.foreground,
-                })}
-              </View>
-              <Text style={[styles.sortOptionText, { color: colors.foreground }]}>
-                {option.label}
-              </Text>
+              <TouchableOpacity
+                style={styles.sortOptionMain}
+                onPress={() => handleSortSelect(option.value)}
+              >
+                <View style={styles.sortOptionIcon}>
+                  {React.cloneElement(option.icon, { color: colors.foreground })}
+                </View>
+                <Text style={[styles.sortOptionText, { color: colors.foreground }]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
 
               {sortBy === option.value && (
-                <TouchableOpacity style={styles.sortDirectionButton} onPress={toggleSortOrder}>
+                <TouchableOpacity
+                  accessibilityLabel='Toggle sort direction'
+                  accessibilityRole='button'
+                  style={styles.sortDirectionButton}
+                  onPress={toggleSortOrder}
+                >
                   <Feather
                     name={sortOrder === 'ASC' ? 'arrow-up' : 'arrow-down'}
                     size={20}
@@ -428,7 +429,7 @@ const SongHistory = () => {
                   />
                 </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </View>
           ))}
 
           <Button
@@ -460,53 +461,41 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingTop: 12,
+    paddingBottom: 14,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  headerTitleBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  backButton: {
+    width: 38,
+    height: 38,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    marginRight: 4,
+  },
   headerTitle: {
     color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontSize: 23,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   headerSubtitle: {
     color: 'white',
     opacity: 0.7,
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '500',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconButton: {
-    padding: 8,
-    marginLeft: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 2,
   },
   searchContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    borderRadius: 8,
-    alignItems: 'center',
-    height: 44,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    color: 'white',
-    fontSize: 16,
-    padding: 8,
+    marginTop: 12,
   },
   sortIndicator: {
     flexDirection: 'row',
@@ -540,16 +529,8 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 4,
     paddingBottom: 120,
-  },
-  dimmedContent: {
-    opacity: 0.6,
-  },
-  separator: {
-    height: 1,
-    // backgroundColor: "rgba(255, 255, 255, 0.05)",
-    marginVertical: 4,
   },
   footerLoader: {
     paddingVertical: 20,
@@ -589,14 +570,19 @@ const styles = StyleSheet.create({
   sortOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    minHeight: 54,
+    marginBottom: 8,
+    borderRadius: 12,
+    paddingHorizontal: 10,
   },
   sortOptionSelected: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+  },
+  sortOptionMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minHeight: 54,
   },
   sortOptionIcon: {
     width: 36,

@@ -66,8 +66,19 @@ export interface Playlist {
   explicit?: boolean;
   list_count?: number;
   songCount?: number;
+  previewSongs?: PlaylistPreviewSong[];
+  lastAddedAt?: string | null;
   artists?: AlbumArtist[];
   songs?: Song[];
+}
+
+export interface PlaylistPreviewSong {
+  id: number;
+  songRefId?: number | null;
+  name: string;
+  artistNames?: string | null;
+  image?: ImageQuality[] | string | null;
+  addedAt?: string;
 }
 
 export interface Chart {
