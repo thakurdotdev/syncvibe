@@ -14,6 +14,13 @@ const calculateCompletionRate = (playedTime: number, duration: number): number =
 const getDeviceType = (ua: string | undefined): string =>
   ua?.includes('Mobile') ? 'mobile' : 'desktop';
 
+const HISTORY_SORT_COLUMNS: Record<string, string> = {
+  lastPlayedAt: 'hs."lastPlayedAt"',
+  songName: 'LOWER(COALESCE(s.name, \'\'))',
+  playedCount: 'hs."playedCount"',
+  songLanguage: 'LOWER(COALESCE(s.language, \'\'))',
+};
+
 export const addToHistory = async (req: Request, res: Response): Promise<void> => {
   try {
     const { songData: rawSongData, playedTime = 0 } = req.body as {
@@ -81,38 +88,45 @@ export const getPersonalizedRecommendations = async (
 export const getHistorySongs = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user!.userid;
-    const pageNum = parseInt(req.query.page as string, 10) || 1;
-    const limitNum = parseInt(req.query.limit as string, 10) || 10;
-    const searchQuery = (req.query.searchQuery as string)?.trim() || '';
+    const parsedPage = Number.parseInt(req.query.page as string, 10);
+    const parsedLimit = Number.parseInt(req.query.limit as string, 10);
+    const pageNum = Number.isFinite(parsedPage) ? Math.max(parsedPage, 1) : 1;
+    const limitNum = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 50) : 15;
+    const searchQuery = (req.query.searchQuery as string)?.trim().toLowerCase() || '';
+    const requestedSortBy = (req.query.sortBy as string) || 'lastPlayedAt';
+    const sortBy = HISTORY_SORT_COLUMNS[requestedSortBy]
+      ? requestedSortBy
+      : 'lastPlayedAt';
+    const sortOrder = String(req.query.sortOrder).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    const orderBy = `${HISTORY_SORT_COLUMNS[sortBy]} ${sortOrder}, hs."lastPlayedAt" DESC, hs."songRefId" ASC`;
     const offset = (pageNum - 1) * limitNum;
 
     const replacements: Record<string, unknown> = { userId, limit: limitNum, offset };
     let query: string;
 
-    if (searchQuery) {
+    if (searchQuery.length >= 2) {
       query = `
-        WITH matched_songs AS (
-          SELECT id, "songData",
-            GREATEST(
-              similarity(name, :search),
-              similarity("artistNames", :search),
-              similarity("albumName", :search)
-            ) AS score
-          FROM songs
-          WHERE name % :search
-             OR "artistNames" % :search
-             OR "albumName" % :search
-        )
-        SELECT 
+        SELECT
           s."songData",
-          COUNT(*) OVER() AS total_count
+          COUNT(*) OVER() AS total_count,
+          GREATEST(
+            similarity(COALESCE(s.name, ''), :search),
+            similarity(COALESCE(s."artistNames", ''), :search),
+            similarity(COALESCE(s."albumName", ''), :search)
+          ) AS search_score
         FROM history_songs hs
-        INNER JOIN matched_songs s ON s.id = hs."songRefId"
+        INNER JOIN songs s ON s.id = hs."songRefId"
         WHERE hs."userId" = :userId
-        ORDER BY s.score DESC, hs."lastPlayedAt" DESC
+          AND hs."songRefId" IS NOT NULL
+          AND (
+            COALESCE(s.name, '') % :search
+            OR COALESCE(s."artistNames", '') % :search
+            OR COALESCE(s."albumName", '') % :search
+          )
+        ORDER BY ${orderBy}, search_score DESC
         LIMIT :limit OFFSET :offset
       `;
-      replacements.search = searchQuery.toLowerCase();
+      replacements.search = searchQuery;
     } else {
       query = `
         SELECT 
@@ -121,7 +135,7 @@ export const getHistorySongs = async (req: Request, res: Response): Promise<void
         FROM history_songs hs
         INNER JOIN songs s ON s.id = hs."songRefId"
         WHERE hs."userId" = :userId AND hs."songRefId" IS NOT NULL
-        ORDER BY hs."lastPlayedAt" DESC
+        ORDER BY ${orderBy}
         LIMIT :limit OFFSET :offset
       `;
     }

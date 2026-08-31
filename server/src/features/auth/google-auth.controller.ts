@@ -10,6 +10,7 @@ import {
   getUserProfileService,
 } from './services/user.service';
 import { AuthError } from './auth.errors';
+import { clearAuthCookie, getAuthCookieOptions } from './auth-cookie';
 
 function isValidUrl(u: string): boolean {
   try {
@@ -28,13 +29,6 @@ function pickClientUrl(req: Request): string {
   if (fromHeader && isValidUrl(fromHeader)) return fromHeader;
 
   return process.env.CLIENT_URL!;
-}
-
-function baseDomain(hostname: string | undefined): string | null {
-  if (!hostname) return null;
-  const parts = hostname.split('.');
-  if (parts.length >= 2) return parts.slice(-2).join('.');
-  return hostname;
 }
 
 export const googleAuth = (req: Request, res: Response, next: NextFunction): void => {
@@ -58,17 +52,10 @@ export const googleAuthCallback = (req: Request, res: Response, next: NextFuncti
       }
 
       const { token } = user;
-      const host = req.hostname || req.headers.host;
-      const bd = baseDomain(host);
-      const cookieOpts: Record<string, unknown> = {
-        secure: true,
-        httpOnly: true,
-        sameSite: 'none',
+      res.cookie('token', token, {
+        ...getAuthCookieOptions(req),
         expires: CookieExpiryDate,
-      };
-      if (bd) cookieOpts.domain = `.${bd}`;
-
-      res.cookie('token', token, cookieOpts);
+      });
       const redirectMap: Record<string, string> = { 'syncvibe.thakur.dev': '/feed' };
 
       if (process.env.NODE_ENV === 'production' && user.userid) {
@@ -216,13 +203,8 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
   }
 };
 
-export const logoutUser = (_req: Request, res: Response): void => {
-  res.clearCookie('token', {
-    domain: '.thakur.dev',
-    secure: true,
-    httpOnly: true,
-    sameSite: 'none',
-  });
+export const logoutUser = (req: Request, res: Response): void => {
+  clearAuthCookie(req, res);
   res.status(200).json({ message: 'success' });
 };
 

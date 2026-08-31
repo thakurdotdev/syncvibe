@@ -18,6 +18,7 @@ import {
   sendEmailOtpService,
   getPushTokenService,
 } from './services/auth.service';
+import { getAuthCookieOptions } from './auth-cookie';
 
 // ── Validation Schemas ──────────────────────────────────────────────────────
 
@@ -125,10 +126,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     res
       .status(200)
       .cookie('token', result.token, {
-        domain: '.thakur.dev',
-        secure: true,
-        httpOnly: true,
-        sameSite: 'none',
+        ...getAuthCookieOptions(req),
         expires: CookieExpiryDate,
       })
       .json({ message: 'Success', token: result.token });
@@ -244,10 +242,7 @@ export const guestLogin = async (req: Request, res: Response): Promise<void> => 
     res
       .status(200)
       .cookie('token', token, {
-        domain: '.thakur.dev',
-        secure: true,
-        httpOnly: true,
-        sameSite: 'none',
+        ...getAuthCookieOptions(req),
         expires: new Date(Date.now() + 86400000),
       })
       .json({ message: 'Guest login successful', token });
@@ -290,10 +285,7 @@ export const verify2FA = async (req: Request, res: Response): Promise<void> => {
       res
         .status(200)
         .cookie('token', result.token, {
-          domain: '.thakur.dev',
-          secure: true,
-          httpOnly: true,
-          sameSite: 'none',
+          ...getAuthCookieOptions(req),
           expires: CookieExpiryDate,
         })
         .json({ message: result.message, token: result.token });

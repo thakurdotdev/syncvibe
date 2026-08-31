@@ -54,21 +54,16 @@ const ProfileDropdownMenu = ({ fromSidebar = true }) => {
 
   const handleLogout = async () => {
     try {
-      const { status } = await axios.get(`${import.meta.env.VITE_API_URL}/api/logout`, {
+      await axios.get(`${import.meta.env.VITE_API_URL}/api/logout`, {
         withCredentials: true,
       });
-
-      if (status === 200) {
-        navigate('/login');
-        cleanUpSocket();
-        stopSong();
-        setUser(null);
-      }
     } catch (error) {
-      navigate('/login');
+      console.error('Logout request failed; clearing local session anyway:', error);
+    } finally {
       cleanUpSocket();
       stopSong();
       setUser(null);
+      navigate('/login', { replace: true });
     }
   };
 

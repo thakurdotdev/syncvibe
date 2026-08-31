@@ -3,6 +3,7 @@ import { usePlayerStore } from '@/stores/playerStore';
 import { uploadToCloudinary } from '@/Utils/cloudinaryUpload';
 import axios from 'axios';
 import { useCallback, useContext, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Context } from '../../Context/Context';
 import getFollowList from '../../Utils/getFollowList';
@@ -32,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 
 const Profile = () => {
   const { user, setUser, getProfile } = useContext(Context);
+  const navigate = useNavigate();
   const stopSong = usePlayerStore((s) => s.stopSong);
   const { cleanUpSocket } = useContext(ChatContext);
 
@@ -111,18 +113,16 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
-      const { status } = await axios.get(`${import.meta.env.VITE_API_URL}/api/logout`, {
+      await axios.get(`${import.meta.env.VITE_API_URL}/api/logout`, {
         withCredentials: true,
       });
-      if (status === 200) {
-        cleanUpSocket();
-        stopSong();
-        setUser(null);
-      }
     } catch (error) {
+      console.error('Logout request failed; clearing local session anyway:', error);
+    } finally {
       cleanUpSocket();
       stopSong();
       setUser(null);
+      navigate('/login', { replace: true });
     }
   };
 

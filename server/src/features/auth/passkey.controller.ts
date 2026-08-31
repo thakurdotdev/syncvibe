@@ -11,6 +11,7 @@ import { User, Authenticator, LoginLog } from '@/models/index';
 import sequelize from '@/utils/sequelize';
 import { parseUserAgent, getClientIp, getClientLocation } from '@/utils/helpers';
 import { JWTExpiryDate, CookieExpiryDate } from '@/config/constants';
+import { getAuthCookieOptions } from './auth-cookie';
 
 type RegistrationResponse = Parameters<typeof verifyRegistrationResponse>[0]['response'];
 type AuthenticationResponse = Parameters<typeof verifyAuthenticationResponse>[0]['response'];
@@ -64,10 +65,7 @@ const generateToken = (user: UserPayload): string => {
 
 const setCookie = (res: Response, token: string): void => {
   res.cookie('token', token, {
-    domain: '.thakur.dev',
-    secure: true,
-    httpOnly: true,
-    sameSite: 'none',
+    ...getAuthCookieOptions(res.req),
     expires: CONFIG.COOKIE_EXPIRY,
   });
 };

@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Plus, ListMusic, Sparkles } from 'lucide-react';
+import { Loader2, Plus, ListMusic } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { UserPlaylistCard } from './Cards';
@@ -19,7 +19,6 @@ import {
   useUpdatePlaylistMutation,
   useDeletePlaylistMutation,
 } from '@/hooks/mutations/usePlaylistMutations';
-import { motion, AnimatePresence } from 'framer-motion';
 
 const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading }) => {
   const [formData, setFormData] = useState({
@@ -155,11 +154,16 @@ const UserPlaylist = () => {
   return (
     <div className='p-4 md:p-6 max-w-350 mx-auto w-full space-y-6'>
       <div className='flex flex-row justify-between items-start sm:items-center gap-4'>
-        <h2 className='text-2xl md:text-3xl font-bold tracking-tight'>My Playlists</h2>
+        <div>
+          <h2 className='text-2xl md:text-3xl font-bold tracking-tight'>My Playlists</h2>
+          <p className='mt-1 text-sm font-medium text-muted-foreground'>
+            {userPlaylist.length} {userPlaylist.length === 1 ? 'playlist' : 'playlists'}
+          </p>
+        </div>
 
         <Button
           onClick={() => setPlaylistDialog({ isOpen: true, data: null })}
-          className='gap-2 h-10 rounded-xl px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md cursor-pointer transition-all active:scale-95'
+          className='gap-2 h-10 rounded-xl px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md cursor-pointer transition-colors duration-150'
         >
           <Plus className='h-4 w-4' />
           New Playlist
@@ -189,23 +193,14 @@ const UserPlaylist = () => {
         </div>
       ) : (
         <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-5'>
-          <AnimatePresence mode='popLayout'>
-            {userPlaylist.map((playlist, index) => (
-              <motion.div
-                key={playlist.id}
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-              >
-                <UserPlaylistCard
-                  playlist={playlist}
-                  onDelete={handleDeletePlaylist}
-                  onEdit={(playlist) => setPlaylistDialog({ isOpen: true, data: playlist })}
-                />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+          {userPlaylist.map((playlist) => (
+            <UserPlaylistCard
+              key={playlist.id}
+              playlist={playlist}
+              onDelete={handleDeletePlaylist}
+              onEdit={(playlist) => setPlaylistDialog({ isOpen: true, data: playlist })}
+            />
+          ))}
         </div>
       )}
 

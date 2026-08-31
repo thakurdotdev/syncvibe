@@ -16,7 +16,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +32,42 @@ import { ensureHttpsForDownloadUrls } from './Common';
 import './music.css';
 
 const MotionCard = motion.div;
+
+const getPlaylistImageUrl = (image) => {
+  if (typeof image === 'string') return image;
+  if (image && typeof image === 'object' && !Array.isArray(image)) return image.link || '';
+  if (!Array.isArray(image)) return '';
+
+  for (let index = image.length - 1; index >= 0; index -= 1) {
+    const item = image[index];
+    const link = typeof item === 'string' ? item : item?.link;
+    if (link) return link;
+  }
+
+  return '';
+};
+
+const formatPlaylistDate = (value) => {
+  if (!value) return null;
+
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return null;
+
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+  if (minutes < 1) return 'Added just now';
+  if (minutes < 60) return `Added ${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Added ${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `Added ${days}d ago`;
+
+  return `Added ${new Date(timestamp).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })}`;
+};
 
 export const AudioWave = memo(() => (
   <div className='flex items-center justify-center gap-0.5 h-6'>
@@ -655,7 +690,16 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
 
   if (!playlist?.name) return null;
 
-  const subtitle = `${playlist.songCount || 0} songs`;
+  const songCount = Number(playlist.songCount) || 0;
+  const addedLabel = formatPlaylistDate(playlist.lastAddedAt);
+  const metaLabel = `${songCount} ${songCount === 1 ? 'song' : 'songs'}${
+    addedLabel ? ` · ${addedLabel}` : ''
+  }`;
+  const previewImages = (Array.isArray(playlist.previewSongs) ? playlist.previewSongs : [])
+    .map((song) => getPlaylistImageUrl(song?.image))
+    .filter(Boolean)
+    .slice(0, 5);
+  const fallbackImage = getPlaylistImageUrl(playlist.image);
 
   const handleCardClick = useCallback(
     (e) => {
@@ -673,30 +717,54 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
   return (
     <>
       <div
-        className='w-full group cursor-pointer rounded-xl p-2 bg-accent/10 border border-transparent hover:border-primary/20 hover:bg-accent/20 transition-all duration-200 active:scale-98'
+        className='w-full group cursor-pointer rounded-xl p-2 bg-accent/10 border border-transparent hover:border-primary/20 hover:bg-accent/20 transition-colors duration-150'
         onClick={handleCardClick}
       >
-        <div className='relative mb-2 aspect-square overflow-hidden rounded-lg shadow-sm'>
-          <div className='h-full w-full transition-transform duration-300 ease-out group-hover:scale-105 [will-change:transform]'>
-            <Avatar className='w-full h-full rounded-none'>
-              <AvatarImage
-                src={playlist?.image?.[2]?.link || playlist?.image?.[1]?.link}
+        <div className='relative mb-2 aspect-square overflow-hidden rounded-lg bg-accent/20'>
+          {previewImages.length > 0 ? (
+            previewImages.length === 1 ? (
+              <img
+                src={previewImages[0]}
                 alt={playlist.name}
-                className='object-cover'
+                loading='lazy'
+                className='h-full w-full object-cover'
               />
-              <AvatarFallback className='rounded-none flex items-center justify-center bg-accent/30'>
-                <ListMusic className='w-8 h-8 text-muted-foreground/50' />
-              </AvatarFallback>
-            </Avatar>
-          </div>
-
-          <div className='absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
-            <div className='p-2.5 rounded-full shadow-lg cursor-pointer transition-transform duration-200 scale-75 group-hover:scale-100'>
-              <Play className='w-5 h-5 fill-current' />
+            ) : (
+              <div className='flex h-full gap-0.5'>
+                <img
+                  src={previewImages[0]}
+                  alt={playlist.name}
+                  loading='lazy'
+                  className='h-full w-[49%] object-cover'
+                />
+                <div className='grid h-full w-[49%] grid-cols-2 grid-rows-2 gap-0.5'>
+                  {previewImages.slice(1, 5).map((image, index) => (
+                    <img
+                      key={image + index}
+                      src={image}
+                      alt={`${playlist.name} song preview ${index + 2}`}
+                      loading='lazy'
+                      className='h-full w-full object-cover'
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          ) : fallbackImage ? (
+            <img
+              src={fallbackImage}
+              alt={playlist.name}
+              loading='lazy'
+              className='h-full w-full object-cover'
+            />
+          ) : (
+            <div className='flex h-full w-full items-center justify-center'>
+              <ListMusic className='h-8 w-8 text-muted-foreground/50' />
             </div>
-          </div>
+          )}
 
-          <div className='action-buttons absolute top-1.5 right-1.5 flex flex-col gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200'>
+
+          <div className='action-buttons absolute top-1.5 right-1.5 flex flex-col gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150'>
             <Button
               size='icon'
               variant='secondary'
@@ -723,10 +791,15 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
         </div>
 
         <div className='space-y-0.5 px-0.5'>
-          <p className='font-semibold text-[13px] truncate group-hover:text-primary transition-colors'>
-            {playlist.name}
-          </p>
-          <p className='text-[11px] text-muted-foreground/60 font-medium'>{subtitle}</p>
+          <p className='font-semibold text-[13px] truncate group-hover:text-primary transition-colors duration-150'>
+           {playlist.name}
+         </p>
+          <p className='text-[11px] text-foreground/80 font-semibold truncate'>{metaLabel}</p>
+          {playlist.description && (
+            <p className='text-[11px] text-muted-foreground/70 font-medium truncate'>
+              {playlist.description}
+            </p>
+          )}
         </div>
       </div>
 

@@ -20,9 +20,15 @@ export const ContextProvider = ({ children }) => {
   }, []);
 
   const setUser = (newUser) => {
-    if (!newUser) {
-      queryClient.cancelQueries();
-      queryClient.clear();
+    if (newUser == null) {
+      void queryClient.cancelQueries();
+
+      // Keep the active profile query alive and publish an explicit null
+      // result. Clearing the whole cache first leaves the mounted observer
+      // with stale user data until a hard refresh.
+      queryClient.removeQueries({
+        predicate: (query) => query.queryKey[0] !== profileKeys.all[0],
+      });
       queryClient.setQueryData(profileKeys.current(), null);
       sessionStorage.clear();
       localStorage.removeItem('syncvibe_group_session');

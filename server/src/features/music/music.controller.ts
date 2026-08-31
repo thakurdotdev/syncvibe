@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { fn, col } from 'sequelize';
+import { fn, col, QueryTypes } from 'sequelize';
 import { Playlist, PlaylistSong, Song } from '@/models/index';
 import sequelize from '@/utils/sequelize';
 
@@ -127,34 +127,102 @@ export const getPlaylists = async (req: Request, res: Response): Promise<void> =
       ],
       include: [
         { model: PlaylistSong, as: 'songs', attributes: [] },
-        {
-          model: PlaylistSong,
-          as: 'latestSong',
-          attributes: ['songData'],
-          order: [['createdat', 'DESC']],
-          limit: 1,
-        },
       ],
+      order: [['createdat', 'DESC']],
       group: ['Playlist.id'],
     });
 
+    const playlistIds = playlists.map((playlist) => playlist.id);
+    type PlaylistPreviewRow = {
+      playlistId: number;
+      playlistSongId: number;
+      songRefId: number | null;
+      playlistSongData: unknown;
+      songData: unknown;
+      createdat: Date;
+    };
+
+    const previewRows = playlistIds.length
+      ? ((await sequelize.query(
+          `
+            SELECT
+              ranked."playlistId" AS "playlistId",
+              ranked.id AS "playlistSongId",
+              ranked."songRefId" AS "songRefId",
+              ranked."songData" AS "playlistSongData",
+              s."songData" AS "songData",
+              ranked."createdat" AS "createdat"
+            FROM (
+              SELECT
+                ps."playlistId",
+                ps.id,
+                ps."songRefId",
+                ps."songData",
+                ps."createdat",
+                ROW_NUMBER() OVER (
+                  PARTITION BY ps."playlistId"
+                  ORDER BY ps."createdat" DESC, ps.id DESC
+                ) AS preview_rank
+              FROM playlist_songs ps
+              WHERE ps."playlistId" IN (:playlistIds)
+            ) ranked
+            LEFT JOIN songs s ON s.id = ranked."songRefId"
+            WHERE ranked.preview_rank <= 5
+            ORDER BY ranked."playlistId", ranked."createdat" DESC, ranked.id DESC
+          `,
+          { replacements: { playlistIds }, type: QueryTypes.SELECT }
+        )) as PlaylistPreviewRow[])
+      : [];
+
+    const previewsByPlaylist = new Map<number, Array<Record<string, unknown>>>();
+    for (const row of previewRows) {
+      const rawSongData = row.songData ?? row.playlistSongData;
+      let songData: Record<string, unknown> | null = null;
+
+      try {
+        songData =
+          typeof rawSongData === 'string'
+            ? (JSON.parse(rawSongData) as Record<string, unknown>)
+            : (rawSongData as Record<string, unknown> | null);
+      } catch {
+        songData = null;
+      }
+
+      if (!songData) continue;
+
+      const preview = {
+        id: row.playlistSongId,
+        songRefId: row.songRefId,
+        name:
+          (typeof songData.name === 'string' && songData.name) ||
+          (typeof songData.title === 'string' && songData.title) ||
+          'Unknown song',
+        artistNames:
+          (typeof songData.subtitle === 'string' && songData.subtitle) ||
+          (typeof songData.artist === 'string' && songData.artist) ||
+          null,
+        image: songData.image ?? null,
+        addedAt: row.createdat,
+      };
+
+      const playlistPreviews = previewsByPlaylist.get(row.playlistId) ?? [];
+      playlistPreviews.push(preview);
+      previewsByPlaylist.set(row.playlistId, playlistPreviews);
+    }
+
     const updatedPlaylists = playlists.map((playlist) => {
-      const latestSong = (playlist as unknown as { latestSong?: Array<{ songData: unknown }> })
-        .latestSong?.[0];
-      const songData = latestSong?.songData ?? null;
-      const parsedSongData =
-        typeof songData === 'string'
-          ? (JSON.parse(songData) as Record<string, unknown>)
-          : (songData as Record<string, unknown> | null);
-      const image = parsedSongData?.image ?? null;
+      const previewSongs = previewsByPlaylist.get(playlist.id) ?? [];
+      const image = previewSongs[0]?.image ?? null;
 
       return {
         id: playlist.id,
         name: playlist.name,
         description: playlist.description,
         createdat: playlist.createdat,
-        songCount: playlist.get('songCount'),
+        songCount: Number(playlist.get('songCount') ?? 0),
         image,
+        previewSongs,
+        lastAddedAt: previewSongs[0]?.addedAt ?? null,
       };
     });
 
