@@ -5,6 +5,7 @@ import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { useAppUpdate } from '@/context/AppUpdateContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
+import { useVolumeControl } from '@/hooks/useVolumeControl';
 import type { ThemeColors } from '@/theme/color';
 import { getOptimizedImageUrl } from '@/utils/Cloudinary';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -19,7 +20,9 @@ import {
   Alert,
   Animated,
   Image,
+  Platform,
   Pressable,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -149,6 +152,42 @@ const ThemeToggle = memo(() => {
   );
 });
 ThemeToggle.displayName = 'ThemeToggle';
+
+const VolumeControlToggle = memo(() => {
+  const { colors } = useTheme();
+  const { isEnabled, toggle, isAvailable, isLoading } = useVolumeControl();
+
+  if (!isAvailable) return null;
+
+  return (
+    <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <View style={{ flex: 1, marginRight: 12 }}>
+          <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '600' }}>
+            Volume Control
+          </Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 2 }}>
+            Persistent notification to control media volume
+          </Text>
+        </View>
+        <Switch
+          value={isEnabled}
+          onValueChange={toggle}
+          disabled={isLoading}
+          trackColor={{ false: colors.secondary, true: `${colors.primary}80` }}
+          thumbColor={isEnabled ? colors.primary : colors.mutedForeground}
+        />
+      </View>
+    </View>
+  );
+});
+VolumeControlToggle.displayName = 'VolumeControlToggle';
 
 const SettingItem = ({
   icon,
@@ -600,6 +639,12 @@ export default function ProfileScreen() {
             </Card.Header>
             <Card.Content style={{ paddingTop: 8 }}>
               <ThemeToggle />
+              {Platform.OS === 'android' && (
+                <>
+                  <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 16 }} />
+                  <VolumeControlToggle />
+                </>
+              )}
             </Card.Content>
           </Card>
 

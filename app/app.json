@@ -27,7 +27,11 @@
         "RECORD_AUDIO",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
-        "REQUEST_INSTALL_PACKAGES"
+        "REQUEST_INSTALL_PACKAGES",
+        "MODIFY_AUDIO_SETTINGS",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_SPECIAL_USE",
+        "POST_NOTIFICATIONS"
       ],
       "intentFilters": [
         {
@@ -81,7 +85,8 @@
       "expo-system-ui",
       "expo-web-browser",
       "expo-audio",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "./plugins/withVolumeControl"
     ],
     "experiments": {
       "typedRoutes": true,
