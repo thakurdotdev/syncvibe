@@ -225,12 +225,12 @@ const SongHistory = () => {
             >
               <Feather name='chevron-left' size={24} color={colors.foreground} />
             </TouchableOpacity>
-            <View>
+            <View style={styles.headerTextGroup}>
               <Text style={[styles.headerTitle, { color: colors.foreground }]}>
                 Listening history
               </Text>
               <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
-                {totalSongs} tracks
+                {totalSongs} {totalSongs === 1 ? 'track' : 'tracks'}
               </Text>
             </View>
           </View>
@@ -264,7 +264,6 @@ const SongHistory = () => {
                 </TouchableOpacity>
               ) : undefined
             }
-            className='flex-1'
             autoFocus={false}
             returnKeyType='search'
           />
@@ -486,26 +485,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    gap: 4,
+  },
+  headerTextGroup: {
+    justifyContent: 'center',
   },
   backButton: {
     width: 38,
     height: 38,
     alignItems: 'flex-start',
     justifyContent: 'center',
-    marginRight: 4,
+    marginRight: 2,
   },
   headerTitle: {
-    color: 'white',
-    fontSize: 23,
+    fontSize: 22,
     fontWeight: '700',
     letterSpacing: -0.3,
+    lineHeight: 28,
   },
   headerSubtitle: {
-    color: 'white',
-    opacity: 0.7,
     fontSize: 13,
     fontWeight: '500',
-    marginTop: 2,
+    lineHeight: 17,
+    marginTop: 1,
   },
   searchContainer: {
     marginTop: 12,
@@ -555,7 +557,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     position: 'absolute',
-    top: 120,
+    top: 155,
     alignSelf: 'center',
     zIndex: 10,
     flexDirection: 'row',

@@ -7,6 +7,137 @@ const path = require('path');
 const fs = require('fs');
 
 // ---------------------------------------------------------------------------
+// Layout and Drawable XMLs for custom capsule slider notification
+// ---------------------------------------------------------------------------
+
+const NOTIFICATION_VOLUME_CAPSULE_XML = `<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
+
+    <FrameLayout
+        android:id="@+id/capsule_container"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_centerVertical="true">
+
+        <ProgressBar
+            android:id="@+id/volume_progress_bar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:progressDrawable="@drawable/volume_progress_drawable"
+            android:indeterminate="false"
+            android:max="100" />
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
+
+            <ImageView
+                android:id="@+id/volume_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_centerVertical="true"
+                android:layout_alignParentStart="true"
+                android:src="@android:drawable/stat_sys_speakerphone" />
+
+            <TextView
+                android:id="@+id/volume_percent_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_alignParentEnd="true"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF" />
+        </RelativeLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <View
+                android:id="@+id/zone_0"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+
+            <View
+                android:id="@+id/zone_20"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+
+            <View
+                android:id="@+id/zone_40"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+
+            <View
+                android:id="@+id/zone_60"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+
+            <View
+                android:id="@+id/zone_80"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+
+            <View
+                android:id="@+id/zone_100"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+        </LinearLayout>
+    </FrameLayout>
+</RelativeLayout>
+`;
+
+const VOLUME_PROGRESS_DRAWABLE_XML = `<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <corners android:radius="26dp" />
+            <solid android:color="@color/volume_capsule_bg" />
+        </shape>
+    </item>
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape android:shape="rectangle">
+                <corners android:radius="26dp" />
+                <solid android:color="@color/volume_capsule_progress" />
+            </shape>
+        </clip>
+    </item>
+</layer-list>
+`;
+
+const VOLUME_COLORS_XML = `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="volume_capsule_bg">#E2E4E8</color>
+    <color name="volume_capsule_progress">#1C1C1E</color>
+</resources>
+`;
+
+const VOLUME_COLORS_NIGHT_XML = `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="volume_capsule_bg">#2C2E33</color>
+    <color name="volume_capsule_progress">#FFFFFF</color>
+</resources>
+`;
+
+// ---------------------------------------------------------------------------
 // Kotlin source files that get written into the android project during prebuild
 // ---------------------------------------------------------------------------
 
@@ -21,24 +152,27 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.Configuration
 import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
 import android.content.pm.ServiceInfo
+import android.widget.RemoteViews
 import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationCompat
+import {{PACKAGE_NAME}}.R
 
 class VolumeControlService : Service() {
 
     companion object {
         const val CHANNEL_ID = "syncvibe_volume_control"
         const val NOTIFICATION_ID = 9001
-        const val ACTION_VOLUME_UP = "{{PACKAGE_NAME}}.VOLUME_UP"
-        const val ACTION_VOLUME_DOWN = "{{PACKAGE_NAME}}.VOLUME_DOWN"
+        const val ACTION_SET_VOLUME = "{{PACKAGE_NAME}}.SET_VOLUME"
         const val ACTION_MUTE_TOGGLE = "{{PACKAGE_NAME}}.MUTE_TOGGLE"
         const val ACTION_STOP_SERVICE = "{{PACKAGE_NAME}}.STOP_VOLUME_SERVICE"
         const val ACTION_STATE_CHANGED = "{{PACKAGE_NAME}}.VOLUME_STATE_CHANGED"
         const val EXTRA_IS_RUNNING = "is_running"
+        const val EXTRA_VOLUME_PERCENT = "volume_percent"
         const val PREFS_NAME = "volume_control"
         const val PREF_USER_STOPPED = "user_stopped"
 
@@ -114,26 +248,55 @@ class VolumeControlService : Service() {
         val percent = if (maxVolume > 0) (mediaVolume * 100) / maxVolume else 0
         val isMuted = audioManager.isStreamMute(AudioManager.STREAM_MUSIC)
 
-        val volumeUpIntent = PendingIntent.getBroadcast(
-            this, 1,
-            Intent(ACTION_VOLUME_UP).setPackage(packageName),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val remoteViews = RemoteViews(packageName, R.layout.notification_volume_capsule)
+        remoteViews.setProgressBar(R.id.volume_progress_bar, 100, if (isMuted) 0 else percent, false)
+
+        val percentText = if (isMuted) "Muted" else "${'$'}percent%"
+        remoteViews.setTextViewText(R.id.volume_percent_text, percentText)
+
+        val isNight = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
+        val contentColor = if (isNight) {
+            if (percent > 65 && !isMuted) 0xFF1C1C1E.toInt() else 0xFFFFFFFF.toInt()
+        } else {
+            if (percent > 65 && !isMuted) 0xFFFFFFFF.toInt() else 0xFF1C1C1E.toInt()
+        }
+        remoteViews.setTextColor(R.id.volume_percent_text, contentColor)
+        remoteViews.setInt(R.id.volume_icon, "setColorFilter", contentColor)
+
+        val iconRes = if (isMuted || percent == 0) {
+            android.R.drawable.ic_lock_silent_mode
+        } else {
+            android.R.drawable.stat_sys_speakerphone
+        }
+        remoteViews.setImageViewResource(R.id.volume_icon, iconRes)
+
+        val percentages = intArrayOf(0, 20, 40, 60, 80, 100)
+        val zoneIds = intArrayOf(
+            R.id.zone_0,
+            R.id.zone_20,
+            R.id.zone_40,
+            R.id.zone_60,
+            R.id.zone_80,
+            R.id.zone_100
         )
-        val volumeDownIntent = PendingIntent.getBroadcast(
-            this, 2,
-            Intent(ACTION_VOLUME_DOWN).setPackage(packageName),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        for (i in percentages.indices) {
+            val setIntent = Intent(ACTION_SET_VOLUME)
+                .setPackage(packageName)
+                .putExtra(EXTRA_VOLUME_PERCENT, percentages[i])
+            val pendingIntent = PendingIntent.getBroadcast(
+                this, 100 + i, setIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            remoteViews.setOnClickPendingIntent(zoneIds[i], pendingIntent)
+        }
+
         val muteIntent = PendingIntent.getBroadcast(
             this, 3,
             Intent(ACTION_MUTE_TOGGLE).setPackage(packageName),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val stopIntent = PendingIntent.getBroadcast(
-            this, 4,
-            Intent(ACTION_STOP_SERVICE).setPackage(packageName),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        remoteViews.setOnClickPendingIntent(R.id.volume_icon, muteIntent)
 
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -143,14 +306,11 @@ class VolumeControlService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val muteLabel = if (isMuted) "Unmute" else "Mute"
-        val muteIcon = if (isMuted) android.R.drawable.ic_lock_silent_mode_off
-            else android.R.drawable.ic_lock_silent_mode
-
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
-            .setContentTitle("Media Volume: ${'$'}percent%")
-            .setContentText("Tap actions to adjust volume")
+            .setSmallIcon(if (isMuted) android.R.drawable.ic_lock_silent_mode else android.R.drawable.ic_lock_silent_mode_off)
+            .setCustomContentView(remoteViews)
+            .setCustomBigContentView(remoteViews)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setSilent(true)
@@ -158,10 +318,6 @@ class VolumeControlService : Service() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .addAction(android.R.drawable.ic_media_previous, "Vol\\u2212", volumeDownIntent)
-            .addAction(muteIcon, muteLabel, muteIntent)
-            .addAction(android.R.drawable.ic_media_next, "Vol+", volumeUpIntent)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopIntent)
             .build()
     }
 
@@ -192,21 +348,18 @@ class VolumeControlService : Service() {
         actionReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 when (intent?.action) {
-                    ACTION_VOLUME_UP -> {
-                        audioManager.adjustStreamVolume(
-                            AudioManager.STREAM_MUSIC,
-                            AudioManager.ADJUST_RAISE,
-                            0
-                        )
-                        updateNotification()
-                    }
-                    ACTION_VOLUME_DOWN -> {
-                        audioManager.adjustStreamVolume(
-                            AudioManager.STREAM_MUSIC,
-                            AudioManager.ADJUST_LOWER,
-                            0
-                        )
-                        updateNotification()
+                    ACTION_SET_VOLUME -> {
+                        val percent = intent?.getIntExtra(EXTRA_VOLUME_PERCENT, -1) ?: -1
+                        if (percent >= 0) {
+                            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                            val targetVolume = kotlin.math.round((percent / 100.0) * maxVolume).toInt()
+                            audioManager.setStreamVolume(
+                                AudioManager.STREAM_MUSIC,
+                                targetVolume.coerceIn(0, maxVolume),
+                                0
+                            )
+                            updateNotification()
+                        }
                     }
                     ACTION_MUTE_TOGGLE -> {
                         audioManager.adjustStreamVolume(
@@ -228,8 +381,7 @@ class VolumeControlService : Service() {
             }
         }
         val filter = IntentFilter().apply {
-            addAction(ACTION_VOLUME_UP)
-            addAction(ACTION_VOLUME_DOWN)
+            addAction(ACTION_SET_VOLUME)
             addAction(ACTION_MUTE_TOGGLE)
             addAction(ACTION_STOP_SERVICE)
         }
@@ -385,7 +537,7 @@ class VolumeControlPackage : ReactPackage {
 `;
 
 // ---------------------------------------------------------------------------
-// Plugin: write Kotlin source files into the generated android project
+// Plugin: write Kotlin and Resource files into the generated android project
 // ---------------------------------------------------------------------------
 function withVolumeControlKotlinFiles(config) {
   return withDangerousMod(config, [
@@ -406,7 +558,23 @@ function withVolumeControlKotlinFiles(config) {
         packageDir
       );
 
+      const resDir = path.join(
+        modConfig.modRequest.platformProjectRoot,
+        'app',
+        'src',
+        'main',
+        'res'
+      );
+      const layoutDir = path.join(resDir, 'layout');
+      const drawableDir = path.join(resDir, 'drawable');
+      const valuesDir = path.join(resDir, 'values');
+      const valuesNightDir = path.join(resDir, 'values-night');
+
       fs.mkdirSync(srcDir, { recursive: true });
+      fs.mkdirSync(layoutDir, { recursive: true });
+      fs.mkdirSync(drawableDir, { recursive: true });
+      fs.mkdirSync(valuesDir, { recursive: true });
+      fs.mkdirSync(valuesNightDir, { recursive: true });
 
       const files = {
         'VolumeControlService.kt': VOLUME_CONTROL_SERVICE_KT,
@@ -418,6 +586,27 @@ function withVolumeControlKotlinFiles(config) {
         const content = template.replace(/\{\{PACKAGE_NAME\}\}/g, androidPackage);
         fs.writeFileSync(path.join(srcDir, filename), content, 'utf-8');
       }
+
+      fs.writeFileSync(
+        path.join(layoutDir, 'notification_volume_capsule.xml'),
+        NOTIFICATION_VOLUME_CAPSULE_XML,
+        'utf-8'
+      );
+      fs.writeFileSync(
+        path.join(drawableDir, 'volume_progress_drawable.xml'),
+        VOLUME_PROGRESS_DRAWABLE_XML,
+        'utf-8'
+      );
+      fs.writeFileSync(
+        path.join(valuesDir, 'volume_colors.xml'),
+        VOLUME_COLORS_XML,
+        'utf-8'
+      );
+      fs.writeFileSync(
+        path.join(valuesNightDir, 'volume_colors.xml'),
+        VOLUME_COLORS_NIGHT_XML,
+        'utf-8'
+      );
 
       return modConfig;
     },
@@ -431,7 +620,6 @@ function withVolumeControlManifest(config) {
   return withAndroidManifest(config, (modConfig) => {
     const manifest = modConfig.modResults.manifest;
 
-    // Add permissions if not already present
     const existingPerms = (manifest['uses-permission'] || []).map((p) => p.$?.['android:name']);
 
     const requiredPerms = [
@@ -450,7 +638,6 @@ function withVolumeControlManifest(config) {
       }
     }
 
-    // Add service declaration
     const application = manifest.application?.[0];
     if (application) {
       application.service = application.service || [];
@@ -489,21 +676,11 @@ function withVolumeControlMainApplication(config) {
   return withMainApplication(config, (modConfig) => {
     let contents = modConfig.modResults.contents;
 
-    // Add the import if missing
-    if (!contents.includes('import com.thakurdotdev.syncvibe')) {
-      // The import is within the same package, so no import needed for
-      // same-package classes in Kotlin. But we need to add the package
-      // registration line.
-    }
-
-    // Add VolumeControlPackage() to the packages list
     if (!contents.includes('VolumeControlPackage()')) {
       contents = contents.replace(/PackageList\(this\)\.packages\.apply\s*\{[^}]*\}/, (match) => {
-        // Replace the comment placeholder or just add before the closing brace
         if (match.includes('// add(MyReactNativePackage())')) {
           return match.replace('// add(MyReactNativePackage())', 'add(VolumeControlPackage())');
         }
-        // If no placeholder comment, add before closing brace
         return match.replace(/\}$/, '          add(VolumeControlPackage())\n        }');
       });
     }

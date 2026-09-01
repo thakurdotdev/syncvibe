@@ -346,7 +346,7 @@ export const CardImage = ({ uri, alt }: { uri: string; alt: string }) => {
       style={{
         width: '100%',
         aspectRatio: 1,
-        borderRadius: 8,
+        borderRadius: 12,
         overflow: 'hidden',
         backgroundColor: 'rgba(255,255,255,0.05)',
       }}

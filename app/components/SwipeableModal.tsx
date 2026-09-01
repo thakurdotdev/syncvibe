@@ -27,6 +27,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
 
 const DISMISS_VELOCITY = 700;
@@ -70,8 +71,15 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
   fullScreen = false,
 }) => {
   const { colors, theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const [modalMounted, setModalMounted] = useState(false);
+
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0
+  );
+  const availableHeight = Math.max(0, windowHeight - topInset);
 
   const progress = useSharedValue(0);
   const gestureY = useSharedValue(0);
@@ -121,12 +129,12 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
 
   const resolvedMaxHeight =
     typeof maxHeight === 'number'
-      ? maxHeight
+      ? Math.min(maxHeight, availableHeight)
       : typeof maxHeight === 'string' && maxHeight.endsWith('%')
-        ? (parseFloat(maxHeight) / 100) * windowHeight
+        ? (parseFloat(maxHeight) / 100) * availableHeight
         : maxHeight === 'auto'
-          ? windowHeight * 0.8
-          : windowHeight * 0.8;
+          ? availableHeight * 0.85
+          : availableHeight * 0.85;
 
   const hasExplicitHeight = fullScreen || StyleSheet.flatten(style)?.height != null;
   const finishClose = useCallback(() => {
@@ -300,7 +308,7 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
   const fixedKeyboardSheetStyle = useAnimatedStyle(() => {
     if (Platform.OS === 'ios' && hasExplicitHeight && keyboardInset.value > 0.5) {
       return {
-        height: Math.max(0, Math.min(resolvedMaxHeight, windowHeight - keyboardInset.value)),
+        height: Math.max(0, Math.min(resolvedMaxHeight, availableHeight - keyboardInset.value)),
       };
     }
 

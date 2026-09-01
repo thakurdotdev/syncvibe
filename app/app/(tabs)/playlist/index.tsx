@@ -506,16 +506,111 @@ export const PlaylistCard = memo(({ playlist, isUser, onLongPress }: any) => {
       previewSongs
         .map((song) => getImageUrl(song.image))
         .filter(Boolean)
-        .slice(0, 5),
+        .slice(0, 4),
     [previewSongs]
   );
-  const sideImages = previewImages.slice(1);
   const imageUrl = getImageUrl(securedPlaylist?.image);
   const songCount = Number(playlist.songCount) || 0;
   const addedLabel = formatRelativeDate(playlist.lastAddedAt);
   const metaLabel = `${songCount} ${songCount === 1 ? 'song' : 'songs'}${
     addedLabel ? ` · ${addedLabel}` : ''
   }`;
+
+  const renderCover = () => {
+    if (previewImages.length === 1) {
+      return (
+        <Image
+          source={{ uri: previewImages[0], cache: 'force-cache' }}
+          style={styles.previewSingle}
+          resizeMode='cover'
+          alt={`Playlist: ${securedPlaylist.name}`}
+        />
+      );
+    }
+
+    if (previewImages.length === 2) {
+      return (
+        <View style={styles.previewRow}>
+          <Image
+            source={{ uri: previewImages[0], cache: 'force-cache' }}
+            style={styles.previewHalf}
+            resizeMode='cover'
+            alt={`Playlist: ${securedPlaylist.name}`}
+          />
+          <Image
+            source={{ uri: previewImages[1], cache: 'force-cache' }}
+            style={styles.previewHalf}
+            resizeMode='cover'
+            alt={`Playlist song preview 2`}
+          />
+        </View>
+      );
+    }
+
+    if (previewImages.length === 3) {
+      return (
+        <View style={styles.previewRow}>
+          <Image
+            source={{ uri: previewImages[0], cache: 'force-cache' }}
+            style={styles.previewHero}
+            resizeMode='cover'
+            alt={`Playlist: ${securedPlaylist.name}`}
+          />
+          <View style={styles.previewSideColumn}>
+            <Image
+              source={{ uri: previewImages[1], cache: 'force-cache' }}
+              style={styles.previewSideItem}
+              resizeMode='cover'
+              alt={`Playlist song preview 2`}
+            />
+            <Image
+              source={{ uri: previewImages[2], cache: 'force-cache' }}
+              style={styles.previewSideItem}
+              resizeMode='cover'
+              alt={`Playlist song preview 3`}
+            />
+          </View>
+        </View>
+      );
+    }
+
+    if (previewImages.length >= 4) {
+      return (
+        <View style={styles.previewGrid}>
+          <View style={styles.previewGridRow}>
+            <Image
+              source={{ uri: previewImages[0], cache: 'force-cache' }}
+              style={styles.previewGridItem}
+              resizeMode='cover'
+              alt={`Playlist: ${securedPlaylist.name}`}
+            />
+            <Image
+              source={{ uri: previewImages[1], cache: 'force-cache' }}
+              style={styles.previewGridItem}
+              resizeMode='cover'
+              alt={`Playlist song preview 2`}
+            />
+          </View>
+          <View style={styles.previewGridRow}>
+            <Image
+              source={{ uri: previewImages[2], cache: 'force-cache' }}
+              style={styles.previewGridItem}
+              resizeMode='cover'
+              alt={`Playlist song preview 3`}
+            />
+            <Image
+              source={{ uri: previewImages[3], cache: 'force-cache' }}
+              style={styles.previewGridItem}
+              resizeMode='cover'
+              alt={`Playlist song preview 4`}
+            />
+          </View>
+        </View>
+      );
+    }
+
+    return <CardImage uri={imageUrl} alt={`Playlist: ${securedPlaylist.name}`} />;
+  };
 
   return (
     <CardContainer
@@ -525,45 +620,7 @@ export const PlaylistCard = memo(({ playlist, isUser, onLongPress }: any) => {
       width={'100%'}
     >
       <View style={{ padding: 10, gap: 8 }}>
-        {previewImages.length > 0 ? (
-          <View style={styles.previewCover}>
-            {previewImages.length === 1 ? (
-              <Image
-                source={{ uri: previewImages[0], cache: 'force-cache' }}
-                style={styles.previewSingle}
-                resizeMode='cover'
-                alt={`Playlist: ${securedPlaylist.name}`}
-              />
-            ) : (
-              <View style={styles.previewMosaic}>
-                <Image
-                  source={{ uri: previewImages[0], cache: 'force-cache' }}
-                  style={styles.previewHero}
-                  resizeMode='cover'
-                  alt={`Playlist: ${securedPlaylist.name}`}
-                />
-                <View style={styles.previewSide}>
-                  {sideImages.map((uri, index) => (
-                    <Image
-                      key={`${uri}-${index}`}
-                      source={{ uri, cache: 'force-cache' }}
-                      style={[
-                        styles.previewSmall,
-                        sideImages.length === 1 && styles.previewSideSingle,
-                        sideImages.length === 2 && styles.previewSideDouble,
-                        sideImages.length === 3 && index === 2 && styles.previewSideLast,
-                      ]}
-                      resizeMode='cover'
-                      alt={`Playlist song preview ${index + 2}`}
-                    />
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-        ) : (
-          <CardImage uri={imageUrl} alt={`Playlist: ${securedPlaylist.name}`} />
-        )}
+        <View style={styles.previewCover}>{renderCover()}</View>
 
         <View style={{ gap: 2, paddingHorizontal: 2 }}>
           <Text
@@ -580,10 +637,10 @@ export const PlaylistCard = memo(({ playlist, isUser, onLongPress }: any) => {
           </Text>
           <Text
             style={{
-              color: colors.foreground,
+              color: colors.mutedForeground,
               fontSize: 12.5,
               lineHeight: 17,
-              fontWeight: '600',
+              fontWeight: '500',
             }}
             numberOfLines={1}
             ellipsizeMode='tail'
@@ -652,7 +709,7 @@ const styles = StyleSheet.create({
   previewCover: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
@@ -660,37 +717,42 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  previewMosaic: {
+  previewRow: {
     flex: 1,
     flexDirection: 'row',
     gap: 2,
   },
-  previewHero: {
-    width: '49%',
+  previewHalf: {
+    flex: 1,
     height: '100%',
   },
-  previewSide: {
-    width: '49%',
+  previewHero: {
+    flex: 1,
     height: '100%',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  },
+  previewSideColumn: {
+    flex: 1,
+    flexDirection: 'column',
+    gap: 2,
+    height: '100%',
+  },
+  previewSideItem: {
+    flex: 1,
+    width: '100%',
+  },
+  previewGrid: {
+    flex: 1,
+    flexDirection: 'column',
     gap: 2,
   },
-  previewSmall: {
-    width: '49%',
-    height: '49%',
+  previewGridRow: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 2,
   },
-  previewSideSingle: {
-    width: '100%',
+  previewGridItem: {
+    flex: 1,
     height: '100%',
-  },
-  previewSideDouble: {
-    width: '100%',
-    height: '49%',
-  },
-  previewSideLast: {
-    width: '100%',
-    height: '49%',
   },
   playlistDescription: {
     fontSize: 12,
@@ -711,8 +773,8 @@ const styles = StyleSheet.create({
 
   createCoverGradient: {
     width: '100%',
-    height: 140,
-    borderRadius: 14,
+    aspectRatio: 1,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
