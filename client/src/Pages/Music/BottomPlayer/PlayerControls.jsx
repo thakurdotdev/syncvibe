@@ -39,7 +39,7 @@ const PlayerControls = memo(() => {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className='flex items-center gap-1 sm:gap-2.5 shrink-0'>
+      <div className='flex items-center gap-1 sm:gap-1.5 shrink-0'>
         {/* Previous Track */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -48,7 +48,7 @@ const PlayerControls = memo(() => {
                 variant='ghost'
                 size='icon'
                 onClick={handlePrevSong}
-                className='h-7 w-7 sm:h-8.5 sm:w-8.5 text-white/75 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer'
+                className='h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors cursor-pointer'
                 aria-label='Previous'
               >
                 <SkipBack className='h-3.5 w-3.5 sm:h-4 sm:w-4' fill='currentColor' />
@@ -67,22 +67,22 @@ const PlayerControls = memo(() => {
               <Button
                 size='icon'
                 onClick={handlePlayPause}
-                className='h-9.5 w-9.5 sm:h-12 sm:w-12 rounded-full bg-white text-black hover:bg-white/95 shadow-[0_4px_18px_rgba(255,255,255,0.25)] transition-all flex items-center justify-center cursor-pointer'
+                className='h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-md transition-all flex items-center justify-center cursor-pointer'
                 aria-label={isPlaying ? 'Pause' : 'Play'}
               >
                 <AnimatePresence mode='wait' initial={false}>
                   <motion.span
                     key={isPlaying ? 'pause' : 'play'}
-                    initial={{ scale: 0.5, opacity: 0 }}
+                    initial={{ scale: 0.6, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.5, opacity: 0 }}
+                    exit={{ scale: 0.6, opacity: 0 }}
                     transition={{ duration: 0.1 }}
                     className='flex items-center justify-center'
                   >
                     {isPlaying ? (
-                      <Pause className='h-4.5 w-4.5 sm:h-5.5 sm:w-5.5' fill='currentColor' />
+                      <Pause className='h-4 w-4 sm:h-4.5 sm:w-4.5' fill='currentColor' />
                     ) : (
-                      <Play className='h-4.5 w-4.5 sm:h-5.5 sm:w-5.5 ml-0.5' fill='currentColor' />
+                      <Play className='h-4 w-4 sm:h-4.5 sm:w-4.5 ml-0.5' fill='currentColor' />
                     )}
                   </motion.span>
                 </AnimatePresence>
@@ -102,7 +102,7 @@ const PlayerControls = memo(() => {
                 variant='ghost'
                 size='icon'
                 onClick={() => handleNextSong(false)}
-                className='h-7 w-7 sm:h-8.5 sm:w-8.5 text-white/75 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer'
+                className='h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors cursor-pointer'
                 aria-label='Next'
               >
                 <SkipForward className='h-3.5 w-3.5 sm:h-4 sm:w-4' fill='currentColor' />
@@ -121,14 +121,14 @@ const PlayerControls = memo(() => {
               <Button
                 variant='ghost'
                 size='icon'
-                className='h-7 w-7 sm:h-8 sm:w-8 text-white/40 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer'
+                className='h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors cursor-pointer ml-0.5'
                 onClick={(e) => {
                   e.stopPropagation();
                   closePlayer();
                 }}
                 aria-label='Close'
               >
-                <X className='h-3.5 w-3.5 sm:h-4 sm:w-4' />
+                <X className='h-3.5 w-3.5' />
               </Button>
             </motion.div>
           </TooltipTrigger>

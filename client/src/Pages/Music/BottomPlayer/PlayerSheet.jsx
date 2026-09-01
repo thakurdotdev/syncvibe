@@ -58,7 +58,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent
         side='bottom'
-        className='dark h-full w-full p-0 overflow-hidden border-0 bg-black text-white'
+        className='h-full w-full p-0 overflow-hidden border-0 bg-background text-foreground'
       >
         <div className='h-full w-full relative'>
           <NowPlayingTab currentSong={currentSong} onOpenModal={onOpenModal} isDesktop />
@@ -69,23 +69,23 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
               variant='ghost'
               size='icon'
               onClick={onClose}
-              className='h-10 w-10 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors duration-200 cursor-pointer pointer-events-auto shadow-lg backdrop-blur-md'
+              className='h-9 w-9 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors duration-200 cursor-pointer pointer-events-auto backdrop-blur-md border border-border/40'
               aria-label='Minimize player'
             >
-              <ChevronDownIcon className='h-5 w-5 text-white' />
+              <ChevronDownIcon className='h-5 w-5' />
             </Button>
 
-            {/* Mobile-only header actions (Desktop has them unified in DesktopQueuePanel) */}
+            {/* Mobile-only header actions */}
             <div className='flex items-center gap-2 lg:hidden pointer-events-auto'>
               <Button
                 variant='ghost'
                 size='icon'
                 onClick={() => setMobileQueueOpen(true)}
-                className='h-10 w-10 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors duration-200 relative cursor-pointer shadow-lg backdrop-blur-md'
+                className='h-9 w-9 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors duration-200 relative cursor-pointer backdrop-blur-md border border-border/40'
                 aria-label='Open queue'
               >
-                <ListMusic className='h-5 w-5 text-white' />
-                <span className='absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-white/30 text-[10px] text-white font-semibold flex items-center justify-center px-1'>
+                <ListMusic className='h-4.5 w-4.5' />
+                <span className='absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-primary text-[9.5px] text-primary-foreground font-semibold flex items-center justify-center px-1'>
                   {playlistLength}
                 </span>
               </Button>
@@ -95,39 +95,39 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                   <Button
                     variant='ghost'
                     size='icon'
-                    className='h-10 w-10 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors duration-200 cursor-pointer shadow-lg backdrop-blur-md'
+                    className='h-9 w-9 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors duration-200 cursor-pointer backdrop-blur-md border border-border/40'
                     aria-label='More options'
                   >
-                    <MoreHorizontal className='h-5 w-5 text-white' />
+                    <MoreHorizontal className='h-4.5 w-4.5' />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align='end'
-                  className='w-56 bg-[#161822]/95 backdrop-blur-xl border-white/10 text-white shadow-2xl rounded-xl p-1.5 z-50'
+                  className='w-56 bg-popover text-popover-foreground border-border shadow-xl rounded-lg p-1.5 z-50'
                 >
                   <DropdownMenuItem
                     onClick={onOpenModal}
-                    className='cursor-pointer text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                    className='cursor-pointer text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
                   >
-                    <ListMusic className='mr-2 h-4 w-4 text-white/70' />
+                    <ListMusic className='mr-2 h-4 w-4 text-muted-foreground' />
                     Add to Playlist
                   </DropdownMenuItem>
 
                   {currentSong?.album_id && (
                     <DropdownMenuItem
                       onClick={handleGoToAlbum}
-                      className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                      className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
                     >
-                      <Disc3 className='w-3.5 h-3.5 mr-2 text-white/70' />
+                      <Disc3 className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
                       Go to Album
                     </DropdownMenuItem>
                   )}
                   {currentSong?.artist_map?.primary_artists?.[0] && (
                     <DropdownMenuItem
                       onClick={handleGoToArtist}
-                      className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                      className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
                     >
-                      <User className='w-3.5 h-3.5 mr-2 text-white/70' />
+                      <User className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
                       Go to Artist
                     </DropdownMenuItem>
                   )}
@@ -154,21 +154,21 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
             }`}
           >
             <div
-              className={`absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ${
+              className={`absolute inset-0 bg-background/60 backdrop-blur-xs transition-opacity duration-300 ${
                 mobileQueueOpen ? 'opacity-100' : 'opacity-0'
               }`}
               onClick={() => setMobileQueueOpen(false)}
             />
             <div
-              className={`absolute top-0 right-0 bottom-0 w-full sm:w-[420px] bg-[#0c0e14]/95 backdrop-blur-2xl transition-transform duration-300 ease-out flex flex-col border-l border-white/10 shadow-2xl ${
+              className={`absolute top-0 right-0 bottom-0 w-full sm:w-[420px] bg-background/95 text-foreground backdrop-blur-2xl transition-transform duration-300 ease-out flex flex-col border-l border-border/40 shadow-2xl ${
                 mobileQueueOpen ? 'translate-x-0' : 'translate-x-full'
               }`}
             >
-              <div className='h-16 px-5 flex items-center justify-between shrink-0 border-b border-white/10 bg-white/[0.02]'>
-                <div className='flex items-center gap-2.5'>
-                  <ListMusic className='w-4 h-4 text-white/70' />
-                  <span className='text-sm font-semibold text-white tracking-wide'>Queue</span>
-                  <span className='h-5 px-2 rounded-full text-xs bg-white/10 text-white/70 font-medium flex items-center justify-center'>
+              <div className='h-14 px-4 flex items-center justify-between shrink-0 border-b border-border/40 bg-muted/10'>
+                <div className='flex items-center gap-2'>
+                  <ListMusic className='w-4 h-4 text-muted-foreground' />
+                  <span className='text-sm font-semibold tracking-wide'>Queue</span>
+                  <span className='h-5 px-2 rounded-full text-xs bg-muted text-muted-foreground font-medium flex items-center justify-center'>
                     {playlistLength}
                   </span>
                 </div>
@@ -176,13 +176,13 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                   variant='ghost'
                   size='icon'
                   onClick={() => setMobileQueueOpen(false)}
-                  className='h-8 w-8 text-white/60 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer'
+                  className='h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors cursor-pointer'
                   aria-label='Close queue'
                 >
-                  <X className='h-4 w-4 text-white' />
+                  <X className='h-4 w-4' />
                 </Button>
               </div>
-              <div className='flex-1 overflow-y-auto px-2 py-3'>
+              <div className='flex-1 overflow-y-auto px-0 py-1'>
                 <QueueTab showHeader={false} />
               </div>
             </div>

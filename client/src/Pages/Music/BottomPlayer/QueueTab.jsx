@@ -26,6 +26,7 @@ import {
   ListMusic,
   Loader2,
   MoreHorizontal,
+  Music,
   Pause,
   Play,
   RefreshCw,
@@ -39,7 +40,7 @@ import {
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import LazyImage from '@/components/LazyImage';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -64,7 +65,7 @@ const itemVariants = {
   exit: { opacity: 0, x: -20, transition: { duration: 0.15 } },
 };
 
-// Minimal queue song item - clean and lightweight
+// Minimal queue song item - matching SearchUser.jsx styling & instant smooth hover
 const QueueSongItem = memo(
   ({
     song,
@@ -89,6 +90,14 @@ const QueueSongItem = memo(
           ?.map((artist) => artist.name)
           .join(', ') || '',
       [song?.artist_map?.artists]
+    );
+
+    const songImage = useMemo(
+      () =>
+        Array.isArray(song.image)
+          ? song.image?.[1]?.link || song.image?.[0]?.link
+          : song.image,
+      [song.image]
     );
 
     const handlePlay = useCallback(
@@ -139,76 +148,80 @@ const QueueSongItem = memo(
 
     return (
       <div
-        className={cn(
-          'group flex items-center gap-2.5 py-1.5 px-2 rounded-xl transition-colors duration-150 select-none cursor-pointer',
-          isCurrentSong
-            ? 'bg-white/10 ring-1 ring-white/15 shadow-sm my-0.5'
-            : 'hover:bg-white/[0.05] my-0.5',
-          isDragging && 'opacity-30',
-          isOverlay && 'bg-[#141722]/95 backdrop-blur-xl shadow-2xl ring-1 ring-white/20 text-white'
-        )}
+        role='button'
+        tabIndex={0}
         onClick={handlePlay}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handlePlay(e);
+          }
+        }}
+        className={cn(
+          'group flex items-center px-3 py-2 rounded-md cursor-pointer select-none outline-none focus-visible:ring-1 focus-visible:ring-ring w-full',
+          isCurrentSong
+            ? 'bg-accent/80 dark:bg-accent/60 text-accent-foreground font-medium'
+            : 'hover:bg-muted/70 dark:hover:bg-muted/50 text-foreground',
+          isDragging && 'opacity-30',
+          isOverlay && 'bg-popover text-popover-foreground shadow-2xl border border-border'
+        )}
       >
         <div
           {...dragHandleProps}
-          className='cursor-grab active:cursor-grabbing p-0.5 text-white/30 hover:text-white/70 touch-none transition-colors shrink-0'
+          className='cursor-grab active:cursor-grabbing p-0.5 text-muted-foreground/40 hover:text-foreground touch-none shrink-0 mr-1.5'
           onClick={(e) => e.stopPropagation()}
         >
           <GripVertical className='w-3.5 h-3.5' />
         </div>
 
-        <div className='relative w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-lg overflow-hidden bg-white/5'>
-          <LazyImage
-            src={Array.isArray(song.image) ? song.image?.[1]?.link : song.image}
+        <Avatar className='relative shrink-0 w-10 h-10 rounded-md ring-1 ring-border/40 group-hover:ring-border/80 overflow-hidden'>
+          <AvatarImage
+            src={songImage}
             alt={name}
-            className='w-full h-full object-cover'
+            className='w-10 h-10 object-cover rounded-md'
           />
-          <div
-            className='absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity duration-150'
-            style={{ opacity: isCurrentSong ? 1 : 0 }}
-          >
-            {isCurrentSong && isPlaying ? (
-              <Pause className='w-3.5 h-3.5 text-white fill-white' />
-            ) : (
-              <Play className='w-3.5 h-3.5 text-white fill-white ml-0.5' />
-            )}
-          </div>
-        </div>
+          <AvatarFallback className='w-10 h-10 rounded-md text-xs bg-muted'>
+            <Music className='w-4 h-4 text-muted-foreground' />
+          </AvatarFallback>
+          {isCurrentSong && (
+            <div className='absolute inset-0 bg-background/60 flex items-center justify-center'>
+              {isPlaying ? (
+                <Pause className='w-3.5 h-3.5 text-foreground fill-current' />
+              ) : (
+                <Play className='w-3.5 h-3.5 text-foreground fill-current ml-0.5' />
+              )}
+            </div>
+          )}
+        </Avatar>
 
-        <div className='flex-1 min-w-0 text-left'>
-          <p
-            className={cn(
-              'text-[13px] line-clamp-1 transition-colors leading-snug',
-              isCurrentSong
-                ? 'text-white font-semibold'
-                : 'text-white/85 font-medium group-hover:text-white'
-            )}
-          >
-            {name}
-          </p>
-          {artistName && (
-            <p
+        <div className='flex flex-col ml-3 flex-1 min-w-0'>
+          <div className='flex items-center justify-between gap-1.5'>
+            <span
               className={cn(
-                'text-[11px] line-clamp-1 transition-colors leading-tight mt-0.5',
+                'text-sm truncate',
                 isCurrentSong
-                  ? 'text-white/60 font-normal'
-                  : 'text-white/40 group-hover:text-white/60 font-normal'
+                  ? 'font-semibold text-foreground'
+                  : 'font-medium text-foreground/90 group-hover:text-foreground'
               )}
             >
-              {artistName}
-            </p>
-          )}
+              {name}
+            </span>
+          </div>
+
+          <p className='text-xs text-muted-foreground group-hover:text-foreground/75 truncate mt-0.5'>
+            {artistName || 'Unknown Artist'}
+          </p>
         </div>
 
         {isCurrentSong && isPlaying && (
-          <div className='flex items-center gap-[2px] px-1.5 py-1 rounded-md bg-white/15 shrink-0 mr-0.5'>
-            <span className='w-[2px] h-2.5 rounded-full bg-white animate-pulse' />
+          <div className='flex items-center gap-[2px] px-1.5 py-1 rounded-sm bg-primary/15 shrink-0 mx-1'>
+            <span className='w-[2px] h-2.5 rounded-full bg-primary animate-pulse' />
             <span
-              className='w-[2px] h-3.5 rounded-full bg-white animate-pulse'
+              className='w-[2px] h-3.5 rounded-full bg-primary animate-pulse'
               style={{ animationDelay: '150ms' }}
             />
             <span
-              className='w-[2px] h-2 rounded-full bg-white animate-pulse'
+              className='w-[2px] h-2 rounded-full bg-primary animate-pulse'
               style={{ animationDelay: '300ms' }}
             />
           </div>
@@ -218,7 +231,7 @@ const QueueSongItem = memo(
           <Button
             variant='ghost'
             size='icon'
-            className='h-7 w-7 text-white/40 hover:text-red-400 hover:bg-white/10 rounded-lg cursor-pointer transition-colors shrink-0'
+            className='h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-muted rounded-md cursor-pointer shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 ml-1'
             onClick={handleRemove}
             aria-label='Remove song'
           >
@@ -231,7 +244,7 @@ const QueueSongItem = memo(
             <Button
               variant='ghost'
               size='icon'
-              className='h-7 w-7 text-white/40 hover:text-white hover:bg-white/10 rounded-lg cursor-pointer transition-colors shrink-0'
+              className='h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md cursor-pointer shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100'
               onClick={(e) => e.stopPropagation()}
               aria-label='More options'
             >
@@ -240,45 +253,45 @@ const QueueSongItem = memo(
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align='end'
-            className='w-52 bg-[#161822]/95 backdrop-blur-xl border-white/10 text-white shadow-2xl rounded-xl p-1.5 z-50'
+            className='w-52 bg-popover text-popover-foreground border-border shadow-xl rounded-lg p-1.5 z-50'
           >
             <DropdownMenuItem
               onClick={handleFetchRecs}
               disabled={isLoadingRecs}
-              className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+              className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
             >
               {isLoadingRecs ? (
                 <Loader2 className='w-3.5 h-3.5 mr-2 animate-spin' />
               ) : (
-                <Sparkles className='w-3.5 h-3.5 mr-2 text-white/70' />
+                <Sparkles className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
               )}
               Get similar songs
             </DropdownMenuItem>
-            <DropdownMenuSeparator className='bg-white/10 my-1' />
+            <DropdownMenuSeparator className='bg-border my-1' />
             {song?.album_id && (
               <DropdownMenuItem
                 onClick={handleGoToAlbum}
-                className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
               >
-                <Disc3 className='w-3.5 h-3.5 mr-2 text-white/70' />
+                <Disc3 className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
                 Go to Album
               </DropdownMenuItem>
             )}
             {song?.artist_map?.primary_artists?.[0] && (
               <DropdownMenuItem
                 onClick={handleGoToArtist}
-                className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
               >
-                <User className='w-3.5 h-3.5 mr-2 text-white/70' />
+                <User className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
                 Go to Artist
               </DropdownMenuItem>
             )}
             {!isCurrentSong && (
               <>
-                <DropdownMenuSeparator className='bg-white/10 my-1' />
+                <DropdownMenuSeparator className='bg-border my-1' />
                 <DropdownMenuItem
                   onClick={handleRemove}
-                  className='cursor-pointer text-sm text-red-400 hover:text-red-300 focus:bg-red-500/15 focus:text-red-300 rounded-lg transition-colors'
+                  className='cursor-pointer text-sm text-destructive hover:bg-destructive/10 focus:bg-destructive/10 focus:text-destructive rounded-md'
                 >
                   <X className='w-3.5 h-3.5 mr-2' />
                   Remove
@@ -311,8 +324,10 @@ const SortableSongItem = memo(
     });
 
     const style = {
-      transform: CSS.Transform.toString(transform),
-      transition: transition || 'transform 150ms ease',
+      transform: CSS.Translate.toString(transform),
+      transition,
+      zIndex: isDragging ? 10 : 'auto',
+      position: 'relative',
     };
 
     return (
@@ -343,11 +358,8 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
   const currentSongId = currentSong?.id;
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const setPlaylist = usePlayerStore((s) => s.setPlaylist);
-  const playSong = usePlayerStore((s) => s.playSong);
-  const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
   const clearQueue = usePlayerStore((s) => s.clearQueue);
   const replaceQueue = usePlayerStore((s) => s.replaceQueue);
-  const addToQueue = usePlayerStore((s) => s.addToQueue);
   const autoFetchRecommendations = usePlayerStore((s) => s.autoFetchRecommendations);
   const setAutoFetchRecommendations = usePlayerStore((s) => s.setAutoFetchRecommendations);
 
@@ -360,32 +372,27 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
   });
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handlePlay = useCallback(
-    (song, isCurrentSong) => {
-      if (isCurrentSong) {
-        handlePlayPause();
-      } else {
-        playSong(song);
-      }
-    },
-    [handlePlayPause, playSong]
-  );
+  const handlePlay = useCallback((song, isCurrentSong) => {
+    if (isCurrentSong) {
+      usePlayerStore.getState().handlePlayPause();
+    } else {
+      usePlayerStore.getState().playSong(song);
+    }
+  }, []);
 
-  const handleRemove = useCallback(
-    (songId, name, isCurrentSong) => {
-      if (isCurrentSong) {
-        toast.error('Cannot remove currently playing song');
-        return;
-      }
-      setPlaylist(playlist.filter((item) => item.id !== songId));
-      toast.success(`Removed "${name}"`);
-    },
-    [setPlaylist, playlist]
-  );
+  const handleRemove = useCallback((songId, name, isCurrentSong) => {
+    if (isCurrentSong) {
+      toast.error('Cannot remove currently playing song');
+      return;
+    }
+    const currentList = usePlayerStore.getState().playlist;
+    usePlayerStore.getState().setPlaylist(currentList.filter((item) => item.id !== songId));
+    toast.success(`Removed "${name}"`);
+  }, []);
 
   const handleClearQueue = useCallback(() => {
     clearQueue();
@@ -432,26 +439,23 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
     toast.success(autoFetchRecommendations ? 'Auto-fetch disabled' : 'Auto-fetch enabled');
   }, [autoFetchRecommendations, setAutoFetchRecommendations]);
 
-  const handleSongFetchRecs = useCallback(
-    async (songId, songName) => {
-      if (!songId || loadingSongId) return;
-      setLoadingSongId(songId);
-      try {
-        const { fetchSongRecommendations } = await import('@/api/music/songs');
-        const data = await fetchSongRecommendations(songId);
-        if (data?.length > 0) {
-          addToQueue(data);
-          toast.success(`Added ${data.length} similar songs`);
-        } else {
-          toast.info('No similar songs found');
-        }
-      } catch {
-        toast.error('Failed to fetch recommendations');
+  const handleSongFetchRecs = useCallback(async (songId) => {
+    if (!songId) return;
+    setLoadingSongId(songId);
+    try {
+      const { fetchSongRecommendations } = await import('@/api/music/songs');
+      const data = await fetchSongRecommendations(songId);
+      if (data?.length > 0) {
+        usePlayerStore.getState().addToQueue(data);
+        toast.success(`Added ${data.length} similar songs`);
+      } else {
+        toast.info('No similar songs found');
       }
-      setLoadingSongId(null);
-    },
-    [loadingSongId, addToQueue]
-  );
+    } catch {
+      toast.error('Failed to fetch recommendations');
+    }
+    setLoadingSongId(null);
+  }, []);
 
   const handleDragStart = useCallback((event) => setActiveId(event.active.id), []);
 
@@ -460,14 +464,15 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
       const { active, over } = event;
       setActiveId(null);
       if (active.id !== over?.id) {
-        const oldIndex = playlist.findIndex((s) => s.id === active.id);
-        const newIndex = playlist.findIndex((s) => s.id === over?.id);
+        const currentList = usePlayerStore.getState().playlist;
+        const oldIndex = currentList.findIndex((s) => s.id === active.id);
+        const newIndex = currentList.findIndex((s) => s.id === over?.id);
         if (oldIndex !== -1 && newIndex !== -1) {
-          setPlaylist(arrayMove(playlist, oldIndex, newIndex));
+          setPlaylist(arrayMove(currentList, oldIndex, newIndex));
         }
       }
     },
-    [playlist, setPlaylist]
+    [setPlaylist]
   );
 
   const handleDragCancel = useCallback(() => setActiveId(null), []);
@@ -481,9 +486,9 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
 
   if (!playlist?.length) {
     return (
-      <div className='flex flex-col justify-center items-center h-[70vh] gap-3'>
-        <ListMusic className='w-10 h-10 text-white/20' />
-        <p className='text-sm text-white/45 font-medium'>Queue is empty</p>
+      <div className='flex flex-col justify-center items-center h-[70vh] gap-3 text-muted-foreground'>
+        <ListMusic className='w-10 h-10 opacity-40' />
+        <p className='text-sm font-medium'>Queue is empty</p>
       </div>
     );
   }
@@ -492,8 +497,8 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
     <TooltipProvider delayDuration={300}>
       <div className='h-full'>
         {showHeader && (
-          <div className='flex items-center justify-between mb-3 px-2 pt-1'>
-            <p className='text-xs text-white/50 font-medium'>
+          <div className='flex items-center justify-between mb-2 px-3 pt-1'>
+            <p className='text-xs text-muted-foreground font-medium'>
               {playlist.length} song{playlist.length !== 1 ? 's' : ''}
             </p>
             <div className='flex items-center gap-1'>
@@ -503,7 +508,7 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
                     <Button
                       variant='ghost'
                       size='icon'
-                      className='h-7 w-7 text-white/50 hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors cursor-pointer'
+                      className='h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-muted rounded-md cursor-pointer'
                       onClick={handleClearQueue}
                       disabled={playlist.length <= 1}
                       aria-label='Clear queue'
@@ -524,12 +529,12 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
                       <Button
                         variant='ghost'
                         size='icon'
-                        className='h-7 w-7 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer'
+                        className='h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md cursor-pointer'
                         disabled={fetchingRecs}
                         aria-label='Recommendations'
                       >
                         {fetchingRecs ? (
-                          <Loader2 className='h-3.5 w-3.5 animate-spin text-white/70' />
+                          <Loader2 className='h-3.5 w-3.5 animate-spin' />
                         ) : (
                           <Sparkles className='h-3.5 w-3.5' />
                         )}
@@ -542,31 +547,31 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
                 </Tooltip>
                 <DropdownMenuContent
                   align='end'
-                  className='w-52 bg-[#161822]/95 backdrop-blur-xl border-white/10 text-white shadow-2xl rounded-xl p-1.5'
+                  className='w-52 bg-popover text-popover-foreground border-border shadow-xl rounded-lg p-1.5'
                 >
                   <DropdownMenuItem
                     onClick={handleFetchAndAdd}
-                    className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
                   >
-                    <RefreshCw className='w-3.5 h-3.5 mr-2 text-white/70' />
+                    <RefreshCw className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
                     Add to queue
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={handleFetchAndReplace}
-                    className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
                   >
-                    <Sparkles className='w-3.5 h-3.5 mr-2 text-white/70' />
+                    <Sparkles className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
                     Replace queue
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className='bg-white/10 my-1' />
+                  <DropdownMenuSeparator className='bg-border my-1' />
                   <DropdownMenuItem
                     onClick={handleToggleAutoFetch}
-                    className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
                   >
                     {autoFetchRecommendations ? (
-                      <ToggleRight className='w-3.5 h-3.5 mr-2 text-white' />
+                      <ToggleRight className='w-3.5 h-3.5 mr-2 text-primary' />
                     ) : (
-                      <ToggleLeft className='w-3.5 h-3.5 mr-2 text-white/50' />
+                      <ToggleLeft className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
                     )}
                     Auto-fetch: {autoFetchRecommendations ? 'On' : 'Off'}
                   </DropdownMenuItem>
@@ -584,7 +589,7 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
           onDragCancel={handleDragCancel}
         >
           <SortableContext items={playlistIds} strategy={verticalListSortingStrategy}>
-            <div className='space-y-0.5'>
+            <div className='space-y-0.5 p-1.5'>
               {playlist.map((song) => (
                 <SortableSongItem
                   key={song.id}
@@ -601,19 +606,26 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
             </div>
           </SortableContext>
 
-          <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }}>
+          <DragOverlay
+            dropAnimation={{
+              duration: 150,
+              easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+            }}
+          >
             {activeSong && (
-              <QueueSongItem
-                song={activeSong}
-                isCurrentSong={currentSongId === activeSong.id}
-                isPlaying={isPlaying}
-                isOverlay
-                onPlay={handlePlay}
-                onRemove={handleRemove}
-                onFetchRecommendations={handleSongFetchRecs}
-                isLoadingRecs={loadingSongId === activeSong.id}
-                variant={variant}
-              />
+              <div className='pointer-events-none'>
+                <QueueSongItem
+                  song={activeSong}
+                  isCurrentSong={currentSongId === activeSong.id}
+                  isPlaying={isPlaying}
+                  isOverlay
+                  onPlay={handlePlay}
+                  onRemove={handleRemove}
+                  onFetchRecommendations={handleSongFetchRecs}
+                  isLoadingRecs={loadingSongId === activeSong.id}
+                  variant={variant}
+                />
+              </div>
             )}
           </DragOverlay>
         </DndContext>

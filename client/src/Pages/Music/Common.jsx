@@ -89,7 +89,7 @@ export const MusicControls = memo(({ size = 'default', showExtras = true }) => {
   const repeatLabel = { off: 'Repeat: Off', all: 'Repeat: All', one: 'Repeat: One' };
 
   const btnAnim = { hover: { scale: 1.1 }, tap: { scale: 0.9 } };
-  const playAnim = { hover: { scale: 1.08 }, tap: { scale: 0.92 } };
+  const playAnim = { hover: { scale: 1.06 }, tap: { scale: 0.92 } };
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -109,18 +109,18 @@ export const MusicControls = memo(({ size = 'default', showExtras = true }) => {
                   onClick={toggleShuffle}
                   className={cn(
                     'relative transition-all duration-200 cursor-pointer rounded-full',
-                    isLarge ? 'h-11 w-11' : 'h-9 w-9',
+                    isLarge ? 'h-10 w-10' : 'h-8.5 w-8.5',
                     shuffleMode
-                      ? 'text-white bg-white/15 ring-1 ring-white/20'
-                      : 'text-white/50 hover:text-white hover:bg-white/10'
+                      ? 'text-primary bg-primary/10 border border-primary/20'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   )}
                   aria-label={shuffleMode ? 'Shuffle on' : 'Shuffle off'}
                 >
-                  <Shuffle className={isLarge ? 'h-[18px] w-[18px]' : 'h-4 w-4'} />
+                  <Shuffle className={isLarge ? 'h-4.5 w-4.5' : 'h-4 w-4'} />
                   {shuffleMode && (
                     <motion.span
                       layoutId='shuffle-indicator'
-                      className='absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white'
+                      className='absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary'
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
@@ -143,13 +143,13 @@ export const MusicControls = memo(({ size = 'default', showExtras = true }) => {
                 size='icon'
                 onClick={handlePrevSong}
                 className={cn(
-                  'transition-colors duration-200 text-white/70 hover:text-white hover:bg-white/10 rounded-full cursor-pointer',
-                  isLarge ? 'h-12 w-12' : 'h-9 w-9'
+                  'transition-colors duration-200 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full cursor-pointer',
+                  isLarge ? 'h-11 w-11' : 'h-8.5 w-8.5'
                 )}
                 aria-label='Previous track'
               >
                 <SkipBack
-                  className={isLarge ? 'h-[22px] w-[22px]' : 'h-4 w-4'}
+                  className={isLarge ? 'h-5 w-5' : 'h-4 w-4'}
                   fill='currentColor'
                 />
               </Button>
@@ -167,10 +167,10 @@ export const MusicControls = memo(({ size = 'default', showExtras = true }) => {
                 size='icon'
                 onClick={handlePlayPause}
                 className={cn(
-                  'bg-white hover:bg-white/95 text-black transition-all duration-200 cursor-pointer',
+                  'bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200 cursor-pointer shadow-md',
                   isLarge
-                    ? 'h-16 w-16 rounded-full shadow-[0_4px_24px_rgba(255,255,255,0.25)]'
-                    : 'h-10 w-10 rounded-full shadow-lg'
+                    ? 'h-14 w-14 rounded-full'
+                    : 'h-9.5 w-9.5 rounded-full'
                 )}
                 aria-label={isPlaying ? 'Pause' : 'Play'}
               >
@@ -184,10 +184,10 @@ export const MusicControls = memo(({ size = 'default', showExtras = true }) => {
                     className='flex items-center justify-center'
                   >
                     {isPlaying ? (
-                      <Pause className={isLarge ? 'h-7 w-7' : 'h-4 w-4'} fill='currentColor' />
+                      <Pause className={isLarge ? 'h-6 w-6' : 'h-4 w-4'} fill='currentColor' />
                     ) : (
                       <Play
-                        className={cn(isLarge ? 'h-7 w-7' : 'h-4 w-4', 'ml-0.5')}
+                        className={cn(isLarge ? 'h-6 w-6 ml-0.5' : 'h-4 w-4 ml-0.5')}
                         fill='currentColor'
                       />
                     )}
@@ -209,13 +209,13 @@ export const MusicControls = memo(({ size = 'default', showExtras = true }) => {
                 size='icon'
                 onClick={() => handleNextSong(false)}
                 className={cn(
-                  'transition-colors duration-200 text-white/70 hover:text-white hover:bg-white/10 rounded-full cursor-pointer',
-                  isLarge ? 'h-12 w-12' : 'h-9 w-9'
+                  'transition-colors duration-200 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full cursor-pointer',
+                  isLarge ? 'h-11 w-11' : 'h-8.5 w-8.5'
                 )}
                 aria-label='Next track'
               >
                 <SkipForward
-                  className={isLarge ? 'h-[22px] w-[22px]' : 'h-4 w-4'}
+                  className={isLarge ? 'h-5 w-5' : 'h-4 w-4'}
                   fill='currentColor'
                 />
               </Button>
@@ -236,18 +236,18 @@ export const MusicControls = memo(({ size = 'default', showExtras = true }) => {
                   onClick={toggleRepeat}
                   className={cn(
                     'relative transition-all duration-200 cursor-pointer rounded-full',
-                    isLarge ? 'h-11 w-11' : 'h-9 w-9',
+                    isLarge ? 'h-10 w-10' : 'h-8.5 w-8.5',
                     repeatMode !== 'off'
-                      ? 'text-white bg-white/15 ring-1 ring-white/20'
-                      : 'text-white/50 hover:text-white hover:bg-white/10'
+                      ? 'text-primary bg-primary/10 border border-primary/20'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   )}
                   aria-label={repeatLabel[repeatMode]}
                 >
-                  <RepeatIcon className={isLarge ? 'h-[18px] w-[18px]' : 'h-4 w-4'} />
+                  <RepeatIcon className={isLarge ? 'h-4.5 w-4.5' : 'h-4 w-4'} />
                   {repeatMode !== 'off' && (
                     <motion.span
                       layoutId='repeat-indicator'
-                      className='absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white'
+                      className='absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary'
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
@@ -294,7 +294,7 @@ export const VolumeControl = memo(({ showVolume = false, alwaysShowSlider = fals
               <Button
                 variant='ghost'
                 size='icon'
-                className='h-9 w-9 transition-colors duration-200 text-white/70 hover:text-white hover:bg-white/10 rounded-full cursor-pointer'
+                className='h-8.5 w-8.5 transition-colors duration-200 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full cursor-pointer'
                 onClick={toggleMute}
                 aria-label={isMuted || volume === 0 ? 'Unmute' : 'Mute'}
               >
@@ -307,7 +307,7 @@ export const VolumeControl = memo(({ showVolume = false, alwaysShowSlider = fals
                     transition={{ duration: 0.15 }}
                     className='flex items-center justify-center'
                   >
-                    {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                    {isMuted || volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
                   </motion.span>
                 </AnimatePresence>
               </Button>
@@ -332,9 +332,9 @@ export const VolumeControl = memo(({ showVolume = false, alwaysShowSlider = fals
             step={0.01}
             className={cn(
               'w-full cursor-pointer',
-              '[&>span:first-child]:h-[3.5px] [&>span:first-child]:bg-white/20 [&>span:first-child]:rounded-full',
-              '[&>span:first-child>span]:bg-white [&>span:first-child>span]:rounded-full',
-              '**:[[role=slider]]:h-3 **:[[role=slider]]:w-3 **:[[role=slider]]:bg-white **:[[role=slider]]:border-0 **:[[role=slider]]:shadow-[0_0_8px_rgba(255,255,255,0.7)]'
+              '[&>span:first-child]:h-[3px] [&>span:first-child]:bg-muted [&>span:first-child]:rounded-full',
+              '[&>span:first-child>span]:bg-primary [&>span:first-child>span]:rounded-full',
+              '**:[[role=slider]]:h-2.5 **:[[role=slider]]:w-2.5 **:[[role=slider]]:bg-primary **:[[role=slider]]:border-0'
             )}
             onValueChange={([value]) => {
               handleVolumeChange(value);
@@ -387,7 +387,7 @@ export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
     >
       {showTooltip && (
         <div
-          className='absolute z-[100] bg-[#0a0c12]/95 border border-white/10 text-white text-[10px] font-semibold px-2 py-0.5 rounded shadow-xl pointer-events-none -translate-x-1/2'
+          className='absolute z-[100] bg-popover border border-border text-popover-foreground text-[10px] font-mono font-semibold px-2 py-0.5 rounded shadow-xl pointer-events-none -translate-x-1/2'
           style={{
             left: `${activeX}px`,
             bottom: '18px',
@@ -408,12 +408,12 @@ export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
         onPointerCancel={() => setIsDragging(false)}
         className={cn(
           'relative h-5 py-2 -my-2 cursor-pointer transition-colors duration-200',
-          '[&>span:first-child]:h-[4px] [&>span:first-child]:bg-white/15 [&>span:first-child]:rounded-full [&>span:first-child]:transition-[height,background-color] [&>span:first-child]:duration-200',
-          'group-hover/progress:[&>span:first-child]:h-[6px] group-hover/progress:[&>span:first-child]:bg-white/20',
-          '[&>span:first-child>span]:bg-white [&>span:first-child>span]:rounded-full [&>span:first-child>span]:transition-colors [&>span:first-child>span]:duration-200',
-          'group-hover/progress:[&>span:first-child>span]:bg-white',
-          '**:[[role=slider]]:h-3.5 **:[[role=slider]]:w-3.5 **:[[role=slider]]:bg-white **:[[role=slider]]:border-0',
-          '**:[[role=slider]]:shadow-[0_0_10px_rgba(255,255,255,0.4)]',
+          '[&>span:first-child]:h-[3.5px] [&>span:first-child]:bg-muted [&>span:first-child]:rounded-full [&>span:first-child]:transition-[height,background-color] [&>span:first-child]:duration-200',
+          'group-hover/progress:[&>span:first-child]:h-[5px] group-hover/progress:[&>span:first-child]:bg-muted-foreground/30',
+          '[&>span:first-child>span]:bg-primary [&>span:first-child>span]:rounded-full [&>span:first-child>span]:transition-colors [&>span:first-child>span]:duration-200',
+          'group-hover/progress:[&>span:first-child>span]:bg-primary',
+          '**:[[role=slider]]:h-3.5 **:[[role=slider]]:w-3.5 **:[[role=slider]]:bg-primary **:[[role=slider]]:border-0',
+          '**:[[role=slider]]:shadow-sm',
           '**:[[role=slider]]:opacity-0 **:[[role=slider]]:scale-50',
           '**:[[role=slider]]:transition-[opacity,transform] **:[[role=slider]]:duration-200',
           'group-hover/progress:**:[[role=slider]]:opacity-100 group-hover/progress:**:[[role=slider]]:scale-100'
@@ -421,10 +421,10 @@ export const ProgressBarMusic = memo(({ isTimeVisible = false }) => {
       />
       {isTimeVisible && (
         <div className='flex justify-between px-0.5'>
-          <span className='text-[11px] text-white/40 tabular-nums font-medium'>
+          <span className='text-[11px] text-muted-foreground font-mono tabular-nums font-medium'>
             {formatTime(currentTime)}
           </span>
-          <span className='text-[11px] text-white/40 tabular-nums font-medium'>
+          <span className='text-[11px] text-muted-foreground font-mono tabular-nums font-medium'>
             {formatTime(duration)}
           </span>
         </div>

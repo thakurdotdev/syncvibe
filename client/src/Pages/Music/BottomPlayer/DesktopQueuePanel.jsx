@@ -88,13 +88,13 @@ const DesktopQueuePanel = memo(
     return (
       <TooltipProvider delayDuration={300}>
         <div className='dqp-panel'>
-          <div className='dqp-header'>
-            <div className='flex items-center gap-2.5'>
-              <ListMusic className='w-4 h-4 text-white/70' />
-              <span className='text-sm font-semibold text-white tracking-wide'>Queue</span>
+          <div className='dqp-header text-foreground'>
+            <div className='flex items-center gap-2'>
+              <ListMusic className='w-4 h-4 text-muted-foreground' />
+              <span className='text-sm font-semibold tracking-wide'>Queue</span>
               <Badge
                 variant='secondary'
-                className='h-5 text-[10.5px] px-2 rounded-full bg-white/10 text-white/70 border-0 font-medium'
+                className='h-5 text-[10.5px] px-2 rounded-full bg-muted text-muted-foreground border-0 font-medium'
               >
                 {playlistLength}
               </Badge>
@@ -106,7 +106,7 @@ const DesktopQueuePanel = memo(
                   <Button
                     variant='ghost'
                     size='icon'
-                    className='h-8 w-8 text-white/60 hover:text-red-400 hover:bg-white/10 rounded-full transition-colors cursor-pointer'
+                    className='h-7.5 w-7.5 text-muted-foreground hover:text-destructive hover:bg-muted rounded-md transition-colors cursor-pointer'
                     onClick={handleClearQueue}
                     disabled={playlistLength <= 1}
                     aria-label='Clear queue'
@@ -126,12 +126,12 @@ const DesktopQueuePanel = memo(
                       <Button
                         variant='ghost'
                         size='icon'
-                        className='h-8 w-8 text-white/60 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer'
+                        className='h-7.5 w-7.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors cursor-pointer'
                         disabled={fetchingRecs}
                         aria-label='Recommendations'
                       >
                         {fetchingRecs ? (
-                          <Loader2 className='h-3.5 w-3.5 animate-spin text-white/70' />
+                          <Loader2 className='h-3.5 w-3.5 animate-spin' />
                         ) : (
                           <Sparkles className='h-3.5 w-3.5' />
                         )}
@@ -144,31 +144,31 @@ const DesktopQueuePanel = memo(
                 </Tooltip>
                 <DropdownMenuContent
                   align='end'
-                  className='w-52 bg-[#161822]/95 backdrop-blur-xl border-white/10 text-white shadow-2xl rounded-xl p-1.5 z-50'
+                  className='w-52 bg-popover text-popover-foreground border-border shadow-xl rounded-lg p-1.5 z-50'
                 >
                   <DropdownMenuItem
                     onClick={handleFetchAndAdd}
-                    className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
                   >
-                    <RefreshCw className='w-3.5 h-3.5 mr-2 text-white/70' />
+                    <RefreshCw className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
                     Add to queue
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={handleFetchAndReplace}
-                    className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
                   >
-                    <Sparkles className='w-3.5 h-3.5 mr-2 text-white/70' />
+                    <Sparkles className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
                     Replace queue
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className='bg-white/10 my-1' />
+                  <DropdownMenuSeparator className='bg-border my-1' />
                   <DropdownMenuItem
                     onClick={handleToggleAutoFetch}
-                    className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
                   >
                     {autoFetchRecommendations ? (
-                      <ToggleRight className='w-3.5 h-3.5 mr-2 text-white' />
+                      <ToggleRight className='w-3.5 h-3.5 mr-2 text-primary' />
                     ) : (
-                      <ToggleLeft className='w-3.5 h-3.5 mr-2 text-white/50' />
+                      <ToggleLeft className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
                     )}
                     Auto-fetch: {autoFetchRecommendations ? 'On' : 'Off'}
                   </DropdownMenuItem>
@@ -180,39 +180,39 @@ const DesktopQueuePanel = memo(
                   <Button
                     variant='ghost'
                     size='icon'
-                    className='h-8 w-8 text-white/60 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer'
+                    className='h-7.5 w-7.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors cursor-pointer'
                     aria-label='More options'
                   >
-                    <MoreHorizontal className='h-4 w-4' />
+                    <MoreHorizontal className='h-3.5 w-3.5' />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align='end'
-                  className='w-56 bg-[#161822]/95 backdrop-blur-xl border-white/10 text-white shadow-2xl rounded-xl p-1.5 z-50'
+                  className='w-56 bg-popover text-popover-foreground border-border shadow-xl rounded-lg p-1.5 z-50'
                 >
                   <DropdownMenuItem
                     onClick={onOpenModal}
-                    className='cursor-pointer text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                    className='cursor-pointer text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
                   >
-                    <ListMusic className='mr-2 h-4 w-4 text-white/70' />
+                    <ListMusic className='mr-2 h-4 w-4 text-muted-foreground' />
                     Add to Playlist
                   </DropdownMenuItem>
 
                   {currentSong?.album_id && (
                     <DropdownMenuItem
                       onClick={handleGoToAlbum}
-                      className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                      className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
                     >
-                      <Disc3 className='w-3.5 h-3.5 mr-2 text-white/70' />
+                      <Disc3 className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
                       Go to Album
                     </DropdownMenuItem>
                   )}
                   {currentSong?.artist_map?.primary_artists?.[0] && (
                     <DropdownMenuItem
                       onClick={handleGoToArtist}
-                      className='cursor-pointer text-sm text-white/90 hover:text-white focus:bg-white/10 focus:text-white rounded-lg transition-colors'
+                      className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
                     >
-                      <User className='w-3.5 h-3.5 mr-2 text-white/70' />
+                      <User className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
                       Go to Artist
                     </DropdownMenuItem>
                   )}
@@ -226,7 +226,7 @@ const DesktopQueuePanel = memo(
               <QueueTab variant='desktop' />
             ) : (
               <div className='flex items-center justify-center h-32'>
-                <div className='w-5 h-5 border-2 border-white/10 border-t-white/60 rounded-full animate-spin' />
+                <div className='w-5 h-5 border-2 border-border border-t-primary rounded-full animate-spin' />
               </div>
             )}
           </div>
@@ -239,10 +239,10 @@ const DesktopQueuePanel = memo(
             right: 0;
             bottom: 0;
             width: 360px;
-            background: rgba(10, 12, 18, 0.45);
-            backdrop-filter: blur(32px);
-            -webkit-backdrop-filter: blur(32px);
-            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            background: hsl(var(--background) / 0.35);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-left: 1px solid hsl(var(--border) / 0.25);
             display: flex;
             flex-direction: column;
             z-index: 25;
@@ -251,18 +251,18 @@ const DesktopQueuePanel = memo(
             display: flex;
             align-items: center;
             justify-content: space-between;
-            height: 64px;
-            padding: 0 18px;
+            height: 56px;
+            padding: 0 14px;
             flex-shrink: 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            border-bottom: 1px solid hsl(var(--border) / 0.25);
           }
           .dqp-list {
             flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
             scrollbar-width: thin;
-            scrollbar-color: rgba(255,255,255,0.1) transparent;
-            padding: 8px 8px;
+            scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
+            padding: 0;
           }
           .dqp-list::-webkit-scrollbar {
             width: 4px;
@@ -271,15 +271,12 @@ const DesktopQueuePanel = memo(
             background: transparent;
           }
           .dqp-list::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.12);
+            background: hsl(var(--muted-foreground) / 0.2);
             border-radius: 4px;
           }
           .dqp-list::-webkit-scrollbar-thumb:hover {
-            background: rgba(255,255,255,0.22);
+            background: hsl(var(--muted-foreground) / 0.35);
           }
-          @keyframes dqpEq1 { 0%,100%{height:5px} 50%{height:13px} }
-          @keyframes dqpEq2 { 0%,100%{height:13px} 50%{height:7px} }
-          @keyframes dqpEq3 { 0%,100%{height:7px} 50%{height:12px} }
         `}</style>
       </TooltipProvider>
     );
