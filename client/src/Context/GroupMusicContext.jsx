@@ -271,7 +271,13 @@ export function GroupMusicProvider({ children }) {
         }
       }
 
+      // Notify only when user is not in this tab or is focused in another app
+      const isTabInactive =
+        typeof document !== 'undefined' &&
+        (document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus()));
+
       if (
+        isTabInactive &&
         message.type !== 'activity' &&
         message.senderId !== user?.userid &&
         typeof window !== 'undefined' &&
@@ -279,12 +285,24 @@ export function GroupMusicProvider({ children }) {
         Notification.permission === 'granted'
       ) {
         try {
-          new Notification(message.userName || 'SyncVibe Chat', {
-            body: message.message,
+          const bodyText =
+            message.messageType === 'gif'
+              ? 'Sent a GIF / Media'
+              : message.messageType === 'sound'
+                ? `Sent sound effect: ${message.soundName || 'Sound Effect'}`
+                : message.message || 'Sent a message';
+
+          const notification = new Notification(message.userName || 'SyncVibe Group Chat', {
+            body: bodyText,
             icon: message.profilePic || '/favicon.ico',
             tag: 'syncvibe-group-chat',
             renotify: true,
           });
+
+          notification.onclick = () => {
+            window.focus();
+            notification.close();
+          };
         } catch (err) {
           console.error('Error displaying notification:', err);
         }
@@ -314,6 +332,33 @@ export function GroupMusicProvider({ children }) {
     socket.on('group-invite-received', (inviteData) => {
       if (ss.getState().currentGroup) return;
       inv.setState({ pendingInvite: inviteData });
+
+      const isTabInactive =
+        typeof document !== 'undefined' &&
+        (document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus()));
+
+      if (
+        isTabInactive &&
+        typeof window !== 'undefined' &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
+        try {
+          const notification = new Notification('SyncVibe Group Invite', {
+            body: `${inviteData.inviterName || 'Someone'} invited you to join a music group`,
+            icon: inviteData.inviterProfilePic || '/favicon.ico',
+            tag: 'syncvibe-group-invite',
+            renotify: true,
+          });
+
+          notification.onclick = () => {
+            window.focus();
+            notification.close();
+          };
+        } catch (err) {
+          console.error('Error displaying invite notification:', err);
+        }
+      }
     });
 
     socket.on('invite-sent', () => toast.success('Invite sent!'));
