@@ -12,3 +12,4 @@ export { default as InviteSheet } from './InviteSheet';
 export { default as SoundPicker } from './SoundPicker';
 export { default as SoundMessage } from './SoundMessage';
 export { default as GlobalSoundAnimation } from './GlobalSoundAnimation';
+export { default as MediaPicker, default as GifPicker } from './MediaPicker';

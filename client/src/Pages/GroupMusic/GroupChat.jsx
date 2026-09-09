@@ -12,18 +12,15 @@ import {
   UserMinus,
   Music,
   Image as ImageIcon,
-  X,
-  Search,
   Volume2,
   VolumeX,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import UpgradeDialog from '@/components/UpgradeDialog';
-import ReactDOM from 'react-dom';
 import SoundPicker from './SoundPicker';
 import SoundMessage from './SoundMessage';
-import { fetchTrendingGifs, searchGifs } from '@/api/gifs';
+import MediaPicker from './MediaPicker';
 
 const EMOJI_ONLY_REGEX =
   /^(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\s*(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F)){0,2}$/u;
@@ -111,17 +108,37 @@ const ActivityMessage = memo(({ msg }) => {
   );
 });
 
-const GifContent = memo(({ url }) => (
-  <div className='overflow-hidden rounded-xl max-w-[220px]'>
-    <img
-      src={url}
-      alt='GIF'
-      loading='lazy'
-      className='w-full h-auto rounded-xl object-cover'
-      style={{ maxHeight: 200, minHeight: 60, background: 'hsl(var(--muted) / 0.3)' }}
-    />
-  </div>
-));
+const isVideoMedia = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  return /\.(mp4|webm|mov)(\?.*)?$/i.test(url);
+};
+
+const GifContent = memo(({ url }) => {
+  const isVideo = isVideoMedia(url);
+  return (
+    <div className='overflow-hidden rounded-xl max-w-[240px]'>
+      {isVideo ? (
+        <video
+          src={url}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className='w-full h-auto rounded-xl object-cover block shadow-xs'
+          style={{ maxHeight: 220, minHeight: 60, background: 'hsl(var(--muted) / 0.3)' }}
+        />
+      ) : (
+        <img
+          src={url}
+          alt='Media'
+          loading='lazy'
+          className='w-full h-auto rounded-xl object-contain block'
+          style={{ maxHeight: 220, minHeight: 60, background: 'hsl(var(--muted) / 0.15)' }}
+        />
+      )}
+    </div>
+  );
+});
 
 const ChatMessage = memo(({ msg, isOwn, showAvatar, isNew }) => {
   const emojiOnly = useMemo(() => isEmojiOnly(msg.message), [msg.message]);
@@ -205,8 +222,10 @@ const EmptyState = memo(() => (
 ));
 
 const ChatLockedOverlay = memo(({ onUpgrade }) => (
-  <div
-    className='absolute inset-0 z-10 flex flex-col items-center justify-center liquid-panel rounded-xl cursor-pointer'
+  <button
+    type='button'
+    aria-label='Upgrade to PRO to unlock group chat'
+    className='absolute inset-0 z-10 flex flex-col items-center justify-center liquid-panel rounded-xl cursor-pointer border-0 w-full text-left'
     onClick={onUpgrade}
   >
     <div className='flex flex-col items-center gap-3.5 p-6 text-center'>
@@ -214,20 +233,19 @@ const ChatLockedOverlay = memo(({ onUpgrade }) => (
         <Lock className='h-5 w-5 text-muted-foreground/60' />
       </div>
       <div className='space-y-1'>
-        <p className='font-medium text-sm'>Group Chat is a PRO feature</p>
+        <p className='font-medium text-sm text-foreground'>Group Chat is a PRO feature</p>
         <p className='text-xs text-muted-foreground/50'>Tap to upgrade and chat with your group</p>
       </div>
-      <button className='gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0 cursor-pointer px-4 py-2 text-sm font-medium flex items-center transition-all duration-200 hover:scale-105 active:scale-95'>
+      <span className='gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-0 px-4 py-2 text-sm font-medium flex items-center transition-all duration-200 hover:scale-105 active:scale-95'>
         <Sparkles className='h-3.5 w-3.5' />
         Upgrade to PRO
-      </button>
+      </span>
     </div>
-  </div>
+  </button>
 ));
 
-const MessagesList = memo(({ messages, currentUserId, prevCountRef }) => {
+const MessagesList = memo(({ messages, currentUserId, prevCount = 0 }) => {
   if (messages.length === 0) return <EmptyState />;
-  const prevCount = prevCountRef.current;
 
   return (
     <div className='p-2 space-y-px'>
@@ -263,234 +281,11 @@ const TypingDot = memo(({ delay }) => (
   />
 ));
 
-const GifPreviewCard = memo(({ still, animated, title, onSelect }) => {
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <button
-      onClick={onSelect}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className='relative w-full rounded-lg overflow-hidden cursor-pointer border-0 p-0 bg-transparent block aspect-[4/3]'
-    >
-      <img
-        src={hovered ? animated : still || animated}
-        alt={title || 'GIF'}
-        loading='lazy'
-        className='w-full h-full object-cover rounded-lg block'
-        style={{ background: 'hsl(var(--muted) / 0.2)' }}
-      />
-      {!hovered && (
-        <div
-          className='absolute inset-0 flex items-center justify-center rounded-lg'
-          style={{ background: 'rgba(0,0,0,0.3)' }}
-        >
-          <div
-            className='h-8 w-8 rounded-full flex items-center justify-center'
-            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
-          >
-            <Play className='h-3.5 w-3.5 text-white ml-0.5' fill='white' />
-          </div>
-        </div>
-      )}
-      {hovered && (
-        <div
-          className='absolute inset-0 rounded-lg'
-          style={{ boxShadow: 'inset 0 0 0 2px hsl(var(--primary) / 0.5)' }}
-        />
-      )}
-    </button>
-  );
-});
-
-const GifPicker = memo(({ anchorRef, toggleRef, onSelect, onClose }) => {
-  const [query, setQuery] = useState('');
-  const [gifs, setGifs] = useState([]);
-  const [trending, setTrending] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const searchTimeout = useRef(null);
-  const abortControllerRef = useRef(null);
-  const pickerRef = useRef(null);
-  const [pos, setPos] = useState(null);
-
-  useEffect(() => {
-    if (!anchorRef?.current) return;
-    const rect = anchorRef.current.getBoundingClientRect();
-    setPos({
-      bottom: window.innerHeight - rect.top + 8,
-      left: rect.left,
-      width: rect.width,
-    });
-  }, [anchorRef]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-
-    fetchTrendingGifs(controller.signal)
-      .then((data) => setTrending(data || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-
-    return () => controller.abort();
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (
-        pickerRef.current &&
-        !pickerRef.current.contains(e.target) &&
-        (!toggleRef?.current || !toggleRef.current.contains(e.target))
-      ) {
-        onClose();
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose, toggleRef]);
-
-  useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleEsc);
-    return () => document.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
-
-  const handleSearch = useCallback((value) => {
-    setQuery(value);
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    if (abortControllerRef.current) abortControllerRef.current.abort();
-
-    if (!value.trim()) {
-      setGifs([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    searchTimeout.current = setTimeout(async () => {
-      try {
-        const controller = new AbortController();
-        abortControllerRef.current = controller;
-        const data = await searchGifs(value, controller.signal);
-        setGifs(data || []);
-      } catch {}
-      setLoading(false);
-    }, 350);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (searchTimeout.current) clearTimeout(searchTimeout.current);
-      if (abortControllerRef.current) abortControllerRef.current.abort();
-    };
-  }, []);
-
-  const displayGifs = query.trim() ? gifs : trending;
-
-  if (!pos) return null;
-
-  return ReactDOM.createPortal(
-    <motion.div
-      ref={pickerRef}
-      initial={{ opacity: 0, y: 10, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 10, scale: 0.96 }}
-      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className='fixed flex flex-col rounded-xl overflow-hidden border border-border/30 shadow-2xl'
-      style={{
-        bottom: pos.bottom,
-        left: pos.left,
-        width: pos.width,
-        height: 420,
-        zIndex: 9999,
-        background: 'hsl(var(--background))',
-        boxShadow: '0 -8px 40px -8px rgba(0,0,0,0.5), 0 0 0 1px hsl(var(--border) / 0.15)',
-      }}
-    >
-      <div className='shrink-0 px-3 pt-3 pb-2'>
-        <div className='relative'>
-          <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40 pointer-events-none' />
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder='Search GIFs...'
-            className='w-full rounded-lg h-10 pl-9 pr-9 text-sm outline-none transition-all duration-200'
-            style={{
-              background: 'hsl(var(--muted) / 0.5)',
-              border: '1px solid hsl(var(--border) / 0.3)',
-              color: 'hsl(var(--foreground))',
-            }}
-          />
-          {query ? (
-            <button
-              onClick={() => {
-                setQuery('');
-                setGifs([]);
-              }}
-              className='absolute right-2.5 top-1/2 -translate-y-1/2 h-5 w-5 rounded flex items-center justify-center cursor-pointer border-0 bg-transparent text-muted-foreground/50 hover:text-foreground transition-colors'
-            >
-              <X className='h-3.5 w-3.5' />
-            </button>
-          ) : null}
-        </div>
-        {!query.trim() && (
-          <p className='text-[10px] text-muted-foreground/35 mt-1.5 ml-1 font-medium uppercase tracking-wider'>
-            Trending
-          </p>
-        )}
-      </div>
-
-      <div className='flex-1 overflow-y-auto chat-scroll-area px-3 pb-2 min-h-0'>
-        {loading && displayGifs.length === 0 ? (
-          <div className='gif-picker-grid'>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className='rounded-lg animate-pulse w-full aspect-[4/3]'
-                style={{ background: 'hsl(var(--muted) / 0.25)' }}
-              />
-            ))}
-          </div>
-        ) : displayGifs.length === 0 ? (
-          <div className='flex flex-col items-center justify-center h-full gap-2 py-12'>
-            <ImageIcon className='h-8 w-8 text-muted-foreground/15' />
-            <p className='text-xs text-muted-foreground/35'>
-              {query.trim() ? 'No GIFs found' : 'Type to search GIFs'}
-            </p>
-          </div>
-        ) : (
-          <div className='gif-picker-grid'>
-            {displayGifs.map((gif) => (
-              <GifPreviewCard
-                key={gif.id}
-                still={gif.still || gif.animated}
-                animated={gif.animated || gif.still}
-                title={gif.title}
-                onSelect={() => onSelect(gif.full || gif.animated)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className='shrink-0 flex items-center justify-center py-1.5 border-t border-border/10'>
-        <span className='text-[9px] text-muted-foreground/25 tracking-wider uppercase'>
-          Powered by KLIPY
-        </span>
-      </div>
-    </motion.div>,
-    document.body
-  );
-});
-
 const GroupChat = ({
   messages,
   currentUserId,
   onSendMessage,
-  onSendGif,
+  _onSendGif,
   locked = false,
   typingUsers = {},
   onTypingStart,
@@ -510,7 +305,13 @@ const GroupChat = ({
     return localStorage.getItem('syncvibe_sfx_autoplay') !== 'false';
   });
   const typingTimeoutRef = useRef(null);
-  const prevCountRef = useRef(0);
+  const [prevCount, setPrevCount] = useState(0);
+  const [currentCount, setCurrentCount] = useState(messages.length);
+
+  if (messages.length !== currentCount) {
+    setPrevCount(currentCount);
+    setCurrentCount(messages.length);
+  }
 
   const handleToggleSfxAutoPlay = useCallback(() => {
     setSfxAutoPlay((prev) => {
@@ -526,7 +327,6 @@ const GroupChat = ({
     if (bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: messages.length <= 1 ? 'auto' : 'smooth' });
     }
-    prevCountRef.current = messages.length;
   }, [messages.length]);
 
   const handleSend = useCallback(() => {
@@ -636,7 +436,7 @@ const GroupChat = ({
         <MessagesList
           messages={messages}
           currentUserId={currentUserId}
-          prevCountRef={prevCountRef}
+          prevCount={prevCount}
         />
         <div ref={bottomRef} className='h-px' />
       </div>
@@ -677,7 +477,7 @@ const GroupChat = ({
               setShowSoundPicker(false);
             }}
             disabled={locked}
-            title='Search GIFs'
+            title='GIFs, Clips & Stickers'
             className={cn(
               'shrink-0 h-9 w-9 rounded-full flex items-center justify-center cursor-pointer border-0 transition-colors duration-200',
               'hover:bg-accent/50 disabled:opacity-30 disabled:pointer-events-none',
@@ -732,7 +532,7 @@ const GroupChat = ({
 
       <AnimatePresence>
         {showGifPicker && (
-          <GifPicker
+          <MediaPicker
             anchorRef={inputAreaRef}
             toggleRef={gifButtonRef}
             onSelect={handleGifSelect}
