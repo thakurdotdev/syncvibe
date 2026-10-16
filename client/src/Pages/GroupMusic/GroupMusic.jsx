@@ -79,6 +79,9 @@ const GroupMusic = () => {
     connectionQuality,
     playNow,
     addToQueue,
+    clearQueue,
+    toggleAutoRecommendations,
+    autoPlayRecommendations,
   } = useGroupMusic();
 
   const [isQrCodeOpen, setQrCodeOpen] = useState(false);
@@ -195,6 +198,9 @@ const GroupMusic = () => {
                       sendReaction={sendReaction}
                       onPlayNow={playNow}
                       onAddToQueue={addToQueue}
+                      onToggleAutoRecommendations={toggleAutoRecommendations}
+                      autoPlayRecommendations={autoPlayRecommendations}
+                      onRestartSong={() => handleSeek([0])}
                     />
 
                     <div className='flex flex-col lg:flex-row gap-4'>

@@ -1,7 +1,10 @@
 import { SongCard } from '@/components/music/MusicCards';
 import { SONG_URL } from '@/constants';
 import { usePlayerControls } from '@/stores/playerStore';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useTheme } from '@/context/ThemeContext';
+import { toast } from '@/context/ToastContext';
 import { Song } from '@/types/song';
 import { convertToHttps, ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,6 +58,10 @@ export default function AlbumScreen() {
 
   const playScale = useSharedValue(1);
   const shuffleScale = useSharedValue(1);
+  const groupScale = useSharedValue(1);
+
+  const currentGroup = useGroupSessionStore((s) => s.currentGroup);
+  const { addPlaylistToQueue } = useGroupMusic();
 
   const fetchAlbumData = useCallback(async () => {
     try {
@@ -116,6 +123,10 @@ export default function AlbumScreen() {
     transform: [{ scale: shuffleScale.value }],
   }));
 
+  const groupBtnAnim = useAnimatedStyle(() => ({
+    transform: [{ scale: groupScale.value }],
+  }));
+
   const newSongs = useMemo(() => {
     if (!albumData?.songs) return [];
     return albumData?.songs?.map(ensureHttpsForSongUrls) || [];
@@ -145,6 +156,12 @@ export default function AlbumScreen() {
       addToPlaylist(shuffledSongs);
       playSong(shuffledSongs[0]);
     }
+  };
+
+  const handleAddToGroup = () => {
+    if (!newSongs?.length) return;
+    addPlaylistToQueue(newSongs);
+    toast(`Added ${newSongs.length} songs to group queue`, { type: 'success' });
   };
 
   const isDark = theme === 'dark';
@@ -299,6 +316,34 @@ export default function AlbumScreen() {
               </Pressable>
             </View>
 
+            {currentGroup && (
+              <Pressable
+                onPress={handleAddToGroup}
+                disabled={!newSongs.length}
+                onPressIn={() => (groupScale.value = withTiming(0.96, { duration: 60 }))}
+                onPressOut={() =>
+                  (groupScale.value = withSpring(1, { damping: 16, stiffness: 350 }))
+                }
+                style={{ marginBottom: 16 }}
+              >
+                <Animated.View
+                  style={[
+                    styles.groupButton,
+                    {
+                      backgroundColor: isDark ? 'rgba(168, 85, 247, 0.16)' : 'rgba(147, 51, 234, 0.1)',
+                      borderColor: isDark ? 'rgba(168, 85, 247, 0.35)' : 'rgba(147, 51, 234, 0.25)',
+                    },
+                    groupBtnAnim,
+                  ]}
+                >
+                  <Ionicons name='people' size={18} color='#a855f7' />
+                  <Text style={[styles.groupButtonText, { color: '#a855f7' }]}>
+                    Add to Group Queue ({newSongs.length})
+                  </Text>
+                </Animated.View>
+              </Pressable>
+            )}
+
             {/* Songs Section Label */}
             <View style={styles.songsHeader}>
               <Text style={[styles.songsHeaderText, { color: colors.foreground }]}>Tracks</Text>
@@ -445,6 +490,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: -0.3,
+  },
+  groupButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    gap: 8,
+  },
+  groupButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   listContent: {
     paddingBottom: 130,

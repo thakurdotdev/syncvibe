@@ -61,6 +61,8 @@ interface GroupSessionActions {
   removeFromQueue: (socket: any, user: any, queueItemId: string) => void;
   reorderQueue: (socket: any, fromIndex: number, toIndex: number) => void;
   addPlaylistToQueue: (socket: any, user: any, songs: Song[]) => void;
+  clearQueue: (socket: any, user: any) => void;
+  toggleAutoRecommendations: (socket: any, enabled?: boolean) => void;
 
   performSearch: (query: string) => Promise<void>;
   clearSearch: () => void;
@@ -330,6 +332,41 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
         profilePic: user.profilepic,
       },
     });
+  },
+
+  clearQueue: (socket, user) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || !user) return;
+    socket?.emit('clear-queue', {
+      groupId: currentGroup.id,
+      userId: user.userid,
+    });
+  },
+
+  toggleAutoRecommendations: (socket, enabled) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id) return;
+    const nextState =
+      enabled !== undefined
+        ? enabled
+        : !(currentGroup.settings?.autoPlayRecommendations ?? true);
+
+    socket?.emit('toggle-auto-recommendations', {
+      groupId: currentGroup.id,
+      enabled: nextState,
+    });
+
+    set((state) => ({
+      currentGroup: state.currentGroup
+        ? {
+            ...state.currentGroup,
+            settings: {
+              ...(state.currentGroup.settings || { maxQueueSize: 3, allowAnyoneToAdd: true }),
+              autoPlayRecommendations: nextState,
+            },
+          }
+        : null,
+    }));
   },
 
   performSearch: async (query: string) => {

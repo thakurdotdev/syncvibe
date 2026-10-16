@@ -1,4 +1,6 @@
 import { usePlayerControls, usePlaybackState, usePlaylistState } from '@/stores/playerStore';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import { Song } from '@/types/song';
@@ -21,6 +23,8 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
   const { addToQueue, removeFromQueue } = usePlayerControls();
   const { currentSong } = usePlaybackState();
   const { playlist } = usePlaylistState();
+  const currentGroup = useGroupSessionStore((s) => s.currentGroup);
+  const { addToQueue: addToGroupQueue, playNext: playNextInGroup } = useGroupMusic();
 
   const artistName = song.artist_map?.artists || [{ name: 'Unknown Artist', id: null }];
   const albumArt = song.image?.[2]?.link || song.image?.[1]?.link;
@@ -91,6 +95,50 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
                   {isSongInQueue ? 'Remove from Queue' : 'Add to Queue'}
                 </Text>
               </Pressable>
+            )}
+
+            {currentGroup && (
+              <>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.optionRow,
+                    { backgroundColor: pressed ? 'rgba(168, 85, 247, 0.12)' : 'transparent' },
+                  ]}
+                  onPress={() => {
+                    addToGroupQueue(song);
+                    toast('Added to Group Queue', { type: 'success' });
+                    onClose();
+                  }}
+                  android_ripple={{ color: 'rgba(168, 85, 247, 0.25)' }}
+                >
+                  <View style={styles.iconContainer}>
+                    <Ionicons name='people-outline' size={22} color='#a855f7' />
+                  </View>
+                  <Text style={[styles.optionText, { color: '#a855f7', fontWeight: '600' }]}>
+                    Add to Group Queue
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.optionRow,
+                    { backgroundColor: pressed ? 'rgba(168, 85, 247, 0.12)' : 'transparent' },
+                  ]}
+                  onPress={() => {
+                    playNextInGroup(song);
+                    toast('Playing next in group', { type: 'success' });
+                    onClose();
+                  }}
+                  android_ripple={{ color: 'rgba(168, 85, 247, 0.25)' }}
+                >
+                  <View style={styles.iconContainer}>
+                    <Ionicons name='play-forward-outline' size={22} color='#a855f7' />
+                  </View>
+                  <Text style={[styles.optionText, { color: '#a855f7', fontWeight: '600' }]}>
+                    Play Next in Group
+                  </Text>
+                </Pressable>
+              </>
             )}
 
             <Pressable

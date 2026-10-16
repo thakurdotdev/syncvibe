@@ -234,6 +234,74 @@ export const reorderQueue = (
   return { success: true };
 };
 
+export const clearPendingQueue = (
+  group: MusicGroup,
+  userId: string | number
+): { success: boolean; clearedCount: number; error?: string } => {
+  const isMember = group.members.some((m) => String(m.userId) === String(userId));
+  if (!isMember && String(group.createdBy) !== String(userId)) {
+    return { success: false, clearedCount: 0, error: 'Not authorized' };
+  }
+
+  const keepIndex = group.currentQueueIndex;
+  const initialLength = group.queue.length;
+
+  if (keepIndex >= 0) {
+    group.queue = group.queue.slice(0, keepIndex + 1);
+  } else {
+    group.queue = [];
+  }
+
+  const clearedCount = initialLength - group.queue.length;
+  return { success: true, clearedCount };
+};
+
+export const addRecommendedSongsToQueue = (
+  group: MusicGroup,
+  songs: Array<Record<string, unknown>>
+): { addedCount: number; autoPlay: boolean; firstItem?: QueueItem } => {
+  let addedCount = 0;
+  let firstItem: QueueItem | undefined;
+  let shouldAutoPlay = false;
+
+  for (const song of songs) {
+    if (group.queue.length >= group.settings.maxQueueSize) break;
+    const isDuplicate = group.queue.some((item) => item.song?.id === song?.id);
+    if (isDuplicate) continue;
+
+    const queueItem: QueueItem = {
+      id: generateQueueItemId(),
+      song,
+      addedBy: {
+        userId: 'system',
+        userName: 'Auto-Play',
+        profilePic: '',
+      },
+      addedAt: Date.now(),
+      status: 'pending',
+      isAutoRecommended: true,
+    };
+
+    group.queue.push(queueItem);
+    if (addedCount === 0) {
+      firstItem = queueItem;
+      if (group.currentQueueIndex === -1) {
+        shouldAutoPlay = true;
+        group.currentQueueIndex = 0;
+        group.currentSongId = queueItem.id;
+        queueItem.status = 'playing';
+        group.playbackState.currentTrack = song;
+        group.playbackState.currentTime = 0;
+        group.playbackState.isPlaying = true;
+        group.playbackState.lastUpdate = Date.now();
+      }
+    }
+    addedCount++;
+  }
+
+  return { addedCount, autoPlay: shouldAutoPlay, firstItem };
+};
+
 export const getQueueState = (group: MusicGroup) => ({
   queue: group.queue,
   currentQueueIndex: group.currentQueueIndex,

@@ -66,6 +66,7 @@ const Album = () => {
         onPlayAll={handlePlayAll}
         onShuffle={handleShuffle}
         disabled={!albumData?.songs?.length}
+        songs={albumData?.songs}
       />
 
       <div className='grid grid-cols-1 sm:grid-cols-4 gap-2'>

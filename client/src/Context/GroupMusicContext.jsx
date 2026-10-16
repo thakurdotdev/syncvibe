@@ -156,16 +156,38 @@ export function GroupMusicProvider({ children }) {
       if (data.queue) {
         ss.setState({ queue: data.queue, currentQueueIndex: data.currentQueueIndex });
       }
+      if (data.settings && ss.getState().currentGroup) {
+        ss.setState({
+          currentGroup: {
+            ...ss.getState().currentGroup,
+            settings: { ...ss.getState().currentGroup.settings, ...data.settings },
+          },
+        });
+      }
       await pb.getState().handleSyncState(data, socket, getGroupId());
     });
 
     socket.on('queue-updated', (data) => {
-      const { queue, currentQueueIndex, action, item } = data;
+      const { queue, currentQueueIndex, action, item, addedCount } = data;
       ss.setState({ queue, currentQueueIndex });
       pb.getState().preloadUpcoming(queue, currentQueueIndex);
 
       if (action === 'remove') toast.info('Song removed from queue');
       else if (action === 'skip') toast.info('Skipped to next song');
+      else if (action === 'clear') toast.info('Upcoming queue cleared');
+      else if (action === 'auto-recs') toast.success(`Auto-added ${addedCount || ''} recommended songs`);
+    });
+
+    socket.on('group-settings-updated', ({ settings }) => {
+      const current = ss.getState().currentGroup;
+      if (current && settings) {
+        ss.setState({
+          currentGroup: {
+            ...current,
+            settings: { ...current.settings, ...settings },
+          },
+        });
+      }
     });
 
     socket.on('queue-error', ({ error }) => toast.error(error));
@@ -428,6 +450,7 @@ export function GroupMusicProvider({ children }) {
         'group-invite-declined',
         'song-reaction',
         'user-typing',
+        'group-settings-updated',
       ];
       events.forEach((e) => socket.off(e));
       Object.values(typingTimers).forEach(clearTimeout);
@@ -503,6 +526,13 @@ export function GroupMusicProvider({ children }) {
 
   const wrappedReorderQueue = useCallback(
     (from, to) => session.reorderQueue(socket, from, to),
+    [socket]
+  );
+
+  const wrappedClearQueue = useCallback(() => session.clearQueue(socket, user), [socket, user]);
+
+  const wrappedToggleAutoRecommendations = useCallback(
+    (enabled) => session.toggleAutoRecommendations(socket, enabled),
     [socket]
   );
 
@@ -609,7 +639,10 @@ export function GroupMusicProvider({ children }) {
     removeFromQueue: wrappedRemoveFromQueue,
     skipSong: wrappedSkipSong,
     reorderQueue: wrappedReorderQueue,
+    clearQueue: wrappedClearQueue,
     addPlaylistToQueue: wrappedAddPlaylistToQueue,
+    toggleAutoRecommendations: wrappedToggleAutoRecommendations,
+    autoPlayRecommendations: session.currentGroup?.settings?.autoPlayRecommendations !== false,
 
     createGroup: wrappedCreateGroup,
     joinGroup: wrappedJoinGroup,

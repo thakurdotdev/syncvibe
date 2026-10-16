@@ -2,7 +2,10 @@ import { AlbumCard, ArtistCard, PlaylistCard, SongCard } from '@/components/musi
 import { Tabs, TabItem } from '@/components/ui/tabs';
 import { SONG_URL } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
+import { toast } from '@/context/ToastContext';
 import { usePlayerControls } from '@/stores/playerStore';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import { useGroupMusic } from '@/context/GroupMusicContext';
 import { Album, Artist, ArtistDetails, Playlist } from '@/types/music';
 import { Song } from '@/types/song';
 import {
@@ -72,6 +75,10 @@ export default function ArtistScreen() {
   const scrollY = useSharedValue(0);
   const playScale = useSharedValue(1);
   const shuffleScale = useSharedValue(1);
+  const groupScale = useSharedValue(1);
+
+  const currentGroup = useGroupSessionStore((s) => s.currentGroup);
+  const { addPlaylistToQueue } = useGroupMusic();
 
   const fetchArtistData = useCallback(async () => {
     if (!id) return;
@@ -122,6 +129,10 @@ export default function ArtistScreen() {
 
   const shuffleBtnAnim = useAnimatedStyle(() => ({
     transform: [{ scale: shuffleScale.value }],
+  }));
+
+  const groupBtnAnim = useAnimatedStyle(() => ({
+    transform: [{ scale: groupScale.value }],
   }));
 
   const bgUrl = useMemo(() => {
@@ -230,6 +241,13 @@ export default function ArtistScreen() {
       playSong(shuffledSongs[0]);
     }
   }, [newSongs, artistData?.id, addToPlaylist, playSong]);
+
+  const handleAddToGroup = useCallback(() => {
+    if (newSongs.length > 0) {
+      addPlaylistToQueue(newSongs);
+      toast(`Added ${newSongs.length} songs to group queue`, { type: 'success' });
+    }
+  }, [newSongs, addPlaylistToQueue]);
 
   const isDark = theme === 'dark';
 
@@ -388,6 +406,32 @@ export default function ArtistScreen() {
           </Animated.View>
         </Pressable>
       </View>
+
+      {currentGroup && (
+        <Pressable
+          onPress={handleAddToGroup}
+          disabled={!newSongs.length}
+          onPressIn={() => (groupScale.value = withTiming(0.96, { duration: 60 }))}
+          onPressOut={() => (groupScale.value = withSpring(1, { damping: 16, stiffness: 350 }))}
+          style={{ marginBottom: 12, marginHorizontal: 16 }}
+        >
+          <Animated.View
+            style={[
+              styles.groupButton,
+              {
+                backgroundColor: isDark ? 'rgba(168, 85, 247, 0.16)' : 'rgba(147, 51, 234, 0.1)',
+                borderColor: isDark ? 'rgba(168, 85, 247, 0.35)' : 'rgba(147, 51, 234, 0.25)',
+              },
+              groupBtnAnim,
+            ]}
+          >
+            <Ionicons name='people' size={18} color='#a855f7' />
+            <Text style={[styles.groupButtonText, { color: '#a855f7' }]}>
+              Add to Group Queue ({newSongs.length})
+            </Text>
+          </Animated.View>
+        </Pressable>
+      )}
 
       {/* Reusable Themed Tabs */}
       <View style={styles.tabsSection}>
@@ -670,6 +714,19 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  groupButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    gap: 8,
+  },
+  groupButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   listContent: {
     paddingBottom: 130,

@@ -100,9 +100,16 @@ const SortableQueueItem = memo(({ item, isPlaying, onRemove, onFetchRecs, onSave
       </div>
 
       <div className='flex-1 min-w-0'>
-        <p className={cn('font-medium truncate text-sm', isPlaying && 'text-primary')}>
-          {item.song?.name}
-        </p>
+        <div className='flex items-center gap-1.5'>
+          <p className={cn('font-medium truncate text-sm', isPlaying && 'text-primary')}>
+            {item.song?.name}
+          </p>
+          {(item.isAutoRecommended || item.addedBy?.userId === 'system') && (
+            <span className='inline-flex items-center gap-0.5 text-[9px] font-semibold text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-md shrink-0'>
+              <Sparkles className='h-2.5 w-2.5' /> Auto
+            </span>
+          )}
+        </div>
         <p className='text-xs text-muted-foreground/70 truncate mt-0.5'>
           {item.song?.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist'}
         </p>
@@ -206,6 +213,9 @@ const QueueList = memo(
     upcomingQueue,
     removeFromQueue,
     reorderQueue,
+    clearQueue,
+    toggleAutoRecommendations,
+    autoPlayRecommendations = true,
     onFetchRecs,
     onSaveToPlaylist,
     user,
@@ -269,12 +279,41 @@ const QueueList = memo(
 
           {upcomingQueue.length > 0 && (
             <div>
-              <p className='text-[11px] font-semibold text-muted-foreground/50 uppercase tracking-widest px-2 mb-2'>
-                Up Next ({upcomingQueue.length})
-                <span className='normal-case tracking-normal text-muted-foreground/40 ml-1.5 font-normal'>
-                  — Drag to reorder
-                </span>
-              </p>
+              <div className='flex items-center justify-between px-2 mb-2'>
+                <p className='text-[11px] font-semibold text-muted-foreground/50 uppercase tracking-widest'>
+                  Up Next ({upcomingQueue.length})
+                  <span className='normal-case tracking-normal text-muted-foreground/40 ml-1.5 font-normal'>
+                    — Drag to reorder
+                  </span>
+                </p>
+                <div className='flex items-center gap-2'>
+                  {toggleAutoRecommendations && (
+                    <button
+                      onClick={() => toggleAutoRecommendations?.()}
+                      className={cn(
+                        'flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium transition-colors cursor-pointer',
+                        autoPlayRecommendations
+                          ? 'text-primary bg-primary/10 border border-primary/20'
+                          : 'text-muted-foreground/60 hover:text-foreground bg-accent/30'
+                      )}
+                      title='Toggle automatic recommendations'
+                    >
+                      <Sparkles className='h-3 w-3' />
+                      <span>Autoplay {autoPlayRecommendations ? 'On' : 'Off'}</span>
+                    </button>
+                  )}
+                  {clearQueue && (
+                    <button
+                      onClick={() => clearQueue?.()}
+                      className='flex items-center gap-1 text-[11px] text-muted-foreground/60 hover:text-rose-400 px-2 py-0.5 rounded-full hover:bg-rose-500/10 transition-colors cursor-pointer'
+                      title='Clear upcoming songs'
+                    >
+                      <Trash2 className='h-3 w-3' />
+                      <span>Clear</span>
+                    </button>
+                  )}
+                </div>
+              </div>
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}

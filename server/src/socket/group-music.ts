@@ -51,6 +51,7 @@ export const setupGroupMusicHandlers = (
       },
       ...getQueueState(group),
       currentSongId: group.currentSongId,
+      settings: group.settings,
     });
   });
 

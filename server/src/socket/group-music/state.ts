@@ -22,6 +22,7 @@ export interface QueueItem {
   addedBy: GroupMember;
   addedAt: number;
   status: 'pending' | 'playing' | 'played';
+  isAutoRecommended?: boolean;
 }
 
 export interface MusicGroup {
@@ -38,7 +39,9 @@ export interface MusicGroup {
   settings: {
     allowAnyoneToAdd: boolean;
     maxQueueSize: number;
+    autoPlayRecommendations: boolean;
   };
+  isFetchingRecommendations?: boolean;
   maxMembers: number;
   features: {
     realtimeChat: boolean;
@@ -165,6 +168,7 @@ export const createGroupState = (data: CreateGroupData): MusicGroup => ({
   settings: {
     allowAnyoneToAdd: true,
     maxQueueSize: data.planLimits?.realtimeSyncEnabled ? 50 : 3,
+    autoPlayRecommendations: true,
   },
   maxMembers: data.planLimits?.maxGroupMembers || 2,
   features: {

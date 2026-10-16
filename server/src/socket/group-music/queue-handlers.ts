@@ -15,8 +15,11 @@ import {
   prunePlayedSongs,
   reorderQueue,
   getQueueState,
+  clearPendingQueue,
+  addRecommendedSongsToQueue,
 } from './queue';
 import { Song, GroupSessionHistory } from '@/models/index';
+import { getPlayNextSongs } from '@/features/music/services/play-next.service';
 
 interface QueueActionData {
   groupId: string;
@@ -36,6 +39,16 @@ interface RemoveQueueData {
   userId: string | number;
 }
 
+interface ClearQueueData {
+  groupId: string;
+  userId: string | number;
+}
+
+interface ToggleAutoRecommendationsData {
+  groupId: string;
+  enabled?: boolean;
+}
+
 interface SkipSongData {
   groupId: string;
   userName?: string;
@@ -51,6 +64,77 @@ interface ReorderQueueData {
   fromIndex: number;
   toIndex: number;
 }
+
+export const ensureGroupHasRecommendations = async (
+  io: Server,
+  groupId: string,
+  seedSongId?: string
+): Promise<boolean> => {
+  const group = musicGroups.get(groupId);
+  if (!group || group.settings.autoPlayRecommendations === false || group.isFetchingRecommendations) {
+    return false;
+  }
+
+  const upcomingCount = group.queue.length - (group.currentQueueIndex + 1);
+  if (upcomingCount > 1) {
+    return false;
+  }
+
+  const baseSongId =
+    seedSongId ||
+    (group.currentQueueIndex >= 0 ? (group.queue[group.currentQueueIndex]?.song?.id as string) : null) ||
+    (group.queue.length > 0 ? (group.queue[group.queue.length - 1]?.song?.id as string) : null);
+
+  if (!baseSongId) return false;
+
+  group.isFetchingRecommendations = true;
+  try {
+    const existingSongIds = group.queue.map((q) => String(q.song?.id)).filter(Boolean);
+    const recs = await getPlayNextSongs({
+      baseSongId: String(baseSongId),
+      limit: 5,
+      excludeSongIds: existingSongIds,
+    });
+
+    if (recs && recs.length > 0) {
+      const { addedCount, autoPlay, firstItem } = addRecommendedSongsToQueue(group, recs);
+      if (addedCount > 0) {
+        io.to(`music-group-${groupId}`).emit('queue-updated', {
+          ...getQueueState(group),
+          action: 'auto-recs',
+          addedCount,
+        });
+
+        if (autoPlay && firstItem) {
+          const serverTime = Date.now();
+          const scheduledPlayTime = serverTime + getScheduledDelay(group);
+          io.to(`music-group-${groupId}`).emit('music-update', {
+            song: firstItem.song,
+            currentTime: 0,
+            queueItem: firstItem,
+            scheduledPlayTime,
+            serverTime,
+          });
+          group.playbackState.isPlaying = true;
+          group.playbackState.currentTime = 0;
+          group.playbackState.lastUpdate = scheduledPlayTime;
+
+          emitActivityMessage(io, groupId, 'song-playing', {
+            songName: (firstItem.song.name as string) || 'Song',
+            addedBy: 'Auto-Play',
+          });
+        }
+        return true;
+      }
+    }
+    return false;
+  } catch (err) {
+    console.error(`[GroupMusic] Auto-recommendation error for group ${groupId}:`, err);
+    return false;
+  } finally {
+    group.isFetchingRecommendations = false;
+  }
+};
 
 const persistSongHistory = async (group: MusicGroup, queueItem: QueueItem): Promise<void> => {
   if (!queueItem?.song?.id) return;
@@ -228,7 +312,7 @@ export const setupQueueHandlers = (io: Server, socket: Socket): void => {
     }
   });
 
-  socket.on('skip-song', (data: SkipSongData) => {
+  socket.on('skip-song', async (data: SkipSongData) => {
     const { groupId, userName } = data;
     const group = musicGroups.get(groupId);
     if (!group) return;
@@ -236,11 +320,22 @@ export const setupQueueHandlers = (io: Server, socket: Socket): void => {
     const completedItem =
       group.currentQueueIndex >= 0 ? group.queue[group.currentQueueIndex] : null;
 
-    const result = skipToNext(group);
+    let result = skipToNext(group);
 
     if (result.success) {
       if (completedItem) persistSongHistory(group, completedItem);
       prunePlayedSongs(group);
+
+      if (!result.hasNext) {
+        const added = await ensureGroupHasRecommendations(
+          io,
+          groupId,
+          completedItem?.song?.id as string
+        );
+        if (added) {
+          result = skipToNext(group);
+        }
+      }
 
       io.to(`music-group-${groupId}`).emit('queue-updated', {
         ...getQueueState(group),
@@ -267,6 +362,8 @@ export const setupQueueHandlers = (io: Server, socket: Socket): void => {
           songName: (result.currentItem.song.name as string) || 'Song',
           addedBy: result.currentItem.addedBy?.userName,
         });
+
+        ensureGroupHasRecommendations(io, groupId);
       } else {
         io.to(`music-group-${groupId}`).emit('queue-ended');
         emitActivityMessage(io, groupId, 'queue-ended', {});
@@ -274,7 +371,7 @@ export const setupQueueHandlers = (io: Server, socket: Socket): void => {
     }
   });
 
-  socket.on('song-ended', (data: SongEndedData) => {
+  socket.on('song-ended', async (data: SongEndedData) => {
     const { groupId, songId } = data;
     const group = musicGroups.get(groupId);
     if (!group) return;
@@ -282,7 +379,7 @@ export const setupQueueHandlers = (io: Server, socket: Socket): void => {
     const completedItem =
       group.currentQueueIndex >= 0 ? group.queue[group.currentQueueIndex] : null;
 
-    const result = skipToNext(group, songId || null);
+    let result = skipToNext(group, songId || null);
 
     if (result.alreadyAdvanced) {
       console.log(`Ignoring duplicate song-ended for song ${songId}`);
@@ -293,6 +390,17 @@ export const setupQueueHandlers = (io: Server, socket: Socket): void => {
 
     if (completedItem) persistSongHistory(group, completedItem);
     prunePlayedSongs(group);
+
+    if (!result.hasNext) {
+      const added = await ensureGroupHasRecommendations(
+        io,
+        groupId,
+        completedItem?.song?.id as string
+      );
+      if (added) {
+        result = skipToNext(group);
+      }
+    }
 
     io.to(`music-group-${groupId}`).emit('queue-updated', {
       ...getQueueState(group),
@@ -318,11 +426,56 @@ export const setupQueueHandlers = (io: Server, socket: Socket): void => {
         songName: (result.currentItem.song.name as string) || 'Song',
         addedBy: result.currentItem.addedBy?.userName,
       });
+
+      ensureGroupHasRecommendations(io, groupId);
     } else {
       io.to(`music-group-${groupId}`).emit('queue-ended');
       emitActivityMessage(io, groupId, 'queue-ended', {});
     }
   });
+
+  socket.on('clear-queue', (data: ClearQueueData) => {
+    const { groupId, userId } = data;
+    const group = musicGroups.get(groupId);
+    if (!group) return;
+
+    const result = clearPendingQueue(group, userId);
+
+    if (result.success) {
+      io.to(`music-group-${groupId}`).emit('queue-updated', {
+        ...getQueueState(group),
+        action: 'clear',
+        clearedCount: result.clearedCount,
+      });
+
+      // If autoplay recommendations is enabled, top up recommendations
+      if (group.settings.autoPlayRecommendations) {
+        ensureGroupHasRecommendations(io, groupId);
+      }
+    } else {
+      socket.emit('queue-error', { error: result.error });
+    }
+  });
+
+  socket.on(
+    'toggle-auto-recommendations',
+    (data: ToggleAutoRecommendationsData) => {
+      const { groupId, enabled } = data;
+      const group = musicGroups.get(groupId);
+      if (!group) return;
+
+      group.settings.autoPlayRecommendations =
+        typeof enabled === 'boolean' ? enabled : !group.settings.autoPlayRecommendations;
+
+      io.to(`music-group-${groupId}`).emit('group-settings-updated', {
+        settings: group.settings,
+      });
+
+      if (group.settings.autoPlayRecommendations) {
+        ensureGroupHasRecommendations(io, groupId);
+      }
+    }
+  );
 
   socket.on('reorder-queue', (data: ReorderQueueData) => {
     const { groupId, fromIndex, toIndex } = data;

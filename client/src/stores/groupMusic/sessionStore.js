@@ -275,6 +275,24 @@ export const useGroupSessionStore = create((set, get) => ({
     socket.emit('skip-song', { groupId: currentGroup.id, userName: user?.name });
   },
 
+  clearQueue: (socket, user) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || !user) return;
+    socket.emit('clear-queue', {
+      groupId: currentGroup.id,
+      userId: user.userid,
+    });
+  },
+
+  toggleAutoRecommendations: (socket, enabled) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id) return;
+    socket.emit('toggle-auto-recommendations', {
+      groupId: currentGroup.id,
+      enabled,
+    });
+  },
+
   reorderQueue: (socket, fromIndex, toIndex) => {
     const { currentGroup } = get();
     if (!currentGroup?.id || fromIndex === toIndex) return;

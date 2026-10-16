@@ -15,6 +15,7 @@ import MusicNavbar from './components/MusicNavbar';
 import ModeChooser from './components/ModeChooser';
 import UploadIndicator from './components/Posts/UploadIndicator';
 import MobileBottomBar from './components/MobileBottomBar';
+import ActiveGroupBar from './components/ActiveGroupBar';
 import { useSidebar } from './components/ui/sidebar';
 import { useProfileSuspenseQuery } from './hooks/queries/useProfileQuery';
 import { useIsMobile } from './hooks/use-mobile';
@@ -178,6 +179,7 @@ export const ProtectedRoutes = () => {
       />
       {isInCall && <VideoCallUI />}
       <UploadIndicator />
+      <ActiveGroupBar />
     </>
   );
 };
@@ -204,6 +206,7 @@ const MusicLayout = () => {
         </div>
       </main>
       <BottomPlayer />
+      <ActiveGroupBar />
       {isMobile && <MobileBottomBar />}
     </>
   );

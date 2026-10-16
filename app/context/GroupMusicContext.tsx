@@ -36,6 +36,8 @@ interface GroupMusicContextType {
   removeFromQueue: (queueItemId: string) => void;
   reorderQueue: (fromIndex: number, toIndex: number) => void;
   addPlaylistToQueue: (songs: Song[]) => void;
+  clearQueue: () => void;
+  toggleAutoRecommendations: (enabled?: boolean) => void;
   sendReaction: (emoji: string) => void;
   startTyping: () => void;
   stopTyping: () => void;
@@ -456,6 +458,17 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     [socket, user]
   );
 
+  const clearQueue = useCallback(() => {
+    ss.getState().clearQueue(socket, user);
+  }, [socket, user]);
+
+  const toggleAutoRecommendations = useCallback(
+    (enabled?: boolean) => {
+      ss.getState().toggleAutoRecommendations(socket, enabled);
+    },
+    [socket]
+  );
+
   const sendReaction = useCallback(
     (emoji: string) => {
       if (!groupId || !user) return;
@@ -518,6 +531,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       removeFromQueue,
       reorderQueue,
       addPlaylistToQueue,
+      clearQueue,
+      toggleAutoRecommendations,
       sendReaction,
       startTyping,
       stopTyping,
@@ -541,6 +556,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       removeFromQueue,
       reorderQueue,
       addPlaylistToQueue,
+      clearQueue,
+      toggleAutoRecommendations,
       sendReaction,
       startTyping,
       stopTyping,

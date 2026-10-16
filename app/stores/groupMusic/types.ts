@@ -23,6 +23,7 @@ export interface Group {
   settings?: {
     maxQueueSize: number;
     allowAnyoneToAdd: boolean;
+    autoPlayRecommendations?: boolean;
   };
 }
 
@@ -33,9 +34,11 @@ export interface QueueItem {
     userId: number | string;
     userName: string;
     profilePic: string;
+    isSystem?: boolean;
   };
   addedAt: number;
   status: 'pending' | 'playing' | 'played';
+  isAutoRecommended?: boolean;
 }
 
 export interface Message {

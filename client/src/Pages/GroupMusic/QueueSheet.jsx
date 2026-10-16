@@ -47,6 +47,9 @@ const QueueSheet = () => {
     playNext,
     addToQueue,
     addPlaylistToQueue,
+    clearQueue,
+    toggleAutoRecommendations,
+    autoPlayRecommendations,
   } = useGroupMusic();
 
   const inputRef = useRef(null);
@@ -406,9 +409,12 @@ const QueueSheet = () => {
                   upcomingQueue={upcomingQueue}
                   removeFromQueue={removeFromQueue}
                   reorderQueue={reorderQueue}
+                  clearQueue={clearQueue}
+                  toggleAutoRecommendations={toggleAutoRecommendations}
+                  autoPlayRecommendations={autoPlayRecommendations}
                   onFetchRecs={handleManualFetchRecs}
                   onSaveToPlaylist={handleSaveToPlaylist}
-                  user={null}
+                  user={user}
                   currentGroup={currentGroup}
                 />
               )}

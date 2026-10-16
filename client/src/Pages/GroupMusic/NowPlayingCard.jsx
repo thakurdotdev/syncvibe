@@ -9,7 +9,9 @@ import {
   Loader2,
   Pause,
   Play,
+  SkipBack,
   SkipForward,
+  Sparkles,
   Volume2,
   VolumeX,
   ListMusic,
@@ -87,6 +89,9 @@ const NowPlayingCard = ({
   sendReaction,
   onPlayNow,
   onAddToQueue,
+  onToggleAutoRecommendations,
+  autoPlayRecommendations = true,
+  onRestartSong,
 }) => {
   const isMuted = volume === 0;
   const disabled = isLoading || isSyncing;
@@ -292,6 +297,15 @@ const NowPlayingCard = ({
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-1.5'>
             <motion.button
+              onClick={() => (onRestartSong ? onRestartSong() : onSeek?.([0]))}
+              disabled={disabled}
+              whileTap={!disabled ? TAP_SPRING : undefined}
+              title='Restart song'
+              className='h-8 w-8 rounded-full liquid-btn flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer disabled:opacity-50'
+            >
+              <SkipBack className='h-3.5 w-3.5' />
+            </motion.button>
+            <motion.button
               onClick={() => onPlayPause()}
               disabled={disabled}
               whileTap={!disabled ? TAP_SPRING : undefined}
@@ -309,9 +323,27 @@ const NowPlayingCard = ({
               onClick={() => onSkip?.()}
               disabled={disabled}
               whileTap={!disabled ? TAP_SPRING : undefined}
+              title='Skip song'
               className='h-8 w-8 rounded-full liquid-btn flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer disabled:opacity-50'
             >
               <SkipForward className='h-3.5 w-3.5' />
+            </motion.button>
+            <motion.button
+              onClick={() => onToggleAutoRecommendations?.()}
+              whileTap={TAP_SPRING}
+              title={
+                autoPlayRecommendations
+                  ? 'Autoplay: On (buffering recommendations)'
+                  : 'Autoplay: Off'
+              }
+              className={cn(
+                'h-8 w-8 rounded-full flex items-center justify-center transition-all cursor-pointer',
+                autoPlayRecommendations
+                  ? 'text-primary bg-primary/15 ring-1 ring-primary/30 shadow-sm'
+                  : 'liquid-btn text-muted-foreground/60 hover:text-foreground'
+              )}
+            >
+              <Sparkles className='h-3.5 w-3.5' />
             </motion.button>
           </div>
           <div className='flex items-center gap-0.5'>
@@ -460,6 +492,15 @@ const NowPlayingCard = ({
         <div className='flex items-center justify-between px-5 lg:px-6 pt-3 pb-4'>
           <div className='flex items-center gap-2'>
             <motion.button
+              onClick={() => (onRestartSong ? onRestartSong() : onSeek?.([0]))}
+              disabled={disabled}
+              whileTap={!disabled ? TAP_SPRING : undefined}
+              title='Restart song'
+              className='h-9 w-9 rounded-full liquid-btn flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer disabled:opacity-50'
+            >
+              <SkipBack className='h-4 w-4' />
+            </motion.button>
+            <motion.button
               onClick={() => onPlayPause()}
               disabled={disabled}
               whileTap={!disabled ? TAP_SPRING : undefined}
@@ -477,9 +518,28 @@ const NowPlayingCard = ({
               onClick={() => onSkip?.()}
               disabled={disabled}
               whileTap={!disabled ? TAP_SPRING : undefined}
+              title='Skip song'
               className='h-9 w-9 rounded-full liquid-btn flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer disabled:opacity-50'
             >
               <SkipForward className='h-4 w-4' />
+            </motion.button>
+            <motion.button
+              onClick={() => onToggleAutoRecommendations?.()}
+              whileTap={TAP_SPRING}
+              title={
+                autoPlayRecommendations
+                  ? 'Autoplay: On (playing recommendations when queue ends)'
+                  : 'Autoplay: Off'
+              }
+              className={cn(
+                'h-9 px-3 rounded-full flex items-center gap-1.5 text-xs font-medium transition-all cursor-pointer',
+                autoPlayRecommendations
+                  ? 'text-primary bg-primary/15 ring-1 ring-primary/30 shadow-sm shadow-primary/10'
+                  : 'liquid-btn text-muted-foreground/60 hover:text-foreground'
+              )}
+            >
+              <Sparkles className='h-3.5 w-3.5' />
+              <span className='hidden sm:inline text-[11px] font-semibold'>Autoplay</span>
             </motion.button>
 
             <div className='h-5 w-px bg-border/20 mx-1' />

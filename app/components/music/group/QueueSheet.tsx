@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   NativeScrollEvent,
@@ -16,6 +17,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import SwipeableModal from '@/components/SwipeableModal';
 import { Input } from '@/components/ui/input';
 import { useTheme } from '@/context/ThemeContext';
+import { toast } from '@/context/ToastContext';
 import { useUser } from '@/context/UserContext';
 import useApi from '@/utils/hooks/useApi';
 import { useGroupMusic } from '@/context/GroupMusicContext';
@@ -62,19 +64,27 @@ const QueueItemRow = React.memo(
           <Text style={[styles.itemArtist, { color: colors.mutedForeground }]} numberOfLines={1}>
             {artist}
           </Text>
-          {item.addedBy && (
-            <View style={styles.itemAddedBy}>
-              {item.addedBy.profilePic ? (
-                <Image
-                  source={{ uri: String(item.addedBy.profilePic) }}
-                  style={styles.itemAvatar}
-                />
-              ) : null}
-              <Text style={[styles.itemAddedByText, { color: colors.mutedForeground }]}>
-                {item.addedBy.userName}
-              </Text>
-            </View>
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            {item.isAutoRecommended && (
+              <View style={styles.autoBadge}>
+                <Ionicons name='sparkles' size={10} color='#a855f7' />
+                <Text style={styles.autoBadgeText}>Auto</Text>
+              </View>
+            )}
+            {item.addedBy && !item.isAutoRecommended && (
+              <View style={styles.itemAddedBy}>
+                {item.addedBy.profilePic ? (
+                  <Image
+                    source={{ uri: String(item.addedBy.profilePic) }}
+                    style={styles.itemAvatar}
+                  />
+                ) : null}
+                <Text style={[styles.itemAddedByText, { color: colors.mutedForeground }]}>
+                  {item.addedBy.userName}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
         <TouchableOpacity
           onPress={() => onRemove(item.id)}
@@ -327,8 +337,19 @@ export const QueueSheet: React.FC = () => {
   const api = useApi();
   const { user } = useUser();
   const { colors } = useTheme();
-  const { removeFromQueue, addToQueue, playNow, playNext, addPlaylistToQueue } = useGroupMusic();
+  const {
+    removeFromQueue,
+    addToQueue,
+    playNow,
+    playNext,
+    addPlaylistToQueue,
+    clearQueue,
+    toggleAutoRecommendations,
+  } = useGroupMusic();
   const insets = useSafeAreaInsets();
+
+  const currentGroup = useGroupSessionStore((s) => s.currentGroup);
+  const autoPlay = currentGroup?.settings?.autoPlayRecommendations !== false;
 
   const isQueueOpen = useGroupSessionStore((s) => s.isQueueOpen);
   const queue = useGroupSessionStore((s) => s.queue);
@@ -540,6 +561,24 @@ export const QueueSheet: React.FC = () => {
 
   const handlePlayNext = useCallback((song: Song) => playNext(song), [playNext]);
 
+  const handleClearQueue = useCallback(() => {
+    Alert.alert(
+      'Clear Upcoming Queue',
+      'Remove all upcoming tracks from the queue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: () => {
+            clearQueue();
+            toast('Upcoming queue cleared', { type: 'info' });
+          },
+        },
+      ]
+    );
+  }, [clearQueue]);
+
   const currentArtist = currentSong?.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
 
   const renderQueueItem = useCallback(
@@ -571,6 +610,20 @@ export const QueueSheet: React.FC = () => {
         return (
           <View style={styles.listHeader}>
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>UP NEXT</Text>
+            <TouchableOpacity
+              onPress={handleClearQueue}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: '600',
+                  color: colors.destructive || '#ef4444',
+                }}
+              >
+                Clear
+              </Text>
+            </TouchableOpacity>
           </View>
         );
       }
@@ -609,11 +662,57 @@ export const QueueSheet: React.FC = () => {
         {upcomingQueue.length > 0 && (
           <View style={styles.listHeader}>
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>UP NEXT</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => toggleAutoRecommendations()}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons
+                  name='sparkles'
+                  size={12}
+                  color={autoPlay ? '#a855f7' : colors.mutedForeground}
+                />
+                <Text
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: '600',
+                    color: autoPlay ? '#a855f7' : colors.mutedForeground,
+                  }}
+                >
+                  Autoplay
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleClearQueue}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: '600',
+                    color: colors.destructive || '#ef4444',
+                  }}
+                >
+                  Clear
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
     );
-  }, [currentSong, currentQueueItem, upcomingQueue.length, colors, currentArtist, isPlaying]);
+  }, [
+    currentSong,
+    currentQueueItem,
+    upcomingQueue.length,
+    colors,
+    currentArtist,
+    isPlaying,
+    autoPlay,
+    handleClearQueue,
+    toggleAutoRecommendations,
+  ]);
 
   const TABS: { key: TabKey; label: string; icon: string }[] = [
     { key: 'queue', label: 'Queue', icon: 'list' },
@@ -848,6 +947,23 @@ const styles = StyleSheet.create({
   listHeader: {
     marginTop: 12,
     paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  autoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+  },
+  autoBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#a855f7',
   },
   header: {
     flexDirection: 'row',

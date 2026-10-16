@@ -1,6 +1,6 @@
 import { Context } from '@/Context/Context';
 import { usePlayerStore } from '@/stores/playerStore';
-import { CalendarDays, ListMusic, Play, Shuffle, Trash2, ArrowLeft } from 'lucide-react';
+import { CalendarDays, ListMusic, Play, Shuffle, Trash2, ArrowLeft, Users } from 'lucide-react';
 import { useContext, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { SongCard } from './Cards';
@@ -11,6 +11,7 @@ import { useRemoveSongFromPlaylistMutation } from '@/hooks/mutations/usePlaylist
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { useGroupMusic } from '@/Context/GroupMusicContext';
 
 const PlaylistHeader = ({ playlistData }) => {
   const bgUrl = Array.isArray(playlistData?.image) ? playlistData?.image[2]?.link : '';
@@ -73,6 +74,7 @@ const UserPlaylistDetails = () => {
   const setPlaylist = usePlayerStore((s) => s.setPlaylist);
   const playSong = usePlayerStore((s) => s.playSong);
 
+  const { currentGroup, addPlaylistToQueue } = useGroupMusic();
   const { data: playlistData, isLoading } = usePlaylistDetailsQuery(id);
 
   const removeMutation = useRemoveSongFromPlaylistMutation({
@@ -133,7 +135,7 @@ const UserPlaylistDetails = () => {
 
       <PlaylistHeader playlistData={playlistData} />
 
-      <div className='flex items-center gap-3'>
+      <div className='flex items-center gap-3 flex-wrap'>
         <Button
           onClick={handlePlayAll}
           disabled={!playlistData?.songs?.length}
@@ -154,6 +156,19 @@ const UserPlaylistDetails = () => {
           <Shuffle className='w-4 h-4' />
           Shuffle
         </Button>
+
+        {currentGroup && playlistData?.songs?.length > 0 && (
+          <Button
+            variant='outline'
+            onClick={() => addPlaylistToQueue(playlistData.songs.map((s) => s.songData))}
+            size='sm'
+            className='rounded-lg h-9 px-4 gap-2 border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary font-semibold cursor-pointer active:scale-95 transition-all'
+            title={`Add ${playlistData.songs.length} tracks to ${currentGroup.name}`}
+          >
+            <Users className='w-4 h-4' />
+            Add to Group Queue ({playlistData.songs.length})
+          </Button>
+        )}
       </div>
 
       <div className='space-y-4'>

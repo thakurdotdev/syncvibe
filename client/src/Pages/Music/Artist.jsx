@@ -81,6 +81,7 @@ const Artist = () => {
         onPlayAll={handlePlayAll}
         onShuffle={handleShuffle}
         disabled={!artistData?.top_songs?.length}
+        songs={artistData?.top_songs}
       />
 
       <h2 className='text-2xl font-semibold mt-6'>Top Songs</h2>

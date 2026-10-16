@@ -10,6 +10,7 @@ import {
   Shuffle,
   SkipBack,
   SkipForward,
+  Users,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -20,6 +21,7 @@ import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { usePlayerStore } from '@/stores/playerStore';
+import { useGroupMusic } from '@/Context/GroupMusicContext';
 
 export const formatTime = (time) => {
   if (!time) return '00:00';
@@ -28,11 +30,24 @@ export const formatTime = (time) => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-export const PlaylistActions = ({ onPlayAll, onShuffle, disabled, showShare = true }) => {
+export const PlaylistActions = ({
+  onPlayAll,
+  onShuffle,
+  disabled,
+  songs = [],
+  showShare = true,
+}) => {
   const [isShareDrawerOpen, setIsShareDrawerOpen] = useState(false);
+  const { currentGroup, addPlaylistToQueue } = useGroupMusic();
+
+  const handleAddToGroup = () => {
+    if (!songs?.length) return;
+    addPlaylistToQueue(songs);
+  };
+
   return (
     <>
-      <div className='flex items-center gap-2'>
+      <div className='flex items-center gap-2 flex-wrap'>
         <Button onClick={onPlayAll} disabled={disabled} className='gap-2'>
           <Play className='w-4 h-4' />
           Play All
@@ -42,6 +57,19 @@ export const PlaylistActions = ({ onPlayAll, onShuffle, disabled, showShare = tr
           <Shuffle className='w-4 h-4' />
           Shuffle
         </Button>
+
+        {currentGroup && songs?.length > 0 && (
+          <Button
+            variant='outline'
+            onClick={handleAddToGroup}
+            disabled={disabled}
+            className='gap-2 border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary font-medium transition-all cursor-pointer'
+            title={`Add ${songs.length} tracks to ${currentGroup.name}`}
+          >
+            <Users className='w-4 h-4' />
+            Add to Group Queue ({songs.length})
+          </Button>
+        )}
 
         {showShare && (
           <Button variant='outline' onClick={() => setIsShareDrawerOpen(true)} className='gap-2'>

@@ -1,10 +1,11 @@
 import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
 import he from 'he';
-import { Disc3, ListMusic, Loader2, MoreVertical, Pencil, Play, Trash2 } from 'lucide-react';
+import { Disc3, ListMusic, Loader2, MoreVertical, Pencil, Play, Trash2, Users, Radio } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useGroupMusic } from '@/Context/GroupMusicContext';
 import LazyImage from '@/components/LazyImage';
 import {
   AlertDialog,
@@ -130,6 +131,7 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
   const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
   const setPlaylist = usePlayerStore((s) => s.setPlaylist);
   const addToQueue = usePlayerStore((s) => s.addToQueue);
+  const { currentGroup, addToQueue: addToGroupQueue, playNext: playNextInGroup } = useGroupMusic();
 
   const [loading, setLoading] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -307,6 +309,30 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
                       : 'Remove from queue'
                     : 'Add to queue'}
                 </DropdownMenuItem>
+                {currentGroup && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addToGroupQueue(song);
+                      }}
+                      className='text-primary font-medium focus:text-primary focus:bg-primary/10'
+                    >
+                      <Users className='w-4 h-4 mr-2' />
+                      Add to Group Queue
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        playNextInGroup(song);
+                      }}
+                      className='text-primary font-medium focus:text-primary focus:bg-primary/10'
+                    >
+                      <Radio className='w-4 h-4 mr-2' />
+                      Play Next in Group
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className='rounded-lg cursor-pointer'
@@ -350,6 +376,7 @@ export const NewSongCard = memo(({ song }) => {
   const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
   const setPlaylist = usePlayerStore((s) => s.setPlaylist);
   const addToQueue = usePlayerStore((s) => s.addToQueue);
+  const { currentGroup, addToQueue: addToGroupQueue, playNext: playNextInGroup } = useGroupMusic();
 
   const [loading, setLoading] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -519,6 +546,30 @@ export const NewSongCard = memo(({ song }) => {
                         : 'Remove from queue'
                       : 'Add to queue'}
                   </DropdownMenuItem>
+                  {currentGroup && (
+                    <>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addToGroupQueue(song);
+                        }}
+                        className='text-primary font-medium focus:text-primary focus:bg-primary/10'
+                      >
+                        <Users className='w-4 h-4 mr-2' />
+                        Add to Group Queue
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          playNextInGroup(song);
+                        }}
+                        className='text-primary font-medium focus:text-primary focus:bg-primary/10'
+                      >
+                        <Radio className='w-4 h-4 mr-2' />
+                        Play Next in Group
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={(e) => {
