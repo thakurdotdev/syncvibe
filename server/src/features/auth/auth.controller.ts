@@ -126,7 +126,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     res
       .status(200)
       .cookie('token', result.token, {
-        ...getAuthCookieOptions(req),
+        ...getAuthCookieOptions(),
         expires: CookieExpiryDate,
       })
       .json({ message: 'Success', token: result.token });
@@ -242,7 +242,7 @@ export const guestLogin = async (req: Request, res: Response): Promise<void> => 
     res
       .status(200)
       .cookie('token', token, {
-        ...getAuthCookieOptions(req),
+        ...getAuthCookieOptions(),
         expires: new Date(Date.now() + 86400000),
       })
       .json({ message: 'Guest login successful', token });
@@ -285,7 +285,7 @@ export const verify2FA = async (req: Request, res: Response): Promise<void> => {
       res
         .status(200)
         .cookie('token', result.token, {
-          ...getAuthCookieOptions(req),
+          ...getAuthCookieOptions(),
           expires: CookieExpiryDate,
         })
         .json({ message: result.message, token: result.token });

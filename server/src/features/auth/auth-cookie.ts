@@ -1,35 +1,37 @@
 import type { CookieOptions, Request, Response } from 'express';
 
-const SHARED_COOKIE_DOMAIN = '.thakur.dev';
+const SHARED_COOKIE_DOMAIN = process.env.PRODUCTION_DOMAINS || '.thakur.dev';
 
-const isLocalHostname = (hostname: string): boolean =>
-  hostname === 'localhost' ||
-  hostname === '127.0.0.1' ||
-  hostname === '::1' ||
-  /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
+const isProd = process.env.NODE_ENV === 'production';
 
 /**
  * Keep token creation and removal on exactly the same cookie contract.
- * A domain cookie is only valid for our shared production domain; local
- * development must use a host-only cookie because browsers reject a
- * `.thakur.dev` cookie from localhost.
+ * Derives production vs local from CLIENT_URL — single source of truth.
+ *
+ * Production: secure + lax + httpOnly + shared domain cookie
+ * Local dev:  no-secure + lax + httpOnly + host-only cookie
  */
-export const getAuthCookieOptions = (req: Request): CookieOptions => {
-  const hostname = req.hostname?.toLowerCase() || '';
-  const isProductionDomain = hostname === 'thakur.dev' || hostname.endsWith('.thakur.dev');
-  const secure = process.env.NODE_ENV === 'production' || req.secure;
+export const getAuthCookieOptions = (): CookieOptions => {
+  if (isProd) {
+    return {
+      domain: SHARED_COOKIE_DOMAIN,
+      secure: true,
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+    };
+  }
 
   return {
-    ...(isProductionDomain && !isLocalHostname(hostname) ? { domain: SHARED_COOKIE_DOMAIN } : {}),
-    secure,
+    secure: false,
     httpOnly: true,
-    sameSite: secure ? 'none' : 'lax',
+    sameSite: 'lax',
     path: '/',
   };
 };
 
-export const clearAuthCookie = (req: Request, res: Response): void => {
-  const options = getAuthCookieOptions(req);
+export const clearAuthCookie = (_req: Request, res: Response): void => {
+  const options = getAuthCookieOptions();
   const { domain, ...hostOnlyOptions } = options;
 
   // Clear a host-only cookie as well as the shared-domain cookie. This also

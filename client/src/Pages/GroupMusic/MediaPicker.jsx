@@ -24,6 +24,7 @@ const MEDIA_TABS = [
  */
 const MediaCard = memo(({ item, type, onSelect }) => {
   const [hovered, setHovered] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   const isSticker = type === 'stickers';
   const isClip = type === 'clips';
@@ -46,8 +47,16 @@ const MediaCard = memo(({ item, type, onSelect }) => {
           src={hovered ? animatedSrc : staticSrc}
           alt={item.title || 'Sticker'}
           loading='lazy'
-          className='w-full h-full object-contain transition-transform duration-200 group-hover:scale-105'
+          onLoad={() => setLoaded(true)}
+          className='w-full h-full object-contain transition-all duration-200 group-hover:scale-105'
+          style={{ opacity: loaded ? 1 : 0 }}
         />
+        {!loaded && (
+          <div
+            className='absolute inset-2 rounded-lg animate-pulse'
+            style={{ background: 'hsl(var(--muted) / 0.25)' }}
+          />
+        )}
         {hovered && (
           <div className='absolute inset-0 rounded-xl pointer-events-none ring-1.5 ring-primary/60' />
         )}
@@ -62,14 +71,25 @@ const MediaCard = memo(({ item, type, onSelect }) => {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       title={item.title || 'Send media'}
-      className='group relative w-full rounded-xl overflow-hidden cursor-pointer border-0 p-0 block bg-muted/25 transition-all duration-200 hover:shadow-md'
+      className='group relative w-full aspect-[4/3] rounded-xl overflow-hidden cursor-pointer border-0 p-0 flex items-center justify-center transition-all duration-200 hover:shadow-md'
+      style={{ background: 'hsl(var(--muted) / 0.25)' }}
     >
       <img
         src={hovered ? animatedSrc : staticSrc}
         alt={item.title || 'Media preview'}
         loading='lazy'
-        className='w-full h-auto max-h-[220px] min-h-[85px] object-cover rounded-xl block transition-transform duration-200 group-hover:scale-[1.02]'
+        onLoad={() => setLoaded(true)}
+        className='w-full h-full object-cover rounded-xl block transition-all duration-300 group-hover:scale-[1.02]'
+        style={{ opacity: loaded ? 1 : 0 }}
       />
+
+      {/* Shimmer placeholder while loading */}
+      {!loaded && (
+        <div
+          className='absolute inset-0 rounded-xl animate-pulse'
+          style={{ background: 'hsl(var(--muted) / 0.25)' }}
+        />
+      )}
 
       {/* Subtle clip badge in corner */}
       {isClip && (
@@ -433,15 +453,15 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
             className={
               activeTab === 'stickers'
                 ? 'grid grid-cols-3 sm:grid-cols-4 gap-2'
-                : 'columns-2 sm:columns-3 gap-2'
+                : 'grid grid-cols-2 sm:grid-cols-3 gap-2'
             }
           >
             {Array.from({ length: 9 }).map((_, i) => (
               <div
                 key={i}
                 className={cn(
-                  'rounded-xl animate-pulse w-full mb-2',
-                  activeTab === 'stickers' ? 'aspect-square mb-0' : i % 2 === 0 ? 'h-32' : 'h-24'
+                  'rounded-xl animate-pulse w-full',
+                  activeTab === 'stickers' ? 'aspect-square' : 'aspect-[4/3]'
                 )}
                 style={{ background: 'hsl(var(--muted) / 0.25)' }}
               />
@@ -481,15 +501,14 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
                 ))}
               </div>
             ) : (
-              <div className='columns-2 sm:columns-3 gap-2'>
+              <div className='grid grid-cols-2 sm:grid-cols-3 gap-2'>
                 {items.map((item, idx) => (
-                  <div key={`${item.id}-${idx}`} className='break-inside-avoid mb-2'>
-                    <MediaCard
-                      item={item}
-                      type={activeTab}
-                      onSelect={handleSelectMedia}
-                    />
-                  </div>
+                  <MediaCard
+                    key={`${item.id}-${idx}`}
+                    item={item}
+                    type={activeTab}
+                    onSelect={handleSelectMedia}
+                  />
                 ))}
               </div>
             )}

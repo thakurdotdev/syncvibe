@@ -53,7 +53,7 @@ export const googleAuthCallback = (req: Request, res: Response, next: NextFuncti
 
       const { token } = user;
       res.cookie('token', token, {
-        ...getAuthCookieOptions(req),
+        ...getAuthCookieOptions(),
         expires: CookieExpiryDate,
       });
       const redirectMap: Record<string, string> = { 'syncvibe.thakur.dev': '/feed' };

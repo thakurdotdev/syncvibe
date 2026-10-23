@@ -65,7 +65,7 @@ const generateToken = (user: UserPayload): string => {
 
 const setCookie = (res: Response, token: string): void => {
   res.cookie('token', token, {
-    ...getAuthCookieOptions(res.req),
+    ...getAuthCookieOptions(),
     expires: CONFIG.COOKIE_EXPIRY,
   });
 };

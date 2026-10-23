@@ -14,6 +14,8 @@ import {
   Image as ImageIcon,
   Volume2,
   VolumeX,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -113,10 +115,21 @@ const isVideoMedia = (url) => {
   return /\.(mp4|webm|mov)(\?.*)?$/i.test(url);
 };
 
-const GifContent = memo(({ url }) => {
+const GifContent = memo(({ url, globalBlur }) => {
   const isVideo = isVideoMedia(url);
+  const [blurred, setBlurred] = useState(globalBlur);
+  const prevGlobalRef = useRef(globalBlur);
+
+  // Sync individual state when global toggle changes
+  useEffect(() => {
+    if (globalBlur !== prevGlobalRef.current) {
+      setBlurred(globalBlur);
+      prevGlobalRef.current = globalBlur;
+    }
+  }, [globalBlur]);
+
   return (
-    <div className='overflow-hidden rounded-xl max-w-[240px]'>
+    <div className='overflow-hidden rounded-xl max-w-[240px] relative group/media'>
       {isVideo ? (
         <video
           src={url}
@@ -125,7 +138,13 @@ const GifContent = memo(({ url }) => {
           muted
           playsInline
           className='w-full h-auto rounded-xl object-cover block shadow-xs'
-          style={{ maxHeight: 220, minHeight: 60, background: 'hsl(var(--muted) / 0.3)' }}
+          style={{
+            maxHeight: 220,
+            minHeight: 60,
+            background: 'hsl(var(--muted) / 0.3)',
+            filter: blurred ? 'blur(20px)' : 'none',
+            transition: 'filter 0.3s ease',
+          }}
         />
       ) : (
         <img
@@ -133,14 +152,45 @@ const GifContent = memo(({ url }) => {
           alt='Media'
           loading='lazy'
           className='w-full h-auto rounded-xl object-contain block'
-          style={{ maxHeight: 220, minHeight: 60, background: 'hsl(var(--muted) / 0.15)' }}
+          style={{
+            maxHeight: 220,
+            minHeight: 60,
+            background: 'hsl(var(--muted) / 0.15)',
+            filter: blurred ? 'blur(20px)' : 'none',
+            transition: 'filter 0.3s ease',
+          }}
         />
       )}
+      <button
+        type='button'
+        onClick={() => setBlurred((v) => !v)}
+        className={cn(
+          'absolute inset-0 flex items-center justify-center rounded-xl cursor-pointer border-0 transition-all duration-300',
+          blurred
+            ? 'bg-black/30 backdrop-blur-sm opacity-100'
+            : 'bg-transparent opacity-0 group-hover/media:opacity-100'
+        )}
+      >
+        <span
+          className={cn(
+            'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-200',
+            blurred
+              ? 'bg-white/15 text-white backdrop-blur-md hover:bg-white/25'
+              : 'bg-black/40 text-white/80 backdrop-blur-md hover:bg-black/55'
+          )}
+        >
+          {blurred ? (
+            <><Eye className='h-3 w-3' /> Show</>
+          ) : (
+            <><EyeOff className='h-3 w-3' /> Hide</>
+          )}
+        </span>
+      </button>
     </div>
   );
 });
 
-const ChatMessage = memo(({ msg, isOwn, showAvatar, isNew }) => {
+const ChatMessage = memo(({ msg, isOwn, showAvatar, isNew, globalMediaBlur }) => {
   const emojiOnly = useMemo(() => isEmojiOnly(msg.message), [msg.message]);
   const gifMsg = isGifMessage(msg);
   const soundMsg = isSoundMessage(msg);
@@ -184,7 +234,7 @@ const ChatMessage = memo(({ msg, isOwn, showAvatar, isNew }) => {
         {soundMsg ? (
           <SoundMessage msg={msg} isOwn={isOwn} />
         ) : gifMsg ? (
-          <GifContent url={msg.gifUrl} />
+          <GifContent url={msg.gifUrl} globalBlur={globalMediaBlur} />
         ) : emojiOnly ? (
           <p className='text-[40px] leading-[1.1] select-none'>{msg.message}</p>
         ) : (
@@ -244,7 +294,7 @@ const ChatLockedOverlay = memo(({ onUpgrade }) => (
   </button>
 ));
 
-const MessagesList = memo(({ messages, currentUserId, prevCount = 0 }) => {
+const MessagesList = memo(({ messages, currentUserId, prevCount = 0, globalMediaBlur }) => {
   if (messages.length === 0) return <EmptyState />;
 
   return (
@@ -267,6 +317,7 @@ const MessagesList = memo(({ messages, currentUserId, prevCount = 0 }) => {
             isOwn={isOwn}
             showAvatar={showAvatar}
             isNew={isNew}
+            globalMediaBlur={globalMediaBlur}
           />
         );
       })}
@@ -304,6 +355,10 @@ const GroupChat = ({
     if (typeof window === 'undefined') return true;
     return localStorage.getItem('syncvibe_sfx_autoplay') !== 'false';
   });
+  const [globalMediaBlur, setGlobalMediaBlur] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('syncvibe_media_blur') === 'true';
+  });
   const typingTimeoutRef = useRef(null);
   const [prevCount, setPrevCount] = useState(0);
   const [currentCount, setCurrentCount] = useState(messages.length);
@@ -318,6 +373,16 @@ const GroupChat = ({
       const next = !prev;
       if (typeof window !== 'undefined') {
         localStorage.setItem('syncvibe_sfx_autoplay', String(next));
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleMediaBlur = useCallback(() => {
+    setGlobalMediaBlur((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('syncvibe_media_blur', String(next));
       }
       return next;
     });
@@ -424,6 +489,25 @@ const GroupChat = ({
             <span className='hidden sm:inline'>SFX {sfxAutoPlay ? 'ON' : 'OFF'}</span>
           </button>
 
+          <button
+            type='button'
+            onClick={handleToggleMediaBlur}
+            title={
+              globalMediaBlur
+                ? 'Media blur is ON — all GIFs/media are blurred (Tap to show)'
+                : 'Media blur is OFF — all GIFs/media are visible (Tap to blur)'
+            }
+            className={cn(
+              'h-6 px-2 rounded-full flex items-center gap-1 text-[10px] font-medium border cursor-pointer transition-all duration-200',
+              globalMediaBlur
+                ? 'bg-rose-500/10 border-rose-500/20 text-rose-400 hover:bg-rose-500/20'
+                : 'bg-muted/40 border-border/20 text-muted-foreground/50 hover:text-foreground'
+            )}
+          >
+            {globalMediaBlur ? <EyeOff className='h-3 w-3' /> : <Eye className='h-3 w-3' />}
+            <span className='hidden sm:inline'>{globalMediaBlur ? 'Blur ON' : 'Blur OFF'}</span>
+          </button>
+
           {locked && <Lock className='h-3 w-3 text-muted-foreground/25' />}
         </div>
       </div>
@@ -437,6 +521,7 @@ const GroupChat = ({
           messages={messages}
           currentUserId={currentUserId}
           prevCount={prevCount}
+          globalMediaBlur={globalMediaBlur}
         />
         <div ref={bottomRef} className='h-px' />
       </div>
