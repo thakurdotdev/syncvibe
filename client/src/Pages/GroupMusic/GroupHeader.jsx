@@ -35,6 +35,7 @@ const GroupHeader = ({
   onInviteOpen,
   queueCount = 0,
   connectionQuality = 'good',
+  inlineQueue = false,
 }) => {
   const [copied, setCopied] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
@@ -141,15 +142,15 @@ const GroupHeader = ({
                   className='liquid-btn h-9 rounded-xl gap-2 px-3 flex items-center text-muted-foreground hover:text-foreground cursor-pointer'
                 >
                   <Search className='h-4 w-4' />
-                  <span className='text-xs font-medium hidden sm:inline'>Queue</span>
-                  {queueCount > 0 && (
+                  <span className='text-xs font-medium hidden sm:inline'>{inlineQueue ? 'Search' : 'Queue'}</span>
+                  {!inlineQueue && queueCount > 0 && (
                     <span className='h-5 min-w-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center'>
                       {queueCount}
                     </span>
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Queue & Search</TooltipContent>
+              <TooltipContent>{inlineQueue ? 'Search Songs' : 'Queue & Search'}</TooltipContent>
             </Tooltip>
 
             <Tooltip>

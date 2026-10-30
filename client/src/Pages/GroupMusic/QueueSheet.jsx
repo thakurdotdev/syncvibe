@@ -296,12 +296,14 @@ const QueueSheet = ({ inline = false }) => {
                     Skip
                   </button>
                 )}
-                <button
-                  onClick={() => handleClose(false)}
-                  className='liquid-btn h-8 w-8 rounded-full cursor-pointer flex items-center justify-center text-muted-foreground hover:text-foreground'
-                >
-                  <X className='h-4 w-4' />
-                </button>
+                {!inline && (
+                  <button
+                    onClick={() => handleClose(false)}
+                    className='liquid-btn h-8 w-8 rounded-full cursor-pointer flex items-center justify-center text-muted-foreground hover:text-foreground'
+                  >
+                    <X className='h-4 w-4' />
+                  </button>
+                )}
               </div>
             </div>
             <SheetDescription className='sr-only'>View queue and search for songs</SheetDescription>

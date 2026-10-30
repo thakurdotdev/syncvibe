@@ -92,6 +92,7 @@ const NowPlayingCard = ({
   onToggleAutoRecommendations,
   autoPlayRecommendations = true,
   onRestartSong,
+  inlineQueue = false,
 }) => {
   const isMuted = volume === 0;
   const disabled = isLoading || isSyncing;
@@ -198,7 +199,7 @@ const NowPlayingCard = ({
               <Search className='h-3.5 w-3.5' />
               Search
             </button>
-            {!hasPicks && (
+            {!hasPicks && !inlineQueue && (
               <button
                 onClick={onQueueOpen}
                 className='liquid-btn rounded-full px-5 py-2.5 gap-2 cursor-pointer flex items-center text-sm font-medium press-scale text-muted-foreground hover:text-foreground'
@@ -559,18 +560,20 @@ const NowPlayingCard = ({
           </div>
 
           <div className='flex items-center gap-2.5'>
-            <button
-              onClick={onQueueOpen}
-              className='liquid-btn gap-1.5 rounded-full h-8 px-3.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer flex items-center font-medium'
-            >
-              <ListMusic className='h-3.5 w-3.5' />
-              Queue
-              {queueCount > 0 && (
-                <span className='h-4 min-w-4 px-1 text-[10px] font-semibold rounded-full bg-primary text-primary-foreground flex items-center justify-center'>
-                  {queueCount}
-                </span>
-              )}
-            </button>
+            {!inlineQueue && (
+              <button
+                onClick={onQueueOpen}
+                className='liquid-btn gap-1.5 rounded-full h-8 px-3.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer flex items-center font-medium'
+              >
+                <ListMusic className='h-3.5 w-3.5' />
+                Queue
+                {queueCount > 0 && (
+                  <span className='h-4 min-w-4 px-1 text-[10px] font-semibold rounded-full bg-primary text-primary-foreground flex items-center justify-center'>
+                    {queueCount}
+                  </span>
+                )}
+              </button>
+            )}
             <div className='flex items-center gap-1 w-24'>
               <button
                 className='h-7 w-7 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors cursor-pointer'

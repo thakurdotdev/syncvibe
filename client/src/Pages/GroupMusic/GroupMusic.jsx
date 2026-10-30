@@ -157,6 +157,7 @@ const GroupMusic = () => {
                 onInviteOpen={handleOpenInvite}
                 queueCount={activeQueueCount}
                 connectionQuality={connectionQuality}
+                inlineQueue={inlineQueue}
               />
               {currentGroup && (
                 <button type='button' onClick={toggleInlineQueue} aria-pressed={inlineQueueEnabled} aria-label={inlineQueueEnabled ? 'Hide inline queue' : 'Show inline queue'} title={inlineQueueEnabled ? 'Hide inline queue' : 'Show inline queue'} className='shrink-0 h-9 w-9 rounded-xl liquid-btn flex items-center justify-center text-muted-foreground hover:text-foreground'>
@@ -228,6 +229,7 @@ const GroupMusic = () => {
                       onToggleAutoRecommendations={toggleAutoRecommendations}
                       autoPlayRecommendations={autoPlayRecommendations}
                       onRestartSong={() => handleSeek([0])}
+                      inlineQueue={inlineQueue}
                     />
 
                     <div className={inlineQueue ? 'min-w-0 w-full' : 'flex flex-col lg:flex-row gap-4'}>
@@ -251,9 +253,8 @@ const GroupMusic = () => {
                         />
                       </div>}
                     </div>
-                    {inlineQueue && <div className='min-w-0 w-full'><MembersList members={groupMembers} currentUserId={userId} createdBy={currentGroup?.createdBy} maxMembers={groupMaxMembers} /></div>}
                     </div>
-                    {inlineQueue && <div className='min-w-0 min-h-full overflow-hidden'><QueueSheet inline /></div>}
+                    {inlineQueue && <div className='min-w-0 flex flex-col max-h-[calc(100vh-200px)] overflow-hidden'><QueueSheet inline /></div>}
                   </motion.div>
                 )}
               </AnimatePresence>
