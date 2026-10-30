@@ -333,7 +333,7 @@ const PlaylistBrowser: React.FC<{
   );
 };
 
-export const QueueSheet: React.FC = () => {
+export const QueueSheet: React.FC<{ inline?: boolean }> = ({ inline = false }) => {
   const api = useApi();
   const { user } = useUser();
   const { colors } = useTheme();
@@ -722,27 +722,25 @@ export const QueueSheet: React.FC = () => {
 
   const listBottomInset = Math.max(insets.bottom, 12) + 16;
 
+  const Wrapper: any = inline ? View : SwipeableModal;
+  const wrapperProps = inline ? { style: styles.inlineWrapper } : {
+      isVisible: isQueueOpen, onClose: handleClose, maxHeight: '100%',
+      scrollable: true, scrollOffset, hideHandle: true, fullScreen: true,
+    };
+
   return (
-    <SwipeableModal
-      isVisible={isQueueOpen}
-      onClose={handleClose}
-      maxHeight='100%'
-      scrollable={true}
-      scrollOffset={scrollOffset}
-      hideHandle={true}
-      fullScreen
-    >
+    <Wrapper {...wrapperProps}>
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: 16 }]}>
           <View style={styles.headerLeft}>
-            <TouchableOpacity
+            {!inline && <TouchableOpacity
               onPress={handleClose}
               style={[styles.backButton, { backgroundColor: colors.secondary }]}
               accessibilityRole='button'
               accessibilityLabel='Close queue'
             >
               <Ionicons name='arrow-back' size={20} color={colors.foreground} />
-            </TouchableOpacity>
+            </TouchableOpacity>}
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>Queue</Text>
             {upcomingQueue.length > 0 && (
               <Text style={[styles.countText, { color: colors.mutedForeground }]}>
@@ -937,6 +935,7 @@ export const QueueSheet: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  inlineWrapper: { flex: 1, minHeight: 0 },
   flex: { flex: 1 },
   container: {
     flex: 1,

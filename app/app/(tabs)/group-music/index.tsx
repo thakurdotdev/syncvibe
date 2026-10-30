@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Text, TouchableOpacity, View, StyleSheet, Alert, Share, ScrollView } from 'react-native';
+import { Text, TouchableOpacity, View, StyleSheet, Alert, Share, ScrollView, Platform, useWindowDimensions } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import LoginScreen from '@/components/LoginScreen';
@@ -25,7 +26,7 @@ import { ConnectionBadge } from '@/components/music/group/ConnectionBadge';
 import { GlobalSoundAnimation } from '@/components/music/group/GlobalSoundAnimation';
 
 const HeaderActions = React.memo(
-  ({ onOpenQueue, onLeave }: { onOpenQueue: () => void; onLeave: () => void }) => {
+  ({ onOpenQueue, onLeave, showInlineQueue, onToggleInlineQueue }: { onOpenQueue: () => void; onLeave: () => void; showInlineQueue: boolean; onToggleInlineQueue: () => void }) => {
     const { colors } = useTheme();
     const queue = useGroupSessionStore((s) => s.queue);
     const currentQueueIndex = useGroupSessionStore((s) => s.currentQueueIndex);
@@ -38,6 +39,9 @@ const HeaderActions = React.memo(
 
     return (
       <View style={styles.headerRight}>
+        <TouchableOpacity onPress={onToggleInlineQueue} style={[styles.headerIconBtn, { backgroundColor: colors.secondary }]} accessibilityRole='button' accessibilityLabel={showInlineQueue ? 'Disable side queue' : 'Enable side queue'}>
+          <Feather name='columns' size={18} color={colors.foreground} />
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={onOpenQueue}
           style={[styles.headerIconBtn, { backgroundColor: colors.secondary }]}
@@ -69,6 +73,7 @@ const HeaderActions = React.memo(
 );
 
 export default function GroupMusicMobile() {
+  const { width } = useWindowDimensions();
   const { handlePlayPause, handleSeek, createGroup, joinGroup, leaveGroup, skipSong } =
     useGroupMusic();
 
@@ -85,6 +90,21 @@ export default function GroupMusicMobile() {
   const [showQRCodeModal, setShowQRCodeModal] = useState(false);
   const [showChatSheet, setShowChatSheet] = useState(false);
   const [scanQrCode, setScanQrCode] = useState(false);
+  const [showInlineQueue, setShowInlineQueue] = useState(false);
+  const [queuePreferenceLoaded, setQueuePreferenceLoaded] = useState(false);
+  const canShowInlineQueue = Platform.OS === 'web' && width >= 1100;
+
+  React.useEffect(() => {
+    AsyncStorage.getItem('@group_music_inline_queue').then((value) => setShowInlineQueue(value === 'true')).catch(() => {}).finally(() => setQueuePreferenceLoaded(true));
+  }, []);
+  const toggleInlineQueue = useCallback(() => {
+    setShowInlineQueue((value) => {
+      const next = !value;
+      AsyncStorage.setItem('@group_music_inline_queue', String(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+  const inlineQueue = queuePreferenceLoaded && showInlineQueue && canShowInlineQueue && !!currentGroup;
 
   const handleOpenQueue = useCallback(() => {
     useGroupSessionStore.setState({ isQueueOpen: true });
@@ -133,7 +153,7 @@ export default function GroupMusicMobile() {
                 {currentGroup && <ConnectionBadge />}
               </View>
               {currentGroup && (
-                <HeaderActions onOpenQueue={handleOpenQueue} onLeave={handleLeaveGroup} />
+                <HeaderActions onOpenQueue={handleOpenQueue} onLeave={handleLeaveGroup} showInlineQueue={showInlineQueue} onToggleInlineQueue={toggleInlineQueue} />
               )}
             </View>
           </TabSafeAreaView>
@@ -171,9 +191,9 @@ export default function GroupMusicMobile() {
               </Text>
             </ScrollView>
           ) : (
-            <View style={{ flex: 1 }}>
+            <View style={[{ flex: 1, minHeight: 0 }, inlineQueue && styles.splitLayout]}>
               <ScrollView
-                style={styles.scrollContainer}
+                style={[styles.scrollContainer, inlineQueue && styles.playerColumn]}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
               >
@@ -197,6 +217,8 @@ export default function GroupMusicMobile() {
                 <GroupMembersCard groupMembers={groupMembers} hostId={currentGroup.createdBy} />
               </ScrollView>
 
+              {inlineQueue && <View style={[styles.queueColumn, { backgroundColor: colors.card, borderColor: colors.border }]}><QueueSheet inline /></View>}
+
               <FloatingReactions />
             </View>
           )}
@@ -211,7 +233,7 @@ export default function GroupMusicMobile() {
             />
           )}
 
-          {isQueueOpen && <QueueSheet />}
+          {isQueueOpen && !inlineQueue && <QueueSheet />}
 
           {currentGroup?.qrCode && (
             <QRCodeModal
@@ -241,6 +263,9 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
+  splitLayout: { flexDirection: 'row', gap: 16, paddingHorizontal: 20, minHeight: 0, overflow: 'hidden' },
+  playerColumn: { flex: 0.6, minWidth: 0, minHeight: 0 },
+  queueColumn: { flex: 0.4, minWidth: 0, minHeight: 0, borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, overflow: 'hidden', marginBottom: 12 },
   header: {
     paddingHorizontal: 20,
     paddingTop: 6,
