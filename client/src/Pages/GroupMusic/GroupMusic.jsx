@@ -199,7 +199,7 @@ const GroupMusic = () => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -12 }}
                     transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                    className={inlineQueue ? 'grid grid-cols-[minmax(0,60fr)_minmax(340px,40fr)] gap-5 items-start' : 'space-y-4 md:space-y-5'}
+                    className={inlineQueue ? 'grid grid-cols-[minmax(0,60fr)_minmax(340px,40fr)] gap-5 items-stretch' : 'space-y-4 md:space-y-5'}
                   >
                     <div className={inlineQueue ? 'min-w-0 space-y-4' : undefined}>
                     <NowPlayingCard
@@ -253,7 +253,7 @@ const GroupMusic = () => {
                     </div>
                     {inlineQueue && <div className='min-w-0 w-full'><MembersList members={groupMembers} currentUserId={userId} createdBy={currentGroup?.createdBy} maxMembers={groupMaxMembers} /></div>}
                     </div>
-                    {inlineQueue && <div className='min-w-0 h-[min(72vh,760px)] min-h-[560px] sticky top-4 overflow-hidden'><QueueSheet inline /></div>}
+                    {inlineQueue && <div className='min-w-0 min-h-full overflow-hidden'><QueueSheet inline /></div>}
                   </motion.div>
                 )}
               </AnimatePresence>

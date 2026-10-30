@@ -272,7 +272,7 @@ const QueueSheet = ({ inline = false }) => {
   return (
     <>
       <Sheet modal={!inline} open={inline || isQueueOpen} onOpenChange={inline ? () => {} : handleClose}>
-        <SheetContent portal={!inline} hideOverlay={inline} className={inline ? 'relative inset-auto z-auto w-full h-full max-w-none translate-x-0 p-0 flex flex-col overflow-hidden rounded-2xl border border-border/40 liquid-sheet shadow-none' : 'w-full sm:max-w-lg p-0 flex flex-col border-l border-border/30 liquid-sheet'}>
+        <SheetContent portal={!inline} hideOverlay={inline} className={inline ? 'relative inset-auto z-auto w-full h-full min-h-full max-w-none sm:max-w-none translate-x-0 p-0 flex flex-col overflow-hidden rounded-2xl border border-border/40 liquid-sheet shadow-none' : 'w-full sm:max-w-lg p-0 flex flex-col border-l border-border/30 liquid-sheet'}>
           <SheetHeader className='px-4 pt-4 pb-3 border-b border-border/30 space-y-3'>
             <div className='flex items-center justify-between'>
               <div className='flex items-center gap-2.5'>
@@ -362,7 +362,7 @@ const QueueSheet = ({ inline = false }) => {
             </Tabs>
           </SheetHeader>
 
-          <div className='flex-1 overflow-y-auto scrollbar-thin'>
+          <div className='min-h-0 flex-1 overflow-y-auto scrollbar-thin'>
             <AnimatePresence mode='popLayout'>
               {activeTab === 'playlists' && !isSearching ? (
                 <PlaylistBrowser
