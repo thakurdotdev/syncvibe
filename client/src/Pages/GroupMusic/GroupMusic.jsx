@@ -199,9 +199,9 @@ const GroupMusic = () => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -12 }}
                     transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                    className={inlineQueue ? 'grid grid-cols-[minmax(0,60fr)_minmax(340px,40fr)] gap-4 items-stretch min-h-[min(72vh,760px)] max-h-[calc(100vh-190px)] overflow-hidden' : 'space-y-4 md:space-y-5'}
+                    className={inlineQueue ? 'grid grid-cols-[minmax(0,60fr)_minmax(340px,40fr)] gap-5 items-start' : 'space-y-4 md:space-y-5'}
                   >
-                    <div className={inlineQueue ? 'min-w-0 overflow-y-auto scrollbar-thin pr-1' : undefined}>
+                    <div className={inlineQueue ? 'min-w-0 space-y-4' : undefined}>
                     <NowPlayingCard
                       currentSong={currentSong}
                       isPlaying={isPlaying}
@@ -230,8 +230,8 @@ const GroupMusic = () => {
                       onRestartSong={() => handleSeek([0])}
                     />
 
-                    <div className='flex flex-col lg:flex-row gap-4'>
-                      <div className='flex-1 min-w-0'>
+                    <div className={inlineQueue ? 'min-w-0 w-full' : 'flex flex-col lg:flex-row gap-4'}>
+                      <div className={inlineQueue ? 'w-full min-w-0' : 'flex-1 min-w-0'}>
                         <GroupChat
                           messages={messages}
                           currentUserId={userId}
@@ -242,17 +242,18 @@ const GroupMusic = () => {
                           onTypingStop={onTypingStop}
                         />
                       </div>
-                      <div className='w-full lg:w-[280px] lg:shrink-0 lg:max-h-[380px]'>
+                      {!inlineQueue && <div className='w-full lg:w-[280px] lg:shrink-0 lg:max-h-[380px]'>
                         <MembersList
                           members={groupMembers}
                           currentUserId={userId}
                           createdBy={currentGroup?.createdBy}
                           maxMembers={groupMaxMembers}
                         />
-                      </div>
+                      </div>}
                     </div>
+                    {inlineQueue && <div className='min-w-0 w-full'><MembersList members={groupMembers} currentUserId={userId} createdBy={currentGroup?.createdBy} maxMembers={groupMaxMembers} /></div>}
                     </div>
-                    {inlineQueue && <div className='min-w-0 min-h-0 overflow-hidden'><QueueSheet inline /></div>}
+                    {inlineQueue && <div className='min-w-0 h-[min(72vh,760px)] min-h-[560px] sticky top-4 overflow-hidden'><QueueSheet inline /></div>}
                   </motion.div>
                 )}
               </AnimatePresence>
