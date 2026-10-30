@@ -2,7 +2,8 @@ import { useProfile } from '@/Context/Context';
 import { useGroupMusic } from '@/Context/GroupMusicContext';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { AnimatePresence, motion } from 'framer-motion';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { ListMusic } from 'lucide-react';
 import '../Music/music.css';
 import {
   GlobalSoundAnimation,
@@ -86,6 +87,24 @@ const GroupMusic = () => {
 
   const [isQrCodeOpen, setQrCodeOpen] = useState(false);
   const [modalDefaultTab, setModalDefaultTab] = useState('join');
+  const [inlineQueueEnabled, setInlineQueueEnabled] = useState(() => {
+    try { return localStorage.getItem('syncvibe_group_inline_queue') === 'true'; } catch { return false; }
+  });
+  const [wideViewport, setWideViewport] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1200);
+
+  useEffect(() => {
+    const update = () => setWideViewport(window.innerWidth >= 1200);
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  const inlineQueue = Boolean(currentGroup && inlineQueueEnabled && wideViewport);
+  const toggleInlineQueue = useCallback(() => {
+    setInlineQueueEnabled((value) => {
+      const next = !value;
+      try { localStorage.setItem('syncvibe_group_inline_queue', String(next)); } catch {}
+      return next;
+    });
+  }, []);
 
   const activeQueueCount = useMemo(
     () => (currentQueueItem ? 1 : 0) + upcomingQueue.length,
@@ -127,6 +146,7 @@ const GroupMusic = () => {
 
           <div className='relative z-10'>
             <div className='px-3 md:px-6 pt-3 md:pt-4 pb-2'>
+              <div className='flex items-center justify-between gap-3'>
               <GroupHeader
                 currentGroup={currentGroup}
                 isRejoining={isRejoining}
@@ -138,6 +158,12 @@ const GroupMusic = () => {
                 queueCount={activeQueueCount}
                 connectionQuality={connectionQuality}
               />
+              {currentGroup && (
+                <button type='button' onClick={toggleInlineQueue} aria-pressed={inlineQueueEnabled} aria-label={inlineQueueEnabled ? 'Hide inline queue' : 'Show inline queue'} title={inlineQueueEnabled ? 'Hide inline queue' : 'Show inline queue'} className='shrink-0 h-9 w-9 rounded-xl liquid-btn flex items-center justify-center text-muted-foreground hover:text-foreground'>
+                  <ListMusic className='h-4 w-4' />
+                </button>
+              )}
+              </div>
             </div>
 
             <div className='px-3 md:px-6 pb-5 md:pb-6'>
@@ -173,8 +199,9 @@ const GroupMusic = () => {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -12 }}
                     transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                    className='space-y-4 md:space-y-5'
+                    className={inlineQueue ? 'grid grid-cols-[minmax(0,60fr)_minmax(340px,40fr)] gap-4 items-stretch min-h-[min(72vh,760px)] max-h-[calc(100vh-190px)] overflow-hidden' : 'space-y-4 md:space-y-5'}
                   >
+                    <div className={inlineQueue ? 'min-w-0 overflow-y-auto scrollbar-thin pr-1' : undefined}>
                     <NowPlayingCard
                       currentSong={currentSong}
                       isPlaying={isPlaying}
@@ -224,6 +251,8 @@ const GroupMusic = () => {
                         />
                       </div>
                     </div>
+                    </div>
+                    {inlineQueue && <div className='min-w-0 min-h-0 overflow-hidden'><QueueSheet inline /></div>}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -246,7 +275,7 @@ const GroupMusic = () => {
         <QRCodeDialog isOpen={isQrCodeOpen} onClose={handleCloseQrCode} group={currentGroup} />
       )}
 
-      <QueueSheet />
+      {!inlineQueue && <QueueSheet />}
 
       <InviteSheet
         isOpen={isInviteSheetOpen}

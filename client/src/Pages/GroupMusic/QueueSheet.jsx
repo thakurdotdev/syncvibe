@@ -25,7 +25,7 @@ import PlaylistBrowser from './QueueSheet/PlaylistBrowser';
 import Discovery from './QueueSheet/Discovery';
 import AddToPlaylist from '@/Pages/Music/AddToPlaylist';
 
-const QueueSheet = () => {
+const QueueSheet = ({ inline = false }) => {
   const { user } = useProfile();
   const {
     isQueueOpen,
@@ -271,8 +271,8 @@ const QueueSheet = () => {
 
   return (
     <>
-      <Sheet open={isQueueOpen} onOpenChange={handleClose}>
-        <SheetContent className='w-full sm:max-w-lg p-0 flex flex-col border-l border-border/30 liquid-sheet'>
+      <Sheet modal={!inline} open={inline || isQueueOpen} onOpenChange={inline ? () => {} : handleClose}>
+        <SheetContent portal={!inline} hideOverlay={inline} className={inline ? 'relative inset-auto z-auto w-full h-full max-w-none translate-x-0 p-0 flex flex-col overflow-hidden rounded-2xl border border-border/40 liquid-sheet shadow-none' : 'w-full sm:max-w-lg p-0 flex flex-col border-l border-border/30 liquid-sheet'}>
           <SheetHeader className='px-4 pt-4 pb-3 border-b border-border/30 space-y-3'>
             <div className='flex items-center justify-between'>
               <div className='flex items-center gap-2.5'>
