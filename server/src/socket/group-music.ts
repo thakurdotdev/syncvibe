@@ -6,11 +6,13 @@ import {
   TIME_TO_REJOIN,
   getUserGroups,
   userGroups,
+  removeGroup,
 } from './group-music/state';
 import { getQueueState } from './group-music/queue';
 import { setupQueueHandlers } from './group-music/queue-handlers';
 import { setupPlaybackHandlers } from './group-music/playback-handlers';
 import { setupInviteHandlers } from './group-music/invite-handlers';
+import { setupChatHandlers } from './group-music/chat-handlers';
 
 export const setupGroupMusicHandlers = (
   io: Server,
@@ -58,6 +60,7 @@ export const setupGroupMusicHandlers = (
   setupQueueHandlers(io, socket);
   setupPlaybackHandlers(io, socket);
   setupInviteHandlers(io, socket, userId);
+  setupChatHandlers(io, socket, userId);
 };
 
 export const handleUserDisconnect = (
@@ -80,7 +83,7 @@ export const handleUserDisconnect = (
             io.to(`music-group-${groupId}`).emit('member-left', { userId });
 
             if (group.members.length === 0) {
-              musicGroups.delete(groupId);
+              removeGroup(groupId);
             }
           }
         });
