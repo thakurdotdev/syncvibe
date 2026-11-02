@@ -157,6 +157,10 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
     />
   );
 
+  // After leaving, the room stays mounted briefly while its exit animation runs,
+  // but the group is already gone from the store. Render nothing in that window.
+  if (!currentGroup) return null;
+
   return (
     <div ref={roomRef} className='@container flex h-full min-h-0 flex-col gap-2 lg:gap-3'>
       <RoomTopBar
