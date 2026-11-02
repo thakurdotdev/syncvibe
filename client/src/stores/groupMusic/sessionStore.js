@@ -154,6 +154,39 @@ export const useGroupSessionStore = create((set, get) => ({
     socket.emit('chat-message', payload);
   },
 
+  /** Toggle the current user's reaction on a chat message (server owns the state). */
+  sendMessageReaction: (socket, messageId, emoji) => {
+    const { currentGroup } = get();
+    if (!socket || !currentGroup?.id || !messageId || !emoji) return;
+    socket.emit('message-reaction', { groupId: currentGroup.id, messageId, emoji });
+  },
+
+  requestChatHistory: (socket, groupId) => {
+    if (!socket || !groupId) return;
+    socket.emit('get-chat-history', { groupId });
+  },
+
+  /** Merge server history with any live messages already received, de-duplicated by id. */
+  mergeChatHistory: (groupId, history) => {
+    const { currentGroup, messages } = get();
+    if (!Array.isArray(history) || currentGroup?.id !== groupId) return;
+    const byId = new Map(history.map((m) => [m.id, m]));
+    messages.forEach((m) => {
+      if (!m.id || !byId.has(m.id)) byId.set(m.id ?? `${m.timestamp}-${byId.size}`, m);
+    });
+    set({
+      messages: [...byId.values()].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0)),
+    });
+  },
+
+  applyMessageReaction: ({ groupId, messageId, reactions }) => {
+    const { currentGroup, messages } = get();
+    if (currentGroup?.id !== groupId) return;
+    set({
+      messages: messages.map((m) => (m.id === messageId ? { ...m, reactions: reactions || {} } : m)),
+    });
+  },
+
   addToQueue: (socket, user, song) => {
     const { currentGroup, queue } = get();
     if (!currentGroup?.id || !user) return;

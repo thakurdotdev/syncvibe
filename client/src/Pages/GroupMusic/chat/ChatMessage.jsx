@@ -3,8 +3,17 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { memo } from 'react';
 import { getInitial } from '../utils/song';
-import { formatMessageTime, isEmojiOnly, isGifMessage, isSoundMessage } from './chatUtils';
+import {
+  formatMessageTime,
+  isEmojiOnly,
+  isGifMessage,
+  isSoundMessage,
+  mentionsUser,
+} from './chatUtils';
 import MediaMessage from './MediaMessage';
+import MessageActions from './MessageActions';
+import MessageReactions from './MessageReactions';
+import { ReplyQuote } from './ReplyQuote';
 import SoundMessage from './SoundMessage';
 
 const ENTER_ANIMATION = {
@@ -12,6 +21,13 @@ const ENTER_ANIMATION = {
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] },
 };
+
+const QUICK_REACTION = '❤️';
+
+// Clicks on controls inside the bubble (sound player, reply quote, media toggle)
+// or finishing a text selection shouldn't toggle the action bar.
+const isPassiveClick = (event) =>
+  !event.target.closest('button, a, video') && !window.getSelection()?.toString();
 
 const bubbleShape = (isOwn, startsGroup, endsGroup) =>
   cn(
@@ -31,19 +47,56 @@ const MessageContent = ({ msg, isOwn, mediaBlur }) => {
   );
 };
 
-const ChatMessage = ({ msg, isOwn, startsGroup, endsGroup, animate, mediaBlur }) => {
+/**
+ * A chat message. Interactions:
+ *  - hover / focus (desktop) or tap (touch) → quick reactions + reply
+ *  - double-click → ❤️
+ *  - click a reply quote → jump to the original message
+ */
+const ChatMessage = ({
+  msg,
+  isOwn,
+  startsGroup,
+  endsGroup,
+  animate,
+  mediaBlur,
+  currentUserId,
+  currentUserName,
+  isActive,
+  isHighlighted,
+  onActivate,
+  onReact,
+  onReply,
+  onJumpTo,
+}) => {
   const time = formatMessageTime(msg.timestamp);
   const bare = isGifMessage(msg) || isEmojiOnly(msg.message);
+  const mentionsMe = !isOwn && mentionsUser(msg.message, currentUserName);
+  const canInteract = Boolean(msg.id);
+
+  const react = (emoji) => onReact(msg.id, emoji);
 
   return (
     <motion.div
       {...(animate ? ENTER_ANIMATION : {})}
+      data-message-id={msg.id}
       className={cn(
-        'flex gap-2.5 px-3',
+        'group/message relative flex gap-2.5 rounded-lg px-3 transition-colors duration-700',
         isOwn && 'flex-row-reverse',
-        startsGroup ? 'mt-3' : 'mt-0.5'
+        startsGroup ? 'mt-3' : 'mt-0.5',
+        isHighlighted && 'bg-primary/10 duration-150',
+        mentionsMe && 'bg-amber-500/[0.06]'
       )}
     >
+      {canInteract && (
+        <MessageActions
+          isOwn={isOwn}
+          visible={isActive}
+          onReact={react}
+          onReply={() => onReply(msg)}
+        />
+      )}
+
       {!isOwn && (
         <div className='w-8 shrink-0'>
           {startsGroup && (
@@ -68,16 +121,52 @@ const ChatMessage = ({ msg, isOwn, startsGroup, endsGroup, animate, mediaBlur })
             <time className='shrink-0 text-[10px] text-muted-foreground/60'>{time}</time>
           </div>
         )}
+
         <div
+          role={canInteract ? 'button' : undefined}
+          tabIndex={canInteract ? 0 : undefined}
+          aria-label={
+            canInteract ? `Message from ${msg.userName || 'you'}. Show actions` : undefined
+          }
           title={startsGroup ? undefined : time}
+          onClick={canInteract ? (e) => isPassiveClick(e) && onActivate(msg.id) : undefined}
+          onDoubleClick={
+            canInteract
+              ? (e) => {
+                  if (e.target.closest('button, a, video')) return;
+                  window.getSelection()?.removeAllRanges();
+                  react(QUICK_REACTION);
+                }
+              : undefined
+          }
+          onKeyDown={
+            canInteract
+              ? (event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onActivate(msg.id);
+                  }
+                }
+              : undefined
+          }
           className={cn(
+            'min-w-0 select-text outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
             !bare && 'px-3 py-1.5',
             !bare && (isOwn ? 'liquid-message-own' : 'liquid-message-other'),
-            !bare && bubbleShape(isOwn, startsGroup, endsGroup)
+            !bare && bubbleShape(isOwn, startsGroup, endsGroup),
+            bare && 'rounded-xl'
           )}
         >
+          {msg.replyTo?.id && <ReplyQuote replyTo={msg.replyTo} isOwn={isOwn} onJump={onJumpTo} />}
           <MessageContent msg={msg} isOwn={isOwn} mediaBlur={mediaBlur} />
         </div>
+
+        <MessageReactions
+          reactions={msg.reactions}
+          currentUserId={currentUserId}
+          onToggle={react}
+          align={isOwn ? 'end' : 'start'}
+        />
       </div>
     </motion.div>
   );

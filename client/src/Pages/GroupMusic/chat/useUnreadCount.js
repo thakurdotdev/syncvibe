@@ -1,20 +1,28 @@
 import { useMemo, useState } from 'react';
 import { isActivityMessage, isOwnMessage } from './chatUtils';
 
-/** Number of messages from other people that arrived while the chat was not visible. */
-export const useUnreadCount = (messages, isVisible, currentUserId) => {
-  const [seenCount, setSeenCount] = useState(messages.length);
+const latestTimestamp = (messages) =>
+  messages.reduce((max, msg) => Math.max(max, msg.timestamp || 0), 0);
 
-  // Adjust state during render (React-recommended over an effect) when the
-  // chat becomes visible or the message list is reset.
-  if ((isVisible && seenCount !== messages.length) || messages.length < seenCount) {
-    setSeenCount(messages.length);
-  }
+/**
+ * Messages from other people that arrived while the chat wasn't visible.
+ * Timestamp-based, so loading older history never counts as unread.
+ */
+export const useUnreadCount = (messages, isVisible, currentUserId) => {
+  // Start from "now": history loaded later (older timestamps) is never unread.
+  const [seenUntil, setSeenUntil] = useState(() => Math.max(latestTimestamp(messages), Date.now()));
+  const latest = latestTimestamp(messages);
+
+  // Adjust state during render (React-recommended over an effect).
+  if (isVisible && latest > seenUntil) setSeenUntil(latest);
 
   return useMemo(() => {
     if (isVisible) return 0;
-    return messages
-      .slice(seenCount)
-      .filter((msg) => !isActivityMessage(msg) && !isOwnMessage(msg, currentUserId)).length;
-  }, [messages, seenCount, isVisible, currentUserId]);
+    return messages.filter(
+      (msg) =>
+        (msg.timestamp || 0) > seenUntil &&
+        !isActivityMessage(msg) &&
+        !isOwnMessage(msg, currentUserId)
+    ).length;
+  }, [messages, seenUntil, isVisible, currentUserId]);
 };

@@ -816,7 +816,8 @@
   gap: 6px;
 }
 
-@media (min-width: 440px) {
+/* Columns follow the picker's own width (it lives in a narrow chat rail on desktop). */
+@container (min-width: 400px) {
   .sound-picker-grid {
     grid-template-columns: repeat(2, 1fr);
   }

@@ -56,6 +56,7 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
     connectionQuality,
     messages,
     sendMessage,
+    sendMessageReaction,
     typingUsers,
     onTypingStart,
     onTypingStop,
@@ -126,7 +127,9 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
     <ChatPanel
       messages={messages}
       currentUserId={userId}
+      currentUserName={user?.name}
       onSendMessage={sendMessage}
+      onReactToMessage={sendMessageReaction}
       locked={!isChatAllowed}
       typingUsers={typingUsers}
       onTypingStart={onTypingStart}
