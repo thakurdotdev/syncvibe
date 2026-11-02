@@ -5,21 +5,19 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ProfileDropdownMenu from '@/components/ProfileDropdownMenu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useGroupMusic } from '@/Context/GroupMusicContext';
 import { useUserPlaylistsQuery } from '@/hooks/queries/usePlaylistQueries';
 import { paths } from '@/lib/paths';
 import { cn } from '@/lib/utils';
 import { getPlaylistImageUrl } from '@/Pages/Music/Cards';
+import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
 import { useUiStore } from '@/stores/uiStore';
 import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
 import { LOGO_URL, NAV_ITEMS } from './nav';
 import { NowSlot } from './SidebarLive';
 import { useChatSummary } from './useShellData';
+import { SPRING } from '@/lib/motion';
 
 const isMac = typeof navigator !== 'undefined' && navigator.userAgent.includes('Mac');
-
-/** Snappy spring shared by the sliding active pill. */
-const PILL_SPRING = { type: 'spring', stiffness: 560, damping: 40, mass: 0.7 };
 
 /**
  * The active destination is drawn as a piece of the content panel's surface, lifted onto the
@@ -28,7 +26,7 @@ const PILL_SPRING = { type: 'spring', stiffness: 560, damping: 40, mass: 0.7 };
 const ActivePill = () => (
   <motion.span
     layoutId='sidebar-active'
-    transition={PILL_SPRING}
+    transition={SPRING}
     className='absolute inset-0 rounded-xl bg-background shadow-[0_0_0_1px_hsl(var(--border)/0.9),0_1px_2px_0_hsl(var(--foreground)/0.06),0_4px_12px_-6px_hsl(var(--foreground)/0.12)]'
   />
 );
@@ -56,7 +54,7 @@ const SectionLabel = ({ children, action }) => (
 
 const NavList = ({ collapsed, unread }) => {
   const { pathname } = useLocation();
-  const inRoom = Boolean(useGroupMusic().currentGroup);
+  const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
 
   return (
     <nav aria-label='Main' className='flex flex-col gap-0.5'>
@@ -193,7 +191,10 @@ const personStatus = (p) => {
   return p.isOnline ? 'online' : null;
 };
 
-/** One row of faces: who's around and who's waiting on a reply. */
+/**
+ * Your conversations as one row of faces (who's waiting on a reply, who's online). It sits with
+ * the library in the middle band, away from the room card, so it never reads as room members.
+ */
 const People = ({ people, total }) => {
   const navigate = useNavigate();
   if (!people.length) return null;
@@ -201,7 +202,7 @@ const People = ({ people, total }) => {
   const open = (p) => navigate(paths.messages, { state: { chatData: { chatid: p.chatid } } });
 
   return (
-    <section className='[@media(max-height:720px)]:hidden'>
+    <section className='shrink-0 pb-3 [@media(max-height:720px)]:hidden'>
       <SectionLabel
         action={
           total > people.length && (
@@ -209,12 +210,12 @@ const People = ({ people, total }) => {
               to={paths.messages}
               className='text-[11px] font-medium text-muted-foreground hover:text-foreground'
             >
-              All chats
+              See all
             </Link>
           )
         }
       >
-        People
+        Recent chats
       </SectionLabel>
       <ul className='flex gap-1.5 px-1.5 pt-1'>
         {people.map((p) => {
@@ -345,6 +346,7 @@ const Sidebar = ({ collapsed, canExpand }) => {
             <div className='flex-1' />
           ) : (
             <div className='flex min-h-0 flex-1 flex-col border-t border-sidebar-border px-3 pt-3'>
+              <People people={people} total={total} />
               <Playlists />
             </div>
           )}
@@ -356,7 +358,6 @@ const Sidebar = ({ collapsed, canExpand }) => {
               collapsed ? 'items-center px-2' : 'border-t border-sidebar-border px-3'
             )}
           >
-            {!collapsed && <People people={people} total={total} />}
             <NowSlot collapsed={collapsed} />
             {collapsed && canExpand && (
               <Tip label='Expand sidebar'>

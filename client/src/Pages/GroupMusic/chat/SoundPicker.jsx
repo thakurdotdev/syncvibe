@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { fetchSoundFeed, searchSounds, QUICK_SOUND_PRESETS } from '@/api/soundEffects';
 import { soundEffectsManager } from '@/lib/soundEffectsManager';
 import { usePickerPosition } from './usePickerPosition';
+import { EASE_OUT } from '@/lib/motion';
 
 const SoundItemCard = memo(({ sound, isPlaying, onTogglePlay, onSend }) => {
   return (
@@ -106,7 +107,6 @@ const SoundPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
   const pickerRef = useRef(null);
   const searchTimeoutRef = useRef(null);
   const abortControllerRef = useRef(null);
-
 
   // Stop any playing preview when unmounting
   useEffect(() => {
@@ -259,7 +259,7 @@ const SoundPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
       initial={{ opacity: 0, y: 10, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 10, scale: 0.96 }}
-      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.2, ease: EASE_OUT }}
       className='@container fixed flex flex-col rounded-2xl overflow-hidden border border-border/30 shadow-2xl backdrop-blur-xl'
       style={{
         bottom: pos.bottom,

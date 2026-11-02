@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { useUiStore } from '@/stores/uiStore';
 import { getPlaylistImageUrl, SongCard } from './Cards';
 import './music.css';
+import { FADE, POP, SPRING } from '@/lib/motion';
 
 const SCOPES = [
   { key: 'songs', label: 'Songs', icon: Music2, placeholder: 'Search songs, artists, albums' },
@@ -222,10 +223,7 @@ const SearchDialog = ({ open, setOpen }) => {
         <motion.div
           ref={overlayRef}
           className='search-dialog-overlay'
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
+          {...FADE}
           onClick={(e) => e.target === overlayRef.current && handleClose()}
         >
           <motion.div
@@ -233,10 +231,7 @@ const SearchDialog = ({ open, setOpen }) => {
             aria-modal='true'
             aria-label='Search'
             className='search-dialog-container'
-            initial={{ opacity: 0, y: -12, scale: 0.985 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.985 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            {...POP}
             onClick={(e) => e.stopPropagation()}
           >
             <div className='search-dialog-header'>
@@ -300,7 +295,7 @@ const SearchDialog = ({ open, setOpen }) => {
                         <motion.span
                           layoutId='search-scope'
                           className='absolute inset-0 rounded-full bg-foreground'
-                          transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+                          transition={SPRING}
                         />
                       )}
                       <Icon className='relative h-3.5 w-3.5' />

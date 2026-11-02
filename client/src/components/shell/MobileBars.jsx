@@ -4,12 +4,13 @@ import { memo, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import ProfileDropdownMenu from '@/components/ProfileDropdownMenu';
 import { ChatContext } from '@/Context/ChatContext';
-import { useGroupMusic } from '@/Context/GroupMusicContext';
 import { paths } from '@/lib/paths';
 import { cn } from '@/lib/utils';
+import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
 import { useUiStore } from '@/stores/uiStore';
 import { LOGO_URL, NAV_ITEMS } from './nav';
 import { useChatSummary } from './useShellData';
+import { SPRING } from '@/lib/motion';
 
 /**
  * The tab bar steps aside when a screen needs the bottom edge for its own input:
@@ -18,7 +19,7 @@ import { useChatSummary } from './useShellData';
 export const useTabBarVisible = () => {
   const { pathname } = useLocation();
   const currentChat = useContext(ChatContext)?.currentChat;
-  const inRoom = Boolean(useGroupMusic().currentGroup);
+  const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
   if (pathname.startsWith(paths.messages) && currentChat) return false;
   if (pathname.startsWith(paths.rooms) && inRoom) return false;
   return true;
@@ -50,7 +51,7 @@ export const MobileTopBar = memo(() => {
 export const MobileTabBar = memo(() => {
   const { pathname } = useLocation();
   const { unread } = useChatSummary();
-  const inRoom = Boolean(useGroupMusic().currentGroup);
+  const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
 
   return (
     <MotionConfig reducedMotion='user'>
@@ -75,7 +76,7 @@ export const MobileTabBar = memo(() => {
                   {active && (
                     <motion.span
                       layoutId='tabbar-active'
-                      transition={{ type: 'spring', stiffness: 560, damping: 40, mass: 0.7 }}
+                      transition={SPRING}
                       className='absolute inset-0 rounded-full bg-primary/15'
                     />
                   )}

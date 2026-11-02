@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useSocket } from '@/Context/ChatContext';
@@ -11,6 +19,13 @@ import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
 import { soundEffectsManager } from '@/lib/soundEffectsManager';
 
 export const GroupMusicContext = createContext(null);
+
+/**
+ * Stable group actions for components that only need to *do* something (add to queue, play
+ * next). Unlike GroupMusicContext, its value never changes, so consumers don't re-render on
+ * every playback tick.
+ */
+const GroupMusicActionsContext = createContext(null);
 
 export function GroupMusicProvider({ children }) {
   const { socket } = useSocket();
@@ -175,7 +190,8 @@ export function GroupMusicProvider({ children }) {
       if (action === 'remove') toast.info('Song removed from queue');
       else if (action === 'skip') toast.info('Skipped to next song');
       else if (action === 'clear') toast.info('Upcoming queue cleared');
-      else if (action === 'auto-recs') toast.success(`Auto-added ${addedCount || ''} recommended songs`);
+      else if (action === 'auto-recs')
+        toast.success(`Auto-added ${addedCount || ''} recommended songs`);
     });
 
     socket.on('group-settings-updated', ({ settings }) => {
@@ -593,6 +609,23 @@ export function GroupMusicProvider({ children }) {
     [socket, session.currentGroup?.id, user]
   );
 
+  const latestActionsRef = useRef(null);
+  useLayoutEffect(() => {
+    latestActionsRef.current = {
+      addToQueue: wrappedAddToQueue,
+      playNext: wrappedPlayNext,
+      addPlaylistToQueue: wrappedAddPlaylistToQueue,
+    };
+  });
+  const stableActions = useMemo(
+    () => ({
+      addToQueue: (...args) => latestActionsRef.current.addToQueue(...args),
+      playNext: (...args) => latestActionsRef.current.playNext(...args),
+      addPlaylistToQueue: (...args) => latestActionsRef.current.addPlaylistToQueue(...args),
+    }),
+    []
+  );
+
   const contextValue = {
     currentGroup: session.currentGroup,
     setCurrentGroup: (v) => useGroupSessionStore.setState({ currentGroup: v }),
@@ -690,7 +723,9 @@ export function GroupMusicProvider({ children }) {
 
   return (
     <GroupMusicContext.Provider value={contextValue}>
-      {children}
+      <GroupMusicActionsContext.Provider value={stableActions}>
+        {children}
+      </GroupMusicActionsContext.Provider>
       <audio ref={audioRef} />
       <UpgradeDialog
         open={session?.upgradeDialog?.open}
@@ -708,6 +743,18 @@ export function GroupMusicProvider({ children }) {
     </GroupMusicContext.Provider>
   );
 }
+
+/** Stable `{ addToQueue, playNext, addPlaylistToQueue }` — safe to use in long lists. */
+export const useGroupMusicActions = () => {
+  const actions = useContext(GroupMusicActionsContext);
+  if (!actions) {
+    throw new Error('useGroupMusicActions must be used within a GroupMusicProvider');
+  }
+  return actions;
+};
+
+/** Narrow, re-render-friendly reads of the current room. */
+export const useCurrentGroup = () => useGroupSessionStore((s) => s.currentGroup);
 
 export const useGroupMusic = () => {
   const context = useContext(GroupMusicContext);

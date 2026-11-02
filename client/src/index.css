@@ -86,6 +86,9 @@
   --color-canvas: hsl(var(--canvas));
   --color-raised: hsl(var(--raised));
 
+  /* Motion system — one set of curves for the whole app.
+     snappy: UI enter/hover/press (strong ease-out). premium: sheets and drawers. */
+  --ease-snappy: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-premium: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -341,6 +344,40 @@
     animation: live-ring 1.6s ease-out infinite;
   }
 
+  /* Press feedback for anything tappable. Pair with hover:bg-* utilities freely. */
+  .press {
+    transition:
+      transform 160ms var(--ease-snappy),
+      background-color 150ms var(--ease-snappy),
+      color 150ms var(--ease-snappy),
+      box-shadow 150ms var(--ease-snappy);
+  }
+  .press:active {
+    transform: scale(0.97);
+  }
+
+  /* Artwork lifts slightly when its card is hovered (pointer devices only). */
+  .art-zoom img {
+    transition: transform 400ms var(--ease-snappy);
+  }
+  @media (hover: hover) {
+    .group:hover .art-zoom img {
+      transform: scale(1.04);
+    }
+  }
+
+  /* Horizontal card rows: thin scrollbar that only shows on hover-capable devices */
+  .row-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    overscroll-behavior-x: contain;
+  }
+  @media (hover: hover) {
+    .row-scroll:hover {
+      scrollbar-color: hsl(var(--foreground) / 0.18) transparent;
+    }
+  }
+
   /* Sidebar playlist shelf: thin scrollbar, soft fade where content continues */
   .sidebar-scroll {
     scrollbar-width: thin;
@@ -403,8 +440,13 @@
 
   @media (prefers-reduced-motion: reduce) {
     .live-dot,
-    .animate-music-bar {
+    .animate-music-bar,
+    .animate-wave {
       animation: none;
+    }
+    .press:active,
+    .group:hover .art-zoom img {
+      transform: none;
     }
   }
 }
