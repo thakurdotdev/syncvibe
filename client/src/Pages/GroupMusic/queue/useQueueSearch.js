@@ -1,27 +1,29 @@
 import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
 import { useCallback, useEffect } from 'react';
 
-const store = useGroupSessionStore;
+// Note: always call the store hook by its `use*` name. The React Compiler only
+// recognises hooks by name; an alias (e.g. `const store = useGroupSessionStore`)
+// gets memoized like a plain function, which breaks hook order at runtime.
 
 /** Song search for the queue panel, backed by the shared group session store. */
 export const useQueueSearch = () => {
-  const searchQuery = store((s) => s.searchQuery);
-  const searchResults = store((s) => s.searchResults);
-  const isSearchLoading = store((s) => s.isSearchLoading);
+  const searchQuery = useGroupSessionStore((s) => s.searchQuery) ?? '';
+  const searchResults = useGroupSessionStore((s) => s.searchResults) ?? [];
+  const isSearchLoading = useGroupSessionStore((s) => s.isSearchLoading);
 
   const handleChange = useCallback((event) => {
     const query = event.target.value;
-    store.setState({
+    useGroupSessionStore.setState({
       searchQuery: query,
       searchResults: [],
       isSearchLoading: Boolean(query.trim()),
     });
-    store.getState().debouncedSearch(query);
+    useGroupSessionStore.getState().debouncedSearch(query);
   }, []);
 
   const clear = useCallback(() => {
-    store.getState().debouncedSearch.cancel?.();
-    store.setState({ searchQuery: '', searchResults: [], isSearchLoading: false });
+    useGroupSessionStore.getState().debouncedSearch.cancel?.();
+    useGroupSessionStore.setState({ searchQuery: '', searchResults: [], isSearchLoading: false });
   }, []);
 
   // Leaving the room (or unmounting the panel) shouldn't leave a stale search behind.
