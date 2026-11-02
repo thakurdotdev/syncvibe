@@ -39,14 +39,14 @@ const RoomTopBar = ({
   onShowQrCode,
   onLeave,
 }) => {
-  const { copied, copy } = useCopyRoomCode(group.id);
-  const shortCode = group.id?.replace('syncvibe_', '') || '';
+  const { copied, copy } = useCopyRoomCode(group?.id);
+  const shortCode = group?.id?.replace('syncvibe_', '') || '';
 
   return (
     <header className='flex h-14 shrink-0 items-center gap-3 px-1'>
       <div className='min-w-0 flex-1'>
         <div className='flex min-w-0 items-center gap-2.5'>
-          <h1 className='truncate text-base font-bold tracking-tight md:text-lg'>{group.name}</h1>
+          <h1 className='truncate text-base font-bold tracking-tight md:text-lg'>{group?.name}</h1>
           <ConnectionStatus quality={connectionQuality} isReconnecting={isReconnecting} />
         </div>
         <button
