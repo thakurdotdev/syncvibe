@@ -12,13 +12,9 @@ import ReconnectingView from './room/ReconnectingView';
 import RoomView from './room/RoomView';
 import { getSongImage } from './utils/song';
 import WelcomeView from './WelcomeView';
+import { VIEW } from '@/lib/motion';
 
-const VIEW_TRANSITION = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -8 },
-  transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
-};
+const VIEW_TRANSITION = VIEW;
 
 /**
  * /rooms — fills the layout's content area exactly (no page scroll).

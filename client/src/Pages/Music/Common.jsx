@@ -21,7 +21,7 @@ import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { usePlayerStore } from '@/stores/playerStore';
-import { useGroupMusic } from '@/Context/GroupMusicContext';
+import { useCurrentGroup, useGroupMusicActions } from '@/Context/GroupMusicContext';
 
 export const formatTime = (time) => {
   if (!time) return '00:00';
@@ -38,7 +38,8 @@ export const PlaylistActions = ({
   showShare = true,
 }) => {
   const [isShareDrawerOpen, setIsShareDrawerOpen] = useState(false);
-  const { currentGroup, addPlaylistToQueue } = useGroupMusic();
+  const currentGroup = useCurrentGroup();
+  const { addPlaylistToQueue } = useGroupMusicActions();
 
   const handleAddToGroup = () => {
     if (!songs?.length) return;
@@ -176,10 +177,7 @@ export const MusicControls = memo(({ size = 'default', showExtras = true }) => {
                 )}
                 aria-label='Previous track'
               >
-                <SkipBack
-                  className={isLarge ? 'h-5 w-5' : 'h-4 w-4'}
-                  fill='currentColor'
-                />
+                <SkipBack className={isLarge ? 'h-5 w-5' : 'h-4 w-4'} fill='currentColor' />
               </Button>
             </motion.div>
           </TooltipTrigger>
@@ -196,9 +194,7 @@ export const MusicControls = memo(({ size = 'default', showExtras = true }) => {
                 onClick={handlePlayPause}
                 className={cn(
                   'bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200 cursor-pointer shadow-md',
-                  isLarge
-                    ? 'h-14 w-14 rounded-full'
-                    : 'h-9.5 w-9.5 rounded-full'
+                  isLarge ? 'h-14 w-14 rounded-full' : 'h-9.5 w-9.5 rounded-full'
                 )}
                 aria-label={isPlaying ? 'Pause' : 'Play'}
               >
@@ -242,10 +238,7 @@ export const MusicControls = memo(({ size = 'default', showExtras = true }) => {
                 )}
                 aria-label='Next track'
               >
-                <SkipForward
-                  className={isLarge ? 'h-5 w-5' : 'h-4 w-4'}
-                  fill='currentColor'
-                />
+                <SkipForward className={isLarge ? 'h-5 w-5' : 'h-4 w-4'} fill='currentColor' />
               </Button>
             </motion.div>
           </TooltipTrigger>

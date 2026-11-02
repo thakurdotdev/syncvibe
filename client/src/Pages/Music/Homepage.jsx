@@ -1,12 +1,12 @@
 import { ChevronRight, Music2, Plus, RotateCcw, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProfile } from '@/Context/Context';
-import { useGroupMusic } from '@/Context/GroupMusicContext';
 import { paths } from '@/lib/paths';
 import { getSongImage } from '@/Pages/GroupMusic/utils/song';
+import { useGroupPlaybackStore } from '@/stores/groupMusic/playbackStore';
+import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
 import { useUiStore } from '@/stores/uiStore';
 import { Button } from '@/components/ui/button';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   useHomepageModulesQuery,
@@ -45,7 +45,9 @@ const greeting = () => {
 /** Opening of the home screen: who you are, and the two things you can do right now. */
 const Hero = () => {
   const { user } = useProfile();
-  const { currentGroup, currentSong, groupMembers = [] } = useGroupMusic();
+  const currentGroup = useGroupSessionStore((s) => s.currentGroup);
+  const groupMembers = useGroupSessionStore((s) => s.groupMembers) ?? [];
+  const currentSong = useGroupPlaybackStore((s) => s.currentSong);
   const setSearchOpen = useUiStore((s) => s.setSearchOpen);
   const firstName = user?.name?.split(' ')[0];
   const roomArt = currentGroup ? getSongImage(currentSong, 'large') : '';
@@ -115,11 +117,11 @@ const Hero = () => {
   );
 };
 
+/** Native horizontal scroller: cheaper than a JS scroll area and snaps card-by-card. */
 const ScrollableRow = ({ children }) => (
-  <ScrollArea className='w-full'>
-    <div className='flex gap-2 pb-4'>{children}</div>
-    <ScrollBar orientation='horizontal' />
-  </ScrollArea>
+  <div className='row-scroll -mx-2 flex snap-x snap-mandatory scroll-px-2 gap-1 overflow-x-auto px-2 pb-3 [&>*]:snap-start'>
+    {children}
+  </div>
 );
 
 const CardSkeleton = ({ type = 'song' }) => {
@@ -151,14 +153,11 @@ const SectionSkeleton = ({ type = 'song', count = 12 }) => (
     <div className='flex items-center gap-2'>
       <Skeleton className='h-5 w-32' />
     </div>
-    <ScrollArea className='w-full'>
-      <div className='flex gap-2 pb-4'>
-        {Array.from({ length: count }).map((_, i) => (
-          <CardSkeleton key={i} type={type} />
-        ))}
-      </div>
-      <ScrollBar orientation='horizontal' />
-    </ScrollArea>
+    <div className='flex gap-1 overflow-hidden pb-3'>
+      {Array.from({ length: count }).map((_, i) => (
+        <CardSkeleton key={i} type={type} />
+      ))}
+    </div>
   </div>
 );
 

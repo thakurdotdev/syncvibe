@@ -3,11 +3,12 @@ import { Pause, Play, Plus, SkipForward } from 'lucide-react';
 import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useGroupMusic } from '@/Context/GroupMusicContext';
 import { paths } from '@/lib/paths';
 import { cn } from '@/lib/utils';
 import Equalizer from '@/Pages/GroupMusic/components/Equalizer';
 import { getArtistName, getSongImage } from '@/Pages/GroupMusic/utils/song';
+import { useGroupPlaybackStore } from '@/stores/groupMusic/playbackStore';
+import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useUiStore } from '@/stores/uiStore';
 import { FALLBACK_ART } from './nav';
@@ -25,9 +26,12 @@ const ArtWash = ({ src }) =>
 
 const RoomCard = ({ collapsed }) => {
   const navigate = useNavigate();
-  const { currentGroup, currentSong, isPlaying, groupMembers = [] } = useGroupMusic();
+  const currentGroup = useGroupSessionStore((s) => s.currentGroup);
+  const groupMembers = useGroupSessionStore((s) => s.groupMembers) ?? [];
+  const currentSong = useGroupPlaybackStore((s) => s.currentSong);
+  const isPlaying = useGroupPlaybackStore((s) => s.isPlaying);
   const art = getSongImage(currentSong, 'medium') || FALLBACK_ART;
-  const listeners = `${groupMembers.length} listening`;
+  const listeners = `${groupMembers.length} in the room`;
 
   if (collapsed) {
     return (
@@ -51,7 +55,29 @@ const RoomCard = ({ collapsed }) => {
       className='relative block w-full overflow-hidden rounded-2xl border border-live/35 bg-card text-left transition-colors hover:border-live/70'
     >
       <ArtWash src={art} />
-      <div className='relative flex items-center gap-3 p-2.5'>
+      <div className='relative flex items-center justify-between gap-2 px-3 pt-2.5'>
+        <span className='flex items-center gap-1.5 text-[11px] font-semibold text-live'>
+          <span className='live-dot h-1.5 w-1.5 rounded-full bg-live' />
+          Your room
+        </span>
+        <span
+          className='flex items-center gap-1.5 text-[11px] text-muted-foreground'
+          title={`${groupMembers.length} in this room`}
+        >
+          <span className='flex -space-x-1.5'>
+            {groupMembers.slice(0, 3).map((m) => (
+              <Avatar key={m.userId} className='h-4 w-4 ring-[1.5px] ring-card'>
+                <AvatarImage src={m.profilePic} />
+                <AvatarFallback className='text-[7px]'>
+                  {m.userName?.[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            ))}
+          </span>
+          <span className='tabular-nums'>{groupMembers.length} here</span>
+        </span>
+      </div>
+      <div className='relative flex items-center gap-3 p-2.5 pt-2'>
         <div className='relative h-11 w-11 shrink-0 overflow-hidden rounded-xl'>
           <img src={art} alt='' className='h-full w-full object-cover' />
           {isPlaying && (
@@ -61,43 +87,64 @@ const RoomCard = ({ collapsed }) => {
           )}
         </div>
         <div className='min-w-0 flex-1'>
-          <p className='flex items-center gap-1.5 text-[11px] font-semibold text-live'>
-            <span className='live-dot h-1.5 w-1.5 rounded-full bg-live' />
-            {listeners}
-          </p>
           <p className='truncate text-[13px] font-semibold'>{currentGroup.name}</p>
           <p className='truncate text-xs text-muted-foreground'>
             {currentSong ? he.decode(currentSong.name || '') : 'Queue is empty'}
           </p>
-        </div>
-        <div className='hidden shrink-0 -space-x-1.5 [@media(min-height:700px)]:flex'>
-          {groupMembers.slice(0, 2).map((m) => (
-            <Avatar key={m.userId} className='h-5 w-5 ring-2 ring-card'>
-              <AvatarImage src={m.profilePic} />
-              <AvatarFallback className='text-[8px]'>
-                {m.userName?.[0]?.toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          ))}
         </div>
       </div>
     </button>
   );
 };
 
+/** Progress lives in its own components so only they re-render on every time update. */
+const useProgress = () => {
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const duration = usePlayerStore((s) => s.duration);
+  const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+  return { currentTime, duration, progress };
+};
+
+const MiniProgress = () => {
+  const { progress } = useProgress();
+  return (
+    <span className='absolute inset-x-0 bottom-0 h-[3px] bg-black/40'>
+      <span
+        className='block h-full origin-left bg-primary'
+        style={{ transform: `scaleX(${progress / 100})` }}
+      />
+    </span>
+  );
+};
+
+const SeekBar = () => {
+  const { currentTime, duration, progress } = useProgress();
+  const handleTimeSeek = usePlayerStore((s) => s.handleTimeSeek);
+  return (
+    <input
+      type='range'
+      aria-label='Seek'
+      min={0}
+      max={duration || 0}
+      step={1}
+      value={Math.min(currentTime || 0, duration || 0)}
+      onChange={(e) => handleTimeSeek(Number(e.target.value))}
+      onKeyDown={(e) => e.stopPropagation()}
+      style={{ '--progress': `${progress}%` }}
+      className='dock-seek relative block w-full px-2.5 pb-1'
+    />
+  );
+};
+
 const PlayerCard = ({ collapsed }) => {
   const currentSong = usePlayerStore((s) => s.currentSong);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const currentTime = usePlayerStore((s) => s.currentTime);
-  const duration = usePlayerStore((s) => s.duration);
   const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
   const handleNextSong = usePlayerStore((s) => s.handleNextSong);
-  const handleTimeSeek = usePlayerStore((s) => s.handleTimeSeek);
   const openSheet = useUiStore((s) => s.setPlayerSheetOpen);
 
   const art = getSongImage(currentSong, 'medium') || FALLBACK_ART;
   const title = he.decode(currentSong.name || '');
-  const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
   if (collapsed) {
     return (
@@ -121,9 +168,7 @@ const PlayerCard = ({ collapsed }) => {
             <Equalizer bars={3} className='h-2.5' barClassName='w-[2px] bg-white' />
           </span>
         )}
-        <span className='absolute inset-x-0 bottom-0 h-[3px] bg-black/40'>
-          <span className='block h-full bg-primary' style={{ width: `${progress}%` }} />
-        </span>
+        <MiniProgress />
       </button>
     );
   }
@@ -167,18 +212,7 @@ const PlayerCard = ({ collapsed }) => {
           <SkipForward className='h-4 w-4' fill='currentColor' />
         </button>
       </div>
-      <input
-        type='range'
-        aria-label='Seek'
-        min={0}
-        max={duration || 0}
-        step={1}
-        value={Math.min(currentTime || 0, duration || 0)}
-        onChange={(e) => handleTimeSeek(Number(e.target.value))}
-        onKeyDown={(e) => e.stopPropagation()}
-        style={{ '--progress': `${progress}%` }}
-        className='dock-seek relative block w-full px-2.5 pb-1'
-      />
+      <SeekBar />
     </div>
   );
 };
@@ -225,7 +259,7 @@ const StartRoom = ({ collapsed }) => {
  * one, otherwise solo playback, otherwise an invitation to start a room.
  */
 export const NowSlot = memo(({ collapsed }) => {
-  const inRoom = Boolean(useGroupMusic().currentGroup);
+  const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
   const hasSong = usePlayerStore((s) => Boolean(s.currentSong) && !s.isClosed);
 
   if (inRoom) return <RoomCard collapsed={collapsed} />;

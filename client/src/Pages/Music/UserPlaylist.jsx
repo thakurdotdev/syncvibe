@@ -9,8 +9,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Plus, ListMusic } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Loader2, Plus } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { UserPlaylistCard } from './Cards';
@@ -106,6 +108,7 @@ const UserPlaylist = ({ embedded = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { data: userPlaylist = [], isLoading: isDataLoading } = useUserPlaylistsQuery();
+  const [sortBy, setSortBy] = useState('recent');
   const [playlistDialog, setPlaylistDialog] = useState({
     isOpen: false,
     data: null,
@@ -162,62 +165,83 @@ const UserPlaylist = ({ embedded = false }) => {
     deleteMutation.mutate(playlistId);
   };
 
+  const sorted = useMemo(() => {
+    const list = [...userPlaylist];
+    if (sortBy === 'name') return list.sort((x, y) => (x.name || '').localeCompare(y.name || ''));
+    const time = (p) => new Date(p.lastAddedAt || p.updatedAt || p.createdAt || 0).getTime() || 0;
+    return list.sort((x, y) => time(y) - time(x));
+  }, [userPlaylist, sortBy]);
+
+  const openCreate = () => setPlaylistDialog({ isOpen: true, data: null });
+
   return (
-    <div
-      className={embedded ? 'w-full space-y-6' : 'p-4 md:p-6 max-w-350 mx-auto w-full space-y-6'}
-    >
-      <div className='flex flex-row justify-between items-start sm:items-center gap-4'>
-        <div>
-          {!embedded && (
-            <h2 className='text-2xl md:text-3xl font-bold tracking-tight'>My Playlists</h2>
-          )}
-          <p className='mt-1 text-sm font-medium text-muted-foreground'>
-            {userPlaylist.length} {userPlaylist.length === 1 ? 'playlist' : 'playlists'}
-          </p>
-        </div>
+    <div className={embedded ? 'w-full' : 'mx-auto w-full max-w-350 p-4 md:p-6'}>
+      {!embedded && <h1 className='mb-6 text-3xl font-bold'>Playlists</h1>}
 
-        <Button
-          onClick={() => setPlaylistDialog({ isOpen: true, data: null })}
-          className='gap-2 h-10 rounded-xl px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md cursor-pointer transition-colors duration-150'
-        >
-          <Plus className='h-4 w-4' />
-          New Playlist
-        </Button>
-      </div>
-
-      {isDataLoading ? (
-        <div className='flex items-center justify-center py-40'>
-          <Loader2 className='w-10 h-10 animate-spin text-primary' />
-        </div>
-      ) : userPlaylist.length === 0 ? (
-        <div className='flex flex-col items-center justify-center py-32 bg-accent/5 rounded-[32px] border border-dashed border-border/40'>
-          <div className='p-6 rounded-full bg-accent/10 mb-6'>
-            <ListMusic className='w-16 h-16 text-muted-foreground/50' />
-          </div>
-          <h3 className='text-xl font-bold mb-2 text-foreground'>No playlists found</h3>
-          <p className='text-muted-foreground font-medium mb-8 max-w-sm text-center'>
-            Create your first playlist and start building your collection!
-          </p>
-          <Button
-            variant='outline'
-            onClick={() => setPlaylistDialog({ isOpen: true, data: null })}
-            className='rounded-xl px-8 h-12 border-primary/20 hover:bg-primary/5 text-primary font-bold'
+      {!isDataLoading && userPlaylist.length > 1 && (
+        <div className='mb-5 flex items-center justify-between gap-4'>
+          <p className='text-sm text-muted-foreground'>{userPlaylist.length} playlists</p>
+          <div
+            role='radiogroup'
+            aria-label='Sort playlists'
+            className='flex rounded-full bg-muted p-0.5'
           >
-            Create Playlist
-          </Button>
-        </div>
-      ) : (
-        <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-5'>
-          {userPlaylist.map((playlist) => (
-            <UserPlaylistCard
-              key={playlist.id}
-              playlist={playlist}
-              onDelete={handleDeletePlaylist}
-              onEdit={(playlist) => setPlaylistDialog({ isOpen: true, data: playlist })}
-            />
-          ))}
+            {[
+              { key: 'recent', label: 'Recent' },
+              { key: 'name', label: 'A–Z' },
+            ].map((opt) => (
+              <button
+                key={opt.key}
+                type='button'
+                role='radio'
+                aria-checked={sortBy === opt.key}
+                onClick={() => setSortBy(opt.key)}
+                className={cn(
+                  'press h-7 rounded-full px-3 text-xs font-medium',
+                  sortBy === opt.key
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
+
+      <div className='grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-x-4 gap-y-6 md:gap-x-5'>
+        <button type='button' onClick={openCreate} className='press group flex flex-col text-left'>
+          <span className='grid aspect-square w-full place-items-center rounded-2xl border-2 border-dashed border-border text-muted-foreground transition-colors group-hover:border-primary/60 group-hover:text-primary'>
+            <span className='grid h-12 w-12 place-items-center rounded-full bg-muted transition-colors group-hover:bg-primary group-hover:text-primary-foreground'>
+              <Plus className='h-5 w-5' />
+            </span>
+          </span>
+          <span className='mt-2.5 px-0.5 text-sm font-semibold'>New playlist</span>
+          <span className='px-0.5 text-xs text-muted-foreground'>
+            {userPlaylist.length === 0 && !isDataLoading
+              ? 'Start your first one'
+              : 'Name it, then add songs'}
+          </span>
+        </button>
+
+        {isDataLoading
+          ? Array.from({ length: 5 }, (_, i) => (
+              <div key={i}>
+                <Skeleton className='aspect-square w-full rounded-2xl' />
+                <Skeleton className='mt-3 h-4 w-3/4' />
+                <Skeleton className='mt-1.5 h-3 w-1/3' />
+              </div>
+            ))
+          : sorted.map((playlist) => (
+              <UserPlaylistCard
+                key={playlist.id}
+                playlist={playlist}
+                onDelete={handleDeletePlaylist}
+                onEdit={(p) => setPlaylistDialog({ isOpen: true, data: p })}
+              />
+            ))}
+      </div>
 
       <PlaylistDialog
         isOpen={playlistDialog.isOpen}

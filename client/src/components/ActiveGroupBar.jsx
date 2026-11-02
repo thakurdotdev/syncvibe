@@ -2,14 +2,19 @@ import { memo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
-import { useGroupMusic } from '@/Context/GroupMusicContext';
+import { useGroupPlaybackStore } from '@/stores/groupMusic/playbackStore';
+import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useShellLayout } from '@/components/shell/useShellLayout';
+import { SPRING } from '@/lib/motion';
 
 const ActiveGroupBar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentGroup, currentSong, isPlaying, groupMembers } = useGroupMusic();
+  const currentGroup = useGroupSessionStore((s) => s.currentGroup);
+  const groupMembers = useGroupSessionStore((s) => s.groupMembers) ?? [];
+  const currentSong = useGroupPlaybackStore((s) => s.currentSong);
+  const isPlaying = useGroupPlaybackStore((s) => s.isPlaying);
   // The expanded sidebar already shows the live room card.
   const { isExpanded } = useShellLayout();
 
@@ -28,7 +33,7 @@ const ActiveGroupBar = () => {
         initial={{ y: 50, opacity: 0, scale: 0.95 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: 50, opacity: 0, scale: 0.95 }}
-        transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+        transition={SPRING}
         className='fixed bottom-24 sm:bottom-20 right-4 sm:right-6 z-40 max-w-sm'
       >
         <div

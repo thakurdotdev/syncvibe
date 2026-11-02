@@ -11,7 +11,7 @@ import { useRemoveSongFromPlaylistMutation } from '@/hooks/mutations/usePlaylist
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { useGroupMusic } from '@/Context/GroupMusicContext';
+import { useCurrentGroup, useGroupMusicActions } from '@/Context/GroupMusicContext';
 import { useUiStore } from '@/stores/uiStore';
 
 const PlaylistHeader = ({ playlistData }) => {
@@ -75,7 +75,8 @@ const UserPlaylistDetails = () => {
   const setPlaylist = usePlayerStore((s) => s.setPlaylist);
   const playSong = usePlayerStore((s) => s.playSong);
 
-  const { currentGroup, addPlaylistToQueue } = useGroupMusic();
+  const currentGroup = useCurrentGroup();
+  const { addPlaylistToQueue } = useGroupMusicActions();
   const { data: playlistData, isLoading } = usePlaylistDetailsQuery(id);
 
   const removeMutation = useRemoveSongFromPlaylistMutation({

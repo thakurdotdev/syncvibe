@@ -97,7 +97,10 @@ const BottomPlayer = () => {
         <div className='relative w-full rounded-2xl sm:rounded-full bg-card/90 backdrop-blur-xl border border-border text-card-foreground shadow-2xl px-3 sm:px-4 py-2 sm:py-2.5'>
           {/* Main Layout: Left Track Block | Right Controls */}
           <div className='flex items-center justify-between gap-2.5 sm:gap-5'>
-            <SongInfo currentSong={currentSong} onOpenSheet={() => setIsSheetOpen(true)} />
+            {/* Skip the per-tick track info while the sidebar dock is showing it instead. */}
+            {!isDocked && (
+              <SongInfo currentSong={currentSong} onOpenSheet={() => setIsSheetOpen(true)} />
+            )}
             <PlayerControls />
           </div>
         </div>

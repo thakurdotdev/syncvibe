@@ -1,4 +1,3 @@
-import { AnimatePresence, motion } from 'framer-motion';
 import he from 'he';
 import {
   ChevronLeft,
@@ -47,15 +46,9 @@ const SORT_ORDER_OPTIONS = [
 const PAGE_SIZE_OPTIONS = [12, 28, 52];
 
 const HistorySkeleton = ({ pageSize = 28 }) => (
-  <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3'>
+  <div className='grid grid-cols-1 gap-1 md:grid-cols-2 xl:grid-cols-3'>
     {Array.from({ length: pageSize }).map((_, i) => (
-      <motion.div
-        key={i}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: i * 0.03 }}
-        className='rounded-xl border border-border/50 bg-card p-3'
-      >
+      <div key={i} className='rounded-xl p-2'>
         <div className='flex items-center gap-3'>
           <Skeleton className='w-14 h-14 rounded-lg shrink-0' />
           <div className='flex-1 space-y-2 min-w-0'>
@@ -64,17 +57,13 @@ const HistorySkeleton = ({ pageSize = 28 }) => (
           </div>
           <Skeleton className='h-8 w-8 rounded-md shrink-0' />
         </div>
-      </motion.div>
+      </div>
     ))}
   </div>
 );
 
 const EmptyState = ({ hasSearch }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className='flex flex-col items-center justify-center min-h-[45vh] px-6'
-  >
+  <div className='flex flex-col items-center justify-center min-h-[45vh] px-6'>
     <div className='p-6 rounded-2xl bg-muted/50 border border-border/50'>
       <HistoryIcon className='w-12 h-12 text-muted-foreground' />
     </div>
@@ -84,15 +73,11 @@ const EmptyState = ({ hasSearch }) => (
     <p className='text-muted-foreground text-center mt-2 max-w-xs text-sm'>
       {hasSearch ? 'Try adjusting your search or filters' : 'Songs you listen to will appear here'}
     </p>
-  </motion.div>
+  </div>
 );
 
 const ErrorState = ({ error, onRetry }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className='flex flex-col items-center justify-center min-h-[45vh] px-6'
-  >
+  <div className='flex flex-col items-center justify-center min-h-[45vh] px-6'>
     <div className='p-6 rounded-2xl bg-destructive/10 border border-destructive/20'>
       <Music2 className='w-12 h-12 text-destructive' />
     </div>
@@ -102,7 +87,7 @@ const ErrorState = ({ error, onRetry }) => (
       <RotateCcw className='w-4 h-4' />
       Retry
     </Button>
-  </motion.div>
+  </div>
 );
 
 const Pagination = ({ currentPage, totalPages, onPageChange, disabled }) => {
@@ -119,11 +104,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, disabled }) => {
   if (totalPages <= 1) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className='flex items-center justify-center gap-1 mt-8'
-    >
+    <div className='flex items-center justify-center gap-1 mt-8'>
       <Button
         variant='ghost'
         size='icon'
@@ -188,7 +169,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, disabled }) => {
       >
         <ChevronRight className='h-4 w-4' />
       </Button>
-    </motion.div>
+    </div>
   );
 };
 
@@ -213,9 +194,7 @@ export const ResumeSession = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -15 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       onClick={() => playSong(currentSong)}
       className='relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] p-4 sm:p-5 pb-5 sm:pb-6 flex flex-col sm:flex-row items-center justify-between gap-4 w-full group/resume transition-all duration-300 backdrop-blur-md cursor-pointer'
     >
@@ -286,7 +265,7 @@ export const ResumeSession = () => {
           />
         </div>
       )}
-    </motion.div>
+    </div>
   );
 };
 
@@ -369,12 +348,9 @@ const HistoryPage = ({ embedded = false }) => {
                         {totalCount.toLocaleString()} songs
                       </span>
                       {totalPages > 1 && (
-                        <>
-                          <span className='text-muted-foreground/50'>•</span>
-                          <span className='text-sm text-muted-foreground'>
-                            Page {currentPage} of {totalPages}
-                          </span>
-                        </>
+                        <span className='text-sm text-muted-foreground'>
+                          Page {currentPage} of {totalPages}
+                        </span>
                       )}
                     </div>
                   )}
@@ -382,25 +358,28 @@ const HistoryPage = ({ embedded = false }) => {
               </div>
 
               <Button
-                variant={showFilters ? 'secondary' : 'outline-solid'}
+                variant={showFilters ? 'secondary' : 'ghost'}
                 size='sm'
                 onClick={() => setShowFilters(!showFilters)}
-                className='gap-2'
+                aria-expanded={showFilters}
+                className='press gap-2 rounded-full'
               >
                 <Filter className='h-4 w-4' />
+                Sort & filter
                 {hasActiveFilters && <span className='h-1.5 w-1.5 rounded-full bg-primary' />}
               </Button>
             </div>
 
-            <ResumeSession />
+            {!embedded && <ResumeSession />}
 
             <div className='relative'>
-              <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
+              <Search className='absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
               <Input
-                placeholder='Search songs, artists...'
+                placeholder='Search your history'
+                aria-label='Search your listening history'
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className='pl-9 pr-9 h-10 bg-background'
+                className='pl-10 pr-10 h-10 rounded-full bg-muted/60 border-transparent focus-visible:bg-background'
               />
               {searchQuery && (
                 <Button
@@ -414,80 +393,72 @@ const HistoryPage = ({ embedded = false }) => {
               )}
             </div>
 
-            <AnimatePresence>
-              {showFilters && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className='overflow-hidden'
-                >
-                  <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1'>
-                    <div className='space-y-1.5'>
-                      <Select value={sortBy} onValueChange={setSortBy}>
-                        <SelectTrigger className='h-9 bg-background'>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {activeSortOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className='space-y-1.5'>
-                      <Select value={sortOrder} onValueChange={setSortOrder}>
-                        <SelectTrigger className='h-9 bg-background'>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SORT_ORDER_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className='space-y-1.5'>
-                      <Select
-                        value={pageSize.toString()}
-                        onValueChange={(v) => setPageSize(Number(v))}
-                      >
-                        <SelectTrigger className='h-9 bg-background'>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PAGE_SIZE_OPTIONS.map((size) => (
-                            <SelectItem key={size} value={size.toString()}>
-                              {size} songs
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className='flex items-end'>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        onClick={handleResetFilters}
-                        disabled={!hasActiveFilters}
-                        className='w-full h-9 gap-2 text-muted-foreground hover:text-foreground'
-                      >
-                        <RotateCcw className='w-3.5 h-3.5' />
-                        Reset
-                      </Button>
-                    </div>
+            {showFilters && (
+              <div>
+                <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1'>
+                  <div className='space-y-1.5'>
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger className='h-9 bg-background'>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeSortOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+
+                  <div className='space-y-1.5'>
+                    <Select value={sortOrder} onValueChange={setSortOrder}>
+                      <SelectTrigger className='h-9 bg-background'>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SORT_ORDER_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className='space-y-1.5'>
+                    <Select
+                      value={pageSize.toString()}
+                      onValueChange={(v) => setPageSize(Number(v))}
+                    >
+                      <SelectTrigger className='h-9 bg-background'>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAGE_SIZE_OPTIONS.map((size) => (
+                          <SelectItem key={size} value={size.toString()}>
+                            {size} songs
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className='flex items-end'>
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={handleResetFilters}
+                      disabled={!hasActiveFilters}
+                      className='w-full h-9 gap-2 text-muted-foreground hover:text-foreground'
+                    >
+                      <RotateCcw className='w-3.5 h-3.5' />
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -501,22 +472,11 @@ const HistoryPage = ({ embedded = false }) => {
           <EmptyState hasSearch={!!debouncedSearch} />
         ) : (
           <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3'
-            >
-              {songs.map((song, index) => (
-                <motion.div
-                  key={song.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.02, duration: 0.2 }}
-                >
-                  <SongCard song={song} />
-                </motion.div>
+            <div className='grid grid-cols-1 gap-1 md:grid-cols-2 xl:grid-cols-3'>
+              {songs.map((song) => (
+                <SongCard key={song.id} song={song} />
               ))}
-            </motion.div>
+            </div>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}

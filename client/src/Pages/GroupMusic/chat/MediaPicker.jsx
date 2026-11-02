@@ -1,18 +1,11 @@
 import { memo, useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { motion } from 'framer-motion';
-import {
-  Search,
-  X,
-  Film,
-  Clapperboard,
-  Sparkles,
-  Loader2,
-  RefreshCw,
-} from 'lucide-react';
+import { Search, X, Film, Clapperboard, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fetchTrendingMedia, searchMedia } from '@/api/gifs';
 import { usePickerPosition } from './usePickerPosition';
+import { EASE_OUT } from '@/lib/motion';
 
 const MEDIA_TABS = [
   { id: 'gifs', label: 'GIFs', icon: Film, placeholder: 'Search GIFs...' },
@@ -96,7 +89,9 @@ const MediaCard = memo(({ item, type, onSelect }) => {
       {isClip && (
         <div className='absolute top-1.5 left-1.5 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 shadow-xs'>
           <Clapperboard className='h-2.5 w-2.5 text-amber-400' />
-          <span className='text-[9px] font-semibold text-white/90 uppercase tracking-wider'>Clip</span>
+          <span className='text-[9px] font-semibold text-white/90 uppercase tracking-wider'>
+            Clip
+          </span>
         </div>
       )}
 
@@ -134,7 +129,6 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
   const searchTimeoutRef = useRef(null);
   const abortControllerRef = useRef(null);
 
-
   // Focus search input after mount
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -144,53 +138,50 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
   }, []);
 
   // Fetch media items helper
-  const loadItems = useCallback(
-    async (tabType, searchQuery, targetPage = 1, append = false) => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
+  const loadItems = useCallback(async (tabType, searchQuery, targetPage = 1, append = false) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
-      if (targetPage === 1) {
-        setLoading(true);
+    if (targetPage === 1) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      let res;
+      const cleanQuery = searchQuery?.trim();
+      if (cleanQuery) {
+        res = await searchMedia({
+          query: cleanQuery,
+          type: tabType,
+          page: targetPage,
+          signal,
+        });
       } else {
-        setLoadingMore(true);
+        res = await fetchTrendingMedia({
+          type: tabType,
+          page: targetPage,
+          signal,
+        });
       }
 
-      try {
-        let res;
-        const cleanQuery = searchQuery?.trim();
-        if (cleanQuery) {
-          res = await searchMedia({
-            query: cleanQuery,
-            type: tabType,
-            page: targetPage,
-            signal,
-          });
-        } else {
-          res = await fetchTrendingMedia({
-            type: tabType,
-            page: targetPage,
-            signal,
-          });
-        }
-
-        const newItems = res.data || [];
-        setItems((prev) => (append ? [...prev, ...newItems] : newItems));
-        setHasMore(newItems.length > 0);
-        setPage(targetPage);
-      } catch (err) {
-        if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
-          console.error('Failed to load media items:', err);
-        }
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
+      const newItems = res.data || [];
+      setItems((prev) => (append ? [...prev, ...newItems] : newItems));
+      setHasMore(newItems.length > 0);
+      setPage(targetPage);
+    } catch (err) {
+      if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
+        console.error('Failed to load media items:', err);
       }
-    },
-    []
-  );
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, []);
 
   // Initial load
   useEffect(() => {
@@ -346,7 +337,7 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
       initial={{ opacity: 0, y: 8, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.96 }}
-      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.18, ease: EASE_OUT }}
       className='@container fixed flex flex-col rounded-2xl overflow-hidden border border-border/30 shadow-2xl backdrop-blur-2xl'
       style={{
         bottom: pos.bottom,
@@ -425,11 +416,7 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
           </div>
 
           <span className='text-[10.5px] text-muted-foreground/45 font-medium px-1'>
-            {query.trim()
-              ? items.length > 0
-                ? `${items.length} items`
-                : ''
-              : 'Trending'}
+            {query.trim() ? (items.length > 0 ? `${items.length} items` : '') : 'Trending'}
           </span>
         </div>
       </div>

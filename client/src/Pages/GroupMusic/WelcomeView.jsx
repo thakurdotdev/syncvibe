@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, Radio, MessageCircle, Plus, LogIn } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { EASE_OUT } from '@/lib/motion';
 
 const FEATURE_CARDS = [
   { icon: Users, title: 'Listen', subtitle: 'Together' },
@@ -16,7 +17,7 @@ const WelcomeView = ({ onOpenModal }) => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+      transition={{ duration: 0.25, ease: EASE_OUT }}
       className='flex flex-col items-center justify-center min-h-full py-8 px-4'
     >
       <div className='max-w-lg w-full flex flex-col items-center text-center'>

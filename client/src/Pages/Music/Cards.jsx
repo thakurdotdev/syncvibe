@@ -1,21 +1,10 @@
 import axios from 'axios';
-import { AnimatePresence, motion } from 'framer-motion';
 import he from 'he';
-import {
-  Disc3,
-  ListMusic,
-  Loader2,
-  MoreVertical,
-  Pencil,
-  Play,
-  Trash2,
-  Users,
-  Radio,
-} from 'lucide-react';
+import { Loader2, MoreVertical, Pencil, Play, Trash2, Users, Radio } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useGroupMusic } from '@/Context/GroupMusicContext';
+import { useCurrentGroup, useGroupMusicActions } from '@/Context/GroupMusicContext';
 import LazyImage from '@/components/LazyImage';
 import {
   AlertDialog,
@@ -41,8 +30,6 @@ import { usePlayerStore } from '@/stores/playerStore';
 import AddToPlaylist from './AddToPlaylist';
 import { ensureHttpsForDownloadUrls } from './Common';
 import './music.css';
-
-const MotionCard = motion.div;
 
 export const getPlaylistImageUrl = (image) => {
   if (typeof image === 'string') return image;
@@ -80,24 +67,17 @@ const formatPlaylistDate = (value) => {
   })}`;
 };
 
+/** Now-playing bars. CSS-only (transform), so a playing card costs nothing per frame in JS. */
 export const AudioWave = memo(() => (
-  <div className='flex items-center justify-center gap-0.5 h-6'>
-    {[...Array(4)].map((_, i) => (
-      <motion.span
+  <span className='flex h-4 items-end gap-[3px]' aria-hidden='true'>
+    {[0, 1, 2, 3].map((i) => (
+      <span
         key={i}
-        className='w-0.5 bg-white rounded-full'
-        animate={{
-          height: ['8px', '16px', '8px'],
-        }}
-        transition={{
-          duration: 0.6,
-          repeat: Infinity,
-          delay: i * 0.1,
-          ease: 'easeInOut',
-        }}
+        className='h-full w-[3px] origin-bottom rounded-full bg-white animate-wave'
+        style={{ animationDelay: `${i * 0.12}s` }}
       />
     ))}
-  </div>
+  </span>
 ));
 
 export const ArtistCard = memo(({ artist }) => {
@@ -107,13 +87,11 @@ export const ArtistCard = memo(({ artist }) => {
   const imageUrl = Array.isArray(artist.image) ? artist.image[2].link : artist.image;
 
   return (
-    <MotionCard
-      className='w-[150px] group cursor-pointer p-3 rounded-lg'
+    <div
+      className='press w-[150px] group cursor-pointer rounded-xl p-3 hover:bg-foreground/[0.045]'
       onClick={() => navigate(`/artist/${artist.id}`, { state: artist.id })}
-      whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
-      whileTap={{ scale: 0.98 }}
     >
-      <div className='relative mb-3'>
+      <div className='art-zoom relative mb-3 overflow-hidden rounded-full'>
         <LazyImage
           src={imageUrl}
           alt={artist.name}
@@ -122,35 +100,38 @@ export const ArtistCard = memo(({ artist }) => {
           className='w-full aspect-square rounded-full object-cover'
         />
       </div>
-      <p className='font-medium text-sm text-center truncate group-hover:text-primary transition-colors'>
-        {artist.name}
-      </p>
+      <p className='font-medium text-sm text-center truncate'>{artist.name}</p>
       <p className='text-xs text-muted-foreground text-center truncate'>
         {artist.description || 'Artist'}
       </p>
-    </MotionCard>
+    </div>
   );
 });
 
 export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
   const navigate = useNavigate();
-  const currentSongId = usePlayerStore((s) => s.currentSong?.id);
-  const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const playlist = usePlayerStore((s) => s.playlist);
+  // Boolean selectors: a card only re-renders when *its* state changes, not on every
+  // play/pause or queue edit elsewhere.
+  const isCurrentSong = usePlayerStore((s) => Boolean(song?.id) && s.currentSong?.id === song?.id);
+  const isPlaying = usePlayerStore(
+    (s) => Boolean(song?.id) && s.currentSong?.id === song?.id && s.isPlaying
+  );
+  const isInQueue = usePlayerStore(
+    (s) => Boolean(song?.id) && s.playlist.some((item) => item.id === song?.id)
+  );
   const playSong = usePlayerStore((s) => s.playSong);
   const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
   const setPlaylist = usePlayerStore((s) => s.setPlaylist);
   const addToQueue = usePlayerStore((s) => s.addToQueue);
-  const { currentGroup, addToQueue: addToGroupQueue, playNext: playNextInGroup } = useGroupMusic();
+  const currentGroup = useCurrentGroup();
+  const { addToQueue: addToGroupQueue, playNext: playNextInGroup } = useGroupMusicActions();
 
   const [loading, setLoading] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   if (!song?.id || !song?.image?.[2]) return null;
 
-  const isCurrentSong = currentSongId === song.id;
   const name = he.decode(song.name || song.title || '');
   const artistName =
     song?.artist_map?.artists
@@ -159,7 +140,6 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
       .join(', ') ||
     song?.name ||
     '';
-  const isInQueue = playlist.some((item) => item.id === song.id);
 
   const handlePlay = async (e) => {
     e?.stopPropagation();
@@ -198,7 +178,7 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
       toast.error("Can't remove playing song");
       return;
     }
-    setPlaylist(playlist.filter((item) => item.id !== song.id));
+    setPlaylist(usePlayerStore.getState().playlist.filter((item) => item.id !== song.id));
     toast.success(`Removed from queue`);
   };
 
@@ -210,14 +190,11 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
 
   return (
     <>
-      <MotionCard
-        className={cn('group cursor-pointer rounded-lg p-2', isCurrentSong && 'bg-primary/5')}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        whileHover={{
-          backgroundColor: isCurrentSong ? 'rgba(var(--primary), 0.08)' : 'rgba(255,255,255,0.05)',
-        }}
-        whileTap={{ scale: 0.995 }}
+      <div
+        className={cn(
+          'press group cursor-pointer rounded-xl p-2',
+          isCurrentSong ? 'bg-primary/[0.07] hover:bg-primary/10' : 'hover:bg-foreground/[0.045]'
+        )}
       >
         <div
           className='flex items-center gap-3'
@@ -232,46 +209,33 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
               className='w-12 h-12 rounded-md object-cover'
             />
             {song.type === 'song' && (
-              <AnimatePresence>
-                {(isCurrentSong || isHovered || menuOpen) && (
-                  <motion.div
-                    className='absolute inset-0 rounded-md bg-black/60 flex items-center justify-center'
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                  >
-                    {loading ? (
-                      <Loader2 className='w-5 h-5 text-white animate-spin' />
-                    ) : isCurrentSong && isPlaying ? (
-                      <AudioWave />
-                    ) : (
-                      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                        <Play className='w-5 h-5 text-white' fill='white' />
-                      </motion.div>
-                    )}
-                  </motion.div>
+              <div
+                className={cn(
+                  'absolute inset-0 grid place-items-center rounded-md bg-black/55 transition-opacity duration-150',
+                  isCurrentSong || menuOpen || loading
+                    ? 'opacity-100'
+                    : 'opacity-0 group-hover:opacity-100'
                 )}
-              </AnimatePresence>
+              >
+                {loading ? (
+                  <Loader2 className='w-5 h-5 text-white animate-spin' />
+                ) : isPlaying ? (
+                  <AudioWave />
+                ) : (
+                  <Play className='w-5 h-5 text-white' fill='white' />
+                )}
+              </div>
             )}
           </div>
 
           <div className='flex-1 min-w-0'>
             <div className='flex items-center gap-2'>
               <p className='font-medium text-sm truncate'>{name}</p>
-              <AnimatePresence>
-                {isCurrentSong && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                  >
-                    <Badge variant='secondary' className='h-4 text-[10px] px-1.5 shrink-0'>
-                      Playing
-                    </Badge>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {isCurrentSong && (
+                <Badge variant='secondary' className='h-4 text-[10px] px-1.5 shrink-0'>
+                  Playing
+                </Badge>
+              )}
             </div>
             <p className='text-xs text-muted-foreground truncate'>{artistName}</p>
           </div>
@@ -368,7 +332,7 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
             </DropdownMenu>
           )}
         </div>
-      </MotionCard>
+      </div>
 
       {isModalOpen && (
         <AddToPlaylist dialogOpen={isModalOpen} setDialogOpen={setIsModalOpen} song={song} />
@@ -379,23 +343,28 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
 
 export const NewSongCard = memo(({ song }) => {
   const navigate = useNavigate();
-  const currentSongId = usePlayerStore((s) => s.currentSong?.id);
-  const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const playlist = usePlayerStore((s) => s.playlist);
+  // Boolean selectors: a card only re-renders when *its* state changes, not on every
+  // play/pause or queue edit elsewhere.
+  const isCurrentSong = usePlayerStore((s) => Boolean(song?.id) && s.currentSong?.id === song?.id);
+  const isPlaying = usePlayerStore(
+    (s) => Boolean(song?.id) && s.currentSong?.id === song?.id && s.isPlaying
+  );
+  const isInQueue = usePlayerStore(
+    (s) => Boolean(song?.id) && s.playlist.some((item) => item.id === song?.id)
+  );
   const playSong = usePlayerStore((s) => s.playSong);
   const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
   const setPlaylist = usePlayerStore((s) => s.setPlaylist);
   const addToQueue = usePlayerStore((s) => s.addToQueue);
-  const { currentGroup, addToQueue: addToGroupQueue, playNext: playNextInGroup } = useGroupMusic();
+  const currentGroup = useCurrentGroup();
+  const { addToQueue: addToGroupQueue, playNext: playNextInGroup } = useGroupMusicActions();
 
   const [loading, setLoading] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   if (!song?.id || !song?.image?.[2]) return null;
 
-  const isCurrentSong = currentSongId === song.id;
   const name = he.decode(song.name || song.title || '');
   const artistName =
     song?.artist_map?.artists
@@ -404,7 +373,6 @@ export const NewSongCard = memo(({ song }) => {
       .join(', ') ||
     song?.name ||
     '';
-  const isInQueue = playlist.some((item) => item.id === song.id);
 
   const handlePlay = async () => {
     if (isCurrentSong) {
@@ -442,7 +410,7 @@ export const NewSongCard = memo(({ song }) => {
       toast.error("Can't remove playing song");
       return;
     }
-    setPlaylist(playlist.filter((item) => item.id !== song.id));
+    setPlaylist(usePlayerStore.getState().playlist.filter((item) => item.id !== song.id));
     toast.success(`Removed from queue`);
   };
 
@@ -454,22 +422,15 @@ export const NewSongCard = memo(({ song }) => {
 
   return (
     <>
-      <MotionCard
+      <div
         className={cn(
-          'w-[150px] group cursor-pointer rounded-lg p-2',
-          isCurrentSong && 'bg-primary/5'
+          'press w-[150px] group cursor-pointer rounded-xl p-2',
+          isCurrentSong ? 'bg-primary/[0.07]' : 'hover:bg-foreground/[0.045]'
         )}
         onClick={song.type === 'song' ? handlePlay : handleNavigate}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
-        whileTap={{ scale: 0.98 }}
       >
         <div className='relative mb-2 overflow-hidden rounded-lg'>
-          <motion.div
-            animate={{ scale: isHovered ? 1.05 : 1 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-          >
+          <div className='art-zoom'>
             <LazyImage
               src={Array.isArray(song.image) ? song.image?.[2]?.link : song.image}
               alt={name}
@@ -477,35 +438,27 @@ export const NewSongCard = memo(({ song }) => {
               width={140}
               className='w-full aspect-square rounded-lg object-cover'
             />
-          </motion.div>
-          <AnimatePresence>
-            {(isCurrentSong || isHovered || menuOpen) && (
-              <motion.div
-                className='absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center'
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                {loading ? (
-                  <Loader2 className='w-8 h-8 text-white animate-spin' />
-                ) : isCurrentSong && isPlaying ? (
-                  <div className='scale-125'>
-                    <AudioWave />
-                  </div>
-                ) : (
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.05 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Play className='w-10 h-10 text-white' fill='white' />
-                  </motion.div>
-                )}
-              </motion.div>
+          </div>
+          <div
+            className={cn(
+              'absolute inset-0 grid place-items-center rounded-lg bg-black/45 transition-opacity duration-150',
+              isCurrentSong || menuOpen || loading
+                ? 'opacity-100'
+                : 'opacity-0 group-hover:opacity-100'
             )}
-          </AnimatePresence>
+          >
+            {loading ? (
+              <Loader2 className='w-8 h-8 text-white animate-spin' />
+            ) : isPlaying ? (
+              <div className='scale-125'>
+                <AudioWave />
+              </div>
+            ) : (
+              <span className='grid h-11 w-11 translate-y-1 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform duration-200 ease-snappy group-hover:translate-y-0'>
+                <Play className='ml-0.5 h-5 w-5' fill='currentColor' />
+              </span>
+            )}
+          </div>
           {song.type === 'song' && (
             <div
               className={cn(
@@ -595,9 +548,7 @@ export const NewSongCard = memo(({ song }) => {
           )}
         </div>
         <div>
-          <p className='font-medium text-sm truncate group-hover:text-primary transition-colors'>
-            {name}
-          </p>
+          <p className='font-medium text-sm truncate'>{name}</p>
           <p className='text-xs text-muted-foreground truncate'>{artistName}</p>
           {(song.language || song.album || song.type !== 'song') && (
             <Badge
@@ -608,7 +559,7 @@ export const NewSongCard = memo(({ song }) => {
             </Badge>
           )}
         </div>
-      </MotionCard>
+      </div>
 
       {isModalOpen && (
         <AddToPlaylist dialogOpen={isModalOpen} setDialogOpen={setIsModalOpen} song={song} />
@@ -619,64 +570,31 @@ export const NewSongCard = memo(({ song }) => {
 
 export const AlbumCard = memo(({ album }) => {
   const navigate = useNavigate();
-  const [isHovered, setIsHovered] = useState(false);
   const name = useMemo(() => he.decode(album.name || album.title || ''), [album]);
 
   return (
-    <MotionCard
-      className='w-[150px] group cursor-pointer rounded-lg p-2'
+    <div
+      className='press w-[150px] group cursor-pointer rounded-xl p-2 hover:bg-foreground/[0.045]'
       onClick={() =>
         navigate(`/album/${album.album_id || album?.id}`, {
           state: album.album_id || album?.id,
         })
       }
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
-      whileTap={{ scale: 0.98 }}
     >
-      <div className='relative mb-2 overflow-hidden rounded-lg'>
-        <motion.div
-          animate={{ scale: isHovered ? 1.05 : 1 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-        >
-          <LazyImage
-            src={album.image?.[2]?.link || album.image?.[2]?.url}
-            alt={name}
-            height={140}
-            width={140}
-            className='w-full aspect-square rounded-lg object-cover'
-          />
-        </motion.div>
-        <AnimatePresence>
-          {isHovered && (
-            <motion.div
-              className='absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center'
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.05 }}
-              >
-                <Disc3 className='w-8 h-8 text-white' />
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className='art-zoom relative mb-2 overflow-hidden rounded-lg'>
+        <LazyImage
+          src={album.image?.[2]?.link || album.image?.[2]?.url}
+          alt={name}
+          height={140}
+          width={140}
+          className='w-full aspect-square rounded-lg object-cover'
+        />
       </div>
-      <p className='font-medium text-sm truncate group-hover:text-primary transition-colors'>
-        {name}
-      </p>
+      <p className='font-medium text-sm truncate'>{name}</p>
       {album.language && (
-        <Badge variant='outline' className='mt-1 text-[10px] h-5 capitalize max-w-full truncate'>
-          {album.language}
-        </Badge>
+        <p className='text-xs capitalize text-muted-foreground truncate'>{album.language}</p>
       )}
-    </MotionCard>
+    </div>
   );
 });
 
@@ -690,28 +608,19 @@ export const PlaylistCard = memo(({ playlist }) => {
 
   return (
     <div
-      className='w-[150px] group cursor-pointer rounded-lg p-2 transition-all duration-200 hover:bg-white/5 active:scale-98'
+      className='press w-[150px] group cursor-pointer rounded-xl p-2 hover:bg-foreground/[0.045]'
       onClick={() => navigate(`/playlist/${playlist.id}`, { state: playlist.id })}
     >
-      <div className='relative mb-2 overflow-hidden rounded-lg aspect-square'>
-        <div className='w-full h-full transition-transform duration-300 ease-out group-hover:scale-105 [will-change:transform]'>
-          <LazyImage
-            src={imageUrl}
-            alt={playlist.name}
-            height={140}
-            width={140}
-            className='w-full aspect-square rounded-lg object-cover'
-          />
-        </div>
-        <div className='absolute inset-0 rounded-lg bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
-          <div className='transition-transform duration-200 ease-out scale-75 group-hover:scale-100'>
-            <ListMusic className='w-8 h-8 text-white' />
-          </div>
-        </div>
+      <div className='art-zoom relative mb-2 aspect-square overflow-hidden rounded-lg'>
+        <LazyImage
+          src={imageUrl}
+          alt={playlist.name}
+          height={140}
+          width={140}
+          className='w-full aspect-square rounded-lg object-cover'
+        />
       </div>
-      <p className='font-medium text-sm truncate group-hover:text-primary transition-colors'>
-        {playlist.name}
-      </p>
+      <p className='font-medium text-sm truncate'>{playlist.name}</p>
       <p className='text-xs text-muted-foreground truncate'>{subtitle}</p>
     </div>
   );
@@ -745,122 +654,117 @@ const DeleteConfirmDialog = ({ isOpen, onClose, onConfirm, playlistName }) => (
   </AlertDialog>
 );
 
+/** Stable hue from a playlist name, so covers without artwork still look distinct. */
+const nameHue = (name = '') => {
+  let h = 0;
+  for (let i = 0; i < name.length; i += 1) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return h;
+};
+
+export const PlaylistCover = memo(({ playlist, className }) => {
+  const images = (Array.isArray(playlist.previewSongs) ? playlist.previewSongs : [])
+    .map((song) => getPlaylistImageUrl(song?.image))
+    .filter(Boolean);
+  const unique = [...new Set(images)];
+  const fallback = getPlaylistImageUrl(playlist.image);
+
+  if (unique.length >= 4) {
+    return (
+      <div className={cn('grid grid-cols-2 grid-rows-2', className)}>
+        {unique.slice(0, 4).map((src) => (
+          <img key={src} src={src} alt='' loading='lazy' className='h-full w-full object-cover' />
+        ))}
+      </div>
+    );
+  }
+  const single = unique[0] || fallback;
+  if (single) {
+    return <img src={single} alt='' loading='lazy' className={cn('object-cover', className)} />;
+  }
+  const hue = nameHue(playlist.name);
+  return (
+    <div
+      className={cn('grid place-items-center', className)}
+      style={{
+        background: `linear-gradient(140deg, hsl(${hue} 70% 58%), hsl(${(hue + 50) % 360} 65% 38%))`,
+      }}
+    >
+      <span className='font-display text-5xl font-bold text-white/90'>
+        {playlist.name?.[0]?.toUpperCase()}
+      </span>
+    </div>
+  );
+});
+
 export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
   const navigate = useNavigate();
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
-
-  if (!playlist?.name) return null;
-
-  const songCount = Number(playlist.songCount) || 0;
-  const addedLabel = formatPlaylistDate(playlist.lastAddedAt);
-  const metaLabel = `${songCount} ${songCount === 1 ? 'song' : 'songs'}${
-    addedLabel ? ` · ${addedLabel}` : ''
-  }`;
-  const previewImages = (Array.isArray(playlist.previewSongs) ? playlist.previewSongs : [])
-    .map((song) => getPlaylistImageUrl(song?.image))
-    .filter(Boolean)
-    .slice(0, 5);
-  const fallbackImage = getPlaylistImageUrl(playlist.image);
-
-  const handleCardClick = useCallback(
-    (e) => {
-      if (e.target.closest('.action-buttons')) return;
-      navigate(`/library/playlist/${playlist.id}`, { state: playlist.id });
-    },
-    [playlist.id, navigate]
-  );
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleDelete = useCallback(() => {
     onDelete(playlist.id);
     setShowDeleteAlert(false);
   }, [playlist.id, onDelete]);
 
+  if (!playlist?.name) return null;
+
+  const songCount = Number(playlist.songCount) || 0;
+  const addedLabel = formatPlaylistDate(playlist.lastAddedAt);
+  const open = () => navigate(`/library/playlist/${playlist.id}`, { state: playlist.id });
+
   return (
     <>
-      <div
-        className='w-full group cursor-pointer rounded-xl p-2 bg-accent/10 border border-transparent hover:border-primary/20 hover:bg-accent/20 transition-colors duration-150'
-        onClick={handleCardClick}
-      >
-        <div className='relative mb-2 aspect-square overflow-hidden rounded-lg bg-accent/20'>
-          {previewImages.length > 0 ? (
-            previewImages.length === 1 ? (
-              <img
-                src={previewImages[0]}
-                alt={playlist.name}
-                loading='lazy'
-                className='h-full w-full object-cover'
-              />
-            ) : (
-              <div className='flex h-full gap-0.5'>
-                <img
-                  src={previewImages[0]}
-                  alt={playlist.name}
-                  loading='lazy'
-                  className='h-full w-[49%] object-cover'
-                />
-                <div className='grid h-full w-[49%] grid-cols-2 grid-rows-2 gap-0.5'>
-                  {previewImages.slice(1, 5).map((image, index) => (
-                    <img
-                      key={image + index}
-                      src={image}
-                      alt={`${playlist.name} song preview ${index + 2}`}
-                      loading='lazy'
-                      className='h-full w-full object-cover'
-                    />
-                  ))}
-                </div>
-              </div>
-            )
-          ) : fallbackImage ? (
-            <img
-              src={fallbackImage}
-              alt={playlist.name}
-              loading='lazy'
-              className='h-full w-full object-cover'
-            />
-          ) : (
-            <div className='flex h-full w-full items-center justify-center'>
-              <ListMusic className='h-8 w-8 text-muted-foreground/50' />
-            </div>
-          )}
-
-          <div className='action-buttons absolute top-1.5 right-1.5 flex flex-col gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-150'>
-            <Button
-              size='icon'
-              variant='secondary'
-              className='h-7 w-7 rounded-lg bg-background/80 backdrop-blur-md text-foreground hover:bg-background shadow-sm cursor-pointer border border-border/20'
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit?.(playlist);
-              }}
-            >
-              <Pencil className='w-3 h-3' />
-            </Button>
-            <Button
-              size='icon'
-              variant='secondary'
-              className='h-7 w-7 rounded-lg bg-background/80 backdrop-blur-md text-destructive hover:bg-destructive hover:text-destructive-foreground shadow-sm cursor-pointer border border-border/20'
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowDeleteAlert(true);
-              }}
-            >
-              <Trash2 className='w-3 h-3' />
-            </Button>
+      <div className='group relative'>
+        <button
+          type='button'
+          onClick={open}
+          className='press block w-full rounded-2xl text-left'
+          aria-label={`Open ${playlist.name}`}
+        >
+          <div className='art-zoom relative aspect-square overflow-hidden rounded-2xl bg-muted shadow-[0_1px_0_hsl(var(--foreground)/0.04)]'>
+            <PlaylistCover playlist={playlist} className='h-full w-full' />
+            <div className='pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-foreground/[0.06]' />
           </div>
-        </div>
-
-        <div className='space-y-0.5 px-0.5'>
-          <p className='font-semibold text-[13px] truncate group-hover:text-primary transition-colors duration-150'>
-            {playlist.name}
-          </p>
-          <p className='text-[11px] text-foreground/80 font-semibold truncate'>{metaLabel}</p>
-          {playlist.description && (
-            <p className='text-[11px] text-muted-foreground/70 font-medium truncate'>
-              {playlist.description}
+          <div className='mt-2.5 px-0.5'>
+            <p className='truncate text-sm font-semibold'>{playlist.name}</p>
+            <p className='mt-0.5 flex items-center justify-between gap-2 text-xs text-muted-foreground'>
+              <span className='tabular-nums'>
+                {songCount} {songCount === 1 ? 'song' : 'songs'}
+              </span>
+              {addedLabel && <span className='truncate'>{addedLabel}</span>}
             </p>
-          )}
-        </div>
+          </div>
+        </button>
+
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <button
+              type='button'
+              aria-label={`More options for ${playlist.name}`}
+              className={cn(
+                'absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-opacity duration-150 hover:bg-black/65',
+                menuOpen
+                  ? 'opacity-100'
+                  : 'opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'
+              )}
+            >
+              <MoreVertical className='h-4 w-4' />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align='end' className='w-40'>
+            <DropdownMenuItem onClick={() => onEdit?.(playlist)}>
+              <Pencil className='h-3.5 w-3.5' />
+              Edit details
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setShowDeleteAlert(true)}
+              className='text-destructive focus:text-destructive'
+            >
+              <Trash2 className='h-3.5 w-3.5' />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <DeleteConfirmDialog
