@@ -588,13 +588,13 @@
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-  height: calc(100dvh - 60px);
+  height: calc(100dvh - 109px);
 }
 
 @media (min-width: 640px) {
   .search-dialog-body {
     height: auto;
-    max-height: calc(75vh - 68px);
+    max-height: calc(75vh - 117px);
   }
 }
 

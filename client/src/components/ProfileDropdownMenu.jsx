@@ -82,7 +82,7 @@ const ProfileDropdownMenu = ({ fromSidebar = true, collapsed = false }) => {
           {fromSidebar && !collapsed ? (
             <button
               type='button'
-              className='flex h-12 w-full items-center gap-2.5 rounded-xl p-2 text-left transition-colors hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent cursor-pointer'
+              className='flex h-11 w-full items-center gap-2.5 rounded-xl px-2 text-left transition-colors hover:bg-foreground/[0.045] data-[state=open]:bg-foreground/[0.06] cursor-pointer'
             >
               <Avatar className='h-8 w-8 rounded-full shrink-0'>
                 <AvatarImage src={getProfileCloudinaryUrl(user.profilepic)} alt={user.name} />

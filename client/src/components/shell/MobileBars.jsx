@@ -1,3 +1,4 @@
+import { MotionConfig, motion } from 'framer-motion';
 import { Search } from 'lucide-react';
 import { memo, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
@@ -52,47 +53,51 @@ export const MobileTabBar = memo(() => {
   const inRoom = Boolean(useGroupMusic().currentGroup);
 
   return (
-    <nav
-      aria-label='Main'
-      className='fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden'
-    >
-      <div className='flex h-16 items-stretch'>
-        {NAV_ITEMS.map(({ key, label, icon: Icon, path, match }) => {
-          const active = match(pathname);
-          return (
-            <Link
-              key={key}
-              to={path}
-              aria-current={active ? 'page' : undefined}
-              className={cn(
-                'flex flex-1 flex-col items-center justify-center gap-1 text-[11px] transition-colors active:scale-95',
-                active ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'
-              )}
-            >
-              <span
+    <MotionConfig reducedMotion='user'>
+      <nav
+        aria-label='Main'
+        className='fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden'
+      >
+        <div className='flex h-16 items-stretch'>
+          {NAV_ITEMS.map(({ key, label, icon: Icon, path, match }) => {
+            const active = match(pathname);
+            return (
+              <Link
+                key={key}
+                to={path}
+                aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'relative grid h-7 w-12 place-items-center rounded-full transition-colors',
-                  active && 'bg-primary/15'
+                  'flex flex-1 flex-col items-center justify-center gap-1 text-[11px] transition-colors active:scale-95',
+                  active ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'
                 )}
               >
-                <Icon
-                  className={cn('h-5 w-5', active && 'text-primary')}
-                  strokeWidth={active ? 2.25 : 1.9}
-                />
-                {key === 'rooms' && inRoom && (
-                  <span className='live-dot absolute right-2 top-0.5 h-2 w-2 rounded-full bg-live' />
-                )}
-                {key === 'messages' && unread > 0 && (
-                  <span className='absolute -top-1 right-1 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground'>
-                    {unread > 9 ? '9+' : unread}
-                  </span>
-                )}
-              </span>
-              {label}
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+                <span className='relative grid h-7 w-12 place-items-center'>
+                  {active && (
+                    <motion.span
+                      layoutId='tabbar-active'
+                      transition={{ type: 'spring', stiffness: 560, damping: 40, mass: 0.7 }}
+                      className='absolute inset-0 rounded-full bg-primary/15'
+                    />
+                  )}
+                  <Icon
+                    className={cn('relative h-5 w-5', active && 'text-primary')}
+                    strokeWidth={active ? 2.25 : 1.9}
+                  />
+                  {key === 'rooms' && inRoom && (
+                    <span className='live-dot absolute right-2 top-0.5 h-2 w-2 rounded-full bg-live' />
+                  )}
+                  {key === 'messages' && unread > 0 && (
+                    <span className='absolute -top-1 right-1 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground'>
+                      {unread > 9 ? '9+' : unread}
+                    </span>
+                  )}
+                </span>
+                {label}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </MotionConfig>
   );
 });

@@ -80,7 +80,7 @@ const BottomPlayer = () => {
       <div
         className={cn(
           'fixed -translate-x-1/2 z-50 transition-all duration-300 ease-out',
-          isMobile ? 'left-1/2' : 'left-[calc(50%+38px)]',
+          isMobile ? 'left-1/2' : 'left-[calc(50%+36px)]',
           'w-[calc(100%-1.25rem)] sm:w-auto sm:min-w-[520px] md:min-w-[580px] max-w-xl md:max-w-2xl',
           hasMobileNav ? 'bottom-[76px]' : 'bottom-4 sm:bottom-6',
           isMinimized || isDocked
