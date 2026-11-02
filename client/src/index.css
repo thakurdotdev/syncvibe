@@ -341,6 +341,13 @@
     animation: live-ring 1.6s ease-out infinite;
   }
 
+  /* Sidebar playlist shelf: thin scrollbar, soft fade where content continues */
+  .sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--foreground) / 0.15) transparent;
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+  }
+
   /* Thin seek bar used by the sidebar player dock */
   .dock-seek {
     appearance: none;

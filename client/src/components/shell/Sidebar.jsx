@@ -1,3 +1,4 @@
+import { MotionConfig, motion } from 'framer-motion';
 import { PanelLeftClose, PanelLeftOpen, Plus, Search } from 'lucide-react';
 import { memo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -12,17 +13,31 @@ import { getPlaylistImageUrl } from '@/Pages/Music/Cards';
 import { useUiStore } from '@/stores/uiStore';
 import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
 import { LOGO_URL, NAV_ITEMS } from './nav';
-import { LiveRoom, NowPlayingDock } from './SidebarLive';
+import { NowSlot } from './SidebarLive';
 import { useChatSummary } from './useShellData';
 
 const isMac = typeof navigator !== 'undefined' && navigator.userAgent.includes('Mac');
 
-/** Wraps rail items in a tooltip so icon-only buttons still announce where they go. */
-const RailTip = ({ show, label, children }) =>
+/** Snappy spring shared by the sliding active pill. */
+const PILL_SPRING = { type: 'spring', stiffness: 560, damping: 40, mass: 0.7 };
+
+/**
+ * The active destination is drawn as a piece of the content panel's surface, lifted onto the
+ * sidebar canvas, and it slides between items rather than blinking.
+ */
+const ActivePill = () => (
+  <motion.span
+    layoutId='sidebar-active'
+    transition={PILL_SPRING}
+    className='absolute inset-0 rounded-xl bg-background shadow-[0_0_0_1px_hsl(var(--border)/0.9),0_1px_2px_0_hsl(var(--foreground)/0.06),0_4px_12px_-6px_hsl(var(--foreground)/0.12)]'
+  />
+);
+
+const Tip = ({ show = true, label, children, side = 'right' }) =>
   show ? (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side='right' sideOffset={10} className='text-xs'>
+      <TooltipContent side={side} sideOffset={10} className='text-xs'>
         {label}
       </TooltipContent>
     </Tooltip>
@@ -30,8 +45,8 @@ const RailTip = ({ show, label, children }) =>
     children
   );
 
-const SectionHeading = ({ children, action }) => (
-  <div className='flex items-center justify-between px-2.5 pb-1.5'>
+const SectionLabel = ({ children, action }) => (
+  <div className='flex h-7 items-center justify-between px-2.5'>
     <h2 className='font-sans text-xs font-medium tracking-normal text-muted-foreground'>
       {children}
     </h2>
@@ -44,31 +59,29 @@ const NavList = ({ collapsed, unread }) => {
   const inRoom = Boolean(useGroupMusic().currentGroup);
 
   return (
-    <nav aria-label='Main' className='space-y-0.5'>
+    <nav aria-label='Main' className='flex flex-col gap-0.5'>
       {NAV_ITEMS.map(({ key, label, icon: Icon, path, match }) => {
         const active = match(pathname);
         const badge = key === 'messages' && unread > 0 ? unread : null;
         const live = key === 'rooms' && inRoom;
         return (
-          <RailTip key={key} show={collapsed} label={label}>
+          <Tip key={key} show={collapsed} label={label}>
             <Link
               to={path}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'group relative flex h-10 items-center rounded-xl text-sm transition-colors',
-                collapsed ? 'mx-auto w-11 justify-center' : 'gap-3 px-2.5',
+                'relative flex h-9 items-center rounded-xl text-[13.5px] transition-colors',
+                collapsed ? 'mx-auto w-10 justify-center' : 'gap-3 px-2.5',
                 active
-                  ? 'bg-sidebar-accent font-semibold text-foreground'
-                  : 'font-medium text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground'
+                  ? 'font-semibold text-foreground'
+                  : 'font-medium text-muted-foreground hover:bg-foreground/[0.045] hover:text-foreground'
               )}
             >
-              {active && !collapsed && (
-                <span className='absolute -left-3 top-2.5 h-5 w-1 rounded-r-full bg-primary' />
-              )}
+              {active && <ActivePill />}
               <span className='relative'>
                 <Icon
-                  className={cn('h-[19px] w-[19px]', active && 'text-primary')}
-                  strokeWidth={active ? 2.25 : 1.9}
+                  className={cn('h-[18px] w-[18px]', active && 'text-primary')}
+                  strokeWidth={active ? 2.2 : 1.8}
                 />
                 {live && (
                   <span className='live-dot absolute -right-1 -top-1 h-2 w-2 rounded-full bg-live' />
@@ -79,135 +92,90 @@ const NavList = ({ collapsed, unread }) => {
                   </span>
                 )}
               </span>
-              {!collapsed && <span className='flex-1'>{label}</span>}
+              {!collapsed && <span className='relative flex-1'>{label}</span>}
               {!collapsed && badge && (
-                <span className='grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground'>
+                <span className='relative grid h-[18px] min-w-[18px] place-items-center rounded-full bg-primary px-1.5 text-[10.5px] font-semibold tabular-nums text-primary-foreground'>
                   {badge > 99 ? '99+' : badge}
                 </span>
               )}
               {!collapsed && live && (
-                <span className='text-[11px] font-semibold text-live'>Live</span>
+                <span className='relative flex items-center gap-1 text-[11px] font-semibold text-live'>
+                  <span className='live-dot h-1.5 w-1.5 rounded-full bg-live' />
+                  Live
+                </span>
               )}
             </Link>
-          </RailTip>
+          </Tip>
         );
       })}
     </nav>
   );
 };
 
-const RecentChats = ({ chats, collapsed }) => {
+const Playlists = () => {
   const navigate = useNavigate();
-  if (!chats.length) return null;
-
-  const open = (chat) => navigate(paths.messages, { state: { chatData: { chatid: chat.chatid } } });
+  const { pathname } = useLocation();
+  const { data: playlists = [], isLoading } = useUserPlaylistsQuery();
 
   return (
-    <section>
-      {!collapsed && <SectionHeading>Recent chats</SectionHeading>}
-      <ul className={cn(collapsed ? 'space-y-2' : 'space-y-0.5')}>
-        {chats.map((chat) => {
-          const other = chat.otherUser || {};
-          return (
-            <li key={chat.chatid}>
-              <RailTip show={collapsed} label={other.name}>
-                <button
-                  type='button'
-                  onClick={() => open(chat)}
-                  className={cn(
-                    'flex w-full items-center rounded-xl text-left transition-colors hover:bg-sidebar-accent/60',
-                    collapsed ? 'mx-auto h-11 w-11 justify-center' : 'gap-2.5 px-2.5 py-1.5'
-                  )}
-                >
-                  <span className='relative shrink-0'>
-                    <Avatar className='h-7 w-7'>
-                      <AvatarImage src={getProfileCloudinaryUrl(other.profilepic)} alt='' />
-                      <AvatarFallback className='text-[10px]'>
-                        {other.name?.[0] || '?'}
-                      </AvatarFallback>
-                    </Avatar>
-                    {chat.isOnline && (
-                      <span className='absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-emerald-500' />
-                    )}
-                  </span>
-                  {!collapsed && (
-                    <>
-                      <span className='min-w-0 flex-1'>
-                        <span
-                          className={cn(
-                            'block truncate text-[13px]',
-                            chat.unreadCount > 0
-                              ? 'font-semibold'
-                              : 'font-medium text-foreground/85'
-                          )}
-                        >
-                          {other.name}
-                        </span>
-                        {chat.isTyping && (
-                          <span className='block text-[11px] text-emerald-500'>typing…</span>
-                        )}
-                      </span>
-                      {chat.unreadCount > 0 && (
-                        <span className='h-2 w-2 shrink-0 rounded-full bg-primary' />
-                      )}
-                    </>
-                  )}
-                </button>
-              </RailTip>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-};
-
-const PinnedPlaylists = () => {
-  const navigate = useNavigate();
-  const { data: playlists = [] } = useUserPlaylistsQuery();
-  const list = playlists.slice(0, 5);
-
-  return (
-    <section>
-      <SectionHeading
+    <section className='flex min-h-0 flex-1 flex-col'>
+      <SectionLabel
         action={
-          <button
-            type='button'
-            onClick={() => navigate(paths.library, { state: { createPlaylist: true } })}
-            aria-label='New playlist'
-            className='grid h-6 w-6 place-items-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
-          >
-            <Plus className='h-3.5 w-3.5' />
-          </button>
+          <Tip label='New playlist' side='top'>
+            <button
+              type='button'
+              onClick={() => navigate(paths.library, { state: { createPlaylist: true } })}
+              aria-label='New playlist'
+              className='grid h-6 w-6 place-items-center rounded-md text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground'
+            >
+              <Plus className='h-3.5 w-3.5' />
+            </button>
+          </Tip>
         }
       >
-        Your playlists
-      </SectionHeading>
-      {list.length === 0 ? (
-        <p className='px-2.5 text-xs text-muted-foreground'>Playlists you make show up here.</p>
+        Playlists
+      </SectionLabel>
+
+      {!isLoading && playlists.length === 0 ? (
+        <p className='px-2.5 pt-1 text-xs leading-relaxed text-muted-foreground'>
+          Save songs into playlists and they’ll live here.
+        </p>
       ) : (
-        <ul className='space-y-0.5'>
-          {list.map((pl) => {
+        <ul className='sidebar-scroll -mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-2'>
+          {playlists.map((pl) => {
+            const to = paths.myPlaylist(pl.id);
+            const active = pathname === to;
             const img =
               getPlaylistImageUrl(pl.previewSongs?.[0]?.image) || getPlaylistImageUrl(pl.image);
             return (
               <li key={pl.id}>
                 <Link
-                  to={paths.myPlaylist(pl.id)}
-                  className='flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 transition-colors hover:bg-sidebar-accent/60'
+                  to={to}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
+                    'flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors',
+                    active ? 'bg-foreground/[0.07]' : 'hover:bg-foreground/[0.045]'
+                  )}
                 >
                   {img ? (
-                    <img src={img} alt='' className='h-7 w-7 shrink-0 rounded-md object-cover' />
+                    <img src={img} alt='' className='h-8 w-8 shrink-0 rounded-lg object-cover' />
                   ) : (
-                    <span className='grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary/15 font-display text-xs font-bold text-primary'>
+                    <span className='grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 font-display text-xs font-bold text-primary'>
                       {pl.name?.[0]?.toUpperCase()}
                     </span>
                   )}
-                  <span className='min-w-0 flex-1 truncate text-[13px] font-medium text-foreground/85'>
-                    {pl.name}
-                  </span>
-                  <span className='text-[11px] tabular-nums text-muted-foreground'>
-                    {pl.songCount ?? ''}
+                  <span className='min-w-0 flex-1'>
+                    <span
+                      className={cn(
+                        'block truncate text-[13px]',
+                        active ? 'font-semibold' : 'font-medium text-foreground/85'
+                      )}
+                    >
+                      {pl.name}
+                    </span>
+                    <span className='block text-[11px] tabular-nums text-muted-foreground'>
+                      {Number(pl.songCount) || 0} songs
+                    </span>
                   </span>
                 </Link>
               </li>
@@ -219,100 +187,196 @@ const PinnedPlaylists = () => {
   );
 };
 
+const personStatus = (p) => {
+  if (p.isTyping) return 'typing…';
+  if (p.unreadCount > 0) return `${p.unreadCount} new`;
+  return p.isOnline ? 'online' : null;
+};
+
+/** One row of faces: who's around and who's waiting on a reply. */
+const People = ({ people, total }) => {
+  const navigate = useNavigate();
+  if (!people.length) return null;
+
+  const open = (p) => navigate(paths.messages, { state: { chatData: { chatid: p.chatid } } });
+
+  return (
+    <section className='[@media(max-height:720px)]:hidden'>
+      <SectionLabel
+        action={
+          total > people.length && (
+            <Link
+              to={paths.messages}
+              className='text-[11px] font-medium text-muted-foreground hover:text-foreground'
+            >
+              All chats
+            </Link>
+          )
+        }
+      >
+        People
+      </SectionLabel>
+      <ul className='flex gap-1.5 px-1.5 pt-1'>
+        {people.map((p) => {
+          const other = p.otherUser || {};
+          const status = personStatus(p);
+          const unread = p.unreadCount > 0;
+          return (
+            <li key={p.chatid}>
+              <Tip label={status ? `${other.name}, ${status}` : other.name} side='top'>
+                <button
+                  type='button'
+                  onClick={() => open(p)}
+                  aria-label={`Chat with ${other.name}${status ? `, ${status}` : ''}`}
+                  className='relative block rounded-full transition-transform hover:-translate-y-0.5 active:scale-95'
+                >
+                  <Avatar
+                    className={cn(
+                      'h-9 w-9',
+                      unread && 'ring-2 ring-primary ring-offset-2 ring-offset-sidebar'
+                    )}
+                  >
+                    <AvatarImage src={getProfileCloudinaryUrl(other.profilepic)} alt='' />
+                    <AvatarFallback className='text-xs'>{other.name?.[0] || '?'}</AvatarFallback>
+                  </Avatar>
+                  {p.isTyping ? (
+                    <span className='absolute -right-1 -top-1 flex h-3.5 items-center gap-[2px] rounded-full bg-emerald-500 px-1'>
+                      {[0, 1, 2].map((i) => (
+                        <span
+                          key={i}
+                          className='h-[3px] w-[3px] animate-bounce rounded-full bg-white'
+                          style={{ animationDelay: `${i * 120}ms` }}
+                        />
+                      ))}
+                    </span>
+                  ) : (
+                    p.isOnline && (
+                      <span className='absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-emerald-500' />
+                    )
+                  )}
+                </button>
+              </Tip>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+};
+
 /**
- * Desktop sidebar. Expanded it shows navigation, your live room, playlists, recent chats and
- * the docked player; collapsed it becomes a 76px rail with the same live signals as icons.
+ * Desktop sidebar in three bands: pinned navigation on top, a scrolling playlist shelf in the
+ * middle, and a pinned "now" area (people, room or player, profile) at the bottom — so the live
+ * room can never be scrolled out of view on short screens. Collapsed it is a 72px icon rail.
  */
 const Sidebar = ({ collapsed, canExpand }) => {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const setSearchOpen = useUiStore((s) => s.setSearchOpen);
-  const { unread, recent } = useChatSummary(collapsed ? 3 : 4);
+  const { unread, people, total } = useChatSummary(6);
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <aside
-        className={cn(
-          'flex h-full shrink-0 flex-col bg-sidebar transition-[width] duration-300 ease-premium',
-          collapsed ? 'w-[76px]' : 'w-[272px]'
-        )}
-      >
-        <div
+    <MotionConfig reducedMotion='user'>
+      <TooltipProvider delayDuration={150}>
+        <aside
           className={cn(
-            'flex h-16 items-center',
-            collapsed ? 'justify-center' : 'justify-between pl-5 pr-3'
+            'flex h-full shrink-0 flex-col bg-sidebar transition-[width] duration-300 ease-premium',
+            collapsed ? 'w-[72px]' : 'w-[264px]'
           )}
         >
-          <Link to={paths.home} className='flex items-center gap-2.5' aria-label='SyncVibe home'>
-            <img src={LOGO_URL} alt='' className='h-8 w-8 rounded-full' />
-            {!collapsed && (
-              <span className='font-display text-[19px] font-bold tracking-tight'>SyncVibe</span>
-            )}
-          </Link>
-          {!collapsed && canExpand && (
-            <button
-              type='button'
-              onClick={toggleSidebar}
-              aria-label='Collapse sidebar'
-              className='grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
-            >
-              <PanelLeftClose className='h-4 w-4' />
-            </button>
-          )}
-        </div>
-
-        <div
-          className={cn(
-            'flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto pb-3',
-            collapsed ? 'px-2' : 'px-3'
-          )}
-        >
-          <RailTip show={collapsed} label='Search'>
-            <button
-              type='button'
-              onClick={() => setSearchOpen(true)}
+          {/* Top band */}
+          <div className={cn('flex flex-col gap-3 pb-4', collapsed ? 'px-2' : 'px-3')}>
+            <div
               className={cn(
-                'flex h-10 items-center rounded-xl border border-sidebar-border bg-background/60 text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground',
-                collapsed ? 'mx-auto w-11 justify-center' : 'w-full gap-2.5 px-3'
+                'flex h-14 items-center',
+                collapsed ? 'justify-center' : 'justify-between pl-2'
               )}
             >
-              <Search className='h-4 w-4 shrink-0' />
-              {!collapsed && (
-                <>
-                  <span className='flex-1 text-left'>Search music</span>
-                  <kbd className='rounded-md border border-sidebar-border px-1.5 py-0.5 font-sans text-[10px]'>
-                    {isMac ? '⌘K' : 'Ctrl K'}
-                  </kbd>
-                </>
+              <Link
+                to={paths.home}
+                className='flex items-center gap-2.5'
+                aria-label='SyncVibe home'
+              >
+                <img src={LOGO_URL} alt='' className='h-7 w-7 rounded-full' />
+                {!collapsed && (
+                  <span className='font-display text-lg font-bold tracking-tight'>SyncVibe</span>
+                )}
+              </Link>
+              {!collapsed && canExpand && (
+                <Tip label='Collapse sidebar' side='bottom'>
+                  <button
+                    type='button'
+                    onClick={toggleSidebar}
+                    aria-label='Collapse sidebar'
+                    className='grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground'
+                  >
+                    <PanelLeftClose className='h-4 w-4' />
+                  </button>
+                </Tip>
               )}
-            </button>
-          </RailTip>
+            </div>
 
-          <NavList collapsed={collapsed} unread={unread} />
-          <LiveRoom collapsed={collapsed} />
-          {!collapsed && <PinnedPlaylists />}
-          <RecentChats chats={recent} collapsed={collapsed} />
-        </div>
-
-        <div className={cn('space-y-2 pb-3 pt-2', collapsed ? 'px-2' : 'px-3')}>
-          <NowPlayingDock collapsed={collapsed} />
-          {collapsed && canExpand && (
-            <RailTip show label='Expand sidebar'>
+            <Tip show={collapsed} label={`Search (${isMac ? '⌘K' : 'Ctrl K'})`}>
               <button
                 type='button'
-                onClick={toggleSidebar}
-                aria-label='Expand sidebar'
-                className='mx-auto grid h-10 w-11 place-items-center rounded-xl text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+                onClick={() => setSearchOpen(true)}
+                aria-label={collapsed ? 'Search' : undefined}
+                className={cn(
+                  'flex h-9 items-center rounded-xl text-[13.5px] text-muted-foreground transition-colors hover:bg-foreground/[0.045] hover:text-foreground',
+                  collapsed ? 'mx-auto w-10 justify-center' : 'w-full gap-3 px-2.5'
+                )}
               >
-                <PanelLeftOpen className='h-4 w-4' />
+                <Search className='h-[18px] w-[18px] shrink-0' strokeWidth={1.8} />
+                {!collapsed && (
+                  <>
+                    <span className='flex-1 text-left font-medium'>Search</span>
+                    <kbd className='rounded-md bg-foreground/[0.06] px-1.5 py-0.5 font-sans text-[10.5px] text-muted-foreground'>
+                      {isMac ? '⌘K' : 'Ctrl K'}
+                    </kbd>
+                  </>
+                )}
               </button>
-            </RailTip>
-          )}
-          <div className={cn(collapsed && 'flex justify-center')}>
-            <ProfileDropdownMenu fromSidebar collapsed={collapsed} />
+            </Tip>
+
+            <NavList collapsed={collapsed} unread={unread} />
           </div>
-        </div>
-      </aside>
-    </TooltipProvider>
+
+          {/* Middle band: the only part that scrolls */}
+          {collapsed ? (
+            <div className='flex-1' />
+          ) : (
+            <div className='flex min-h-0 flex-1 flex-col border-t border-sidebar-border px-3 pt-3'>
+              <Playlists />
+            </div>
+          )}
+
+          {/* Bottom band: always visible */}
+          <div
+            className={cn(
+              'flex flex-col gap-3 pb-3 pt-3',
+              collapsed ? 'items-center px-2' : 'border-t border-sidebar-border px-3'
+            )}
+          >
+            {!collapsed && <People people={people} total={total} />}
+            <NowSlot collapsed={collapsed} />
+            {collapsed && canExpand && (
+              <Tip label='Expand sidebar'>
+                <button
+                  type='button'
+                  onClick={toggleSidebar}
+                  aria-label='Expand sidebar'
+                  className='grid h-9 w-10 place-items-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground'
+                >
+                  <PanelLeftOpen className='h-4 w-4' />
+                </button>
+              </Tip>
+            )}
+            <div className={cn('w-full', collapsed && 'flex justify-center')}>
+              <ProfileDropdownMenu fromSidebar collapsed={collapsed} />
+            </div>
+          </div>
+        </aside>
+      </TooltipProvider>
+    </MotionConfig>
   );
 };
 

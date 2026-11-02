@@ -11,13 +11,16 @@ export const useUiStore = create(
       searchOpen: false,
       setSearchOpen: (searchOpen) => set({ searchOpen }),
       toggleSearch: () => set((s) => ({ searchOpen: !s.searchOpen })),
+      /** 'songs' | 'history' | 'playlists' — remembered between opens. */
+      searchScope: 'songs',
+      setSearchScope: (searchScope) => set({ searchScope }),
 
       playerSheetOpen: false,
       setPlayerSheetOpen: (playerSheetOpen) => set({ playerSheetOpen }),
     }),
     {
       name: 'syncvibe-ui',
-      partialize: (s) => ({ sidebarCollapsed: s.sidebarCollapsed }),
+      partialize: (s) => ({ sidebarCollapsed: s.sidebarCollapsed, searchScope: s.searchScope }),
     }
   )
 );

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useUiStore } from '@/stores/uiStore';
 import SearchDialog from './SearchDialog';
 import './music.css';
@@ -11,6 +12,12 @@ const MusicCommand = () => {
   const open = useUiStore((s) => s.searchOpen);
   const setOpen = useUiStore((s) => s.setSearchOpen);
   const toggle = useUiStore((s) => s.toggleSearch);
+  const { pathname } = useLocation();
+
+  // Navigating from a result (album, artist, playlist) should land on the page, not behind the palette.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname, setOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
