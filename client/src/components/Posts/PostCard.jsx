@@ -64,7 +64,7 @@ const PostCard = memo(({ post }) => {
 
   const goToProfile = (e) => {
     e?.stopPropagation?.();
-    navigate(`/user/${post?.username}`, {
+    navigate(`/u/${post?.username}`, {
       state: { user: { userid: post?.createdby } },
     });
   };

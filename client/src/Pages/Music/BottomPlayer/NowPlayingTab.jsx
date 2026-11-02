@@ -134,7 +134,7 @@ const NowPlayingTab = memo(({ currentSong, onOpenModal }) => {
     (e, artistId) => {
       e.stopPropagation();
       if (artistId) {
-        navigate(`/music/artist/${artistId}`, { state: artistId });
+        navigate(`/artist/${artistId}`, { state: artistId });
       }
     },
     [navigate]
@@ -144,7 +144,7 @@ const NowPlayingTab = memo(({ currentSong, onOpenModal }) => {
     (e) => {
       e.stopPropagation();
       if (currentSong?.album_id) {
-        navigate(`/music/album/${currentSong.album_id}`, { state: currentSong.album_id });
+        navigate(`/album/${currentSong.album_id}`, { state: currentSong.album_id });
       }
     },
     [currentSong?.album_id, navigate]
@@ -179,11 +179,7 @@ const NowPlayingTab = memo(({ currentSong, onOpenModal }) => {
             transform: showEntrance ? 'scale(1)' : 'scale(0.95)',
           }}
         >
-          <CrossfadeAvatar
-            images={images}
-            size='min(36vw, 48vh, 400px)'
-            name={decodedName}
-          />
+          <CrossfadeAvatar images={images} size='min(36vw, 48vh, 400px)' name={decodedName} />
         </div>
 
         {/* Right: Meta + Player Controls */}
@@ -211,7 +207,9 @@ const NowPlayingTab = memo(({ currentSong, onOpenModal }) => {
                     >
                       {he.decode(artist.name)}
                     </button>
-                    {idx < artistList.length - 1 && <span className='text-muted-foreground/40'>, </span>}
+                    {idx < artistList.length - 1 && (
+                      <span className='text-muted-foreground/40'>, </span>
+                    )}
                   </span>
                 ))
               ) : (
@@ -303,11 +301,7 @@ const NowPlayingTab = memo(({ currentSong, onOpenModal }) => {
               transform: showEntrance ? 'scale(1)' : 'scale(0.95)',
             }}
           >
-            <CrossfadeAvatar
-              images={images}
-              size='min(82vw, 36vh, 320px)'
-              name={decodedName}
-            />
+            <CrossfadeAvatar images={images} size='min(82vw, 36vh, 320px)' name={decodedName} />
           </div>
 
           {/* Mobile Info + Controls */}
@@ -334,7 +328,9 @@ const NowPlayingTab = memo(({ currentSong, onOpenModal }) => {
                       >
                         {he.decode(artist.name)}
                       </button>
-                      {idx < artistList.length - 1 && <span className='text-muted-foreground/40'>, </span>}
+                      {idx < artistList.length - 1 && (
+                        <span className='text-muted-foreground/40'>, </span>
+                      )}
                     </span>
                   ))
                 ) : (

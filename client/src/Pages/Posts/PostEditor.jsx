@@ -128,7 +128,7 @@ const PostEditor = () => {
     if (isEditMode) {
       navigate(-1);
     } else {
-      navigate('/feed');
+      navigate('/home');
     }
   };
 

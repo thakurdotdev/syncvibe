@@ -56,7 +56,7 @@ const LanguagePreference = () => {
   };
 
   return (
-    <div className='h-[calc(100vh-60px)] bg-background flex flex-col items-center justify-center'>
+    <div className='min-h-full py-10 flex flex-col items-center justify-center'>
       <div className='w-full max-w-5xl space-y-8'>
         {/* Header Section */}
         <div className='text-center space-y-4'>

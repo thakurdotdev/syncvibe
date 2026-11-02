@@ -33,7 +33,7 @@ const Followings = ({ following }) => {
               <div
                 key={follow?.followingDetail?.userid}
                 onClick={() => {
-                  navigate(`/user/${follow?.followingDetail?.username}`, {
+                  navigate(`/u/${follow?.followingDetail?.username}`, {
                     state: { user: follow?.followingDetail },
                   });
                 }}

@@ -5,12 +5,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Context } from '../../Context/Context';
 import getFollowList from '../../Utils/getFollowList';
-import LoadingScreen from '../Loader';
 import Followers from '../Modals/Followers';
 import Followings from '../Modals/Followings';
-import PostCard from '../Posts/PostCard';
 import { Button } from '../ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MessageCircle, UserCheck, UserPlus } from 'lucide-react';
+import { paths } from '@/lib/paths';
 
 const SeeUserProfile = () => {
   const navigate = useNavigate();
@@ -23,17 +22,13 @@ const SeeUserProfile = () => {
     following: [],
     isFollowing: false,
   });
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(userid));
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [userResponse, postsResponse, followListResponse] = await Promise.all([
+      const [userResponse, followListResponse] = await Promise.all([
         axios.get(`${import.meta.env.VITE_API_URL}/api/user/profile/${userid}`, {
-          withCredentials: true,
-        }),
-        axios.get(`${import.meta.env.VITE_API_URL}/api/user/posts/${userid}`, {
           withCredentials: true,
         }),
         getFollowList(userid),
@@ -47,8 +42,6 @@ const SeeUserProfile = () => {
           (follower) => follower?.followerDetail?.userid === CurrUser?.userid
         ),
       });
-      setPosts(postsResponse.data.posts);
-
       setLoading(false);
     } catch (error) {
       setLoading(false);
@@ -58,8 +51,8 @@ const SeeUserProfile = () => {
   }, [userid, CurrUser]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (userid) fetchData();
+  }, [fetchData, userid]);
 
   const handleFollow = async () => {
     try {
@@ -85,76 +78,79 @@ const SeeUserProfile = () => {
 
   if (loading)
     return (
-      <div className='flex h-[90vh] items-center justify-center'>
-        <Loader2 className='w-8 h-8 animate-spin' />
+      <div className='grid h-[60vh] place-items-center'>
+        <Loader2 className='h-6 w-6 animate-spin text-muted-foreground' />
       </div>
     );
 
+  if (!userid || !userData.user) {
+    return (
+      <div className='mx-auto max-w-md px-6 py-24 text-center'>
+        <h1 className='text-2xl font-bold'>Profile unavailable</h1>
+        <p className='mt-2 text-sm text-muted-foreground'>
+          Open a profile from a conversation or a followers list to see it here.
+        </p>
+        <Button className='mt-6 rounded-full' onClick={() => navigate(paths.messages)}>
+          Go to messages
+        </Button>
+      </div>
+    );
+  }
+
+  const isSelf = Number(CurrUser?.userid) === Number(userid);
+  const profile = userData.user;
+
   return (
-    <div className='flex justify-center my-10 px-1 sm:px-0'>
-      <div className='bg-white dark:bg-gray-900 p-3 rounded-xl shadow-xl max-w-xl w-full'>
-        {/* Profile Header */}
-        <div className='flex flex-col items-center gap-4'>
-          <div className='flex flex-row items-center justify-around gap-2 w-full'>
-            <img
-              src={getProfileCloudinaryUrl(userData?.user?.profilepic)}
-              alt='Profile'
-              className='w-28 h-28 md:w-36 md:h-36 rounded-full object-cover border-4 border-gray-300 dark:border-gray-700 shadow-lg'
-            />
-            <div className='text-left'>
-              <h1 className='text-2xl font-bold text-gray-900 dark:text-gray-100'>
-                {userData?.user?.name}
-              </h1>
-              <p className='text-sm text-gray-600 dark:text-gray-400'>
-                @{userData?.user?.username}
-              </p>
-              <p className='text-gray-700 dark:text-gray-300 mt-2'>{userData?.user?.bio}</p>
-              <div className='flex justify-stretch my-2 gap-1'>
-                <Followers followers={userData?.followers} />
-                <Followings following={userData?.following} />
-              </div>
+    <div className='mx-auto w-full max-w-2xl px-4 py-8 md:py-14'>
+      <div className='relative overflow-hidden rounded-3xl border border-border bg-card'>
+        <img
+          src={getProfileCloudinaryUrl(profile.profilepic)}
+          alt=''
+          aria-hidden='true'
+          className='pointer-events-none absolute inset-x-0 top-0 h-40 w-full scale-125 object-cover opacity-40 blur-3xl'
+        />
+        <div className='relative flex flex-col items-center px-6 pb-8 pt-12 text-center'>
+          <img
+            src={getProfileCloudinaryUrl(profile.profilepic)}
+            alt={profile.name}
+            className='h-28 w-28 rounded-full object-cover ring-4 ring-card shadow-xl md:h-32 md:w-32'
+          />
+          <h1 className='mt-4 text-3xl font-bold'>{profile.name}</h1>
+          <p className='text-sm text-muted-foreground'>@{profile.username}</p>
+          {profile.bio && <p className='mt-3 max-w-md text-sm leading-relaxed'>{profile.bio}</p>}
+
+          <div className='mt-4 flex gap-1'>
+            <Followers followers={userData.followers} />
+            <Followings following={userData.following} />
+          </div>
+
+          {!isSelf && (
+            <div className='mt-6 flex w-full max-w-xs gap-2'>
+              <Button
+                variant={userData.isFollowing ? 'secondary' : 'default'}
+                onClick={handleFollow}
+                className='flex-1 gap-2 rounded-full'
+              >
+                {userData.isFollowing ? (
+                  <UserCheck className='h-4 w-4' />
+                ) : (
+                  <UserPlus className='h-4 w-4' />
+                )}
+                {userData.isFollowing ? 'Following' : 'Follow'}
+              </Button>
+              {userData.isFollowing && (
+                <Button
+                  variant='outline'
+                  onClick={() =>
+                    navigate(paths.messages, { state: { recieverid: profile.userid } })
+                  }
+                  className='flex-1 gap-2 rounded-full'
+                >
+                  <MessageCircle className='h-4 w-4' />
+                  Message
+                </Button>
+              )}
             </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className='flex gap-3 mt-3 justify-center w-full'>
-            {Number(CurrUser?.userid) !== Number(userid) && (
-              <Button
-                variant='secondary'
-                onClick={() => handleFollow(userid)}
-                className='rounded-full w-full max-w-48'
-              >
-                {userData?.isFollowing ? 'Following' : 'Follow'}
-              </Button>
-            )}
-            {Number(CurrUser?.userid) !== Number(userid) && userData?.isFollowing && (
-              <Button
-                onClick={() => {
-                  navigate('/chat', {
-                    state: { recieverid: userData?.user?.userid },
-                  });
-                }}
-                className='rounded-full w-full max-w-48'
-              >
-                Message
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Follower and Following Stats */}
-
-        {/* Divider */}
-        <div className='border-t border-gray-200 dark:border-gray-700 my-4' />
-
-        {/* Posts Section */}
-        <div className=''>
-          {posts.length === 0 ? (
-            <p className='text-lg text-center text-gray-500 dark:text-gray-400 col-span-full'>
-              No posts yet
-            </p>
-          ) : (
-            posts.map((post) => <PostCard key={post.postid} post={post} setPosts={setPosts} />)
           )}
         </div>
       </div>

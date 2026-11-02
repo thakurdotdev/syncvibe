@@ -1,4 +1,4 @@
-import { SidebarProvider } from '@/components/ui/sidebar';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
@@ -8,27 +8,17 @@ import { ContextProvider } from './Context/Context';
 import { GroupMusicProvider } from './Context/GroupMusicContext';
 import { PlayerProvider } from './Context/PlayerContext';
 import { ThemeProvider } from './Context/ThemeProvider';
-import {
-  ProtectedRoutes,
-  PublicRoutes,
-  musicOnlyRoutes,
-  privateRoutes,
-  publicRoutes,
-} from './Routes';
-import { useAppModeStore } from './stores/appModeStore';
+import { ProtectedRoutes, PublicRoutes, privateRoutes, publicRoutes } from './Routes';
 import { setQueryClient } from './stores/uploadStore';
 
 const queryClient = new QueryClient();
 setQueryClient(queryClient);
 
 function AppRoutes() {
-  const mode = useAppModeStore((s) => s.mode);
-  const activePrivateRoutes = mode === 'music' ? musicOnlyRoutes : privateRoutes;
-
   return (
     <Routes>
       <Route element={<ProtectedRoutes />}>
-        {activePrivateRoutes.map((route) => (
+        {privateRoutes.map((route) => (
           <Route key={route.path} path={route.path} element={route.element} />
         ))}
       </Route>
@@ -47,7 +37,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <ThemeProvider defaultTheme='dark' storageKey='vite-ui-theme'>
-          <SidebarProvider>
+          <TooltipProvider delayDuration={200}>
             <ContextProvider>
               <PlayerProvider>
                 <ChatProvider>
@@ -58,7 +48,7 @@ function App() {
                 </ChatProvider>
               </PlayerProvider>
             </ContextProvider>
-          </SidebarProvider>
+          </TooltipProvider>
         </ThemeProvider>
       </Router>
     </QueryClientProvider>

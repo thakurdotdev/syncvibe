@@ -290,7 +290,7 @@ export const ResumeSession = () => {
   );
 };
 
-const HistoryPage = () => {
+const HistoryPage = ({ embedded = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortBy, setSortBy] = useState('lastPlayedAt');
@@ -346,19 +346,23 @@ const HistoryPage = () => {
   const hasActiveFilters = sortBy !== 'lastPlayedAt' || sortOrder !== 'DESC' || pageSize !== 28;
 
   return (
-    <div className='min-h-screen pb-32'>
-      <div className='border-b border-border/50 bg-card/30'>
+    <div className={embedded ? 'pb-32' : 'min-h-screen pb-32'}>
+      <div className={embedded ? '' : 'border-b border-border/50 bg-card/30'}>
         <div className='px-4 md:px-6 py-6 space-y-6'>
           <div className='flex flex-col gap-5'>
             <div className='flex flex-row items-center justify-between gap-4'>
               <div className='flex items-center gap-3'>
-                <div className='p-2 rounded-lg bg-primary/10'>
-                  <HistoryIcon className='h-5 w-5 text-primary' />
-                </div>
+                {!embedded && (
+                  <div className='p-2 rounded-lg bg-primary/10'>
+                    <HistoryIcon className='h-5 w-5 text-primary' />
+                  </div>
+                )}
                 <div>
-                  <h1 className='text-xl sm:text-2xl font-semibold tracking-tight'>
-                    Listening History
-                  </h1>
+                  {!embedded && (
+                    <h1 className='text-xl sm:text-2xl font-semibold tracking-tight'>
+                      Listening History
+                    </h1>
+                  )}
                   {!isLoading && (
                     <div className='flex items-center gap-3 mt-0.5'>
                       <span className='text-sm text-muted-foreground'>

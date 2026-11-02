@@ -29,7 +29,7 @@ const Chat = () => {
     if (notificationChatData) {
       const findChat = users.find((user) => user?.chatid === notificationChatData?.chatid);
       setCurrentChat(findChat);
-      navigate('/chat', { replace: true });
+      navigate('/messages', { replace: true });
     }
   }, [notificationChatData, users, navigate]);
 
@@ -48,7 +48,7 @@ const Chat = () => {
 
   if (isMobile) {
     return (
-      <div className='relative'>
+      <div className='relative h-full'>
         {currentChat ? (
           <ChatWithUser
             setCurrentChat={setCurrentChat}
@@ -70,7 +70,7 @@ const Chat = () => {
   }
 
   return (
-    <div className='flex mx-auto h-[calc(100vh-60px)] overflow-hidden'>
+    <div className='flex mx-auto h-full overflow-hidden'>
       <div className='w-[30%] min-w-[280px] max-w-[380px] h-full'>
         <SearchUser
           setUsers={setUsers}

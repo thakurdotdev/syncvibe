@@ -1,17 +1,19 @@
 import { memo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Radio, Users, ChevronRight, Play, Pause } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useGroupMusic } from '@/Context/GroupMusicContext';
-import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useShellLayout } from '@/components/shell/useShellLayout';
 
 const ActiveGroupBar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentGroup, currentSong, isPlaying, groupMembers, handlePlayPause } = useGroupMusic();
+  const { currentGroup, currentSong, isPlaying, groupMembers } = useGroupMusic();
+  // The expanded sidebar already shows the live room card.
+  const { isExpanded } = useShellLayout();
 
-  if (!currentGroup || location.pathname.startsWith('/music/sync')) {
+  if (!currentGroup || isExpanded || location.pathname.startsWith('/rooms')) {
     return null;
   }
 
@@ -30,7 +32,7 @@ const ActiveGroupBar = () => {
         className='fixed bottom-24 sm:bottom-20 right-4 sm:right-6 z-40 max-w-sm'
       >
         <div
-          onClick={() => navigate('/music/sync')}
+          onClick={() => navigate('/rooms')}
           className='liquid-panel-elevated p-2.5 rounded-2xl border border-primary/25 shadow-xl shadow-primary/5 flex items-center gap-3 cursor-pointer group hover:border-primary/50 transition-all'
         >
           {/* Thumbnail / Wave */}
@@ -87,7 +89,7 @@ const ActiveGroupBar = () => {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              navigate('/music/sync');
+              navigate('/rooms');
             }}
             className='h-8 px-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold flex items-center gap-1 shrink-0 transition-colors'
           >

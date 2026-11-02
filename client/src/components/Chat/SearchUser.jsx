@@ -58,7 +58,7 @@ const SearchUser = ({
       createChat(messageUserId);
     }
 
-    navigate('/chat', { replace: true });
+    navigate('/messages', { replace: true });
   }, [messageUserId, users, setCurrentChat]);
 
   const searchUsers = useCallback(async () => {
@@ -213,7 +213,7 @@ const SearchUser = ({
   );
 
   return (
-    <Card className='flex flex-col h-[calc(100vh-60px)] p-2 gap-2.5 rounded-none border-r border-border bg-card shadow-none'>
+    <Card className='flex flex-col h-full p-2 gap-2.5 rounded-none border-r border-border bg-card shadow-none'>
       <div className='relative flex items-center px-1 pt-1'>
         <Search className='absolute left-3.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none' />
         <Input

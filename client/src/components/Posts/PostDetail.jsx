@@ -163,7 +163,7 @@ const PostDetail = () => {
         <Button
           variant='outline'
           size='sm'
-          onClick={() => navigate('/feed')}
+          onClick={() => navigate('/home')}
           className='rounded-xl'
         >
           Back to feed
@@ -197,7 +197,7 @@ const PostDetail = () => {
             <Avatar
               className='h-10 w-10 sm:h-11 sm:w-11 cursor-pointer ring-1.5 ring-border/60 hover:ring-primary/40 transition-all shrink-0'
               onClick={() =>
-                navigate(`/user/${post?.user?.username || post?.username}`, {
+                navigate(`/u/${post?.user?.username || post?.username}`, {
                   state: { user: { userid: post?.createdby } },
                 })
               }
@@ -215,7 +215,7 @@ const PostDetail = () => {
               <span
                 className='font-semibold text-sm sm:text-[14.5px] text-foreground hover:underline cursor-pointer truncate'
                 onClick={() =>
-                  navigate(`/user/${post?.user?.username || post?.username}`, {
+                  navigate(`/u/${post?.user?.username || post?.username}`, {
                     state: { user: { userid: post?.createdby } },
                   })
                 }

@@ -33,7 +33,7 @@ const ChatHeader = ({
       <div
         className='relative cursor-pointer flex items-center gap-3'
         onClick={() => {
-          navigate(`/user/${otherUser?.username}`, {
+          navigate(`/u/${otherUser?.username}`, {
             state: { user: otherUser },
           });
         }}

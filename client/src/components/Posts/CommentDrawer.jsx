@@ -34,7 +34,7 @@ const Comment = ({ comment, comments, onReply, replyingTo }) => {
               title={comment.user?.name}
               className='rounded-full cursor-pointer hover:opacity-90 transition-opacity'
               onClick={() => {
-                navigate(`/user/${comment?.user?.username}`, {
+                navigate(`/u/${comment?.user?.username}`, {
                   state: {
                     user: {
                       userid: comment?.createdby,
@@ -97,7 +97,7 @@ const Comment = ({ comment, comments, onReply, replyingTo }) => {
                         title={reply.user?.name}
                         className='rounded-full cursor-pointer hover:opacity-90 transition-opacity'
                         onClick={() => {
-                          navigate(`/user/${reply?.user?.username}`, {
+                          navigate(`/u/${reply?.user?.username}`, {
                             state: {
                               user: {
                                 userid: reply?.createdby,

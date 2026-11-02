@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { useGroupMusic } from '@/Context/GroupMusicContext';
+import { useUiStore } from '@/stores/uiStore';
 
 const PlaylistHeader = ({ playlistData }) => {
   const bgUrl = Array.isArray(playlistData?.image) ? playlistData?.image[2]?.link : '';
@@ -89,7 +90,7 @@ const UserPlaylistDetails = () => {
   useEffect(() => {
     if (!user || !playlistData || !id) return;
     if (user?.userid !== playlistData?.userId) {
-      navigate('/music/my-playlist');
+      navigate('/library');
     }
   }, [user, playlistData, navigate, id]);
 
@@ -185,7 +186,11 @@ const UserPlaylistDetails = () => {
               <ListMusic className='w-10 h-10 text-muted-foreground' />
             </div>
             <p className='text-muted-foreground font-medium'>No songs in this playlist yet</p>
-            <Button variant='link' onClick={() => navigate('/music/search')} className='mt-2'>
+            <Button
+              variant='link'
+              onClick={() => useUiStore.getState().setSearchOpen(true)}
+              className='mt-2'
+            >
               Find some music
             </Button>
           </div>

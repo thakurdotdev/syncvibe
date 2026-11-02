@@ -15,7 +15,7 @@ export const useGroupInviteStore = create((set, get) => ({
       inviterId: invite.inviterId,
     });
     set({ pendingInvite: null });
-    navigate('/music/sync');
+    navigate('/rooms');
   },
 
   declineInvite: (socket, invite) => {

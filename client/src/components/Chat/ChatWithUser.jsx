@@ -428,7 +428,7 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
   // If no current chat is selected
   if (!currentChat) {
     return (
-      <div className='flex flex-col h-[calc(100vh-60px)] justify-center items-center bg-background/50'>
+      <div className='flex flex-col h-full justify-center items-center bg-background/50'>
         <div className='flex flex-col items-center text-center p-8 max-w-md gap-4'>
           <div className='p-5 rounded-3xl bg-primary/10 text-primary ring-12 ring-primary/5 transition-transform hover:scale-105'>
             <MessagesSquare className='h-12 w-12 stroke-[1.5]' />
@@ -447,7 +447,7 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
 
   return (
     <>
-      <div className='relative flex flex-col h-[calc(100vh-60px)]'>
+      <div className='relative flex flex-col h-full'>
         <ChatHeader
           currentChat={currentChat}
           setCurrentChat={setCurrentChat}

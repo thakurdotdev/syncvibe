@@ -34,7 +34,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
     (e) => {
       e.stopPropagation();
       if (currentSong?.album_id) {
-        navigate(`/music/album/${currentSong.album_id}`, { state: currentSong.album_id });
+        navigate(`/album/${currentSong.album_id}`, { state: currentSong.album_id });
         onClose();
       }
     },
@@ -45,7 +45,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
     (e) => {
       e.stopPropagation();
       if (currentSong?.artist_map?.primary_artists?.[0]?.id) {
-        navigate(`/music/artist/${currentSong.artist_map.primary_artists[0].id}`, {
+        navigate(`/artist/${currentSong.artist_map.primary_artists[0].id}`, {
           state: currentSong.artist_map.primary_artists[0].id,
         });
         onClose();

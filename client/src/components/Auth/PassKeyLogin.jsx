@@ -114,7 +114,7 @@ export const PasskeyLogin = () => {
       if (verificationRes.data.verified) {
         await getProfile();
         toast.success('Login successful!');
-        navigate('/feed');
+        navigate('/home');
       } else {
         setError('Authentication verification failed. Please try again.');
       }

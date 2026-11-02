@@ -21,7 +21,7 @@ const VIEW_TRANSITION = {
 };
 
 /**
- * /music/sync — fills the layout's content area exactly (no page scroll).
+ * /rooms — fills the layout's content area exactly (no page scroll).
  * Shows the welcome screen, a reconnecting state, or the active room.
  */
 const GroupMusic = () => {

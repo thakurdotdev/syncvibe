@@ -1,45 +1,29 @@
-import { Search } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useUiStore } from '@/stores/uiStore';
 import SearchDialog from './SearchDialog';
 import './music.css';
 
+/**
+ * Mounts the global music search palette once and binds ⌘K / Ctrl+K.
+ * Open it from anywhere with `useUiStore.getState().setSearchOpen(true)`.
+ */
 const MusicCommand = () => {
-  const [open, setOpen] = useState(false);
-
-  const toggleOpen = useCallback(() => {
-    setOpen((prev) => !prev);
-  }, []);
+  const open = useUiStore((s) => s.searchOpen);
+  const setOpen = useUiStore((s) => s.setSearchOpen);
+  const toggle = useUiStore((s) => s.toggleSearch);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        toggleOpen();
+        toggle();
       }
     };
-
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [toggleOpen]);
+  }, [toggle]);
 
-  const isMac = navigator.userAgent.includes('Mac');
-
-  return (
-    <>
-      <button onClick={toggleOpen} className='music-search-trigger' type='button'>
-        <Search className='music-search-icon' />
-        <span className='music-search-placeholder'>
-          <span className=''>Search songs, artists, albums...</span>
-        </span>
-        <kbd className='music-search-kbd'>
-          <span className='music-search-kbd-key'>{isMac ? '⌘' : 'Ctrl'}</span>
-          <span className='music-search-kbd-key'>K</span>
-        </kbd>
-      </button>
-
-      <SearchDialog open={open} setOpen={setOpen} />
-    </>
-  );
+  return <SearchDialog open={open} setOpen={setOpen} />;
 };
 
 export default MusicCommand;
