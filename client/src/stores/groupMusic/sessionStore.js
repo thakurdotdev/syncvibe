@@ -13,7 +13,6 @@ export const useGroupSessionStore = create((set, get) => ({
 
   queue: [],
   currentQueueIndex: -1,
-  isQueueOpen: false,
 
   isGroupModalOpen: false,
   connectionState: 'disconnected',

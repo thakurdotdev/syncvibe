@@ -588,8 +588,6 @@ export function GroupMusicProvider({ children }) {
     currentQueueItem,
     upcomingQueue,
     playedQueue,
-    isQueueOpen: session.isQueueOpen,
-    setIsQueueOpen: (v) => useGroupSessionStore.setState({ isQueueOpen: v }),
 
     isPlaying: playback.isPlaying,
     setIsPlaying: (v) => useGroupPlaybackStore.setState({ isPlaying: v }),

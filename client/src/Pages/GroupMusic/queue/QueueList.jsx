@@ -179,28 +179,14 @@ const DragOverlayItem = memo(({ item }) => (
   </div>
 ));
 
-const EmptyQueue = memo(() => (
-  <div className='flex flex-col items-center justify-center h-72 gap-5 text-center px-4'>
-    <div className='relative'>
-      <motion.div
-        animate={{ scale: [1, 1.4], opacity: [0.15, 0] }}
-        transition={{ duration: 2.5, repeat: Infinity }}
-        className='absolute inset-0 rounded-full border border-border/30'
-        style={{ margin: '-12px' }}
-      />
-      <motion.div
-        animate={{ scale: [1, 1.7], opacity: [0.1, 0] }}
-        transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
-        className='absolute inset-0 rounded-full border border-border/20'
-        style={{ margin: '-12px' }}
-      />
-      <div className='p-5 rounded-full liquid-badge relative'>
-        <ListMusic className='h-10 w-10 text-muted-foreground/25' />
-      </div>
+const EmptyQueue = memo(({ title, description }) => (
+  <div className='flex flex-col items-center justify-center gap-3 px-4 py-12 text-center'>
+    <div className='rounded-2xl bg-foreground/[0.04] p-4'>
+      <ListMusic className='h-6 w-6 text-muted-foreground/50' />
     </div>
-    <div className='space-y-1.5'>
-      <p className='font-semibold text-lg'>Queue is empty</p>
-      <p className='text-muted-foreground/60 text-sm'>Search for songs above to get started</p>
+    <div className='space-y-1'>
+      <p className='text-sm font-semibold'>{title}</p>
+      <p className='text-xs text-muted-foreground'>{description}</p>
     </div>
   </div>
 ));
@@ -208,7 +194,6 @@ const EmptyQueue = memo(() => (
 const QueueList = memo(
   ({
     queue,
-    currentQueueIndex,
     currentQueueItem,
     upcomingQueue,
     removeFromQueue,
@@ -218,15 +203,9 @@ const QueueList = memo(
     autoPlayRecommendations = true,
     onFetchRecs,
     onSaveToPlaylist,
-    user,
-    currentGroup,
+    hideNowPlaying = false,
   }) => {
     const [activeId, setActiveId] = useState(null);
-
-    const isCreator = useMemo(
-      () => currentGroup?.createdBy === user?.userid,
-      [currentGroup?.createdBy, user?.userid]
-    );
 
     const sensors = useSensors(
       useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -251,7 +230,23 @@ const QueueList = memo(
     );
     const handleDragCancel = useCallback(() => setActiveId(null), []);
 
-    if (queue.length === 0) return <EmptyQueue />;
+    if (queue.length === 0) {
+      return (
+        <EmptyQueue title='Queue is empty' description='Search above to add the first song.' />
+      );
+    }
+    if (hideNowPlaying && upcomingQueue.length === 0) {
+      return (
+        <EmptyQueue
+          title='Nothing up next'
+          description={
+            autoPlayRecommendations
+              ? 'Autoplay will pick similar songs when this one ends.'
+              : 'Search above to add songs for the group.'
+          }
+        />
+      );
+    }
 
     return (
       <motion.div
@@ -262,7 +257,7 @@ const QueueList = memo(
         transition={{ duration: 0.15 }}
       >
         <div className='p-3 space-y-4'>
-          {currentQueueItem && (
+          {currentQueueItem && !hideNowPlaying && (
             <div>
               <p className='text-[11px] font-semibold text-muted-foreground/50 uppercase tracking-widest px-2 mb-2'>
                 Now Playing
