@@ -28,12 +28,6 @@ interface MusicSeekData {
   currentTime: number;
 }
 
-interface SongReactionData {
-  groupId: string;
-  emoji: string;
-  userName: string;
-}
-
 export const setupPlaybackHandlers = (io: Server, socket: Socket): void => {
   socket.on('music-change', (data: MusicChangeData) => {
     const { groupId, song, addedBy } = data;
@@ -126,18 +120,6 @@ export const setupPlaybackHandlers = (io: Server, socket: Socket): void => {
       currentTime: data.currentTime,
       serverTime,
       isSeeking: true,
-    });
-  });
-
-  socket.on('song-reaction', (data: SongReactionData) => {
-    const { groupId, emoji, userName } = data;
-    const group = musicGroups.get(groupId);
-    if (!group) return;
-
-    socket.to(`music-group-${groupId}`).emit('song-reaction', {
-      emoji,
-      userName,
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     });
   });
 };

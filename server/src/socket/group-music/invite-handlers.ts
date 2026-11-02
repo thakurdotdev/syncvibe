@@ -6,10 +6,10 @@ import { GroupInvite } from '@/models/index';
 import {
   musicGroups,
   generateGroupId,
-  generateMessageId,
   createGroupState,
   trackUserGroup,
   untrackUserGroup,
+  removeGroup,
 } from './state';
 import { getQueueState } from './queue';
 import { sendPushNotification } from '../notification';
@@ -26,19 +26,6 @@ interface JoinGroupSocketData {
   userId: string | number;
   userName: string;
   profilePic?: string;
-}
-
-interface ChatMessageSocketData {
-  groupId: string;
-  messageType?: string;
-  gifUrl?: string;
-  senderId?: string | number;
-  profilePic?: string;
-  userName?: string;
-  message?: string;
-  soundUrl?: string;
-  soundName?: string;
-  soundId?: string;
 }
 
 interface SendInviteSocketData {
@@ -213,60 +200,11 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       });
 
       if (group.members.length === 0) {
-        musicGroups.delete(data.groupId);
+        removeGroup(data.groupId);
         io.to(`music-group-${data.groupId}`).emit('group-disbanded');
       }
     }
   });
-
-  socket.on('chat-message', (data: ChatMessageSocketData) => {
-    const { groupId, messageType, gifUrl } = data;
-    const group = musicGroups.get(groupId);
-
-    if (group && !group.features.realtimeChat) {
-      socket.emit('feature-locked', {
-        feature: 'realtimeChat',
-        message: 'Real-time chat requires PRO plan',
-      });
-      return;
-    }
-
-    const enrichedMessage = {
-      id: generateMessageId(),
-      groupId,
-      senderId: data.senderId,
-      profilePic: data.profilePic,
-      userName: data.userName,
-      message: data.message,
-      messageType: messageType || 'text',
-      gifUrl: gifUrl || null,
-      soundUrl: data.soundUrl || null,
-      soundName: data.soundName || null,
-      soundId: data.soundId || null,
-      timestamp: Date.now(),
-    };
-
-    io.to(`music-group-${groupId}`).emit('new-message', enrichedMessage);
-  });
-
-  socket.on('song-reaction', (data: Record<string, unknown> & { groupId: string }) => {
-    socket.to(`music-group-${data.groupId}`).emit('song-reaction', {
-      ...data,
-      id: generateMessageId(),
-      timestamp: Date.now(),
-    });
-  });
-
-  socket.on(
-    'user-typing',
-    (data: { groupId: string; userId: string | number; userName: string; isTyping: boolean }) => {
-      socket.to(`music-group-${data.groupId}`).emit('user-typing', {
-        userId: data.userId,
-        userName: data.userName,
-        isTyping: data.isTyping,
-      });
-    }
-  );
 
   socket.on('send-group-invite', async (data: SendInviteSocketData) => {
     const { groupId, inviteeUserId, inviterName, inviterPic } = data;

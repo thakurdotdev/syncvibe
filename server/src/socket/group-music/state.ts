@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Server } from 'socket.io';
 import type { PlanLimits } from '@/services/entitlement.service';
+import { appendMessage, clearHistory } from './chat-history';
 
 export interface GroupMember {
   userId: string | number;
@@ -98,14 +99,22 @@ export const emitActivityMessage = (
   const message = activityMessages[activityType];
   if (!message) return;
 
-  io.to(`music-group-${groupId}`).emit('new-message', {
+  const activity = {
     id: generateMessageId(),
     groupId,
     type: 'activity',
     activityType,
     message,
     timestamp: Date.now(),
-  });
+  };
+  appendMessage(groupId, activity);
+  io.to(`music-group-${groupId}`).emit('new-message', activity);
+};
+
+/** Deletes a room and everything stored for it. */
+export const removeGroup = (groupId: string): void => {
+  musicGroups.delete(groupId);
+  clearHistory(groupId);
 };
 
 export const getGroup = (groupId: string): MusicGroup | undefined => musicGroups.get(groupId);
