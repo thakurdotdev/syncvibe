@@ -104,7 +104,7 @@ export const ChatProvider = ({ children }) => {
 
       notification.onclick = () => {
         window.focus();
-        window.location.href = '/chat';
+        window.location.href = '/messages';
         notification.close();
       };
     };

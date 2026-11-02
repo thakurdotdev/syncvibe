@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap') layer(base);
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Geist:wght@300..700&display=swap') layer(base);
 
 @import 'tailwindcss';
 
@@ -78,6 +78,14 @@
     }
   }
 
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Geist', ui-sans-serif, sans-serif;
+
+  --color-live: hsl(var(--live));
+  --color-live-foreground: hsl(var(--live-foreground));
+  --color-canvas: hsl(var(--canvas));
+  --color-raised: hsl(var(--raised));
+
   --ease-premium: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -119,148 +127,167 @@
   body {
     height: 100%;
     margin: 0;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans);
   }
 }
 
 @layer base {
   :root {
-    /* ═══ Light Mode — Crisp & Refined (Rose Palette) ═══ */
-    --background: 220 14% 96%;
-    --foreground: 240 8% 9.4%;
+    /* ═══ Light — Lilac paper ═══
+       canvas  #EEEBF3  app background behind the content panel
+       panel   #FBFAFD  content surface
+       ink     #1A1423  text
+       magenta #D12F76  actions / brand
+       amber   #B86E00  live presence only                       */
+    --canvas: 264 18% 93.5%;
+    --background: 264 33% 98.5%;
+    --foreground: 266 26% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 240 8% 9.4%;
+    --card-foreground: 266 26% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 8% 9.4%;
-    --primary: 333 71% 51%;
+    --popover-foreground: 266 26% 11%;
+    --raised: 264 20% 95%;
+    --primary: 334 64% 50%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 332 74% 43%;
-    --primary-active: 331 75% 36%;
-    --primary-disabled: 332 70% 80%;
-    --secondary: 240 3% 95.5%;
-    --secondary-foreground: 240 8% 9.4%;
-    --muted: 240 3% 95.5%;
-    --muted-foreground: 240 2.3% 43%;
-    --accent: 330 75% 94%;
-    --accent-foreground: 331 74% 27.5%;
-    --destructive: 5 78% 45%;
+    --primary-hover: 334 66% 44%;
+    --primary-active: 334 68% 38%;
+    --primary-disabled: 334 40% 80%;
+    --secondary: 264 18% 94%;
+    --secondary-foreground: 266 26% 11%;
+    --muted: 264 18% 94%;
+    --muted-foreground: 264 9% 42%;
+    --accent: 330 70% 95%;
+    --accent-foreground: 334 64% 32%;
+    --destructive: 2 72% 48%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 3% 90.2%;
-    --input: 240 3% 90.2%;
-    --ring: 333 71% 51%;
-    --chart-1: 333 71% 51%;
-    --chart-2: 280 65% 60%;
-    --chart-3: 18 85% 58%;
-    --chart-4: 165 60% 48%;
-    --chart-5: 330 75% 70%;
-    --radius: 0.625rem;
-    --color-1: 333 71% 51%;
-    --color-2: 280 65% 60%;
-    --color-3: 18 85% 58%;
-    --color-4: 165 60% 48%;
-    --color-5: 330 75% 70%;
+    --border: 264 16% 88%;
+    --input: 264 16% 88%;
+    --ring: 334 64% 50%;
+    --live: 36 100% 36%;
+    --live-foreground: 0 0% 100%;
+    --chart-1: 334 64% 50%;
+    --chart-2: 266 50% 55%;
+    --chart-3: 36 100% 42%;
+    --chart-4: 172 55% 38%;
+    --chart-5: 334 70% 72%;
+    --radius: 0.75rem;
+    --color-1: 334 64% 50%;
+    --color-2: 266 50% 55%;
+    --color-3: 36 100% 42%;
+    --color-4: 172 55% 38%;
+    --color-5: 334 70% 72%;
 
     /* Glass System — Light */
-    --glass-bg: rgba(255, 255, 255, 0.65);
-    --glass-bg-elevated: rgba(255, 255, 255, 0.72);
-    --glass-bg-subtle: rgba(255, 255, 255, 0.45);
-    --glass-border: rgba(0, 0, 0, 0.06);
-    --glass-border-strong: rgba(0, 0, 0, 0.1);
-    --glass-highlight: rgba(255, 255, 255, 0.8);
-    --glass-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.08);
-    --glass-shadow-elevated: 0 8px 40px -8px rgba(0, 0, 0, 0.12);
-    --glass-hover: rgba(0, 0, 0, 0.03);
-    --glass-active: rgba(0, 0, 0, 0.06);
-    --glass-separator: rgba(0, 0, 0, 0.05);
-    --glass-input-bg: rgba(0, 0, 0, 0.03);
-    --glass-input-focus: rgba(0, 0, 0, 0.05);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-bg-elevated: rgba(255, 255, 255, 0.82);
+    --glass-bg-subtle: rgba(255, 255, 255, 0.5);
+    --glass-border: rgba(40, 20, 60, 0.07);
+    --glass-border-strong: rgba(40, 20, 60, 0.12);
+    --glass-highlight: rgba(255, 255, 255, 0.85);
+    --glass-shadow: 0 6px 24px -8px rgba(40, 20, 60, 0.12);
+    --glass-shadow-elevated: 0 16px 48px -12px rgba(40, 20, 60, 0.2);
+    --glass-hover: rgba(40, 20, 60, 0.035);
+    --glass-active: rgba(40, 20, 60, 0.07);
+    --glass-separator: rgba(40, 20, 60, 0.06);
+    --glass-input-bg: rgba(40, 20, 60, 0.035);
+    --glass-input-focus: rgba(40, 20, 60, 0.06);
     --glass-inset: rgba(255, 255, 255, 0.6);
     --glass-message-own: linear-gradient(
       135deg,
-      rgba(219, 39, 119, 0.12),
-      rgba(219, 39, 119, 0.06)
+      rgba(209, 47, 118, 0.13),
+      rgba(209, 47, 118, 0.06)
     );
-    --glass-message-other: rgba(0, 0, 0, 0.03);
-    --glass-sheet-bg: rgba(255, 255, 255, 0.92);
+    --glass-message-other: rgba(40, 20, 60, 0.04);
+    --glass-sheet-bg: rgba(251, 250, 253, 0.94);
 
-    /* Sidebar */
-    --sidebar-background: 220 14% 96%;
-    --sidebar-foreground: 240 8% 9.4%;
-    --sidebar-primary: 333 71% 51%;
+    /* Sidebar sits directly on the canvas */
+    --sidebar-background: 264 18% 93.5%;
+    --sidebar-foreground: 266 26% 11%;
+    --sidebar-primary: 334 64% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 330 75% 94%;
-    --sidebar-accent-foreground: 331 74% 27.5%;
-    --sidebar-border: 240 3% 90.2%;
-    --sidebar-ring: 333 71% 51%;
+    --sidebar-accent: 264 20% 88.5%;
+    --sidebar-accent-foreground: 266 26% 11%;
+    --sidebar-border: 264 16% 86%;
+    --sidebar-ring: 334 64% 50%;
   }
 
   .dark {
-    /* ═══ Dark Mode — Deep & Immersive (Rose Palette) ═══ */
-    --background: 240 4% 4.5%;
-    --foreground: 240 5% 96%;
-    --card: 240 4% 10.2%;
-    --card-foreground: 240 5% 96%;
-    --popover: 240 3% 12.9%;
-    --popover-foreground: 240 5% 96%;
-    --primary: 331 100% 65.5%;
-    --primary-foreground: 240 4% 4.5%;
-    --primary-hover: 331 100% 72%;
-    --primary-active: 330 78% 56%;
-    --primary-disabled: 328 35% 35%;
-    --secondary: 240 3% 13.7%;
-    --secondary-foreground: 240 5% 96%;
-    --muted: 240 3% 13.7%;
-    --muted-foreground: 240 2.5% 63.5%;
-    --accent: 329 41% 14%;
-    --accent-foreground: 333 100% 77.6%;
-    --destructive: 5 100% 66%;
-    --destructive-foreground: 240 4% 4.5%;
-    --border: 240 3.5% 17.1%;
-    --input: 240 3.5% 17.1%;
-    --ring: 331 100% 65.5%;
-    --chart-1: 331 100% 65.5%;
-    --chart-2: 280 65% 65%;
-    --chart-3: 18 90% 62%;
-    --chart-4: 165 60% 52%;
-    --chart-5: 330 85% 75%;
-    --color-1: 331 100% 65.5%;
-    --color-2: 280 65% 65%;
-    --color-3: 18 90% 62%;
-    --color-4: 165 60% 52%;
-    --color-5: 330 85% 75%;
+    /* ═══ Dark — Aubergine ink ═══
+       canvas  #0D0A12  app background behind the content panel
+       panel   #15111C  content surface
+       raised  #211B2B  cards, inputs
+       mist    #F2EDF7  text
+       magenta #F0468F  actions / brand
+       amber   #FFB547  live presence only                       */
+    --canvas: 266 29% 5.5%;
+    --background: 264 24% 8.8%;
+    --foreground: 270 37% 95%;
+    --card: 265 22% 11.5%;
+    --card-foreground: 270 37% 95%;
+    --popover: 265 22% 12.5%;
+    --popover-foreground: 270 37% 95%;
+    --raised: 266 22% 13.8%;
+    --primary: 334 85% 61%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 334 90% 67%;
+    --primary-active: 334 75% 54%;
+    --primary-disabled: 334 30% 32%;
+    --secondary: 266 20% 15%;
+    --secondary-foreground: 270 37% 95%;
+    --muted: 266 20% 15%;
+    --muted-foreground: 266 10% 64%;
+    --accent: 330 35% 17%;
+    --accent-foreground: 334 100% 80%;
+    --destructive: 2 90% 65%;
+    --destructive-foreground: 266 29% 5.5%;
+    --border: 266 18% 17.5%;
+    --input: 266 18% 17.5%;
+    --ring: 334 85% 61%;
+    --live: 37 100% 64%;
+    --live-foreground: 266 29% 5.5%;
+    --chart-1: 334 85% 61%;
+    --chart-2: 266 60% 70%;
+    --chart-3: 37 100% 64%;
+    --chart-4: 172 55% 52%;
+    --chart-5: 334 85% 78%;
+    --color-1: 334 85% 61%;
+    --color-2: 266 60% 70%;
+    --color-3: 37 100% 64%;
+    --color-4: 172 55% 52%;
+    --color-5: 334 85% 78%;
 
     /* Glass System — Dark */
-    --glass-bg: rgba(255, 255, 255, 0.03);
-    --glass-bg-elevated: rgba(255, 255, 255, 0.045);
-    --glass-bg-subtle: rgba(255, 255, 255, 0.02);
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --glass-border-strong: rgba(255, 255, 255, 0.12);
-    --glass-highlight: rgba(255, 255, 255, 0.05);
-    --glass-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.3);
-    --glass-shadow-elevated: 0 8px 40px -8px rgba(0, 0, 0, 0.45);
-    --glass-hover: rgba(255, 255, 255, 0.04);
-    --glass-active: rgba(255, 255, 255, 0.08);
-    --glass-separator: rgba(255, 255, 255, 0.04);
-    --glass-input-bg: rgba(255, 255, 255, 0.04);
-    --glass-input-focus: rgba(255, 255, 255, 0.06);
-    --glass-inset: rgba(255, 255, 255, 0.05);
+    --glass-bg: rgba(242, 237, 247, 0.035);
+    --glass-bg-elevated: rgba(242, 237, 247, 0.055);
+    --glass-bg-subtle: rgba(242, 237, 247, 0.02);
+    --glass-border: rgba(242, 237, 247, 0.08);
+    --glass-border-strong: rgba(242, 237, 247, 0.13);
+    --glass-highlight: rgba(242, 237, 247, 0.05);
+    --glass-shadow: 0 6px 24px -8px rgba(0, 0, 0, 0.45);
+    --glass-shadow-elevated: 0 16px 48px -12px rgba(0, 0, 0, 0.6);
+    --glass-hover: rgba(242, 237, 247, 0.045);
+    --glass-active: rgba(242, 237, 247, 0.085);
+    --glass-separator: rgba(242, 237, 247, 0.05);
+    --glass-input-bg: rgba(242, 237, 247, 0.045);
+    --glass-input-focus: rgba(242, 237, 247, 0.07);
+    --glass-inset: rgba(242, 237, 247, 0.05);
     --glass-message-own: linear-gradient(
       135deg,
-      rgba(255, 79, 163, 0.12),
-      rgba(255, 79, 163, 0.04)
+      rgba(240, 70, 143, 0.16),
+      rgba(240, 70, 143, 0.06)
     );
-    --glass-message-other: rgba(255, 255, 255, 0.04);
-    --glass-sheet-bg: rgba(11, 11, 12, 0.88);
+    --glass-message-other: rgba(242, 237, 247, 0.045);
+    --glass-sheet-bg: rgba(21, 17, 28, 0.92);
 
-    /* Sidebar */
-    --sidebar-background: 240 4% 10.2%;
-    --sidebar-foreground: 240 5% 96%;
-    --sidebar-primary: 331 100% 65.5%;
-    --sidebar-primary-foreground: 240 4% 4.5%;
-    --sidebar-accent: 329 41% 14%;
-    --sidebar-accent-foreground: 333 100% 77.6%;
-    --sidebar-border: 240 3.5% 17.1%;
-    --sidebar-ring: 331 100% 65.5%;
+    /* Sidebar sits directly on the canvas */
+    --sidebar-background: 266 29% 5.5%;
+    --sidebar-foreground: 270 37% 95%;
+    --sidebar-primary: 334 85% 61%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 266 22% 12%;
+    --sidebar-accent-foreground: 270 37% 95%;
+    --sidebar-border: 266 18% 14%;
+    --sidebar-ring: 334 85% 61%;
   }
 }
 
@@ -285,5 +312,92 @@
 
   .animate-music-bar {
     animation: music-bar 0.8s ease-in-out infinite;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    font-variation-settings: 'wdth' 92;
+    letter-spacing: -0.02em;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  @keyframes live-ring {
+    0% {
+      box-shadow: 0 0 0 0 hsl(var(--live) / 0.55);
+    }
+    100% {
+      box-shadow: 0 0 0 6px hsl(var(--live) / 0);
+    }
+  }
+
+  .live-dot {
+    animation: live-ring 1.6s ease-out infinite;
+  }
+
+  /* Thin seek bar used by the sidebar player dock */
+  .dock-seek {
+    appearance: none;
+    height: 12px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .dock-seek::-webkit-slider-runnable-track {
+    height: 3px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      to right,
+      hsl(var(--primary)) var(--progress),
+      hsl(var(--foreground) / 0.12) var(--progress)
+    );
+  }
+  .dock-seek::-moz-range-track {
+    height: 3px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      to right,
+      hsl(var(--primary)) var(--progress),
+      hsl(var(--foreground) / 0.12) var(--progress)
+    );
+  }
+  .dock-seek::-webkit-slider-thumb {
+    appearance: none;
+    margin-top: -4.5px;
+    height: 12px;
+    width: 12px;
+    border-radius: 9999px;
+    background: hsl(var(--foreground));
+    opacity: 0;
+    transition: opacity 120ms;
+  }
+  .dock-seek::-moz-range-thumb {
+    height: 12px;
+    width: 12px;
+    border: 0;
+    border-radius: 9999px;
+    background: hsl(var(--foreground));
+    opacity: 0;
+    transition: opacity 120ms;
+  }
+  .dock-seek:hover::-webkit-slider-thumb,
+  .dock-seek:focus-visible::-webkit-slider-thumb {
+    opacity: 1;
+  }
+  .dock-seek:hover::-moz-range-thumb,
+  .dock-seek:focus-visible::-moz-range-thumb {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .live-dot,
+    .animate-music-bar {
+      animation: none;
+    }
   }
 }

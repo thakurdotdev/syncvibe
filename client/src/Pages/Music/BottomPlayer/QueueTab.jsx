@@ -94,9 +94,7 @@ const QueueSongItem = memo(
 
     const songImage = useMemo(
       () =>
-        Array.isArray(song.image)
-          ? song.image?.[1]?.link || song.image?.[0]?.link
-          : song.image,
+        Array.isArray(song.image) ? song.image?.[1]?.link || song.image?.[0]?.link : song.image,
       [song.image]
     );
 
@@ -120,7 +118,7 @@ const QueueSongItem = memo(
       (e) => {
         e.stopPropagation();
         if (song?.album_id) {
-          navigate(`/music/album/${song.album_id}`, { state: song.album_id });
+          navigate(`/album/${song.album_id}`, { state: song.album_id });
         }
       },
       [song?.album_id, navigate]
@@ -130,7 +128,7 @@ const QueueSongItem = memo(
       (e) => {
         e.stopPropagation();
         if (song?.artist_map?.primary_artists?.[0]?.id) {
-          navigate(`/music/artist/${song.artist_map.primary_artists[0].id}`, {
+          navigate(`/artist/${song.artist_map.primary_artists[0].id}`, {
             state: song.artist_map.primary_artists[0].id,
           });
         }
@@ -175,11 +173,7 @@ const QueueSongItem = memo(
         </div>
 
         <Avatar className='relative shrink-0 w-10 h-10 rounded-md ring-1 ring-border/40 group-hover:ring-border/80 overflow-hidden'>
-          <AvatarImage
-            src={songImage}
-            alt={name}
-            className='w-10 h-10 object-cover rounded-md'
-          />
+          <AvatarImage src={songImage} alt={name} className='w-10 h-10 object-cover rounded-md' />
           <AvatarFallback className='w-10 h-10 rounded-md text-xs bg-muted'>
             <Music className='w-4 h-4 text-muted-foreground' />
           </AvatarFallback>

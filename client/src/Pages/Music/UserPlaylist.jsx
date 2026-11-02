@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Plus, ListMusic } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { UserPlaylistCard } from './Cards';
 import { useUserPlaylistsQuery } from '@/hooks/queries/usePlaylistQueries';
@@ -101,7 +102,9 @@ const PlaylistDialog = ({ isOpen, onOpenChange, onSubmit, initialData, isLoading
   );
 };
 
-const UserPlaylist = () => {
+const UserPlaylist = ({ embedded = false }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { data: userPlaylist = [], isLoading: isDataLoading } = useUserPlaylistsQuery();
   const [playlistDialog, setPlaylistDialog] = useState({
     isOpen: false,
@@ -139,6 +142,14 @@ const UserPlaylist = () => {
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
 
+  // The sidebar's "+" opens the create dialog through router state.
+  useEffect(() => {
+    if (location.state?.createPlaylist) {
+      setPlaylistDialog({ isOpen: true, data: null });
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state, location.pathname, navigate]);
+
   const handlePlaylistSubmit = (formData) => {
     if (formData.id) {
       updateMutation.mutate(formData);
@@ -152,10 +163,14 @@ const UserPlaylist = () => {
   };
 
   return (
-    <div className='p-4 md:p-6 max-w-350 mx-auto w-full space-y-6'>
+    <div
+      className={embedded ? 'w-full space-y-6' : 'p-4 md:p-6 max-w-350 mx-auto w-full space-y-6'}
+    >
       <div className='flex flex-row justify-between items-start sm:items-center gap-4'>
         <div>
-          <h2 className='text-2xl md:text-3xl font-bold tracking-tight'>My Playlists</h2>
+          {!embedded && (
+            <h2 className='text-2xl md:text-3xl font-bold tracking-tight'>My Playlists</h2>
+          )}
           <p className='mt-1 text-sm font-medium text-muted-foreground'>
             {userPlaylist.length} {userPlaylist.length === 1 ? 'playlist' : 'playlists'}
           </p>

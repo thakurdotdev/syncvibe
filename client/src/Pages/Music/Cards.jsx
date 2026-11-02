@@ -1,7 +1,17 @@
 import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
 import he from 'he';
-import { Disc3, ListMusic, Loader2, MoreVertical, Pencil, Play, Trash2, Users, Radio } from 'lucide-react';
+import {
+  Disc3,
+  ListMusic,
+  Loader2,
+  MoreVertical,
+  Pencil,
+  Play,
+  Trash2,
+  Users,
+  Radio,
+} from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -34,7 +44,7 @@ import './music.css';
 
 const MotionCard = motion.div;
 
-const getPlaylistImageUrl = (image) => {
+export const getPlaylistImageUrl = (image) => {
   if (typeof image === 'string') return image;
   if (image && typeof image === 'object' && !Array.isArray(image)) return image.link || '';
   if (!Array.isArray(image)) return '';
@@ -99,7 +109,7 @@ export const ArtistCard = memo(({ artist }) => {
   return (
     <MotionCard
       className='w-[150px] group cursor-pointer p-3 rounded-lg'
-      onClick={() => navigate(`/music/artist/${artist.id}`, { state: artist.id })}
+      onClick={() => navigate(`/artist/${artist.id}`, { state: artist.id })}
       whileHover={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
       whileTap={{ scale: 0.98 }}
     >
@@ -194,7 +204,7 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
 
   const handleNavigate = () => {
     if (song.type !== 'song') {
-      navigate(`/music/${song.type}/${song.id}`, { state: song.id });
+      navigate(`/${song.type}/${song.id}`, { state: song.id });
     }
   };
 
@@ -283,7 +293,7 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/music/album/${song.album_id}`, { state: song.album_id });
+                      navigate(`/album/${song.album_id}`, { state: song.album_id });
                     }}
                   >
                     Go to album
@@ -293,7 +303,7 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/music/artist/${song.artist_map.primary_artists[0].id}`);
+                      navigate(`/artist/${song.artist_map.primary_artists[0].id}`);
                     }}
                   >
                     Go to artist
@@ -438,7 +448,7 @@ export const NewSongCard = memo(({ song }) => {
 
   const handleNavigate = () => {
     if (song.type !== 'song') {
-      navigate(`/music/${song.type}/${song.id}`, { state: song.id });
+      navigate(`/${song.type}/${song.id}`, { state: song.id });
     }
   };
 
@@ -520,7 +530,7 @@ export const NewSongCard = memo(({ song }) => {
                     <DropdownMenuItem
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/music/album/${song.album_id}`, { state: song.album_id });
+                        navigate(`/album/${song.album_id}`, { state: song.album_id });
                       }}
                     >
                       Go to album
@@ -530,7 +540,7 @@ export const NewSongCard = memo(({ song }) => {
                     <DropdownMenuItem
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/music/artist/${song.artist_map.primary_artists[0].id}`);
+                        navigate(`/artist/${song.artist_map.primary_artists[0].id}`);
                       }}
                     >
                       Go to artist
@@ -616,7 +626,7 @@ export const AlbumCard = memo(({ album }) => {
     <MotionCard
       className='w-[150px] group cursor-pointer rounded-lg p-2'
       onClick={() =>
-        navigate(`/music/album/${album.album_id || album?.id}`, {
+        navigate(`/album/${album.album_id || album?.id}`, {
           state: album.album_id || album?.id,
         })
       }
@@ -681,7 +691,7 @@ export const PlaylistCard = memo(({ playlist }) => {
   return (
     <div
       className='w-[150px] group cursor-pointer rounded-lg p-2 transition-all duration-200 hover:bg-white/5 active:scale-98'
-      onClick={() => navigate(`/music/playlist/${playlist.id}`, { state: playlist.id })}
+      onClick={() => navigate(`/playlist/${playlist.id}`, { state: playlist.id })}
     >
       <div className='relative mb-2 overflow-hidden rounded-lg aspect-square'>
         <div className='w-full h-full transition-transform duration-300 ease-out group-hover:scale-105 [will-change:transform]'>
@@ -755,7 +765,7 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
   const handleCardClick = useCallback(
     (e) => {
       if (e.target.closest('.action-buttons')) return;
-      navigate(`/music/my-playlist/${playlist.id}`, { state: playlist.id });
+      navigate(`/library/playlist/${playlist.id}`, { state: playlist.id });
     },
     [playlist.id, navigate]
   );

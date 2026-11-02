@@ -33,7 +33,7 @@ const Login = () => {
   const [twoFactorUserId, setTwoFactorUserId] = useState(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const returnPath = searchParams.get('returnTo') || '/feed';
+  const returnPath = searchParams.get('returnTo') || '/home';
   const passkeyAuthStarted = useRef(false);
 
   const form = useForm({

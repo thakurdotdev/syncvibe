@@ -64,7 +64,7 @@ const Header = memo(() => {
           {user?.userid ? (
             <div
               className='flex items-center gap-2.5 cursor-pointer py-1 px-2.5 rounded-full bg-secondary border border-border hover:border-primary/40 transition-colors'
-              onClick={() => navigate('/feed')}
+              onClick={() => navigate('/home')}
             >
               <Avatar className='h-6.5 w-6.5'>
                 <AvatarImage src={getProfileCloudinaryUrl(user.profilepic)} alt={user.name} />

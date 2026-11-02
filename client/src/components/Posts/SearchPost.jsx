@@ -78,7 +78,7 @@ const SearchPost = () => {
           {users?.map((user) => (
             <div
               onClick={() => {
-                navigate(`/user/${user?.username}`, {
+                navigate(`/u/${user?.username}`, {
                   state: { user },
                 });
               }}

@@ -2,8 +2,9 @@ import { useState, useContext, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
-  ArrowLeftRight,
   BadgeCheck,
+  Crown,
+  Languages,
   ChevronsUpDown,
   CreditCard,
   Laptop,
@@ -31,22 +32,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { SidebarMenuButton } from '@/components/ui/sidebar';
 import { ChatContext } from '@/Context/ChatContext';
 import { Context } from '@/Context/Context';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useTheme } from '@/Context/ThemeProvider';
 import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { useAppModeStore } from '@/stores/appModeStore';
+import { useEntitlementQuery } from '@/hooks/queries/useEntitlementQuery';
+import { paths } from '@/lib/paths';
 import { cn } from '@/lib/utils';
 
-const ProfileDropdownMenu = ({ fromSidebar = true }) => {
+const ProfileDropdownMenu = ({ fromSidebar = true, collapsed = false }) => {
   const { user, setUser } = useContext(Context);
   const stopSong = usePlayerStore((s) => s.stopSong);
   const { cleanUpSocket } = useContext(ChatContext);
   const { theme, setTheme } = useTheme();
-  const resetMode = useAppModeStore((s) => s.resetMode);
+  const { data: entitlement } = useEntitlementQuery();
+  const isPro = entitlement?.plan?.code === 'PRO';
   const navigate = useNavigate();
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
 
@@ -77,31 +79,32 @@ const ProfileDropdownMenu = ({ fromSidebar = true }) => {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          {fromSidebar ? (
-            <SidebarMenuButton
-              size='lg'
-              variant='ghost'
-              className='h-12 w-full p-2 rounded-xl hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer transition-colors'
+          {fromSidebar && !collapsed ? (
+            <button
+              type='button'
+              className='flex h-12 w-full items-center gap-2.5 rounded-xl p-2 text-left transition-colors hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent cursor-pointer'
             >
-              <Avatar className='h-8.5 w-8.5 rounded-full ring-1.5 ring-primary/20 shrink-0'>
+              <Avatar className='h-8 w-8 rounded-full shrink-0'>
                 <AvatarImage src={getProfileCloudinaryUrl(user.profilepic)} alt={user.name} />
                 <AvatarFallback className='rounded-full bg-primary/10 text-primary text-xs font-semibold'>
                   {user.name?.[0]?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
-              <div className='grid flex-1 text-left text-xs leading-tight min-w-0 pl-1'>
-                <div className='flex items-center gap-1 min-w-0'>
+              <div className='grid flex-1 min-w-0 leading-tight'>
+                <span className='flex items-center gap-1.5 min-w-0'>
                   <span className='truncate font-semibold text-sm'>{user.name}</span>
-                  {user.verified && (
-                    <BadgeCheck className='text-blue-500 fill-blue-500/20 shrink-0' size={14} />
+                  {isPro && (
+                    <span className='shrink-0 rounded-full bg-live/15 px-1.5 py-px text-[10px] font-semibold text-live'>
+                      Pro
+                    </span>
                   )}
-                </div>
+                </span>
                 <span className='truncate text-muted-foreground text-[11px]'>
                   @{user.username || user.email?.split('@')[0]}
                 </span>
               </div>
               <ChevronsUpDown className='ml-auto size-4 text-muted-foreground/70 shrink-0' />
-            </SidebarMenuButton>
+            </button>
           ) : (
             <button
               type='button'
@@ -120,8 +123,8 @@ const ProfileDropdownMenu = ({ fromSidebar = true }) => {
 
         <DropdownMenuContent
           className='w-68 rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-xl shadow-2xl p-2 space-y-1.5'
-          side={fromSidebar ? 'top' : 'bottom'}
-          align={fromSidebar ? 'start' : 'end'}
+          side={fromSidebar ? (collapsed ? 'right' : 'top') : 'bottom'}
+          align={fromSidebar ? (collapsed ? 'end' : 'start') : 'end'}
           sideOffset={8}
         >
           {/* User Identity Header */}
@@ -187,28 +190,38 @@ const ProfileDropdownMenu = ({ fromSidebar = true }) => {
           {/* Nav Actions */}
           <DropdownMenuGroup className='space-y-0.5'>
             <DropdownMenuItem
-              onClick={() => navigate('/profile')}
+              onClick={() => navigate(paths.profile)}
               className='gap-2.5 px-2.5 py-2 rounded-xl text-xs font-medium cursor-pointer'
             >
               <User size={15} className='text-muted-foreground' />
-              <span>Profile & Settings</span>
+              <span>Profile & settings</span>
             </DropdownMenuItem>
 
             <DropdownMenuItem
-              onClick={() => navigate('/payments/history')}
+              onClick={() => navigate(paths.languages)}
+              className='gap-2.5 px-2.5 py-2 rounded-xl text-xs font-medium cursor-pointer'
+            >
+              <Languages size={15} className='text-muted-foreground' />
+              <span>Music languages</span>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              onClick={() => navigate(paths.billing)}
               className='gap-2.5 px-2.5 py-2 rounded-xl text-xs font-medium cursor-pointer'
             >
               <CreditCard size={15} className='text-muted-foreground' />
-              <span>Payment History</span>
+              <span>Payment history</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onClick={resetMode}
-              className='gap-2.5 px-2.5 py-2 rounded-xl text-xs font-medium cursor-pointer'
-            >
-              <ArrowLeftRight size={15} className='text-muted-foreground' />
-              <span>Switch Mode</span>
-            </DropdownMenuItem>
+            {!isPro && (
+              <DropdownMenuItem
+                onClick={() => navigate(paths.plans)}
+                className='gap-2.5 px-2.5 py-2 rounded-xl text-xs font-medium cursor-pointer'
+              >
+                <Crown size={15} className='text-live' />
+                <span>Upgrade to Pro</span>
+              </DropdownMenuItem>
+            )}
           </DropdownMenuGroup>
 
           <DropdownMenuSeparator className='bg-border/60' />
