@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fetchTrendingMedia, searchMedia } from '@/api/gifs';
+import { usePickerPosition } from './usePickerPosition';
 
 const MEDIA_TABS = [
   { id: 'gifs', label: 'GIFs', icon: Film, placeholder: 'Search GIFs...' },
@@ -123,7 +124,8 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [pos, setPos] = useState(null);
+  // Fits the narrow chat rail and short screens; re-measured on resize.
+  const pos = usePickerPosition(anchorRef, { minWidth: 340, maxWidth: 480, preferredHeight: 480 });
 
   const pickerRef = useRef(null);
   const inputRef = useRef(null);
@@ -132,16 +134,6 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
   const searchTimeoutRef = useRef(null);
   const abortControllerRef = useRef(null);
 
-  // Position calculation relative to anchor
-  useEffect(() => {
-    if (!anchorRef?.current) return;
-    const rect = anchorRef.current.getBoundingClientRect();
-    setPos({
-      bottom: window.innerHeight - rect.top + 8,
-      left: rect.left,
-      width: rect.width,
-    });
-  }, [anchorRef]);
 
   // Focus search input after mount
   useEffect(() => {
@@ -355,12 +347,12 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.96 }}
       transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-      className='fixed flex flex-col rounded-2xl overflow-hidden border border-border/30 shadow-2xl backdrop-blur-2xl'
+      className='@container fixed flex flex-col rounded-2xl overflow-hidden border border-border/30 shadow-2xl backdrop-blur-2xl'
       style={{
         bottom: pos.bottom,
         left: pos.left,
         width: pos.width,
-        height: 480,
+        height: pos.height,
         zIndex: 9999,
         background: 'hsl(var(--background) / 0.98)',
         boxShadow: '0 -8px 40px -8px rgba(0,0,0,0.5), 0 0 0 1px hsl(var(--border) / 0.15)',
@@ -452,8 +444,8 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
           <div
             className={
               activeTab === 'stickers'
-                ? 'grid grid-cols-3 sm:grid-cols-4 gap-2'
-                : 'grid grid-cols-2 sm:grid-cols-3 gap-2'
+                ? 'grid grid-cols-3 @md:grid-cols-4 gap-2'
+                : 'grid grid-cols-2 @md:grid-cols-3 gap-2'
             }
           >
             {Array.from({ length: 9 }).map((_, i) => (
@@ -490,7 +482,7 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
         ) : (
           <>
             {activeTab === 'stickers' ? (
-              <div className='grid grid-cols-3 sm:grid-cols-4 gap-2'>
+              <div className='grid grid-cols-3 @md:grid-cols-4 gap-2'>
                 {items.map((item, idx) => (
                   <MediaCard
                     key={`${item.id}-${idx}`}
@@ -501,7 +493,7 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
                 ))}
               </div>
             ) : (
-              <div className='grid grid-cols-2 sm:grid-cols-3 gap-2'>
+              <div className='grid grid-cols-2 @md:grid-cols-3 gap-2'>
                 {items.map((item, idx) => (
                   <MediaCard
                     key={`${item.id}-${idx}`}

@@ -48,3 +48,45 @@ export const buildChatItems = (messages, currentUserId) =>
       endsGroup: !isSameGroup(msg, messages[index + 1]),
     };
   });
+
+export const MESSAGE_REACTIONS = ['❤️', '😂', '🔥', '👍', '😮', '😢'];
+
+const PREVIEW_LENGTH = 120;
+
+/** Short, human-readable summary of a message (used for reply quotes). */
+export const getMessagePreview = (msg) => {
+  if (!msg) return '';
+  if (isSoundMessage(msg)) return `🔊 ${msg.soundName || 'Sound effect'}`;
+  if (isGifMessage(msg)) return 'GIF';
+  return (msg.message || '').slice(0, PREVIEW_LENGTH);
+};
+
+/** The compact reference sent with a reply (the server re-validates and truncates it). */
+export const buildReplyReference = (msg) => ({
+  id: msg.id,
+  senderId: msg.senderId,
+  userName: msg.userName,
+  message: getMessagePreview(msg),
+  messageType: msg.messageType || 'text',
+});
+
+/** reactions: { emoji: [{ userId, userName }] } → sorted chips with "did I react" flag. */
+export const summarizeReactions = (reactions, currentUserId) =>
+  Object.entries(reactions || {})
+    .filter(([, users]) => users?.length)
+    .map(([emoji, users]) => ({
+      emoji,
+      count: users.length,
+      reactedByMe: users.some((u) => String(u.userId) === String(currentUserId)),
+      names: users.map((u) => u.userName).filter(Boolean),
+    }))
+    .sort((a, b) => b.count - a.count);
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** True when the text @-mentions the given display name (case-insensitive). */
+export const mentionsUser = (text, userName) => {
+  if (!text || !userName) return false;
+  const firstName = userName.split(' ')[0];
+  return new RegExp(`@(${escapeRegExp(userName)}|${escapeRegExp(firstName)})\\b`, 'i').test(text);
+};

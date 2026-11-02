@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -20,12 +19,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Copy, LogOut, MoreHorizontal, QrCode } from 'lucide-react';
 import { memo, useState } from 'react';
-import { useRoomPreferences } from '../hooks/useRoomPreferences';
 
-/** Secondary room actions and per-device preferences. */
+/** Secondary room actions. Chat preferences live in the chat toolbar. */
 const RoomMenu = ({ onCopyCode, onShowQrCode, onLeave }) => {
   const [confirmLeave, setConfirmLeave] = useState(false);
-  const { sfxAutoPlay, mediaBlur, toggleSfxAutoPlay, toggleMediaBlur } = useRoomPreferences();
 
   return (
     <>
@@ -48,17 +45,6 @@ const RoomMenu = ({ onCopyCode, onShowQrCode, onLeave }) => {
             <QrCode className='mr-2 h-4 w-4' />
             Show QR code
           </DropdownMenuItem>
-
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel className='text-xs font-normal text-muted-foreground'>
-            Chat
-          </DropdownMenuLabel>
-          <DropdownMenuCheckboxItem checked={sfxAutoPlay} onCheckedChange={toggleSfxAutoPlay}>
-            Play sound effects
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem checked={mediaBlur} onCheckedChange={toggleMediaBlur}>
-            Blur GIFs & media
-          </DropdownMenuCheckboxItem>
 
           <DropdownMenuSeparator />
           <DropdownMenuLabel className='text-xs font-normal text-muted-foreground'>

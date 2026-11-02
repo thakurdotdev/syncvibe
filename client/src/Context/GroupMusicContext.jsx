@@ -211,6 +211,7 @@ export function GroupMusicProvider({ children }) {
 
     socket.on('group-joined', async (data) => {
       ss.getState().handleGroupJoined(data);
+      ss.getState().requestChatHistory(socket, data?.group?.id);
       const offset = pb.getState().serverTimeOffset;
       await pb
         .getState()
@@ -226,6 +227,7 @@ export function GroupMusicProvider({ children }) {
 
     socket.on('group-rejoined', async (data) => {
       ss.getState().handleGroupRejoined(data);
+      ss.getState().requestChatHistory(socket, data?.group?.id);
       const offset = pb.getState().serverTimeOffset;
       await pb
         .getState()
@@ -265,6 +267,15 @@ export function GroupMusicProvider({ children }) {
     socket.on('group-disbanded', () => {
       ss.getState().resetSession(() => pb.getState().reset());
       toast.info('Group disbanded');
+    });
+
+    // Chat history for late joiners / rejoin (servers without this feature never reply).
+    socket.on('chat-history', ({ groupId, messages } = {}) => {
+      ss.getState().mergeChatHistory(groupId, messages);
+    });
+
+    socket.on('message-reaction', (data) => {
+      if (data?.messageId) ss.getState().applyMessageReaction(data);
     });
 
     socket.on('new-message', (message) => {
@@ -441,6 +452,8 @@ export function GroupMusicProvider({ children }) {
         'member-left',
         'group-disbanded',
         'new-message',
+        'chat-history',
+        'message-reaction',
         'group-full',
         'feature-locked',
         'group-invite-received',
@@ -503,6 +516,11 @@ export function GroupMusicProvider({ children }) {
   const wrappedSendMessage = useCallback(
     (msg, messageType, extra) => session.sendMessage(socket, user, msg, messageType, extra),
     [socket, user, session]
+  );
+
+  const wrappedSendMessageReaction = useCallback(
+    (messageId, emoji) => session.sendMessageReaction(socket, messageId, emoji),
+    [socket]
   );
 
   const wrappedAddToQueue = useCallback(
@@ -658,6 +676,7 @@ export function GroupMusicProvider({ children }) {
 
     selectSong: wrappedPlayNow,
     sendReaction: wrappedSendReaction,
+    sendMessageReaction: wrappedSendMessageReaction,
     typingUsers: session.typingUsers,
     onTypingStart: () => {
       if (!socket || !session.currentGroup?.id) return;

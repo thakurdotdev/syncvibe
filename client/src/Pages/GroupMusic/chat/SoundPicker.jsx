@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import { fetchSoundFeed, searchSounds, QUICK_SOUND_PRESETS } from '@/api/soundEffects';
 import { soundEffectsManager } from '@/lib/soundEffectsManager';
+import { usePickerPosition } from './usePickerPosition';
 
 const SoundItemCard = memo(({ sound, isPlaying, onTogglePlay, onSend }) => {
   return (
@@ -98,23 +99,14 @@ const SoundPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [playingId, setPlayingId] = useState(null);
-  const [pos, setPos] = useState(null);
+  // Fits the narrow chat rail and short screens; re-measured on resize.
+  const pos = usePickerPosition(anchorRef, { minWidth: 320, maxWidth: 440, preferredHeight: 440 });
   const [selectedPreset, setSelectedPreset] = useState(null);
 
   const pickerRef = useRef(null);
   const searchTimeoutRef = useRef(null);
   const abortControllerRef = useRef(null);
 
-  // Position calculation relative to anchor
-  useEffect(() => {
-    if (!anchorRef?.current) return;
-    const rect = anchorRef.current.getBoundingClientRect();
-    setPos({
-      bottom: window.innerHeight - rect.top + 8,
-      left: rect.left,
-      width: rect.width,
-    });
-  }, [anchorRef]);
 
   // Stop any playing preview when unmounting
   useEffect(() => {
@@ -268,12 +260,12 @@ const SoundPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 10, scale: 0.96 }}
       transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      className='fixed flex flex-col rounded-2xl overflow-hidden border border-border/30 shadow-2xl backdrop-blur-xl'
+      className='@container fixed flex flex-col rounded-2xl overflow-hidden border border-border/30 shadow-2xl backdrop-blur-xl'
       style={{
         bottom: pos.bottom,
         left: pos.left,
         width: pos.width,
-        height: 440,
+        height: pos.height,
         zIndex: 9999,
         background: 'hsl(var(--background) / 0.98)',
         boxShadow: '0 -8px 40px -8px rgba(0,0,0,0.5), 0 0 0 1px hsl(var(--border) / 0.15)',
@@ -282,9 +274,9 @@ const SoundPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
       {/* Header */}
       <div className='shrink-0 px-3 pt-3 pb-2 border-b border-border/15'>
         <div className='flex items-center justify-between mb-2'>
-          <div className='flex items-center gap-1.5'>
-            <Volume2 className='h-4 w-4 text-primary' />
-            <h3 className='text-xs font-semibold tracking-tight text-foreground'>
+          <div className='flex min-w-0 items-center gap-1.5'>
+            <Volume2 className='h-4 w-4 shrink-0 text-primary' />
+            <h3 className='truncate text-xs font-semibold tracking-tight text-foreground'>
               Sound Effects Soundboard
             </h3>
             <span className='text-[9.5px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium'>
@@ -294,7 +286,8 @@ const SoundPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
           <button
             type='button'
             onClick={onClose}
-            className='h-6 w-6 rounded-md flex items-center justify-center cursor-pointer border-0 bg-transparent text-muted-foreground/50 hover:text-foreground hover:bg-accent/40 transition-colors'
+            aria-label='Close soundboard'
+            className='h-6 w-6 shrink-0 rounded-md flex items-center justify-center cursor-pointer border-0 bg-transparent text-muted-foreground/50 hover:text-foreground hover:bg-accent/40 transition-colors'
           >
             <X className='h-3.5 w-3.5' />
           </button>

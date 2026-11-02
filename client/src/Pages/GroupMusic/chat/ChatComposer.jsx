@@ -4,6 +4,8 @@ import { Image as ImageIcon, SendHorizontal, Volume2 } from 'lucide-react';
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import MediaPicker from './MediaPicker';
 import SoundPicker from './SoundPicker';
+import { getMessagePreview } from './chatUtils';
+import { ReplyingToBar } from './ReplyQuote';
 import { useTypingSignal } from './useTypingSignal';
 
 const MAX_LENGTH = 1000;
@@ -44,6 +46,8 @@ const ChatComposer = ({
   onSendSound,
   onTypingStart,
   onTypingStop,
+  replyTarget,
+  onCancelReply,
 }) => {
   const [draft, setDraft] = useState('');
   const [openPicker, setOpenPicker] = useState(PICKERS.none);
@@ -66,6 +70,11 @@ const ChatComposer = ({
     if (focusRequest && !disabled) inputRef.current?.focus();
   }, [focusRequest, disabled]);
 
+  // Starting a reply puts the cursor in the composer.
+  useEffect(() => {
+    if (replyTarget && !disabled) inputRef.current?.focus();
+  }, [replyTarget, disabled]);
+
   const send = useCallback(() => {
     const text = draft.trim();
     if (!text || disabled) return;
@@ -79,9 +88,12 @@ const ChatComposer = ({
       if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
         event.preventDefault();
         send();
+      } else if (event.key === 'Escape' && replyTarget) {
+        event.preventDefault();
+        onCancelReply?.();
       }
     },
-    [send]
+    [send, replyTarget, onCancelReply]
   );
 
   const handleChange = useCallback(
@@ -116,6 +128,13 @@ const ChatComposer = ({
 
   return (
     <div ref={containerRef} className='shrink-0 px-3 pb-3'>
+      {replyTarget && (
+        <ReplyingToBar
+          target={replyTarget}
+          preview={getMessagePreview(replyTarget)}
+          onCancel={onCancelReply}
+        />
+      )}
       <div className='flex items-end gap-1 rounded-2xl border border-border/40 bg-background/60 p-1 transition-colors focus-within:border-border'>
         <ToolButton
           label='GIFs, clips & stickers'
@@ -146,7 +165,9 @@ const ChatComposer = ({
           value={draft}
           maxLength={MAX_LENGTH}
           disabled={disabled}
-          placeholder={disabled ? 'Chat is locked' : 'Message the group…'}
+          placeholder={
+            disabled ? 'Chat is locked' : replyTarget ? 'Write a reply…' : 'Message the group…'
+          }
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onBlur={stopTyping}
