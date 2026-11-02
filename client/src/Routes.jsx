@@ -163,7 +163,7 @@ export const ProtectedRoutes = () => {
           open && !isMobile ? 'w-full max-w-[calc(100%-260px)]' : 'w-full'
         } transition-all duration-300`}
       >
-        <div className='mt-[60px] h-[calc(100vh-60px)]'>
+        <div className='mt-[60px] h-[calc(100dvh-60px)]'>
           <Suspense fallback={<Fallback />}>
             <ProfileLoader>
               <Outlet />
@@ -197,7 +197,7 @@ const MusicLayout = () => {
           open && !isMobile ? 'w-full max-w-[calc(100%-260px)]' : 'w-full'
         } transition-all duration-300`}
       >
-        <div className={`mt-[56px] h-[calc(100vh-56px)] ${isMobile ? 'pb-16' : ''}`}>
+        <div className={`mt-[56px] h-[calc(100dvh-56px)] ${isMobile ? 'pb-16' : ''}`}>
           <Suspense fallback={<Fallback />}>
             <ProfileLoader>
               <Outlet />

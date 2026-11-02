@@ -1,10 +1,12 @@
 import { memo, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 import { useSongRecommendationsQuery } from '@/hooks/queries/useSongQueries';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { useAppModeStore } from '@/stores/appModeStore';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/playbackStore';
+import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import AddToPlaylist from '../AddToPlaylist';
 import PlayerControls from './PlayerControls';
@@ -19,6 +21,10 @@ const BottomPlayer = () => {
   const isSoloPlaying = usePlayerStore((s) => s.isPlaying);
   const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
   const isGroupPlaying = useGroupPlaybackStore((s) => s.isPlaying);
+  const isInGroup = useGroupSessionStore((s) => Boolean(s.currentGroup));
+  const { pathname } = useLocation();
+  // The group room has its own player; the floating solo player would cover the chat composer.
+  const isHiddenByGroupRoom = isInGroup && pathname.startsWith('/music/sync');
 
   useEffect(() => {
     if (isGroupPlaying && isSoloPlaying) {
@@ -56,7 +62,7 @@ const BottomPlayer = () => {
     }
   }, [recommendations, shouldFetch, currentSong?.id, addToQueue]);
 
-  if (!currentSong || isClosed) return null;
+  if (!currentSong || isClosed || isHiddenByGroupRoom) return null;
 
   const songImage =
     currentSong?.image?.[2]?.link ||
