@@ -9,6 +9,9 @@ export const setupPlayer = (): boolean => {
     TrackPlayer.setupPlayer({
       contentType: 'music',
       handleAudioBecomingNoisy: true,
+      // Without this the native player never emits PlaybackProgressUpdated, so the
+      // position was only saved on pause/background and a killed app lost it.
+      progressSync: { intervalSeconds: 5 },
       android: {
         wakeMode: 'network',
         taskRemovedBehavior: 'stop',
