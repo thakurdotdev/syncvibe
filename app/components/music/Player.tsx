@@ -218,6 +218,8 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     zIndex: 999,
+    // Android draws by elevation too; keep the player above the app-wide bottom deck.
+    elevation: 40,
   },
   contentContainer: {
     flex: 1,

@@ -1,5 +1,14 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Text, TouchableOpacity, View, StyleSheet, Alert, Share, ScrollView, Platform, useWindowDimensions } from 'react-native';
+import {
+  Text,
+  View,
+  StyleSheet,
+  Alert,
+  Share,
+  ScrollView,
+  Platform,
+  useWindowDimensions,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -24,9 +33,22 @@ import { ChatPeek } from '@/components/music/group/ChatPeek';
 import { FloatingReactions } from '@/components/music/group/FloatingReactions';
 import { ConnectionBadge } from '@/components/music/group/ConnectionBadge';
 import { GlobalSoundAnimation } from '@/components/music/group/GlobalSoundAnimation';
+import { HeaderIconButton, TabHeader } from '@/components/ui/AppHeader';
+import PressableScale from '@/components/ui/PressableScale';
+import { fonts } from '@/theme/typography';
 
 const HeaderActions = React.memo(
-  ({ onOpenQueue, onLeave, showInlineQueue, onToggleInlineQueue }: { onOpenQueue: () => void; onLeave: () => void; showInlineQueue: boolean; onToggleInlineQueue: () => void }) => {
+  ({
+    onOpenQueue,
+    onLeave,
+    showInlineQueue,
+    onToggleInlineQueue,
+  }: {
+    onOpenQueue: () => void;
+    onLeave: () => void;
+    showInlineQueue: boolean;
+    onToggleInlineQueue: () => void;
+  }) => {
     const { colors } = useTheme();
     const queue = useGroupSessionStore((s) => s.queue);
     const currentQueueIndex = useGroupSessionStore((s) => s.currentQueueIndex);
@@ -39,17 +61,14 @@ const HeaderActions = React.memo(
 
     return (
       <View style={styles.headerRight}>
-        <TouchableOpacity onPress={onToggleInlineQueue} style={[styles.headerIconBtn, { backgroundColor: colors.secondary }]} accessibilityRole='button' accessibilityLabel={showInlineQueue ? 'Disable side queue' : 'Enable side queue'}>
-          <Feather name='columns' size={18} color={colors.foreground} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={onOpenQueue}
-          style={[styles.headerIconBtn, { backgroundColor: colors.secondary }]}
-          activeOpacity={0.6}
-          accessibilityRole='button'
-          accessibilityLabel='Open queue'
+        <HeaderIconButton
+          label={showInlineQueue ? 'Disable side queue' : 'Enable side queue'}
+          onPress={onToggleInlineQueue}
         >
-          <Feather name='list' size={20} color={colors.foreground} />
+          <Feather name='columns' size={17} color={colors.foreground} />
+        </HeaderIconButton>
+        <HeaderIconButton label='Open queue' onPress={onOpenQueue}>
+          <Feather name='list' size={18} color={colors.foreground} />
           {activeQueueCount > 0 && (
             <View style={[styles.headerBadge, { backgroundColor: colors.primary }]}>
               <Text style={[styles.headerBadgeText, { color: colors.primaryForeground }]}>
@@ -57,16 +76,10 @@ const HeaderActions = React.memo(
               </Text>
             </View>
           )}
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={onLeave}
-          style={[styles.headerIconBtn, { backgroundColor: colors.secondary }]}
-          activeOpacity={0.6}
-          accessibilityRole='button'
-          accessibilityLabel='Leave group'
-        >
-          <Feather name='log-out' size={20} color={colors.foreground} />
-        </TouchableOpacity>
+        </HeaderIconButton>
+        <HeaderIconButton label='Leave room' onPress={onLeave}>
+          <Feather name='log-out' size={18} color={colors.foreground} />
+        </HeaderIconButton>
       </View>
     );
   }
@@ -95,7 +108,10 @@ export default function GroupMusicMobile() {
   const canShowInlineQueue = Platform.OS === 'web' && width >= 1100;
 
   React.useEffect(() => {
-    AsyncStorage.getItem('@group_music_inline_queue').then((value) => setShowInlineQueue(value === 'true')).catch(() => {}).finally(() => setQueuePreferenceLoaded(true));
+    AsyncStorage.getItem('@group_music_inline_queue')
+      .then((value) => setShowInlineQueue(value === 'true'))
+      .catch(() => {})
+      .finally(() => setQueuePreferenceLoaded(true));
   }, []);
   const toggleInlineQueue = useCallback(() => {
     setShowInlineQueue((value) => {
@@ -104,7 +120,8 @@ export default function GroupMusicMobile() {
       return next;
     });
   }, []);
-  const inlineQueue = queuePreferenceLoaded && showInlineQueue && canShowInlineQueue && !!currentGroup;
+  const inlineQueue =
+    queuePreferenceLoaded && showInlineQueue && canShowInlineQueue && !!currentGroup;
 
   const handleOpenQueue = useCallback(() => {
     useGroupSessionStore.setState({ isQueueOpen: true });
@@ -147,15 +164,21 @@ export default function GroupMusicMobile() {
       ) : (
         <View style={[styles.root, { backgroundColor: colors.background }]}>
           <TabSafeAreaView edges={['top']}>
-            <View style={styles.header}>
-              <View style={styles.headerLeft}>
-                <Text style={[styles.headerTitle, { color: colors.foreground }]}>Group music</Text>
-                {currentGroup && <ConnectionBadge />}
-              </View>
-              {currentGroup && (
-                <HeaderActions onOpenQueue={handleOpenQueue} onLeave={handleLeaveGroup} showInlineQueue={showInlineQueue} onToggleInlineQueue={toggleInlineQueue} />
-              )}
-            </View>
+            <TabHeader
+              title='Rooms'
+              accessory={currentGroup ? <ConnectionBadge /> : null}
+              showSearch={!currentGroup}
+              actions={
+                currentGroup ? (
+                  <HeaderActions
+                    onOpenQueue={handleOpenQueue}
+                    onLeave={handleLeaveGroup}
+                    showInlineQueue={showInlineQueue}
+                    onToggleInlineQueue={toggleInlineQueue}
+                  />
+                ) : null
+              }
+            />
           </TabSafeAreaView>
 
           <InviteNotification />
@@ -174,10 +197,9 @@ export default function GroupMusicMobile() {
               <Text style={[styles.welcomeSubtitle, { color: colors.mutedForeground }]}>
                 Start a room or join a friend. Playback stays in sync for everyone listening.
               </Text>
-              <TouchableOpacity
+              <PressableScale
                 onPress={() => useGroupSessionStore.setState({ isGroupModalOpen: true })}
                 style={[styles.createButton, { backgroundColor: colors.primary }]}
-                activeOpacity={0.8}
                 accessibilityRole='button'
                 accessibilityLabel='Create or join a music group'
               >
@@ -185,7 +207,7 @@ export default function GroupMusicMobile() {
                 <Text style={[styles.createButtonText, { color: colors.primaryForeground }]}>
                   Create or join a room
                 </Text>
-              </TouchableOpacity>
+              </PressableScale>
               <Text style={[styles.welcomeFootnote, { color: colors.mutedForeground }]}>
                 Use an invite link or QR code to join a room.
               </Text>
@@ -217,7 +239,16 @@ export default function GroupMusicMobile() {
                 <GroupMembersCard groupMembers={groupMembers} hostId={currentGroup.createdBy} />
               </ScrollView>
 
-              {inlineQueue && <View style={[styles.queueColumn, { backgroundColor: colors.card, borderColor: colors.border }]}><QueueSheet inline /></View>}
+              {inlineQueue && (
+                <View
+                  style={[
+                    styles.queueColumn,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                  ]}
+                >
+                  <QueueSheet inline />
+                </View>
+              )}
 
               <FloatingReactions />
             </View>
@@ -263,43 +294,32 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  splitLayout: { flexDirection: 'row', gap: 16, paddingHorizontal: 20, minHeight: 0, overflow: 'hidden' },
-  playerColumn: { flex: 0.6, minWidth: 0, minHeight: 0 },
-  queueColumn: { flex: 0.4, minWidth: 0, minHeight: 0, borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, overflow: 'hidden', marginBottom: 12 },
-  header: {
+  splitLayout: {
+    flexDirection: 'row',
+    gap: 16,
     paddingHorizontal: 20,
-    paddingTop: 6,
-    paddingBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    minHeight: 0,
+    overflow: 'hidden',
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 21,
-    fontWeight: '700',
-    letterSpacing: -0.35,
+  playerColumn: { flex: 0.6, minWidth: 0, minHeight: 0 },
+  queueColumn: {
+    flex: 0.4,
+    minWidth: 0,
+    minHeight: 0,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    overflow: 'hidden',
+    marginBottom: 12,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-  },
-  headerIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 8,
   },
   headerBadge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: -2,
+    right: -2,
     minWidth: 16,
     height: 16,
     borderRadius: 8,
@@ -326,9 +346,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   welcomeTitle: {
+    fontFamily: fonts.display,
     fontSize: 26,
-    fontWeight: '700',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
     marginTop: 10,
     textAlign: 'center',
   },

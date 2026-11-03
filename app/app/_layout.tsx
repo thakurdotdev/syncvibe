@@ -1,6 +1,7 @@
 import AppUpdateModal from '@/components/AppUpdateModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Player from '@/components/music/Player';
+import GlobalBottomDeck from '@/components/shell/GlobalBottomDeck';
 import PlayerInitializer from '@/components/music/PlayerInitializer';
 import { AppUpdateProvider } from '@/context/AppUpdateContext';
 import { GroupMusicProvider } from '@/context/GroupMusicContext';
@@ -10,6 +11,12 @@ import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { typography } from '@/theme/typography';
 import { ToastProvider } from '@/context/ToastContext';
 import { UserProvider } from '@/context/UserContext';
+import {
+  BricolageGrotesque_600SemiBold,
+  BricolageGrotesque_700Bold,
+  BricolageGrotesque_800ExtraBold,
+  useFonts,
+} from '@expo-google-fonts/bricolage-grotesque';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import TrackPlayer from '@rntp/player';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
@@ -101,13 +108,20 @@ function RootLayout() {
 function RootLayoutNav() {
   const { colors, theme, isLoading: themeLoading } = useTheme();
   const { markInteractive } = useObserve();
+  // Display face shared with the web app. On failure we fall back to the system font.
+  const [fontsLoaded, fontError] = useFonts({
+    BricolageGrotesque_600SemiBold,
+    BricolageGrotesque_700Bold,
+    BricolageGrotesque_800ExtraBold,
+  });
+  const fontsReady = fontsLoaded || Boolean(fontError);
 
   useEffect(() => {
-    if (!themeLoading) {
+    if (!themeLoading && fontsReady) {
       SplashScreen.hideAsync();
       markInteractive();
     }
-  }, [themeLoading, markInteractive]);
+  }, [themeLoading, fontsReady, markInteractive]);
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(colors.background).catch(() => {
@@ -242,6 +256,7 @@ function RootLayoutNav() {
           }}
         />
       </Stack>
+      <GlobalBottomDeck />
       <Player />
       <AppUpdateModal />
     </>

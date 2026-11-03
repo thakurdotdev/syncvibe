@@ -2,10 +2,54 @@ import { useTheme } from '@/context/ThemeContext';
 import { Album, Artist, Playlist } from '@/types/music';
 import { Song } from '@/types/song';
 import { router } from 'expo-router';
-import { ChevronRightIcon } from 'lucide-react-native';
 import { memo } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
+import PressableScale from '@/components/ui/PressableScale';
+import { fonts } from '@/theme/typography';
 import { AlbumCard, ArtistCard, NewSongCard, PlaylistCard } from './MusicCards';
+
+/** Section heading used by every home row: display face, optional "See all" on the right. */
+const SectionTitle = memo(function SectionTitle({
+  title,
+  onSeeAll,
+}: {
+  title?: string;
+  onSeeAll?: () => void;
+}) {
+  const { colors } = useTheme();
+  if (!title) return null;
+  return (
+    <View style={sectionStyles.row}>
+      <Text style={[sectionStyles.title, { color: colors.foreground }]} accessibilityRole='header'>
+        {title}
+      </Text>
+      {onSeeAll && (
+        <PressableScale
+          onPress={onSeeAll}
+          hitSlop={8}
+          accessibilityRole='button'
+          accessibilityLabel={`See all ${title}`}
+          style={sectionStyles.seeAll}
+        >
+          <Text style={[sectionStyles.seeAllText, { color: colors.mutedForeground }]}>See all</Text>
+        </PressableScale>
+      )}
+    </View>
+  );
+});
+
+const sectionStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  title: { fontFamily: fonts.display, fontSize: 21, letterSpacing: -0.4 },
+  seeAll: { paddingVertical: 2 },
+  seeAllText: { fontSize: 13, fontWeight: '600' },
+});
 
 interface AlbumsGridProps {
   albums: Album[];
@@ -29,16 +73,11 @@ interface RecommendationGridProps {
 }
 
 export const AlbumsGrid = memo(({ albums, title }: AlbumsGridProps) => {
-  const { colors } = useTheme();
   if (!albums?.length) return null;
 
   return (
-    <View className='mb-6'>
-      {title && (
-        <Text className='text-xl font-bold mb-2 px-4' style={{ color: colors.text }}>
-          {title}
-        </Text>
-      )}
+    <View style={{ marginBottom: 28 }}>
+      <SectionTitle title={title} />
       <FlatList
         data={albums}
         keyExtractor={(item) => item.id}
@@ -61,16 +100,11 @@ export const AlbumsGrid = memo(({ albums, title }: AlbumsGridProps) => {
 });
 
 export const PlaylistsGrid = memo(({ playlists, title }: PlaylistsGridProps) => {
-  const { colors } = useTheme();
   if (!playlists?.length) return null;
 
   return (
-    <View className='mb-6'>
-      {title && (
-        <Text className='text-xl font-bold mb-2 px-4' style={{ color: colors.text }}>
-          {title}
-        </Text>
-      )}
+    <View style={{ marginBottom: 28 }}>
+      <SectionTitle title={title} />
       <FlatList
         data={playlists}
         keyExtractor={(item) => item.id}
@@ -94,30 +128,14 @@ export const PlaylistsGrid = memo(({ playlists, title }: PlaylistsGridProps) => 
 
 export const RecommendationGrid = memo(
   ({ recommendations, title, showMore = false }: RecommendationGridProps) => {
-    const { colors } = useTheme();
     if (!recommendations?.length) return null;
 
     return (
-      <View className='mb-6'>
-        <View className='flex-row justify-between items-center mb-2 px-4'>
-          {title && (
-            <Text
-              className='text-xl font-bold'
-              style={{ fontFamily: 'System', color: colors.text }}
-            >
-              {title}
-            </Text>
-          )}
-          {showMore && (
-            <Pressable
-              className='py-1'
-              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-              onPress={() => router.push('/song-history')}
-            >
-              <ChevronRightIcon size={20} color={colors.text} />
-            </Pressable>
-          )}
-        </View>
+      <View style={{ marginBottom: 28 }}>
+        <SectionTitle
+          title={title}
+          onSeeAll={showMore ? () => router.push('/song-history') : undefined}
+        />
 
         <FlatList
           data={recommendations}
@@ -143,16 +161,11 @@ export const RecommendationGrid = memo(
 );
 
 export const TrendingSongs = memo(({ songs, title }: { songs: Song[]; title: string }) => {
-  const { colors } = useTheme();
   if (!songs?.length) return null;
 
   return (
-    <View className='mb-6'>
-      {title && (
-        <Text className='text-xl font-bold mb-2 px-4' style={{ color: colors.text }}>
-          {title}
-        </Text>
-      )}
+    <View style={{ marginBottom: 28 }}>
+      <SectionTitle title={title} />
       <FlatList
         data={songs}
         keyExtractor={(item) => item.id}
@@ -175,16 +188,11 @@ export const TrendingSongs = memo(({ songs, title }: { songs: Song[]; title: str
 });
 
 export const ArtistGrid = memo(({ artists, title }: ArtistGridProps) => {
-  const { colors } = useTheme();
   if (!artists?.length) return null;
 
   return (
-    <View className='mb-6'>
-      {title && (
-        <Text className='text-xl font-bold mb-2 px-4' style={{ color: colors.text }}>
-          {title}
-        </Text>
-      )}
+    <View style={{ marginBottom: 28 }}>
+      <SectionTitle title={title} />
       <FlatList
         data={artists}
         keyExtractor={(item) => item.id}

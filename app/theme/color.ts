@@ -27,6 +27,11 @@ export interface ThemeColors {
   input: string;
   ring: string;
   text: string;
+  /** Live / presence signal (rooms, listeners). Never used for actions. */
+  live: string;
+  liveForeground: string;
+  /** Surface one step above `card` — inputs, chips, pressed rows. */
+  raised: string;
 
   // Button state variants
   primaryHover: string;
@@ -81,6 +86,9 @@ const emberPalette: ColorPalette = {
     input: '#E5E5E7',
     ring: '#CC4310',
     text: '#16161A',
+    live: '#B86E00',
+    liveForeground: '#FFFFFF',
+    raised: '#EDEDEF',
 
     primaryHover: '#B23A0D',
     primaryActive: '#99310A',
@@ -128,6 +136,9 @@ const emberPalette: ColorPalette = {
     input: '#2A2A2D',
     ring: '#FF6A35',
     text: '#F4F4F5',
+    live: '#FFB547',
+    liveForeground: '#100C16',
+    raised: '#26262A',
 
     primaryHover: '#FF8456',
     primaryActive: '#E85A28',
@@ -157,7 +168,7 @@ const emberPalette: ColorPalette = {
 };
 
 // Professional, vibrant music player palette — refined magenta/rose accent variant.
-// This is the ACTIVE default (see colorPalettes export below).
+// Kept registered as `rose`; the active default is Aubergine below.
 // Calibration notes specific to this variant:
 // - Primary is a slightly muted rose, so it feels premium instead of neon
 //   while remaining easy to recognize for playback and active states.
@@ -190,6 +201,9 @@ const rosePalette: ColorPalette = {
     input: '#E3E4E8',
     ring: '#C92D70',
     text: '#16161A',
+    live: '#B86E00',
+    liveForeground: '#FFFFFF',
+    raised: '#EDEDEF',
 
     // Button state variants
     primaryHover: '#B62564',
@@ -241,6 +255,9 @@ const rosePalette: ColorPalette = {
     input: '#2A2A2D',
     ring: '#F05A9B',
     text: '#F4F4F5',
+    live: '#FFB547',
+    liveForeground: '#100C16',
+    raised: '#26262A',
 
     // Button state variants
     primaryHover: '#F776AD',
@@ -274,14 +291,117 @@ const rosePalette: ColorPalette = {
   },
 };
 
-// `default` now points at the rose palette — this is the active theme
-// your ThemeContext reads via colorPalettes.default[theme]. Ember
-// stays registered under its own key so it isn't lost if you ever want
-// to switch back or build a palette picker later.
-export type ColorPaletteName = 'default' | 'rose' | 'ember';
+// `default` points at the Aubergine palette — the active theme ThemeContext reads via
+// colorPalettes.default[theme]. Rose and Ember stay registered under their own keys so
+// they aren't lost if you ever want to switch back or build a palette picker later.
+
+// Aubergine — the SyncVibe brand palette, shared with the web app.
+// Coloured darks instead of neutral black, magenta for actions, amber reserved
+// for "live" presence (rooms, listeners). This is the ACTIVE default.
+const auberginePalette: ColorPalette = {
+  name: 'Aubergine',
+  description: 'SyncVibe brand palette: aubergine ink, magenta actions, amber live signals',
+  light: {
+    background: '#F7F5FA',
+    foreground: '#1A1423',
+    card: '#FFFFFF',
+    cardForeground: '#1A1423',
+    popover: '#FFFFFF',
+    popoverForeground: '#1A1423',
+    primary: '#D12F76',
+    primaryForeground: '#FFFFFF',
+    secondary: '#EFECF3',
+    secondaryForeground: '#1A1423',
+    muted: '#EFECF3',
+    mutedForeground: '#655E70',
+    accent: '#FBE4EF',
+    accentForeground: '#7E1A47',
+    destructive: '#C9302C',
+    destructiveForeground: '#FFFFFF',
+    border: '#E3DFE9',
+    input: '#E3DFE9',
+    ring: '#D12F76',
+    text: '#1A1423',
+    live: '#B86E00',
+    liveForeground: '#FFFFFF',
+    raised: '#F1EEF5',
+
+    primaryHover: '#BB2969',
+    primaryActive: '#A3235B',
+    primaryDisabled: '#EBA9C6',
+    secondaryHover: '#E7E3EC',
+    secondaryActive: '#DDD8E4',
+    secondaryDisabled: '#F7F5FA',
+    accentHover: '#F8D5E6',
+    accentActive: '#F4C3DA',
+    accentDisabled: '#FDF2F7',
+    destructiveHover: '#B32A27',
+    destructiveActive: '#9C2421',
+    destructiveDisabled: '#EBA9A7',
+
+    gradients: {
+      primary: ['#E2558F', '#D12F76', '#A3235B'],
+      background: ['#F7F5FA', '#F7F5FA'],
+      card: ['#FFFFFF', '#FBFAFD'],
+      accent: ['#FBE4EF', '#F8D5E6'],
+      destructive: ['#DA5450', '#C9302C', '#9C2421'],
+      header: ['#F3EAF4', '#F7F5FA', '#F7F5FA'],
+    },
+  },
+  dark: {
+    background: '#100C16',
+    foreground: '#F2EDF7',
+    card: '#1B1624',
+    cardForeground: '#F2EDF7',
+    popover: '#211B2B',
+    popoverForeground: '#F2EDF7',
+    primary: '#F0468F',
+    primaryForeground: '#FFFFFF',
+    secondary: '#241E2E',
+    secondaryForeground: '#F2EDF7',
+    muted: '#241E2E',
+    mutedForeground: '#A59EAD',
+    accent: '#331C29',
+    accentForeground: '#FF99C8',
+    destructive: '#F95F5A',
+    destructiveForeground: '#100C16',
+    border: '#2B2435',
+    input: '#2B2435',
+    ring: '#F0468F',
+    text: '#F2EDF7',
+    live: '#FFB547',
+    liveForeground: '#100C16',
+    raised: '#241D2F',
+
+    primaryHover: '#F466A3',
+    primaryActive: '#DA3A7E',
+    primaryDisabled: '#6E2A49',
+    secondaryHover: '#2C2537',
+    secondaryActive: '#352D41',
+    secondaryDisabled: '#1B1624',
+    accentHover: '#3E2232',
+    accentActive: '#4A283B',
+    accentDisabled: '#22141C',
+    destructiveHover: '#FB7C78',
+    destructiveActive: '#E04B46',
+    destructiveDisabled: '#6E2E2C',
+
+    gradients: {
+      primary: ['#F56EA8', '#F0468F', '#DA3A7E'],
+      background: ['#100C16', '#15111C'],
+      card: ['#1B1624', '#1F1929'],
+      accent: ['#331C29', '#3E2232'],
+      destructive: ['#FB7C78', '#F95F5A', '#E04B46'],
+      header: ['#2A1A2A', '#100C16', '#100C16'],
+    },
+  },
+};
+
+export type ColorPaletteName = 'default' | 'aubergine' | 'rose' | 'ember';
 
 export const colorPalettes: Record<ColorPaletteName, ColorPalette> = {
-  default: rosePalette,
+  default: auberginePalette,
+  aubergine: auberginePalette,
   rose: rosePalette,
   ember: emberPalette,
 };

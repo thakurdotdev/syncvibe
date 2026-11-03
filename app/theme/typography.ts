@@ -1,21 +1,48 @@
 import { TextStyle } from 'react-native';
 
+/**
+ * Display face shared with the web app (Bricolage Grotesque), loaded in app/_layout.tsx.
+ * Each weight is its own family on Android, so display styles set fontFamily and leave
+ * fontWeight unset. Body text stays on the platform font.
+ */
+export const fonts = {
+  display: 'BricolageGrotesque_700Bold',
+  displaySemibold: 'BricolageGrotesque_600SemiBold',
+  displayHeavy: 'BricolageGrotesque_800ExtraBold',
+} as const;
+
 export const typography = {
+  displayXl: {
+    fontFamily: fonts.displayHeavy,
+    fontSize: 34,
+    letterSpacing: -0.8,
+    lineHeight: 38,
+  } as TextStyle,
   displayLg: {
+    fontFamily: fonts.display,
     fontSize: 30,
-    fontWeight: '700',
     letterSpacing: -0.6,
     lineHeight: 36,
   } as TextStyle,
   displayMd: {
+    fontFamily: fonts.display,
     fontSize: 24,
-    fontWeight: '700',
     letterSpacing: -0.4,
     lineHeight: 30,
   } as TextStyle,
 
-  headingLg: { fontSize: 20, fontWeight: '700', letterSpacing: -0.2, lineHeight: 26 } as TextStyle,
-  headingMd: { fontSize: 18, fontWeight: '600', letterSpacing: -0.1, lineHeight: 24 } as TextStyle,
+  headingLg: {
+    fontFamily: fonts.display,
+    fontSize: 20,
+    letterSpacing: -0.3,
+    lineHeight: 26,
+  } as TextStyle,
+  headingMd: {
+    fontFamily: fonts.displaySemibold,
+    fontSize: 18,
+    letterSpacing: -0.2,
+    lineHeight: 24,
+  } as TextStyle,
   headingSm: { fontSize: 16, fontWeight: '600', lineHeight: 22 } as TextStyle,
 
   bodyLg: { fontSize: 16, fontWeight: '400', lineHeight: 24 } as TextStyle,

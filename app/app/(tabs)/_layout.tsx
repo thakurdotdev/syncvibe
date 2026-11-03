@@ -1,17 +1,12 @@
-import { TAB_BAR_HEIGHT, UnifiedBottomDeck } from '@/components/music/UnifiedBottomDeck';
+import { TAB_BAR_HEIGHT } from '@/components/music/UnifiedBottomDeck';
 import { useTheme } from '@/context/ThemeContext';
-import { Tabs, useSegments } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export { TAB_BAR_HEIGHT };
 
 export default function TabLayout() {
-  const insets = useSafeAreaInsets();
-  const segments = useSegments();
-  const { colors, theme } = useTheme();
-
-  const activeSegment = (segments[1] ?? 'home') as string;
+  const { colors } = useTheme();
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -33,12 +28,7 @@ export default function TabLayout() {
         <Tabs.Screen name='profile/index' options={{ title: 'Profile' }} />
       </Tabs>
 
-      <UnifiedBottomDeck
-        colors={colors}
-        theme={theme}
-        insets={insets}
-        activeSegment={activeSegment}
-      />
+      {/* The bottom deck is rendered app-wide by components/shell/GlobalBottomDeck. */}
     </View>
   );
 }

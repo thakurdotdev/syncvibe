@@ -5,149 +5,170 @@ import {
   RecommendationGrid,
   TrendingSongs,
 } from '@/components/music/MusicLists';
+import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
+import { TabHeader } from '@/components/ui/AppHeader';
+import PressableScale from '@/components/ui/PressableScale';
+import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
 import { useHomePageMusic, useRecentMusic } from '@/queries/useMusic';
+import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Pressable, RefreshControl, Text, View } from 'react-native';
+import { memo, useCallback, useEffect, useMemo } from 'react';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  Extrapolation,
-  interpolate,
-  useAnimatedScrollHandler,
+  cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
-  cancelAnimation,
   withRepeat,
-  withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 
-const SearchBar = memo(function SearchBar({
-  colors,
-  theme,
-}: {
-  colors: ReturnType<typeof useTheme>['colors'];
-  theme: string;
-}) {
-  const bg = theme === 'light' ? `${colors.card}F0` : `${colors.muted}CC`;
+type Colors = ReturnType<typeof useTheme>['colors'];
 
-  const handlePress = useCallback(() => {
-    router.navigate('/search');
-  }, []);
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 5) return 'Up late';
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+};
+
+const goRooms = () => router.navigate('/(tabs)/group-music');
+
+/**
+ * The room tile is the most important thing on Home: it's what SyncVibe is for. In a room it
+ * becomes a live "back to the room" card tinted by the artwork; otherwise it invites you to
+ * start one.
+ */
+const RoomTile = memo(function RoomTile({ colors }: { colors: Colors }) {
+  const group = useGroupSessionStore((s) => s.currentGroup);
+  const memberCount = useGroupSessionStore((s) => s.groupMembers.length);
+  const art = useGroupPlaybackStore(
+    (s) => s.currentSong?.image?.[2]?.link || s.currentSong?.image?.[1]?.link
+  );
 
   return (
-    <Pressable
-      onPress={handlePress}
-      style={{
-        backgroundColor: bg,
-        borderWidth: theme === 'light' ? 0.5 : 0,
-        borderColor: colors.border,
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderRadius: 100,
-        paddingHorizontal: 16,
-        height: 44,
-        marginHorizontal: 16,
-        marginBottom: 4,
-      }}
-      accessible
+    <PressableScale
+      onPress={goRooms}
       accessibilityRole='button'
-      accessibilityLabel='Search for songs'
+      accessibilityLabel={group ? `Back to room ${group.name}` : 'Start a room'}
+      style={[styles.roomTile, { backgroundColor: colors.foreground }]}
     >
-      <Ionicons name='search' size={18} color={colors.mutedForeground} />
-      <Text
-        style={{
-          color: colors.mutedForeground,
-          fontSize: 15,
-          marginLeft: 10,
-          flex: 1,
-        }}
-        numberOfLines={1}
-      >
-        Search for songs…
-      </Text>
-    </Pressable>
+      {group && art ? <Image source={{ uri: art }} style={styles.roomArt} blurRadius={40} /> : null}
+      <View style={styles.roomBody}>
+        <View style={{ flex: 1 }}>
+          {group ? (
+            <>
+              <View style={[styles.livePill, { backgroundColor: colors.live }]}>
+                <View style={[styles.liveDot, { backgroundColor: colors.liveForeground }]} />
+                <Text style={[styles.livePillText, { color: colors.liveForeground }]}>
+                  {memberCount} listening now
+                </Text>
+              </View>
+              <Text style={[styles.roomTitle, { color: colors.background }]} numberOfLines={1}>
+                Back to {group.name}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.roomTitle, { color: colors.background }]}>Start a room</Text>
+              <Text style={[styles.roomCopy, { color: colors.background }]}>
+                Invite friends and play the same song, in sync, while you chat.
+              </Text>
+            </>
+          )}
+        </View>
+        <View style={[styles.roomCta, { backgroundColor: colors.primary }]}>
+          <Ionicons
+            name={group ? 'arrow-forward' : 'add'}
+            size={22}
+            color={colors.primaryForeground}
+          />
+        </View>
+      </View>
+    </PressableScale>
   );
 });
 
-function HomeSkeleton({ colors }: { colors: ReturnType<typeof useTheme>['colors'] }) {
-  const opacity = useSharedValue(0.45);
+const SHORTCUTS = [
+  {
+    key: 'history',
+    label: 'History',
+    icon: 'time-outline',
+    go: () => router.push('/song-history'),
+  },
+  {
+    key: 'library',
+    label: 'Playlists',
+    icon: 'albums-outline',
+    go: () => router.navigate('/(tabs)/playlist'),
+  },
+  {
+    key: 'languages',
+    label: 'Languages',
+    icon: 'language-outline',
+    go: () => router.push('/music-language'),
+  },
+] as const;
+
+const Shortcuts = memo(function Shortcuts({ colors }: { colors: Colors }) {
+  return (
+    <View style={styles.shortcuts}>
+      {SHORTCUTS.map((s) => (
+        <PressableScale
+          key={s.key}
+          onPress={s.go}
+          accessibilityRole='button'
+          accessibilityLabel={s.label}
+          style={[styles.shortcut, { backgroundColor: colors.raised }]}
+        >
+          <Ionicons name={s.icon} size={18} color={colors.primary} />
+          <Text style={[styles.shortcutText, { color: colors.foreground }]}>{s.label}</Text>
+        </PressableScale>
+      ))}
+    </View>
+  );
+});
+
+function HomeSkeleton({ colors }: { colors: Colors }) {
+  const opacity = useSharedValue(0.5);
 
   useEffect(() => {
-    opacity.value = withRepeat(
-      withSequence(withTiming(0.85, { duration: 750 }), withTiming(0.45, { duration: 750 })),
-      -1,
-      false
-    );
-
+    opacity.value = withRepeat(withTiming(0.9, { duration: 700 }), -1, true);
     return () => cancelAnimation(opacity);
   }, [opacity]);
 
-  const pulseStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-
-  const Block = ({
-    w,
-    h,
-    r = 12,
-    mb = 0,
-    mr = 0,
-  }: {
-    w: number | `${number}%`;
-    h: number;
-    r?: number;
-    mb?: number;
-    mr?: number;
-  }) => (
-    <Animated.View
-      style={[
-        {
-          width: w,
-          height: h,
-          backgroundColor: colors.muted,
-          borderRadius: r,
-          marginBottom: mb,
-          marginRight: mr,
-        },
-        pulseStyle,
-      ]}
-    />
-  );
+  const pulse = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const block = (w: number | `${number}%`, h: number, r = 12) => ({
+    width: w,
+    height: h,
+    borderRadius: r,
+    backgroundColor: colors.muted,
+  });
 
   return (
-    <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 16 }}>
-      <Block w='38%' h={14} r={8} mb={12} />
-      <View style={{ flexDirection: 'row', marginBottom: 24 }}>
-        {[0, 1, 2].map((i) => (
-          <Block key={i} w={108} h={108} r={14} mr={12} />
-        ))}
-      </View>
-      <Block w='44%' h={14} r={8} mb={12} />
-      <View style={{ flexDirection: 'row', marginBottom: 24 }}>
-        {[0, 1, 2, 3].map((i) => (
-          <Block key={i} w={86} h={86} r={10} mr={10} />
-        ))}
-      </View>
-      <Block w='52%' h={14} r={8} mb={12} />
-      <View style={{ flexDirection: 'row' }}>
-        {[0, 1, 2].map((i) => (
-          <Block key={i} w={130} h={148} r={14} mr={12} />
-        ))}
-      </View>
-    </View>
+    <Animated.View style={[styles.skeleton, pulse]}>
+      {[0, 1, 2].map((row) => (
+        <View key={row} style={{ marginBottom: 28 }}>
+          <View style={[block('40%', 18, 8), { marginBottom: 12 }]} />
+          <View style={{ flexDirection: 'row', gap: 14 }}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={block(144, 144, 14)} />
+            ))}
+          </View>
+        </View>
+      ))}
+    </Animated.View>
   );
 }
 
-const HEADER_H = 360;
-
 function HomeScreen() {
   const { user } = useUser();
-  const { colors, theme } = useTheme();
-  const scrollY = useSharedValue(0);
-  const scrollRef = useRef<any>(null);
+  const { colors } = useTheme();
 
   const {
     data: homePageData,
@@ -161,147 +182,135 @@ function HomeScreen() {
     isRefetching: isRefetchingRecent,
   } = useRecentMusic();
 
-  const headerGradient = useMemo(
-    () => colors.gradients.header as unknown as readonly [string, string, ...string[]],
-    [colors.gradients.header]
-  );
-
   const onRefresh = useCallback(() => {
     const requests: Promise<unknown>[] = [refetchHome()];
     if (user?.userid) requests.push(refetchRecent());
     return Promise.allSettled(requests).then(() => undefined);
   }, [user?.userid, refetchHome, refetchRecent]);
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (e) => {
-      'worklet';
-      scrollY.value = e.contentOffset.y;
-    },
-  });
-
-  const headerStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      scrollY.value,
-      [0, HEADER_H * 0.5, HEADER_H],
-      [1, 0.5, 0],
-      Extrapolation.CLAMP
-    ),
-    transform: [
-      {
-        translateY: interpolate(
-          scrollY.value,
-          [0, HEADER_H],
-          [0, -HEADER_H * 0.2],
-          Extrapolation.CLAMP
-        ),
-      },
-    ],
-  }));
-
-  // Search bar barely moves — stays readable at all times
-  const searchStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, 100], [1, 0.88], Extrapolation.CLAMP),
-  }));
-
   const trendingSongs = useMemo(
     () => homePageData?.trending?.data?.filter((i) => i?.type === 'song') ?? [],
     [homePageData?.trending]
   );
 
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <TabSafeAreaView style={{ flex: 1 }}>
-        <Animated.View
-          style={[
-            {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: HEADER_H,
-              zIndex: 0,
-              borderBottomLeftRadius: 28,
-              borderBottomRightRadius: 28,
-              overflow: 'hidden',
-            },
-            headerStyle,
-          ]}
-          pointerEvents='none'
-        >
-          <LinearGradient
-            colors={headerGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{ flex: 1 }}
-          />
-        </Animated.View>
+  const firstName = user?.name?.split(' ')[0];
 
-        <Animated.View style={[{ zIndex: 10, paddingTop: 6, paddingBottom: 6 }, searchStyle]}>
-          <SearchBar colors={colors} theme={theme} />
-        </Animated.View>
+  return (
+    <TabSafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
+      <TabHeader brand showAvatar />
+
+      <ScrollView
+        style={styles.root}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: DECK_CLEARANCE }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetchingHome || isRefetchingRecent}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
+        <View style={styles.hero}>
+          <Text style={[styles.greeting, { color: colors.foreground }]}>
+            {greeting()}
+            {firstName ? `, ${firstName}` : ''}
+          </Text>
+          <RoomTile colors={colors} />
+          <Shortcuts colors={colors} />
+        </View>
 
         {loadingHome ? (
           <HomeSkeleton colors={colors} />
         ) : (
-          <Animated.ScrollView
-            ref={scrollRef}
-            style={{ flex: 1 }}
-            showsVerticalScrollIndicator={false}
-            onScroll={scrollHandler}
-            scrollEventThrottle={16}
-            contentContainerStyle={{ paddingBottom: 130, paddingTop: 12 }}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefetchingHome || isRefetchingRecent}
-                onRefresh={onRefresh}
-                tintColor={colors.primary}
-                colors={[colors.primary]}
+          <View>
+            {(recommendations?.recentlyPlayed ?? []).length > 0 && (
+              <RecommendationGrid
+                recommendations={recommendations!.recentlyPlayed}
+                title='Recently played'
+                showMore
               />
-            }
-          >
-            <View style={{ paddingBottom: 16 }}>
-              {/* Sections — rendered directly, no FadeInDown delays */}
-              {(recommendations?.recentlyPlayed ?? []).length > 0 && (
-                <RecommendationGrid
-                  recommendations={recommendations!.recentlyPlayed}
-                  title='Recently Played'
-                  showMore
-                />
-              )}
+            )}
 
-              {(recommendations?.songs ?? []).length > 0 && (
-                <RecommendationGrid
-                  recommendations={recommendations!.songs}
-                  title='Your Favourite'
-                  showMore
-                />
-              )}
+            {(recommendations?.songs ?? []).length > 0 && (
+              <RecommendationGrid recommendations={recommendations!.songs} title='Made for you' />
+            )}
 
-              {trendingSongs.length > 0 && (
-                <TrendingSongs songs={trendingSongs} title='Trending Now' />
-              )}
+            {trendingSongs.length > 0 && (
+              <TrendingSongs songs={trendingSongs} title='Trending now' />
+            )}
 
-              {(homePageData?.playlists?.data?.length ?? 0) > 0 && (
-                <PlaylistsGrid playlists={homePageData!.playlists.data} title='Popular Playlists' />
-              )}
+            {(homePageData?.playlists?.data?.length ?? 0) > 0 && (
+              <PlaylistsGrid playlists={homePageData!.playlists.data} title='Popular playlists' />
+            )}
 
-              {(homePageData?.charts?.data?.length ?? 0) > 0 && (
-                <PlaylistsGrid playlists={homePageData!.charts.data} title='Top Charts' />
-              )}
+            {(homePageData?.charts?.data?.length ?? 0) > 0 && (
+              <PlaylistsGrid playlists={homePageData!.charts.data} title='Charts' />
+            )}
 
-              {(homePageData?.albums?.data?.length ?? 0) > 0 && (
-                <AlbumsGrid albums={homePageData!.albums.data} title='New Albums' />
-              )}
+            {(homePageData?.albums?.data?.length ?? 0) > 0 && (
+              <AlbumsGrid albums={homePageData!.albums.data} title='New albums' />
+            )}
 
-              {(homePageData?.artist_recos?.data?.length ?? 0) > 0 && (
-                <ArtistGrid artists={homePageData!.artist_recos.data} title="Artists You'll Love" />
-              )}
-            </View>
-          </Animated.ScrollView>
+            {(homePageData?.artist_recos?.data?.length ?? 0) > 0 && (
+              <ArtistGrid artists={homePageData!.artist_recos.data} title='Artists to know' />
+            )}
+          </View>
         )}
-      </TabSafeAreaView>
-    </View>
+      </ScrollView>
+    </TabSafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  hero: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 28, gap: 16 },
+  greeting: { fontFamily: fonts.displayHeavy, fontSize: 34, lineHeight: 38, letterSpacing: -1 },
+
+  roomTile: { borderRadius: 24, overflow: 'hidden', minHeight: 124 },
+  roomArt: { ...StyleSheet.absoluteFill, opacity: 0.45, transform: [{ scale: 1.3 }] },
+  roomBody: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 16,
+    padding: 18,
+  },
+  roomTitle: { fontFamily: fonts.display, fontSize: 24, letterSpacing: -0.5, marginTop: 10 },
+  roomCopy: { fontSize: 14, lineHeight: 19, opacity: 0.72, marginTop: 4, maxWidth: 260 },
+  roomCta: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  livePill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+  livePillText: { fontSize: 12, fontWeight: '700' },
+
+  shortcuts: { flexDirection: 'row', gap: 8 },
+  shortcut: {
+    flex: 1,
+    height: 44,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  shortcutText: { fontSize: 13.5, fontWeight: '600' },
+
+  skeleton: { paddingHorizontal: 16 },
+});
 
 export default memo(HomeScreen);

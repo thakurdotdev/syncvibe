@@ -22,8 +22,11 @@ import {
   Pressable,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
+import { HeaderIconButton, TabHeader } from '@/components/ui/AppHeader';
+import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
+import { fonts } from '@/theme/typography';
 
 const SectionHeader = ({
   icon,
@@ -264,16 +267,16 @@ const ProfileHeader = ({
   return (
     <View style={{ marginBottom: 24 }}>
       <LinearGradient
-        colors={[colors.primary, `${colors.primary}95`, colors.background]}
+        colors={[colors.accent, colors.background]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
-        style={{ height: 260, position: 'absolute', left: 0, right: 0, top: 0 }}
+        style={{ height: 200, position: 'absolute', left: 12, right: 12, top: 0, borderRadius: 24 }}
       />
 
       <Animated.View
         style={{
-          paddingTop: 28,
-          paddingHorizontal: 24,
+          paddingTop: 20,
+          paddingHorizontal: 20,
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 18 }}>
@@ -296,7 +299,7 @@ const ProfileHeader = ({
                 height: 92,
                 borderRadius: 46,
                 borderWidth: 3,
-                borderColor: colors.primaryForeground,
+                borderColor: colors.background,
               }}
               resizeMode='cover'
             />
@@ -315,7 +318,7 @@ const ProfileHeader = ({
                 justifyContent: 'center',
                 alignItems: 'center',
                 borderWidth: 2,
-                borderColor: colors.primaryForeground,
+                borderColor: colors.background,
               }}
             >
               <Feather name='camera' size={13} color={colors.primaryForeground} />
@@ -326,27 +329,22 @@ const ProfileHeader = ({
             <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
               <Text
                 style={{
-                  fontSize: 22,
-                  fontWeight: '700',
-                  color: colors.primaryForeground,
-                  letterSpacing: -0.4,
+                  fontFamily: fonts.display,
+                  fontSize: 24,
+                  color: colors.foreground,
+                  letterSpacing: -0.5,
                 }}
                 numberOfLines={1}
               >
                 {user?.name}
               </Text>
               {user?.verified && (
-                <MaterialCommunityIcons
-                  name='check-decagram'
-                  size={20}
-                  color={colors.primaryForeground}
-                  style={{ opacity: 0.95 }}
-                />
+                <MaterialCommunityIcons name='check-decagram' size={20} color={colors.primary} />
               )}
             </View>
             {user?.username && (
               <Text
-                style={{ fontSize: 14, color: `${colors.primaryForeground}CC`, marginTop: 3 }}
+                style={{ fontSize: 14, color: colors.mutedForeground, marginTop: 3 }}
                 numberOfLines={1}
               >
                 @{user?.username}
@@ -354,7 +352,7 @@ const ProfileHeader = ({
             )}
             {user?.email && (
               <Text
-                style={{ fontSize: 14, color: `${colors.primaryForeground}CC`, marginTop: 2 }}
+                style={{ fontSize: 14, color: colors.mutedForeground, marginTop: 2 }}
                 numberOfLines={1}
               >
                 {user?.email}
@@ -438,8 +436,22 @@ export default function ProfileScreen() {
   }
 
   return (
-    <TabSafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <Animated.ScrollView showsVerticalScrollIndicator={false}>
+    <TabSafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
+      <TabHeader
+        title='Profile'
+        showSearch={false}
+        actions={
+          <HeaderIconButton
+            icon='create-outline'
+            label='Edit profile'
+            onPress={() => router.push('/edit-profile')}
+          />
+        }
+      />
+      <Animated.ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: DECK_CLEARANCE }}
+      >
         <ProfileHeader
           user={user}
           colors={colors}

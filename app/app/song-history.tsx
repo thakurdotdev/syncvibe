@@ -20,6 +20,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { HeaderIconButton, StackHeader } from '@/components/ui/AppHeader';
+import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 
 const ITEMS_PER_PAGE = 15;
 
@@ -215,33 +217,17 @@ const SongHistory = () => {
   const renderHeader = () => {
     return (
       <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <View style={styles.headerTopRow}>
-          <View style={styles.headerTitleBlock}>
-            <TouchableOpacity
-              accessibilityLabel='Go back'
-              accessibilityRole='button'
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
-              <Feather name='chevron-left' size={24} color={colors.foreground} />
-            </TouchableOpacity>
-            <View style={styles.headerTextGroup}>
-              <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-                Listening history
-              </Text>
-              <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
-                {totalSongs} {totalSongs === 1 ? 'track' : 'tracks'}
-              </Text>
-            </View>
-          </View>
-          <Button
-            variant='ghost'
-            size='icon'
-            icon={<Feather name='sliders' size={21} color={colors.foreground} />}
-            onPress={() => setShowSortModal(true)}
-            accessibilityLabel='Sort listening history'
-          />
-        </View>
+        <StackHeader
+          title='Listening history'
+          right={
+            <HeaderIconButton label='Sort listening history' onPress={() => setShowSortModal(true)}>
+              <Feather name='sliders' size={17} color={colors.foreground} />
+            </HeaderIconButton>
+          }
+        />
+        <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
+          {totalSongs} {totalSongs === 1 ? 'track' : 'tracks'}
+        </Text>
         <View style={styles.searchContainer}>
           <Input
             ref={searchInputRef}
@@ -348,7 +334,10 @@ const SongHistory = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      edges={['left', 'right']}
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       {renderHeader()}
       {renderSortIndicator()}
 
@@ -472,44 +461,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
     paddingBottom: 14,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitleBlock: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 4,
-  },
-  headerTextGroup: {
-    justifyContent: 'center',
-  },
-  backButton: {
-    width: 38,
-    height: 38,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    marginRight: 2,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    lineHeight: 28,
   },
   headerSubtitle: {
     fontSize: 13,
     fontWeight: '500',
     lineHeight: 17,
-    marginTop: 1,
+    paddingHorizontal: 16,
   },
   searchContainer: {
+    marginHorizontal: 16,
     marginTop: 12,
   },
   sortIndicator: {
@@ -545,7 +506,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 20,
     paddingTop: 4,
-    paddingBottom: 120,
+    paddingBottom: DECK_CLEARANCE,
   },
   footerLoader: {
     paddingVertical: 20,
