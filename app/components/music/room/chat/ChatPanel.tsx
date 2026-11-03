@@ -162,27 +162,30 @@ export const ChatPanel = memo(function ChatPanel({ bottomInset = 0 }: { bottomIn
           scrollEventThrottle={64}
           keyboardShouldPersistTaps='handled'
           keyboardDismissMode='interactive'
-          contentContainerStyle={data.length ? styles.listContent : styles.emptyContent}
+          contentContainerStyle={styles.listContent}
           onScrollToIndexFailed={({ index }) =>
             listRef.current?.scrollToOffset({ offset: index * 60, animated: true })
           }
           initialNumToRender={18}
           maxToRenderPerBatch={12}
           windowSize={9}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: colors.accent }]}>
-                <Feather name='message-circle' size={22} color={colors.primary} />
-              </View>
-              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                Say hi to the room
-              </Text>
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                Messages, GIFs and sounds show up here for everyone listening.
-              </Text>
-            </View>
-          }
         />
+
+        {/* Rendered outside the inverted list: Android inverts lists on both axes, which
+            mirrored text placed inside it. */}
+        {data.length === 0 && (
+          <View style={styles.empty} pointerEvents='none'>
+            <View style={[styles.emptyIcon, { backgroundColor: colors.accent }]}>
+              <Feather name='message-circle' size={22} color={colors.primary} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+              Say hi to the room
+            </Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+              Messages, GIFs and sounds show up here for everyone listening.
+            </Text>
+          </View>
+        )}
 
         {missed > 0 && (
           <Animated.View
@@ -240,15 +243,12 @@ const styles = StyleSheet.create({
   root: { flex: 1, minHeight: 0 },
   listWrap: { flex: 1, minHeight: 0 },
   listContent: { paddingVertical: 8 },
-  emptyContent: { flexGrow: 1 },
   empty: {
-    flex: 1,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
     gap: 8,
-    // The list is inverted, so flip the empty state back upright.
-    transform: [{ scaleY: -1 }],
   },
   emptyIcon: {
     width: 48,

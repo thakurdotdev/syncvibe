@@ -15,6 +15,7 @@ import { useHomePageMusic, useRecentMusic } from '@/queries/useMusic';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { fonts } from '@/theme/typography';
+import { usePlaybackState, usePlayerControls } from '@/stores/playerStore';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo } from 'react';
@@ -39,32 +40,42 @@ const greeting = () => {
 
 const goRooms = () => router.navigate('/(tabs)/group-music');
 
-/**
- * The room card: what SyncVibe is for, kept compact. In a room it shows the live artwork,
- * listener count and the room name; otherwise it invites you to start one.
- */
-const RoomCard = memo(function RoomCard({ colors }: { colors: Colors }) {
+/** Start-a-room invitation when you're not in a room. */
+const StartRoomCard = memo(function StartRoomCard({ colors }: { colors: Colors }) {
+  return (
+    <PressableScale
+      onPress={goRooms}
+      accessibilityRole='button'
+      accessibilityLabel='Start a room'
+      style={[styles.startCard, { backgroundColor: colors.accent }]}
+    >
+      <View style={[styles.roomIcon, { backgroundColor: colors.primary }]}>
+        <Ionicons name='people' size={22} color={colors.primaryForeground} />
+      </View>
+      <View style={styles.roomText}>
+        <Text style={[styles.roomTitle, { color: colors.accentForeground }]}>Start a room</Text>
+        <Text style={[styles.roomSub, { color: colors.accentForeground }]} numberOfLines={2}>
+          Play the same song with friends, in sync.
+        </Text>
+      </View>
+      <Ionicons name='chevron-forward' size={20} color={colors.accentForeground} />
+    </PressableScale>
+  );
+});
+
+/** Your live room: what's playing and who's there, with one clear way back in. */
+const LiveRoomCard = memo(function LiveRoomCard({ colors }: { colors: Colors }) {
   const group = useGroupSessionStore((s) => s.currentGroup);
   const memberCount = useGroupSessionStore((s) => s.groupMembers.length);
   const songName = useGroupPlaybackStore((s) => s.currentSong?.name);
   const art = useGroupPlaybackStore(
     (s) => s.currentSong?.image?.[1]?.link || s.currentSong?.image?.[0]?.link
   );
+  if (!group) return null;
 
   return (
-    <PressableScale
-      onPress={goRooms}
-      accessibilityRole='button'
-      accessibilityLabel={group ? `Back to room ${group.name}` : 'Start a room'}
-      style={[
-        styles.roomCard,
-        {
-          backgroundColor: group ? colors.card : colors.accent,
-          borderColor: group ? `${colors.live}66` : 'transparent',
-        },
-      ]}
-    >
-      {group ? (
+    <View style={[styles.liveCard, { backgroundColor: colors.card }]}>
+      <View style={styles.liveTop}>
         <View style={[styles.roomThumb, { borderColor: colors.live }]}>
           {art ? (
             <Image source={{ uri: art }} style={styles.roomThumbImg} fadeDuration={0} />
@@ -72,44 +83,86 @@ const RoomCard = memo(function RoomCard({ colors }: { colors: Colors }) {
             <Ionicons name='radio' size={22} color={colors.live} />
           )}
         </View>
-      ) : (
-        <View style={[styles.roomIcon, { backgroundColor: colors.primary }]}>
-          <Ionicons name='people' size={22} color={colors.primaryForeground} />
+        <View style={styles.roomText}>
+          <View style={styles.liveRow}>
+            <View style={[styles.liveDot, { backgroundColor: colors.live }]} />
+            <Text style={[styles.liveText, { color: colors.live }]}>{memberCount} listening</Text>
+          </View>
+          <Text style={[styles.roomTitle, { color: colors.foreground }]} numberOfLines={1}>
+            {group.name}
+          </Text>
+          <Text style={[styles.roomSub, { color: colors.mutedForeground }]} numberOfLines={1}>
+            {songName || 'Nothing playing yet'}
+          </Text>
         </View>
-      )}
-
-      <View style={styles.roomText}>
-        {group ? (
-          <>
-            <View style={styles.liveRow}>
-              <View style={[styles.liveDot, { backgroundColor: colors.live }]} />
-              <Text style={[styles.liveText, { color: colors.live }]}>{memberCount} listening</Text>
-            </View>
-            <Text style={[styles.roomTitle, { color: colors.foreground }]} numberOfLines={1}>
-              {group.name}
-            </Text>
-            {songName ? (
-              <Text style={[styles.roomSub, { color: colors.mutedForeground }]} numberOfLines={1}>
-                {songName}
-              </Text>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <Text style={[styles.roomTitle, { color: colors.accentForeground }]}>Start a room</Text>
-            <Text style={[styles.roomSub, { color: colors.accentForeground }]} numberOfLines={2}>
-              Play the same song with friends, in sync.
-            </Text>
-          </>
-        )}
       </View>
+      <PressableScale
+        onPress={goRooms}
+        accessibilityRole='button'
+        accessibilityLabel={`Continue in ${group.name}`}
+        style={[styles.continueBtn, { backgroundColor: colors.primary }]}
+      >
+        <Text style={[styles.continueText, { color: colors.primaryForeground }]}>Continue</Text>
+        <Ionicons name='arrow-forward' size={17} color={colors.primaryForeground} />
+      </PressableScale>
+    </View>
+  );
+});
 
-      <Ionicons
-        name='chevron-forward'
-        size={20}
-        color={group ? colors.mutedForeground : colors.accentForeground}
-      />
-    </PressableScale>
+/**
+ * Your own song while you're in a room. It leaves the bottom bar (the room owns playback)
+ * and waits here instead.
+ */
+const YourMusicCard = memo(function YourMusicCard({ colors }: { colors: Colors }) {
+  const { currentSong, isPlaying, activePlayerMode } = usePlaybackState();
+  const { handlePlayPause } = usePlayerControls();
+  if (!currentSong) return null;
+
+  const art = currentSong.image?.[1]?.link || currentSong.image?.[0]?.link;
+  const artist = currentSong.artist_map?.artists?.[0]?.name || currentSong.subtitle || '';
+  const canPlay = activePlayerMode === 'normal';
+
+  return (
+    <View style={[styles.yourMusic, { backgroundColor: colors.card }]}>
+      <Image source={{ uri: art }} style={styles.yourArt} fadeDuration={0} />
+      <View style={styles.roomText}>
+        <Text style={[styles.yourLabel, { color: colors.mutedForeground }]}>Your music</Text>
+        <Text style={[styles.yourTitle, { color: colors.foreground }]} numberOfLines={1}>
+          {currentSong.name}
+        </Text>
+        <Text style={[styles.roomSub, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {canPlay ? artist : 'Paused while the room plays'}
+        </Text>
+      </View>
+      {canPlay ? (
+        <PressableScale
+          onPress={handlePlayPause}
+          scaleTo={0.86}
+          hitSlop={8}
+          accessibilityRole='button'
+          accessibilityLabel={isPlaying ? 'Pause your music' : 'Play your music'}
+          style={[styles.yourPlay, { backgroundColor: colors.raised }]}
+        >
+          <Ionicons
+            name={isPlaying ? 'pause' : 'play'}
+            size={18}
+            color={colors.foreground}
+            style={{ marginLeft: isPlaying ? 0 : 2 }}
+          />
+        </PressableScale>
+      ) : null}
+    </View>
+  );
+});
+
+const RoomSection = memo(function RoomSection({ colors }: { colors: Colors }) {
+  const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
+  if (!inRoom) return <StartRoomCard colors={colors} />;
+  return (
+    <View style={styles.roomStack}>
+      <LiveRoomCard colors={colors} />
+      <YourMusicCard colors={colors} />
+    </View>
   );
 });
 
@@ -192,7 +245,7 @@ function HomeScreen() {
         }
       >
         <View style={styles.hero}>
-          <RoomCard colors={colors} />
+          <RoomSection colors={colors} />
         </View>
 
         {loadingHome ? (
@@ -241,14 +294,36 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   hero: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 24 },
 
-  roomCard: {
+  roomStack: { gap: 10 },
+  startCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     padding: 12,
     paddingRight: 14,
     borderRadius: 20,
-    borderWidth: 1,
+  },
+  liveCard: { borderRadius: 22, padding: 14, gap: 14 },
+  liveTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  continueBtn: {
+    height: 46,
+    borderRadius: 23,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  continueText: { fontSize: 15, fontWeight: '700' },
+  yourMusic: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderRadius: 18 },
+  yourArt: { width: 46, height: 46, borderRadius: 12 },
+  yourLabel: { fontSize: 11.5, fontWeight: '600' },
+  yourTitle: { fontSize: 14.5, fontWeight: '700' },
+  yourPlay: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   roomIcon: {
     width: 52,

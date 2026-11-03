@@ -1,4 +1,5 @@
 import PressableScale from '@/components/ui/PressableScale';
+import Card from '@/components/ui/card';
 import { useTheme } from '@/context/ThemeContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Children, Fragment, memo, type ReactNode } from 'react';
@@ -20,14 +21,15 @@ export const SettingsGroup = memo(function SettingsGroup({
       {title ? (
         <Text style={[styles.title, { color: colors.mutedForeground }]}>{title}</Text>
       ) : null}
-      <View style={[styles.surface, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      {/* Same surface as the app's default Card: solid, no border, no shadow. */}
+      <Card variant='default' style={styles.surface}>
         {rows.map((row, i) => (
           <Fragment key={i}>
             {i > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
             {row}
           </Fragment>
         ))}
-      </View>
+      </Card>
     </View>
   );
 });
@@ -93,7 +95,7 @@ export const SettingsRow = memo(function SettingsRow({
 const styles = StyleSheet.create({
   group: { gap: 8 },
   title: { fontSize: 13, fontWeight: '600', marginLeft: 6 },
-  surface: { borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  surface: { overflow: 'hidden' },
   divider: { height: StyleSheet.hairlineWidth, marginLeft: 62 },
   row: {
     flexDirection: 'row',

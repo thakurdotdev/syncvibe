@@ -10,13 +10,6 @@ import Animated, { useReducedMotion } from 'react-native-reanimated';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-/** A real sequence (you do these in order), so numbering carries meaning here. */
-const STEPS = [
-  { title: 'Start a room', text: 'Name it and you are the host.' },
-  { title: 'Bring friends', text: 'Send an invite, share the code or show the QR.' },
-  { title: 'Play together', text: 'Anyone adds songs; everyone hears the same second.' },
-];
-
 const BAR_HEIGHTS = [10, 18, 13, 20];
 
 /**
@@ -149,21 +142,6 @@ export const RoomsWelcome = memo(function RoomsWelcome({
         />
         <Tile icon='qr-code-outline' label='Scan a QR' hint='On their screen' onPress={onScan} />
       </View>
-
-      <View style={[styles.steps, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.stepsTitle, { color: colors.foreground }]}>How rooms work</Text>
-        {STEPS.map((s, i) => (
-          <View key={s.title} style={styles.step}>
-            <View style={[styles.stepNum, { backgroundColor: colors.raised }]}>
-              <Text style={[styles.stepNumText, { color: colors.primary }]}>{i + 1}</Text>
-            </View>
-            <View style={styles.stepBody}>
-              <Text style={[styles.stepTitle, { color: colors.foreground }]}>{s.title}</Text>
-              <Text style={[styles.stepText, { color: colors.mutedForeground }]}>{s.text}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
     </ScrollView>
   );
 });
@@ -230,19 +208,4 @@ const styles = StyleSheet.create({
   },
   tileLabel: { fontSize: 15, fontWeight: '700' },
   tileHint: { fontSize: 12.5 },
-
-  steps: { borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, padding: 16, gap: 14 },
-  stepsTitle: { fontFamily: fonts.displaySemibold, fontSize: 17, letterSpacing: -0.3 },
-  step: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-  stepNum: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepNumText: { fontSize: 13, fontWeight: '800' },
-  stepBody: { flex: 1 },
-  stepTitle: { fontSize: 14.5, fontWeight: '700' },
-  stepText: { fontSize: 13, lineHeight: 18, marginTop: 1 },
 });

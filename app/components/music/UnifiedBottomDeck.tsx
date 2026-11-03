@@ -1,5 +1,6 @@
 import { useTheme } from '@/context/ThemeContext';
 import { BUTTON_PRESS_SCALE } from '@/lib/motion';
+import { darkShadow, elevation } from '@/theme/elevation';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import PressableScale from '@/components/ui/PressableScale';
 import { openFullPlayer, usePlaybackState, usePlayerControls } from '@/stores/playerStore';
@@ -97,7 +98,14 @@ const TabButton = memo(function TabButton({
     >
       <View style={styles.tabInner}>
         {/* Tab switches happen 100+ times a day: the pill just appears, no slide. */}
-        <View style={[styles.tabIconBox, isFocused && { backgroundColor: `${activeColor}26` }]}>
+        {/* Always set a background (transparent when inactive): on Android, a background
+            added after first render can lose its borderRadius and draw square. */}
+        <View
+          style={[
+            styles.tabIconBox,
+            { backgroundColor: isFocused ? `${activeColor}26` : 'transparent' },
+          ]}
+        >
           <Ionicons name={isFocused ? activeIcon : inactiveIcon} size={21} color={color} />
           {live && <View style={[styles.liveDot, { backgroundColor: liveColor }]} />}
         </View>
@@ -146,71 +154,62 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
 
   return (
     <View style={styles.miniPlayerWrapper}>
-      <View style={[styles.miniCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {artworkUri ? (
-          <Image
-            source={{ uri: artworkUri }}
-            style={styles.miniTint}
-            blurRadius={isDark ? 40 : 50}
-            fadeDuration={0}
-          />
-        ) : null}
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: isDark ? 'rgba(27,22,36,0.72)' : 'rgba(255,255,255,0.78)' },
-          ]}
-        />
+      {/* Elevated solid surface: the shadow lives on the outer view, clipping on the inner. */}
+      <View style={[styles.miniShadow, elevation.float, isDark && darkShadow]}>
+        <View style={[styles.miniCard, { backgroundColor: isDark ? colors.popover : colors.card }]}>
+          <PressableScale
+            onPress={openFullPlayer}
+            scaleTo={0.985}
+            style={styles.miniPlayerPressable}
+            accessibilityRole='button'
+            accessibilityLabel={`Open player: ${currentSong?.name ?? ''}`}
+          >
+            <Image source={{ uri: artworkUri }} style={styles.artwork} fadeDuration={0} />
 
-        <PressableScale
-          onPress={openFullPlayer}
-          scaleTo={0.985}
-          style={styles.miniPlayerPressable}
-          accessibilityRole='button'
-          accessibilityLabel={`Open player: ${currentSong?.name ?? ''}`}
-        >
-          <Image source={{ uri: artworkUri }} style={styles.artwork} fadeDuration={0} />
+            <View style={styles.songInfo}>
+              <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>
+                {currentSong?.name}
+              </Text>
+              <Text
+                style={[styles.artistName, { color: colors.mutedForeground }]}
+                numberOfLines={1}
+              >
+                {artistName}
+              </Text>
+            </View>
 
-          <View style={styles.songInfo}>
-            <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>
-              {currentSong?.name}
-            </Text>
-            <Text style={[styles.artistName, { color: colors.mutedForeground }]} numberOfLines={1}>
-              {artistName}
-            </Text>
-          </View>
+            <View style={styles.controls}>
+              <PressableScale
+                onPress={handlePlayPause}
+                scaleTo={0.86}
+                hitSlop={8}
+                accessibilityRole='button'
+                accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+                style={[styles.playButton, { backgroundColor: colors.primary }]}
+              >
+                <Ionicons
+                  name={isPlaying ? 'pause' : 'play'}
+                  size={18}
+                  color={colors.primaryForeground}
+                  style={{ marginLeft: isPlaying ? 0 : 2 }}
+                />
+              </PressableScale>
 
-          <View style={styles.controls}>
-            <PressableScale
-              onPress={handlePlayPause}
-              scaleTo={0.86}
-              hitSlop={8}
-              accessibilityRole='button'
-              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-              style={[styles.playButton, { backgroundColor: colors.foreground }]}
-            >
-              <Ionicons
-                name={isPlaying ? 'pause' : 'play'}
-                size={18}
-                color={colors.background}
-                style={{ marginLeft: isPlaying ? 0 : 2 }}
-              />
-            </PressableScale>
+              <PressableScale
+                onPress={handleNextSong}
+                scaleTo={0.82}
+                hitSlop={8}
+                accessibilityRole='button'
+                accessibilityLabel='Next song'
+                style={styles.nextButton}
+              >
+                <Ionicons name='play-skip-forward' size={20} color={colors.foreground} />
+              </PressableScale>
+            </View>
+          </PressableScale>
 
-            <PressableScale
-              onPress={handleNextSong}
-              scaleTo={0.82}
-              hitSlop={8}
-              accessibilityRole='button'
-              accessibilityLabel='Next song'
-              style={styles.nextButton}
-            >
-              <Ionicons name='play-skip-forward' size={20} color={colors.foreground} />
-            </PressableScale>
-          </View>
-        </PressableScale>
-
-        <MiniProgressBar color={colors.primary} />
+          <MiniProgressBar color={colors.primary} />
+        </View>
       </View>
     </View>
   );
@@ -248,7 +247,8 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   const glassBg = isDark ? 'rgba(16, 12, 22, 0.92)' : 'rgba(251, 250, 253, 0.94)';
   const borderColor = isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)';
 
-  const showMiniPlayer = activePlayerMode === 'normal' && !!currentSong;
+  // In a room the room owns playback; your own song waits on Home under the room card.
+  const showMiniPlayer = !inRoom && activePlayerMode === 'normal' && !!currentSong;
 
   return (
     <Animated.View style={styles.outerContainer}>
@@ -334,8 +334,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 2.5,
-    backgroundColor: 'rgba(128, 128, 128, 0.18)',
+    height: 2,
+    backgroundColor: 'rgba(128, 128, 128, 0.14)',
     overflow: 'hidden',
   },
   progressFill: {
@@ -349,16 +349,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingTop: 8,
   },
+  miniShadow: { borderRadius: 18 },
   miniCard: {
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
     overflow: 'hidden',
-  },
-  miniTint: {
-    ...StyleSheet.absoluteFill,
-    width: '100%',
-    height: '100%',
-    transform: [{ scale: 1.4 }],
   },
   miniPlayerPressable: {
     flexDirection: 'row',
@@ -369,9 +363,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   artwork: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+    width: 46,
+    height: 46,
+    borderRadius: 12,
   },
   songInfo: {
     flex: 1,
@@ -380,7 +374,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   songTitle: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
@@ -394,9 +388,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   playButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -429,6 +423,7 @@ const styles = StyleSheet.create({
     width: PILL_WIDTH,
     height: PILL_HEIGHT,
     borderRadius: PILL_HEIGHT / 2,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
