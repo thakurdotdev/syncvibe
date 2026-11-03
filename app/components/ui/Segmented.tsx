@@ -39,12 +39,12 @@ function SegmentedInner<T extends string>({
   useEffect(() => {
     if (!segment) return;
     const target = index * segment;
-    x.value = x.value < 0 ? target : withSpring(target, SPRING);
+    x.set(x.get() < 0 ? target : withSpring(target, SPRING));
   }, [index, segment, x]);
 
   const pill = useAnimatedStyle(() => ({
-    opacity: x.value < 0 ? 0 : 1,
-    transform: [{ translateX: Math.max(0, x.value) }],
+    opacity: x.get() < 0 ? 0 : 1,
+    transform: [{ translateX: Math.max(0, x.get()) }],
   }));
 
   return (

@@ -1,23 +1,43 @@
-import { Easing } from 'react-native-reanimated';
+import { Easing, ReduceMotion } from 'react-native-reanimated';
 
 /**
- * Motion presets — the native twin of client/src/lib/motion.js, so the app and the web
- * feel like one product.
+ * Motion presets for the app (the native twin of client/src/lib/motion.js).
  *
- *  - Press feedback is instant (≈80ms) and runs on the UI thread.
- *  - Things that move between positions use SPRING (snappy, barely any overshoot).
- *  - Enters use a strong ease-out in 150–250ms; exits are faster than enters.
- *  - Nothing fades in just because a screen mounted.
+ * Rules these encode:
+ *  - Finger involved → spring (carries velocity through interruptions). Otherwise timing.
+ *  - Springs use the designer form { duration, dampingRatio }; no overshoot unless a
+ *    gesture carried momentum.
+ *  - Timing is ease-out for enter/exit, ease-in-out for on-screen movement, never ease-in.
+ *  - Press feedback 100–150ms; small state changes 150–200ms; sheets ~300ms; all UI < 300ms.
+ *  - Every preset honours the system Reduce Motion setting.
  */
 export const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
+export const EASE_IN_OUT = Easing.bezier(0.77, 0, 0.175, 1);
+export const EASE_SHEET = Easing.bezier(0.32, 0.72, 0, 1);
 
-export const SPRING = { damping: 28, stiffness: 420, mass: 0.6 } as const;
-export const SPRING_PRESS = { damping: 22, stiffness: 520, mass: 0.5 } as const;
+const system = ReduceMotion.System;
 
-export const PRESS_IN = { duration: 80, easing: EASE_OUT } as const;
-export const ENTER = { duration: 200, easing: EASE_OUT } as const;
-export const EXIT = { duration: 140, easing: EASE_OUT } as const;
+/** Default settle, no overshoot: indicators, things that move after a tap. */
+export const SPRING = { duration: 300, dampingRatio: 1, reduceMotion: system } as const;
+/** Snap back after a drag (pass `velocity` from the gesture). */
+export const SPRING_SNAP = { duration: 400, dampingRatio: 0.8, reduceMotion: system } as const;
+/** Sheets and drawers (pass `velocity` when a drag released it). */
+export const SPRING_SHEET = { duration: 300, dampingRatio: 0.8, reduceMotion: system } as const;
+/** Release after a press: settles back to rest without bounce. */
+export const SPRING_PRESS = { duration: 250, dampingRatio: 1, reduceMotion: system } as const;
 
-/** Default press-down scale for cards and rows; buttons use a slightly deeper one. */
+/** Press-in feedback: shown immediately on touch, under 150ms. */
+export const PRESS_IN = { duration: 120, easing: EASE_OUT, reduceMotion: system } as const;
+/** Selection indicators switched often (tens of times a session): barely-there move. */
+export const INDICATOR = { duration: 140, easing: EASE_IN_OUT, reduceMotion: system } as const;
+/** Small state changes (chips, toggles). */
+export const STATE = { duration: 180, easing: EASE_OUT, reduceMotion: system } as const;
+/** Popovers and menus appearing; exits are faster than enters. */
+export const ENTER = { duration: 200, easing: EASE_OUT, reduceMotion: system } as const;
+export const EXIT = { duration: 140, easing: EASE_OUT, reduceMotion: system } as const;
+
+/** Press-down scale for cards and rows; small icon buttons use a slightly deeper one. */
 export const PRESS_SCALE = 0.97;
 export const BUTTON_PRESS_SCALE = 0.92;
+/** Popovers start here, never from 0. */
+export const POP_FROM_SCALE = 0.95;

@@ -15,9 +15,9 @@ import Animated, {
 const Dot = ({ delay, color }: { delay: number; color: string }) => {
   const y = useSharedValue(0);
   useEffect(() => {
-    y.value = withDelay(delay, withRepeat(withTiming(-3, { duration: 320 }), -1, true));
+    y.set(withDelay(delay, withRepeat(withTiming(-3, { duration: 320 }), -1, true)));
   }, [delay, y]);
-  const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.get() }] }));
   return <Animated.View style={[styles.dot, { backgroundColor: color }, style]} />;
 };
 
