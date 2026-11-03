@@ -5,7 +5,8 @@ import { useUser } from '@/context/UserContext';
 import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChatPanel } from './chat/ChatPanel';
 import { isActivity, sameUser } from './chat/chatUtils';
@@ -87,10 +88,7 @@ export const RoomScreen = memo(function RoomScreen({
   const showPeople = useCallback(() => changeTab('people'), [changeTab]);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView behavior='padding' style={styles.root}>
       <RoomHeader
         onInvite={onInvite}
         onShowQr={onShowQr}
@@ -99,10 +97,13 @@ export const RoomScreen = memo(function RoomScreen({
         onShowPeople={showPeople}
       />
 
-      <View style={styles.player}>
-        <RoomPlayer onChooseSong={showQueue} />
-        <FloatingReactions />
-      </View>
+      {/* While typing, give the conversation the space; the player returns with the keyboard. */}
+      {!keyboardVisible && (
+        <View style={styles.player}>
+          <RoomPlayer onChooseSong={showQueue} />
+          <FloatingReactions />
+        </View>
+      )}
 
       <View style={styles.tabs}>
         <RoomTabs active={tab} onChange={changeTab} badges={badges} />

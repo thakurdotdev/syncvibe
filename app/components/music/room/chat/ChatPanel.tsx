@@ -21,7 +21,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { ActivityRow } from './ActivityRow';
 import { isActivity, sameUser, startsGroup, toReplyRef } from './chatUtils';
 import { Composer } from './Composer';
-import { MessageActions } from './MessageActions';
+import { MessageActions, type AnchorRect } from './MessageActions';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 
@@ -39,7 +39,11 @@ export const ChatPanel = memo(function ChatPanel({ bottomInset = 0 }: { bottomIn
   const messages = useGroupSessionStore((s) => s.messages);
 
   const [replyTo, setReplyTo] = useState<ReplyRef | null>(null);
-  const [menuFor, setMenuFor] = useState<Message | null>(null);
+  const [menuFor, setMenuFor] = useState<{
+    message: Message;
+    anchor: AnchorRect;
+    own: boolean;
+  } | null>(null);
   const [picker, setPicker] = useState<'gif' | 'sound' | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [atBottom, setAtBottom] = useState(true);
@@ -70,6 +74,12 @@ export const ChatPanel = memo(function ChatPanel({ bottomInset = 0 }: { bottomIn
     setAtBottom((prev) => (prev === bottom ? prev : bottom));
     if (bottom) setMissed(0);
   }, []);
+
+  const openMenu = useCallback(
+    (message: Message, anchor: AnchorRect) =>
+      setMenuFor({ message, anchor, own: sameUser(message.senderId, myId) }),
+    [myId]
+  );
 
   const startReply = useCallback((m: Message) => {
     setReplyTo(toReplyRef(m));
@@ -130,13 +140,13 @@ export const ChatPanel = memo(function ChatPanel({ bottomInset = 0 }: { bottomIn
           myId={myId}
           highlighted={highlightId === item.id}
           onReply={startReply}
-          onLongPress={setMenuFor}
+          onLongPress={openMenu}
           onToggleReaction={reactToMessage}
           onJumpTo={jumpTo}
         />
       );
     },
-    [data, myId, highlightId, startReply, reactToMessage, jumpTo]
+    [data, myId, highlightId, startReply, openMenu, reactToMessage, jumpTo]
   );
 
   return (
@@ -209,7 +219,7 @@ export const ChatPanel = memo(function ChatPanel({ bottomInset = 0 }: { bottomIn
       />
 
       <MessageActions
-        message={menuFor}
+        target={menuFor}
         myId={myId}
         onClose={() => setMenuFor(null)}
         onReact={reactToMessage}

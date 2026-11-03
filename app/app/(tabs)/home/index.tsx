@@ -117,11 +117,11 @@ function HomeSkeleton({ colors }: { colors: Colors }) {
   const opacity = useSharedValue(0.5);
 
   useEffect(() => {
-    opacity.value = withRepeat(withTiming(0.9, { duration: 700 }), -1, true);
+    opacity.set(withRepeat(withTiming(0.9, { duration: 700 }), -1, true));
     return () => cancelAnimation(opacity);
   }, [opacity]);
 
-  const pulse = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const pulse = useAnimatedStyle(() => ({ opacity: opacity.get() }));
   const block = (w: number | `${number}%`, h: number, r = 12) => ({
     width: w,
     height: h,
@@ -176,7 +176,7 @@ function HomeScreen() {
 
   return (
     <TabSafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
-      <TabHeader kicker={greeting()} title={firstName || 'Welcome'} showAvatar />
+      <TabHeader kicker={greeting()} title={firstName || 'Welcome'} avatar='leading' />
 
       <ScrollView
         style={styles.root}

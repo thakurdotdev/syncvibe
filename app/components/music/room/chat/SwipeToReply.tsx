@@ -1,4 +1,5 @@
 import { useTheme } from '@/context/ThemeContext';
+import { SPRING_SNAP } from '@/lib/motion';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { memo, type ReactNode } from 'react';
@@ -6,19 +7,31 @@ import { StyleSheet } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
-  runOnJS,
+  useAnimatedReaction,
   useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { SPRING } from '@/lib/motion';
+import { scheduleOnRN } from 'react-native-worklets';
 
 const TRIGGER = 56;
-const MAX = 80;
+const MAX = 72;
+
+/** Linear up to the trigger, then rubber-band resistance instead of a hard stop. */
+const resist = (dx: number) => {
+  'worklet';
+  if (dx <= 0) return 0;
+  if (dx <= MAX) return dx;
+  return MAX + (dx - MAX) * 0.2;
+};
+
+const tick = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 
 /**
- * Drag a message to the right to reply, like most chat apps. Horizontal-only so it never
- * fights the list's vertical scroll; a light haptic marks the point where releasing replies.
+ * Drag a message right to reply. Horizontal-only so the list keeps its vertical scroll;
+ * everything per-frame stays on the UI thread. The haptic fires once, on the frame the
+ * drag crosses the reply point, and the bubble springs home with the finger's velocity.
  */
 export const SwipeToReply = memo(function SwipeToReply({
   children,
@@ -31,9 +44,15 @@ export const SwipeToReply = memo(function SwipeToReply({
 }) {
   const { colors } = useTheme();
   const x = useSharedValue(0);
-  const armed = useSharedValue(false);
+  const armed = useDerivedValue(() => x.get() >= TRIGGER);
 
-  const tick = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  // Threshold crossing, not per frame: one haptic when the reply point is reached.
+  useAnimatedReaction(
+    () => armed.get(),
+    (now, prev) => {
+      if (now && prev === false) scheduleOnRN(tick);
+    }
+  );
 
   const pan = Gesture.Pan()
     .enabled(enabled)
@@ -41,21 +60,17 @@ export const SwipeToReply = memo(function SwipeToReply({
     .failOffsetX(-12)
     .failOffsetY([-12, 12])
     .onUpdate((e) => {
-      x.value = Math.max(0, Math.min(MAX, e.translationX * 0.6));
-      const nowArmed = x.value >= TRIGGER;
-      if (nowArmed && !armed.value) runOnJS(tick)();
-      armed.value = nowArmed;
+      x.set(resist(e.translationX * 0.75));
     })
-    .onEnd(() => {
-      if (armed.value) runOnJS(onReply)();
-      armed.value = false;
-      x.value = withSpring(0, SPRING);
+    .onEnd((e) => {
+      if (armed.get()) scheduleOnRN(onReply);
+      x.set(withSpring(0, { ...SPRING_SNAP, velocity: e.velocityX }));
     });
 
-  const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+  const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
   const iconStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(x.value, [10, TRIGGER], [0, 1], 'clamp'),
-    transform: [{ scale: interpolate(x.value, [10, TRIGGER], [0.6, 1], 'clamp') }],
+    opacity: interpolate(x.get(), [12, TRIGGER], [0, 1], 'clamp'),
+    transform: [{ scale: interpolate(x.get(), [12, TRIGGER], [0.9, 1], 'clamp') }],
   }));
 
   return (

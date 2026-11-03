@@ -13,7 +13,10 @@ import { Song } from '@/types/song';
 import type { Message, MessageReactions } from '@/stores/groupMusic/types';
 import { useChat } from './SocketContext';
 import { useUser } from './UserContext';
-import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
+import {
+  isNaturalGroupSongEnd,
+  useGroupPlaybackStore,
+} from '@/stores/groupMusic/groupPlaybackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
 import { usePlayerStore } from '@/stores/playerStore';
@@ -111,7 +114,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
           const activePlayerMode = usePlayerStore.getState().activePlayerMode;
           if (activePlayerMode !== 'group') return;
 
-          if (state === PlaybackState.Ended) {
+          // Only a genuine end-of-song advances the room (see isNaturalGroupSongEnd).
+          if (state === PlaybackState.Ended && isNaturalGroupSongEnd()) {
             const currentGroup = ss.getState().currentGroup;
             if (currentGroup && socket && user) {
               ss.getState().skipSong(socket, user);

@@ -25,11 +25,14 @@ function GlobalBottomDeck() {
   const [lastTab, setLastTab] = useState('home');
 
   const inTabs = segments[0] === '(tabs)';
-  const activeTab = inTabs ? (segments[1] ?? 'home') : lastTab;
+  const tabSegment = inTabs ? (segments[1] ?? 'home') : null;
+  // Profile lives in the tabs folder but isn't in the tab bar: treat it like a pushed page.
+  const isTabRoot = tabSegment !== null && tabSegment !== 'profile';
+  const activeTab = isTabRoot ? tabSegment : lastTab;
 
   useEffect(() => {
-    if (inTabs) setLastTab(activeTab);
-  }, [inTabs, activeTab]);
+    if (isTabRoot) setLastTab(activeTab);
+  }, [isTabRoot, activeTab]);
   const keyboardVisible = useKeyboardVisible();
   // Step aside while typing so the deck never sits on top of a composer or search field.
   const visible = !keyboardVisible && (inTabs || DECK_PAGES.has(segments[0] ?? ''));

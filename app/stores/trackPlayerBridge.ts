@@ -591,24 +591,20 @@ const restoreLastPlayedSong = async () => {
       duration > 0
         ? Math.min(Math.max(savedPosition, 0), Math.max(0, duration - 0.25))
         : Math.max(savedPosition, 0);
-    const shouldPlay = lastPlayed.isPlaying;
 
     // The native queue is empty after a cold start. Restore it directly rather
     // than calling bridgePlaySong(), which intentionally records a new song at
     // position 0.
     if (s.currentSong?.id !== song.id) s.setCurrentSong(song);
-    s.setPlaying(shouldPlay);
+    // Restore where you left off, but never start audio on its own: opening the app
+    // stays silent until you press play.
+    s.setPlaying(false);
     s.setLoading(false);
     restoredSongId = song.id;
     TrackPlayer.setRepeatMode(toNativeRepeatMode(s.repeatMode));
     TrackPlayer.setMediaItems(tracks, 0);
     if (position > 0) TrackPlayer.seekTo(position);
-
-    if (shouldPlay) {
-      TrackPlayer.play();
-    } else {
-      TrackPlayer.pause();
-    }
+    TrackPlayer.pause();
 
     fillQueue();
   } catch (error) {

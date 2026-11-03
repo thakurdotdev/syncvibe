@@ -1,3 +1,7 @@
+import DraggableFlatList, {
+  ScaleDecorator,
+  type RenderItemParams,
+} from 'react-native-draggable-flatlist';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -6,6 +10,7 @@ import {
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -37,22 +42,52 @@ import {
 
 type TabKey = 'queue' | 'playlists' | 'recommended';
 
+/**
+ * Up-next row. Tap plays it for everyone; drag the handle (or long-press the row) to
+ * reorder; × removes it.
+ */
 const QueueItemRow = React.memo(
   ({
     item,
     onRemove,
-    onPlayNext,
+    onPlay,
+    drag,
+    isActive,
     colors,
   }: {
     item: QueueItem;
     onRemove: (id: string) => void;
-    onPlayNext?: (song: Song) => void;
+    onPlay: (item: QueueItem) => void;
+    drag?: () => void;
+    isActive?: boolean;
     colors: any;
   }) => {
     const artist = item.song?.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
 
     return (
-      <View style={[styles.queueItem, { borderBottomColor: colors.border }]}>
+      <Pressable
+        onPress={() => onPlay(item)}
+        onLongPress={drag}
+        delayLongPress={250}
+        disabled={isActive}
+        accessibilityRole='button'
+        accessibilityLabel={`Play ${item.song?.name} now`}
+        accessibilityHint='Long press or drag the handle to reorder'
+        style={[
+          styles.queueItem,
+          { borderBottomColor: colors.border },
+          isActive && { backgroundColor: colors.card, borderRadius: 14, elevation: 6 },
+        ]}
+      >
+        <Pressable
+          onPressIn={drag}
+          hitSlop={8}
+          accessibilityRole='button'
+          accessibilityLabel='Drag to reorder'
+          style={styles.dragHandle}
+        >
+          <Ionicons name='reorder-two' size={20} color={colors.mutedForeground} />
+        </Pressable>
         <Image
           source={{ uri: item.song?.image?.[1]?.link }}
           style={[styles.itemArt, { backgroundColor: colors.secondary }]}
@@ -93,7 +128,7 @@ const QueueItemRow = React.memo(
         >
           <Feather name='x' size={14} color={colors.mutedForeground} />
         </TouchableOpacity>
-      </View>
+      </Pressable>
     );
   }
 );
@@ -346,6 +381,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
   const { colors } = useTheme();
   const {
     removeFromQueue,
+    reorderQueue,
     addToQueue,
     playNow,
     playNext,
@@ -566,6 +602,28 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
 
   const handlePlayNow = useCallback((song: Song) => playNow(song), [playNow]);
 
+  // There's no "jump to queue item" event, so play it now and drop the queued copy.
+  const handlePlayQueued = useCallback(
+    (item: QueueItem) => {
+      removeFromQueue(item.id);
+      playNow(item.song);
+    },
+    [removeFromQueue, playNow]
+  );
+
+  const handleDragEnd = useCallback(
+    ({ data, from, to }: { data: QueueItem[]; from: number; to: number }) => {
+      if (from === to) return;
+      const offset = useGroupSessionStore.getState().currentQueueIndex + 1;
+      // Show the new order immediately; the server confirms with queue-updated.
+      useGroupSessionStore.setState((s) => ({
+        queue: [...s.queue.slice(0, offset), ...data],
+      }));
+      reorderQueue(offset + from, offset + to);
+    },
+    [reorderQueue]
+  );
+
   const handlePlayNext = useCallback((song: Song) => playNext(song), [playNext]);
 
   const handleClearQueue = useCallback(() => {
@@ -585,10 +643,19 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
   const currentArtist = currentSong?.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
 
   const renderQueueItem = useCallback(
-    ({ item }: { item: QueueItem }) => (
-      <QueueItemRow item={item} onRemove={handleRemove} colors={colors} />
+    ({ item, drag, isActive }: RenderItemParams<QueueItem>) => (
+      <ScaleDecorator activeScale={1.03}>
+        <QueueItemRow
+          item={item}
+          onRemove={handleRemove}
+          onPlay={handlePlayQueued}
+          drag={drag}
+          isActive={isActive}
+          colors={colors}
+        />
+      </ScaleDecorator>
     ),
-    [handleRemove, colors]
+    [handleRemove, handlePlayQueued, colors]
   );
 
   const renderSearchResult = useCallback(
@@ -853,10 +920,13 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
           /* Tab Content */
           <View style={styles.flex}>
             {activeTab === 'queue' && (
-              <FlatList
+              <DraggableFlatList
                 data={upcomingQueue}
                 keyExtractor={queueKeyExtractor}
                 renderItem={renderQueueItem}
+                onDragEnd={handleDragEnd}
+                activationDistance={12}
+                containerStyle={styles.flex}
                 ListHeaderComponent={renderQueueHeader}
                 ListEmptyComponent={
                   <View style={styles.emptyQueue}>
@@ -949,6 +1019,13 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
 };
 
 const styles = StyleSheet.create({
+  dragHandle: {
+    width: 28,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 2,
+  },
   inlineWrapper: { flex: 1, minHeight: 0 },
   flex: { flex: 1 },
   container: {

@@ -7,70 +7,16 @@ import { InviteSheet } from '@/components/music/group/InviteSheet';
 import { QRCodeModal } from '@/components/music/group/QRCodeModal';
 import { QueueSheet } from '@/components/music/group/QueueSheet';
 import { RoomScreen } from '@/components/music/room/RoomScreen';
-import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
+import { RoomsWelcome } from '@/components/music/room/RoomsWelcome';
 import { TabHeader } from '@/components/ui/AppHeader';
-import PressableScale from '@/components/ui/PressableScale';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
 import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
-import { fonts } from '@/theme/typography';
-import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-
-const STEPS = [
-  { icon: 'radio-outline', text: 'Start a room or join one with a code or QR.' },
-  { icon: 'musical-notes-outline', text: 'Anyone can add songs; everyone hears them in sync.' },
-  { icon: 'chatbubbles-outline', text: 'Chat, reply, react and drop GIFs while you listen.' },
-] as const;
-
-const openRoomModal = () => useGroupSessionStore.setState({ isGroupModalOpen: true });
-
-/** Shown when you're not in a room: what rooms are, and the one action to start. */
-function Welcome({ onScan }: { onScan: () => void }) {
-  const { colors } = useTheme();
-  return (
-    <ScrollView contentContainerStyle={[styles.welcome, { paddingBottom: DECK_CLEARANCE }]}>
-      <Text style={[styles.welcomeTitle, { color: colors.foreground }]}>Listen together</Text>
-      <Text style={[styles.welcomeText, { color: colors.mutedForeground }]}>
-        Play the same song at the same second as your friends, wherever they are.
-      </Text>
-
-      <View style={[styles.steps, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {STEPS.map((s) => (
-          <View key={s.icon} style={styles.step}>
-            <View style={[styles.stepIcon, { backgroundColor: colors.accent }]}>
-              <Ionicons name={s.icon} size={18} color={colors.primary} />
-            </View>
-            <Text style={[styles.stepText, { color: colors.foreground }]}>{s.text}</Text>
-          </View>
-        ))}
-      </View>
-
-      <PressableScale
-        onPress={openRoomModal}
-        accessibilityRole='button'
-        style={[styles.primary, { backgroundColor: colors.primary }]}
-      >
-        <Ionicons name='add' size={20} color={colors.primaryForeground} />
-        <Text style={[styles.primaryText, { color: colors.primaryForeground }]}>
-          Start or join a room
-        </Text>
-      </PressableScale>
-      <PressableScale
-        onPress={onScan}
-        accessibilityRole='button'
-        style={[styles.secondary, { backgroundColor: colors.raised }]}
-      >
-        <Ionicons name='qr-code-outline' size={18} color={colors.foreground} />
-        <Text style={[styles.secondaryText, { color: colors.foreground }]}>Scan a room QR</Text>
-      </PressableScale>
-    </ScrollView>
-  );
-}
+import { ActivityIndicator, Alert, Share, StyleSheet, Text, View } from 'react-native';
 
 function Reconnecting() {
   const { colors } = useTheme();
@@ -97,6 +43,12 @@ export default function RoomsTab() {
   const isInviteSheetOpen = useGroupInviteStore((s) => s.isInviteSheetOpen);
 
   const [showQr, setShowQr] = useState(false);
+  const [modalTab, setModalTab] = useState<'create' | 'join'>('create');
+
+  const openModal = useCallback((tab: 'create' | 'join') => {
+    setModalTab(tab);
+    useGroupSessionStore.setState({ isGroupModalOpen: true });
+  }, []);
   const [scanning, setScanning] = useState(false);
 
   const openInvite = useCallback(
@@ -155,12 +107,17 @@ export default function RoomsTab() {
       ) : isRejoining ? (
         <Reconnecting />
       ) : (
-        <Welcome onScan={() => setScanning(true)} />
+        <RoomsWelcome
+          onStart={() => openModal('create')}
+          onJoin={() => openModal('join')}
+          onScan={() => setScanning(true)}
+        />
       )}
 
       {isGroupModalOpen && (
         <CreateOrJoinModal
           isOpen
+          initialTab={modalTab}
           onClose={() => useGroupSessionStore.setState({ isGroupModalOpen: false })}
           onCreateGroup={createGroup}
           onJoinGroup={joinGroup}
@@ -193,44 +150,6 @@ export default function RoomsTab() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  welcome: { paddingHorizontal: 16, paddingTop: 8, gap: 14 },
-  welcomeTitle: { fontFamily: fonts.displayHeavy, fontSize: 32, letterSpacing: -0.9 },
-  welcomeText: { fontSize: 15, lineHeight: 21, marginTop: -6 },
-  steps: {
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 14,
-    gap: 14,
-    marginTop: 4,
-  },
-  step: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  stepIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepText: { flex: 1, fontSize: 14, lineHeight: 19 },
-  primary: {
-    height: 52,
-    borderRadius: 26,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 6,
-  },
-  primaryText: { fontSize: 16, fontWeight: '700' },
-  secondary: {
-    height: 48,
-    borderRadius: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  secondaryText: { fontSize: 15, fontWeight: '600' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   centerText: { fontSize: 14 },
 });

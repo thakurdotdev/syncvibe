@@ -3,8 +3,9 @@ import { useTheme } from '@/context/ThemeContext';
 import type { Message } from '@/stores/groupMusic/types';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import * as Haptics from 'expo-haptics';
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import type { AnchorRect } from './MessageActions';
 import { formatClock, isEmojiOnly, isGif, isSound, toReactionChips } from './chatUtils';
 import { MessageReactions } from './MessageReactions';
 import { ReplyQuote } from './ReplyQuote';
@@ -18,7 +19,8 @@ type Props = {
   myId?: number | string;
   highlighted?: boolean;
   onReply: (m: Message) => void;
-  onLongPress: (m: Message) => void;
+  /** Long-press with the bubble's on-screen rect, so the menu can grow from it. */
+  onLongPress: (m: Message, anchor: AnchorRect) => void;
   onToggleReaction: (messageId: string, emoji: string) => void;
   onJumpTo: (messageId: string) => void;
 };
@@ -45,9 +47,13 @@ export const MessageBubble = memo(function MessageBubble({
   const emoji = !gif && !sound && isEmojiOnly(m.message);
   const chips = useMemo(() => toReactionChips(m.reactions, myId), [m.reactions, myId]);
 
+  const bubbleRef = useRef<View>(null);
+
   const handleLongPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    onLongPress(m);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    bubbleRef.current?.measureInWindow((x, y, width, height) =>
+      onLongPress(m, { x, y, width, height })
+    );
   };
 
   const bubbleBg = own ? colors.primary : colors.raised;
@@ -84,6 +90,7 @@ export const MessageBubble = memo(function MessageBubble({
           )}
 
           <Pressable
+            ref={bubbleRef}
             onLongPress={handleLongPress}
             delayLongPress={280}
             accessibilityHint='Long press for reactions. Swipe right to reply.'

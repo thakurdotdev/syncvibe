@@ -1,9 +1,9 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
-import { SPRING } from '@/lib/motion';
+import { INDICATOR } from '@/lib/motion';
 import { memo, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 export type RoomTab = 'chat' | 'queue' | 'people';
 
@@ -13,7 +13,7 @@ const TABS: { key: RoomTab; label: string }[] = [
   { key: 'people', label: 'People' },
 ];
 
-/** Segmented switch for the room's panels; the selection pill slides with the same spring as the tab bar. */
+/** Segmented switch for the room's panels; the selection pill makes a short, quick move. */
 export const RoomTabs = memo(function RoomTabs({
   active,
   onChange,
@@ -31,10 +31,11 @@ export const RoomTabs = memo(function RoomTabs({
   const x = useSharedValue(0);
 
   useEffect(() => {
-    if (segment) x.value = withSpring(index * segment, SPRING);
+    // Switched tens of times a session: a near-imperceptible 140ms on-screen move.
+    if (segment) x.set(withTiming(index * segment, INDICATOR));
   }, [index, segment, x]);
 
-  const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+  const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
 
   return (
     <View

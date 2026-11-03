@@ -1,5 +1,5 @@
 import { useTheme } from '@/context/ThemeContext';
-import { BUTTON_PRESS_SCALE, SPRING } from '@/lib/motion';
+import { BUTTON_PRESS_SCALE } from '@/lib/motion';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import PressableScale from '@/components/ui/PressableScale';
 import { openFullPlayer, usePlaybackState, usePlayerControls } from '@/stores/playerStore';
@@ -7,9 +7,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProgress } from '@rntp/player';
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { Image, Platform, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const TAB_BAR_HEIGHT = 110;
@@ -42,12 +42,6 @@ const TAB_ITEMS = [
     label: 'Messages',
     activeIcon: 'chatbubble-ellipses',
     inactiveIcon: 'chatbubble-ellipses-outline',
-  },
-  {
-    name: 'profile',
-    label: 'Profile',
-    activeIcon: 'person-circle',
-    inactiveIcon: 'person-circle-outline',
   },
 ] as const;
 
@@ -102,7 +96,8 @@ const TabButton = memo(function TabButton({
       accessibilityState={{ selected: isFocused }}
     >
       <View style={styles.tabInner}>
-        <View style={styles.tabIconBox}>
+        {/* Tab switches happen 100+ times a day: the pill just appears, no slide. */}
+        <View style={[styles.tabIconBox, isFocused && { backgroundColor: `${activeColor}26` }]}>
           <Ionicons name={isFocused ? activeIcon : inactiveIcon} size={21} color={color} />
           {live && <View style={[styles.liveDot, { backgroundColor: liveColor }]} />}
         </View>
@@ -114,36 +109,6 @@ const TabButton = memo(function TabButton({
         </Text>
       </View>
     </PressableScale>
-  );
-});
-
-/** The pill behind the active tab icon slides between tabs instead of blinking. */
-const ActivePill = memo(function ActivePill({
-  index,
-  tabWidth,
-  color,
-}: {
-  index: number;
-  tabWidth: number;
-  color: string;
-}) {
-  const x = useSharedValue(-1);
-
-  useEffect(() => {
-    if (!tabWidth || index < 0) return;
-    const target = index * tabWidth + (tabWidth - PILL_WIDTH) / 2;
-    // Jump into place the first time, then spring between tabs.
-    x.value = x.value < 0 ? target : withSpring(target, SPRING);
-  }, [index, tabWidth, x]);
-
-  const style = useAnimatedStyle(() => ({
-    opacity: x.value < 0 ? 0 : 1,
-    transform: [{ translateX: x.value }],
-  }));
-
-  if (index < 0) return null;
-  return (
-    <Animated.View pointerEvents='none' style={[styles.pill, { backgroundColor: color }, style]} />
   );
 });
 
@@ -271,15 +236,12 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   const goGroup = useCallback(() => router.navigate('/(tabs)/group-music'), []);
   const goPlaylist = useCallback(() => router.navigate('/(tabs)/playlist'), []);
   const goChat = useCallback(() => router.navigate('/(tabs)/chat'), []);
-  const goProfile = useCallback(() => router.navigate('/(tabs)/profile'), []);
   const handlers = useMemo(
-    () => [goHome, goGroup, goPlaylist, goChat, goProfile],
-    [goHome, goGroup, goPlaylist, goChat, goProfile]
+    () => [goHome, goGroup, goPlaylist, goChat],
+    [goHome, goGroup, goPlaylist, goChat]
   );
 
   const isDark = theme === 'dark';
-  const [tabWidth, setTabWidth] = useState(0);
-  const activeIndex = TAB_ITEMS.findIndex((t) => t.name === activeSegment);
   const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
 
   // Tinted to the aubergine surfaces so the deck reads as part of the app, not a grey slab.
@@ -319,11 +281,7 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
             />
           )}
 
-          <View
-            style={styles.navRow}
-            onLayout={(e) => setTabWidth(e.nativeEvent.layout.width / TAB_ITEMS.length)}
-          >
-            <ActivePill index={activeIndex} tabWidth={tabWidth} color={`${colors.primary}26`} />
+          <View style={styles.navRow}>
             {TAB_ITEMS.map((tab, index) => (
               <TabButton
                 key={tab.name}
@@ -470,6 +428,7 @@ const styles = StyleSheet.create({
   tabIconBox: {
     width: PILL_WIDTH,
     height: PILL_HEIGHT,
+    borderRadius: PILL_HEIGHT / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -480,14 +439,6 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 4,
-  },
-  pill: {
-    position: 'absolute',
-    left: 0,
-    top: 5,
-    width: PILL_WIDTH,
-    height: PILL_HEIGHT,
-    borderRadius: PILL_HEIGHT / 2,
   },
   tabLabel: {
     fontSize: 10.5,

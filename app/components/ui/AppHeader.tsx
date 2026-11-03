@@ -58,15 +58,15 @@ const openSearch = () => router.push('/search');
 const openProfile = () => router.navigate('/(tabs)/profile');
 
 /**
- * Header for the five tab roots. Same height, padding, type and action buttons everywhere:
- * a title on the left, page actions then search on the right. Home uses the `greeting`
- * variant: your avatar plus a compact two-line greeting instead of a big title.
+ * Header for the tab roots. Same height, padding, type and action buttons everywhere:
+ * a title on the left; page actions, search and your avatar (the way into Profile) on the right.
+ * Home uses the greeting variant: avatar first, then a compact two-line greeting.
  * Place it inside a view that already applies the top safe-area inset.
  */
 export const TabHeader = memo(function TabHeader({
   title,
   kicker,
-  showAvatar = false,
+  avatar = 'trailing',
   accessory,
   actions,
   showSearch = true,
@@ -74,8 +74,8 @@ export const TabHeader = memo(function TabHeader({
   title?: string;
   /** Small line above the title (e.g. "Good afternoon"); switches to the compact title size. */
   kicker?: string;
-  /** Show your avatar before the title; tapping it opens Profile. */
-  showAvatar?: boolean;
+  /** Where your avatar (the way into Profile) sits; Home puts it before the greeting. */
+  avatar?: 'leading' | 'trailing' | 'none';
   /** Small element after the title (e.g. connection badge). */
   accessory?: ReactNode;
   actions?: ReactNode;
@@ -84,23 +84,25 @@ export const TabHeader = memo(function TabHeader({
   const { colors } = useTheme();
   const { user } = useUser();
 
+  const avatarButton = user?.profilepic ? (
+    <PressableScale
+      onPress={openProfile}
+      scaleTo={BUTTON_PRESS_SCALE}
+      accessibilityRole='button'
+      accessibilityLabel='Your profile'
+      style={[
+        avatar === 'leading' ? styles.avatarRing : styles.avatarRingSmall,
+        { borderColor: colors.primary },
+      ]}
+    >
+      <Image source={{ uri: getProfileCloudinaryUrl(user.profilepic) }} style={styles.avatar} />
+    </PressableScale>
+  ) : null;
+
   return (
     <View style={[styles.tabHeader, kicker ? styles.tabHeaderTall : null]}>
       <View style={styles.tabHeaderLeft}>
-        {showAvatar && user?.profilepic ? (
-          <PressableScale
-            onPress={openProfile}
-            scaleTo={BUTTON_PRESS_SCALE}
-            accessibilityRole='button'
-            accessibilityLabel='Your profile'
-            style={[styles.avatarRing, { borderColor: colors.primary }]}
-          >
-            <Image
-              source={{ uri: getProfileCloudinaryUrl(user.profilepic) }}
-              style={styles.avatar}
-            />
-          </PressableScale>
-        ) : null}
+        {avatar === 'leading' && avatarButton}
         <View style={styles.titleBlock}>
           {kicker ? (
             <Text style={[styles.kicker, { color: colors.mutedForeground }]} numberOfLines={1}>
@@ -120,6 +122,7 @@ export const TabHeader = memo(function TabHeader({
       <View style={styles.actions}>
         {actions}
         {showSearch && <HeaderIconButton icon='search' label='Search music' onPress={openSearch} />}
+        {avatar === 'trailing' && avatarButton}
       </View>
     </View>
   );
@@ -196,6 +199,7 @@ const styles = StyleSheet.create({
   compactTitle: { fontFamily: fonts.display, fontSize: 21, lineHeight: 25, letterSpacing: -0.4 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   avatarRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, padding: 2 },
+  avatarRingSmall: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, padding: 2 },
   avatar: { width: '100%', height: '100%', borderRadius: 18 },
 
   stackHeader: {
