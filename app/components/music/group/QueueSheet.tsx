@@ -333,7 +333,14 @@ const PlaylistBrowser: React.FC<{
   );
 };
 
-export const QueueSheet: React.FC<{ inline?: boolean }> = ({ inline = false }) => {
+/**
+ * `inline` renders without the modal wrapper; `embedded` additionally drops the title row
+ * for hosts that already label the panel (the room's Chat / Queue / People switch).
+ */
+export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
+  inline = false,
+  embedded = false,
+}) => {
   const api = useApi();
   const { user } = useUser();
   const { colors } = useTheme();
@@ -734,29 +741,31 @@ export const QueueSheet: React.FC<{ inline?: boolean }> = ({ inline = false }) =
   return (
     <Wrapper {...wrapperProps}>
       <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: 16 }]}>
-          <View style={styles.headerLeft}>
-            {!inline && (
-              <TouchableOpacity
-                onPress={handleClose}
-                style={[styles.backButton, { backgroundColor: colors.secondary }]}
-                accessibilityRole='button'
-                accessibilityLabel='Close queue'
-              >
-                <Ionicons name='arrow-back' size={20} color={colors.foreground} />
-              </TouchableOpacity>
-            )}
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>Queue</Text>
-            {upcomingQueue.length > 0 && (
-              <Text style={[styles.countText, { color: colors.mutedForeground }]}>
-                {upcomingQueue.length} next
-              </Text>
-            )}
+        {!embedded && (
+          <View style={[styles.header, { paddingTop: 16 }]}>
+            <View style={styles.headerLeft}>
+              {!inline && (
+                <TouchableOpacity
+                  onPress={handleClose}
+                  style={[styles.backButton, { backgroundColor: colors.secondary }]}
+                  accessibilityRole='button'
+                  accessibilityLabel='Close queue'
+                >
+                  <Ionicons name='arrow-back' size={20} color={colors.foreground} />
+                </TouchableOpacity>
+              )}
+              <Text style={[styles.headerTitle, { color: colors.foreground }]}>Queue</Text>
+              {upcomingQueue.length > 0 && (
+                <Text style={[styles.countText, { color: colors.mutedForeground }]}>
+                  {upcomingQueue.length} next
+                </Text>
+              )}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Search Bar Input */}
-        <View style={styles.searchBarContainer}>
+        <View style={[styles.searchBarContainer, embedded && { paddingTop: 10 }]}>
           <Input
             ref={inputRef}
             placeholder='Search songs to add...'

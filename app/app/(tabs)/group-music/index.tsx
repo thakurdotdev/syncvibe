@@ -1,388 +1,236 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import {
-  Text,
-  View,
-  StyleSheet,
-  Alert,
-  Share,
-  ScrollView,
-  Platform,
-  useWindowDimensions,
-} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import LoginScreen from '@/components/LoginScreen';
 import QRScannerScreen from '@/app/qr-scanner';
-import { useGroupMusic } from '@/context/GroupMusicContext';
-import { useUser } from '@/context/UserContext';
-import { useTheme } from '@/context/ThemeContext';
-import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
-import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
-import { GroupInfoCard } from '@/components/music/group/GroupInfoCard';
-import { CurrentSongCard } from '@/components/music/group/CurrentSongCard';
-import { GroupMembersCard } from '@/components/music/group/GroupMembersCard';
+import LoginScreen from '@/components/LoginScreen';
 import { CreateOrJoinModal } from '@/components/music/group/CreateOrJoinModal';
-
+import { GlobalSoundAnimation } from '@/components/music/group/GlobalSoundAnimation';
+import { InviteNotification } from '@/components/music/group/InviteNotification';
+import { InviteSheet } from '@/components/music/group/InviteSheet';
 import { QRCodeModal } from '@/components/music/group/QRCodeModal';
 import { QueueSheet } from '@/components/music/group/QueueSheet';
-import { InviteSheet } from '@/components/music/group/InviteSheet';
-import { InviteNotification } from '@/components/music/group/InviteNotification';
-import { ChatScreen } from '@/components/music/group/ChatScreen';
-import { ChatPeek } from '@/components/music/group/ChatPeek';
-import { FloatingReactions } from '@/components/music/group/FloatingReactions';
-import { ConnectionBadge } from '@/components/music/group/ConnectionBadge';
-import { GlobalSoundAnimation } from '@/components/music/group/GlobalSoundAnimation';
-import { HeaderIconButton, TabHeader } from '@/components/ui/AppHeader';
+import { RoomScreen } from '@/components/music/room/RoomScreen';
+import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
+import { TabHeader } from '@/components/ui/AppHeader';
 import PressableScale from '@/components/ui/PressableScale';
+import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
+import { useGroupMusic } from '@/context/GroupMusicContext';
+import { useTheme } from '@/context/ThemeContext';
+import { useUser } from '@/context/UserContext';
+import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { fonts } from '@/theme/typography';
+import { Ionicons } from '@expo/vector-icons';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
-const HeaderActions = React.memo(
-  ({
-    onOpenQueue,
-    onLeave,
-    showInlineQueue,
-    onToggleInlineQueue,
-  }: {
-    onOpenQueue: () => void;
-    onLeave: () => void;
-    showInlineQueue: boolean;
-    onToggleInlineQueue: () => void;
-  }) => {
-    const { colors } = useTheme();
-    const queue = useGroupSessionStore((s) => s.queue);
-    const currentQueueIndex = useGroupSessionStore((s) => s.currentQueueIndex);
+const STEPS = [
+  { icon: 'radio-outline', text: 'Start a room or join one with a code or QR.' },
+  { icon: 'musical-notes-outline', text: 'Anyone can add songs; everyone hears them in sync.' },
+  { icon: 'chatbubbles-outline', text: 'Chat, reply, react and drop GIFs while you listen.' },
+] as const;
 
-    const activeQueueCount = useMemo(() => {
-      const currentItem = currentQueueIndex >= 0 && queue[currentQueueIndex] ? 1 : 0;
-      const upcoming = queue.filter((_, idx) => idx > currentQueueIndex).length;
-      return currentItem + upcoming;
-    }, [queue, currentQueueIndex]);
+const openRoomModal = () => useGroupSessionStore.setState({ isGroupModalOpen: true });
 
-    return (
-      <View style={styles.headerRight}>
-        <HeaderIconButton
-          label={showInlineQueue ? 'Disable side queue' : 'Enable side queue'}
-          onPress={onToggleInlineQueue}
-        >
-          <Feather name='columns' size={17} color={colors.foreground} />
-        </HeaderIconButton>
-        <HeaderIconButton label='Open queue' onPress={onOpenQueue}>
-          <Feather name='list' size={18} color={colors.foreground} />
-          {activeQueueCount > 0 && (
-            <View style={[styles.headerBadge, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.headerBadgeText, { color: colors.primaryForeground }]}>
-                {activeQueueCount}
-              </Text>
+/** Shown when you're not in a room: what rooms are, and the one action to start. */
+function Welcome({ onScan }: { onScan: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <ScrollView contentContainerStyle={[styles.welcome, { paddingBottom: DECK_CLEARANCE }]}>
+      <Text style={[styles.welcomeTitle, { color: colors.foreground }]}>Listen together</Text>
+      <Text style={[styles.welcomeText, { color: colors.mutedForeground }]}>
+        Play the same song at the same second as your friends, wherever they are.
+      </Text>
+
+      <View style={[styles.steps, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {STEPS.map((s) => (
+          <View key={s.icon} style={styles.step}>
+            <View style={[styles.stepIcon, { backgroundColor: colors.accent }]}>
+              <Ionicons name={s.icon} size={18} color={colors.primary} />
             </View>
-          )}
-        </HeaderIconButton>
-        <HeaderIconButton label='Leave room' onPress={onLeave}>
-          <Feather name='log-out' size={18} color={colors.foreground} />
-        </HeaderIconButton>
+            <Text style={[styles.stepText, { color: colors.foreground }]}>{s.text}</Text>
+          </View>
+        ))}
       </View>
-    );
-  }
-);
 
-export default function GroupMusicMobile() {
-  const { width } = useWindowDimensions();
-  const { handlePlayPause, handleSeek, createGroup, joinGroup, leaveGroup, skipSong } =
-    useGroupMusic();
+      <PressableScale
+        onPress={openRoomModal}
+        accessibilityRole='button'
+        style={[styles.primary, { backgroundColor: colors.primary }]}
+      >
+        <Ionicons name='add' size={20} color={colors.primaryForeground} />
+        <Text style={[styles.primaryText, { color: colors.primaryForeground }]}>
+          Start or join a room
+        </Text>
+      </PressableScale>
+      <PressableScale
+        onPress={onScan}
+        accessibilityRole='button'
+        style={[styles.secondary, { backgroundColor: colors.raised }]}
+      >
+        <Ionicons name='qr-code-outline' size={18} color={colors.foreground} />
+        <Text style={[styles.secondaryText, { color: colors.foreground }]}>Scan a room QR</Text>
+      </PressableScale>
+    </ScrollView>
+  );
+}
 
+function Reconnecting() {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.center}>
+      <ActivityIndicator color={colors.primary} />
+      <Text style={[styles.centerText, { color: colors.mutedForeground }]}>
+        Reconnecting to your room…
+      </Text>
+    </View>
+  );
+}
+
+/** Rooms tab: welcome, reconnecting, or the live room, plus the sheets rooms use. */
+export default function RoomsTab() {
+  const { createGroup, joinGroup, leaveGroup } = useGroupMusic();
   const { user } = useUser();
   const { colors } = useTheme();
 
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
-  const groupMembers = useGroupSessionStore((s) => s.groupMembers);
+  const isRejoining = useGroupSessionStore((s) => s.isRejoining);
   const isGroupModalOpen = useGroupSessionStore((s) => s.isGroupModalOpen);
   const isQueueOpen = useGroupSessionStore((s) => s.isQueueOpen);
-  const isRejoining = useGroupSessionStore((s) => s.isRejoining);
   const isInviteSheetOpen = useGroupInviteStore((s) => s.isInviteSheetOpen);
 
-  const [showQRCodeModal, setShowQRCodeModal] = useState(false);
-  const [showChatSheet, setShowChatSheet] = useState(false);
-  const [scanQrCode, setScanQrCode] = useState(false);
-  const [showInlineQueue, setShowInlineQueue] = useState(false);
-  const [queuePreferenceLoaded, setQueuePreferenceLoaded] = useState(false);
-  const canShowInlineQueue = Platform.OS === 'web' && width >= 1100;
+  const [showQr, setShowQr] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
-  React.useEffect(() => {
-    AsyncStorage.getItem('@group_music_inline_queue')
-      .then((value) => setShowInlineQueue(value === 'true'))
-      .catch(() => {})
-      .finally(() => setQueuePreferenceLoaded(true));
-  }, []);
-  const toggleInlineQueue = useCallback(() => {
-    setShowInlineQueue((value) => {
-      const next = !value;
-      AsyncStorage.setItem('@group_music_inline_queue', String(next)).catch(() => {});
-      return next;
-    });
-  }, []);
-  const inlineQueue =
-    queuePreferenceLoaded && showInlineQueue && canShowInlineQueue && !!currentGroup;
+  const openInvite = useCallback(
+    () => useGroupInviteStore.setState({ isInviteSheetOpen: true }),
+    []
+  );
+  const openQr = useCallback(() => setShowQr(true), []);
 
-  const handleOpenQueue = useCallback(() => {
-    useGroupSessionStore.setState({ isQueueOpen: true });
-  }, []);
+  const shareCode = useCallback(() => {
+    if (!currentGroup?.id) return;
+    Share.share({
+      message: `Join my room "${currentGroup.name}" on SyncVibe. Room code: ${currentGroup.id}`,
+    }).catch(() => {});
+  }, [currentGroup]);
 
-  const handleCopyGroupId = useCallback(async () => {
-    if (currentGroup?.id) {
-      await Share.share({
-        message: `Join my SyncVibe group! Group ID: ${currentGroup.id}`,
-      });
-    }
-  }, [currentGroup?.id]);
-
-  const handleLeaveGroup = useCallback(() => {
+  const confirmLeave = useCallback(() => {
     Alert.alert(
-      'Leave Group',
-      `Are you sure you want to leave ${currentGroup?.name || 'this group'}?`,
+      'Leave room?',
+      `You'll stop listening along in ${currentGroup?.name || 'this room'}.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Stay', style: 'cancel' },
         { text: 'Leave', style: 'destructive', onPress: leaveGroup },
       ]
     );
-  }, [currentGroup?.name, leaveGroup]);
+  }, [currentGroup, leaveGroup]);
 
   if (!user) return <LoginScreen />;
 
+  if (scanning) {
+    return (
+      <QRScannerScreen
+        onScanComplete={(code) => {
+          joinGroup(code);
+          setScanning(false);
+        }}
+        onClose={() => {
+          setScanning(false);
+          useGroupSessionStore.setState({ isGroupModalOpen: false });
+        }}
+      />
+    );
+  }
+
   return (
-    <>
-      {scanQrCode ? (
-        <QRScannerScreen
-          onScanComplete={(qrCode) => {
-            joinGroup(qrCode);
-            setScanQrCode(false);
-          }}
-          onClose={() => {
-            setScanQrCode(false);
-            useGroupSessionStore.setState({ isGroupModalOpen: false });
-          }}
+    <TabSafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
+      {!currentGroup && <TabHeader title='Rooms' />}
+      <InviteNotification />
+
+      {currentGroup ? (
+        <RoomScreen
+          onInvite={openInvite}
+          onShowQr={openQr}
+          onShare={shareCode}
+          onLeave={confirmLeave}
         />
+      ) : isRejoining ? (
+        <Reconnecting />
       ) : (
-        <View style={[styles.root, { backgroundColor: colors.background }]}>
-          <TabSafeAreaView edges={['top']}>
-            <TabHeader
-              title='Rooms'
-              accessory={currentGroup ? <ConnectionBadge /> : null}
-              showSearch={!currentGroup}
-              actions={
-                currentGroup ? (
-                  <HeaderActions
-                    onOpenQueue={handleOpenQueue}
-                    onLeave={handleLeaveGroup}
-                    showInlineQueue={showInlineQueue}
-                    onToggleInlineQueue={toggleInlineQueue}
-                  />
-                ) : null
-              }
-            />
-          </TabSafeAreaView>
-
-          <InviteNotification />
-
-          {!currentGroup ? (
-            <ScrollView
-              contentContainerStyle={styles.welcomeContainer}
-              showsVerticalScrollIndicator={false}
-            >
-              <View style={[styles.welcomeIconWrap, { backgroundColor: colors.accent }]}>
-                <Ionicons name='people-outline' size={32} color={colors.primary} />
-              </View>
-              <Text style={[styles.welcomeTitle, { color: colors.foreground }]}>
-                Listen together
-              </Text>
-              <Text style={[styles.welcomeSubtitle, { color: colors.mutedForeground }]}>
-                Start a room or join a friend. Playback stays in sync for everyone listening.
-              </Text>
-              <PressableScale
-                onPress={() => useGroupSessionStore.setState({ isGroupModalOpen: true })}
-                style={[styles.createButton, { backgroundColor: colors.primary }]}
-                accessibilityRole='button'
-                accessibilityLabel='Create or join a music group'
-              >
-                <Feather name='plus' size={19} color={colors.primaryForeground} />
-                <Text style={[styles.createButtonText, { color: colors.primaryForeground }]}>
-                  Create or join a room
-                </Text>
-              </PressableScale>
-              <Text style={[styles.welcomeFootnote, { color: colors.mutedForeground }]}>
-                Use an invite link or QR code to join a room.
-              </Text>
-            </ScrollView>
-          ) : (
-            <View style={[{ flex: 1, minHeight: 0 }, inlineQueue && styles.splitLayout]}>
-              <ScrollView
-                style={[styles.scrollContainer, inlineQueue && styles.playerColumn]}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-              >
-                <GroupInfoCard
-                  groupName={currentGroup.name}
-                  groupId={currentGroup.id}
-                  onCopyId={handleCopyGroupId}
-                  onOpenInvite={() => useGroupInviteStore.setState({ isInviteSheetOpen: true })}
-                  onShowQRCode={() => setShowQRCodeModal(true)}
-                />
-
-                <CurrentSongCard
-                  onChooseSong={handleOpenQueue}
-                  onPlayPause={handlePlayPause}
-                  onSeek={handleSeek}
-                  onSkip={skipSong}
-                />
-
-                <ChatPeek onOpenChat={() => setShowChatSheet(true)} />
-
-                <GroupMembersCard groupMembers={groupMembers} hostId={currentGroup.createdBy} />
-              </ScrollView>
-
-              {inlineQueue && (
-                <View
-                  style={[
-                    styles.queueColumn,
-                    { backgroundColor: colors.card, borderColor: colors.border },
-                  ]}
-                >
-                  <QueueSheet inline />
-                </View>
-              )}
-
-              <FloatingReactions />
-            </View>
-          )}
-
-          {isGroupModalOpen && (
-            <CreateOrJoinModal
-              isOpen
-              onClose={() => useGroupSessionStore.setState({ isGroupModalOpen: false })}
-              onCreateGroup={createGroup}
-              onJoinGroup={joinGroup}
-              onScanQRCode={() => setScanQrCode(true)}
-            />
-          )}
-
-          {isQueueOpen && !inlineQueue && <QueueSheet />}
-
-          {currentGroup?.qrCode && (
-            <QRCodeModal
-              isOpen={showQRCodeModal}
-              onClose={() => setShowQRCodeModal(false)}
-              qrCode={currentGroup.qrCode}
-            />
-          )}
-
-          {isInviteSheetOpen && (
-            <InviteSheet
-              isOpen
-              onClose={() => useGroupInviteStore.setState({ isInviteSheetOpen: false })}
-            />
-          )}
-
-          {showChatSheet && <ChatScreen isOpen onClose={() => setShowChatSheet(false)} />}
-
-          <GlobalSoundAnimation currentUserId={user?.userid} />
-        </View>
+        <Welcome onScan={() => setScanning(true)} />
       )}
-    </>
+
+      {isGroupModalOpen && (
+        <CreateOrJoinModal
+          isOpen
+          onClose={() => useGroupSessionStore.setState({ isGroupModalOpen: false })}
+          onCreateGroup={createGroup}
+          onJoinGroup={joinGroup}
+          onScanQRCode={() => setScanning(true)}
+        />
+      )}
+
+      {/* Other screens can still open the full-screen queue (e.g. "add to room"). */}
+      {isQueueOpen && <QueueSheet />}
+
+      {currentGroup?.qrCode && (
+        <QRCodeModal
+          isOpen={showQr}
+          onClose={() => setShowQr(false)}
+          qrCode={currentGroup.qrCode}
+        />
+      )}
+
+      {isInviteSheetOpen && (
+        <InviteSheet
+          isOpen
+          onClose={() => useGroupInviteStore.setState({ isInviteSheetOpen: false })}
+        />
+      )}
+
+      <GlobalSoundAnimation currentUserId={user?.userid} />
+    </TabSafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  splitLayout: {
-    flexDirection: 'row',
-    gap: 16,
-    paddingHorizontal: 20,
-    minHeight: 0,
-    overflow: 'hidden',
-  },
-  playerColumn: { flex: 0.6, minWidth: 0, minHeight: 0 },
-  queueColumn: {
-    flex: 0.4,
-    minWidth: 0,
-    minHeight: 0,
+  root: { flex: 1 },
+  welcome: { paddingHorizontal: 16, paddingTop: 8, gap: 14 },
+  welcomeTitle: { fontFamily: fonts.displayHeavy, fontSize: 32, letterSpacing: -0.9 },
+  welcomeText: { fontSize: 15, lineHeight: 21, marginTop: -6 },
+  steps: {
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 18,
-    overflow: 'hidden',
-    marginBottom: 12,
+    padding: 14,
+    gap: 14,
+    marginTop: 4,
   },
-  headerRight: {
+  step: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stepIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepText: { flex: 1, fontSize: 14, lineHeight: 19 },
+  primary: {
+    height: 52,
+    borderRadius: 26,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  primaryText: { fontSize: 16, fontWeight: '700' },
+  secondary: {
+    height: 48,
+    borderRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
-  headerBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  headerBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  welcomeContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingBottom: 56,
-  },
-  welcomeIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  welcomeTitle: {
-    fontFamily: fonts.display,
-    fontSize: 26,
-    letterSpacing: -0.6,
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  welcomeSubtitle: {
-    textAlign: 'center',
-    marginTop: 12,
-    marginBottom: 28,
-    fontSize: 15,
-    lineHeight: 23,
-  },
-  createButton: {
-    minHeight: 52,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  createButtonText: {
-    fontWeight: '700',
-    marginLeft: 8,
-    fontSize: 15,
-  },
-  welcomeFootnote: {
-    marginTop: 14,
-    fontSize: 12,
-  },
-  scrollContainer: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-  },
+  secondaryText: { fontSize: 15, fontWeight: '600' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  centerText: { fontSize: 14 },
 });

@@ -41,6 +41,23 @@ export interface QueueItem {
   isAutoRecommended?: boolean;
 }
 
+/** Compact copy of the message being replied to (server keeps it bounded). */
+export interface ReplyRef {
+  id: string;
+  senderId?: number | string;
+  userName?: string;
+  message?: string;
+  messageType?: string;
+}
+
+export interface Reactor {
+  userId: number | string;
+  userName?: string;
+}
+
+/** emoji → people who reacted with it. Owned by the server; clients replace it wholesale. */
+export type MessageReactions = Record<string, Reactor[]>;
+
 export interface Message {
   id: string;
   groupId: string;
@@ -56,6 +73,8 @@ export interface Message {
   timestamp: number;
   type?: 'text' | 'activity';
   activityType?: string;
+  replyTo?: ReplyRef | null;
+  reactions?: MessageReactions;
 }
 
 export interface ActiveSoundEffect {

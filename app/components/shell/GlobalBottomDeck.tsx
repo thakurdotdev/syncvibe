@@ -1,5 +1,6 @@
 import { UnifiedBottomDeck } from '@/components/music/UnifiedBottomDeck';
 import { useTheme } from '@/context/ThemeContext';
+import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { useSegments } from 'expo-router';
 import { memo, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -29,7 +30,9 @@ function GlobalBottomDeck() {
   useEffect(() => {
     if (inTabs) setLastTab(activeTab);
   }, [inTabs, activeTab]);
-  const visible = inTabs || DECK_PAGES.has(segments[0] ?? '');
+  const keyboardVisible = useKeyboardVisible();
+  // Step aside while typing so the deck never sits on top of a composer or search field.
+  const visible = !keyboardVisible && (inTabs || DECK_PAGES.has(segments[0] ?? ''));
 
   if (!visible) return null;
 
