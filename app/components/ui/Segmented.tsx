@@ -27,7 +27,10 @@ function SegmentedInner<T extends string>({
   onChange: (value: T) => void;
   accessibilityLabel?: string;
 }) {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
+  // Light: grey track, white pill. Dark: card track, a raised pill that sits above it.
+  const trackBg = theme === 'dark' ? colors.card : colors.raised;
+  const pillBg = theme === 'dark' ? colors.raised : colors.card;
   const [width, setWidth] = useState(0);
   const segment = width / options.length;
   const index = Math.max(
@@ -49,15 +52,13 @@ function SegmentedInner<T extends string>({
 
   return (
     <View
-      style={[styles.track, { backgroundColor: colors.raised }]}
+      style={[styles.track, { backgroundColor: trackBg }]}
       onLayout={(e) => setWidth(e.nativeEvent.layout.width - 8)}
       accessibilityRole='radiogroup'
       accessibilityLabel={accessibilityLabel}
     >
       {segment > 0 && (
-        <Animated.View
-          style={[styles.pill, { width: segment, backgroundColor: colors.background }, pill]}
-        />
+        <Animated.View style={[styles.pill, { width: segment, backgroundColor: pillBg }, pill]} />
       )}
       {options.map((o) => {
         const selected = o.value === value;
@@ -86,7 +87,7 @@ function SegmentedInner<T extends string>({
 export const Segmented = memo(SegmentedInner) as typeof SegmentedInner;
 
 const styles = StyleSheet.create({
-  track: { flexDirection: 'row', borderRadius: 14, padding: 4, height: 42 },
+  track: { flexDirection: 'row', borderRadius: 14, padding: 4, height: 44 },
   pill: {
     position: 'absolute',
     top: 4,

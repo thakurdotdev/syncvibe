@@ -61,7 +61,11 @@ export const SettingsRow = memo(function SettingsRow({
           { backgroundColor: destructive ? `${colors.destructive}1A` : colors.raised },
         ]}
       >
-        <Feather name={icon} size={17} color={destructive ? colors.destructive : colors.primary} />
+        <Feather
+          name={icon}
+          size={16}
+          color={destructive ? colors.destructive : colors.foreground}
+        />
       </View>
       <View style={styles.text}>
         <Text style={[styles.label, { color: tint }]}>{label}</Text>
@@ -94,19 +98,25 @@ export const SettingsRow = memo(function SettingsRow({
 
 const styles = StyleSheet.create({
   group: { gap: 8 },
-  title: { fontSize: 13, fontWeight: '600', marginLeft: 6 },
+  title: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginLeft: 4,
+  },
   surface: { overflow: 'hidden' },
-  divider: { height: StyleSheet.hairlineWidth, marginLeft: 62 },
+  divider: { height: StyleSheet.hairlineWidth, marginLeft: 60 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 14,
-    minHeight: 58,
+    minHeight: 56,
     paddingVertical: 10,
   },
-  icon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   text: { flex: 1, minWidth: 0 },
-  label: { fontSize: 15.5, fontWeight: '600' },
+  label: { fontSize: 15, fontWeight: '600' },
   detail: { fontSize: 12.5, marginTop: 1 },
 });

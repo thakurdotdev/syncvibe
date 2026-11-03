@@ -17,12 +17,13 @@ import {
   Image,
   Keyboard,
   StyleSheet,
+  useWindowDimensions,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, { LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { HeaderIconButton, TabHeader } from '@/components/ui/AppHeader';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
@@ -90,8 +91,10 @@ const lastAddedTime = (p: any) => {
   return Number.isFinite(t) ? t : 0;
 };
 
-/** Reorders (not filters) rows: LinearTransition keeps each row moving to its new spot. */
-const ROW_TRANSITION = LinearTransition.duration(220).easing(EASE_OUT);
+/** Tiles fade in quickly when they mount or the sort changes: snappy, never a slide. */
+const TILE_ENTER = FadeIn.duration(160).easing(EASE_OUT);
+
+const CREATE_TILE = { id: 'create', isCreate: true } as const;
 
 const PlaylistScreen = () => {
   const api = useApi();
@@ -203,6 +206,7 @@ const PlaylistScreen = () => {
     setShowUpdateModal(true);
   };
 
+  const { width: windowWidth } = useWindowDimensions();
   const [sort, setSort] = useState<SortMode>('recent');
   const toggleSort = useCallback(() => setSort((m) => (m === 'recent' ? 'name' : 'recent')), []);
 
@@ -227,9 +231,16 @@ const PlaylistScreen = () => {
   }
 
   const count = sortedPlaylists.length;
+  const tileWidth = Math.floor((windowWidth - GRID_PADDING * 2 - GRID_GAP) / 2);
 
   const renderPlaylistItem = ({ item }: { item: any }) => (
-    <PlaylistRow playlist={item} onMore={handleLongPress} />
+    <Animated.View key={`${sort}-${item.id}`} entering={TILE_ENTER} style={{ width: tileWidth }}>
+      {item.isCreate ? (
+        <CreateTile width={tileWidth} onPress={openCreateModal} />
+      ) : (
+        <PlaylistTile playlist={item} width={tileWidth} onMore={handleLongPress} />
+      )}
+    </Animated.View>
   );
 
   return (
@@ -249,10 +260,12 @@ const PlaylistScreen = () => {
       />
 
       <Animated.FlatList
-        data={sortedPlaylists}
+        data={[CREATE_TILE, ...sortedPlaylists]}
         renderItem={renderPlaylistItem}
-        keyExtractor={(item) => `playlist-${item.id}`}
-        itemLayoutAnimation={ROW_TRANSITION}
+        keyExtractor={(item) => `playlist-${sort}-${item.id}`}
+        numColumns={2}
+        columnWrapperStyle={styles.gridRow}
+        ItemSeparatorComponent={RowGap}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: DECK_CLEARANCE }}
         ListHeaderComponent={
@@ -277,13 +290,14 @@ const PlaylistScreen = () => {
                 </PressableScale>
               )}
             </View>
-            <CreateRow onPress={openCreateModal} />
           </>
         }
-        ListEmptyComponent={
-          <Text style={[styles.empty, { color: colors.mutedForeground }]}>
-            Playlists you make show up here. Add songs from any track's menu.
-          </Text>
+        ListFooterComponent={
+          count === 0 ? (
+            <Text style={[styles.empty, { color: colors.mutedForeground }]}>
+              Playlists you make show up here. Add songs from any track's menu.
+            </Text>
+          ) : null
         }
       />
 
@@ -464,71 +478,126 @@ const PlaylistScreen = () => {
   );
 };
 
-const COVER = 60;
+const GRID_PADDING = 16;
+const GRID_GAP = 12;
+/** How far each card behind the cover peeks out above it. */
+const PEEK = 6;
 
-/** 2×2 mosaic of the playlist's first songs; falls back to fewer tiles, then the playlist art. */
-const PlaylistCover = memo(function PlaylistCover({
+const RowGap = () => <View style={{ height: 20 }} />;
+
+/**
+ * A playlist cover as a small stack: the first song's art in front, the next two
+ * peeking out above it, a little narrower each, so a playlist reads as a pile of songs.
+ */
+const CoverStack = memo(function CoverStack({
   images,
   fallback,
+  width,
 }: {
   images: string[];
   fallback: string;
+  width: number;
 }) {
   const { colors } = useTheme();
-  const tiles = images.length >= 4 ? images.slice(0, 4) : images.slice(0, 1);
-  const uri = tiles[0] || fallback;
+  const front = images[0] || fallback;
+  const layers = [
+    { inset: 16, top: 0, uri: images[2], opacity: 0.4 },
+    { inset: 8, top: PEEK, uri: images[1], opacity: 0.7 },
+  ];
 
   return (
-    <View style={[styles.cover, { backgroundColor: colors.raised }]}>
-      {tiles.length === 4 ? (
-        <View style={styles.mosaic}>
-          {tiles.map((t, i) => (
+    <View style={{ width, height: width + PEEK * 2 }}>
+      {layers.map((l, i) => (
+        <View
+          key={i}
+          style={[
+            styles.stackLayer,
+            {
+              top: l.top,
+              left: l.inset,
+              right: l.inset,
+              height: width - l.inset * 2,
+              backgroundColor: colors.raised,
+              opacity: l.opacity,
+            },
+          ]}
+        >
+          {l.uri ? (
             <Image
-              key={`${t}-${i}`}
-              source={{ uri: t, cache: 'force-cache' }}
-              style={styles.tile}
+              source={{ uri: l.uri, cache: 'force-cache' }}
+              style={styles.fill}
               fadeDuration={0}
             />
-          ))}
+          ) : null}
         </View>
-      ) : uri ? (
-        <Image source={{ uri, cache: 'force-cache' }} style={styles.coverImage} fadeDuration={0} />
-      ) : (
-        <Ionicons name='musical-notes' size={22} color={colors.mutedForeground} />
-      )}
+      ))}
+      <View
+        style={[
+          styles.stackFront,
+          { top: PEEK * 2, width, height: width, backgroundColor: colors.raised },
+        ]}
+      >
+        {front ? (
+          <Image
+            source={{ uri: front, cache: 'force-cache' }}
+            style={styles.fill}
+            fadeDuration={0}
+          />
+        ) : (
+          <Ionicons name='musical-notes' size={30} color={colors.mutedForeground} />
+        )}
+      </View>
     </View>
   );
 });
 
-const CreateRow = memo(function CreateRow({ onPress }: { onPress: () => void }) {
+const CreateTile = memo(function CreateTile({
+  width,
+  onPress,
+}: {
+  width: number;
+  onPress: () => void;
+}) {
   const { colors } = useTheme();
   return (
     <PressableScale
       onPress={onPress}
-      scaleTo={0.98}
       accessibilityRole='button'
       accessibilityLabel='Create playlist'
-      style={styles.row}
     >
-      <View style={[styles.cover, styles.createCover, { borderColor: colors.border }]}>
-        <Ionicons name='add' size={26} color={colors.primary} />
+      <View style={{ width, height: width + PEEK * 2 }}>
+        <View
+          style={[
+            styles.stackFront,
+            styles.createFront,
+            { top: PEEK * 2, width, height: width, borderColor: colors.border },
+          ]}
+        >
+          <View style={[styles.createIcon, { backgroundColor: colors.primary }]}>
+            <Ionicons name='add' size={24} color={colors.primaryForeground} />
+          </View>
+        </View>
       </View>
-      <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, { color: colors.foreground }]}>New playlist</Text>
-        <Text style={[styles.rowMeta, { color: colors.mutedForeground }]}>
-          Name it, then add songs
-        </Text>
+      <View style={styles.tileInfo}>
+        <View style={styles.tileText}>
+          <Text style={[styles.tileTitle, { color: colors.foreground }]}>New playlist</Text>
+          <Text style={[styles.tileMeta, { color: colors.mutedForeground }]}>
+            Start a collection
+          </Text>
+        </View>
       </View>
     </PressableScale>
   );
 });
 
-/** One of your playlists: cover, name, size and freshness, and a visible "more" button. */
-export const PlaylistRow = memo(function PlaylistRow({
+/** One of your playlists: stacked cover, name, size and last update, plus a "more" button. */
+export const PlaylistTile = memo(function PlaylistTile({
   playlist,
+  width,
   onMore,
 }: {
   playlist: any;
+  width: number;
   onMore: (playlist: any) => void;
 }) {
   const { colors } = useTheme();
@@ -548,7 +617,7 @@ export const PlaylistRow = memo(function PlaylistRow({
   const more = useCallback(() => onMore(playlist), [onMore, playlist]);
 
   const songCount = Number(playlist.songCount) || 0;
-  const updated = formatRelativeDate(playlist.lastAddedAt);
+  const updated = formatRelativeDate(playlist.lastAddedAt)?.replace(/^Updated /, '');
   const meta = `${songCount} ${songCount === 1 ? 'song' : 'songs'}${updated ? ` · ${updated}` : ''}`;
 
   return (
@@ -556,30 +625,34 @@ export const PlaylistRow = memo(function PlaylistRow({
       onPress={open}
       onLongPress={more}
       delayLongPress={350}
-      scaleTo={0.98}
       accessibilityRole='button'
       accessibilityLabel={`${securedPlaylist.name}, ${meta}`}
-      style={styles.row}
     >
-      <PlaylistCover images={previewImages} fallback={getImageUrl(securedPlaylist?.image)} />
-      <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, { color: colors.foreground }]} numberOfLines={1}>
-          {securedPlaylist.name}
-        </Text>
-        <Text style={[styles.rowMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
-          {meta}
-        </Text>
+      <CoverStack
+        images={previewImages}
+        fallback={getImageUrl(securedPlaylist?.image)}
+        width={width}
+      />
+      <View style={styles.tileInfo}>
+        <View style={styles.tileText}>
+          <Text style={[styles.tileTitle, { color: colors.foreground }]} numberOfLines={1}>
+            {securedPlaylist.name}
+          </Text>
+          <Text style={[styles.tileMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
+            {meta}
+          </Text>
+        </View>
+        <PressableScale
+          onPress={more}
+          scaleTo={BUTTON_PRESS_SCALE}
+          hitSlop={10}
+          accessibilityRole='button'
+          accessibilityLabel={`More options for ${securedPlaylist.name}`}
+          style={styles.moreBtn}
+        >
+          <Ionicons name='ellipsis-horizontal' size={17} color={colors.mutedForeground} />
+        </PressableScale>
       </View>
-      <PressableScale
-        onPress={more}
-        scaleTo={BUTTON_PRESS_SCALE}
-        hitSlop={10}
-        accessibilityRole='button'
-        accessibilityLabel={`More options for ${securedPlaylist.name}`}
-        style={styles.moreBtn}
-      >
-        <Ionicons name='ellipsis-horizontal' size={18} color={colors.mutedForeground} />
-      </PressableScale>
     </PressableScale>
   );
 });
@@ -612,29 +685,36 @@ const styles = StyleSheet.create({
   },
   sortText: { fontSize: 12.5, fontWeight: '700' },
 
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-  },
-  cover: {
-    width: COVER,
-    height: COVER,
-    borderRadius: 12,
+  gridRow: { gap: GRID_GAP, paddingHorizontal: GRID_PADDING },
+  stackLayer: { position: 'absolute', borderRadius: 12, overflow: 'hidden' },
+  stackFront: {
+    position: 'absolute',
+    left: 0,
+    borderRadius: 16,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  createCover: { borderWidth: 1.5, borderStyle: 'dashed' },
-  coverImage: { width: '100%', height: '100%' },
-  mosaic: { width: '100%', height: '100%', flexDirection: 'row', flexWrap: 'wrap' },
-  tile: { width: COVER / 2, height: COVER / 2 },
-  rowText: { flex: 1, minWidth: 0, gap: 3 },
-  rowTitle: { fontFamily: fonts.displaySemibold, fontSize: 16, letterSpacing: -0.2 },
-  rowMeta: { fontSize: 13, fontVariant: ['tabular-nums'] },
-  moreBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  fill: { width: '100%', height: '100%' },
+  createFront: { borderWidth: 1.5, borderStyle: 'dashed' },
+  createIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileInfo: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 },
+  tileText: { flex: 1, minWidth: 0, gap: 2 },
+  tileTitle: { fontFamily: fonts.displaySemibold, fontSize: 15, letterSpacing: -0.2 },
+  tileMeta: { fontSize: 12.5, fontVariant: ['tabular-nums'] },
+  moreBtn: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -6,
+  },
   empty: {
     fontSize: 14,
     lineHeight: 20,

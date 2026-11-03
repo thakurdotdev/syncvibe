@@ -9,6 +9,8 @@ import { Segmented, type SegmentOption } from '@/components/ui/Segmented';
 import { useAppUpdate } from '@/context/AppUpdateContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
+import PressableScale from '@/components/ui/PressableScale';
+import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -78,16 +80,16 @@ export default function ProfileScreen() {
 
         <UpdateCard />
 
-        <SettingsGroup title='Appearance'>
-          <View style={styles.themeRow}>
-            <Segmented
-              options={THEME_OPTIONS}
-              value={themePreference as ThemeChoice}
-              onChange={setTheme}
-              accessibilityLabel='Theme'
-            />
-          </View>
-        </SettingsGroup>
+        {/* The segmented control is its own surface: no second card around it. */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Appearance</Text>
+          <Segmented
+            options={THEME_OPTIONS}
+            value={themePreference as ThemeChoice}
+            onChange={setTheme}
+            accessibilityLabel='Theme'
+          />
+        </View>
 
         <SettingsGroup title='Music'>
           <SettingsRow
@@ -109,20 +111,23 @@ export default function ProfileScreen() {
             label='Meet the developer'
             onPress={() => setShowDeveloper(true)}
           />
-          <SettingsRow
-            icon='smartphone'
-            label='App version'
-            trailing={
-              <Text style={[styles.version, { color: colors.mutedForeground }]}>
-                {currentVersion}
-              </Text>
-            }
-          />
         </SettingsGroup>
 
-        <SettingsGroup>
-          <SettingsRow icon='log-out' label='Log out' destructive onPress={confirmLogout} />
-        </SettingsGroup>
+        <View style={styles.footer}>
+          <PressableScale
+            onPress={confirmLogout}
+            scaleTo={0.98}
+            accessibilityRole='button'
+            accessibilityLabel='Log out'
+            style={[styles.logout, { backgroundColor: colors.card }]}
+          >
+            <Feather name='log-out' size={16} color={colors.destructive} />
+            <Text style={[styles.logoutText, { color: colors.destructive }]}>Log out</Text>
+          </PressableScale>
+          <Text style={[styles.version, { color: colors.mutedForeground }]}>
+            SyncVibe {currentVersion}
+          </Text>
+        </View>
       </ScrollView>
 
       <DeveloperProfileModal isVisible={showDeveloper} onClose={() => setShowDeveloper(false)} />
@@ -133,7 +138,25 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { paddingHorizontal: 16, paddingTop: 4, gap: 22 },
-  themeRow: { padding: 10 },
-  version: { fontSize: 14, fontVariant: ['tabular-nums'] },
+  content: { paddingHorizontal: 16, paddingTop: 4, gap: 26 },
+  section: { gap: 8 },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginLeft: 4,
+  },
+  footer: { gap: 14, alignItems: 'center' },
+  logout: {
+    alignSelf: 'stretch',
+    height: 50,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  logoutText: { fontSize: 15, fontWeight: '700' },
+  version: { fontSize: 12.5, fontVariant: ['tabular-nums'] },
 });
