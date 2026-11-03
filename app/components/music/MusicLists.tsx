@@ -9,7 +9,7 @@ import { fonts } from '@/theme/typography';
 import { AlbumCard, ArtistCard, NewSongCard, PlaylistCard } from './MusicCards';
 
 /** Section heading used by every home row: display face, optional "See all" on the right. */
-const SectionTitle = memo(function SectionTitle({
+export const SectionTitle = memo(function SectionTitle({
   title,
   onSeeAll,
 }: {
@@ -46,7 +46,7 @@ const sectionStyles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
   },
-  title: { fontFamily: fonts.display, fontSize: 21, letterSpacing: -0.4 },
+  title: { fontFamily: fonts.display, fontSize: 20, letterSpacing: -0.4 },
   seeAll: { paddingVertical: 2 },
   seeAllText: { fontSize: 13, fontWeight: '600' },
 });
@@ -76,7 +76,7 @@ export const AlbumsGrid = memo(({ albums, title }: AlbumsGridProps) => {
   if (!albums?.length) return null;
 
   return (
-    <View style={{ marginBottom: 28 }}>
+    <View style={{ marginBottom: 32 }}>
       <SectionTitle title={title} />
       <FlatList
         data={albums}
@@ -103,7 +103,7 @@ export const PlaylistsGrid = memo(({ playlists, title }: PlaylistsGridProps) => 
   if (!playlists?.length) return null;
 
   return (
-    <View style={{ marginBottom: 28 }}>
+    <View style={{ marginBottom: 32 }}>
       <SectionTitle title={title} />
       <FlatList
         data={playlists}
@@ -131,7 +131,7 @@ export const RecommendationGrid = memo(
     if (!recommendations?.length) return null;
 
     return (
-      <View style={{ marginBottom: 28 }}>
+      <View style={{ marginBottom: 32 }}>
         <SectionTitle
           title={title}
           onSeeAll={showMore ? () => router.push('/song-history') : undefined}
@@ -164,7 +164,7 @@ export const TrendingSongs = memo(({ songs, title }: { songs: Song[]; title: str
   if (!songs?.length) return null;
 
   return (
-    <View style={{ marginBottom: 28 }}>
+    <View style={{ marginBottom: 32 }}>
       <SectionTitle title={title} />
       <FlatList
         data={songs}
@@ -191,7 +191,7 @@ export const ArtistGrid = memo(({ artists, title }: ArtistGridProps) => {
   if (!artists?.length) return null;
 
   return (
-    <View style={{ marginBottom: 28 }}>
+    <View style={{ marginBottom: 32 }}>
       <SectionTitle title={title} />
       <FlatList
         data={artists}
