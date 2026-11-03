@@ -4,7 +4,7 @@ import { ENTER, EXIT, POP_FROM_SCALE } from '@/lib/motion';
 import type { Message } from '@/stores/groupMusic/types';
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useEffect } from 'react';
-import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, useWindowDimensions } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

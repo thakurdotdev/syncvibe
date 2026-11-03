@@ -21,7 +21,6 @@ import Animated, {
   withSpring,
   withTiming,
   cancelAnimation,
-  Easing,
   interpolate,
   Extrapolation,
   type SharedValue,
@@ -29,6 +28,7 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
+import { EASE_OUT, SPRING_SHEET, SPRING_SNAP } from '@/lib/motion';
 
 const DISMISS_VELOCITY = 700;
 const CLOSE_DURATION = 190;
@@ -152,12 +152,8 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
     closingRef.current = false;
     gestureActive.value = false;
     gestureY.value = 0;
-    progress.value = withSpring(1, {
-      damping: 27,
-      stiffness: 280,
-      mass: 0.75,
-      overshootClamping: true,
-    });
+    // Sheet spring (~300ms), clamped: a sheet opening on its own has no momentum to overshoot.
+    progress.value = withSpring(1, { ...SPRING_SHEET, overshootClamping: true });
   }, [progress, gestureY, closing, gestureActive]);
 
   const animateClose = useCallback(() => {
@@ -167,20 +163,13 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
     closing.value = 1;
     cancelAnimation(progress);
     cancelAnimation(gestureY);
-    progress.value = withTiming(
-      0,
-      { duration: CLOSE_DURATION, easing: Easing.out(Easing.cubic) },
-      (finished) => {
-        'worklet';
-        if (finished) {
-          scheduleOnRN(finishClose);
-        }
+    progress.value = withTiming(0, { duration: CLOSE_DURATION, easing: EASE_OUT }, (finished) => {
+      'worklet';
+      if (finished) {
+        scheduleOnRN(finishClose);
       }
-    );
-    gestureY.value = withTiming(0, {
-      duration: CLOSE_DURATION,
-      easing: Easing.out(Easing.cubic),
     });
+    gestureY.value = withTiming(0, { duration: CLOSE_DURATION, easing: EASE_OUT });
   }, [progress, gestureY, closing, finishClose]);
 
   useEffect(() => {
@@ -260,21 +249,23 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
       const shouldDismiss = e.translationY > dismissDistance || e.velocityY > DISMISS_VELOCITY;
 
       if (shouldDismiss) {
+        // A finger released it: spring out carrying the flick's velocity (progress units).
         closing.value = 1;
-        progress.value = withTiming(
+        progress.value = withSpring(
           0,
-          { duration: CLOSE_DURATION, easing: Easing.out(Easing.cubic) },
+          {
+            ...SPRING_SHEET,
+            overshootClamping: true,
+            velocity: -e.velocityY / Math.max(windowHeight, 1),
+          },
           (finished) => {
             'worklet';
             if (finished) scheduleOnRN(finishClose);
           }
         );
-        gestureY.value = withTiming(0, {
-          duration: CLOSE_DURATION,
-          easing: Easing.out(Easing.cubic),
-        });
       } else {
-        gestureY.value = withSpring(0, { damping: 25, stiffness: 320, mass: 0.7 });
+        // Not far or fast enough: snap home with the drag's velocity.
+        gestureY.value = withSpring(0, { ...SPRING_SNAP, velocity: e.velocityY });
       }
     });
 

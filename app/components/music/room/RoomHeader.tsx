@@ -1,4 +1,5 @@
 import { ConnectionBadge } from '@/components/music/group/ConnectionBadge';
+import SwipeableModal from '@/components/SwipeableModal';
 import { HeaderIconButton } from '@/components/ui/AppHeader';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
@@ -6,10 +7,8 @@ import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { fonts } from '@/theme/typography';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { memo, useState } from 'react';
-import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { memo, useRef, useState } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 type Action = {
   key: string;
@@ -19,66 +18,68 @@ type Action = {
   onPress: () => void;
 };
 
-/** Bottom sheet with the room's less frequent actions. */
-const MoreSheet = ({ actions, onClose }: { actions: Action[]; onClose: () => void }) => {
+/**
+ * The room's less frequent actions in the app's standard bottom sheet (same motion and
+ * drag-to-dismiss as every other sheet). The chosen action runs after the sheet has
+ * finished closing, so two modals never animate over each other.
+ */
+const MoreSheet = ({
+  visible,
+  actions,
+  onClose,
+}: {
+  visible: boolean;
+  actions: Action[];
+  onClose: () => void;
+}) => {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
+  const pending = useRef<(() => void) | null>(null);
+
+  const handleClosed = () => {
+    onClose();
+    const run = pending.current;
+    pending.current = null;
+    run?.();
+  };
+
   return (
-    <Modal transparent visible animationType='none' onRequestClose={onClose} statusBarTranslucent>
-      <Animated.View
-        entering={FadeIn.duration(120)}
-        exiting={FadeOut.duration(100)}
-        style={styles.backdrop}
-      >
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onClose}
-          accessibilityLabel='Close menu'
-        />
-        <Animated.View
-          entering={SlideInDown.springify().damping(28).stiffness(420)}
-          style={[
-            styles.sheet,
-            { backgroundColor: colors.popover, paddingBottom: Math.max(insets.bottom, 12) + 8 },
-          ]}
-        >
-          <View style={[styles.grabber, { backgroundColor: colors.border }]} />
-          {actions.map((a) => (
-            <PressableScale
-              key={a.key}
-              scaleTo={0.98}
-              onPress={() => {
-                onClose();
-                a.onPress();
-              }}
-              accessibilityRole='button'
-              style={styles.sheetRow}
+    <SwipeableModal isVisible={visible} onClose={handleClosed}>
+      <View style={styles.sheet}>
+        {actions.map((a) => (
+          <PressableScale
+            key={a.key}
+            scaleTo={0.98}
+            onPress={() => {
+              pending.current = a.onPress;
+              onClose();
+            }}
+            accessibilityRole='button'
+            style={styles.sheetRow}
+          >
+            <View
+              style={[
+                styles.sheetIcon,
+                { backgroundColor: a.danger ? `${colors.destructive}1F` : colors.raised },
+              ]}
             >
-              <View
-                style={[
-                  styles.sheetIcon,
-                  { backgroundColor: a.danger ? `${colors.destructive}1F` : colors.raised },
-                ]}
-              >
-                <Feather
-                  name={a.icon}
-                  size={18}
-                  color={a.danger ? colors.destructive : colors.foreground}
-                />
-              </View>
-              <Text
-                style={[
-                  styles.sheetLabel,
-                  { color: a.danger ? colors.destructive : colors.foreground },
-                ]}
-              >
-                {a.label}
-              </Text>
-            </PressableScale>
-          ))}
-        </Animated.View>
-      </Animated.View>
-    </Modal>
+              <Feather
+                name={a.icon}
+                size={18}
+                color={a.danger ? colors.destructive : colors.foreground}
+              />
+            </View>
+            <Text
+              style={[
+                styles.sheetLabel,
+                { color: a.danger ? colors.destructive : colors.foreground },
+              ]}
+            >
+              {a.label}
+            </Text>
+          </PressableScale>
+        ))}
+      </View>
+    </SwipeableModal>
   );
 };
 
@@ -161,16 +162,15 @@ export const RoomHeader = memo(function RoomHeader({
         />
       </View>
 
-      {moreOpen && (
-        <MoreSheet
-          onClose={() => setMoreOpen(false)}
-          actions={[
-            { key: 'qr', label: 'Show QR code', icon: 'grid', onPress: onShowQr },
-            { key: 'share', label: 'Share room code', icon: 'share-2', onPress: onShare },
-            { key: 'leave', label: 'Leave room', icon: 'log-out', danger: true, onPress: onLeave },
-          ]}
-        />
-      )}
+      <MoreSheet
+        visible={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        actions={[
+          { key: 'qr', label: 'Show QR code', icon: 'grid', onPress: onShowQr },
+          { key: 'share', label: 'Share room code', icon: 'share-2', onPress: onShare },
+          { key: 'leave', label: 'Leave room', icon: 'log-out', danger: true, onPress: onLeave },
+        ]}
+      />
     </View>
   );
 });
@@ -194,15 +194,7 @@ const styles = StyleSheet.create({
   count: { fontSize: 12.5, fontWeight: '600' },
   actions: { flexDirection: 'row', gap: 8 },
 
-  backdrop: { flex: 1, backgroundColor: 'rgba(8,5,12,0.5)', justifyContent: 'flex-end' },
-  sheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    gap: 2,
-  },
-  grabber: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, marginBottom: 8 },
+  sheet: { paddingHorizontal: 12, paddingBottom: 8, gap: 2 },
   sheetRow: {
     flexDirection: 'row',
     alignItems: 'center',
