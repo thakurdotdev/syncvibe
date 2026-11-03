@@ -18,7 +18,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { Disc3, ListMusic, Music2, Users } from 'lucide-react-native';
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -27,7 +27,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -40,7 +39,8 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StackHeader } from '@/components/ui/AppHeader';
+import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 
 type ArtistTab = 'songs' | 'albums' | 'playlists' | 'similar';
 
@@ -62,7 +62,6 @@ function formatCount(count: number | string | undefined | null): string {
 }
 
 export default function ArtistScreen() {
-  const insets = useSafeAreaInsets();
   const { colors, theme } = useTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { width } = useWindowDimensions();
@@ -461,28 +460,8 @@ export default function ArtistScreen() {
         style={styles.backdropGradient}
       />
 
-      {/* Floating Top Nav Bar */}
-      <View style={[styles.topNavBar, { paddingTop: Math.max(insets.top, 10) }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={[
-            styles.backButton,
-            { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' },
-          ]}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <Ionicons name='arrow-back' size={20} color={colors.foreground} />
-        </TouchableOpacity>
-
-        <Animated.Text
-          style={[styles.topNavTitle, { color: colors.foreground }, topTitleAnimatedStyle]}
-          numberOfLines={1}
-        >
-          {artistData.name}
-        </Animated.Text>
-
-        <View style={{ width: 36 }} />
-      </View>
+      {/* Shared header: same back button and title reveal as every pushed page */}
+      <StackHeader overlay title={artistData.name} titleStyle={topTitleAnimatedStyle} />
 
       {/* Tab-based Virtualized Content */}
       {activeTab === 'songs' && (
@@ -573,27 +552,6 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 17,
     fontWeight: '600',
-  },
-  topNavBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    zIndex: 10,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topNavTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    maxWidth: '70%',
   },
   headerWrapper: {
     paddingTop: 8,
@@ -729,6 +687,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   listContent: {
-    paddingBottom: 130,
+    paddingBottom: DECK_CLEARANCE,
   },
 });

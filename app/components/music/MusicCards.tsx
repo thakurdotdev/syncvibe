@@ -21,6 +21,7 @@ import { router } from 'expo-router';
 import { Repeat, Repeat1, Shuffle, SkipBackIcon, SkipForwardIcon } from 'lucide-react-native';
 import { memo, default as React, useCallback, useMemo, useState } from 'react';
 import { Image, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import PressableScale from '@/components/ui/PressableScale';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   clamp,
@@ -187,21 +188,16 @@ interface CardContainerProps {
 
 export const CardContainer = memo(
   ({ children, onPress, onLongPress, width, style }: CardContainerProps) => {
+    // Press feedback runs on the UI thread (no re-render per touch), like every card app-wide.
     return (
-      <Pressable
+      <PressableScale
         onPress={onPress}
         onLongPress={onLongPress}
-        style={({ pressed }) => [
-          {
-            width: width ?? '100%',
-            transform: [{ scale: pressed ? 0.97 : 1 }],
-            opacity: pressed ? 0.9 : 1,
-          },
-          style,
-        ]}
+        delayLongPress={350}
+        style={[{ width: width ?? '100%' }, style]}
       >
         {children}
-      </Pressable>
+      </PressableScale>
     );
   }
 );
@@ -238,27 +234,19 @@ export const SongCard = memo(
 
     return (
       <View style={{ marginVertical: 2 }}>
-        <Pressable
+        <PressableScale
           onPress={handlePress}
           onLongPress={disableOnLongPress ? undefined : handleLongPress}
-          style={({ pressed }) => [
-            {
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingVertical: 7,
-              paddingHorizontal: 8,
-              borderRadius: 10,
-              backgroundColor: isCurrentSong
-                ? isDark
-                  ? 'rgba(255,255,255,0.07)'
-                  : 'rgba(0,0,0,0.04)'
-                : pressed
-                  ? isDark
-                    ? 'rgba(255,255,255,0.04)'
-                    : 'rgba(0,0,0,0.02)'
-                  : 'transparent',
-            },
-          ]}
+          delayLongPress={350}
+          scaleTo={0.98}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: 7,
+            paddingHorizontal: 8,
+            borderRadius: 12,
+            backgroundColor: isCurrentSong ? `${colors.primary}14` : 'transparent',
+          }}
         >
           <View
             style={{
@@ -322,7 +310,7 @@ export const SongCard = memo(
               color={isCurrentSong ? colors.primary : colors.mutedForeground}
             />
           </View>
-        </Pressable>
+        </PressableScale>
 
         {playerDrawerOpen && (
           <NewPlayerDrawer
@@ -352,6 +340,7 @@ export const CardImage = ({ uri, alt }: { uri: string; alt: string }) => {
       }}
     >
       <Image
+        fadeDuration={0}
         source={{ uri: sourceUri, cache: 'force-cache' }}
         style={{ width: '100%', height: '100%' }}
         resizeMode='cover'
@@ -409,6 +398,7 @@ export const AlbumCard = memo(
             ]}
           >
             <Image
+              fadeDuration={0}
               source={{ uri: imageUrl || 'https://via.placeholder.com/150', cache: 'force-cache' }}
               style={cardStyles.image}
               resizeMode='cover'
@@ -498,6 +488,7 @@ export const PlaylistCard = memo(
               ]}
             >
               <Image
+                fadeDuration={0}
                 source={{ uri: imageUrl, cache: 'force-cache' }}
                 style={{ width: '100%', height: '100%' }}
                 resizeMode='cover'
@@ -534,6 +525,7 @@ export const PlaylistCard = memo(
             ]}
           >
             <Image
+              fadeDuration={0}
               source={{ uri: imageUrl, cache: 'force-cache' }}
               style={cardStyles.image}
               resizeMode='cover'
@@ -604,6 +596,7 @@ export const NewSongCard = memo(
               ]}
             >
               <Image
+                fadeDuration={0}
                 source={{ uri: imageUrl, cache: 'force-cache' }}
                 style={cardStyles.image}
                 resizeMode='cover'
@@ -724,6 +717,7 @@ export const ArtistCard = memo(
             ]}
           >
             <Image
+              fadeDuration={0}
               source={{ uri: imageUrl || 'https://via.placeholder.com/120', cache: 'force-cache' }}
               style={cardStyles.artistAvatar}
               resizeMode='cover'
@@ -758,12 +752,12 @@ export const ArtistCard = memo(
 const cardStyles = StyleSheet.create({
   container: {
     width: '100%',
-    gap: 6,
+    gap: 8,
   },
   imageCover: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 8,
+    borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
   },

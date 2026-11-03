@@ -562,21 +562,17 @@ export const QueueSheet: React.FC<{ inline?: boolean }> = ({ inline = false }) =
   const handlePlayNext = useCallback((song: Song) => playNext(song), [playNext]);
 
   const handleClearQueue = useCallback(() => {
-    Alert.alert(
-      'Clear Upcoming Queue',
-      'Remove all upcoming tracks from the queue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: () => {
-            clearQueue();
-            toast('Upcoming queue cleared', { type: 'info' });
-          },
+    Alert.alert('Clear Upcoming Queue', 'Remove all upcoming tracks from the queue?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: () => {
+          clearQueue();
+          toast('Upcoming queue cleared', { type: 'info' });
         },
-      ]
-    );
+      },
+    ]);
   }, [clearQueue]);
 
   const currentArtist = currentSong?.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
@@ -723,24 +719,33 @@ export const QueueSheet: React.FC<{ inline?: boolean }> = ({ inline = false }) =
   const listBottomInset = Math.max(insets.bottom, 12) + 16;
 
   const Wrapper: any = inline ? View : SwipeableModal;
-  const wrapperProps = inline ? { style: styles.inlineWrapper } : {
-      isVisible: isQueueOpen, onClose: handleClose, maxHeight: '100%',
-      scrollable: true, scrollOffset, hideHandle: true, fullScreen: true,
-    };
+  const wrapperProps = inline
+    ? { style: styles.inlineWrapper }
+    : {
+        isVisible: isQueueOpen,
+        onClose: handleClose,
+        maxHeight: '100%',
+        scrollable: true,
+        scrollOffset,
+        hideHandle: true,
+        fullScreen: true,
+      };
 
   return (
     <Wrapper {...wrapperProps}>
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: 16 }]}>
           <View style={styles.headerLeft}>
-            {!inline && <TouchableOpacity
-              onPress={handleClose}
-              style={[styles.backButton, { backgroundColor: colors.secondary }]}
-              accessibilityRole='button'
-              accessibilityLabel='Close queue'
-            >
-              <Ionicons name='arrow-back' size={20} color={colors.foreground} />
-            </TouchableOpacity>}
+            {!inline && (
+              <TouchableOpacity
+                onPress={handleClose}
+                style={[styles.backButton, { backgroundColor: colors.secondary }]}
+                accessibilityRole='button'
+                accessibilityLabel='Close queue'
+              >
+                <Ionicons name='arrow-back' size={20} color={colors.foreground} />
+              </TouchableOpacity>
+            )}
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>Queue</Text>
             {upcomingQueue.length > 0 && (
               <Text style={[styles.countText, { color: colors.mutedForeground }]}>
@@ -930,7 +935,7 @@ export const QueueSheet: React.FC<{ inline?: boolean }> = ({ inline = false }) =
           </View>
         )}
       </View>
-    </SwipeableModal>
+    </Wrapper>
   );
 };
 

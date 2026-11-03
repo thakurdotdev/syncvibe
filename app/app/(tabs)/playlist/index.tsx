@@ -12,7 +12,7 @@ import useApi from '@/utils/hooks/useApi';
 import type { PlaylistPreviewSong } from '@/types/music';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { AlertCircle, Edit3, History as HistoryIcon, Plus, Trash2, X } from 'lucide-react-native';
+import { AlertCircle, Edit3, Plus, Trash2, X } from 'lucide-react-native';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -26,6 +26,7 @@ import {
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
+import { HeaderIconButton, TabHeader } from '@/components/ui/AppHeader';
 
 const LoadingState = () => {
   const { colors } = useTheme();
@@ -257,44 +258,27 @@ const PlaylistScreen = () => {
 
   return (
     <TabSafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Library</Text>
-          <Text style={[styles.headerSubTitle, { color: colors.mutedForeground }]}>
-            {userPlaylist?.length || 0} custom playlists
-          </Text>
-        </View>
-
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={() => router.push('/song-history')}
-            activeOpacity={0.8}
-            accessibilityLabel='Open listening history'
-            accessibilityRole='button'
-            style={[
-              styles.headerActionBtn,
-              { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
-            ]}
-          >
-            <HistoryIcon size={17} color={colors.primary} />
-            <Text style={[styles.headerActionText, { color: colors.primary }]}>History</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={openCreateModal}
-            activeOpacity={0.8}
-            accessibilityLabel='Create playlist'
-            accessibilityRole='button'
-            style={[
-              styles.headerActionBtn,
-              { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
-            ]}
-          >
-            <Plus size={18} color={colors.primary} />
-            <Text style={[styles.headerActionText, { color: colors.primary }]}>Create</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <TabHeader
+        title='Library'
+        actions={
+          <>
+            <HeaderIconButton
+              icon='time-outline'
+              label='Open listening history'
+              onPress={() => router.push('/song-history')}
+            />
+            <HeaderIconButton
+              icon='add'
+              tone='primary'
+              label='Create playlist'
+              onPress={openCreateModal}
+            />
+          </>
+        }
+      />
+      <Text style={[styles.headerSubTitle, { color: colors.mutedForeground }]}>
+        {userPlaylist?.length || 0} {userPlaylist?.length === 1 ? 'playlist' : 'playlists'}
+      </Text>
 
       {/* Playlist Grid */}
       <Animated.FlatList
@@ -671,40 +655,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 12,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
   headerSubTitle: {
     fontSize: 13,
     fontWeight: '500',
-    marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  headerActionText: {
-    fontSize: 14,
-    fontWeight: '600',
+    paddingHorizontal: 16,
+    marginTop: -4,
+    marginBottom: 12,
   },
   previewCover: {
     width: '100%',

@@ -18,6 +18,7 @@ import { useTheme } from '@/context/ThemeContext';
 import LoginScreen from '@/components/LoginScreen';
 import ChatSearchBar from '@/components/chat/ChatSearchBar';
 import ChatListItem from '@/components/chat/ChatListItem';
+import { TabHeader } from '@/components/ui/AppHeader';
 
 interface SearchUser {
   userid: string;
@@ -192,9 +193,7 @@ const ChatListScreen: React.FC = () => {
       style={[styles.container, { backgroundColor: colors.background }]}
       edges={['top']}
     >
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>Messages</Text>
-      </View>
+      <TabHeader title='Messages' showSearch={false} />
 
       <ChatSearchBar
         value={searchQuery}
@@ -235,14 +234,6 @@ const ChatListScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
   },
   loadingOverlay: {
     position: 'absolute',

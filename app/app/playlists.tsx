@@ -10,7 +10,7 @@ import { convertToHttps, ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,7 +18,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -31,7 +30,8 @@ import Animated, {
   withTiming,
   withSpring,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StackHeader } from '@/components/ui/AppHeader';
+import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 
 interface PlaylistData {
   id: string;
@@ -44,7 +44,6 @@ interface PlaylistData {
 }
 
 export default function PlaylistScreen() {
-  const insets = useSafeAreaInsets();
   const { colors, theme } = useTheme();
   const { id } = useLocalSearchParams();
   const [playlistData, setPlaylistData] = useState<PlaylistData | null>(null);
@@ -198,28 +197,8 @@ export default function PlaylistScreen() {
         style={styles.backdropGradient}
       />
 
-      {/* Floating Top Nav Bar */}
-      <View style={[styles.topNavBar, { paddingTop: Math.max(insets.top, 10) }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={[
-            styles.backButton,
-            { backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)' },
-          ]}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <Ionicons name='arrow-back' size={20} color={colors.foreground} />
-        </TouchableOpacity>
-
-        <Animated.Text
-          style={[styles.topNavTitle, { color: colors.foreground }, topTitleAnimatedStyle]}
-          numberOfLines={1}
-        >
-          {playlistData.name}
-        </Animated.Text>
-
-        <View style={{ width: 36 }} />
-      </View>
+      {/* Shared header: same back button and title reveal as every pushed page */}
+      <StackHeader overlay title={playlistData.name} titleStyle={topTitleAnimatedStyle} />
 
       <Animated.FlatList
         data={newSongs}
@@ -312,7 +291,9 @@ export default function PlaylistScreen() {
                   style={[
                     styles.groupButton,
                     {
-                      backgroundColor: isDark ? 'rgba(168, 85, 247, 0.16)' : 'rgba(147, 51, 234, 0.1)',
+                      backgroundColor: isDark
+                        ? 'rgba(168, 85, 247, 0.16)'
+                        : 'rgba(147, 51, 234, 0.1)',
                       borderColor: isDark ? 'rgba(168, 85, 247, 0.35)' : 'rgba(147, 51, 234, 0.25)',
                     },
                     groupBtnAnim,
@@ -349,27 +330,6 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 15,
     fontWeight: '500',
-  },
-  topNavBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    zIndex: 10,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topNavTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    maxWidth: '70%',
   },
   headerWrapper: {
     paddingTop: 8,
@@ -480,6 +440,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   listContent: {
-    paddingBottom: 130,
+    paddingBottom: DECK_CLEARANCE,
   },
 });

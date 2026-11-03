@@ -1,16 +1,16 @@
 import { useTheme } from '@/context/ThemeContext';
+import { BUTTON_PRESS_SCALE, SPRING } from '@/lib/motion';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import PressableScale from '@/components/ui/PressableScale';
 import { openFullPlayer, usePlaybackState, usePlayerControls } from '@/stores/playerStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useProgress } from '@rntp/player';
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  Extrapolation,
-  interpolate,
   useAnimatedStyle,
-  useDerivedValue,
   useSharedValue,
   withSpring,
   withTiming,
@@ -18,6 +18,8 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const TAB_BAR_HEIGHT = 110;
+/** Bottom padding scrollable pages need so their last item clears the deck (mini player + tabs). */
+export const DECK_CLEARANCE = 160;
 
 const TAB_ITEMS = [
   {
@@ -28,7 +30,7 @@ const TAB_ITEMS = [
   },
   {
     name: 'group-music',
-    label: 'Group',
+    label: 'Rooms',
     activeIcon: 'headset',
     inactiveIcon: 'headset-outline',
   },
@@ -40,7 +42,7 @@ const TAB_ITEMS = [
   },
   {
     name: 'chat',
-    label: 'Chat',
+    label: 'Messages',
     activeIcon: 'chatbubble-ellipses',
     inactiveIcon: 'chatbubble-ellipses-outline',
   },
@@ -52,23 +54,19 @@ const TAB_ITEMS = [
   },
 ] as const;
 
-const SPRING_SNAPPY = { damping: 20, stiffness: 400, mass: 0.4 };
+const SPRING_SNAPPY = SPRING;
+const PILL_WIDTH = 56;
+const PILL_HEIGHT = 30;
 
 const MiniProgressBar = memo(function MiniProgressBar({ color }: { color: string }) {
   const { position, duration } = useProgress();
-  const progressPercent = duration > 0 ? (position / duration) * 100 : 0;
-  const clampedPercent = Math.min(100, Math.max(0, progressPercent));
+  const fraction = duration > 0 ? Math.min(1, Math.max(0, position / duration)) : 0;
 
+  // scaleX instead of width: no layout pass on every progress tick.
   return (
     <View style={styles.progressTrack}>
       <View
-        style={[
-          styles.progressFill,
-          {
-            width: `${clampedPercent}%`,
-            backgroundColor: color,
-          },
-        ]}
+        style={[styles.progressFill, { backgroundColor: color, transform: [{ scaleX: fraction }] }]}
       />
     </View>
   );
@@ -82,6 +80,8 @@ type TabButtonProps = {
   inactiveIcon: keyof typeof Ionicons.glyphMap;
   activeColor: string;
   inactiveColor: string;
+  live?: boolean;
+  liveColor: string;
 };
 
 const TabButton = memo(function TabButton({
@@ -92,43 +92,62 @@ const TabButton = memo(function TabButton({
   inactiveIcon,
   activeColor,
   inactiveColor,
+  live,
+  liveColor,
 }: TabButtonProps) {
-  const focusAnim = useDerivedValue(() => {
-    return withSpring(isFocused ? 1 : 0, SPRING_SNAPPY);
-  }, [isFocused]);
-
-  const iconStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(focusAnim.value, [0, 1], [0.5, 1], Extrapolation.CLAMP),
-  }));
-
-  const labelStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(focusAnim.value, [0, 1], [0.5, 1], Extrapolation.CLAMP),
-  }));
-
+  const color = isFocused ? activeColor : inactiveColor;
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
+      scaleTo={BUTTON_PRESS_SCALE}
       style={styles.tabButton}
       accessibilityRole='tab'
+      accessibilityLabel={label}
       accessibilityState={{ selected: isFocused }}
-      android_ripple={{ color: activeColor + '12', borderless: true, radius: 28 }}
     >
       <View style={styles.tabInner}>
-        <Animated.View style={iconStyle}>
-          <Ionicons
-            name={isFocused ? activeIcon : inactiveIcon}
-            size={22}
-            color={isFocused ? activeColor : inactiveColor}
-          />
-        </Animated.View>
-        <Animated.Text
-          style={[styles.tabLabel, { color: isFocused ? activeColor : inactiveColor }, labelStyle]}
+        <View style={styles.tabIconBox}>
+          <Ionicons name={isFocused ? activeIcon : inactiveIcon} size={21} color={color} />
+          {live && <View style={[styles.liveDot, { backgroundColor: liveColor }]} />}
+        </View>
+        <Text
+          style={[styles.tabLabel, { color, fontWeight: isFocused ? '700' : '500' }]}
           numberOfLines={1}
         >
           {label}
-        </Animated.Text>
+        </Text>
       </View>
-    </Pressable>
+    </PressableScale>
+  );
+});
+
+/** The pill behind the active tab icon slides between tabs instead of blinking. */
+const ActivePill = memo(function ActivePill({
+  index,
+  tabWidth,
+  color,
+}: {
+  index: number;
+  tabWidth: number;
+  color: string;
+}) {
+  const x = useSharedValue(-1);
+
+  useEffect(() => {
+    if (!tabWidth || index < 0) return;
+    const target = index * tabWidth + (tabWidth - PILL_WIDTH) / 2;
+    // Jump into place the first time, then spring between tabs.
+    x.value = x.value < 0 ? target : withSpring(target, SPRING);
+  }, [index, tabWidth, x]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: x.value < 0 ? 0 : 1,
+    transform: [{ translateX: x.value }],
+  }));
+
+  if (index < 0) return null;
+  return (
+    <Animated.View pointerEvents='none' style={[styles.pill, { backgroundColor: color }, style]} />
   );
 });
 
@@ -297,8 +316,12 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   );
 
   const isDark = theme === 'dark';
+  const [tabWidth, setTabWidth] = useState(0);
+  const activeIndex = TAB_ITEMS.findIndex((t) => t.name === activeSegment);
+  const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
 
-  const glassBg = isDark ? 'rgba(18, 18, 24, 0.88)' : 'rgba(255, 255, 255, 0.92)';
+  // Tinted to the aubergine surfaces so the deck reads as part of the app, not a grey slab.
+  const glassBg = isDark ? 'rgba(16, 12, 22, 0.92)' : 'rgba(251, 250, 253, 0.94)';
   const borderColor = isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)';
 
   const showMiniPlayer = activePlayerMode === 'normal' && !!currentSong;
@@ -342,7 +365,11 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
             </>
           )}
 
-          <View style={styles.navRow}>
+          <View
+            style={styles.navRow}
+            onLayout={(e) => setTabWidth(e.nativeEvent.layout.width / TAB_ITEMS.length)}
+          >
+            <ActivePill index={activeIndex} tabWidth={tabWidth} color={`${colors.primary}26`} />
             {TAB_ITEMS.map((tab, index) => (
               <TabButton
                 key={tab.name}
@@ -353,6 +380,8 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
                 isFocused={activeSegment === tab.name}
                 activeColor={colors.primary}
                 inactiveColor={colors.mutedForeground}
+                live={tab.name === 'group-music' && inRoom}
+                liveColor={colors.live}
               />
             ))}
           </View>
@@ -396,8 +425,8 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    borderTopRightRadius: 1,
-    borderBottomRightRadius: 1,
+    width: '100%',
+    transformOrigin: 'left',
   },
 
   miniPlayerWrapper: {
@@ -465,10 +494,9 @@ const styles = StyleSheet.create({
 
   navRow: {
     flexDirection: 'row',
-    height: 52,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 4,
   },
   tabButton: {
     alignItems: 'center',
@@ -479,11 +507,32 @@ const styles = StyleSheet.create({
   tabInner: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 3,
+  },
+  tabIconBox: {
+    width: PILL_WIDTH,
+    height: PILL_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveDot: {
+    position: 'absolute',
+    top: 4,
+    right: 14,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  pill: {
+    position: 'absolute',
+    left: 0,
+    top: 5,
+    width: PILL_WIDTH,
+    height: PILL_HEIGHT,
+    borderRadius: PILL_HEIGHT / 2,
   },
   tabLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.15,
+    fontSize: 10.5,
+    letterSpacing: 0.1,
   },
 });
