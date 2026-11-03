@@ -43,12 +43,6 @@ const TAB_ITEMS = [
     activeIcon: 'chatbubble-ellipses',
     inactiveIcon: 'chatbubble-ellipses-outline',
   },
-  {
-    name: 'profile',
-    label: 'Profile',
-    activeIcon: 'person-circle',
-    inactiveIcon: 'person-circle-outline',
-  },
 ] as const;
 
 const PILL_WIDTH = 56;
@@ -271,10 +265,9 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   const goGroup = useCallback(() => router.navigate('/(tabs)/group-music'), []);
   const goPlaylist = useCallback(() => router.navigate('/(tabs)/playlist'), []);
   const goChat = useCallback(() => router.navigate('/(tabs)/chat'), []);
-  const goProfile = useCallback(() => router.navigate('/(tabs)/profile'), []);
   const handlers = useMemo(
-    () => [goHome, goGroup, goPlaylist, goChat, goProfile],
-    [goHome, goGroup, goPlaylist, goChat, goProfile]
+    () => [goHome, goGroup, goPlaylist, goChat],
+    [goHome, goGroup, goPlaylist, goChat]
   );
 
   const isDark = theme === 'dark';

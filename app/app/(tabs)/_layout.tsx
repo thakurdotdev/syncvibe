@@ -12,6 +12,8 @@ export default function TabLayout() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <Tabs
         tabBar={() => null}
+        // Back from Profile (reached via the header avatar) returns to the tab you came from.
+        backBehavior='history'
         screenOptions={{
           headerShown: false,
           lazy: true,
