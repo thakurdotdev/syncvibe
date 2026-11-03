@@ -11,6 +11,8 @@ interface CreateOrJoinModalProps {
   onCreateGroup: (name: string) => void;
   onJoinGroup: (id: string) => void;
   onScanQRCode: () => void;
+  /** Which form to show first. */
+  initialTab?: 'create' | 'join';
 }
 
 export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
@@ -19,9 +21,10 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
   onCreateGroup,
   onJoinGroup,
   onScanQRCode,
+  initialTab = 'create',
 }) => {
   const { colors } = useTheme();
-  const [tabIndex, setTabIndex] = useState(0);
+  const [tabIndex, setTabIndex] = useState(initialTab === 'join' ? 1 : 0);
   const [newGroupName, setNewGroupName] = useState('');
   const [groupId, setGroupId] = useState('');
 
