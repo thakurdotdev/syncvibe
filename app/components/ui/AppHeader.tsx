@@ -12,8 +12,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PressableScale from './PressableScale';
 
 export const HEADER_HEIGHT = 56;
-const LOGO_URL =
-  'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/r_max/f_auto/v1780744511/profiles/profiles_130_1780744510_4a18b0ed9043cc21.jpg';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -61,58 +59,41 @@ const openProfile = () => router.navigate('/(tabs)/profile');
 
 /**
  * Header for the five tab roots. Same height, padding, type and action buttons everywhere:
- * a title (or the SyncVibe wordmark on Home) on the left, page actions then search on the right.
+ * a title on the left, page actions then search on the right. Home uses the `greeting`
+ * variant: your avatar plus a compact two-line greeting instead of a big title.
  * Place it inside a view that already applies the top safe-area inset.
  */
 export const TabHeader = memo(function TabHeader({
   title,
-  brand = false,
+  kicker,
+  showAvatar = false,
   accessory,
   actions,
   showSearch = true,
-  showAvatar = false,
 }: {
   title?: string;
-  /** Show the logo + wordmark instead of a title (Home). */
-  brand?: boolean;
+  /** Small line above the title (e.g. "Good afternoon"); switches to the compact title size. */
+  kicker?: string;
+  /** Show your avatar before the title; tapping it opens Profile. */
+  showAvatar?: boolean;
   /** Small element after the title (e.g. connection badge). */
   accessory?: ReactNode;
   actions?: ReactNode;
   showSearch?: boolean;
-  showAvatar?: boolean;
 }) {
   const { colors } = useTheme();
   const { user } = useUser();
 
   return (
-    <View style={styles.tabHeader}>
+    <View style={[styles.tabHeader, kicker ? styles.tabHeaderTall : null]}>
       <View style={styles.tabHeaderLeft}>
-        {brand ? (
-          <View style={styles.brand}>
-            <Image source={{ uri: LOGO_URL }} style={styles.logo} />
-            <Text style={[styles.wordmark, { color: colors.foreground }]}>SyncVibe</Text>
-          </View>
-        ) : (
-          <Text
-            style={[styles.tabTitle, { color: colors.foreground }]}
-            numberOfLines={1}
-            accessibilityRole='header'
-          >
-            {title}
-          </Text>
-        )}
-        {accessory}
-      </View>
-      <View style={styles.actions}>
-        {actions}
-        {showSearch && <HeaderIconButton icon='search' label='Search music' onPress={openSearch} />}
         {showAvatar && user?.profilepic ? (
           <PressableScale
             onPress={openProfile}
             scaleTo={BUTTON_PRESS_SCALE}
             accessibilityRole='button'
             accessibilityLabel='Your profile'
-            style={[styles.avatarRing, { borderColor: colors.border }]}
+            style={[styles.avatarRing, { borderColor: colors.primary }]}
           >
             <Image
               source={{ uri: getProfileCloudinaryUrl(user.profilepic) }}
@@ -120,6 +101,25 @@ export const TabHeader = memo(function TabHeader({
             />
           </PressableScale>
         ) : null}
+        <View style={styles.titleBlock}>
+          {kicker ? (
+            <Text style={[styles.kicker, { color: colors.mutedForeground }]} numberOfLines={1}>
+              {kicker}
+            </Text>
+          ) : null}
+          <Text
+            style={[kicker ? styles.compactTitle : styles.tabTitle, { color: colors.foreground }]}
+            numberOfLines={1}
+            accessibilityRole='header'
+          >
+            {title}
+          </Text>
+        </View>
+        {accessory}
+      </View>
+      <View style={styles.actions}>
+        {actions}
+        {showSearch && <HeaderIconButton icon='search' label='Search music' onPress={openSearch} />}
       </View>
     </View>
   );
@@ -188,14 +188,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  tabHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
+  tabHeaderTall: { height: HEADER_HEIGHT + 8 },
+  tabHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 },
+  titleBlock: { flexShrink: 1 },
   tabTitle: { fontFamily: fonts.display, fontSize: 28, letterSpacing: -0.7 },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  logo: { width: 30, height: 30, borderRadius: 15 },
-  wordmark: { fontFamily: fonts.display, fontSize: 22, letterSpacing: -0.5 },
+  kicker: { fontSize: 13, fontWeight: '500', marginBottom: 1 },
+  compactTitle: { fontFamily: fonts.display, fontSize: 21, lineHeight: 25, letterSpacing: -0.4 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  avatarRing: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, padding: 2 },
-  avatar: { width: '100%', height: '100%', borderRadius: 17 },
+  avatarRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, padding: 2 },
+  avatar: { width: '100%', height: '100%', borderRadius: 18 },
 
   stackHeader: {
     flexDirection: 'row',

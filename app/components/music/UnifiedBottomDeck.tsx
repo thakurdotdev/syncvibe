@@ -8,18 +8,15 @@ import { useProgress } from '@rntp/player';
 import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import { Image, Platform, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const TAB_BAR_HEIGHT = 110;
 /** Bottom padding scrollable pages need so their last item clears the deck (mini player + tabs). */
 export const DECK_CLEARANCE = 160;
+/** Height of the tab row alone (no mini player), excluding the bottom safe-area inset. */
+export const DECK_NAV_HEIGHT = 62;
 
 const TAB_ITEMS = [
   {
@@ -54,7 +51,6 @@ const TAB_ITEMS = [
   },
 ] as const;
 
-const SPRING_SNAPPY = SPRING;
 const PILL_WIDTH = 56;
 const PILL_HEIGHT = 30;
 
@@ -160,6 +156,10 @@ type MiniPlayerRowProps = {
   isDark: boolean;
 };
 
+/**
+ * Floating now-playing card above the tabs. The artwork's own colours tint the card, the
+ * progress runs along its bottom edge, and every control uses UI-thread press feedback.
+ */
 export const MiniPlayerRow = memo(function MiniPlayerRow({
   currentSong,
   isPlaying,
@@ -168,14 +168,10 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
   colors,
   isDark,
 }: MiniPlayerRowProps) {
-  const pressScale = useSharedValue(1);
-  const playBtnScale = useSharedValue(1);
-  const nextBtnScale = useSharedValue(1);
-
   const artistName = useMemo(
     () =>
       currentSong?.artist_map?.artists
-        ?.slice(0, 3)
+        ?.slice(0, 2)
         ?.map((a: any) => a.name)
         .join(', ') || 'Unknown Artist',
     [currentSong]
@@ -183,47 +179,32 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
 
   const artworkUri = currentSong?.image?.[2]?.link || currentSong?.image?.[1]?.link;
 
-  const rowAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pressScale.value }],
-  }));
-
-  const playBtnAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: playBtnScale.value }],
-  }));
-
-  const nextBtnAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: nextBtnScale.value }],
-  }));
-
-  const handleOpenPlayer = () => {
-    openFullPlayer();
-  };
-
   return (
     <View style={styles.miniPlayerWrapper}>
-      <MiniProgressBar color={colors.primary} />
+      <View style={[styles.miniCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {artworkUri ? (
+          <Image
+            source={{ uri: artworkUri }}
+            style={styles.miniTint}
+            blurRadius={isDark ? 40 : 50}
+            fadeDuration={0}
+          />
+        ) : null}
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: isDark ? 'rgba(27,22,36,0.72)' : 'rgba(255,255,255,0.78)' },
+          ]}
+        />
 
-      <Animated.View style={[styles.miniPlayerRow, rowAnimatedStyle]}>
-        <Pressable
+        <PressableScale
+          onPress={openFullPlayer}
+          scaleTo={0.985}
           style={styles.miniPlayerPressable}
-          onPress={handleOpenPlayer}
-          onPressIn={() => {
-            // oxlint-disable-next-line react/immutability
-            pressScale.value = withTiming(0.98, { duration: 70 });
-          }}
-          onPressOut={() => {
-            // oxlint-disable-next-line react/immutability
-            pressScale.value = withSpring(1, { damping: 15, stiffness: 350 });
-          }}
+          accessibilityRole='button'
+          accessibilityLabel={`Open player: ${currentSong?.name ?? ''}`}
         >
-          <View
-            style={[
-              styles.artworkContainer,
-              { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
-            ]}
-          >
-            <Image source={{ uri: artworkUri }} style={styles.artwork} />
-          </View>
+          <Image source={{ uri: artworkUri }} style={styles.artwork} fadeDuration={0} />
 
           <View style={styles.songInfo}>
             <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>
@@ -235,56 +216,37 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
           </View>
 
           <View style={styles.controls}>
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                handlePlayPause();
-              }}
-              onPressIn={() => {
-                // oxlint-disable-next-line react/immutability
-                playBtnScale.value = withTiming(0.85, { duration: 60 });
-              }}
-              onPressOut={() => {
-                // oxlint-disable-next-line react/immutability
-                playBtnScale.value = withSpring(1, SPRING_SNAPPY);
-              }}
+            <PressableScale
+              onPress={handlePlayPause}
+              scaleTo={0.86}
               hitSlop={8}
+              accessibilityRole='button'
+              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+              style={[styles.playButton, { backgroundColor: colors.foreground }]}
             >
-              <Animated.View
-                style={[styles.playButton, { backgroundColor: colors.primary }, playBtnAnimStyle]}
-              >
-                <Ionicons
-                  name={isPlaying ? 'pause' : 'play'}
-                  size={18}
-                  color={colors.primaryForeground}
-                  style={{ marginLeft: isPlaying ? 0 : 1.5 }}
-                />
-              </Animated.View>
-            </Pressable>
+              <Ionicons
+                name={isPlaying ? 'pause' : 'play'}
+                size={18}
+                color={colors.background}
+                style={{ marginLeft: isPlaying ? 0 : 2 }}
+              />
+            </PressableScale>
 
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                handleNextSong();
-              }}
-              onPressIn={() => {
-                // oxlint-disable-next-line react/immutability
-                nextBtnScale.value = withTiming(0.82, { duration: 60 });
-              }}
-              onPressOut={() => {
-                // oxlint-disable-next-line react/immutability
-                nextBtnScale.value = withSpring(1, SPRING_SNAPPY);
-              }}
-              style={styles.nextButton}
+            <PressableScale
+              onPress={handleNextSong}
+              scaleTo={0.82}
               hitSlop={8}
+              accessibilityRole='button'
+              accessibilityLabel='Next song'
+              style={styles.nextButton}
             >
-              <Animated.View style={nextBtnAnimStyle}>
-                <Ionicons name='play-skip-forward' size={18} color={colors.mutedForeground} />
-              </Animated.View>
-            </Pressable>
+              <Ionicons name='play-skip-forward' size={20} color={colors.foreground} />
+            </PressableScale>
           </View>
-        </Pressable>
-      </Animated.View>
+        </PressableScale>
+
+        <MiniProgressBar color={colors.primary} />
+      </View>
     </View>
   );
 });
@@ -347,22 +309,14 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
           ]}
         >
           {showMiniPlayer && (
-            <>
-              <MiniPlayerRow
-                currentSong={currentSong}
-                isPlaying={isPlaying}
-                handlePlayPause={handlePlayPause}
-                handleNextSong={handleNextSong}
-                colors={colors}
-                isDark={isDark}
-              />
-              <View
-                style={[
-                  styles.divider,
-                  { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
-                ]}
-              />
-            </>
+            <MiniPlayerRow
+              currentSong={currentSong}
+              isPlaying={isPlaying}
+              handlePlayPause={handlePlayPause}
+              handleNextSong={handleNextSong}
+              colors={colors}
+              isDark={isDark}
+            />
           )}
 
           <View
@@ -418,9 +372,12 @@ const styles = StyleSheet.create({
   },
 
   progressTrack: {
-    width: '100%',
-    height: 2,
-    backgroundColor: 'rgba(128, 128, 128, 0.12)',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 2.5,
+    backgroundColor: 'rgba(128, 128, 128, 0.18)',
     overflow: 'hidden',
   },
   progressFill: {
@@ -431,65 +388,66 @@ const styles = StyleSheet.create({
 
   miniPlayerWrapper: {
     width: '100%',
+    paddingHorizontal: 8,
+    paddingTop: 8,
   },
-  miniPlayerRow: {
+  miniCard: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  miniTint: {
+    ...StyleSheet.absoluteFill,
     width: '100%',
+    height: '100%',
+    transform: [{ scale: 1.4 }],
   },
   miniPlayerPressable: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingLeft: 8,
+    paddingRight: 10,
     paddingVertical: 8,
     width: '100%',
   },
-  artworkContainer: {
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
   artwork: {
-    width: 42,
-    height: 42,
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 10,
   },
   songInfo: {
     flex: 1,
-    paddingLeft: 10,
+    paddingLeft: 12,
     paddingRight: 8,
     justifyContent: 'center',
   },
   songTitle: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    letterSpacing: 0.05,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   artistName: {
-    fontSize: 11.5,
-    marginTop: 1,
-    opacity: 0.7,
+    fontSize: 12,
+    marginTop: 2,
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   playButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
   },
   nextButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    marginHorizontal: 12,
   },
 
   navRow: {
