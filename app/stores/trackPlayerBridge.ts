@@ -148,19 +148,77 @@ const saveNativeProgress = (playing: boolean) => {
   const song = store().currentSong;
   if (!song?.id || store().activePlayerMode !== 'normal') return;
   if (TrackPlayer.getActiveMediaItem()?.mediaId !== song.id) return;
+  // Until the resume seek has landed, the native position is a meaningless 0:0x.
+  if (resumeGuard?.songId === song.id) return;
   const { position, duration } = TrackPlayer.getProgress();
   return playbackHistory
     .updatePlaybackProgress(song, position, duration || song.duration || 0, playing)
     .catch(console.error);
 };
 
-/**
- * Seek to the launch/room resume point if the native player still sits at the start
- * (a dropped or not-yet-applied seek). Called right before resuming playback.
- */
+// ─── Resume guard ────────────────────────────────────
+//
+// A seek sent while the native player is still loading an item is unreliable: the
+// media controller may not be connected yet (command dropped), and the session applies
+// setMediaItems with a 0:00 start position after our seek. So a resume isn't a single
+// seekTo(): it is re-asserted until the player has the item prepared (duration known)
+// and its position actually sits at the target.
+
+const RESUME_TICK_MS = 250;
+const RESUME_MAX_TICKS = 48; // ~12s: covers a slow network load
+const RESUME_TOLERANCE_S = 1.5;
+
+let resumeGuard: { songId: string; target: number } | null = null;
+let resumeToken = 0;
+let resumeTimer: ReturnType<typeof setTimeout> | null = null;
+
+const cancelResumeGuard = () => {
+  resumeToken += 1;
+  resumeGuard = null;
+  if (resumeTimer) {
+    clearTimeout(resumeTimer);
+    resumeTimer = null;
+  }
+};
+
+const enforceResume = (songId: string, target: number) => {
+  cancelResumeGuard();
+  if (!(target > 0)) return;
+  const token = resumeToken;
+  resumeGuard = { songId, target };
+  let ticks = 0;
+
+  const tick = () => {
+    resumeTimer = null;
+    if (token !== resumeToken || !initialized) return;
+    try {
+      if (TrackPlayer.getActiveMediaItem()?.mediaId === songId) {
+        const { position, duration } = TrackPlayer.getProgress();
+        if (duration > 0) {
+          if (position >= target - RESUME_TOLERANCE_S) {
+            resumeGuard = null; // landed (or you've already moved past it)
+            return;
+          }
+          TrackPlayer.seekTo(target);
+        }
+      }
+    } catch {
+      // Native not ready yet: try again next tick.
+    }
+    if (++ticks >= RESUME_MAX_TICKS) {
+      resumeGuard = null;
+      return;
+    }
+    resumeTimer = setTimeout(tick, RESUME_TICK_MS);
+  };
+
+  tick();
+};
+
+/** Resume `songId` at its launch/room resume point, if one is waiting. */
 const applyPendingResume = (songId: string) => {
   const resumeAt = takeResumePoint(songId);
-  if (resumeAt > 0 && TrackPlayer.getProgress().position < 1) TrackPlayer.seekTo(resumeAt);
+  if (resumeAt > 0) enforceResume(songId, resumeAt);
 };
 
 const fillQueue = () => {
@@ -211,7 +269,8 @@ const loadPlaylist = (playlist: Song[], startIndex: number): boolean => {
 
   TrackPlayer.setRepeatMode(toNativeRepeatMode(s.repeatMode));
   TrackPlayer.setMediaItems(tracks, 0);
-  if (resumeAt > 0) TrackPlayer.seekTo(resumeAt);
+  if (resumeAt > 0 && song) enforceResume(song.id, resumeAt);
+  else cancelResumeGuard();
   TrackPlayer.play();
 
   if (song && song.id !== s.currentSong?.id) {
@@ -292,6 +351,7 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
       applyPendingResume(song.id);
       if (!TrackPlayer.isPlaying()) TrackPlayer.play();
     } else {
+      cancelResumeGuard();
       TrackPlayer.skipToIndex(queueIdx);
       TrackPlayer.play();
     }
@@ -383,6 +443,7 @@ export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
   if (!isAutoPlay) {
     restoreAttempt += 1;
     restorePending = false;
+    cancelResumeGuard();
   }
 
   const s = store();
@@ -459,6 +520,7 @@ export const bridgeHandlePrevSong = (uid?: number) => {
   switchToNormalMode();
   restoreAttempt += 1;
   restorePending = false;
+  cancelResumeGuard();
 
   // If past 3 seconds, restart current track
   const position = TrackPlayer.getProgress().position;
@@ -676,7 +738,6 @@ const restoreLastPlayedSong = async () => {
     const apply = () => {
       TrackPlayer.setRepeatMode(toNativeRepeatMode(store().repeatMode));
       TrackPlayer.setMediaItems(tracks, 0);
-      if (position > 0) TrackPlayer.seekTo(position);
       TrackPlayer.pause();
     };
 
@@ -691,6 +752,8 @@ const restoreLastPlayedSong = async () => {
       if (st.activePlayerMode !== 'normal' || st.currentSong?.id !== song.id) return;
 
       if (TrackPlayer.getQueue().length > 0) {
+        // Loaded: park the paused player on your saved spot (the play button re-checks it).
+        if (position > 0) enforceResume(song.id, position);
         fillQueue();
         return;
       }
@@ -765,6 +828,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
           if (restorePending) {
             // The restored spot ran past the stream's real end: hold the song at the
             // start instead of skipping to the next one before you pressed play.
+            cancelResumeGuard();
             TrackPlayer.seekTo(0);
             TrackPlayer.pause();
             break;
@@ -787,12 +851,11 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
         if (event.item && event.index !== undefined) {
           const trackId = (event.item as MediaItem).mediaId;
           if (trackId) {
-            const isRestoredTransition = restoredSongId === trackId;
-            if (isRestoredTransition) {
-              // Restoring a queue emits a transition event too. Do not
-              // overwrite the restored position with a fresh 0-second start.
-              restoredSongId = null;
-            }
+            // Restoring (and any re-send of the restore) emits transitions too. They
+            // must not overwrite the saved position with a fresh 0:00 start, and neither
+            // may one for a song whose resume seek hasn't landed yet.
+            const isRestoredTransition =
+              (restorePending && restoredSongId === trackId) || resumeGuard?.songId === trackId;
 
             const playlist = s.playlist;
             const songIdx = playlist.findIndex((song) => song.id === trackId);
@@ -902,6 +965,7 @@ export const destroyTrackPlayer = async () => {
   pendingPlay = null;
   restoredSongId = null;
   restorePending = false;
+  cancelResumeGuard();
   restoreAttempt += 1;
   if (restoreTimer) {
     clearTimeout(restoreTimer);
