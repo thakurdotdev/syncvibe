@@ -97,7 +97,14 @@ const TabButton = memo(function TabButton({
     >
       <View style={styles.tabInner}>
         {/* Tab switches happen 100+ times a day: the pill just appears, no slide. */}
-        <View style={[styles.tabIconBox, isFocused && { backgroundColor: `${activeColor}26` }]}>
+        {/* Always set a background (transparent when inactive): on Android, a background
+            added after first render can lose its borderRadius and draw square. */}
+        <View
+          style={[
+            styles.tabIconBox,
+            { backgroundColor: isFocused ? `${activeColor}26` : 'transparent' },
+          ]}
+        >
           <Ionicons name={isFocused ? activeIcon : inactiveIcon} size={21} color={color} />
           {live && <View style={[styles.liveDot, { backgroundColor: liveColor }]} />}
         </View>
@@ -429,6 +436,7 @@ const styles = StyleSheet.create({
     width: PILL_WIDTH,
     height: PILL_HEIGHT,
     borderRadius: PILL_HEIGHT / 2,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
