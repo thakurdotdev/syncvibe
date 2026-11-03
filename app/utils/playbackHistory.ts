@@ -57,10 +57,21 @@ class PlaybackHistoryManager {
     // Update playing state
     this.isPlaying = isPlaying;
 
+    const safePosition = Number.isFinite(position) ? Math.max(0, position) : 0;
+    const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : song.duration || 0;
+
     // If it's the same song, just update position
     if (this.currentSong && this.currentSong.songId === song.id) {
-      this.currentSong.position = position;
-      this.currentSong.duration = duration;
+      // A stopped/reset player reports 0:00 (app swiped away, stop(), a reload before the
+      // seek lands). That must not wipe a real saved spot; only resetProgress() starts over.
+      if (safePosition < 1 && this.currentSong.position >= 1) {
+        this.currentSong.isPlaying = isPlaying;
+        this.currentSong.timestamp = Date.now();
+        await this.saveToLocal(this.currentSong);
+        return;
+      }
+      this.currentSong.position = safePosition;
+      this.currentSong.duration = safeDuration;
       this.currentSong.timestamp = Date.now();
       this.currentSong.isPlaying = isPlaying;
       this.currentSong.synced = false;
@@ -68,8 +79,8 @@ class PlaybackHistoryManager {
       // Create new progress record for a different song
       this.currentSong = {
         songId: song.id,
-        position,
-        duration,
+        position: safePosition,
+        duration: safeDuration,
         timestamp: Date.now(),
         synced: false,
         songData: song,
@@ -78,6 +89,22 @@ class PlaybackHistoryManager {
     }
 
     // Save to local storage
+    await this.saveToLocal(this.currentSong);
+  }
+
+  /** A fresh start of `song`: its saved position goes back to 0:00. */
+  public async resetProgress(song: Song, isPlaying = true): Promise<void> {
+    if (!song?.id) return;
+    this.isPlaying = isPlaying;
+    this.currentSong = {
+      songId: song.id,
+      position: 0,
+      duration: song.duration || 0,
+      timestamp: Date.now(),
+      synced: false,
+      songData: song,
+      isPlaying,
+    };
     await this.saveToLocal(this.currentSong);
   }
 

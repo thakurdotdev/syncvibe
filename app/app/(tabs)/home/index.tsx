@@ -1,9 +1,9 @@
+import { QuickPicks, TrendingChart } from '@/components/music/home/HomeSections';
 import {
   AlbumsGrid,
   ArtistGrid,
   PlaylistsGrid,
   RecommendationGrid,
-  TrendingSongs,
 } from '@/components/music/MusicLists';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import { TabHeader } from '@/components/ui/AppHeader';
@@ -40,25 +40,28 @@ const greeting = () => {
 
 const goRooms = () => router.navigate('/(tabs)/group-music');
 
-/** Start-a-room invitation when you're not in a room. */
+/** Start-a-room invitation when you're not in a room: one quiet row, a single accent. */
 const StartRoomCard = memo(function StartRoomCard({ colors }: { colors: Colors }) {
   return (
     <PressableScale
       onPress={goRooms}
+      scaleTo={0.98}
       accessibilityRole='button'
-      accessibilityLabel='Start a room'
-      style={[styles.startCard, { backgroundColor: colors.accent }]}
+      accessibilityLabel='Listen together. Start a room'
+      style={[styles.startCard, { backgroundColor: colors.card }]}
     >
-      <View style={[styles.roomIcon, { backgroundColor: colors.primary }]}>
-        <Ionicons name='people' size={22} color={colors.primaryForeground} />
+      <View style={[styles.roomIcon, { backgroundColor: colors.raised }]}>
+        <Ionicons name='people' size={20} color={colors.foreground} />
       </View>
       <View style={styles.roomText}>
-        <Text style={[styles.roomTitle, { color: colors.accentForeground }]}>Start a room</Text>
-        <Text style={[styles.roomSub, { color: colors.accentForeground }]} numberOfLines={2}>
-          Play the same song with friends, in sync.
+        <Text style={[styles.startTitle, { color: colors.foreground }]}>Listen together</Text>
+        <Text style={[styles.roomSub, { color: colors.mutedForeground }]} numberOfLines={1}>
+          Start a room and play in sync with friends
         </Text>
       </View>
-      <Ionicons name='chevron-forward' size={20} color={colors.accentForeground} />
+      <View style={[styles.startGo, { backgroundColor: colors.primary }]}>
+        <Ionicons name='arrow-forward' size={16} color={colors.primaryForeground} />
+      </View>
     </PressableScale>
   );
 });
@@ -252,20 +255,14 @@ function HomeScreen() {
           <HomeSkeleton colors={colors} />
         ) : (
           <View>
-            {(recommendations?.recentlyPlayed ?? []).length > 0 && (
-              <RecommendationGrid
-                recommendations={recommendations!.recentlyPlayed}
-                title='Recently played'
-                showMore
-              />
-            )}
+            <QuickPicks songs={recommendations?.recentlyPlayed ?? []} />
 
             {(recommendations?.songs ?? []).length > 0 && (
               <RecommendationGrid recommendations={recommendations!.songs} title='Made for you' />
             )}
 
             {trendingSongs.length > 0 && (
-              <TrendingSongs songs={trendingSongs} title='Trending now' />
+              <TrendingChart songs={trendingSongs} title='Trending now' />
             )}
 
             {(homePageData?.playlists?.data?.length ?? 0) > 0 && (
@@ -292,16 +289,24 @@ function HomeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  hero: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 24 },
+  hero: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 28 },
 
   roomStack: { gap: 10 },
   startCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    padding: 12,
-    paddingRight: 14,
-    borderRadius: 20,
+    gap: 12,
+    padding: 10,
+    paddingRight: 12,
+    borderRadius: 18,
+  },
+  startTitle: { fontFamily: fonts.displaySemibold, fontSize: 16, letterSpacing: -0.2 },
+  startGo: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   liveCard: { borderRadius: 22, padding: 14, gap: 14 },
   liveTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -326,9 +331,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   roomIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },

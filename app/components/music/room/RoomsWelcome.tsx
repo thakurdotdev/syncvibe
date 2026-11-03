@@ -3,136 +3,152 @@ import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { memo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { useReducedMotion } from 'react-native-reanimated';
+import Animated, { cubicBezier, useReducedMotion } from 'react-native-reanimated';
 
 type IconName = keyof typeof Ionicons.glyphMap;
+type Colors = ReturnType<typeof useTheme>['colors'];
 
-const BAR_HEIGHTS = [10, 18, 13, 20];
+/** Where every listener's playhead sits in the illustration: the same spot, by design. */
+const PLAYHEAD = 0.42;
+const EASE = cubicBezier(0.23, 1, 0.32, 1);
 
 /**
- * Equalizer in the hero. Rare, first-time screen → the one place with ambient motion.
- * Reanimated CSS animation on scaleY (transform only, UI thread); static with Reduce Motion.
+ * Three listeners, three progress lines, one playhead. On first paint the lines run in
+ * from the left and land on the same second: the whole idea of a room in one picture.
+ * Transform/opacity-only CSS animations (UI thread), static with Reduce Motion.
  */
-const Equalizer = memo(function Equalizer({ color }: { color: string }) {
+const SyncPreview = memo(function SyncPreview({ colors }: { colors: Colors }) {
   const reduced = useReducedMotion();
+  const listeners = [
+    { initial: 'Y', bg: colors.primary, fg: colors.primaryForeground },
+    { initial: 'A', bg: colors.live, fg: colors.liveForeground },
+    { initial: 'K', bg: colors.raised, fg: colors.foreground },
+  ];
+
   return (
-    <View style={styles.eq} accessibilityElementsHidden importantForAccessibility='no'>
-      {BAR_HEIGHTS.map((h, i) => (
-        <Animated.View
-          key={i}
-          style={[
-            styles.eqBar,
-            { height: h, backgroundColor: color },
-            !reduced && {
-              animationName: {
-                from: { transform: [{ scaleY: 0.35 }] },
-                to: { transform: [{ scaleY: 1 }] },
+    <View
+      style={[styles.preview, { backgroundColor: colors.card }]}
+      accessibilityElementsHidden
+      importantForAccessibility='no-hide-descendants'
+    >
+      <View style={styles.previewTop}>
+        <View style={styles.previewLive}>
+          <View style={[styles.liveDot, { backgroundColor: colors.live }]} />
+          <Text style={[styles.previewMeta, { color: colors.foreground }]}>3 listening</Text>
+        </View>
+        <Text style={[styles.previewMeta, styles.tabular, { color: colors.mutedForeground }]}>
+          1:24 / 3:18
+        </Text>
+      </View>
+
+      <View style={styles.lanes}>
+        <View style={styles.avatars}>
+          {listeners.map((l) => (
+            <View key={l.initial} style={[styles.avatar, { backgroundColor: l.bg }]}>
+              <Text style={[styles.avatarText, { color: l.fg }]}>{l.initial}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.tracks}>
+          {listeners.map((l, i) => (
+            <View key={l.initial} style={styles.lane}>
+              <View style={[styles.track, { backgroundColor: colors.raised }]}>
+                <Animated.View
+                  style={[
+                    styles.fill,
+                    { width: `${PLAYHEAD * 100}%`, backgroundColor: colors.foreground },
+                    !reduced && {
+                      animationName: {
+                        from: { transform: [{ scaleX: 0.08 }] },
+                        to: { transform: [{ scaleX: 1 }] },
+                      },
+                      animationDuration: `${640 + i * 120}ms`,
+                      animationDelay: '80ms',
+                      animationTimingFunction: EASE,
+                      animationFillMode: 'backwards',
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          ))}
+
+          {/* The shared playhead. */}
+          <Animated.View
+            style={[
+              styles.playhead,
+              { left: `${PLAYHEAD * 100}%` },
+              !reduced && {
+                animationName: { from: { opacity: 0 }, to: { opacity: 1 } },
+                animationDuration: '220ms',
+                animationDelay: '760ms',
+                animationTimingFunction: EASE,
+                animationFillMode: 'backwards',
               },
-              animationDuration: `${520 + i * 90}ms`,
-              animationDirection: 'alternate',
-              animationIterationCount: 'infinite',
-              animationTimingFunction: 'ease-in-out',
-              animationDelay: `${i * 110}ms`,
-            },
-          ]}
-        />
-      ))}
+            ]}
+          >
+            <View style={[styles.playheadLine, { backgroundColor: colors.primary }]} />
+            <View
+              style={[
+                styles.playheadKnob,
+                { backgroundColor: colors.primary, borderColor: colors.card },
+              ]}
+            />
+          </Animated.View>
+        </View>
+      </View>
     </View>
   );
 });
 
-const ORBIT = 220;
-
-/** Listeners placed around the song: angle in degrees on the outer ring. */
-const LISTENERS: { icon: IconName; angle: number }[] = [
-  { icon: 'person', angle: -140 },
-  { icon: 'headset', angle: -35 },
-  { icon: 'musical-notes', angle: 70 },
-  { icon: 'heart', angle: 160 },
+const FEATURES: { icon: IconName; title: string; body: string }[] = [
+  { icon: 'pulse', title: 'Perfectly in sync', body: 'Play, pause and skip land for everyone.' },
+  { icon: 'list', title: 'One shared queue', body: 'Anyone can add the next song.' },
+  { icon: 'chatbubble-ellipses', title: 'Chat and react', body: 'Talk about it while it plays.' },
 ];
 
-/** You and friends orbiting one song: the idea of a room at a glance. */
-const Orbit = ({ primary }: { primary: string }) => {
-  const r = ORBIT / 2;
-  return (
-    <View
-      style={styles.orbit}
-      accessibilityElementsHidden
-      importantForAccessibility='no-hide-descendants'
-    >
-      <View style={[styles.ring, { width: ORBIT, height: ORBIT, borderRadius: r }]} />
-      <View
-        style={[styles.ring, styles.ringInner, { width: ORBIT * 0.66, height: ORBIT * 0.66 }]}
-      />
-
-      <View style={styles.disc}>
-        <Ionicons name='play' size={30} color={primary} style={{ marginLeft: 4 }} />
-      </View>
-
-      {LISTENERS.map(({ icon, angle }) => {
-        const rad = (angle * Math.PI) / 180;
-        return (
-          <View
-            key={icon}
-            style={[
-              styles.listener,
-              {
-                left: r + r * Math.cos(rad) - LISTENER / 2,
-                top: r + r * Math.sin(rad) - LISTENER / 2,
-              },
-            ]}
-          >
-            <Ionicons name={icon} size={18} color='#FFFFFF' />
-          </View>
-        );
-      })}
+const Feature = ({ icon, title, body, colors }: (typeof FEATURES)[number] & { colors: Colors }) => (
+  <View style={styles.feature}>
+    <View style={[styles.featureIcon, { backgroundColor: colors.raised }]}>
+      <Ionicons name={icon} size={16} color={colors.foreground} />
     </View>
-  );
-};
-
-const STEPS = ['Start a room', 'Invite friends', 'Play in sync'];
-
-const Steps = () => (
-  <View style={styles.steps}>
-    {STEPS.map((label, i) => (
-      <View key={label} style={styles.step}>
-        <View style={styles.stepNum}>
-          <Text style={styles.stepNumText}>{i + 1}</Text>
-        </View>
-        <Text style={styles.stepText} numberOfLines={1}>
-          {label}
-        </Text>
-      </View>
-    ))}
+    <View style={styles.featureText}>
+      <Text style={[styles.featureTitle, { color: colors.foreground }]}>{title}</Text>
+      <Text style={[styles.featureBody, { color: colors.mutedForeground }]} numberOfLines={1}>
+        {body}
+      </Text>
+    </View>
   </View>
 );
 
-const GhostButton = ({
+const SecondaryButton = ({
   icon,
   label,
   onPress,
+  colors,
 }: {
   icon: IconName;
   label: string;
   onPress: () => void;
+  colors: Colors;
 }) => (
   <PressableScale
     onPress={onPress}
     accessibilityRole='button'
     accessibilityLabel={label}
-    style={styles.ghost}
+    style={[styles.secondary, { backgroundColor: colors.raised }]}
   >
-    <Ionicons name={icon} size={18} color='#FFFFFF' />
-    <Text style={styles.ghostText}>{label}</Text>
+    <Ionicons name={icon} size={17} color={colors.foreground} />
+    <Text style={[styles.secondaryText, { color: colors.foreground }]}>{label}</Text>
   </PressableScale>
 );
 
 /**
- * Rooms tab when you're not in a room: a full-height landing page that explains the idea
- * and keeps every way in (start, join with a code, scan a QR) together at thumb height.
+ * Rooms tab when you're not in a room. Quiet surfaces, one accent: the illustration
+ * explains the idea, the copy stays short, and every way in sits together at thumb height.
  */
 export const RoomsWelcome = memo(function RoomsWelcome({
   onStart,
@@ -143,161 +159,145 @@ export const RoomsWelcome = memo(function RoomsWelcome({
   onJoin: () => void;
   onScan: () => void;
 }) {
-  const { colors, theme } = useTheme();
-  const deep = theme === 'dark' ? '#2A0F23' : '#6A1239';
+  const { colors } = useTheme();
 
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[styles.content, { paddingBottom: DECK_CLEARANCE }]}
     >
-      <LinearGradient
-        colors={[colors.primary, deep]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0.6, y: 1 }}
-        style={styles.hero}
-      >
-        <View style={[styles.livePill, { backgroundColor: colors.live }]}>
-          <Equalizer color={colors.liveForeground} />
-          <Text style={[styles.liveText, { color: colors.liveForeground }]}>In sync</Text>
-        </View>
+      <SyncPreview colors={colors} />
 
-        <View style={styles.visual}>
-          <Orbit primary={colors.primary} />
-        </View>
+      <View style={styles.copy}>
+        <Text style={[styles.title, { color: colors.foreground }]} accessibilityRole='header'>
+          Listen together
+        </Text>
+        <Text style={[styles.body, { color: colors.mutedForeground }]}>
+          Start a room and everyone hears the same song at the same second, wherever they are.
+        </Text>
+      </View>
 
-        <View style={styles.copy}>
-          <Text style={styles.heroTitle}>Listen together</Text>
-          <Text style={styles.heroText}>
-            The same song, at the same second, for everyone in the room. Chat and react while it
-            plays.
-          </Text>
-          <Steps />
-        </View>
+      <View style={styles.features}>
+        {FEATURES.map((f) => (
+          <Feature key={f.title} {...f} colors={colors} />
+        ))}
+      </View>
 
-        <View style={styles.actions}>
-          <PressableScale
-            onPress={onStart}
-            accessibilityRole='button'
-            accessibilityLabel='Start a room'
-            style={styles.cta}
-          >
-            <Ionicons name='add' size={20} color={colors.primary} />
-            <Text style={[styles.ctaText, { color: colors.primary }]}>Start a room</Text>
-          </PressableScale>
-          <View style={styles.ghostRow}>
-            <GhostButton icon='keypad-outline' label='Enter code' onPress={onJoin} />
-            <GhostButton icon='qr-code-outline' label='Scan QR' onPress={onScan} />
-          </View>
+      <View style={styles.spacer} />
+
+      <View style={styles.actions}>
+        <PressableScale
+          onPress={onStart}
+          accessibilityRole='button'
+          accessibilityLabel='Start a room'
+          style={[styles.cta, { backgroundColor: colors.primary }]}
+        >
+          <Ionicons name='add' size={20} color={colors.primaryForeground} />
+          <Text style={[styles.ctaText, { color: colors.primaryForeground }]}>Start a room</Text>
+        </PressableScale>
+        <View style={styles.secondaryRow}>
+          <SecondaryButton
+            icon='keypad-outline'
+            label='Enter code'
+            onPress={onJoin}
+            colors={colors}
+          />
+          <SecondaryButton
+            icon='qr-code-outline'
+            label='Scan QR'
+            onPress={onScan}
+            colors={colors}
+          />
         </View>
-      </LinearGradient>
+      </View>
     </ScrollView>
   );
 });
 
-const LISTENER = 42;
+const LANE = 26;
+const LANE_GAP = 12;
 
 const styles = StyleSheet.create({
-  // flexGrow lets the hero fill the tab on tall phones and scroll on short ones.
-  content: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 4 },
+  // flexGrow + spacer keep the actions at the bottom on tall phones; short ones scroll.
+  content: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 8 },
 
-  hero: { flex: 1, minHeight: 560, borderRadius: 28, padding: 20, overflow: 'hidden' },
+  preview: { borderRadius: 24, padding: 18, gap: 18 },
+  previewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  previewLive: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  liveDot: { width: 7, height: 7, borderRadius: 4 },
+  previewMeta: { fontSize: 12.5, fontWeight: '600' },
+  tabular: { fontVariant: ['tabular-nums'] },
 
-  livePill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 28,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-  },
-  liveText: { fontSize: 12, fontWeight: '800' },
-  eq: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 14 },
-  eqBar: { width: 3, borderRadius: 2, maxHeight: 14, transformOrigin: 'bottom' },
-
-  visual: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
-  orbit: { width: ORBIT, height: ORBIT, alignItems: 'center', justifyContent: 'center' },
-  ring: {
-    position: 'absolute',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.22)',
-  },
-  ringInner: { borderRadius: ORBIT, borderColor: 'rgba(255,255,255,0.14)' },
-  disc: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: '#FFFFFF',
+  lanes: { flexDirection: 'row', gap: 14 },
+  avatars: { gap: LANE_GAP },
+  avatar: {
+    width: LANE,
+    height: LANE,
+    borderRadius: LANE / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  listener: {
+  avatarText: { fontSize: 12, fontWeight: '800' },
+  tracks: { flex: 1, gap: LANE_GAP },
+  lane: { height: LANE, justifyContent: 'center' },
+  track: { height: 4, borderRadius: 2, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 2, transformOrigin: 'left' },
+  playhead: {
     position: 'absolute',
-    width: LISTENER,
-    height: LISTENER,
-    borderRadius: LISTENER / 2,
+    top: -6,
+    bottom: -6,
+    width: 12,
+    marginLeft: -6,
+    alignItems: 'center',
+  },
+  playheadLine: { flex: 1, width: 2, borderRadius: 1 },
+  playheadKnob: {
+    position: 'absolute',
+    top: -6,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.4)',
-    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+
+  copy: { marginTop: 28, gap: 8, paddingHorizontal: 4 },
+  title: { fontFamily: fonts.display, fontSize: 30, letterSpacing: -0.8, lineHeight: 34 },
+  body: { fontSize: 15, lineHeight: 22 },
+
+  features: { marginTop: 22, gap: 14, paddingHorizontal: 4 },
+  feature: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  featureIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  featureText: { flex: 1, minWidth: 0 },
+  featureTitle: { fontSize: 14.5, fontWeight: '700' },
+  featureBody: { fontSize: 13, marginTop: 1 },
 
-  copy: { gap: 8 },
-  heroTitle: {
-    fontFamily: fonts.displayHeavy,
-    fontSize: 34,
-    letterSpacing: -1,
-    color: '#FFFFFF',
-  },
-  heroText: { fontSize: 14.5, lineHeight: 21, color: 'rgba(255,255,255,0.86)' },
+  spacer: { flexGrow: 1, minHeight: 28 },
 
-  steps: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  step: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  stepNum: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepNumText: { fontSize: 11, fontWeight: '800', color: '#2A0F23' },
-  stepText: { flex: 1, fontSize: 11.5, fontWeight: '600', color: '#FFFFFF' },
-
-  actions: { gap: 10, marginTop: 22 },
+  actions: { gap: 10 },
   cta: {
     height: 52,
-    borderRadius: 26,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
-  ctaText: { fontSize: 16, fontWeight: '800' },
-  ghostRow: { flexDirection: 'row', gap: 10 },
-  ghost: {
+  ctaText: { fontSize: 16, fontWeight: '700' },
+  secondaryRow: { flexDirection: 'row', gap: 10 },
+  secondary: {
     flex: 1,
     height: 46,
-    borderRadius: 23,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 7,
   },
-  ghostText: { fontSize: 14.5, fontWeight: '700', color: '#FFFFFF' },
+  secondaryText: { fontSize: 14.5, fontWeight: '600' },
 });

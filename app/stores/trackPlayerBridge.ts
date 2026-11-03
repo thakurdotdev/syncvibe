@@ -45,6 +45,8 @@ const MAX_ERROR_RETRIES = 2;
 const ERROR_COOLDOWN_MS = 8000;
 const RESTORE_RETRY_MS = 250;
 const RESTORE_MAX_TRIES = 20;
+/** A saved spot this close to the end restarts the song instead (it would just end). */
+const RESTORE_END_MARGIN_S = 3;
 
 let initialized = false;
 let userId: number | undefined;
@@ -137,6 +139,30 @@ const resetErrors = () => {
 const hasExceededRetries = (): boolean =>
   Date.now() - lastErrorTime < ERROR_COOLDOWN_MS && errorRetries >= MAX_ERROR_RETRIES;
 
+/**
+ * Save the native position for your current song. Skipped when the native player holds a
+ * different item (the store moves to the next song before native does), so one song's
+ * position is never written under another.
+ */
+const saveNativeProgress = (playing: boolean) => {
+  const song = store().currentSong;
+  if (!song?.id || store().activePlayerMode !== 'normal') return;
+  if (TrackPlayer.getActiveMediaItem()?.mediaId !== song.id) return;
+  const { position, duration } = TrackPlayer.getProgress();
+  return playbackHistory
+    .updatePlaybackProgress(song, position, duration || song.duration || 0, playing)
+    .catch(console.error);
+};
+
+/**
+ * Seek to the launch/room resume point if the native player still sits at the start
+ * (a dropped or not-yet-applied seek). Called right before resuming playback.
+ */
+const applyPendingResume = (songId: string) => {
+  const resumeAt = takeResumePoint(songId);
+  if (resumeAt > 0 && TrackPlayer.getProgress().position < 1) TrackPlayer.seekTo(resumeAt);
+};
+
 const fillQueue = () => {
   if (!initialized) return;
 
@@ -201,13 +227,18 @@ let restoreAttempt = 0;
 let restoreTimer: ReturnType<typeof setTimeout> | null = null;
 let lastHistoryTimestamp = 0;
 let restoredSongId: string | null = null;
+/**
+ * True from a launch restore until you play something. While set, the paused native
+ * player is only holding your spot: its events must not save or advance anything.
+ */
+let restorePending = false;
 
 const recordSongStart = (song: Song, resumed = false) => {
   if (!song?.id) return;
 
   // A resumed song keeps its saved position; only a fresh start resets it to 0.
   if (!resumed) {
-    playbackHistory.updatePlaybackProgress(song, 0, song.duration || 0, true).catch(console.error);
+    playbackHistory.resetProgress(song).catch(console.error);
   }
 
   const now = Date.now();
@@ -244,6 +275,7 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
   switchToNormalMode();
   // You're choosing playback now: a still-pending launch restore must not override it.
   restoreAttempt += 1;
+  restorePending = false;
 
   const s = store();
   const playlist = s.playlist.length ? s.playlist : [song];
@@ -257,7 +289,7 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
 
     if (queueIdx === activeIdx) {
       // Already loaded at its saved spot (e.g. restored on launch): just continue.
-      takeResumePoint(song.id);
+      applyPendingResume(song.id);
       if (!TrackPlayer.isPlaying()) TrackPlayer.play();
     } else {
       TrackPlayer.skipToIndex(queueIdx);
@@ -268,7 +300,7 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
       s.setCurrentSong(song);
     }
     s.setPlaying(true);
-    recordSongStart(song);
+    recordSongStart(song, queueIdx === activeIdx);
     fillQueue();
     return;
   }
@@ -307,6 +339,8 @@ export const bridgePlayPause = () => {
 
   stopGroupPlayback();
   switchToNormalMode();
+  restoreAttempt += 1;
+  restorePending = false;
 
   const s = store();
   const activeItem = TrackPlayer.getActiveMediaItem();
@@ -324,24 +358,16 @@ export const bridgePlayPause = () => {
   if (TrackPlayer.isPlaying()) {
     TrackPlayer.pause();
     s.setPlaying(false);
-    if (s.currentSong) {
-      const { position, duration } = TrackPlayer.getProgress();
-      playbackHistory
-        .updatePlaybackProgress(s.currentSong, position, duration, false)
-        .catch(console.error);
-    }
+    saveNativeProgress(false);
   } else if (s.currentSong) {
     resetErrors();
     const state = TrackPlayer.getPlaybackState();
     if (state === 'idle') {
       bridgePlaySong(s.currentSong, userId);
     } else {
+      applyPendingResume(s.currentSong.id);
       TrackPlayer.play();
       s.setPlaying(true);
-      const { position, duration } = TrackPlayer.getProgress();
-      playbackHistory
-        .updatePlaybackProgress(s.currentSong, position, duration, true)
-        .catch(console.error);
     }
   } else {
     s.setPlaying(false);
@@ -354,6 +380,10 @@ export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
 
   stopGroupPlayback();
   switchToNormalMode();
+  if (!isAutoPlay) {
+    restoreAttempt += 1;
+    restorePending = false;
+  }
 
   const s = store();
   const { currentSong, playlist, repeatMode } = s;
@@ -427,6 +457,8 @@ export const bridgeHandlePrevSong = (uid?: number) => {
 
   stopGroupPlayback();
   switchToNormalMode();
+  restoreAttempt += 1;
+  restorePending = false;
 
   // If past 3 seconds, restart current track
   const position = TrackPlayer.getProgress().position;
@@ -586,7 +618,22 @@ export const initializeTrackPlayer = async (): Promise<boolean> => {
   }
 };
 
+/** The persisted queue/current song load asynchronously; restoring before that races it. */
+const waitForStoreHydration = () =>
+  new Promise<void>((resolve) => {
+    const persist = usePlayerStore.persist;
+    if (!persist || persist.hasHydrated()) return resolve();
+    const timeout = setTimeout(done, 3000);
+    const unsub = persist.onFinishHydration(done);
+    function done() {
+      clearTimeout(timeout);
+      unsub();
+      resolve();
+    }
+  });
+
 const restoreLastPlayedSong = async () => {
+  await waitForStoreHydration();
   const s = store();
   try {
     const lastPlayed = await playbackHistory.getLastPlayedSong();
@@ -604,11 +651,13 @@ const restoreLastPlayedSong = async () => {
     const duration = Number.isFinite(lastPlayed.duration)
       ? lastPlayed.duration
       : song.duration || 0;
-    const savedPosition = Number.isFinite(lastPlayed.position) ? lastPlayed.position : 0;
+    const savedPosition = Number.isFinite(lastPlayed.position)
+      ? Math.max(lastPlayed.position, 0)
+      : 0;
+    // Seeking to (or past) the end makes the native player report "ended", which used to
+    // auto-advance to the next song on launch. A song that was basically over restarts.
     const position =
-      duration > 0
-        ? Math.min(Math.max(savedPosition, 0), Math.max(0, duration - 0.25))
-        : Math.max(savedPosition, 0);
+      duration > 0 && savedPosition > duration - RESTORE_END_MARGIN_S ? 0 : savedPosition;
 
     // The native queue is empty after a cold start. Restore it directly rather
     // than calling bridgePlaySong(), which intentionally records a new song at
@@ -619,6 +668,7 @@ const restoreLastPlayedSong = async () => {
     s.setPlaying(false);
     s.setLoading(false);
     restoredSongId = song.id;
+    restorePending = true;
     // If the native load below doesn't stick, pressing play still resumes here.
     setResumePoint(song.id, position);
 
@@ -667,17 +717,9 @@ const setupAppStateListener = () => {
       if (trackCache.size > MAX_TRACK_CACHE_SIZE / 2) trackCache.clear();
 
       // Save progress (not during a room: the native position belongs to the room's song)
-      if (s.currentSong?.id && initialized && s.activePlayerMode === 'normal') {
+      if (s.currentSong?.id && initialized && !restorePending) {
         try {
-          const { position, duration } = TrackPlayer.getProgress();
-          if (position > 0 && duration > 0) {
-            await playbackHistory.updatePlaybackProgress(
-              s.currentSong,
-              position,
-              duration,
-              TrackPlayer.isPlaying()
-            );
-          }
+          await saveNativeProgress(TrackPlayer.isPlaying());
         } catch (error) {
           console.error('Error saving position on background:', error);
         }
@@ -688,18 +730,7 @@ const setupAppStateListener = () => {
       // Re-sync store with native state on foreground
       try {
         syncStoreFromNative();
-
-        if (s.currentSong && s.activePlayerMode === 'normal') {
-          const { position, duration } = TrackPlayer.getProgress();
-          if (position > 0) {
-            playbackHistory.updatePlaybackProgress(
-              s.currentSong,
-              position,
-              duration,
-              TrackPlayer.isPlaying()
-            );
-          }
-        }
+        if (!restorePending) saveNativeProgress(TrackPlayer.isPlaying());
       } catch (error) {
         console.error('Error resyncing on foreground:', error);
       }
@@ -731,6 +762,13 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
       case Event.PlaybackStateChanged: {
         const state = event.state as string;
         if (state === 'ended') {
+          if (restorePending) {
+            // The restored spot ran past the stream's real end: hold the song at the
+            // start instead of skipping to the next one before you pressed play.
+            TrackPlayer.seekTo(0);
+            TrackPlayer.pause();
+            break;
+          }
           bridgeHandleNextSong(true, userId);
         }
         break;
@@ -738,13 +776,9 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
 
       case Event.IsPlayingChanged: {
         const playing = !!event.playing;
+        if (playing) restorePending = false;
         s.setPlaying(playing);
-        if (s.currentSong) {
-          const { position, duration } = TrackPlayer.getProgress();
-          playbackHistory
-            .updatePlaybackProgress(s.currentSong, position, duration, playing)
-            .catch(console.error);
-        }
+        if (!restorePending) saveNativeProgress(playing);
         break;
       }
 
@@ -831,6 +865,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
       case Event.PlaybackProgressUpdated: {
         const position = event.position as number;
         const duration = event.duration as number;
+        const mediaId = event.mediaId as string | undefined;
 
         // Clear recovery flag once we're actually playing
         if (position > 1 && recovering) {
@@ -838,13 +873,18 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
           s.setPlaying(TrackPlayer.isPlaying());
         }
 
-        // Periodic history save (every ~10 seconds)
-        if (position > 0 && s.currentSong && TrackPlayer.isPlaying()) {
-          if (position > 5 && duration - position > 5 && Math.floor(position) % 10 === 0) {
-            playbackHistory
-              .updatePlaybackProgress(s.currentSong, position, duration, true)
-              .catch(console.error);
-          }
+        // Native ticks every 5s while playing (progressSync in playerSetup), plus one
+        // final tick on pause. Save it so a killed app comes back to this spot.
+        if (restorePending || !s.currentSong || mediaId !== s.currentSong.id) break;
+        if (position >= 1) {
+          playbackHistory
+            .updatePlaybackProgress(
+              s.currentSong,
+              position,
+              duration > 0 ? duration : s.currentSong.duration || 0,
+              TrackPlayer.isPlaying()
+            )
+            .catch(console.error);
         }
         break;
       }
@@ -861,6 +901,7 @@ export const handleTrackPlayerEvents = dispatchTrackPlayerEvent;
 export const destroyTrackPlayer = async () => {
   pendingPlay = null;
   restoredSongId = null;
+  restorePending = false;
   restoreAttempt += 1;
   if (restoreTimer) {
     clearTimeout(restoreTimer);

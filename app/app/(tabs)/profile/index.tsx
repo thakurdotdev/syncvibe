@@ -133,7 +133,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { paddingHorizontal: 16, gap: 20 },
+  content: { paddingHorizontal: 16, paddingTop: 4, gap: 22 },
   themeRow: { padding: 10 },
   version: { fontSize: 14, fontVariant: ['tabular-nums'] },
 });
