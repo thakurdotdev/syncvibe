@@ -40,15 +40,15 @@ const greeting = () => {
 const goRooms = () => router.navigate('/(tabs)/group-music');
 
 /**
- * The room tile is the most important thing on Home: it's what SyncVibe is for. In a room it
- * becomes a live "back to the room" card tinted by the artwork; otherwise it invites you to
- * start one.
+ * The room card: what SyncVibe is for, kept compact. In a room it shows the live artwork,
+ * listener count and the room name; otherwise it invites you to start one.
  */
-const RoomTile = memo(function RoomTile({ colors }: { colors: Colors }) {
+const RoomCard = memo(function RoomCard({ colors }: { colors: Colors }) {
   const group = useGroupSessionStore((s) => s.currentGroup);
   const memberCount = useGroupSessionStore((s) => s.groupMembers.length);
+  const songName = useGroupPlaybackStore((s) => s.currentSong?.name);
   const art = useGroupPlaybackStore(
-    (s) => s.currentSong?.image?.[2]?.link || s.currentSong?.image?.[1]?.link
+    (s) => s.currentSong?.image?.[1]?.link || s.currentSong?.image?.[0]?.link
   );
 
   return (
@@ -56,81 +56,60 @@ const RoomTile = memo(function RoomTile({ colors }: { colors: Colors }) {
       onPress={goRooms}
       accessibilityRole='button'
       accessibilityLabel={group ? `Back to room ${group.name}` : 'Start a room'}
-      style={[styles.roomTile, { backgroundColor: colors.foreground }]}
+      style={[
+        styles.roomCard,
+        {
+          backgroundColor: group ? colors.card : colors.accent,
+          borderColor: group ? `${colors.live}66` : 'transparent',
+        },
+      ]}
     >
-      {group && art ? <Image source={{ uri: art }} style={styles.roomArt} blurRadius={40} /> : null}
-      <View style={styles.roomBody}>
-        <View style={{ flex: 1 }}>
-          {group ? (
-            <>
-              <View style={[styles.livePill, { backgroundColor: colors.live }]}>
-                <View style={[styles.liveDot, { backgroundColor: colors.liveForeground }]} />
-                <Text style={[styles.livePillText, { color: colors.liveForeground }]}>
-                  {memberCount} listening now
-                </Text>
-              </View>
-              <Text style={[styles.roomTitle, { color: colors.background }]} numberOfLines={1}>
-                Back to {group.name}
-              </Text>
-            </>
+      {group ? (
+        <View style={[styles.roomThumb, { borderColor: colors.live }]}>
+          {art ? (
+            <Image source={{ uri: art }} style={styles.roomThumbImg} fadeDuration={0} />
           ) : (
-            <>
-              <Text style={[styles.roomTitle, { color: colors.background }]}>Start a room</Text>
-              <Text style={[styles.roomCopy, { color: colors.background }]}>
-                Invite friends and play the same song, in sync, while you chat.
-              </Text>
-            </>
+            <Ionicons name='radio' size={22} color={colors.live} />
           )}
         </View>
-        <View style={[styles.roomCta, { backgroundColor: colors.primary }]}>
-          <Ionicons
-            name={group ? 'arrow-forward' : 'add'}
-            size={22}
-            color={colors.primaryForeground}
-          />
+      ) : (
+        <View style={[styles.roomIcon, { backgroundColor: colors.primary }]}>
+          <Ionicons name='people' size={22} color={colors.primaryForeground} />
         </View>
+      )}
+
+      <View style={styles.roomText}>
+        {group ? (
+          <>
+            <View style={styles.liveRow}>
+              <View style={[styles.liveDot, { backgroundColor: colors.live }]} />
+              <Text style={[styles.liveText, { color: colors.live }]}>{memberCount} listening</Text>
+            </View>
+            <Text style={[styles.roomTitle, { color: colors.foreground }]} numberOfLines={1}>
+              {group.name}
+            </Text>
+            {songName ? (
+              <Text style={[styles.roomSub, { color: colors.mutedForeground }]} numberOfLines={1}>
+                {songName}
+              </Text>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Text style={[styles.roomTitle, { color: colors.accentForeground }]}>Start a room</Text>
+            <Text style={[styles.roomSub, { color: colors.accentForeground }]} numberOfLines={2}>
+              Play the same song with friends, in sync.
+            </Text>
+          </>
+        )}
       </View>
+
+      <Ionicons
+        name='chevron-forward'
+        size={20}
+        color={group ? colors.mutedForeground : colors.accentForeground}
+      />
     </PressableScale>
-  );
-});
-
-const SHORTCUTS = [
-  {
-    key: 'history',
-    label: 'History',
-    icon: 'time-outline',
-    go: () => router.push('/song-history'),
-  },
-  {
-    key: 'library',
-    label: 'Playlists',
-    icon: 'albums-outline',
-    go: () => router.navigate('/(tabs)/playlist'),
-  },
-  {
-    key: 'languages',
-    label: 'Languages',
-    icon: 'language-outline',
-    go: () => router.push('/music-language'),
-  },
-] as const;
-
-const Shortcuts = memo(function Shortcuts({ colors }: { colors: Colors }) {
-  return (
-    <View style={styles.shortcuts}>
-      {SHORTCUTS.map((s) => (
-        <PressableScale
-          key={s.key}
-          onPress={s.go}
-          accessibilityRole='button'
-          accessibilityLabel={s.label}
-          style={[styles.shortcut, { backgroundColor: colors.raised }]}
-        >
-          <Ionicons name={s.icon} size={18} color={colors.primary} />
-          <Text style={[styles.shortcutText, { color: colors.foreground }]}>{s.label}</Text>
-        </PressableScale>
-      ))}
-    </View>
   );
 });
 
@@ -197,7 +176,7 @@ function HomeScreen() {
 
   return (
     <TabSafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
-      <TabHeader brand showAvatar />
+      <TabHeader kicker={greeting()} title={firstName || 'Welcome'} showAvatar />
 
       <ScrollView
         style={styles.root}
@@ -213,12 +192,7 @@ function HomeScreen() {
         }
       >
         <View style={styles.hero}>
-          <Text style={[styles.greeting, { color: colors.foreground }]}>
-            {greeting()}
-            {firstName ? `, ${firstName}` : ''}
-          </Text>
-          <RoomTile colors={colors} />
-          <Shortcuts colors={colors} />
+          <RoomCard colors={colors} />
         </View>
 
         {loadingHome ? (
@@ -265,50 +239,40 @@ function HomeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  hero: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 28, gap: 16 },
-  greeting: { fontFamily: fonts.displayHeavy, fontSize: 34, lineHeight: 38, letterSpacing: -1 },
+  hero: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 24 },
 
-  roomTile: { borderRadius: 24, overflow: 'hidden', minHeight: 124 },
-  roomArt: { ...StyleSheet.absoluteFill, opacity: 0.45, transform: [{ scale: 1.3 }] },
-  roomBody: {
-    flex: 1,
+  roomCard: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 16,
-    padding: 18,
+    alignItems: 'center',
+    gap: 14,
+    padding: 12,
+    paddingRight: 14,
+    borderRadius: 20,
+    borderWidth: 1,
   },
-  roomTitle: { fontFamily: fonts.display, fontSize: 24, letterSpacing: -0.5, marginTop: 10 },
-  roomCopy: { fontSize: 14, lineHeight: 19, opacity: 0.72, marginTop: 4, maxWidth: 260 },
-  roomCta: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  roomIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  livePill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
+  roomThumb: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 2,
+    padding: 2,
     alignItems: 'center',
-    gap: 6,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    justifyContent: 'center',
   },
+  roomThumbImg: { width: '100%', height: '100%', borderRadius: 12 },
+  roomText: { flex: 1, minWidth: 0 },
+  roomTitle: { fontFamily: fonts.display, fontSize: 18, letterSpacing: -0.3 },
+  roomSub: { fontSize: 13, marginTop: 2, opacity: 0.85 },
+  liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 1 },
   liveDot: { width: 6, height: 6, borderRadius: 3 },
-  livePillText: { fontSize: 12, fontWeight: '700' },
-
-  shortcuts: { flexDirection: 'row', gap: 8 },
-  shortcut: {
-    flex: 1,
-    height: 44,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-  },
-  shortcutText: { fontSize: 13.5, fontWeight: '600' },
+  liveText: { fontSize: 12, fontWeight: '700' },
 
   skeleton: { paddingHorizontal: 16 },
 });
