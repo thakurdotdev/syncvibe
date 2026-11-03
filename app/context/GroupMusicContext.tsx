@@ -10,6 +10,7 @@ import {
 import { Alert } from 'react-native';
 import TrackPlayer, { Event, PlaybackState } from '@rntp/player';
 import { Song } from '@/types/song';
+import type { Message, MessageReactions } from '@/stores/groupMusic/types';
 import { useChat } from './SocketContext';
 import { useUser } from './UserContext';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
@@ -39,6 +40,8 @@ interface GroupMusicContextType {
   clearQueue: () => void;
   toggleAutoRecommendations: (enabled?: boolean) => void;
   sendReaction: (emoji: string) => void;
+  /** Toggle an emoji reaction on a chat message (server broadcasts the result). */
+  reactToMessage: (messageId: string, emoji: string) => void;
   startTyping: () => void;
   stopTyping: () => void;
   sendInvite: (inviteeUserId: number) => void;
@@ -223,8 +226,14 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       });
     });
 
+    const requestHistory = () => {
+      const id = ss.getState().currentGroup?.id;
+      if (id) socket.emit('get-chat-history', { groupId: id });
+    };
+
     socket.on('group-joined', async (data: any) => {
       ss.getState().handleGroupJoined(data);
+      requestHistory();
       if (data.playbackState) {
         await pb
           .getState()
@@ -238,6 +247,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
 
     socket.on('group-rejoined', async (data: any) => {
       ss.getState().handleGroupRejoined(data);
+      requestHistory();
       if (data.playbackState) {
         await pb
           .getState()
@@ -304,6 +314,32 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         }
       }
     });
+
+    // Chat history arrives after join/rejoin. Merge by id so messages that landed while the
+    // request was in flight are kept, and keep everything in timestamp order.
+    socket.on('chat-history', (data: { groupId: string; messages: Message[] }) => {
+      if (!data?.messages || data.groupId !== ss.getState().currentGroup?.id) return;
+      ss.setState((state) => {
+        const byId = new Map<string, Message>();
+        for (const m of data.messages) if (m?.id) byId.set(m.id, m);
+        for (const m of state.messages) if (m?.id && !byId.has(m.id)) byId.set(m.id, m);
+        const merged = [...byId.values()].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        return { messages: merged };
+      });
+    });
+
+    // The server owns reaction state and sends the message's full reactions each time.
+    socket.on(
+      'message-reaction',
+      (data: { groupId: string; messageId: string; reactions: MessageReactions }) => {
+        if (data?.groupId !== ss.getState().currentGroup?.id) return;
+        ss.setState((state) => ({
+          messages: state.messages.map((m) =>
+            m.id === data.messageId ? { ...m, reactions: data.reactions || {} } : m
+          ),
+        }));
+      }
+    );
 
     socket.on('song-reaction', (data: { emoji: string; userName: string }) => {
       const reactionId = `${Date.now()}-${Math.random()}`;
@@ -380,6 +416,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         'member-left',
         'group-disbanded',
         'new-message',
+        'chat-history',
+        'message-reaction',
         'song-reaction',
         'user-typing',
         'group-invite-received',
@@ -482,6 +520,20 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     [socket, groupId, user]
   );
 
+  const reactToMessage = useCallback(
+    (messageId: string, emoji: string) => {
+      if (!groupId || !user || !messageId) return;
+      socket?.emit('message-reaction', {
+        groupId,
+        messageId,
+        emoji,
+        userId: user.userid,
+        userName: user.name,
+      });
+    },
+    [socket, groupId, user]
+  );
+
   const startTyping = useCallback(() => {
     if (!groupId || !user) return;
     socket?.emit('typing-start', { groupId, userId: user.userid, userName: user.name });
@@ -534,6 +586,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       clearQueue,
       toggleAutoRecommendations,
       sendReaction,
+      reactToMessage,
       startTyping,
       stopTyping,
       sendInvite,
@@ -559,6 +612,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       clearQueue,
       toggleAutoRecommendations,
       sendReaction,
+      reactToMessage,
       startTyping,
       stopTyping,
       sendInvite,
