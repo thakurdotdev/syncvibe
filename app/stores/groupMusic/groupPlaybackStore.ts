@@ -74,6 +74,47 @@ type GroupPlaybackStore = GroupPlaybackState & GroupPlaybackActions;
 
 let progressInterval: any = null;
 
+/*
+ * Natural end-of-song detection. Swapping tracks (stop + clear + setMediaItems) while
+ * something is playing — e.g. personal music when a room starts, or a new room song
+ * arriving — makes the native player report "ended". Treating that as the song finishing
+ * skipped the room's next song, whose swap fired "ended" again, cascading through the
+ * whole queue. So: ignore "ended" during our own swaps, require the position to actually
+ * be at the end, and accept at most one end per song.
+ */
+const SWAP_GUARD_MS = 1500;
+const END_TOLERANCE_S = 3;
+let swapGuardUntil = 0;
+let endedSongId: string | null = null;
+
+/** Call right before replacing the native queue for the room. */
+const beginTrackSwap = (nextSongId?: string) => {
+  swapGuardUntil = Date.now() + SWAP_GUARD_MS;
+  if (nextSongId !== endedSongId) endedSongId = null;
+};
+
+/** True only when the room's current song genuinely played to its end (once per song). */
+export const isNaturalGroupSongEnd = (): boolean => {
+  if (Date.now() < swapGuardUntil) return false;
+  const song = useGroupPlaybackStore.getState().currentSong;
+  if (!song?.id || endedSongId === song.id) return false;
+
+  try {
+    const active = TrackPlayer.getActiveMediaItem() as any;
+    const activeId = active?.mediaId || active?.id;
+    if (activeId && activeId !== song.id) return false;
+
+    const { position, duration } = TrackPlayer.getProgress();
+    const total = duration || Number(song.duration) || 0;
+    if (total > 0 && position < total - END_TOLERANCE_S) return false;
+  } catch {
+    return false;
+  }
+
+  endedSongId = song.id;
+  return true;
+};
+
 // TrackPlayer is shared by the personal and group experiences. A group session
 // must claim it before mutating the native queue so a stale personal player
 // state can never render over, or take control of, synchronized playback.
@@ -178,6 +219,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     const correctTrackLoaded = currentSong && activeMediaId === currentSong.id;
 
     if (!correctTrackLoaded && currentSong) {
+      beginTrackSwap(currentSong.id);
       TrackPlayer.stop();
       TrackPlayer.clear();
       const track = get().convertSongToTrack(currentSong);
@@ -215,6 +257,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     claimGroupPlayer();
 
     try {
+      beginTrackSwap(data.song?.id);
       TrackPlayer.stop();
       TrackPlayer.clear();
       const track = convertSongToTrack(data.song);
@@ -254,6 +297,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     claimGroupPlayer();
 
     try {
+      beginTrackSwap(playbackState.currentTrack?.id);
       TrackPlayer.stop();
       TrackPlayer.clear();
       const track = convertSongToTrack(playbackState.currentTrack);
@@ -307,6 +351,7 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
       const delay = Math.max(0, scheduledTime - getServerTime());
       setTimeout(() => {
         if (!isActiveSongMatched) {
+          beginTrackSwap(currentSong?.id);
           TrackPlayer.stop();
           TrackPlayer.clear();
           const track = get().convertSongToTrack(currentSong);
