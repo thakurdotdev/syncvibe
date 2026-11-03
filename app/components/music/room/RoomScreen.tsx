@@ -2,12 +2,11 @@ import { FloatingReactions } from '@/components/music/group/FloatingReactions';
 import { QueueSheet } from '@/components/music/group/QueueSheet';
 import { DECK_NAV_HEIGHT } from '@/components/music/UnifiedBottomDeck';
 import { useUser } from '@/context/UserContext';
-import { KeyboardSpacer } from '@/components/ui/KeyboardSpacer';
 import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { useIsFocused } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChatPanel } from './chat/ChatPanel';
 import { isActivity, sameUser } from './chat/chatUtils';
@@ -60,7 +59,6 @@ export const RoomScreen = memo(function RoomScreen({
 }) {
   const insets = useSafeAreaInsets();
   const keyboardVisible = useKeyboardVisible();
-  const focused = useIsFocused();
   const [tab, setTab] = useState<RoomTab>('chat');
 
   const queueCount = useGroupSessionStore(
@@ -90,7 +88,7 @@ export const RoomScreen = memo(function RoomScreen({
   const showPeople = useCallback(() => changeTab('people'), [changeTab]);
 
   return (
-    <View style={styles.root}>
+    <KeyboardAvoidingView behavior='padding' style={styles.root}>
       <RoomHeader
         onInvite={onInvite}
         onShowQr={onShowQr}
@@ -124,10 +122,7 @@ export const RoomScreen = memo(function RoomScreen({
           <PeoplePanel onInvite={onInvite} bottomInset={deckInset} />
         </View>
       </View>
-
-      {/* Lifts the composer above the keyboard (edge-to-edge Android doesn't resize). */}
-      {focused && <KeyboardSpacer />}
-    </View>
+    </KeyboardAvoidingView>
   );
 });
 

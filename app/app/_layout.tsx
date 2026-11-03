@@ -31,6 +31,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
 import '../global.css';
@@ -78,27 +79,30 @@ function RootLayout() {
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider initialMetrics={initialWindowMetrics} style={{ flex: 1 }}>
-          <ThemeProvider>
-            <ToastProvider>
-              <AppUpdateProvider>
-                <PersistQueryClientProvider
-                  client={queryClient}
-                  persistOptions={{ persister: asyncStoragePersister }}
-                >
-                  <UserProvider>
-                    <ChatProvider>
-                      <NotificationProvider>
-                        <GroupMusicProvider>
-                          <PlayerInitializer />
-                          <RootLayoutNav />
-                        </GroupMusicProvider>
-                      </NotificationProvider>
-                    </ChatProvider>
-                  </UserProvider>
-                </PersistQueryClientProvider>
-              </AppUpdateProvider>
-            </ToastProvider>
-          </ThemeProvider>
+          {/* Real keyboard position on the UI thread (edge-to-edge Android doesn't resize). */}
+          <KeyboardProvider>
+            <ThemeProvider>
+              <ToastProvider>
+                <AppUpdateProvider>
+                  <PersistQueryClientProvider
+                    client={queryClient}
+                    persistOptions={{ persister: asyncStoragePersister }}
+                  >
+                    <UserProvider>
+                      <ChatProvider>
+                        <NotificationProvider>
+                          <GroupMusicProvider>
+                            <PlayerInitializer />
+                            <RootLayoutNav />
+                          </GroupMusicProvider>
+                        </NotificationProvider>
+                      </ChatProvider>
+                    </UserProvider>
+                  </PersistQueryClientProvider>
+                </AppUpdateProvider>
+              </ToastProvider>
+            </ThemeProvider>
+          </KeyboardProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
