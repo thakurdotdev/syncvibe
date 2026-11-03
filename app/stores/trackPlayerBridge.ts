@@ -3,7 +3,7 @@ import { playbackHistory } from '@/utils/playbackHistory';
 import { AppState, AppStateStatus } from 'react-native';
 import TrackPlayer, { Event, RepeatMode } from '@rntp/player';
 import { setupPlayer } from '@/utils/playerSetup';
-import { setTrackPlayerReady } from './trackPlayerState';
+import { setResumePoint, setTrackPlayerReady, takeResumePoint } from './trackPlayerState';
 import {
   usePlayerStore,
   onAfterSongTransition,
@@ -43,6 +43,8 @@ const QUEUE_APPEND_THRESHOLD = 2;
 const MAX_TRACK_CACHE_SIZE = 50;
 const MAX_ERROR_RETRIES = 2;
 const ERROR_COOLDOWN_MS = 8000;
+const RESTORE_RETRY_MS = 250;
+const RESTORE_MAX_TRIES = 20;
 
 let initialized = false;
 let userId: number | undefined;
@@ -166,35 +168,47 @@ const fillQueue = () => {
 
 /**
  * Load a playlist into the native queue starting at `startIndex` and play.
+ * If the song has a saved resume point (restored on launch, or interrupted by a room)
+ * it continues from there. Returns true when it resumed rather than started over.
  */
-const loadPlaylist = (playlist: Song[], startIndex: number) => {
-  if (!initialized || !playlist.length) return;
+const loadPlaylist = (playlist: Song[], startIndex: number): boolean => {
+  if (!initialized || !playlist.length) return false;
 
   const s = store();
   const end = Math.min(startIndex + QUEUE_LOOKAHEAD, playlist.length);
   const tracks = toMediaItems(playlist.slice(startIndex, end));
 
-  if (tracks.length === 0) return;
+  if (tracks.length === 0) return false;
+
+  const song = playlist[startIndex];
+  const resumeAt = song ? takeResumePoint(song.id) : 0;
 
   TrackPlayer.setRepeatMode(toNativeRepeatMode(s.repeatMode));
   TrackPlayer.setMediaItems(tracks, 0);
+  if (resumeAt > 0) TrackPlayer.seekTo(resumeAt);
   TrackPlayer.play();
 
-  const song = playlist[startIndex];
   if (song && song.id !== s.currentSong?.id) {
     s.setCurrentSong(song);
   }
   s.setPlaying(true);
+  return resumeAt > 0;
 };
 
 let lastHistorySongId: string | null = null;
+/** Bumped whenever a new restore starts or you start playback, cancelling older retries. */
+let restoreAttempt = 0;
+let restoreTimer: ReturnType<typeof setTimeout> | null = null;
 let lastHistoryTimestamp = 0;
 let restoredSongId: string | null = null;
 
-const recordSongStart = (song: Song) => {
+const recordSongStart = (song: Song, resumed = false) => {
   if (!song?.id) return;
 
-  playbackHistory.updatePlaybackProgress(song, 0, song.duration || 0, true).catch(console.error);
+  // A resumed song keeps its saved position; only a fresh start resets it to 0.
+  if (!resumed) {
+    playbackHistory.updatePlaybackProgress(song, 0, song.duration || 0, true).catch(console.error);
+  }
 
   const now = Date.now();
   if (lastHistorySongId === song.id && now - lastHistoryTimestamp < 3000) {
@@ -228,6 +242,8 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
   stopGroupPlayback();
   resetErrors();
   switchToNormalMode();
+  // You're choosing playback now: a still-pending launch restore must not override it.
+  restoreAttempt += 1;
 
   const s = store();
   const playlist = s.playlist.length ? s.playlist : [song];
@@ -240,6 +256,8 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
     const activeIdx = TrackPlayer.getActiveMediaItemIndex();
 
     if (queueIdx === activeIdx) {
+      // Already loaded at its saved spot (e.g. restored on launch): just continue.
+      takeResumePoint(song.id);
       if (!TrackPlayer.isPlaying()) TrackPlayer.play();
     } else {
       TrackPlayer.skipToIndex(queueIdx);
@@ -260,8 +278,8 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
     0,
     playlist.findIndex((s) => s.id === song.id)
   );
-  loadPlaylist(playlist, startIdx);
-  recordSongStart(song);
+  const resumed = loadPlaylist(playlist, startIdx);
+  recordSongStart(song, resumed);
   fillQueue();
 };
 
@@ -601,12 +619,38 @@ const restoreLastPlayedSong = async () => {
     s.setPlaying(false);
     s.setLoading(false);
     restoredSongId = song.id;
-    TrackPlayer.setRepeatMode(toNativeRepeatMode(s.repeatMode));
-    TrackPlayer.setMediaItems(tracks, 0);
-    if (position > 0) TrackPlayer.seekTo(position);
-    TrackPlayer.pause();
+    // If the native load below doesn't stick, pressing play still resumes here.
+    setResumePoint(song.id, position);
 
-    fillQueue();
+    const attempt = ++restoreAttempt;
+    const apply = () => {
+      TrackPlayer.setRepeatMode(toNativeRepeatMode(store().repeatMode));
+      TrackPlayer.setMediaItems(tracks, 0);
+      if (position > 0) TrackPlayer.seekTo(position);
+      TrackPlayer.pause();
+    };
+
+    // setupPlayer() connects the native media controller asynchronously, and commands
+    // sent before it connects are silently dropped: that's why the song used to come
+    // back at 0:00. Re-send the restore until the native queue actually holds it.
+    let tries = 0;
+    const settle = () => {
+      restoreTimer = null;
+      if (attempt !== restoreAttempt || !initialized) return;
+      const st = store();
+      if (st.activePlayerMode !== 'normal' || st.currentSong?.id !== song.id) return;
+
+      if (TrackPlayer.getQueue().length > 0) {
+        fillQueue();
+        return;
+      }
+      if (tries++ >= RESTORE_MAX_TRIES) return;
+      apply();
+      restoreTimer = setTimeout(settle, RESTORE_RETRY_MS);
+    };
+
+    apply();
+    restoreTimer = setTimeout(settle, RESTORE_RETRY_MS);
   } catch (error) {
     console.error('Error restoring last played song:', error);
   }
@@ -622,8 +666,8 @@ const setupAppStateListener = () => {
       // Trim cache on background
       if (trackCache.size > MAX_TRACK_CACHE_SIZE / 2) trackCache.clear();
 
-      // Save progress
-      if (s.currentSong?.id && initialized) {
+      // Save progress (not during a room: the native position belongs to the room's song)
+      if (s.currentSong?.id && initialized && s.activePlayerMode === 'normal') {
         try {
           const { position, duration } = TrackPlayer.getProgress();
           if (position > 0 && duration > 0) {
@@ -645,7 +689,7 @@ const setupAppStateListener = () => {
       try {
         syncStoreFromNative();
 
-        if (s.currentSong) {
+        if (s.currentSong && s.activePlayerMode === 'normal') {
           const { position, duration } = TrackPlayer.getProgress();
           if (position > 0) {
             playbackHistory.updatePlaybackProgress(
@@ -817,6 +861,11 @@ export const handleTrackPlayerEvents = dispatchTrackPlayerEvent;
 export const destroyTrackPlayer = async () => {
   pendingPlay = null;
   restoredSongId = null;
+  restoreAttempt += 1;
+  if (restoreTimer) {
+    clearTimeout(restoreTimer);
+    restoreTimer = null;
+  }
   if (appStateSub) {
     appStateSub.remove();
     appStateSub = null;

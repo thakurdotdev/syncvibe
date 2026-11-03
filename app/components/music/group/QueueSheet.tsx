@@ -674,42 +674,20 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
   const queueKeyExtractor = useCallback((item: QueueItem) => item.id, []);
   const songKeyExtractor = useCallback((item: Song) => item.id, []);
 
+  /**
+   * One compact row above the up-next list. In the room the player sits right above
+   * this panel, so the "now playing" card only shows in the standalone sheet.
+   */
   const renderQueueHeader = useCallback(() => {
-    if (!currentSong || !currentQueueItem) {
-      if (upcomingQueue.length > 0) {
-        return (
-          <View style={styles.listHeader}>
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>UP NEXT</Text>
-            <TouchableOpacity
-              onPress={handleClearQueue}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: '600',
-                  color: colors.destructive || '#ef4444',
-                }}
-              >
-                Clear
-              </Text>
-            </TouchableOpacity>
-          </View>
-        );
-      }
-      return null;
-    }
+    const showNowPlaying = !embedded && !!currentSong && !!currentQueueItem;
 
     return (
       <View>
-        <View style={[styles.nowPlaying, { backgroundColor: colors.secondary }]}>
-          <View style={styles.nowPlayingLabel}>
-            <Ionicons name='musical-note' size={12} color={colors.primary} />
-            <Text style={[styles.nowPlayingText, { color: colors.primary }]}>NOW PLAYING</Text>
-          </View>
-          <View style={styles.nowPlayingSong}>
+        {showNowPlaying && (
+          <View style={[styles.nowPlaying, { backgroundColor: colors.secondary }]}>
             <Image source={{ uri: currentSong.image?.[1]?.link }} style={styles.nowPlayingArt} />
             <View style={styles.nowPlayingInfo}>
+              <Text style={[styles.nowPlayingText, { color: colors.primary }]}>NOW PLAYING</Text>
               <Text style={[styles.nowPlayingName, { color: colors.foreground }]} numberOfLines={1}>
                 {currentSong.name}
               </Text>
@@ -728,51 +706,58 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
               </View>
             )}
           </View>
-        </View>
-        {upcomingQueue.length > 0 && (
-          <View style={styles.listHeader}>
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>UP NEXT</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <TouchableOpacity
-                onPress={() => toggleAutoRecommendations()}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        )}
+
+        <View style={styles.listHeader}>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+            {upcomingQueue.length > 0 ? `UP NEXT · ${upcomingQueue.length}` : 'UP NEXT'}
+          </Text>
+          <View style={styles.listHeaderActions}>
+            <TouchableOpacity
+              onPress={() => toggleAutoRecommendations()}
+              accessibilityRole='switch'
+              accessibilityState={{ checked: autoPlay }}
+              accessibilityLabel='Autoplay recommendations'
+              hitSlop={8}
+              style={[
+                styles.miniPill,
+                { backgroundColor: autoPlay ? colors.primary + '1F' : colors.secondary },
+              ]}
+            >
+              <Ionicons
+                name='sparkles'
+                size={11}
+                color={autoPlay ? colors.primary : colors.mutedForeground}
+              />
+              <Text
+                style={[
+                  styles.miniPillText,
+                  { color: autoPlay ? colors.primary : colors.mutedForeground },
+                ]}
               >
-                <Ionicons
-                  name='sparkles'
-                  size={12}
-                  color={autoPlay ? '#a855f7' : colors.mutedForeground}
-                />
-                <Text
-                  style={{
-                    fontSize: 11.5,
-                    fontWeight: '600',
-                    color: autoPlay ? '#a855f7' : colors.mutedForeground,
-                  }}
-                >
-                  Autoplay
-                </Text>
-              </TouchableOpacity>
+                Autoplay
+              </Text>
+            </TouchableOpacity>
+            {upcomingQueue.length > 0 && (
               <TouchableOpacity
                 onPress={handleClearQueue}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole='button'
+                accessibilityLabel='Clear upcoming queue'
+                hitSlop={8}
+                style={[styles.miniPill, { backgroundColor: colors.secondary }]}
               >
-                <Text
-                  style={{
-                    fontSize: 11.5,
-                    fontWeight: '600',
-                    color: colors.destructive || '#ef4444',
-                  }}
-                >
+                <Feather name='trash-2' size={11} color={colors.destructive || '#ef4444'} />
+                <Text style={[styles.miniPillText, { color: colors.destructive || '#ef4444' }]}>
                   Clear
                 </Text>
               </TouchableOpacity>
-            </View>
+            )}
           </View>
-        )}
+        </View>
       </View>
     );
   }, [
+    embedded,
     currentSong,
     currentQueueItem,
     upcomingQueue.length,
@@ -784,10 +769,10 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
     toggleAutoRecommendations,
   ]);
 
-  const TABS: { key: TabKey; label: string; icon: string }[] = [
-    { key: 'queue', label: 'Queue', icon: 'list' },
+  const TABS: { key: TabKey; label: string; icon: keyof typeof Feather.glyphMap }[] = [
+    { key: 'queue', label: 'Up next', icon: 'list' },
     { key: 'playlists', label: 'Playlists', icon: 'disc' },
-    { key: 'recommended', label: 'For You', icon: 'zap' },
+    { key: 'recommended', label: 'For you', icon: 'zap' },
   ];
 
   const listBottomInset = Math.max(insets.bottom, 12) + 16;
@@ -831,62 +816,91 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
           </View>
         )}
 
-        {/* Search Bar Input */}
-        <View style={[styles.searchBarContainer, embedded && { paddingTop: 10 }]}>
+        {/* Search + source chips: one compact toolbar instead of a second segmented bar. */}
+        <View style={[styles.toolbar, embedded && { paddingTop: 10 }]}>
           <Input
             ref={inputRef}
-            placeholder='Search songs to add...'
+            placeholder='Search songs to add'
             value={searchQuery}
             onChangeText={handleSearch}
             variant='filled'
             size='sm'
+            returnKeyType='search'
             leftIcon={<Feather name='search' size={16} color={colors.mutedForeground} />}
             rightIcon={
               searchQuery ? (
-                <TouchableOpacity onPress={() => handleSearch('')}>
+                <TouchableOpacity
+                  onPress={() => handleSearch('')}
+                  accessibilityRole='button'
+                  accessibilityLabel='Clear search'
+                  hitSlop={8}
+                >
                   <Feather name='x' size={16} color={colors.mutedForeground} />
                 </TouchableOpacity>
               ) : null
             }
           />
-        </View>
 
-        {/* Tabs */}
-        {!searchQuery.trim() && (
-          <View style={[styles.tabBar, { backgroundColor: colors.secondary }]}>
-            {TABS.map((tab) => {
-              const active = activeTab === tab.key;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  onPress={() => {
-                    setActiveTab(tab.key);
-                    scrollOffset.value = 0;
-                  }}
-                  style={[
-                    styles.tab,
-                    active && [styles.tabActive, { backgroundColor: colors.card }],
-                  ]}
-                >
-                  <Feather
-                    name={tab.icon as any}
-                    size={15}
-                    color={active ? colors.primary : colors.mutedForeground}
-                  />
-                  <Text
+          {!searchQuery.trim() && (
+            <View style={styles.chipRow} accessibilityRole='tablist'>
+              {TABS.map((tab) => {
+                const active = activeTab === tab.key;
+                const count = tab.key === 'queue' ? upcomingQueue.length : 0;
+                return (
+                  <TouchableOpacity
+                    key={tab.key}
+                    onPress={() => {
+                      setActiveTab(tab.key);
+                      scrollOffset.value = 0;
+                    }}
+                    accessibilityRole='tab'
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={count ? `${tab.label}, ${count} songs` : tab.label}
                     style={[
-                      styles.tabText,
-                      { color: active ? colors.primary : colors.mutedForeground },
-                      active && styles.tabTextActive,
+                      styles.chip,
+                      {
+                        backgroundColor: active ? colors.primary + '1F' : colors.secondary,
+                        borderColor: active ? colors.primary + '55' : 'transparent',
+                      },
                     ]}
                   >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
+                    <Feather
+                      name={tab.icon}
+                      size={13}
+                      color={active ? colors.primary : colors.mutedForeground}
+                    />
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: active ? colors.primary : colors.foreground },
+                        active && styles.chipTextActive,
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                    {count > 0 && (
+                      <View
+                        style={[
+                          styles.chipCount,
+                          { backgroundColor: active ? colors.primary : colors.muted },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.chipCountText,
+                            { color: active ? colors.primaryForeground : colors.mutedForeground },
+                          ]}
+                        >
+                          {count}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
 
         {/* Search View when query entered */}
         {searchQuery.trim() ? (
@@ -973,10 +987,19 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
                     ListHeaderComponent={
                       recsSourceName ? (
                         <View style={styles.recsHeaderRow}>
-                          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-                            {`BASED ON: ${recsSourceName.toUpperCase()}`}
+                          <Text
+                            style={[styles.recsSource, { color: colors.mutedForeground }]}
+                            numberOfLines={1}
+                          >
+                            Based on{' '}
+                            <Text style={{ color: colors.foreground, fontWeight: '600' }}>
+                              {recsSourceName}
+                            </Text>
                           </Text>
                           <TouchableOpacity
+                            accessibilityRole='button'
+                            accessibilityLabel='Refresh recommendations'
+                            style={[styles.miniPill, { backgroundColor: colors.secondary }]}
                             onPress={() => {
                               const activeSongId = currentQueueItem?.song?.id || currentSong?.id;
                               if (activeSongId) {
@@ -985,9 +1008,12 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
                                 fetchSmartFallbackRecs(true);
                               }
                             }}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            hitSlop={8}
                           >
-                            <Feather name='refresh-cw' size={12} color={colors.mutedForeground} />
+                            <Feather name='refresh-cw' size={11} color={colors.mutedForeground} />
+                            <Text style={[styles.miniPillText, { color: colors.mutedForeground }]}>
+                              Refresh
+                            </Text>
                           </TouchableOpacity>
                         </View>
                       ) : null
@@ -1035,7 +1061,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   listHeader: {
-    marginTop: 12,
+    marginTop: 8,
+    marginBottom: 2,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1083,59 +1110,57 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
-  tabBar: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    marginTop: 2,
-    marginBottom: 8,
-    borderRadius: 12,
-    padding: 3,
+  toolbar: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 4,
+    gap: 8,
   },
-  tab: {
-    flex: 1,
+  chipRow: { flexDirection: 'row', gap: 6 },
+  chip: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
     gap: 5,
-    minHeight: 38,
+    height: 32,
+    paddingHorizontal: 11,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  chipText: { fontSize: 12.5, fontWeight: '500' },
+  chipTextActive: { fontWeight: '700' },
+  chipCount: {
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
     borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  tabActive: {},
-  tabText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  tabTextActive: {
-    fontWeight: '700',
-  },
-  searchBarContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 6,
-  },
-  searchInput: {
-    flex: 1,
-  },
-  nowPlaying: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 12,
-    padding: 12,
-  },
-  nowPlayingLabel: {
+  chipCountText: { fontSize: 10.5, fontWeight: '800' },
+  listHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  miniPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 8,
+    height: 26,
+    paddingHorizontal: 9,
+    borderRadius: 13,
   },
-  nowPlayingText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  nowPlayingSong: {
+  miniPillText: { fontSize: 11.5, fontWeight: '600' },
+  recsSource: { flex: 1, fontSize: 12.5, marginRight: 8 },
+  nowPlaying: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 12,
+    padding: 10,
+  },
+  nowPlayingText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 1,
   },
   nowPlayingArt: {
     width: 44,
@@ -1177,8 +1202,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 6,
+    marginTop: 8,
+    marginBottom: 4,
   },
   queueItem: {
     flexDirection: 'row',

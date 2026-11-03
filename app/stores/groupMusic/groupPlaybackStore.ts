@@ -5,7 +5,8 @@ import { Song } from '@/types/song';
 import { setupPlayer } from '@/utils/playerSetup';
 import { PlaybackState } from './types';
 import { usePlayerStore } from '../playerStore';
-import { isTrackPlayerReady } from '../trackPlayerState';
+import { isTrackPlayerReady, setResumePoint } from '../trackPlayerState';
+import { playbackHistory } from '@/utils/playbackHistory';
 
 interface GroupPlaybackState {
   currentSong: Song | null;
@@ -116,15 +117,37 @@ export const isNaturalGroupSongEnd = (): boolean => {
 };
 
 // TrackPlayer is shared by the personal and group experiences. A group session
-// must claim it before mutating the native queue so a stale personal player
-// state can never render over, or take control of, synchronized playback.
+// must claim it before mutating the native queue so personal playback can never
+// take control of synchronized playback. Your own song is kept (paused) rather
+// than cleared: Home keeps showing it during the room, and once you leave the room
+// pressing play continues from the exact spot the room interrupted.
 const claimGroupPlayer = () => {
   const personalPlayer = usePlayerStore.getState();
   if (personalPlayer.activePlayerMode === 'group') return;
 
+  const personalSong = personalPlayer.currentSong;
+  if (personalSong?.id) {
+    try {
+      const active = TrackPlayer.getActiveMediaItem();
+      if (active?.mediaId === personalSong.id) {
+        const { position, duration } = TrackPlayer.getProgress();
+        setResumePoint(personalSong.id, position);
+        playbackHistory
+          .updatePlaybackProgress(
+            personalSong,
+            position,
+            duration || personalSong.duration || 0,
+            false
+          )
+          .catch(console.error);
+      }
+    } catch {
+      // Native player not ready: the last saved progress still stands.
+    }
+  }
+
   personalPlayer.setPlaying(false);
   personalPlayer.setLoading(false);
-  personalPlayer.setCurrentSong(null);
   personalPlayer.setActivePlayerMode('group');
 };
 
