@@ -1,12 +1,6 @@
 import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useTheme } from '@/context/ThemeContext';
-import {
-  usePlayerControls,
-  useRepeatMode,
-  usePlaybackState,
-  useSongPlaybackState,
-  useShuffleMode,
-} from '@/stores/playerStore';
+import { usePlayerControls, useSongPlaybackState } from '@/stores/playerStore';
 import { Album, Artist, Playlist } from '@/types/music';
 import { Song } from '@/types/song';
 import {
@@ -16,11 +10,10 @@ import {
   ensureHttpsForSongUrls,
 } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
-import TrackPlayer, { useProgress } from '@rntp/player';
+import { useProgress } from '@rntp/player';
 import { router } from 'expo-router';
-import { Repeat, Repeat1, Shuffle, SkipBackIcon, SkipForwardIcon } from 'lucide-react-native';
 import { memo, default as React, useCallback, useMemo, useState } from 'react';
-import { Image, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Image, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import PressableScale from '@/components/ui/PressableScale';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -818,175 +811,6 @@ const cardStyles = StyleSheet.create({
     height: 48,
     borderRadius: 8,
     overflow: 'hidden',
-  },
-});
-
-export const SongControls = memo(() => {
-  const { handleNextSong, handlePrevSong, handlePlayPause: triggerPlayPause } = usePlayerControls();
-  const { shuffleMode, toggleShuffle } = useShuffleMode();
-  const { repeatMode, toggleRepeat } = useRepeatMode();
-  const { isPlaying } = usePlaybackState();
-  const { position, duration } = useProgress(0.25);
-  const { colors } = useTheme();
-
-  const handlePlayPause = () => {
-    triggerPlayPause();
-  };
-
-  const handleSeek = async (value: number) => {
-    await TrackPlayer.seekTo(value);
-  };
-
-  const handleShuffle = () => {
-    toggleShuffle();
-  };
-
-  const handleRepeat = () => {
-    toggleRepeat();
-  };
-
-  const getRepeatIcon = () => {
-    if (repeatMode === 'one') return Repeat1;
-    return Repeat;
-  };
-
-  const RepeatIcon = getRepeatIcon();
-
-  return (
-    <View style={songControlStyles.container}>
-      <View style={songControlStyles.sliderRow}>
-        <CustomSlider
-          value={position}
-          maxValue={duration}
-          onSeek={handleSeek}
-          trackColor={colors.primary}
-          inactiveTrackColor={colors.mutedForeground + '30'}
-          thumbSize={14}
-          trackHeight={4}
-        />
-      </View>
-      <View style={songControlStyles.timeRow}>
-        <Text style={[songControlStyles.timeText, { color: colors.mutedForeground }]}>
-          {formatTime(position)}
-        </Text>
-        <Text style={[songControlStyles.timeText, { color: colors.mutedForeground }]}>
-          -{formatTime(Math.max(0, duration - position))}
-        </Text>
-      </View>
-
-      <View style={songControlStyles.controls}>
-        <Pressable
-          onPress={handleShuffle}
-          style={({ pressed }) => [songControlStyles.sideControl, { opacity: pressed ? 0.7 : 1 }]}
-        >
-          <Shuffle
-            size={20}
-            color={shuffleMode ? colors.primary : colors.mutedForeground}
-            strokeWidth={shuffleMode ? 2.5 : 1.8}
-          />
-        </Pressable>
-
-        <Pressable
-          onPress={handlePrevSong}
-          style={({ pressed }) => [songControlStyles.skipControl, { opacity: pressed ? 0.7 : 1 }]}
-        >
-          <SkipBackIcon size={26} color={colors.text} strokeWidth={1.8} />
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [
-            songControlStyles.playButton,
-            { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
-          ]}
-          onPress={handlePlayPause}
-        >
-          <Ionicons
-            name={isPlaying ? 'pause' : 'play'}
-            size={30}
-            color={colors.primaryForeground}
-            style={isPlaying ? undefined : { marginLeft: 3 }}
-          />
-        </Pressable>
-
-        <Pressable
-          onPress={() => handleNextSong()}
-          style={({ pressed }) => [songControlStyles.skipControl, { opacity: pressed ? 0.7 : 1 }]}
-        >
-          <SkipForwardIcon size={26} color={colors.text} strokeWidth={1.8} />
-        </Pressable>
-
-        <Pressable
-          onPress={handleRepeat}
-          style={({ pressed }) => [songControlStyles.sideControl, { opacity: pressed ? 0.7 : 1 }]}
-        >
-          <RepeatIcon
-            size={20}
-            color={repeatMode !== 'off' ? colors.primary : colors.mutedForeground}
-            strokeWidth={repeatMode !== 'off' ? 2.5 : 1.8}
-          />
-        </Pressable>
-      </View>
-    </View>
-  );
-});
-
-const songControlStyles = StyleSheet.create({
-  container: {
-    width: '100%',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  sliderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  slider: {
-    flex: 1,
-    height: 40,
-  },
-  sliderContainer: {
-    borderRadius: 4,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 2,
-    marginTop: -4,
-  },
-  timeText: {
-    fontSize: 12,
-    fontVariant: ['tabular-nums'],
-    letterSpacing: 0.3,
-  },
-  controls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 12,
-    gap: 8,
-  },
-  sideControl: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  skipControl: {
-    width: 48,
-    height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  playButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
 });
 
