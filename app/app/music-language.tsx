@@ -8,31 +8,12 @@ import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { Button } from '@/components/ui/button';
+import { LANGUAGES, LANGUAGE_STORAGE_KEY } from '@/lib/languages';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const { width } = Dimensions.get('window');
 const CHIP_WIDTH = (width - 40 - 16) / 3;
-
-const LANGUAGES = [
-  { id: 'hindi', label: 'Hindi', native: 'हिन्दी' },
-  { id: 'maithili', label: 'Maithili', native: 'मैथिली' },
-  { id: 'bhojpuri', label: 'Bhojpuri', native: 'भोजपुरी' },
-  { id: 'english', label: 'English', native: 'English' },
-  { id: 'gujarati', label: 'Gujarati', native: 'ગુજરાતી' },
-  { id: 'punjabi', label: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
-  { id: 'tamil', label: 'Tamil', native: 'தமிழ்' },
-  { id: 'telugu', label: 'Telugu', native: 'తెలుగు' },
-  { id: 'marathi', label: 'Marathi', native: 'मराठी' },
-  { id: 'bengali', label: 'Bengali', native: 'বাংলা' },
-  { id: 'kannada', label: 'Kannada', native: 'ಕನ್ನಡ' },
-  { id: 'malayalam', label: 'Malayalam', native: 'മലയാളം' },
-  { id: 'urdu', label: 'Urdu', native: 'اردו' },
-  { id: 'haryanvi', label: 'Haryanvi', native: 'हरियाणवी' },
-  { id: 'rajasthani', label: 'Rajasthani', native: 'राजस्थानी' },
-  { id: 'odia', label: 'Odia', native: 'ଓଡ଼ିଆ' },
-  { id: 'assamese', label: 'Assamese', native: 'অસમীয়া' },
-];
 
 interface LanguageCardProps {
   label: string;
@@ -137,7 +118,7 @@ export default function LanguagePreferenceScreen() {
   const handleSave = async () => {
     try {
       const langString = Array.from(selectedLangs).join(',');
-      await AsyncStorage.setItem('language-preferance', langString);
+      await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, langString);
       setSelectedLanguages(langString);
       toast('Preferences updated successfully!', { type: 'success' });
       router.back();

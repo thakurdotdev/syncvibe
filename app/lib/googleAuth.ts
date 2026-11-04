@@ -1,4 +1,10 @@
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import {
+  GoogleOneTapSignIn,
+  isErrorWithCode,
+  isNoSavedCredentialFoundResponse,
+  isSuccessResponse,
+  statusCodes,
+} from 'react-native-nitro-google-signin';
 import { GOOGLE_WEB_CLIENT_ID } from '@/constants';
 
 export interface NativeGoogleUser {
@@ -9,67 +15,59 @@ export interface NativeGoogleUser {
 }
 
 export interface NativeGoogleSignInResult {
-  token?: string;
+  token: string;
   user: NativeGoogleUser;
 }
 
-/**
- * Configure native Google Sign-In with Web Client ID
- */
-export const configureGoogleSignIn = () => {
-  GoogleSignin.configure({
-    webClientId: GOOGLE_WEB_CLIENT_ID,
-    offlineAccess: true,
-    forceCodeForRefreshToken: true,
-  });
+let configured = false;
+
+const ensureConfigured = () => {
+  if (configured) return;
+  GoogleOneTapSignIn.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
+  configured = true;
 };
 
 /**
- * Executes the native Google Sign-In prompt.
- * Returns the authenticated user payload and idToken, or null if the user cancelled.
+ * Opens Google's account dialog, which lists every account on the device and offers "add account".
+ * Returns the ID token and profile, or null if the user dismissed it.
  */
 export const performNativeGoogleSignIn = async (): Promise<NativeGoogleSignInResult | null> => {
+  ensureConfigured();
+
   try {
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    await GoogleOneTapSignIn.checkPlayServices(true);
 
-    // Clear any existing native Google session to guarantee the account picker dialog opens every time
-    try {
-      await GoogleSignin.signOut();
-    } catch {
-      // Ignore if no session was active
+    const response = await GoogleOneTapSignIn.presentExplicitSignIn();
+
+    if (isNoSavedCredentialFoundResponse(response)) {
+      throw new Error('No Google account was found on this device.');
     }
+    if (!isSuccessResponse(response)) return null;
 
-    const response = await GoogleSignin.signIn();
+    const { idToken, user } = response.data;
 
-    // Handle v13+ response structure (response.data) as well as legacy structure
-    const data = response.data || (response as any);
-    const googleUser = data?.user;
-    const idToken = data?.idToken;
-
-    if (!googleUser || !googleUser.email) {
+    if (!user.email) {
       throw new Error('Failed to retrieve profile information from Google.');
     }
 
     return {
       token: idToken,
       user: {
-        id: googleUser.id,
-        email: googleUser.email,
-        name: googleUser.name || googleUser.givenName || googleUser.email.split('@')[0],
-        picture: googleUser.photo || undefined,
+        id: user.id,
+        email: user.email,
+        name: user.name || user.givenName || user.email.split('@')[0],
+        picture: user.photo || undefined,
       },
     };
-  } catch (error: any) {
-    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-      // User dismissed / cancelled the bottom-sheet
-      return null;
-    }
-    if (error.code === statusCodes.IN_PROGRESS) {
-      // Sign-in operation already in progress
-      return null;
-    }
-    if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-      throw new Error('Google Play Services is not available or outdated on this device.');
+  } catch (error) {
+    if (isErrorWithCode(error)) {
+      if (error.code === statusCodes.IN_PROGRESS) return null;
+      if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        throw new Error('Google Play Services is not available or outdated on this device.');
+      }
+      if (error.code === statusCodes.DEVELOPER_ERROR) {
+        throw new Error("Google sign-in isn't set up for this build of the app.");
+      }
     }
 
     throw error;
@@ -77,11 +75,12 @@ export const performNativeGoogleSignIn = async (): Promise<NativeGoogleSignInRes
 };
 
 /**
- * Signs the user out of the native Google session
+ * Clears the native Google session and saved credential state.
  */
 export const signOutGoogle = async (): Promise<void> => {
   try {
-    await GoogleSignin.signOut();
+    ensureConfigured();
+    await GoogleOneTapSignIn.signOut();
   } catch (error) {
     console.error('Google sign out error:', error);
   }

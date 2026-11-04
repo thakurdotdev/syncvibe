@@ -1,6 +1,8 @@
 import { User } from '@/types/user';
 import useApi from '@/utils/hooks/useApi';
 import { signOutGoogle } from '@/lib/googleAuth';
+import { LANGUAGE_STORAGE_KEY } from '@/lib/languages';
+import { markOnboardingComplete } from '@/lib/onboarding';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -75,7 +77,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const [token, cachedProfile, langPref] = await Promise.all([
           AsyncStorage.getItem('token'),
           AsyncStorage.getItem('@user_profile'),
-          AsyncStorage.getItem('language-preferance'),
+          AsyncStorage.getItem(LANGUAGE_STORAGE_KEY),
         ]);
 
         if (langPref && isMounted) {
@@ -121,7 +123,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       queryClient.cancelQueries();
       queryClient.clear();
-      await Promise.allSettled([AsyncStorage.clear(), signOutGoogle()]);
+      // Logging out clears everything except the fact that this device has seen onboarding.
+      await Promise.allSettled([
+        AsyncStorage.clear().then(markOnboardingComplete),
+        signOutGoogle(),
+      ]);
       setUser(null);
       router.reload();
     } catch (error) {

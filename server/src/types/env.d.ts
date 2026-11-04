@@ -23,6 +23,8 @@ declare global {
       GOOGLE_CLIENT_ID: string;
       GOOGLE_CLIENT_SECRET: string;
       GOOGLE_CALLBACK_URL: string;
+      /** Web client ID the mobile app signs in with, when it differs from GOOGLE_CLIENT_ID. */
+      GOOGLE_MOBILE_CLIENT_ID?: string;
 
       // Email (Resend)
       RESEND_API_KEY: string;

@@ -9,6 +9,7 @@ import {
   updatePushTokenService,
   getUserProfileService,
 } from './services/user.service';
+import { verifyGoogleIdToken } from './services/google-token.service';
 import { AuthError } from './auth.errors';
 import { clearAuthCookie, getAuthCookieOptions } from './auth-cookie';
 
@@ -87,13 +88,18 @@ export const googleAuthCallback = (req: Request, res: Response, next: NextFuncti
 
 export const mobileGoogleAuth = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { user: googleUser } = req.body as {
-      token?: string;
-      user?: { email?: string; name?: string; id?: string; picture?: string; photo?: string };
-    };
+    const { token: idToken } = req.body as { token?: unknown };
 
-    if (!googleUser?.email) {
-      res.status(400).json({ success: false, message: 'Email is required' });
+    if (typeof idToken !== 'string' || !idToken) {
+      res.status(400).json({ success: false, message: 'Google token is required' });
+      return;
+    }
+
+    // The identity comes only from the verified token, never from the request body.
+    const googleUser = await verifyGoogleIdToken(idToken);
+
+    if (!googleUser) {
+      res.status(401).json({ success: false, message: 'Could not verify your Google account' });
       return;
     }
 
@@ -108,8 +114,8 @@ export const mobileGoogleAuth = async (req: Request, res: Response): Promise<voi
         name: googleUser.name ?? 'User',
         username: googleUser.email.split('@')[0]!,
         email: googleUser.email,
-        password: googleUser.id ?? '',
-        profilepic: googleUser.picture || googleUser.photo || null,
+        password: googleUser.id,
+        profilepic: googleUser.picture || null,
         verified: true,
         logintype: UserLoginType.GOOGLE,
       });
