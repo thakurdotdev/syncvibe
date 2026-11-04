@@ -1,155 +1,70 @@
-import Button from '@/components/ui/button';
+import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
+import { BUTTON_PRESS_SCALE } from '@/lib/motion';
 import { Ionicons } from '@expo/vector-icons';
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 export type TabType = 'player' | 'queue';
 
 interface PlayerHeaderProps {
   activeTab: TabType;
-  onTabChange: (tab: TabType) => void;
-  onClose: () => void;
+  onBack: () => void;
   onOptionsPress: () => void;
-  queueCount: number;
 }
 
+/** Close (or, from the queue, back to the song), what you're looking at, and song options. */
 export const PlayerHeader = memo(function PlayerHeader({
   activeTab,
-  onTabChange,
-  onClose,
+  onBack,
   onOptionsPress,
-  queueCount,
 }: PlayerHeaderProps) {
   const { colors } = useTheme();
+  const inQueue = activeTab === 'queue';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.dragHandleRow}>
-        <View style={[styles.dragHandle, { backgroundColor: colors.mutedForeground + '40' }]} />
-      </View>
+    <View style={styles.header}>
+      <PressableScale
+        onPress={onBack}
+        scaleTo={BUTTON_PRESS_SCALE}
+        hitSlop={6}
+        accessibilityRole='button'
+        accessibilityLabel={inQueue ? 'Back to now playing' : 'Close player'}
+        style={styles.button}
+      >
+        <Ionicons
+          name={inQueue ? 'chevron-back' : 'chevron-down'}
+          size={26}
+          color={colors.foreground}
+        />
+      </PressableScale>
 
-      <View style={styles.header}>
-        <Button onPress={onClose} variant='ghost' size='icon'>
-          <Ionicons name='chevron-down' size={24} color={colors.text} />
-        </Button>
+      <Text style={[styles.title, { color: colors.foreground }]} accessibilityRole='header'>
+        {inQueue ? 'Queue' : 'Now playing'}
+      </Text>
 
-        <View style={styles.headerTabs}>
-          <Pressable
-            onPress={() => onTabChange('player')}
-            style={[
-              styles.headerTab,
-              activeTab === 'player' && {
-                backgroundColor: colors.card + '80',
-                borderColor: colors.border + '40',
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.headerTabText,
-                {
-                  color: activeTab === 'player' ? colors.text : colors.mutedForeground,
-                  fontWeight: activeTab === 'player' ? '700' : '500',
-                },
-              ]}
-            >
-              Playing
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => onTabChange('queue')}
-            style={[
-              styles.headerTab,
-              activeTab === 'queue' && {
-                backgroundColor: colors.card + '80',
-                borderColor: colors.border + '40',
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.headerTabText,
-                {
-                  color: activeTab === 'queue' ? colors.text : colors.mutedForeground,
-                  fontWeight: activeTab === 'queue' ? '700' : '500',
-                },
-              ]}
-            >
-              Queue
-            </Text>
-            {queueCount > 0 && (
-              <View style={[styles.headerBadge, { backgroundColor: colors.primary }]}>
-                <Text style={[styles.headerBadgeText, { color: colors.primaryForeground }]}>
-                  {queueCount > 99 ? '99+' : queueCount}
-                </Text>
-              </View>
-            )}
-          </Pressable>
-        </View>
-
-        <Button variant='ghost' size='icon' onPress={onOptionsPress}>
-          <Ionicons name='ellipsis-horizontal' size={20} color={colors.text} />
-        </Button>
-      </View>
+      <PressableScale
+        onPress={onOptionsPress}
+        scaleTo={BUTTON_PRESS_SCALE}
+        hitSlop={6}
+        accessibilityRole='button'
+        accessibilityLabel='Song options'
+        style={styles.button}
+      >
+        <Ionicons name='ellipsis-horizontal' size={21} color={colors.foreground} />
+      </PressableScale>
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
-  dragHandleRow: {
-    alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 4,
-  },
-  dragHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-  },
   header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    height: 52,
+    paddingHorizontal: 10,
   },
-  headerTabs: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  headerTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  headerTabText: {
-    fontSize: 15,
-    letterSpacing: 0.2,
-  },
-  headerBadge: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 5,
-  },
-  headerBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
+  button: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 14, fontWeight: '600' },
 });

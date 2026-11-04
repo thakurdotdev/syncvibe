@@ -20,7 +20,7 @@ const DECK_PAGES = new Set(['albums', 'artist', 'playlists', 'user-playlist', 's
  */
 function GlobalBottomDeck() {
   const segments = useSegments() as string[];
-  const { colors, theme } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [lastTab, setLastTab] = useState('home');
 
@@ -41,7 +41,7 @@ function GlobalBottomDeck() {
 
   return (
     <View pointerEvents='box-none' style={styles.host}>
-      <UnifiedBottomDeck colors={colors} theme={theme} insets={insets} activeSegment={activeTab} />
+      <UnifiedBottomDeck colors={colors} insets={insets} activeSegment={activeTab} />
     </View>
   );
 }
