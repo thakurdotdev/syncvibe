@@ -11,34 +11,24 @@ import {
 import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
 import { MoreVertical, Sparkles, Trash2Icon } from 'lucide-react-native';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import DraggableFlatList, {
-  RenderItemParams,
-  ScaleDecorator,
-} from 'react-native-draggable-flatlist';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SwipeableModal from '../../SwipeableModal';
+import { SortableQueue } from './SortableQueue';
 
 const ITEM_HEIGHT = 58;
+/** Row height + its vertical margins: the distance between one row and the next. */
+const ROW_STEP = ITEM_HEIGHT + 4;
 
 const SongCardQueue = memo(
   function SongCardQueue({
     song,
-    drag,
     isActive,
     onMenuPress,
   }: {
     song: Song;
-    drag: () => void;
     isActive: boolean;
     onMenuPress: (song: Song) => void;
   }) {
@@ -61,127 +51,99 @@ const SongCardQueue = memo(
     const songArtist = song.subtitle || song.artist_map?.artists?.[0]?.name;
 
     return (
-      <ScaleDecorator activeScale={1.03}>
-        <Pressable
-          onLongPress={!isCurrentSong ? drag : undefined}
-          onPress={handlePress}
-          disabled={isActive}
-          delayLongPress={180}
-          style={[
-            queueItemStyles.itemContainer,
-            {
-              backgroundColor: isCurrentSong
-                ? colors.primary + '14'
-                : isActive
-                  ? colors.card
-                  : 'transparent',
-              borderColor: isActive ? colors.primary + '60' : 'transparent',
-              elevation: isActive ? 8 : 0,
-              shadowColor: '#000000',
-              shadowOpacity: isActive ? 0.25 : 0,
-              shadowOffset: { width: 0, height: 4 },
-              shadowRadius: isActive ? 8 : 0,
-            },
-          ]}
-          android_ripple={{ color: colors.primary + '10', borderless: false }}
-        >
-          <View style={queueItemStyles.thumbnailWrapper}>
-            <Image
-              source={{ uri: songImage, cache: 'force-cache' }}
-              style={queueItemStyles.thumbnail}
-              fadeDuration={0}
-              resizeMode='cover'
-            />
-            {isCurrentSong && (
-              <View style={queueItemStyles.thumbnailOverlay}>
-                <Ionicons name={isPlaying ? 'pause' : 'play'} size={16} color='#fff' />
-              </View>
-            )}
-          </View>
+      <Pressable
+        onPress={handlePress}
+        disabled={isActive}
+        style={[
+          queueItemStyles.itemContainer,
+          {
+            backgroundColor: isActive
+              ? colors.card
+              : isCurrentSong
+                ? `${colors.foreground}10`
+                : 'transparent',
+            borderColor: isActive ? colors.border : 'transparent',
+          },
+        ]}
+        android_ripple={{ color: `${colors.foreground}10`, borderless: false }}
+      >
+        <View style={queueItemStyles.thumbnailWrapper}>
+          <Image
+            source={{ uri: songImage, cache: 'force-cache' }}
+            style={queueItemStyles.thumbnail}
+            fadeDuration={0}
+            resizeMode='cover'
+          />
+          {isCurrentSong && (
+            <View style={queueItemStyles.thumbnailOverlay}>
+              <Ionicons name={isPlaying ? 'pause' : 'play'} size={16} color='#fff' />
+            </View>
+          )}
+        </View>
 
-          <View style={queueItemStyles.textArea}>
-            <Text
-              style={[
-                queueItemStyles.title,
-                { color: isCurrentSong ? colors.primary : colors.text },
-              ]}
-              numberOfLines={1}
-            >
-              {songName}
-            </Text>
-            <Text
-              style={[queueItemStyles.artist, { color: colors.mutedForeground }]}
-              numberOfLines={1}
-            >
-              {songArtist}
-            </Text>
-          </View>
+        <View style={queueItemStyles.textArea}>
+          <Text
+            style={[
+              queueItemStyles.title,
+              { color: colors.text, fontWeight: isCurrentSong ? '700' : '600' },
+            ]}
+            numberOfLines={1}
+          >
+            {songName}
+          </Text>
+          <Text
+            style={[queueItemStyles.artist, { color: colors.mutedForeground }]}
+            numberOfLines={1}
+          >
+            {songArtist}
+          </Text>
+        </View>
 
-          <Pressable onPress={handleMenuPress} hitSlop={8} style={queueItemStyles.menuButton}>
-            <MoreVertical size={18} color={colors.mutedForeground} />
-          </Pressable>
+        <Pressable onPress={handleMenuPress} hitSlop={8} style={queueItemStyles.menuButton}>
+          <MoreVertical size={18} color={colors.mutedForeground} />
         </Pressable>
-      </ScaleDecorator>
+      </Pressable>
     );
   },
   (prev, next) =>
     prev.song.id === next.song.id &&
     prev.isActive === next.isActive &&
-    prev.drag === next.drag &&
     prev.onMenuPress === next.onMenuPress
 );
 
-export const QueueTab = memo(function QueueTab() {
+export const QueueTab = memo(function QueueTab({ visible }: { visible: boolean }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  // The list costs nothing until the queue is first opened; after that it stays mounted.
+  const [opened, setOpened] = useState(visible);
+  useEffect(() => {
+    if (visible) setOpened(true);
+  }, [visible]);
   const { reorderPlaylist, clearQueue, removeFromQueue, removeFromQueueBelow, playSong } =
     usePlayerControls();
   const { playlist } = usePlaylistState();
   const { currentSong } = usePlaybackState();
   const autoFetchRecommendations = usePlayerStore((s) => s.autoFetchRecommendations);
   const setAutoFetchRecommendations = usePlayerStore((s) => s.setAutoFetchRecommendations);
-  const scrollRef = useRef(null);
-
-  const isDraggingRef = useRef(false);
-  const [queueData, setQueueData] = useState<Song[]>(playlist);
   const [menuSong, setMenuSong] = useState<Song | null>(null);
   const [isFetchingRecs, setIsFetchingRecs] = useState(false);
 
-  useEffect(() => {
-    if (!isDraggingRef.current) {
-      setQueueData(playlist);
-    }
-  }, [playlist]);
-
   const upcomingCount = useMemo(() => {
-    if (!currentSong) return queueData.length;
-    return queueData.filter((s) => s.id !== currentSong.id).length;
-  }, [queueData, currentSong]);
-
-  const handleDragBegin = useCallback(() => {
-    isDraggingRef.current = true;
-  }, []);
-
-  const handleDragEnd = useCallback(
-    ({ data }: { data: Song[] }) => {
-      setQueueData(data);
-      reorderPlaylist(data);
-      setTimeout(() => {
-        isDraggingRef.current = false;
-      }, 350);
-    },
-    [reorderPlaylist]
-  );
+    if (!currentSong) return playlist.length;
+    return playlist.filter((s) => s.id !== currentSong.id).length;
+  }, [playlist, currentSong]);
 
   const handleMenuPress = useCallback((song: Song) => {
     setMenuSong(song);
   }, []);
 
-  const renderItem = useCallback(
-    ({ item, drag, isActive }: RenderItemParams<Song>) => (
-      <SongCardQueue song={item} drag={drag} isActive={isActive} onMenuPress={handleMenuPress} />
+  const renderRow = useCallback(
+    (song: Song, isActive: boolean) => (
+      <SongCardQueue song={song} isActive={isActive} onMenuPress={handleMenuPress} />
     ),
     [handleMenuPress]
   );
+  const canDrag = useCallback((song: Song) => song.id !== currentSong?.id, [currentSong?.id]);
 
   const handleClearQueue = useCallback(() => {
     if (playlist.length <= 1) return;
@@ -315,27 +277,16 @@ export const QueueTab = memo(function QueueTab() {
         </View>
       </View>
 
-      <DraggableFlatList
-        ref={scrollRef}
-        data={queueData}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 60 }}
-        showsVerticalScrollIndicator={false}
-        bounces={true}
-        activationDistance={10}
-        autoscrollThreshold={50}
-        autoscrollSpeed={100}
-        dragItemOverflow={false}
-        initialNumToRender={14}
-        maxToRenderPerBatch={10}
-        windowSize={9}
-        removeClippedSubviews={Platform.OS === 'android'}
-        scrollEventThrottle={16}
-        animationConfig={{ damping: 22, stiffness: 260, mass: 0.6 }}
-        onDragBegin={handleDragBegin}
-        onDragEnd={handleDragEnd}
-      />
+      {opened && (
+        <SortableQueue
+          data={playlist}
+          rowHeight={ROW_STEP}
+          bottomPadding={insets.bottom + 24}
+          canDrag={canDrag}
+          renderRow={renderRow}
+          onReorder={reorderPlaylist}
+        />
+      )}
 
       {menuSong && (
         <SwipeableModal isVisible={!!menuSong} onClose={() => setMenuSong(null)}>
@@ -459,14 +410,8 @@ const queueItemStyles = StyleSheet.create({
     marginHorizontal: 8,
     marginVertical: 2,
     borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
     height: ITEM_HEIGHT,
-  },
-  activeItem: {
-    borderWidth: 1,
-    elevation: 8,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
   },
   thumbnailWrapper: {
     position: 'relative',
