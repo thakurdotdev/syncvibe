@@ -90,7 +90,7 @@
       "expo-system-ui",
       "expo-web-browser",
       "expo-audio",
-      "@react-native-google-signin/google-signin"
+      "react-native-nitro-google-signin"
     ],
     "experiments": {
       "typedRoutes": true,

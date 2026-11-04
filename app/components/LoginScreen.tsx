@@ -1,13 +1,13 @@
 import { API_URL } from '@/constants';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
-import { configureGoogleSignIn, performNativeGoogleSignIn } from '@/lib/googleAuth';
+import { googleLoginErrorMessage, useGoogleLogin } from '@/hooks/useGoogleLogin';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -46,9 +46,7 @@ const LoginScreen = () => {
   const [twoFactorUserId, setTwoFactorUserId] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  useEffect(() => {
-    configureGoogleSignIn();
-  }, []);
+  const signInWithGoogle = useGoogleLogin();
 
   const navigateAfterLogin = () => {
     if (router.canGoBack()) {
@@ -62,34 +60,13 @@ const LoginScreen = () => {
     setError('');
     setLoading(true);
     try {
-      const authResult = await performNativeGoogleSignIn();
-      if (!authResult) {
-        setLoading(false);
-        return;
+      if (await signInWithGoogle()) {
+        setIsLoggingIn(true);
+        navigateAfterLogin();
       }
-
-      const backendResponse = await axios.post(`${API_URL}/api/auth/google/mobile`, {
-        token: authResult.token,
-        user: authResult.user,
-      });
-
-      const { token, user: loggedInUser } = backendResponse.data;
-      await AsyncStorage.multiSet([
-        ['token', token],
-        ['@user_profile', JSON.stringify(loggedInUser)],
-      ]);
-
-      setUser(loggedInUser);
-      setIsLoggingIn(true);
-      navigateAfterLogin();
-
-      // Keep user profile synced in background without blocking navigation
-      getProfile().catch(console.error);
     } catch (err: any) {
       console.error('Google sign-in error:', err);
-      setError(
-        err.response?.data?.message || err.message || 'Google sign-in failed. Please try again.'
-      );
+      setError(googleLoginErrorMessage(err));
       setIsLoggingIn(false);
     } finally {
       setLoading(false);
