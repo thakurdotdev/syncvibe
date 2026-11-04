@@ -158,9 +158,9 @@ export default function Player() {
     transform: [{ translateY: translateY.get() }],
     display: translateY.get() >= screenHeight ? 'none' : 'flex',
   }));
+  // The song is gone in the first third of the switch, so it never shows through the queue.
   const playerLayerStyle = useAnimatedStyle(() => ({
-    opacity: 1 - queueShown.get(),
-    transform: [{ scale: 1 - queueShown.get() * 0.03 }],
+    opacity: Math.max(0, 1 - queueShown.get() * 3),
   }));
   const queueLayerStyle = useAnimatedStyle(() => ({
     opacity: queueShown.get(),
@@ -226,7 +226,7 @@ export default function Player() {
             pointerEvents={activeTab === 'queue' ? 'auto' : 'none'}
             style={[styles.layer, queueLayerStyle]}
           >
-            <QueueTab />
+            <QueueTab visible={activeTab === 'queue'} />
           </Animated.View>
         </View>
       </Animated.View>

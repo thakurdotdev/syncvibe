@@ -190,7 +190,7 @@ export const AppUpdateModal: React.FC = () => {
 
           {(isReady || isInstalling) && (
             <View style={[styles.statusBox, { backgroundColor: colors.secondary }]}>
-              <Feather name='check-circle' size={22} color='#10B981' />
+              <Feather name='check-circle' size={22} color={colors.foreground} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.statusBoxTitle, { color: colors.foreground }]}>
                   Update Ready to Install

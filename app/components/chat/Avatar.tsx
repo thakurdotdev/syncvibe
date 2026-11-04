@@ -3,33 +3,6 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 
-const AVATAR_COLORS = [
-  '#E57373',
-  '#F06292',
-  '#BA68C8',
-  '#9575CD',
-  '#7986CB',
-  '#64B5F6',
-  '#4FC3F7',
-  '#4DD0E1',
-  '#4DB6AC',
-  '#81C784',
-  '#AED581',
-  '#FFD54F',
-  '#FFB74D',
-  '#FF8A65',
-  '#A1887F',
-  '#90A4AE',
-];
-
-function hashName(name: string): number {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return Math.abs(hash);
-}
-
 function getInitials(name: string | undefined): string {
   if (!name) return '?';
   const parts = name.trim().split(/\s+/);
@@ -58,8 +31,6 @@ const Avatar: React.FC<AvatarProps> = ({ name, profilepic, size = 'md', isOnline
   const dim = SIZES[size];
   const indicatorDim = INDICATOR[size];
 
-  const bgColor = useMemo(() => AVATAR_COLORS[hashName(name || '') % AVATAR_COLORS.length], [name]);
-
   const initials = useMemo(() => getInitials(name), [name]);
   const showImage = hasValidImage(profilepic);
 
@@ -86,11 +57,13 @@ const Avatar: React.FC<AvatarProps> = ({ name, profilepic, size = 'md', isOnline
               width: dim,
               height: dim,
               borderRadius: dim / 2,
-              backgroundColor: bgColor,
+              backgroundColor: colors.raised,
             },
           ]}
         >
-          <Text style={[styles.initialsText, { fontSize: dim * 0.38 }]}>{initials}</Text>
+          <Text style={[styles.initialsText, { fontSize: dim * 0.38, color: colors.foreground }]}>
+            {initials}
+          </Text>
         </View>
       )}
 
@@ -102,7 +75,7 @@ const Avatar: React.FC<AvatarProps> = ({ name, profilepic, size = 'md', isOnline
               width: indicatorDim,
               height: indicatorDim,
               borderRadius: indicatorDim / 2,
-              backgroundColor: '#4CAF50',
+              backgroundColor: colors.foreground,
               borderColor: colors.background,
             },
           ]}
@@ -124,7 +97,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   initialsText: {
-    color: '#FFFFFF',
     fontWeight: '600',
   },
   onlineIndicator: {

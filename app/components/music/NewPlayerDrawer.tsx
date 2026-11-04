@@ -102,19 +102,21 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
                 <Pressable
                   style={({ pressed }) => [
                     styles.optionRow,
-                    { backgroundColor: pressed ? 'rgba(168, 85, 247, 0.12)' : 'transparent' },
+                    { backgroundColor: pressed ? 'rgba(127, 127, 127, 0.12)' : 'transparent' },
                   ]}
                   onPress={() => {
                     addToGroupQueue(song);
                     toast('Added to Group Queue', { type: 'success' });
                     onClose();
                   }}
-                  android_ripple={{ color: 'rgba(168, 85, 247, 0.25)' }}
+                  android_ripple={{ color: 'rgba(127, 127, 127, 0.25)' }}
                 >
                   <View style={styles.iconContainer}>
-                    <Ionicons name='people-outline' size={22} color='#a855f7' />
+                    <Ionicons name='people-outline' size={22} color={colors.foreground} />
                   </View>
-                  <Text style={[styles.optionText, { color: '#a855f7', fontWeight: '600' }]}>
+                  <Text
+                    style={[styles.optionText, { color: colors.foreground, fontWeight: '600' }]}
+                  >
                     Add to Group Queue
                   </Text>
                 </Pressable>
@@ -122,19 +124,21 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
                 <Pressable
                   style={({ pressed }) => [
                     styles.optionRow,
-                    { backgroundColor: pressed ? 'rgba(168, 85, 247, 0.12)' : 'transparent' },
+                    { backgroundColor: pressed ? 'rgba(127, 127, 127, 0.12)' : 'transparent' },
                   ]}
                   onPress={() => {
                     playNextInGroup(song);
                     toast('Playing next in group', { type: 'success' });
                     onClose();
                   }}
-                  android_ripple={{ color: 'rgba(168, 85, 247, 0.25)' }}
+                  android_ripple={{ color: 'rgba(127, 127, 127, 0.25)' }}
                 >
                   <View style={styles.iconContainer}>
-                    <Ionicons name='play-forward-outline' size={22} color='#a855f7' />
+                    <Ionicons name='play-forward-outline' size={22} color={colors.foreground} />
                   </View>
-                  <Text style={[styles.optionText, { color: '#a855f7', fontWeight: '600' }]}>
+                  <Text
+                    style={[styles.optionText, { color: colors.foreground, fontWeight: '600' }]}
+                  >
                     Play Next in Group
                   </Text>
                 </Pressable>

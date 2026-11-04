@@ -8,12 +8,14 @@ import Animated, {
   ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 const PAUSED_SCALE = 0.93;
+const PAUSE_SETTLE_DELAY_MS = 150;
 const COMMIT_DISTANCE = 0.22; // of the screen width
 const COMMIT_VELOCITY = 700;
 const RUBBER_BAND = 0.2;
@@ -63,7 +65,9 @@ export const ArtworkCarousel = memo(function ArtworkCarousel({
   }, [prev, next, canPrev, canNext]);
 
   useEffect(() => {
-    scale.set(withSpring(isPlaying ? 1 : PAUSED_SCALE, SPRING));
+    const settle = withSpring(isPlaying ? 1 : PAUSED_SCALE, SPRING);
+    // Leaving a beat before settling back absorbs any brief pause while the player catches up.
+    scale.set(isPlaying ? settle : withDelay(PAUSE_SETTLE_DELAY_MS, settle));
   }, [isPlaying, scale]);
 
   useLayoutEffect(() => {
@@ -146,11 +150,6 @@ const styles = StyleSheet.create({
   cover: {
     borderRadius: 18,
     backgroundColor: 'rgba(127,127,127,0.18)',
-    shadowColor: '#000',
-    shadowOpacity: 0.22,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
   },
   coverImage: { width: '100%', height: '100%', borderRadius: 18 },
 });

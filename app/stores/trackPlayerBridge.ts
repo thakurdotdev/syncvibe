@@ -8,15 +8,12 @@ import {
   usePlayerStore,
   onAfterSongTransition,
   checkAndFetchRecommendations,
-  setOnReorderPlaylist,
   setOnPlaySong,
   setOnStopSong,
   setOnPlayPause,
   setOnHandleNextSong,
   setOnHandlePrevSong,
   setOnRepeatModeChange,
-  setOnAddToQueue,
-  setOnRemoveFromQueue,
   type RepeatMode as StoreRepeatMode,
 } from './playerStore';
 import { useGroupPlaybackStore } from './groupMusic/groupPlaybackStore';
@@ -39,7 +36,8 @@ interface MediaItem {
 // ─── Configuration ───────────────────────────────────
 
 const QUEUE_LOOKAHEAD = 3;
-const QUEUE_APPEND_THRESHOLD = 2;
+/** Group a burst of queue changes (set a playlist, then play from it) into one native sync. */
+const QUEUE_SYNC_DELAY_MS = 50;
 const MAX_TRACK_CACHE_SIZE = 50;
 const MAX_ERROR_RETRIES = 2;
 const ERROR_COOLDOWN_MS = 8000;
@@ -47,11 +45,18 @@ const RESTORE_RETRY_MS = 250;
 const RESTORE_MAX_TRIES = 20;
 /** A saved spot this close to the end restarts the song instead (it would just end). */
 const RESTORE_END_MARGIN_S = 3;
+/** A native "ended" this soon after you changed song belongs to the song you just left. */
+const ENDED_IGNORE_AFTER_CHANGE_MS = 1500;
+/** Wait before trusting "ready but silent": a play command may still be on its way. */
+const PAUSE_CHECK_DELAY_MS = 300;
 
 let initialized = false;
 let userId: number | undefined;
 let appStateSub: ReturnType<typeof AppState.addEventListener> | null = null;
 let pendingPlay: { song: Song; uid?: number } | null = null;
+
+let lastSongChangeAt = 0;
+let pauseCheckTimer: ReturnType<typeof setTimeout> | null = null;
 
 let errorRetries = 0;
 let lastErrorTime = 0;
@@ -64,7 +69,8 @@ const store = () => usePlayerStore.getState();
 
 const toNativeRepeatMode = (mode: StoreRepeatMode): RepeatMode => {
   if (mode === 'one') return RepeatMode.One;
-  if (mode === 'all') return RepeatMode.All;
+  // Repeat-all stays off natively: the native queue is only a small window, so it would loop
+  // those few songs. The bridge wraps to the start of your queue when the last song ends.
   return RepeatMode.Off;
 };
 
@@ -221,33 +227,56 @@ const applyPendingResume = (songId: string) => {
   if (resumeAt > 0) enforceResume(songId, resumeAt);
 };
 
-const fillQueue = () => {
-  if (!initialized) return;
-
-  const { playlist } = store();
-  if (!playlist.length) return;
+/**
+ * Makes the songs after the current one in the native queue match your queue. The native
+ * queue is a small window and it's what actually plays next when a song ends, so any drift
+ * means the UI promises one song and another plays. Safe to call any time: it does nothing
+ * when they already match, and keeps the matching start so a preloaded next song survives.
+ */
+const syncNativeQueue = () => {
+  if (!initialized || store().activePlayerMode !== 'normal') return;
 
   const queue = TrackPlayer.getQueue();
-  const activeIdx = TrackPlayer.getActiveMediaItemIndex() ?? 0;
-  const remaining = queue.length - activeIdx - 1;
+  const activeIdx = TrackPlayer.getActiveMediaItemIndex();
+  if (activeIdx == null || activeIdx < 0 || activeIdx >= queue.length) return;
 
-  if (remaining >= QUEUE_APPEND_THRESHOLD) return;
+  const { playlist } = store();
+  const current = playlist.findIndex((song) => song.id === queue[activeIdx].mediaId);
+  const wanted =
+    current >= 0 ? toMediaItems(playlist.slice(current + 1, current + 1 + QUEUE_LOOKAHEAD)) : [];
+  const upcoming = queue.slice(activeIdx + 1);
 
-  const lastItem = queue[queue.length - 1];
-  if (!lastItem?.mediaId) return;
-
-  const lastPlaylistIdx = playlist.findIndex((s) => s.id === lastItem.mediaId);
-  if (lastPlaylistIdx < 0 || lastPlaylistIdx >= playlist.length - 1) return;
-
-  const start = lastPlaylistIdx + 1;
-  const end = Math.min(start + QUEUE_LOOKAHEAD, playlist.length);
-  const existingIds = new Set(queue.map((t) => t.mediaId));
-  const newSongs = playlist.slice(start, end).filter((s) => !existingIds.has(s.id));
-
-  if (newSongs.length > 0) {
-    const tracks = toMediaItems(newSongs);
-    if (tracks.length > 0) TrackPlayer.addMediaItems(tracks);
+  let same = 0;
+  while (
+    same < wanted.length &&
+    same < upcoming.length &&
+    wanted[same].mediaId === upcoming[same].mediaId
+  ) {
+    same += 1;
   }
+
+  // Past songs stay so native "previous" works, unless one is coming up again: looking a song
+  // up by id must find the upcoming one. Removed last to first so the indexes stay valid.
+  const wantedIds = new Set(wanted.map((track) => track.mediaId));
+  try {
+    if (same < upcoming.length) TrackPlayer.removeMediaItems(activeIdx + 1 + same, queue.length);
+    if (same < wanted.length) TrackPlayer.addMediaItems(wanted.slice(same));
+    for (let i = activeIdx - 1; i >= 0; i -= 1) {
+      if (wantedIds.has(queue[i].mediaId)) TrackPlayer.removeMediaItems(i, i + 1);
+    }
+  } catch (error) {
+    console.error('Error syncing native queue:', error);
+  }
+};
+
+let queueSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
+const scheduleQueueSync = () => {
+  if (queueSyncTimer) clearTimeout(queueSyncTimer);
+  queueSyncTimer = setTimeout(() => {
+    queueSyncTimer = null;
+    syncNativeQueue();
+  }, QUEUE_SYNC_DELAY_MS);
 };
 
 /**
@@ -332,6 +361,7 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
   stopGroupPlayback();
   resetErrors();
   switchToNormalMode();
+  lastSongChangeAt = Date.now();
   // You're choosing playback now: a still-pending launch restore must not override it.
   restoreAttempt += 1;
   restorePending = false;
@@ -361,7 +391,7 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
     }
     s.setPlaying(true);
     recordSongStart(song, queueIdx === activeIdx);
-    fillQueue();
+    syncNativeQueue();
     return;
   }
 
@@ -372,7 +402,7 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
   );
   const resumed = loadPlaylist(playlist, startIdx);
   recordSongStart(song, resumed);
-  fillQueue();
+  syncNativeQueue();
 };
 
 export const bridgeStopSong = async () => {
@@ -441,6 +471,7 @@ export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
   stopGroupPlayback();
   switchToNormalMode();
   if (!isAutoPlay) {
+    lastSongChangeAt = Date.now();
     restoreAttempt += 1;
     restorePending = false;
     cancelResumeGuard();
@@ -481,20 +512,21 @@ export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
     return;
   }
 
-  // Can we use native skip?
-  const queue = TrackPlayer.getQueue();
-  const activeIdx = TrackPlayer.getActiveMediaItemIndex();
-  const canSkipNative =
-    nativeMatchesSong && activeIdx != null && activeIdx >= 0 && activeIdx < queue.length - 1;
+  // Already in the native queue? Jump to that exact item: after a reorder the item after
+  // the current one natively may not be the next song in your queue.
+  const nextInPlaylist = playlist[currentIdx + 1];
+  const nextQueueIdx =
+    nativeMatchesSong && nextInPlaylist
+      ? TrackPlayer.getQueue().findIndex((t) => t.mediaId === nextInPlaylist.id)
+      : -1;
 
-  if (canSkipNative) {
-    const nextSong = playlist[currentIdx + 1];
-    if (nextSong) s.setCurrentSong(nextSong);
+  if (nextQueueIdx >= 0) {
+    s.setCurrentSong(nextInPlaylist);
     s.setPlaying(true);
-    TrackPlayer.skipToNext();
+    TrackPlayer.skipToIndex(nextQueueIdx);
     // Skipping while paused must start the new song, or the UI says playing in silence.
     TrackPlayer.play();
-    fillQueue();
+    syncNativeQueue();
     return;
   }
 
@@ -502,7 +534,7 @@ export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
   if (isAutoPlay && isLast && repeatMode === 'all') {
     s.setCurrentSong(playlist[0]);
     loadPlaylist(playlist, 0);
-    fillQueue();
+    syncNativeQueue();
     return;
   }
 
@@ -520,6 +552,7 @@ export const bridgeHandlePrevSong = (uid?: number, force = false) => {
 
   stopGroupPlayback();
   switchToNormalMode();
+  lastSongChangeAt = Date.now();
   restoreAttempt += 1;
   restorePending = false;
   cancelResumeGuard();
@@ -567,62 +600,6 @@ export const bridgeHandlePrevSong = (uid?: number, force = false) => {
 export const bridgeSetRepeatMode = (mode: StoreRepeatMode) => {
   if (!initialized) return;
   TrackPlayer.setRepeatMode(toNativeRepeatMode(mode));
-};
-
-export const bridgeRemoveFromQueue = (songId: string) => {
-  if (!initialized) return;
-
-  const queue = TrackPlayer.getQueue();
-  const idx = queue.findIndex((t) => t.mediaId === songId);
-  if (idx < 0) return;
-
-  const activeIdx = TrackPlayer.getActiveMediaItemIndex();
-  if (activeIdx !== null && idx === activeIdx) return;
-
-  try {
-    TrackPlayer.removeMediaItems(idx, idx + 1);
-  } catch (error) {
-    console.error('Error removing track from queue:', error);
-  }
-};
-
-// ─── Playlist Reorder ────────────────────────────────
-
-let reorderTimeout: ReturnType<typeof setTimeout> | null = null;
-
-export const syncReorderPlaylist = (newOrder: Song[]) => {
-  if (!initialized) return;
-
-  if (reorderTimeout) clearTimeout(reorderTimeout);
-
-  reorderTimeout = setTimeout(() => {
-    try {
-      const activeIdx = TrackPlayer.getActiveMediaItemIndex();
-      const queue = TrackPlayer.getQueue();
-      const activeTrack = activeIdx != null && activeIdx >= 0 ? queue[activeIdx] : undefined;
-      if (!activeTrack?.mediaId) return;
-
-      const newIdx = newOrder.findIndex((song) => song.id === activeTrack.mediaId);
-      if (newIdx < 0) return;
-
-      const currentQueue = TrackPlayer.getQueue();
-      if (currentQueue.length > newIdx + 1) {
-        TrackPlayer.removeMediaItems(newIdx + 1, currentQueue.length);
-      }
-
-      const existingIds = new Set(TrackPlayer.getQueue().map((t) => t.mediaId));
-      const toAdd = newOrder
-        .slice(newIdx + 1, newIdx + 1 + QUEUE_LOOKAHEAD)
-        .filter((s) => !existingIds.has(s.id));
-
-      if (toAdd.length > 0) {
-        const tracks = toMediaItems(toAdd);
-        if (tracks.length > 0) TrackPlayer.addMediaItems(tracks);
-      }
-    } catch (error) {
-      console.error('Error syncing reorder:', error);
-    }
-  }, 500);
 };
 
 // ─── State Sync ──────────────────────────────────────
@@ -759,7 +736,7 @@ const restoreLastPlayedSong = async () => {
       if (TrackPlayer.getQueue().length > 0) {
         // Loaded: park the paused player on your saved spot (the play button re-checks it).
         if (position > 0) enforceResume(song.id, position);
-        fillQueue();
+        syncNativeQueue();
         return;
       }
       if (tries++ >= RESTORE_MAX_TRIES) return;
@@ -829,6 +806,19 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
     switch (event.type) {
       case Event.PlaybackStateChanged: {
         const state = event.state as string;
+        if (state === 'ready') {
+          // Buffering doesn't update the store (see IsPlayingChanged), so if a pause landed
+          // during it, catch up here once a pending play command has had time to arrive.
+          if (pauseCheckTimer) clearTimeout(pauseCheckTimer);
+          pauseCheckTimer = setTimeout(() => {
+            pauseCheckTimer = null;
+            const st = store();
+            if (st.activePlayerMode !== 'normal' || !st.isPlaying) return;
+            if (TrackPlayer.getPlaybackState() === 'ready' && !TrackPlayer.isPlaying()) {
+              st.setPlaying(false);
+            }
+          }, PAUSE_CHECK_DELAY_MS);
+        }
         if (state === 'ended') {
           if (restorePending) {
             // The restored spot ran past the stream's real end: hold the song at the
@@ -838,6 +828,11 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
             TrackPlayer.pause();
             break;
           }
+          // A late "ended" from the song you just left must not skip the one you chose.
+          const stale =
+            Date.now() - lastSongChangeAt < ENDED_IGNORE_AFTER_CHANGE_MS ||
+            TrackPlayer.getActiveMediaItem()?.mediaId !== s.currentSong?.id;
+          if (stale) break;
           bridgeHandleNextSong(true, userId);
         }
         break;
@@ -846,7 +841,12 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
       case Event.IsPlayingChanged: {
         const playing = !!event.playing;
         if (playing) restorePending = false;
-        s.setPlaying(playing);
+        // isPlaying also goes false while buffering (loading a song, seeking). That isn't a
+        // pause: only believe it when the player is ready and really silent. Real stops
+        // (end of queue, errors, stop) set the store themselves.
+        const reallyPaused =
+          !playing && TrackPlayer.getPlaybackState() === 'ready' && !TrackPlayer.isPlaying();
+        if (playing || reallyPaused) s.setPlaying(playing);
         if (!restorePending) saveNativeProgress(playing);
         break;
       }
@@ -855,6 +855,8 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
       case Event.MediaItemTransition: {
         if (event.item && event.index !== undefined) {
           const trackId = (event.item as MediaItem).mediaId;
+          // Quick skips can leave this event behind: acting on it would pull you back a song.
+          if (trackId && TrackPlayer.getActiveMediaItem()?.mediaId !== trackId) break;
           if (trackId) {
             // Restoring (and any re-send of the restore) emits transitions too. They
             // must not overwrite the saved position with a fresh 0:00 start, and neither
@@ -879,7 +881,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
         }
 
         resetErrors();
-        fillQueue();
+        syncNativeQueue();
         break;
       }
 
@@ -968,6 +970,10 @@ export const handleTrackPlayerEvents = dispatchTrackPlayerEvent;
 
 export const destroyTrackPlayer = async () => {
   pendingPlay = null;
+  if (pauseCheckTimer) {
+    clearTimeout(pauseCheckTimer);
+    pauseCheckTimer = null;
+  }
   restoredSongId = null;
   restorePending = false;
   cancelResumeGuard();
@@ -980,9 +986,9 @@ export const destroyTrackPlayer = async () => {
     appStateSub.remove();
     appStateSub = null;
   }
-  if (reorderTimeout) {
-    clearTimeout(reorderTimeout);
-    reorderTimeout = null;
+  if (queueSyncTimer) {
+    clearTimeout(queueSyncTimer);
+    queueSyncTimer = null;
   }
 
   lastHistorySongId = null;
@@ -1005,12 +1011,14 @@ export const destroyTrackPlayer = async () => {
 
 export const isTrackPlayerReady = () => initialized;
 
-setOnReorderPlaylist(syncReorderPlaylist);
 setOnPlaySong((song) => bridgePlaySong(song, userId));
 setOnStopSong(() => bridgeStopSong());
 setOnPlayPause(() => bridgePlayPause());
 setOnHandleNextSong((isAutoPlay) => bridgeHandleNextSong(isAutoPlay, userId));
 setOnHandlePrevSong((force) => bridgeHandlePrevSong(userId, force));
 setOnRepeatModeChange((mode) => bridgeSetRepeatMode(mode));
-setOnAddToQueue(() => fillQueue());
-setOnRemoveFromQueue((songId) => bridgeRemoveFromQueue(songId));
+// Every way the queue can change (reorder, shuffle, add, remove, clear, replace) goes through
+// here, so no new action can forget to tell the native player.
+usePlayerStore.subscribe((state, previous) => {
+  if (state.playlist !== previous.playlist) scheduleQueueSync();
+});

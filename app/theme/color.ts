@@ -168,7 +168,7 @@ const emberPalette: ColorPalette = {
 };
 
 // Professional, vibrant music player palette — refined magenta/rose accent variant.
-// Kept registered as `rose`; the active default is Aubergine below.
+// Kept registered as `rose`; the active default is Mono below.
 // Calibration notes specific to this variant:
 // - Primary is a slightly muted rose, so it feels premium instead of neon
 //   while remaining easy to recognize for playback and active states.
@@ -291,13 +291,13 @@ const rosePalette: ColorPalette = {
   },
 };
 
-// `default` points at the Aubergine palette — the active theme ThemeContext reads via
-// colorPalettes.default[theme]. Rose and Ember stay registered under their own keys so
-// they aren't lost if you ever want to switch back or build a palette picker later.
+// `default` points at the Mono palette (below) — the active theme ThemeContext reads via
+// colorPalettes.default[theme]. Aubergine, Rose and Ember stay registered under their own keys
+// so they aren't lost if you ever want to switch back or build a palette picker later.
 
 // Aubergine — the SyncVibe brand palette, shared with the web app.
 // Coloured darks instead of neutral black, magenta for actions, amber reserved
-// for "live" presence (rooms, listeners). This is the ACTIVE default.
+// for "live" presence (rooms, listeners).
 const auberginePalette: ColorPalette = {
   name: 'Aubergine',
   description: 'SyncVibe brand palette: aubergine ink, magenta actions, amber live signals',
@@ -400,10 +400,114 @@ const auberginePalette: ColorPalette = {
   },
 };
 
-export type ColorPaletteName = 'default' | 'aubergine' | 'rose' | 'ember';
+// Mono — the active SyncVibe palette. Black and white with true neutral greys: hierarchy comes
+// from surface steps and type weight, and colour is left to the artwork. Red stays for
+// destructive actions only, because that's a warning rather than decoration. `primary` is the
+// page's inverse, so every filled button reads as black on light and white on dark.
+const monoPalette: ColorPalette = {
+  name: 'Mono',
+  description: 'Black and white with neutral greys; artwork supplies the colour',
+  light: {
+    background: '#F6F6F7',
+    foreground: '#0E0E10',
+    card: '#FFFFFF',
+    cardForeground: '#0E0E10',
+    popover: '#FFFFFF',
+    popoverForeground: '#0E0E10',
+    primary: '#0E0E10',
+    primaryForeground: '#FFFFFF',
+    secondary: '#EEEEF0',
+    secondaryForeground: '#0E0E10',
+    muted: '#EEEEF0',
+    mutedForeground: '#67676E',
+    accent: '#EEEEF0',
+    accentForeground: '#0E0E10',
+    destructive: '#C4302B',
+    destructiveForeground: '#FFFFFF',
+    border: '#E4E4E7',
+    input: '#E4E4E7',
+    ring: '#0E0E10',
+    text: '#0E0E10',
+    live: '#0E0E10',
+    liveForeground: '#FFFFFF',
+    raised: '#EEEEF0',
+
+    primaryHover: '#2A2A2E',
+    primaryActive: '#3A3A3F',
+    primaryDisabled: '#B8B8BD',
+    secondaryHover: '#E6E6E9',
+    secondaryActive: '#DCDCE0',
+    secondaryDisabled: '#F6F6F7',
+    accentHover: '#E6E6E9',
+    accentActive: '#DCDCE0',
+    accentDisabled: '#F6F6F7',
+    destructiveHover: '#AE2A26',
+    destructiveActive: '#982420',
+    destructiveDisabled: '#E9AAA8',
+
+    gradients: {
+      primary: ['#2A2A2E', '#0E0E10', '#000000'],
+      background: ['#F6F6F7', '#F6F6F7'],
+      card: ['#FFFFFF', '#FAFAFB'],
+      accent: ['#EEEEF0', '#E6E6E9'],
+      destructive: ['#D6524D', '#C4302B', '#982420'],
+      header: ['#ECECEE', '#F6F6F7', '#F6F6F7'],
+    },
+  },
+  dark: {
+    background: '#0A0A0B',
+    foreground: '#F5F5F6',
+    card: '#151517',
+    cardForeground: '#F5F5F6',
+    popover: '#1B1B1E',
+    popoverForeground: '#F5F5F6',
+    primary: '#F5F5F6',
+    primaryForeground: '#0A0A0B',
+    secondary: '#1F1F22',
+    secondaryForeground: '#F5F5F6',
+    muted: '#1F1F22',
+    mutedForeground: '#9B9BA3',
+    accent: '#232326',
+    accentForeground: '#F5F5F6',
+    destructive: '#F2615C',
+    destructiveForeground: '#0A0A0B',
+    border: '#27272A',
+    input: '#27272A',
+    ring: '#F5F5F6',
+    text: '#F5F5F6',
+    live: '#F5F5F6',
+    liveForeground: '#0A0A0B',
+    raised: '#222225',
+
+    primaryHover: '#E2E2E4',
+    primaryActive: '#CFCFD2',
+    primaryDisabled: '#55555A',
+    secondaryHover: '#26262A',
+    secondaryActive: '#2E2E32',
+    secondaryDisabled: '#151517',
+    accentHover: '#2A2A2E',
+    accentActive: '#323236',
+    accentDisabled: '#19191B',
+    destructiveHover: '#F47F7B',
+    destructiveActive: '#DB4B46',
+    destructiveDisabled: '#6B2E2C',
+
+    gradients: {
+      primary: ['#3A3A3F', '#1F1F22', '#0A0A0B'],
+      background: ['#0A0A0B', '#101012'],
+      card: ['#151517', '#19191B'],
+      accent: ['#232326', '#2A2A2E'],
+      destructive: ['#F47F7B', '#F2615C', '#DB4B46'],
+      header: ['#1B1B1E', '#0A0A0B', '#0A0A0B'],
+    },
+  },
+};
+
+export type ColorPaletteName = 'default' | 'mono' | 'aubergine' | 'rose' | 'ember';
 
 export const colorPalettes: Record<ColorPaletteName, ColorPalette> = {
-  default: auberginePalette,
+  default: monoPalette,
+  mono: monoPalette,
   aubergine: auberginePalette,
   rose: rosePalette,
   ember: emberPalette,

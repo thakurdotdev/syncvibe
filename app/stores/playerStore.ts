@@ -51,11 +51,6 @@ export const checkAndFetchRecommendations = async (targetSong?: Song | null, for
   }
 };
 
-export let onReorderPlaylist: ((newOrder: Song[]) => void) | null = null;
-export const setOnReorderPlaylist = (cb: (newOrder: Song[]) => void) => {
-  onReorderPlaylist = cb;
-};
-
 export let onPlaySong: ((song: Song) => void) | null = null;
 export const setOnPlaySong = (cb: (song: Song) => void) => {
   onPlaySong = cb;
@@ -84,16 +79,6 @@ export const setOnHandlePrevSong = (cb: (force?: boolean) => void) => {
 export let onRepeatModeChange: ((mode: RepeatMode) => void) | null = null;
 export const setOnRepeatModeChange = (cb: (mode: RepeatMode) => void) => {
   onRepeatModeChange = cb;
-};
-
-export let onAddToQueue: ((songs: Song[]) => void) | null = null;
-export const setOnAddToQueue = (cb: (songs: Song[]) => void) => {
-  onAddToQueue = cb;
-};
-
-export let onRemoveFromQueue: ((songId: string) => void) | null = null;
-export const setOnRemoveFromQueue = (cb: (songId: string) => void) => {
-  onRemoveFromQueue = cb;
 };
 
 export let onAfterSongTransition: ((song: Song) => void) | null = null;
@@ -211,16 +196,8 @@ export const usePlayerStore = create<PlayerStore>()(
       handleNextSong: (isAutoPlay = false) => {
         const { activePlayerMode } = get();
         if (activePlayerMode !== 'normal') return;
-        if (!isAutoPlay) {
-          const { currentSong, playlist } = get();
-          if (currentSong && playlist.length) {
-            const currentIndex = playlist.findIndex((s) => s.id === currentSong.id);
-            if (currentIndex !== -1) {
-              const nextSong = playlist[(currentIndex + 1) % playlist.length];
-              set({ currentSong: nextSong, isPlaying: true });
-            }
-          }
-        }
+        // The bridge works out the next song from the current one and sets it in this same
+        // tick. Moving currentSong here first made it skip one song further.
         onHandleNextSong?.(isAutoPlay);
         checkAndFetchRecommendations();
       },
@@ -255,7 +232,6 @@ export const usePlayerStore = create<PlayerStore>()(
             playlist: [...playlist, ...uniqueNewSongs],
             originalPlaylist: [...originalPlaylist, ...uniqueNewSongs],
           });
-          onAddToQueue?.(uniqueNewSongs);
         }
       },
 
@@ -267,7 +243,6 @@ export const usePlayerStore = create<PlayerStore>()(
           playlist: playlist.filter((s) => s.id !== songId),
           originalPlaylist: originalPlaylist.filter((s) => s.id !== songId),
         });
-        onRemoveFromQueue?.(songId);
       },
 
       removeFromQueueBelow: (songId: string) => {
@@ -275,12 +250,10 @@ export const usePlayerStore = create<PlayerStore>()(
         const index = playlist.findIndex((s) => s.id === songId);
         if (index === -1) return;
         const newPlaylist = playlist.slice(0, index + 1);
-        const removedSongs = playlist.slice(index + 1);
         set({
           playlist: newPlaylist,
           originalPlaylist: newPlaylist.filter((s) => originalPlaylist.some((o) => o.id === s.id)),
         });
-        removedSongs.forEach((s) => onRemoveFromQueue?.(s.id));
       },
 
       clearQueue: () => {
@@ -325,9 +298,6 @@ export const usePlayerStore = create<PlayerStore>()(
 
       reorderPlaylist: (newOrder: Song[]) => {
         set({ playlist: newOrder });
-        if (onReorderPlaylist) {
-          onReorderPlaylist(newOrder);
-        }
       },
 
       toggleShuffle: () => {

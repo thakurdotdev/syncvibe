@@ -61,7 +61,7 @@ const UserRow = React.memo(
           <View
             style={[
               styles.onlineDot,
-              { backgroundColor: isOnline ? '#10b981' : colors.mutedForeground + '40' },
+              { backgroundColor: isOnline ? colors.foreground : colors.mutedForeground + '40' },
               { borderColor: colors.card },
             ]}
           />
@@ -80,7 +80,9 @@ const UserRow = React.memo(
           </View>
           <Text style={[styles.userHandle, { color: colors.mutedForeground }]} numberOfLines={1}>
             @{user.username}
-            {isOnline && <Text style={{ color: '#10b981', fontWeight: '700' }}> · online</Text>}
+            {isOnline && (
+              <Text style={{ color: colors.foreground, fontWeight: '700' }}> · online</Text>
+            )}
           </Text>
         </View>
 
@@ -90,9 +92,9 @@ const UserRow = React.memo(
               <Text style={[styles.statusText, { color: colors.mutedForeground }]}>In group</Text>
             </View>
           ) : isInvited ? (
-            <View style={[styles.sentBadge, { backgroundColor: '#10b981' + '15' }]}>
-              <Feather name='check' size={12} color='#10b981' />
-              <Text style={styles.sentText}>Sent</Text>
+            <View style={[styles.sentBadge, { backgroundColor: colors.raised }]}>
+              <Feather name='check' size={12} color={colors.foreground} />
+              <Text style={[styles.sentText, { color: colors.foreground }]}>Sent</Text>
             </View>
           ) : (
             <TouchableOpacity
@@ -419,7 +421,6 @@ const styles = StyleSheet.create({
   sentText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#10b981',
   },
   inviteButton: {
     paddingHorizontal: 16,

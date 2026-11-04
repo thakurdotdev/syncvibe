@@ -92,7 +92,7 @@ export const TabHeader = memo(function TabHeader({
       accessibilityLabel='Your profile'
       style={[
         avatar === 'leading' ? styles.avatarRing : styles.avatarRingSmall,
-        { borderColor: colors.primary },
+        { borderColor: colors.border },
       ]}
     >
       <Image source={{ uri: getProfileCloudinaryUrl(user.profilepic) }} style={styles.avatar} />
@@ -198,8 +198,8 @@ const styles = StyleSheet.create({
   kicker: { fontSize: 13, fontWeight: '500', marginBottom: 1 },
   compactTitle: { fontFamily: fonts.display, fontSize: 21, lineHeight: 25, letterSpacing: -0.4 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  avatarRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, padding: 2 },
-  avatarRingSmall: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, padding: 2 },
+  avatarRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, padding: 2 },
+  avatarRingSmall: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, padding: 2 },
   avatar: { width: '100%', height: '100%', borderRadius: 18 },
 
   stackHeader: {

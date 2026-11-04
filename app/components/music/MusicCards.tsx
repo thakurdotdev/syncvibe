@@ -854,7 +854,7 @@ export const GroupSongControls = memo(() => {
           maxValue={duration}
           onSeek={handleSeek}
           trackColor='#fff'
-          inactiveTrackColor='rgba(99, 102, 241, 0.2)'
+          inactiveTrackColor='rgba(127, 127, 127, 0.2)'
           thumbSize={12}
           trackHeight={4}
         />
