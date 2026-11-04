@@ -1,16 +1,24 @@
 import { useTheme } from '@/context/ThemeContext';
-import { BUTTON_PRESS_SCALE } from '@/lib/motion';
-import { darkShadow, elevation } from '@/theme/elevation';
+import { BUTTON_PRESS_SCALE, EASE_OUT, SPRING_PRESS } from '@/lib/motion';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import PressableScale from '@/components/ui/PressableScale';
 import { openFullPlayer, usePlaybackState, usePlayerControls } from '@/stores/playerStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useProgress } from '@rntp/player';
-import { BlurView } from 'expo-blur';
 import { router } from 'expo-router';
-import { memo, useCallback, useMemo } from 'react';
-import { Image, Platform, StyleSheet, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { memo, useCallback, useEffect, useMemo } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  Easing,
+  FadeIn,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const TAB_BAR_HEIGHT = 110;
@@ -49,16 +57,29 @@ const TAB_ITEMS = [
 const PILL_WIDTH = 56;
 const PILL_HEIGHT = 30;
 
-const MiniProgressBar = memo(function MiniProgressBar({ color }: { color: string }) {
+/** Thin line along the dock's top edge. Glides between the 1s ticks (transform only). */
+const MiniProgressBar = memo(function MiniProgressBar({
+  color,
+  trackColor,
+}: {
+  color: string;
+  trackColor: string;
+}) {
   const { position, duration } = useProgress();
   const fraction = duration > 0 ? Math.min(1, Math.max(0, position / duration)) : 0;
+  const shown = useSharedValue(fraction);
 
-  // scaleX instead of width: no layout pass on every progress tick.
+  useEffect(() => {
+    // A normal tick glides; a new song or a seek jumps straight there.
+    const glide = fraction >= shown.get() && (fraction - shown.get()) * duration < 2.5;
+    shown.set(glide ? withTiming(fraction, { duration: 1000, easing: Easing.linear }) : fraction);
+  }, [fraction, duration, shown]);
+
+  const fill = useAnimatedStyle(() => ({ transform: [{ scaleX: shown.get() }] }));
+
   return (
-    <View style={styles.progressTrack}>
-      <View
-        style={[styles.progressFill, { backgroundColor: color, transform: [{ scaleX: fraction }] }]}
-      />
+    <View style={[styles.progressTrack, { backgroundColor: trackColor }]}>
+      <Animated.View style={[styles.progressFill, { backgroundColor: color }, fill]} />
     </View>
   );
 });
@@ -125,21 +146,27 @@ type MiniPlayerRowProps = {
   isPlaying: boolean;
   handlePlayPause: () => void;
   handleNextSong: () => void;
+  handlePrevSong: (force?: boolean) => void;
   colors: ReturnType<typeof useTheme>['colors'];
-  isDark: boolean;
 };
 
+const SWIPE_SKIP_DISTANCE = 56;
+const SWIPE_SKIP_VELOCITY = 600;
+const SWIPE_OPEN_DISTANCE = 24;
+const SWIPE_OPEN_VELOCITY = 400;
+const SONG_ENTER = FadeIn.duration(160).easing(EASE_OUT);
+
 /**
- * Floating now-playing card above the tabs. The artwork's own colours tint the card, the
- * progress runs along its bottom edge, and every control uses UI-thread press feedback.
+ * Now playing, sitting directly on the dock: no card of its own. Tap or swipe up opens the
+ * full player, swipe sideways skips, and the song slides with your finger while you do.
  */
 export const MiniPlayerRow = memo(function MiniPlayerRow({
   currentSong,
   isPlaying,
   handlePlayPause,
   handleNextSong,
+  handlePrevSong,
   colors,
-  isDark,
 }: MiniPlayerRowProps) {
   const artistName = useMemo(
     () =>
@@ -150,86 +177,111 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
     [currentSong]
   );
 
-  const artworkUri = currentSong?.image?.[2]?.link || currentSong?.image?.[1]?.link;
+  const artworkUri = currentSong?.image?.[1]?.link || currentSong?.image?.[2]?.link;
+
+  const x = useSharedValue(0);
+  // 0 undecided, 1 sideways (skip), 2 upwards (open). Locked once for each swipe.
+  const axis = useSharedValue(0);
+  const skipNext = useCallback(() => handleNextSong(), [handleNextSong]);
+  const skipPrev = useCallback(() => handlePrevSong(true), [handlePrevSong]);
+
+  const swipe = Gesture.Pan()
+    .activeOffsetX([-14, 14])
+    .activeOffsetY([-14, 1000])
+    .onStart((e) => {
+      axis.set(Math.abs(e.translationX) > Math.abs(e.translationY) ? 1 : 2);
+    })
+    .onUpdate((e) => {
+      if (axis.get() === 1) x.set(e.translationX * 0.6);
+    })
+    .onEnd((e) => {
+      if (axis.get() === 1) {
+        const far = Math.abs(e.translationX) > SWIPE_SKIP_DISTANCE;
+        const fast = Math.abs(e.velocityX) > SWIPE_SKIP_VELOCITY;
+        if (far || fast) scheduleOnRN(e.translationX < 0 ? skipNext : skipPrev);
+      } else if (e.translationY < -SWIPE_OPEN_DISTANCE || e.velocityY < -SWIPE_OPEN_VELOCITY) {
+        scheduleOnRN(openFullPlayer);
+      }
+    })
+    .onFinalize(() => {
+      x.set(withSpring(0, SPRING_PRESS));
+    });
+
+  const songStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(Math.abs(x.get()), [0, 90], [1, 0.35], 'clamp'),
+    transform: [{ translateX: x.get() }],
+  }));
 
   return (
-    <View style={styles.miniPlayerWrapper}>
-      {/* Elevated solid surface: the shadow lives on the outer view, clipping on the inner. */}
-      <View style={[styles.miniShadow, elevation.float, isDark && darkShadow]}>
-        <View style={[styles.miniCard, { backgroundColor: isDark ? colors.popover : colors.card }]}>
-          <PressableScale
-            onPress={openFullPlayer}
-            scaleTo={0.985}
-            style={styles.miniPlayerPressable}
-            accessibilityRole='button'
-            accessibilityLabel={`Open player: ${currentSong?.name ?? ''}`}
-          >
-            <Image source={{ uri: artworkUri }} style={styles.artwork} fadeDuration={0} />
+    <GestureDetector gesture={swipe}>
+      <View style={styles.miniRow}>
+        <PressableScale
+          onPress={openFullPlayer}
+          scaleTo={0.985}
+          style={styles.miniSong}
+          accessibilityRole='button'
+          accessibilityLabel={`Open player: ${currentSong?.name ?? ''}`}
+        >
+          <Animated.View key={currentSong?.id} entering={SONG_ENTER} style={styles.miniSongEnter}>
+            <Animated.View style={[styles.miniSongInner, songStyle]}>
+              <Image
+                source={{ uri: artworkUri }}
+                style={[styles.artwork, { backgroundColor: colors.raised }]}
+                fadeDuration={0}
+              />
+              <View style={styles.songInfo}>
+                <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>
+                  {currentSong?.name}
+                </Text>
+                <Text
+                  style={[styles.artistName, { color: colors.mutedForeground }]}
+                  numberOfLines={1}
+                >
+                  {artistName}
+                </Text>
+              </View>
+            </Animated.View>
+          </Animated.View>
+        </PressableScale>
 
-            <View style={styles.songInfo}>
-              <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>
-                {currentSong?.name}
-              </Text>
-              <Text
-                style={[styles.artistName, { color: colors.mutedForeground }]}
-                numberOfLines={1}
-              >
-                {artistName}
-              </Text>
-            </View>
-
-            <View style={styles.controls}>
-              <PressableScale
-                onPress={handlePlayPause}
-                scaleTo={0.86}
-                hitSlop={8}
-                accessibilityRole='button'
-                accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-                style={[styles.playButton, { backgroundColor: colors.primary }]}
-              >
-                <Ionicons
-                  name={isPlaying ? 'pause' : 'play'}
-                  size={18}
-                  color={colors.primaryForeground}
-                  style={{ marginLeft: isPlaying ? 0 : 2 }}
-                />
-              </PressableScale>
-
-              <PressableScale
-                onPress={handleNextSong}
-                scaleTo={0.82}
-                hitSlop={8}
-                accessibilityRole='button'
-                accessibilityLabel='Next song'
-                style={styles.nextButton}
-              >
-                <Ionicons name='play-skip-forward' size={20} color={colors.foreground} />
-              </PressableScale>
-            </View>
-          </PressableScale>
-
-          <MiniProgressBar color={colors.primary} />
-        </View>
+        <PressableScale
+          onPress={handlePlayPause}
+          scaleTo={BUTTON_PRESS_SCALE}
+          hitSlop={6}
+          accessibilityRole='button'
+          accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+          style={styles.miniControl}
+        >
+          <Ionicons name={isPlaying ? 'pause' : 'play'} size={26} color={colors.foreground} />
+        </PressableScale>
+        <PressableScale
+          onPress={skipNext}
+          scaleTo={BUTTON_PRESS_SCALE}
+          hitSlop={6}
+          accessibilityRole='button'
+          accessibilityLabel='Next song'
+          style={styles.miniControl}
+        >
+          <Ionicons name='play-skip-forward' size={22} color={colors.foreground} />
+        </PressableScale>
       </View>
-    </View>
+    </GestureDetector>
   );
 });
 
 type UnifiedBottomDeckProps = {
   colors: ReturnType<typeof useTheme>['colors'];
-  theme: string;
   insets: ReturnType<typeof useSafeAreaInsets>;
   activeSegment: string;
 };
 
 export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   colors,
-  theme,
   insets,
   activeSegment,
 }: UnifiedBottomDeckProps) {
   const { currentSong, isPlaying, activePlayerMode } = usePlaybackState();
-  const { handlePlayPause, handleNextSong } = usePlayerControls();
+  const { handlePlayPause, handleNextSong, handlePrevSong } = usePlayerControls();
 
   const goHome = useCallback(() => router.navigate('/(tabs)/home'), []);
   const goGroup = useCallback(() => router.navigate('/(tabs)/group-music'), []);
@@ -240,135 +292,90 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     [goHome, goGroup, goPlaylist, goChat]
   );
 
-  const isDark = theme === 'dark';
   const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
-
-  // Tinted to the aubergine surfaces so the deck reads as part of the app, not a grey slab.
-  const glassBg = isDark ? 'rgba(16, 12, 22, 0.92)' : 'rgba(251, 250, 253, 0.94)';
-  const borderColor = isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)';
 
   // In a room the room owns playback; your own song waits on Home under the room card.
   const showMiniPlayer = !inRoom && activePlayerMode === 'normal' && !!currentSong;
 
   return (
-    <Animated.View style={styles.outerContainer}>
-      <View style={styles.surfaceWrapper}>
-        {Platform.OS === 'ios' && (
-          <BlurView
-            intensity={45}
-            tint={isDark ? 'dark' : 'light'}
-            style={StyleSheet.absoluteFill}
+    // One opaque surface for the song and the tabs: nothing shows through or sits on top.
+    <View
+      style={[
+        styles.dock,
+        { backgroundColor: colors.card, paddingBottom: Math.max(6, insets.bottom) },
+      ]}
+    >
+      {showMiniPlayer ? (
+        <>
+          <MiniProgressBar color={colors.primary} trackColor={colors.border} />
+          <MiniPlayerRow
+            currentSong={currentSong}
+            isPlaying={isPlaying}
+            handlePlayPause={handlePlayPause}
+            handleNextSong={handleNextSong}
+            handlePrevSong={handlePrevSong}
+            colors={colors}
           />
-        )}
-        <View
-          style={[
-            styles.blurContainer,
-            {
-              backgroundColor: glassBg,
-              borderColor: borderColor,
-              paddingBottom: Math.max(6, insets.bottom),
-            },
-          ]}
-        >
-          {showMiniPlayer && (
-            <MiniPlayerRow
-              currentSong={currentSong}
-              isPlaying={isPlaying}
-              handlePlayPause={handlePlayPause}
-              handleNextSong={handleNextSong}
-              colors={colors}
-              isDark={isDark}
-            />
-          )}
+        </>
+      ) : (
+        <View style={[styles.dockEdge, { backgroundColor: colors.border }]} />
+      )}
 
-          <View style={styles.navRow}>
-            {TAB_ITEMS.map((tab, index) => (
-              <TabButton
-                key={tab.name}
-                onPress={handlers[index]}
-                label={tab.label}
-                activeIcon={tab.activeIcon}
-                inactiveIcon={tab.inactiveIcon}
-                isFocused={activeSegment === tab.name}
-                activeColor={colors.primary}
-                inactiveColor={colors.mutedForeground}
-                live={tab.name === 'group-music' && inRoom}
-                liveColor={colors.live}
-              />
-            ))}
-          </View>
-        </View>
+      <View style={styles.navRow}>
+        {TAB_ITEMS.map((tab, index) => (
+          <TabButton
+            key={tab.name}
+            onPress={handlers[index]}
+            label={tab.label}
+            activeIcon={tab.activeIcon}
+            inactiveIcon={tab.inactiveIcon}
+            isFocused={activeSegment === tab.name}
+            activeColor={colors.primary}
+            inactiveColor={colors.mutedForeground}
+            live={tab.name === 'group-music' && inRoom}
+            liveColor={colors.live}
+          />
+        ))}
       </View>
-    </Animated.View>
+    </View>
   );
 });
 
 const styles = StyleSheet.create({
-  outerContainer: {
+  dock: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     zIndex: 1000,
   },
-  surfaceWrapper: {
-    width: '100%',
-    overflow: 'hidden',
-    elevation: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-  },
-  blurContainer: {
-    width: '100%',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderLeftWidth: 0,
-    borderRightWidth: 0,
-    borderBottomWidth: 0,
-    overflow: 'hidden',
-  },
+  dockEdge: { height: StyleSheet.hairlineWidth },
 
-  progressTrack: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 2,
-    backgroundColor: 'rgba(128, 128, 128, 0.14)',
-    overflow: 'hidden',
-  },
+  progressTrack: { height: 2, overflow: 'hidden' },
   progressFill: {
     height: '100%',
     width: '100%',
     transformOrigin: 'left',
   },
 
-  miniPlayerWrapper: {
-    width: '100%',
-    paddingHorizontal: 8,
-    paddingTop: 8,
-  },
-  miniShadow: { borderRadius: 18 },
-  miniCard: {
-    borderRadius: 18,
-    overflow: 'hidden',
-  },
-  miniPlayerPressable: {
+  miniRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: 8,
-    paddingRight: 10,
-    paddingVertical: 8,
-    width: '100%',
+    height: 60,
+    paddingLeft: 12,
+    paddingRight: 6,
   },
+  miniSong: { flex: 1, minWidth: 0, height: '100%' },
+  miniSongEnter: { flex: 1 },
+  miniSongInner: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   artwork: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 10,
   },
   songInfo: {
     flex: 1,
+    minWidth: 0,
     paddingLeft: 12,
     paddingRight: 8,
     justifyContent: 'center',
@@ -379,25 +386,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   artistName: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 12.5,
+    marginTop: 1,
   },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  playButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  nextButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  miniControl: {
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
