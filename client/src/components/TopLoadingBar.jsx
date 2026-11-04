@@ -19,7 +19,7 @@ export function NavigationLoadingBar() {
   return (
     <LoadingBar
       ref={ref}
-      color='#138058'
+      color='hsl(var(--foreground))'
       shadow={false}
       height={5}
       transitionTime={100}

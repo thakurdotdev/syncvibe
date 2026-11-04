@@ -10,15 +10,15 @@ let notifyChange;
 const VARIANTS = {
   success: {
     icon: CheckCircle,
-    class: 'bg-gray-900 border-green-500',
+    class: 'bg-card border-border',
   },
   error: {
     icon: XCircle,
-    class: 'bg-gray-900 border-red-500',
+    class: 'bg-card border-destructive',
   },
   info: {
     icon: Info,
-    class: 'bg-gray-900 border-blue-500',
+    class: 'bg-card border-border',
   },
 };
 
@@ -57,13 +57,13 @@ const ToastMessage = ({ toast, onClose }) => {
   const getIconColor = () => {
     switch (toast.variant) {
       case 'success':
-        return 'text-green-500';
+        return 'text-foreground';
       case 'error':
-        return 'text-red-500';
+        return 'text-destructive';
       case 'info':
-        return 'text-blue-500';
+        return 'text-foreground';
       default:
-        return 'text-blue-500';
+        return 'text-foreground';
     }
   };
 
@@ -77,7 +77,7 @@ const ToastMessage = ({ toast, onClose }) => {
         border-l-4
         rounded-lg
         shadow-lg
-        shadow-black/10
+        shadow-scrim/10
         backdrop-blur-md
         bg-opacity-95
         overflow-hidden
@@ -85,16 +85,16 @@ const ToastMessage = ({ toast, onClose }) => {
     >
       <div className='px-4 py-3 flex items-center gap-3 relative'>
         <Icon className={`w-5 h-5 ${getIconColor()} shrink-0`} />
-        <p className='text-gray-100 font-medium text-sm pr-8'>{toast.message}</p>
+        <p className='text-foreground font-medium text-sm pr-8'>{toast.message}</p>
         <button
           onClick={onClose}
           className='absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full 
-                   hover:bg-gray-800 transition-colors duration-200'
+                   hover:bg-raised transition-colors duration-200'
         >
-          <X className='w-4 h-4 text-gray-400 hover:text-gray-200 transition-colors duration-200' />
+          <X className='w-4 h-4 text-muted-foreground hover:text-foreground transition-colors duration-200' />
         </button>
       </div>
-      <div className='h-1 bg-gray-800 relative overflow-hidden'>
+      <div className='h-1 bg-raised relative overflow-hidden'>
         <motion.div
           initial={{ width: '100%' }}
           animate={{ width: 0 }}
@@ -113,13 +113,13 @@ const ToastMessage = ({ toast, onClose }) => {
 const getProgressBarColor = (variant) => {
   switch (variant) {
     case 'success':
-      return 'bg-green-500/30';
+      return 'bg-foreground/30';
     case 'error':
-      return 'bg-red-500/30';
+      return 'bg-destructive/30';
     case 'info':
-      return 'bg-blue-500/30';
+      return 'bg-foreground/30';
     default:
-      return 'bg-blue-500/30';
+      return 'bg-foreground/30';
   }
 };
 

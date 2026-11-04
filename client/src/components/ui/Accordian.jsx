@@ -6,22 +6,22 @@ const AccordionBorderItem = memo(({ title, content, isActive, onClick }) => {
   return (
     <div className='border-b dark:border-b-slate-700 last:border-b-0'>
       <motion.button
-        className='w-full p-4 text-left bg-white dark:bg-gray-800 focus:outline-hidden transition-colors duration-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+        className='w-full p-4 text-left bg-card focus:outline-hidden transition-colors duration-300 hover:bg-secondary dark:hover:bg-raised'
         onClick={onClick}
         aria-expanded={isActive}
         whileTap={{ scale: 0.98 }}
       >
         <div className='flex items-center justify-between'>
-          <div className='text-sm font-medium text-gray-800 dark:text-gray-200'>{title}</div>
+          <div className='text-sm font-medium text-foreground'>{title}</div>
           <motion.div
             initial={false}
             animate={{ rotate: isActive ? 180 : 0 }}
             transition={{ duration: 0.3 }}
           >
             {isActive ? (
-              <Minus size={14} className='text-gray-800 dark:text-gray-200' />
+              <Minus size={14} className='text-foreground' />
             ) : (
-              <Plus size={14} className='text-gray-800 dark:text-gray-200' />
+              <Plus size={14} className='text-foreground' />
             )}
           </motion.div>
         </div>
@@ -34,8 +34,8 @@ const AccordionBorderItem = memo(({ title, content, isActive, onClick }) => {
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
           >
-            <div className='p-4 bg-gray-50 dark:bg-gray-700'>
-              <div className='text-sm text-gray-700 dark:text-gray-300'>{content}</div>
+            <div className='p-4 bg-muted dark:bg-raised'>
+              <div className='text-sm text-foreground'>{content}</div>
             </div>
           </motion.div>
         )}
@@ -55,7 +55,7 @@ const AccordionBorder = ({ items }) => {
 
   return (
     <motion.div
-      className='w-full border rounded-lg overflow-hidden shadow-xs dark:border-gray-700'
+      className='w-full border rounded-lg overflow-hidden shadow-xs dark:border-border'
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}

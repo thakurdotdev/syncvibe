@@ -97,7 +97,7 @@ export const LoadingState = ({ message, height }) => (
     } items-center justify-center bg-background/50 backdrop-blur-xs`}
   >
     <div className='flex flex-col items-center gap-4'>
-      <Loader2 className='w-10 h-10 animate-spin text-emerald-500' />
+      <Loader2 className='w-10 h-10 animate-spin text-foreground' />
       <p className='text-muted-foreground animate-pulse'>{message || 'Loading your music...'}</p>
     </div>
   </div>

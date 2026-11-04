@@ -142,7 +142,7 @@ const ReleasesPage = () => {
                 <a href={downloadUrl} target='_blank' rel='noopener noreferrer'>
                   <Button
                     size='lg'
-                    className='w-full sm:w-auto h-11 px-6 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs cursor-pointer shadow-lg shadow-primary/25 transition-all active:scale-98'
+                    className='w-full sm:w-auto h-11 px-6 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs cursor-pointer shadow-lg shadow-scrim/25 transition-all active:scale-98'
                   >
                     <ArrowDownToLine className='mr-2 h-4 w-4' />
                     <span>Download APK {formattedSize ? `(${formattedSize})` : ''}</span>
@@ -172,7 +172,7 @@ const ReleasesPage = () => {
                   <div className='text-[10.5px] font-mono text-muted-foreground uppercase'>
                     Package Verification
                   </div>
-                  <div className='text-xs font-semibold text-emerald-400 flex items-center gap-1'>
+                  <div className='text-xs font-semibold text-foreground flex items-center gap-1'>
                     <ShieldCheck size={13} />
                     <span>Signed Release Build</span>
                   </div>
@@ -198,7 +198,7 @@ const ReleasesPage = () => {
                     className='h-8 px-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary shrink-0 text-xs'
                   >
                     {copiedSha ? (
-                      <span className='text-emerald-400 flex items-center gap-1'>
+                      <span className='text-foreground flex items-center gap-1'>
                         <Check size={12} /> Copied
                       </span>
                     ) : (

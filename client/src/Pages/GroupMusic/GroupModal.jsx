@@ -64,7 +64,7 @@ const GroupModal = ({ isOpen, onClose, onCreateGroup, onJoinGroup, defaultTab = 
                   'group relative p-6 rounded-xl cursor-pointer',
                   'bg-linear-to-br from-primary/10 via-primary/5 to-transparent',
                   'border border-primary/20 hover:border-primary/40',
-                  'transition-all duration-300 hover:shadow-lg hover:shadow-primary/10'
+                  'transition-all duration-300 hover:shadow-lg hover:shadow-scrim/10'
                 )}
               >
                 <div className='flex items-center gap-4'>

@@ -60,8 +60,8 @@ const PlaylistSongItem = memo(({ song, onPlayNow, onPlayNext, onAddToQueue }) =>
           className='h-full w-full object-cover'
           loading='lazy'
         />
-        <div className='absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
-          <Play className='h-4 w-4 text-white fill-white' />
+        <div className='absolute inset-0 bg-scrim/40 backdrop-blur-[2px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200'>
+          <Play className='h-4 w-4 text-on-scrim fill-on-scrim' />
         </div>
       </div>
 

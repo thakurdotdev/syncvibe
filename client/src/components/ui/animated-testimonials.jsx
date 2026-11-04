@@ -96,13 +96,9 @@ export const AnimatedTestimonials = ({ testimonials, autoplay = false }) => {
               ease: 'easeInOut',
             }}
           >
-            <h3 className='text-2xl font-bold dark:text-white text-black'>
-              {testimonials[active].name}
-            </h3>
-            <p className='text-sm text-gray-500 dark:text-neutral-500'>
-              {testimonials[active].designation}
-            </p>
-            <motion.p className='text-lg text-gray-500 mt-8 dark:text-neutral-300'>
+            <h3 className='text-2xl font-bold text-foreground'>{testimonials[active].name}</h3>
+            <p className='text-sm text-muted-foreground'>{testimonials[active].designation}</p>
+            <motion.p className='text-lg text-muted-foreground mt-8 dark:text-foreground'>
               {testimonials[active].quote.split(' ').map((word, index) => (
                 <motion.span
                   key={index}
@@ -131,15 +127,15 @@ export const AnimatedTestimonials = ({ testimonials, autoplay = false }) => {
           <div className='flex gap-4 pt-12 md:pt-0'>
             <button
               onClick={handlePrev}
-              className='h-7 w-7 rounded-full bg-gray-100 dark:bg-neutral-800 flex items-center justify-center group/button'
+              className='h-7 w-7 rounded-full bg-muted dark:bg-raised flex items-center justify-center group/button'
             >
-              <CircleArrowLeft className='h-5 w-5 text-black dark:text-neutral-400 group-hover/button:rotate-12 transition-transform duration-300' />
+              <CircleArrowLeft className='h-5 w-5 text-foreground dark:text-muted-foreground group-hover/button:rotate-12 transition-transform duration-300' />
             </button>
             <button
               onClick={handleNext}
-              className='h-7 w-7 rounded-full bg-gray-100 dark:bg-neutral-800 flex items-center justify-center group/button'
+              className='h-7 w-7 rounded-full bg-muted dark:bg-raised flex items-center justify-center group/button'
             >
-              <CircleArrowRight className='h-5 w-5 text-black dark:text-neutral-400 group-hover/button:-rotate-12 transition-transform duration-300' />
+              <CircleArrowRight className='h-5 w-5 text-foreground dark:text-muted-foreground group-hover/button:-rotate-12 transition-transform duration-300' />
             </button>
           </div>
         </div>

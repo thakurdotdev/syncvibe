@@ -10,8 +10,8 @@ const DeletePost = ({ postid, posts, setPosts }) => {
       text: 'Are you sure you want to delete this post? This action cannot be undone.',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
+      confirmButtonColor: 'hsl(var(--destructive))',
+      cancelButtonColor: 'hsl(var(--muted-foreground))',
       confirmButtonText: 'Delete Anyway',
       cancelButtonText: 'Cancel',
     });

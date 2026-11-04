@@ -167,7 +167,7 @@ const SearchUser = ({
               <span
                 title={user.isOnline ? 'Online' : 'Offline'}
                 className={`absolute right-0 bottom-0 w-2.5 h-2.5 rounded-full border-2 border-background ${
-                  user.isOnline ? 'bg-green-500' : 'bg-muted-foreground/30'
+                  user.isOnline ? 'bg-foreground' : 'bg-muted-foreground/30'
                 }`}
               />
             )}
@@ -195,7 +195,7 @@ const SearchUser = ({
             </div>
 
             {!isSearchResult && user.isTyping ? (
-              <span className='text-xs text-green-500 font-medium animate-pulse'>Typing...</span>
+              <span className='text-xs text-foreground font-medium animate-pulse'>Typing...</span>
             ) : !isSearchResult ? (
               <p className='text-xs text-muted-foreground group-hover:text-foreground/75 truncate'>
                 {user?.lastmessage || 'No messages yet'}

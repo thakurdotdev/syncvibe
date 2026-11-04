@@ -47,7 +47,7 @@ const ChatHeader = ({
           {isOnline && (
             <span
               title='Online'
-              className='absolute right-1 bottom-1 w-3 h-3 bg-green-500 rounded-full'
+              className='absolute right-1 bottom-1 w-3 h-3 bg-foreground rounded-full'
             />
           )}
         </Avatar>
@@ -55,7 +55,7 @@ const ChatHeader = ({
         <div className='flex flex-col justify-center'>
           <div className='text-lg font-medium text-foreground'>{otherUser?.name}</div>
           {isTyping && (
-            <div className='text-xs font-medium text-green-500 animate-pulse'>Typing...</div>
+            <div className='text-xs font-medium text-foreground animate-pulse'>Typing...</div>
           )}
         </div>
       </div>

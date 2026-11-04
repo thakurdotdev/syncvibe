@@ -52,14 +52,14 @@ const TwoFactorLogin = ({ userId, onSuccess, onClose }) => {
     <>
       <div className='mb-8'>
         <div className='flex items-center gap-2.5 mb-2'>
-          <div className='p-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800'>
-            <Shield className='w-5 h-5 text-zinc-900 dark:text-zinc-50' />
+          <div className='p-2 rounded-xl bg-muted dark:bg-card border border-border'>
+            <Shield className='w-5 h-5 text-foreground' />
           </div>
-          <h1 className='text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50'>
+          <h1 className='text-2xl sm:text-3xl font-semibold tracking-tight text-foreground'>
             Two-Factor Auth
           </h1>
         </div>
-        <p className='text-sm text-zinc-500 dark:text-zinc-400 mt-2'>
+        <p className='text-sm text-muted-foreground mt-2'>
           Enter the 6-digit code from your authenticator app.
         </p>
       </div>
@@ -70,7 +70,7 @@ const TwoFactorLogin = ({ userId, onSuccess, onClose }) => {
           value={otp}
           onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
           placeholder='000000'
-          className='text-center text-xl tracking-[0.5em] font-semibold h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-650 focus-visible:border-transparent transition-all'
+          className='text-center text-xl tracking-[0.5em] font-semibold h-12 px-4 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-transparent transition-all'
           maxLength={6}
           disabled={loading || isVerified}
           onKeyPress={handleKeyPress}
@@ -81,7 +81,7 @@ const TwoFactorLogin = ({ userId, onSuccess, onClose }) => {
           <Button
             onClick={handleVerify}
             disabled={loading || otp.length !== 6 || isVerified}
-            className='w-full h-12 rounded-xl bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 hover:bg-zinc-900 dark:hover:bg-zinc-200 font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer'
+            className='w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer'
           >
             {loading ? (
               <>
@@ -101,7 +101,7 @@ const TwoFactorLogin = ({ userId, onSuccess, onClose }) => {
           <Button
             variant='outline'
             onClick={onClose}
-            className='w-full h-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer'
+            className='w-full h-12 rounded-xl border border-border bg-card hover:bg-muted dark:hover:bg-raised text-foreground font-medium transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer'
             disabled={loading}
           >
             Cancel

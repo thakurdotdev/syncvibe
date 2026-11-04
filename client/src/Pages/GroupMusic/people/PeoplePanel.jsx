@@ -28,7 +28,7 @@ const MemberRow = memo(({ member, isHost, isYou }) => (
         </AvatarFallback>
       </Avatar>
       <span
-        className='absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background bg-emerald-500'
+        className='absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background bg-foreground'
         aria-hidden='true'
       />
     </div>
@@ -40,7 +40,7 @@ const MemberRow = memo(({ member, isHost, isYou }) => (
       <p
         className={cn(
           'flex items-center gap-1 text-[11px]',
-          isHost ? 'text-amber-500' : 'text-muted-foreground'
+          isHost ? 'text-foreground' : 'text-muted-foreground'
         )}
       >
         {isHost && <Crown className='h-3 w-3' aria-hidden='true' />}

@@ -66,7 +66,7 @@ const ShareDrawer = ({ postid, shareLink, isOpen, onClose }) => {
       name: 'Share',
       icon: Share2,
       action: () => handleShare('native'),
-      className: 'bg-linear-to-r from-blue-500 to-blue-600 text-white',
+      className: 'bg-primary text-primary-foreground',
       showOnMobile: true,
     },
     {
@@ -74,7 +74,7 @@ const ShareDrawer = ({ postid, shareLink, isOpen, onClose }) => {
       name: 'Facebook',
       icon: Facebook,
       action: () => handleShare('facebook'),
-      className: 'bg-[#1877F2] text-white',
+      className: 'bg-brand-facebook text-on-scrim',
       showOnMobile: true,
     },
     {
@@ -82,7 +82,7 @@ const ShareDrawer = ({ postid, shareLink, isOpen, onClose }) => {
       name: 'Twitter',
       icon: Twitter,
       action: () => handleShare('twitter'),
-      className: 'bg-black text-white dark:bg-white dark:text-black',
+      className: 'bg-scrim text-on-scrim dark:bg-on-scrim dark:text-scrim',
       showOnMobile: true,
     },
     {
@@ -90,7 +90,7 @@ const ShareDrawer = ({ postid, shareLink, isOpen, onClose }) => {
       name: 'WhatsApp',
       icon: Send,
       action: () => handleShare('whatsapp'),
-      className: 'bg-[#25D366] text-white',
+      className: 'bg-brand-whatsapp text-on-scrim',
       showOnMobile: true,
     },
   ];
@@ -99,28 +99,28 @@ const ShareDrawer = ({ postid, shareLink, isOpen, onClose }) => {
     <Drawer open={isOpen} onOpenChange={onClose}>
       <DrawerContent className='max-h-[90vh]'>
         <div className='rounded-t-[1.25rem]'>
-          <DrawerHeader className='border-b border-gray-200 dark:border-gray-800'>
+          <DrawerHeader className='border-b border-border'>
             <DrawerTitle className='flex items-center justify-center gap-2 text-lg font-semibold'>
               <Share2 className='w-5 h-5' />
               Share Content
             </DrawerTitle>
-            <DrawerClose className='absolute right-4 top-4 hover:bg-gray-100 dark:hover:bg-gray-800 p-1.5 rounded-full transition-all'>
+            <DrawerClose className='absolute right-4 top-4 hover:bg-muted dark:hover:bg-raised p-1.5 rounded-full transition-all'>
               <X className='w-5 h-5' />
             </DrawerClose>
           </DrawerHeader>
 
           <div className='p-6'>
             {/* Link Preview Card */}
-            <div className='mb-8 bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-4 backdrop-blur-xs'>
+            <div className='mb-8 bg-muted dark:bg-raised/50 rounded-2xl p-4 backdrop-blur-xs'>
               <div className='flex items-center justify-between mb-3'>
                 <div className='flex items-center gap-2'>
-                  <LinkIcon className='w-4 h-4 text-blue-500' />
+                  <LinkIcon className='w-4 h-4 text-foreground' />
                   <span className='text-sm font-medium'>Share Link</span>
                 </div>
                 <Button
                   variant='ghost'
                   size='sm'
-                  className={cn('gap-2 transition-all', copied && 'text-green-500')}
+                  className={cn('gap-2 transition-all', copied && 'text-foreground')}
                   onClick={() => handleShare('copy')}
                 >
                   {copied ? (
@@ -136,7 +136,7 @@ const ShareDrawer = ({ postid, shareLink, isOpen, onClose }) => {
                   )}
                 </Button>
               </div>
-              <div className='w-full bg-white dark:bg-gray-900 rounded-xl p-3 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 break-all'>
+              <div className='w-full bg-card rounded-xl p-3 text-sm text-muted-foreground dark:text-foreground border border-border break-all'>
                 {postUrl}
               </div>
             </div>

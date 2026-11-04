@@ -95,7 +95,7 @@ const MobileShowcase = memo(() => {
                 >
                   <Button
                     size='lg'
-                    className='h-11 px-6 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs cursor-pointer shadow-lg shadow-primary/25 transition-all active:scale-98'
+                    className='h-11 px-6 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs cursor-pointer shadow-lg shadow-scrim/25 transition-all active:scale-98'
                   >
                     <Download className='mr-2 h-4 w-4' />
                     <span>Download APK</span>
@@ -115,16 +115,16 @@ const MobileShowcase = memo(() => {
 
             {/* Realistic Slim Phone Mockup */}
             <div className='lg:col-span-5 flex justify-center'>
-              <div className='relative w-[280px] sm:w-[300px] h-[580px] rounded-[44px] p-[8px] bg-gradient-to-b from-zinc-700 via-zinc-800 to-zinc-900 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.12)] ring-1 ring-black'>
+              <div className='relative w-[280px] sm:w-[300px] h-[580px] rounded-[44px] p-[8px] bg-gradient-to-b from-raised via-raised to-card shadow-[0_25px_60px_-15px_hsl(var(--scrim)/0.9),0_0_0_1px_hsl(var(--border))] ring-1 ring-scrim'>
                 {/* Hardware Buttons */}
-                <div className='absolute -left-[10px] top-24 w-[3px] h-9 bg-zinc-700 rounded-l-sm' />
-                <div className='absolute -left-[10px] top-36 w-[3px] h-12 bg-zinc-700 rounded-l-sm' />
-                <div className='absolute -right-[10px] top-28 w-[3px] h-14 bg-zinc-700 rounded-r-sm' />
+                <div className='absolute -left-[10px] top-24 w-[3px] h-9 bg-raised rounded-l-sm' />
+                <div className='absolute -left-[10px] top-36 w-[3px] h-12 bg-raised rounded-l-sm' />
+                <div className='absolute -right-[10px] top-28 w-[3px] h-14 bg-raised rounded-r-sm' />
 
                 {/* Inner Screen Display */}
                 <div className='w-full h-full rounded-[36px] bg-card overflow-hidden flex flex-col justify-between p-4 relative border border-border text-left select-none'>
                   {/* Punch Hole Camera */}
-                  <div className='w-3 h-3 rounded-full bg-black ring-1 ring-border absolute top-3 left-1/2 -translate-x-1/2 z-30' />
+                  <div className='w-3 h-3 rounded-full bg-scrim ring-1 ring-border absolute top-3 left-1/2 -translate-x-1/2 z-30' />
 
                   {/* Android Status Bar */}
                   <div className='flex items-center justify-between text-[11px] text-muted-foreground font-mono pt-0.5 px-2 relative z-20'>
@@ -143,7 +143,7 @@ const MobileShowcase = memo(() => {
                       <div className='flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary border border-border text-[11px] font-medium text-foreground'>
                         <Music size={10} className='text-primary' />
                         <span className='truncate max-w-[90px]'>Lets have fun</span>
-                        <span className='text-amber-400 font-mono text-[9px]'>ılı</span>
+                        <span className='text-foreground font-mono text-[9px]'>ılı</span>
                       </div>
                     </div>
                     <div className='flex items-center gap-1.5'>
@@ -156,7 +156,7 @@ const MobileShowcase = memo(() => {
 
                   {/* High-Res Album Artwork */}
                   <div className='relative my-auto py-2'>
-                    <div className='w-48 h-48 sm:w-52 sm:h-52 rounded-2xl overflow-hidden mx-auto shadow-2xl border border-border ring-1 ring-black bg-muted'>
+                    <div className='w-48 h-48 sm:w-52 sm:h-52 rounded-2xl overflow-hidden mx-auto shadow-2xl border border-border ring-1 ring-scrim bg-muted'>
                       <img
                         src={DEMO_SONG?.cover || DEMO_SONG?.image?.[2]?.link || ''}
                         alt={DEMO_SONG?.name || 'Track'}
@@ -196,7 +196,7 @@ const MobileShowcase = memo(() => {
                     <div className='flex items-center justify-between px-1'>
                       <Shuffle size={14} className='text-muted-foreground/60' />
                       <SkipBack size={16} className='text-muted-foreground' />
-                      <div className='w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/25'>
+                      <div className='w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-scrim/25'>
                         <Pause size={16} className='fill-current' />
                       </div>
                       <SkipForward size={16} className='text-muted-foreground' />
@@ -207,13 +207,13 @@ const MobileShowcase = memo(() => {
                     <div className='flex items-center justify-between p-2 rounded-xl bg-secondary/70 border border-border/80'>
                       <div className='flex items-center gap-1.5'>
                         <div className='flex -space-x-1.5'>
-                          <div className='w-5 h-5 rounded-full bg-muted border border-black text-[9px] font-bold flex items-center justify-center text-foreground'>
+                          <div className='w-5 h-5 rounded-full bg-muted border border-border text-[9px] font-bold flex items-center justify-center text-foreground'>
                             P
                           </div>
-                          <div className='w-5 h-5 rounded-full bg-muted border border-black text-[9px] font-bold flex items-center justify-center text-foreground'>
+                          <div className='w-5 h-5 rounded-full bg-muted border border-border text-[9px] font-bold flex items-center justify-center text-foreground'>
                             A
                           </div>
-                          <div className='w-5 h-5 rounded-full bg-muted border border-black text-[9px] font-bold flex items-center justify-center text-foreground'>
+                          <div className='w-5 h-5 rounded-full bg-muted border border-border text-[9px] font-bold flex items-center justify-center text-foreground'>
                             S
                           </div>
                         </div>
@@ -221,7 +221,7 @@ const MobileShowcase = memo(() => {
                           4 in sync
                         </span>
                       </div>
-                      <span className='text-[9.5px] font-mono text-emerald-400'>● 0ms delta</span>
+                      <span className='text-[9.5px] font-mono text-foreground'>● 0ms delta</span>
                     </div>
                   </div>
 

@@ -104,7 +104,7 @@ const FloatingProgressBar = memo(() => {
       {/* Floating timestamp tooltip */}
       {showTooltip && (
         <div
-          className='absolute z-40 -top-6.5 pointer-events-none -translate-x-1/2 px-2 py-0.5 rounded-md bg-[#0a0c12]/95 backdrop-blur-md border border-white/20 text-[10px] font-mono font-medium text-white shadow-xl tabular-nums animate-in fade-in zoom-in-95 duration-150'
+          className='absolute z-40 -top-6.5 pointer-events-none -translate-x-1/2 px-2 py-0.5 rounded-md bg-popover/95 backdrop-blur-md border border-border text-[10px] font-mono font-medium text-popover-foreground shadow-xl tabular-nums animate-in fade-in zoom-in-95 duration-150'
           style={{ left: `${hoverX}px` }}
         >
           {formatTime(displayTime)}
@@ -112,19 +112,19 @@ const FloatingProgressBar = memo(() => {
       )}
 
       {/* Inset Rounded Track */}
-      <div className='w-full h-[2px] group-hover/bar:h-[3.5px] bg-white/12 group-hover/bar:bg-white/20 rounded-full transition-all duration-200 overflow-hidden relative'>
+      <div className='w-full h-[2px] group-hover/bar:h-[3.5px] bg-on-scrim/12 group-hover/bar:bg-on-scrim/20 rounded-full transition-all duration-200 overflow-hidden relative'>
         <div
-          className='h-full bg-gradient-to-r from-white/90 via-white to-white rounded-full transition-[width] duration-75 ease-linear relative'
+          className='h-full bg-gradient-to-r from-on-scrim/90 via-on-scrim to-on-scrim rounded-full transition-[width] duration-75 ease-linear relative'
           style={{ width: `${progressPct}%` }}
         >
-          <div className='absolute top-0 right-0 bottom-0 w-3 bg-white/50 blur-[1px] rounded-full' />
+          <div className='absolute top-0 right-0 bottom-0 w-3 bg-on-scrim/50 blur-[1px] rounded-full' />
         </div>
       </div>
 
       {/* Scrubber Knob on Hover */}
       <div
         className={cn(
-          'absolute -translate-x-1/2 w-2 h-2 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.9)] transition-all duration-150 pointer-events-none',
+          'absolute -translate-x-1/2 w-2 h-2 rounded-full bg-foreground transition-all duration-150 pointer-events-none',
           showTooltip ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
         )}
         style={{ left: `${(progressPct / 100) * (trackRef.current?.clientWidth || 0)}px` }}

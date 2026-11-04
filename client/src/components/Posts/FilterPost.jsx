@@ -15,26 +15,26 @@ const FilterPosts = ({ onFilterChange }) => {
       <div className='relative'>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className='bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center'
+          className='bg-foreground text-background py-2 px-4 rounded-lg hover:bg-foreground/90 flex items-center'
         >
           Filter by <ChevronDown className='ml-2' />
         </button>
         {isOpen && (
-          <ul className='absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-lg z-10'>
+          <ul className='absolute right-0 mt-2 w-48 bg-card shadow-lg rounded-lg z-10'>
             <li
-              className='py-2 px-4 hover:bg-gray-100 cursor-pointer'
+              className='py-2 px-4 hover:bg-muted cursor-pointer'
               onClick={() => handleFilterChange('date')}
             >
               Date
             </li>
             <li
-              className='py-2 px-4 hover:bg-gray-100 cursor-pointer'
+              className='py-2 px-4 hover:bg-muted cursor-pointer'
               onClick={() => handleFilterChange('popularity')}
             >
               Popularity (Likes)
             </li>
             <li
-              className='py-2 px-4 hover:bg-gray-100 cursor-pointer'
+              className='py-2 px-4 hover:bg-muted cursor-pointer'
               onClick={() => handleFilterChange('comments')}
             >
               Comments

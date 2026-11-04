@@ -44,7 +44,7 @@ const QRCodeDialog = ({ isOpen, onClose, group }) => {
           </div>
 
           {/* QR Code */}
-          <div className='relative p-4 rounded-2xl bg-white shadow-xl'>
+          <div className='relative p-4 rounded-2xl bg-card shadow-xl'>
             <img
               src={`data:image/png;base64,${group.qrCode}`}
               alt='Group QR Code'
@@ -62,7 +62,7 @@ const QRCodeDialog = ({ isOpen, onClose, group }) => {
             <Button onClick={handleCopy} variant='outline' className='flex-1 rounded-full'>
               {copied ? (
                 <>
-                  <Check className='mr-2 h-4 w-4 text-green-500' />
+                  <Check className='mr-2 h-4 w-4 text-foreground' />
                   Copied!
                 </>
               ) : (

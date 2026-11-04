@@ -98,7 +98,7 @@ const PricingSection = memo(() => {
 
             <div className='pt-6'>
               <Link to='/plans'>
-                <Button className='w-full h-10 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold cursor-pointer shadow-lg shadow-primary/25 transition-all active:scale-98'>
+                <Button className='w-full h-10 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold cursor-pointer shadow-lg shadow-scrim/25 transition-all active:scale-98'>
                   <span>Upgrade to PRO</span>
                   <ArrowRight className='ml-2 h-3.5 w-3.5' />
                 </Button>

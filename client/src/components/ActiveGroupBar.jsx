@@ -38,18 +38,18 @@ const ActiveGroupBar = () => {
       >
         <div
           onClick={() => navigate('/rooms')}
-          className='liquid-panel-elevated p-2.5 rounded-2xl border border-primary/25 shadow-xl shadow-primary/5 flex items-center gap-3 cursor-pointer group hover:border-primary/50 transition-all'
+          className='liquid-panel-elevated p-2.5 rounded-2xl border border-primary/25 shadow-xl shadow-scrim/5 flex items-center gap-3 cursor-pointer group hover:border-primary/50 transition-all'
         >
           {/* Thumbnail / Wave */}
           <div className='relative h-11 w-11 rounded-xl overflow-hidden shrink-0 ring-1 ring-border/30'>
             <img src={albumImage} alt='' className='h-full w-full object-cover' />
             {isPlaying && (
-              <div className='absolute inset-0 bg-black/40 flex items-center justify-center'>
+              <div className='absolute inset-0 bg-scrim/40 flex items-center justify-center'>
                 <div className='flex items-end gap-[2px] h-3'>
                   {[0, 1, 2].map((i) => (
                     <span
                       key={i}
-                      className='w-[2px] bg-white rounded-full animate-wave'
+                      className='w-[2px] bg-card rounded-full animate-wave'
                       style={{
                         animationDelay: `${i * 0.15}s`,
                         height: '100%',
@@ -65,7 +65,7 @@ const ActiveGroupBar = () => {
           {/* Group details */}
           <div className='flex-1 min-w-0 pr-1'>
             <div className='flex items-center gap-1.5'>
-              <span className='h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0' />
+              <span className='h-2 w-2 rounded-full bg-foreground animate-pulse shrink-0' />
               <p className='text-[11px] font-bold tracking-tight text-primary uppercase truncate'>
                 {currentGroup.name}
               </p>

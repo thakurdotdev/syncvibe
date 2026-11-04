@@ -47,8 +47,8 @@ const UpgradeDialog = ({ open, onOpenChange, feature = 'default', customMessage 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='max-w-sm'>
         <DialogHeader className='items-center text-center gap-3'>
-          <div className='p-4 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20'>
-            <Crown className='h-8 w-8 text-amber-500' />
+          <div className='p-4 rounded-full bg-gradient-to-br from-foreground/20 to-foreground/20'>
+            <Crown className='h-8 w-8 text-foreground' />
           </div>
           <DialogTitle className='text-xl'>{meta.title}</DialogTitle>
           <DialogDescription className='text-sm'>
@@ -71,7 +71,7 @@ const UpgradeDialog = ({ open, onOpenChange, feature = 'default', customMessage 
               onOpenChange(false);
               navigate('/plans');
             }}
-            className='gap-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
+            className='gap-2 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground'
           >
             <Sparkles className='h-4 w-4' />
             Upgrade to PRO

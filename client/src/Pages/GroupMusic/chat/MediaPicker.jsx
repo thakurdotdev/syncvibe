@@ -35,7 +35,7 @@ const MediaCard = memo(({ item, type, onSelect }) => {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         title={item.title || 'Send sticker'}
-        className='group relative w-full aspect-square rounded-xl overflow-hidden cursor-pointer border-0 p-2 bg-white/[0.03] hover:bg-white/[0.07] transition-all duration-150 flex items-center justify-center'
+        className='group relative w-full aspect-square rounded-xl overflow-hidden cursor-pointer border-0 p-2 bg-on-scrim/[0.03] hover:bg-on-scrim/[0.07] transition-all duration-150 flex items-center justify-center'
       >
         <img
           src={hovered ? animatedSrc : staticSrc}
@@ -87,9 +87,9 @@ const MediaCard = memo(({ item, type, onSelect }) => {
 
       {/* Subtle clip badge in corner */}
       {isClip && (
-        <div className='absolute top-1.5 left-1.5 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 shadow-xs'>
-          <Clapperboard className='h-2.5 w-2.5 text-amber-400' />
-          <span className='text-[9px] font-semibold text-white/90 uppercase tracking-wider'>
+        <div className='absolute top-1.5 left-1.5 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-scrim/70 backdrop-blur-md border border-on-scrim/10 shadow-xs'>
+          <Clapperboard className='h-2.5 w-2.5 text-on-scrim' />
+          <span className='text-[9px] font-semibold text-on-scrim/90 uppercase tracking-wider'>
             Clip
           </span>
         </div>
@@ -346,7 +346,7 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
         height: pos.height,
         zIndex: 9999,
         background: 'hsl(var(--background) / 0.98)',
-        boxShadow: '0 -8px 40px -8px rgba(0,0,0,0.5), 0 0 0 1px hsl(var(--border) / 0.15)',
+        boxShadow: '0 -8px 40px -8px hsl(var(--scrim) / 0.5), 0 0 0 1px hsl(var(--border) / 0.15)',
       }}
     >
       {/* Sleek, Compact Header */}

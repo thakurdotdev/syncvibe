@@ -86,7 +86,7 @@ const ChatMessage = ({
         isOwn && 'flex-row-reverse',
         startsGroup ? 'mt-3' : 'mt-0.5',
         isHighlighted && 'bg-primary/10 duration-150',
-        mentionsMe && 'bg-amber-500/[0.06]'
+        mentionsMe && 'bg-foreground/[0.06]'
       )}
     >
       {canInteract && (

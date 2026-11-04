@@ -89,7 +89,7 @@ const Header = memo(() => {
               <Link to='/register'>
                 <Button
                   size='sm'
-                  className='rounded-full h-8 px-4 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground transition-all cursor-pointer shadow-sm shadow-primary/20'
+                  className='rounded-full h-8 px-4 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground transition-all cursor-pointer shadow-sm shadow-scrim/20'
                 >
                   Get Started
                 </Button>

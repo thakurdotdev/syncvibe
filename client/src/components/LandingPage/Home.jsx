@@ -25,7 +25,7 @@ const FinalCTA = memo(() => (
         <Link to='/register'>
           <Button
             size='lg'
-            className='h-11 px-7 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs cursor-pointer shadow-lg shadow-primary/25 transition-all active:scale-98'
+            className='h-11 px-7 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs cursor-pointer shadow-lg shadow-scrim/25 transition-all active:scale-98'
           >
             <span>Get Started Free</span>
             <ArrowRight className='ml-2 h-3.5 w-3.5' />

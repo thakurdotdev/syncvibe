@@ -7,7 +7,7 @@ const RefundPolicy = () => {
       <div className='max-w-4xl mx-auto px-6 py-14 lg:px-8 shadow-lg rounded-lg'>
         <header className='border-b pb-6 mb-6'>
           <h1 className='text-3xl font-bold '>Refund & Cancellation Policy</h1>
-          <p className='mt-2 text-gray-600'>Last Updated: February 15, 2026</p>
+          <p className='mt-2 text-muted-foreground'>Last Updated: February 15, 2026</p>
         </header>
 
         <main className='space-y-6  leading-relaxed'>
@@ -76,7 +76,7 @@ const RefundPolicy = () => {
             <p className='mt-2'>
               If you have any questions about this Refund & Cancellation Policy or need assistance
               with a payment issue, please contact us at{' '}
-              <a href='mailto:info@thakur.dev' className='text-blue-600 hover:underline'>
+              <a href='mailto:info@thakur.dev' className='text-foreground hover:underline'>
                 info@thakur.dev
               </a>
               .

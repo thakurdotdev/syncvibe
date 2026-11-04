@@ -56,29 +56,29 @@ const Playlist = () => {
           backgroundSize: 'cover',
         }}
       >
-        <div className='rounded-2xl w-full h-full bg-black/60 backdrop-blur-xs flex flex-col transition-all'>
+        <div className='rounded-2xl w-full h-full bg-scrim/60 backdrop-blur-xs flex flex-col transition-all'>
           <div className='flex flex-col p-3'>
             <div className='flex items-center p-3 gap-6'>
               <div className='w-[150px] h-[150px] sm:w-[200px] sm:h-[200px] rounded-lg overflow-hidden'>
                 <img src={bgUrl} className='object-cover w-full h-full' />
               </div>
               <div className='h-[150px] sm:h-[200px] flex flex-col py-3'>
-                <h1 className='text-white text-3xl font-semibold hidden sm:block'>
+                <h1 className='text-on-scrim text-3xl font-semibold hidden sm:block'>
                   {playlistData.name}
                 </h1>
-                <p className='text-base text-white/70 font-medium mt-1'>
+                <p className='text-base text-on-scrim/70 font-medium mt-1'>
                   {playlistData.header_desc}
                 </p>
                 <div className='mt-5 flex flex-col'>
-                  <p className='text-sm text-white/80'>{playlistData.list_count} songs</p>
-                  <p className='text-sm text-white/80'>
+                  <p className='text-sm text-on-scrim/80'>{playlistData.list_count} songs</p>
+                  <p className='text-sm text-on-scrim/80'>
                     {formatCount(playlistData.follower_count)} followers
                   </p>
                 </div>
               </div>
             </div>
           </div>
-          <h1 className='text-white text-xl font-semibold ml-5 sm:hidden line-clamp-1'>
+          <h1 className='text-on-scrim text-xl font-semibold ml-5 sm:hidden line-clamp-1'>
             {playlistData.name}
           </h1>
         </div>

@@ -44,7 +44,7 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
         <div className='incoming-call-card rounded-2xl overflow-hidden shadow-2xl'>
           <div className='p-4 flex items-center gap-3.5 relative'>
             {isRinging && (
-              <div className='absolute inset-0 rounded-2xl animate-pulse bg-emerald-500/5 pointer-events-none' />
+              <div className='absolute inset-0 rounded-2xl animate-pulse bg-foreground/5 pointer-events-none' />
             )}
 
             <div className='relative shrink-0'>
@@ -52,15 +52,15 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
                 <img
                   src={incomingCall.profilepic}
                   alt={incomingCall.name}
-                  className='w-12 h-12 rounded-full object-cover ring-2 ring-emerald-500/30'
+                  className='w-12 h-12 rounded-full object-cover ring-2 ring-foreground/30'
                 />
               ) : (
-                <div className='w-12 h-12 rounded-full bg-muted flex items-center justify-center ring-2 ring-emerald-500/30'>
+                <div className='w-12 h-12 rounded-full bg-muted flex items-center justify-center ring-2 ring-foreground/30'>
                   <User className='w-5 h-5 text-muted-foreground' />
                 </div>
               )}
               <div
-                className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-background ${
+                className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-foreground border-2 border-background ${
                   isRinging ? 'animate-pulse' : ''
                 }`}
               />
@@ -71,9 +71,9 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
               <p className='text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5'>
                 <span className='relative flex h-2 w-2'>
                   {isRinging && (
-                    <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75' />
+                    <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-foreground opacity-75' />
                   )}
-                  <span className='relative inline-flex rounded-full h-2 w-2 bg-emerald-500' />
+                  <span className='relative inline-flex rounded-full h-2 w-2 bg-foreground' />
                 </span>
                 Incoming video call
               </p>
@@ -82,13 +82,13 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
             <div className='flex items-center gap-2 shrink-0'>
               <button
                 onClick={answerCall}
-                className='h-11 w-11 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-lg shadow-emerald-500/25'
+                className='h-11 w-11 rounded-full bg-foreground hover:bg-foreground/90 text-background flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-lg shadow-scrim/25'
               >
                 <Phone className='w-[18px] h-[18px]' />
               </button>
               <button
                 onClick={endCall}
-                className='h-11 w-11 rounded-full bg-red-500 hover:bg-red-400 text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-lg shadow-red-500/25'
+                className='h-11 w-11 rounded-full bg-destructive hover:bg-destructive/90 text-destructive-foreground flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-lg shadow-destructive/25'
               >
                 <PhoneOff className='w-[18px] h-[18px]' />
               </button>
@@ -97,7 +97,7 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
 
           <div className='h-[3px] bg-muted/30'>
             <div
-              className='h-full bg-emerald-500 rounded-full'
+              className='h-full bg-foreground rounded-full'
               style={{
                 width: '100%',
                 animation: isRinging ? 'call-progress 30s linear forwards' : 'none',
@@ -109,10 +109,10 @@ const IncomingCallNotification = ({ incomingCall, answerCall, endCall }) => {
 
       <style>{`
         .incoming-call-card {
-          background: rgba(0, 0, 0, 0.7);
+          background: hsl(var(--popover) / 0.85);
           -webkit-backdrop-filter: blur(24px);
           backdrop-filter: blur(24px);
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          border: 1px solid hsl(var(--border));
         }
         @keyframes call-progress {
           from { width: 100%; }

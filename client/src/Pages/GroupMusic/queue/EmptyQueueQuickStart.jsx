@@ -111,22 +111,22 @@ const EmptyQueueQuickStart = memo(({ userId, onAddToQueue, playNow }) => {
                     className='h-full w-full object-cover group-hover:scale-105 transition-transform duration-300'
                     loading='lazy'
                   />
-                  <div className='absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity duration-200'>
+                  <div className='absolute inset-0 bg-scrim/40 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity duration-200'>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         playNow(song);
                       }}
-                      className='h-7 w-7 rounded-full bg-white text-black flex items-center justify-center hover:scale-110 active:scale-95 transition-transform cursor-pointer'
+                      className='h-7 w-7 rounded-full bg-on-scrim text-scrim flex items-center justify-center hover:scale-110 active:scale-95 transition-transform cursor-pointer'
                     >
-                      <Play className='h-3 w-3 fill-black text-black ml-0.5' />
+                      <Play className='h-3 w-3 fill-scrim text-foreground ml-0.5' />
                     </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onAddToQueue(song);
                       }}
-                      className='h-7 w-7 rounded-full bg-primary text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-transform cursor-pointer'
+                      className='h-7 w-7 rounded-full bg-primary text-background flex items-center justify-center hover:scale-110 active:scale-95 transition-transform cursor-pointer'
                     >
                       <Plus className='h-3.5 w-3.5' />
                     </button>

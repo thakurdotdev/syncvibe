@@ -121,7 +121,7 @@ const PostCard = memo(({ post }) => {
 
           {/* Media Container */}
           {imageCount > 0 && (
-            <div className='rounded-2xl border border-border/50 overflow-hidden bg-black/40 mt-2'>
+            <div className='rounded-2xl border border-border/50 overflow-hidden bg-scrim/40 mt-2'>
               {imageCount === 1 ? (
                 <img
                   src={getOptimizedImageUrl(post.images[0].image, { thumbnail: true })}
@@ -159,8 +159,8 @@ const PostCard = memo(({ post }) => {
                         )}
                       />
                       {idx === 3 && imageCount > 4 && (
-                        <div className='absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center'>
-                          <span className='text-white text-xl sm:text-2xl font-bold'>
+                        <div className='absolute inset-0 bg-scrim/60 backdrop-blur-xs flex items-center justify-center'>
+                          <span className='text-on-scrim text-xl sm:text-2xl font-bold'>
                             +{imageCount - 4}
                           </span>
                         </div>
@@ -188,15 +188,15 @@ const PostCard = memo(({ post }) => {
                 className={cn(
                   'h-4.5 w-4.5 transition-all duration-200',
                   optimisticLiked
-                    ? 'fill-rose-500 text-rose-500 scale-110'
-                    : 'text-muted-foreground group-hover:text-rose-500 group-hover:scale-105'
+                    ? 'fill-destructive text-destructive scale-110'
+                    : 'text-muted-foreground group-hover:text-destructive group-hover:scale-105'
                 )}
               />
               {optimisticCount > 0 && (
                 <span
                   className={cn(
                     'tabular-nums text-xs font-medium',
-                    optimisticLiked ? 'text-rose-500 font-semibold' : 'text-muted-foreground'
+                    optimisticLiked ? 'text-destructive font-semibold' : 'text-muted-foreground'
                   )}
                 >
                   {formatCount(optimisticCount)}
@@ -232,7 +232,7 @@ const PostCard = memo(({ post }) => {
               }}
               aria-label='Share post'
             >
-              <Share2 className='h-4.5 w-4.5 text-muted-foreground group-hover:text-emerald-500 group-hover:scale-105 transition-all duration-200' />
+              <Share2 className='h-4.5 w-4.5 text-muted-foreground group-hover:text-foreground group-hover:scale-105 transition-all duration-200' />
             </button>
           </div>
         </div>

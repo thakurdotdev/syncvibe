@@ -81,8 +81,8 @@ const RoomCard = ({ collapsed }) => {
         <div className='relative h-11 w-11 shrink-0 overflow-hidden rounded-xl'>
           <img src={art} alt='' className='h-full w-full object-cover' />
           {isPlaying && (
-            <div className='absolute inset-0 grid place-items-center bg-black/35'>
-              <Equalizer bars={3} className='h-3' barClassName='bg-white' />
+            <div className='absolute inset-0 grid place-items-center bg-scrim/35'>
+              <Equalizer bars={3} className='h-3' barClassName='bg-card' />
             </div>
           )}
         </div>
@@ -108,7 +108,7 @@ const useProgress = () => {
 const MiniProgress = () => {
   const { progress } = useProgress();
   return (
-    <span className='absolute inset-x-0 bottom-0 h-[3px] bg-black/40'>
+    <span className='absolute inset-x-0 bottom-0 h-[3px] bg-scrim/40'>
       <span
         className='block h-full origin-left bg-primary'
         style={{ transform: `scaleX(${progress / 100})` }}
@@ -156,7 +156,7 @@ const PlayerCard = ({ collapsed }) => {
         className='group relative mx-auto block h-10 w-10 overflow-hidden rounded-xl'
       >
         <img src={art} alt='' className='h-full w-full object-cover' />
-        <span className='absolute inset-0 grid place-items-center bg-black/40 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'>
+        <span className='absolute inset-0 grid place-items-center bg-scrim/40 text-on-scrim opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'>
           {isPlaying ? (
             <Pause className='h-4 w-4' fill='currentColor' />
           ) : (
@@ -165,7 +165,7 @@ const PlayerCard = ({ collapsed }) => {
         </span>
         {isPlaying && (
           <span className='absolute bottom-1 left-1 group-hover:hidden'>
-            <Equalizer bars={3} className='h-2.5' barClassName='w-[2px] bg-white' />
+            <Equalizer bars={3} className='h-2.5' barClassName='w-[2px] bg-card' />
           </span>
         )}
         <MiniProgress />

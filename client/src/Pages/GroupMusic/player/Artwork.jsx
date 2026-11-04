@@ -11,7 +11,7 @@ const Artwork = ({ song, isPlaying, isSyncing, className, showOverlay = true }) 
   <div
     className={cn(
       'relative shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-border/30',
-      isPlaying && !isSyncing && 'shadow-xl shadow-black/20',
+      isPlaying && !isSyncing && 'shadow-xl shadow-scrim/20',
       className
     )}
   >
@@ -32,18 +32,18 @@ const Artwork = ({ song, isPlaying, isSyncing, className, showOverlay = true }) 
           <motion.div
             key='syncing'
             {...FADE}
-            className='absolute inset-0 flex items-center justify-center bg-black/45 backdrop-blur-sm'
+            className='absolute inset-0 flex items-center justify-center bg-scrim/45 backdrop-blur-sm'
           >
-            <Radio className='h-5 w-5 animate-pulse text-white' aria-label='Syncing' />
+            <Radio className='h-5 w-5 animate-pulse text-on-scrim' aria-label='Syncing' />
           </motion.div>
         ) : (
           isPlaying && (
             <motion.div
               key='playing'
               {...FADE}
-              className='absolute inset-x-0 bottom-0 flex h-1/3 items-end justify-center bg-gradient-to-t from-black/55 to-transparent pb-2'
+              className='absolute inset-x-0 bottom-0 flex h-1/3 items-end justify-center bg-gradient-to-t from-scrim/55 to-transparent pb-2'
             >
-              <Equalizer className='h-3' barClassName='bg-white/85' />
+              <Equalizer className='h-3' barClassName='bg-on-scrim/85' />
             </motion.div>
           )
         )}

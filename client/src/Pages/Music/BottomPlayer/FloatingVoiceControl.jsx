@@ -14,7 +14,7 @@ const AudioWave = memo(() => (
     {[0, 0.1, 0.2, 0.3, 0.2].map((delay, i) => (
       <motion.div
         key={i}
-        className='w-0.5 bg-white rounded-full'
+        className='w-0.5 bg-card rounded-full'
         animate={{ height: ['8px', '16px', '8px'] }}
         transition={{ duration: 0.6, repeat: Infinity, delay }}
       />

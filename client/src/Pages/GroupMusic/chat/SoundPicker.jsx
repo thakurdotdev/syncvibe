@@ -38,7 +38,7 @@ const SoundItemCard = memo(({ sound, isPlaying, onTogglePlay, onSend }) => {
         className={cn(
           'shrink-0 h-8 w-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors duration-150 border-0',
           isPlaying
-            ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/30'
+            ? 'bg-primary text-primary-foreground shadow-sm shadow-scrim/30'
             : 'bg-background/80 hover:bg-background text-foreground hover:scale-105 shadow-xs'
         )}
       >
@@ -268,7 +268,7 @@ const SoundPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
         height: pos.height,
         zIndex: 9999,
         background: 'hsl(var(--background) / 0.98)',
-        boxShadow: '0 -8px 40px -8px rgba(0,0,0,0.5), 0 0 0 1px hsl(var(--border) / 0.15)',
+        boxShadow: '0 -8px 40px -8px hsl(var(--scrim) / 0.5), 0 0 0 1px hsl(var(--border) / 0.15)',
       }}
     >
       {/* Header */}

@@ -50,7 +50,7 @@ const UserItem = memo(({ user, isOnline, onInvite, isInvited, isInGroup }) => {
         <span
           className={cn(
             'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card shadow-sm',
-            isOnline ? 'bg-emerald-500' : 'bg-muted-foreground/30'
+            isOnline ? 'bg-foreground' : 'bg-muted-foreground/30'
           )}
         />
       </div>
@@ -70,7 +70,7 @@ const UserItem = memo(({ user, isOnline, onInvite, isInvited, isInGroup }) => {
         </div>
         <p className='text-xs text-muted-foreground/70 font-medium truncate mt-0.5'>
           @{user.username}
-          {isOnline && <span className='ml-2 text-emerald-500 font-bold'>· online</span>}
+          {isOnline && <span className='ml-2 text-foreground font-bold'>· online</span>}
         </p>
       </div>
 
@@ -84,7 +84,7 @@ const UserItem = memo(({ user, isOnline, onInvite, isInvited, isInGroup }) => {
             In group
           </Badge>
         ) : isInvited ? (
-          <div className='flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600'>
+          <div className='flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-foreground/10 text-foreground'>
             <Check className='h-3.5 w-3.5 stroke-[3px]' />
             <span className='text-[11px] font-bold'>Sent</span>
           </div>

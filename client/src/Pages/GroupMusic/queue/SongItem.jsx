@@ -69,11 +69,11 @@ const SongItem = memo(
           />
           <div
             className={cn(
-              'absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center',
+              'absolute inset-0 bg-scrim/40 backdrop-blur-[2px] flex items-center justify-center',
               'opacity-0 group-hover:opacity-100 transition-opacity duration-200'
             )}
           >
-            <Play className='h-4 w-4 text-white fill-white' />
+            <Play className='h-4 w-4 text-on-scrim fill-on-scrim' />
           </div>
         </div>
 
@@ -107,7 +107,7 @@ const SongItem = memo(
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align='end'
-              className='w-48 rounded-2xl border-white/[0.08] bg-background/95 backdrop-blur-xl'
+              className='w-48 rounded-2xl border-on-scrim/[0.08] bg-background/95 backdrop-blur-xl'
             >
               <DropdownMenuItem
                 onClick={handlePlayNow}

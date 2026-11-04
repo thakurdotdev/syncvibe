@@ -241,18 +241,18 @@ const People = ({ people, total }) => {
                     <AvatarFallback className='text-xs'>{other.name?.[0] || '?'}</AvatarFallback>
                   </Avatar>
                   {p.isTyping ? (
-                    <span className='absolute -right-1 -top-1 flex h-3.5 items-center gap-[2px] rounded-full bg-emerald-500 px-1'>
+                    <span className='absolute -right-1 -top-1 flex h-3.5 items-center gap-[2px] rounded-full bg-foreground px-1'>
                       {[0, 1, 2].map((i) => (
                         <span
                           key={i}
-                          className='h-[3px] w-[3px] animate-bounce rounded-full bg-white'
+                          className='h-[3px] w-[3px] animate-bounce rounded-full bg-background'
                           style={{ animationDelay: `${i * 120}ms` }}
                         />
                       ))}
                     </span>
                   ) : (
                     p.isOnline && (
-                      <span className='absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-emerald-500' />
+                      <span className='absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-foreground' />
                     )
                   )}
                 </button>
