@@ -97,7 +97,7 @@ const StoriesBar = () => {
                   className={cn(
                     'rounded-full transition-transform duration-200 group-hover/story:scale-105',
                     storyGroup.hasUnviewedStories
-                      ? 'p-[2.5px] bg-gradient-to-tr from-amber-400 via-rose-500 to-indigo-500 shadow-xs'
+                      ? 'p-[2.5px] bg-gradient-to-tr from-foreground via-destructive to-foreground shadow-xs'
                       : 'p-[2px] bg-border/90'
                   )}
                 >

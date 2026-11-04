@@ -3,16 +3,16 @@ import { RefreshCw } from 'lucide-react';
 import { memo } from 'react';
 
 const QUALITY = {
-  good: { bars: 3, label: 'Good connection', color: 'bg-emerald-500' },
-  fair: { bars: 2, label: 'Fair connection', color: 'bg-amber-500' },
-  poor: { bars: 1, label: 'Poor connection', color: 'bg-rose-500' },
+  good: { bars: 3, label: 'Good connection', color: 'bg-success' },
+  fair: { bars: 2, label: 'Fair connection', color: 'bg-warning' },
+  poor: { bars: 1, label: 'Poor connection', color: 'bg-destructive' },
 };
 
 /** "Live" pill + signal bars, or a reconnecting state. */
 const ConnectionStatus = ({ quality = 'good', isReconnecting }) => {
   if (isReconnecting) {
     return (
-      <span className='inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-500'>
+      <span className='inline-flex items-center gap-1.5 text-[11px] font-medium text-warning'>
         <RefreshCw className='h-3 w-3 animate-spin' />
         Reconnecting
       </span>
@@ -23,10 +23,10 @@ const ConnectionStatus = ({ quality = 'good', isReconnecting }) => {
 
   return (
     <span className='inline-flex items-center gap-2' title={meta.label}>
-      <span className='inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-500'>
+      <span className='inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-success'>
         <span className='relative flex h-1.5 w-1.5'>
-          <span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75' />
-          <span className='relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500' />
+          <span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75' />
+          <span className='relative inline-flex h-1.5 w-1.5 rounded-full bg-success' />
         </span>
         Live
       </span>

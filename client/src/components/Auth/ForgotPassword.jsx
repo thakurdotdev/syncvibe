@@ -71,8 +71,8 @@ const ForgotPassword = () => {
 
         {sent ? (
           <div className='flex flex-col items-center gap-4 py-4'>
-            <div className='rounded-full bg-emerald-500/10 p-4'>
-              <Mail className='h-8 w-8 text-emerald-500' />
+            <div className='rounded-full bg-foreground/10 p-4'>
+              <Mail className='h-8 w-8 text-foreground' />
             </div>
             <p className='text-sm text-muted-foreground text-center'>
               Didn't receive the email? Check your spam folder or{' '}

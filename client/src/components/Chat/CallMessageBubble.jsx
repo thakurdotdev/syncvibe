@@ -8,9 +8,9 @@ const CallMessageBubble = ({ message, isOwnMessage }) => {
   const isCompleted = message.messagetype === 'completed_call';
 
   const getIcon = () => {
-    if (isMissed) return <PhoneMissed className='h-4 w-4 text-red-500' />;
-    if (isRejected) return <PhoneOff className='h-4 w-4 text-red-500' />;
-    if (isCompleted) return <PhoneIncoming className='h-4 w-4 text-green-500' />;
+    if (isMissed) return <PhoneMissed className='h-4 w-4 text-destructive' />;
+    if (isRejected) return <PhoneOff className='h-4 w-4 text-destructive' />;
+    if (isCompleted) return <PhoneIncoming className='h-4 w-4 text-foreground' />;
     return <Phone className='h-4 w-4 text-muted-foreground' />;
   };
 
@@ -24,7 +24,7 @@ const CallMessageBubble = ({ message, isOwnMessage }) => {
     return 'Call';
   };
 
-  const iconColor = isMissed || isRejected ? 'text-red-500' : 'text-green-500';
+  const iconColor = isMissed || isRejected ? 'text-destructive' : 'text-foreground';
 
   return (
     <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-2`}>

@@ -155,7 +155,7 @@ const PostEditor = () => {
         <h1 className='text-xl font-semibold'>{isEditMode ? 'Edit Post' : 'Create Post'}</h1>
       </div>
 
-      <Card className={cn('p-4 relative', isDragging && 'ring-2 ring-blue-500')}>
+      <Card className={cn('p-4 relative', isDragging && 'ring-2 ring-foreground')}>
         <div className='flex items-center gap-3 mb-4'>
           <Avatar className='h-10 w-10'>
             <AvatarImage src={getProfileCloudinaryUrl(user?.profilepic)} />
@@ -175,9 +175,9 @@ const PostEditor = () => {
         />
 
         {isDragging && (
-          <div className='absolute inset-0 bg-blue-500/10 backdrop-blur-sm flex items-center justify-center pointer-events-none rounded-lg z-10'>
+          <div className='absolute inset-0 bg-foreground/10 backdrop-blur-sm flex items-center justify-center pointer-events-none rounded-lg z-10'>
             <div className='text-center space-y-2'>
-              <ImagePlus className='w-12 h-12 mx-auto text-blue-500' />
+              <ImagePlus className='w-12 h-12 mx-auto text-foreground' />
               <p className='text-lg font-medium'>Drop images here</p>
             </div>
           </div>

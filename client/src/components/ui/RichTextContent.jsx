@@ -55,10 +55,7 @@ const RichTextContent = ({ content, className, expandable = true, maxHeight = 10
           {content}
         </div>
         {needsExpansion && (
-          <button
-            onClick={toggleExpand}
-            className='text-blue-500 dark:text-blue-400 hover:underline mt-1 text-sm'
-          >
+          <button onClick={toggleExpand} className='text-foreground hover:underline mt-1 text-sm'>
             {isExpanded ? 'Read Less' : 'Read More'}
           </button>
         )}
@@ -76,17 +73,14 @@ const RichTextContent = ({ content, className, expandable = true, maxHeight = 10
           '[&_h2]:text-lg [&_h2]:font-semibold [&_h2]:my-2',
           '[&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4',
           '[&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm',
-          '[&_a]:text-blue-500 [&_a]:underline [&_a]:hover:text-blue-600',
+          '[&_a]:text-foreground [&_a]:underline [&_a]:hover:text-foreground',
           '[&_blockquote]:border-l-2 [&_blockquote]:border-muted [&_blockquote]:pl-3 [&_blockquote]:italic',
           !isExpanded && needsExpansion && 'line-clamp-3'
         )}
         dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
       />
       {needsExpansion && (
-        <button
-          onClick={toggleExpand}
-          className='text-blue-500 dark:text-blue-400 hover:underline mt-1 text-sm'
-        >
+        <button onClick={toggleExpand} className='text-foreground hover:underline mt-1 text-sm'>
           {isExpanded ? 'Read Less' : 'Read More'}
         </button>
       )}

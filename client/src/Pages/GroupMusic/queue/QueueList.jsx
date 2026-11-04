@@ -93,8 +93,8 @@ const SortableQueueItem = memo(({ item, isPlaying, onRemove, onFetchRecs, onSave
           loading='lazy'
         />
         {isPlaying && (
-          <div className='absolute inset-0 bg-black/25 backdrop-blur-[1px] flex items-center justify-center'>
-            <Play className='h-3.5 w-3.5 text-white fill-white' />
+          <div className='absolute inset-0 bg-scrim/25 backdrop-blur-[1px] flex items-center justify-center'>
+            <Play className='h-3.5 w-3.5 text-on-scrim fill-on-scrim' />
           </div>
         )}
       </div>
@@ -143,7 +143,7 @@ const SortableQueueItem = memo(({ item, isPlaying, onRemove, onFetchRecs, onSave
             </button>
             <button
               onClick={handleRemove}
-              className='h-7 w-7 rounded-xl flex items-center justify-center text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer transition-all duration-200'
+              className='h-7 w-7 rounded-xl flex items-center justify-center text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 cursor-pointer transition-all duration-200'
               title='Remove from queue'
             >
               <Trash2 className='h-3.5 w-3.5' />
@@ -300,7 +300,7 @@ const QueueList = memo(
                   {clearQueue && (
                     <button
                       onClick={() => clearQueue?.()}
-                      className='flex items-center gap-1 text-[11px] text-muted-foreground/60 hover:text-rose-400 px-2 py-0.5 rounded-full hover:bg-rose-500/10 transition-colors cursor-pointer'
+                      className='flex items-center gap-1 text-[11px] text-muted-foreground/60 hover:text-destructive px-2 py-0.5 rounded-full hover:bg-destructive/10 transition-colors cursor-pointer'
                       title='Clear upcoming songs'
                     >
                       <Trash2 className='h-3 w-3' />

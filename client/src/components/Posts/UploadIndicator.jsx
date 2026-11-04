@@ -24,8 +24,8 @@ const UploadIndicator = ({ className }) => {
             exit={{ opacity: 0, x: 100 }}
             className={cn(
               'flex items-center gap-3 bg-background border rounded-full px-4 py-2.5 shadow-lg min-w-[200px]',
-              upload.status === 'error' && 'border-red-500/50',
-              upload.status === 'completed' && 'border-green-500/50'
+              upload.status === 'error' && 'border-destructive/50',
+              upload.status === 'completed' && 'border-foreground/50'
             )}
           >
             {upload.status === 'uploading' && (
@@ -44,7 +44,7 @@ const UploadIndicator = ({ className }) => {
                     cy='18'
                     r='14'
                     fill='none'
-                    className='stroke-blue-500'
+                    className='stroke-foreground'
                     strokeWidth='3'
                     strokeDasharray={`${upload.progress * 0.88} 88`}
                     strokeLinecap='round'
@@ -53,9 +53,9 @@ const UploadIndicator = ({ className }) => {
               </div>
             )}
             {upload.status === 'completed' && (
-              <CheckCircle2 className='h-5 w-5 text-green-500 shrink-0' />
+              <CheckCircle2 className='h-5 w-5 text-foreground shrink-0' />
             )}
-            {upload.status === 'error' && <XCircle className='h-5 w-5 text-red-500 shrink-0' />}
+            {upload.status === 'error' && <XCircle className='h-5 w-5 text-destructive shrink-0' />}
 
             <div className='flex-1 min-w-0'>
               <p className='text-sm font-medium truncate'>

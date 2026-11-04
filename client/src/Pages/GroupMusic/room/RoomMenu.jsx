@@ -60,7 +60,7 @@ const RoomMenu = ({ onCopyCode, onShowQrCode, onLeave }) => {
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={() => setConfirmLeave(true)}
-            className='text-rose-500 focus:bg-rose-500/10 focus:text-rose-500'
+            className='text-destructive focus:bg-destructive/10 focus:text-destructive'
           >
             <LogOut className='mr-2 h-4 w-4' />
             Leave room

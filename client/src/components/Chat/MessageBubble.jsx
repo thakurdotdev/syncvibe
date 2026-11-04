@@ -39,7 +39,7 @@ const MessageBubble = ({
 
     if (message.isread) {
       return (
-        <div className='flex text-blue-500'>
+        <div className='flex text-foreground'>
           <Check size={13} />
           <Check size={13} className='-ml-2' />
         </div>

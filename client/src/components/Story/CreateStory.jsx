@@ -163,7 +163,7 @@ const CreateStory = ({ onClose, isOpen, onSuccess }) => {
             <Button
               variant='ghost'
               size='icon'
-              className='text-white hover:bg-gray-800 rounded-full'
+              className='text-on-scrim hover:bg-raised rounded-full'
               onClick={handleClose}
             >
               <X className='h-6 w-6' />
@@ -175,12 +175,12 @@ const CreateStory = ({ onClose, isOpen, onSuccess }) => {
           <div className='relative w-full h-full'>
             {!selectedFile ? (
               <div
-                className='w-full h-full flex flex-col items-center justify-center space-y-4 p-4 text-center cursor-pointer hover:bg-black/75'
+                className='w-full h-full flex flex-col items-center justify-center space-y-4 p-4 text-center cursor-pointer hover:bg-scrim/75'
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Upload className='h-16 w-16 text-gray-500' />
-                <p className='text-xl text-white'>Tap to upload image or video</p>
-                <p className='text-sm text-gray-400'>Maximum file size: 30MB</p>
+                <Upload className='h-16 w-16 text-muted-foreground' />
+                <p className='text-xl text-on-scrim'>Tap to upload image or video</p>
+                <p className='text-sm text-muted-foreground'>Maximum file size: 30MB</p>
                 <input
                   ref={fileInputRef}
                   type='file'
@@ -206,7 +206,9 @@ const CreateStory = ({ onClose, isOpen, onSuccess }) => {
             {isUploading && uploadProgress > 0 && (
               <div className='space-y-2'>
                 <Progress value={uploadProgress} className='h-2' />
-                <p className='text-sm text-gray-400 text-center'>Uploading... {uploadProgress}%</p>
+                <p className='text-sm text-muted-foreground text-center'>
+                  Uploading... {uploadProgress}%
+                </p>
               </div>
             )}
             <div className='flex gap-2'>
@@ -230,13 +232,13 @@ const CreateStory = ({ onClose, isOpen, onSuccess }) => {
               <SheetTitle>Add Music</SheetTitle>
             </SheetHeader>
             <div className='space-y-4 mt-4'>
-              <Input placeholder='Search for music' className='bg-gray-100 border-gray-300' />
+              <Input placeholder='Search for music' className='bg-muted border-border' />
               <div className='space-y-2 max-h-[60vh] overflow-y-auto'>
                 {popularSongs.map((song) => (
                   <Card
                     key={song.id}
                     className={`cursor-pointer ${
-                      selectedMusic?.id === song.id ? 'border-blue-500' : 'border-transparent'
+                      selectedMusic?.id === song.id ? 'border-foreground' : 'border-transparent'
                     }`}
                     onClick={() => {
                       setSelectedMusic(song);
@@ -246,9 +248,9 @@ const CreateStory = ({ onClose, isOpen, onSuccess }) => {
                     <CardContent className='p-3 flex items-center justify-between'>
                       <div className='flex flex-col'>
                         <span className='font-medium'>{song.title}</span>
-                        <span className='text-gray-600 text-xs'>{song.artist}</span>
+                        <span className='text-muted-foreground text-xs'>{song.artist}</span>
                       </div>
-                      <span className='text-gray-500 text-xs'>{song.duration}</span>
+                      <span className='text-muted-foreground text-xs'>{song.duration}</span>
                     </CardContent>
                   </Card>
                 ))}

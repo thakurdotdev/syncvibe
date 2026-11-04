@@ -12,8 +12,8 @@ const HidePost = ({ postid, getAllPosts, hidestatus }) => {
         : 'Are you sure you want to show this post? It will be visible to other users.',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
+      confirmButtonColor: 'hsl(var(--muted-foreground))',
+      cancelButtonColor: 'hsl(var(--destructive))',
       confirmButtonText: hidestatus ? 'Hide Anyway' : 'Show Anyway',
       cancelButtonText: 'Cancel',
     });
@@ -40,9 +40,9 @@ const HidePost = ({ postid, getAllPosts, hidestatus }) => {
   return (
     <button onClick={handleHide} className='p-2 rounded-full text-primary hover:bg-primary-light'>
       {hidestatus ? (
-        <EyeOff className='hover:text-teal-500 h-5 w-5' />
+        <EyeOff className='hover:text-foreground h-5 w-5' />
       ) : (
-        <Eye className='hover:text-teal-500 h-5 w-5' />
+        <Eye className='hover:text-foreground h-5 w-5' />
       )}
     </button>
   );

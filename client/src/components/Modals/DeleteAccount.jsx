@@ -138,7 +138,7 @@ const DeleteAccount = ({ handleLogout, open, setOpen }) => {
                 className='text-center tracking-widest text-lg'
                 maxLength={6}
               />
-              {otpError && <p className='text-red-500 text-sm'>{otpError}</p>}
+              {otpError && <p className='text-destructive text-sm'>{otpError}</p>}
               <div className='flex items-center justify-between text-sm'>
                 <p className='text-muted-foreground'>Didn't receive the OTP?</p>
                 <Button

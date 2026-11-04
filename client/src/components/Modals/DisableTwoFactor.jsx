@@ -48,20 +48,18 @@ const DisableTwoFactor = ({ isOpen, onClose, onSuccess }) => {
       <DialogContent className='sm:max-w-md'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
-            <AlertTriangle className='h-5 w-5 text-orange-500' />
+            <AlertTriangle className='h-5 w-5 text-foreground' />
             Disable Two-Factor Authentication
           </DialogTitle>
         </DialogHeader>
 
         <div className='space-y-6'>
-          <div className='bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4'>
+          <div className='bg-muted dark:bg-foreground/20 border border-border rounded-lg p-4'>
             <div className='flex items-start gap-3'>
-              <AlertTriangle className='h-5 w-5 text-orange-500 mt-0.5' />
+              <AlertTriangle className='h-5 w-5 text-foreground mt-0.5' />
               <div>
-                <h4 className='font-medium text-orange-800 dark:text-orange-200'>
-                  Security Warning
-                </h4>
-                <p className='text-sm text-orange-700 dark:text-orange-300 mt-1'>
+                <h4 className='font-medium text-foreground'>Security Warning</h4>
+                <p className='text-sm text-foreground mt-1'>
                   Disabling 2FA will reduce your account security. You'll only need your password to
                   log in.
                 </p>
@@ -71,7 +69,7 @@ const DisableTwoFactor = ({ isOpen, onClose, onSuccess }) => {
 
           <div className='space-y-4'>
             <div>
-              <label className='text-sm font-medium text-gray-700'>
+              <label className='text-sm font-medium text-foreground'>
                 Enter your password to confirm
               </label>
               <Input

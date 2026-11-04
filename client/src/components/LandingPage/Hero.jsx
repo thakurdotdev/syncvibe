@@ -319,7 +319,7 @@ const Hero = memo(() => {
           <Link to='/register'>
             <Button
               size='lg'
-              className='h-12 px-8 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm cursor-pointer transition-all active:scale-98 shadow-lg shadow-primary/25'
+              className='h-12 px-8 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm cursor-pointer transition-all active:scale-98 shadow-lg shadow-scrim/25'
             >
               <span>Get Started Free</span>
               <ArrowRight className='ml-2 h-4 w-4' />
@@ -378,7 +378,7 @@ const Hero = memo(() => {
                     {[0.3, 0.8, 0.4, 0.9].map((val, idx) => (
                       <motion.span
                         key={idx}
-                        className='w-[2px] rounded-full bg-amber-400'
+                        className='w-[2px] rounded-full bg-foreground'
                         animate={
                           isPlaying
                             ? { height: ['25%', '100%', '35%', '90%', '25%'] }
@@ -405,7 +405,7 @@ const Hero = memo(() => {
                 >
                   <span>798859</span>
                   {copiedCode ? (
-                    <Check size={12} className='text-emerald-400' />
+                    <Check size={12} className='text-foreground' />
                   ) : (
                     <Copy size={12} className='text-muted-foreground/60' />
                   )}
@@ -415,8 +415,8 @@ const Hero = memo(() => {
 
               {/* Right Action Icons */}
               <div className='flex items-center gap-2 relative'>
-                <div className='hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-mono text-emerald-400'>
-                  <span className='w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse' />
+                <div className='hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-foreground/10 border border-foreground/20 text-[11px] font-mono text-foreground'>
+                  <span className='w-1.5 h-1.5 rounded-full bg-foreground animate-pulse' />
                   <span>0ms Sync</span>
                 </div>
 
@@ -523,7 +523,7 @@ const Hero = memo(() => {
                     className='w-full h-full object-cover'
                   />
                   {isPlaying && (
-                    <div className='absolute bottom-0 inset-x-0 h-7 bg-gradient-to-t from-black/80 to-transparent flex items-end justify-center pb-1.5'>
+                    <div className='absolute bottom-0 inset-x-0 h-7 bg-gradient-to-t from-scrim/80 to-transparent flex items-end justify-center pb-1.5'>
                       <div className='flex items-end gap-[3px] h-3'>
                         {[0, 1, 2, 3].map((i) => (
                           <motion.span
@@ -590,7 +590,7 @@ const Hero = memo(() => {
                       className={`relative z-10 w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center cursor-pointer transition-all active:scale-95 shadow-md ${
                         isPlaying
                           ? 'bg-secondary hover:bg-secondary/80 text-foreground'
-                          : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/30 ring-2 ring-primary/50'
+                          : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-scrim/30 ring-2 ring-primary/50'
                       }`}
                       title={isPlaying ? 'Pause playback' : 'Click to Play live interactive demo'}
                     >
@@ -687,7 +687,7 @@ const Hero = memo(() => {
                   </span>
                   <div className='flex items-center gap-2'>
                     {typingUser && (
-                      <span className='text-[11px] text-emerald-400 font-mono'>
+                      <span className='text-[11px] text-foreground font-mono'>
                         {typingUser} is typing...
                       </span>
                     )}
@@ -752,7 +752,7 @@ const Hero = memo(() => {
                     <Users size={13} />
                     Listeners
                   </span>
-                  <span className='text-[11px] font-mono text-emerald-400'>● Live 3/10</span>
+                  <span className='text-[11px] font-mono text-foreground'>● Live 3/10</span>
                 </div>
 
                 <div className='space-y-2'>
@@ -764,7 +764,7 @@ const Hero = memo(() => {
                         alt='Host'
                         className='w-full h-full object-cover'
                       />
-                      <div className='absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-black' />
+                      <div className='absolute bottom-0 right-0 w-2 h-2 rounded-full bg-foreground ring-1 ring-scrim' />
                     </div>
                     <div className='min-w-0 flex-1'>
                       <div className='flex items-center gap-1.5'>
@@ -773,7 +773,7 @@ const Hero = memo(() => {
                         </span>
                         <span className='text-[10px] text-muted-foreground'>You</span>
                       </div>
-                      <div className='text-[10px] text-amber-400 font-medium'>👑 Creator</div>
+                      <div className='text-[10px] text-foreground font-medium'>👑 Creator</div>
                     </div>
                   </div>
 
@@ -786,7 +786,7 @@ const Hero = memo(() => {
                       <span className='text-xs font-medium text-foreground truncate block'>
                         Alex Rivera
                       </span>
-                      <span className='text-[10px] text-emerald-400 font-mono'>Synced • 0ms</span>
+                      <span className='text-[10px] text-foreground font-mono'>Synced • 0ms</span>
                     </div>
                   </div>
 
@@ -799,7 +799,7 @@ const Hero = memo(() => {
                       <span className='text-xs font-medium text-foreground truncate block'>
                         Sarah
                       </span>
-                      <span className='text-[10px] text-emerald-400 font-mono'>Synced • 0ms</span>
+                      <span className='text-[10px] text-foreground font-mono'>Synced • 0ms</span>
                     </div>
                   </div>
                 </div>

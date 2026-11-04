@@ -213,7 +213,7 @@ const RichTextEditor = ({
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: 'text-blue-500 underline cursor-pointer hover:text-blue-600',
+          class: 'text-foreground underline cursor-pointer hover:text-foreground',
         },
       }),
       Placeholder.configure({

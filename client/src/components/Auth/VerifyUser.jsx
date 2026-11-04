@@ -81,10 +81,10 @@ const VerifyUser = () => {
   return (
     <>
       <div className='mb-8'>
-        <h1 className='text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 mb-2'>
+        <h1 className='text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-2'>
           Email Verification
         </h1>
-        <p className='text-sm text-zinc-500 dark:text-zinc-400'>
+        <p className='text-sm text-muted-foreground'>
           {showOtpInput
             ? 'Enter the 6-digit verification code sent to your email address.'
             : 'Enter your email to receive a verification code.'}
@@ -100,13 +100,13 @@ const VerifyUser = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              className='h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-650 focus-visible:border-transparent transition-all'
+              className='h-12 px-4 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-transparent transition-all'
               autoComplete='email'
             />
             <Button
               onClick={sendOTP}
               disabled={loading || !email}
-              className='w-full h-12 rounded-xl bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 hover:bg-zinc-900 dark:hover:bg-zinc-200 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer'
+              className='w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer'
             >
               {loading ? (
                 <Loader2 className='h-4 w-4 animate-spin' />
@@ -130,7 +130,7 @@ const VerifyUser = () => {
                     <InputOTPSlot
                       key={i}
                       index={i}
-                      className='rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 h-12 w-12 text-center text-lg focus-visible:ring-zinc-450 focus:border-zinc-500'
+                      className='rounded-xl border border-border bg-card text-foreground h-12 w-12 text-center text-lg focus-visible:ring-ring focus:border-border'
                     />
                   ))}
                 </InputOTPGroup>
@@ -141,7 +141,7 @@ const VerifyUser = () => {
               <Button
                 onClick={handleVerify}
                 disabled={loading || otp.length !== 6}
-                className='w-full h-12 rounded-xl bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 hover:bg-zinc-900 dark:hover:bg-zinc-200 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer'
+                className='w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer'
               >
                 {loading ? (
                   <>
@@ -157,12 +157,12 @@ const VerifyUser = () => {
               </Button>
 
               <div className='flex items-center justify-between text-sm mt-2'>
-                <span className='text-zinc-500 dark:text-zinc-400'>Didn't receive the code?</span>
+                <span className='text-muted-foreground'>Didn't receive the code?</span>
                 <Button
                   variant='link'
                   onClick={sendOTP}
                   disabled={resendTimer > 0 || loading}
-                  className='p-0 h-auto font-semibold text-zinc-950 dark:text-zinc-50 hover:underline transition-all'
+                  className='p-0 h-auto font-semibold text-foreground hover:underline transition-all'
                 >
                   {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
                 </Button>

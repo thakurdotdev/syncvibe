@@ -196,7 +196,7 @@ export const ResumeSession = () => {
   return (
     <div
       onClick={() => playSong(currentSong)}
-      className='relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] p-4 sm:p-5 pb-5 sm:pb-6 flex flex-col sm:flex-row items-center justify-between gap-4 w-full group/resume transition-all duration-300 backdrop-blur-md cursor-pointer'
+      className='relative overflow-hidden rounded-2xl border border-foreground/5 bg-foreground/[0.02] hover:bg-foreground/[0.04] p-4 sm:p-5 pb-5 sm:pb-6 flex flex-col sm:flex-row items-center justify-between gap-4 w-full group/resume transition-all duration-300 backdrop-blur-md cursor-pointer'
     >
       <div className='absolute inset-0 -z-10 overflow-hidden pointer-events-none'>
         <img
@@ -208,16 +208,16 @@ export const ResumeSession = () => {
       </div>
 
       <div className='flex items-center gap-4 w-full sm:w-auto'>
-        <div className='relative shrink-0 w-16 h-16 rounded-xl overflow-hidden shadow-2xl border border-white/10 group-hover/resume:scale-[1.02] transition-transform duration-300'>
+        <div className='relative shrink-0 w-16 h-16 rounded-xl overflow-hidden shadow-2xl border border-foreground/10 group-hover/resume:scale-[1.02] transition-transform duration-300'>
           <img src={songImage} alt={currentSong.name} className='w-full h-full object-cover' />
           <div
-            className='absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/resume:opacity-100 transition-opacity duration-300 cursor-pointer'
+            className='absolute inset-0 bg-scrim/40 flex items-center justify-center opacity-0 group-hover/resume:opacity-100 transition-opacity duration-300 cursor-pointer'
             onClick={(e) => {
               e.stopPropagation();
               playSong(currentSong);
             }}
           >
-            <Play fill='white' className='w-5 h-5 text-white' />
+            <Play fill='currentColor' className='w-5 h-5 text-on-scrim' />
           </div>
         </div>
 
@@ -250,7 +250,7 @@ export const ResumeSession = () => {
             e.stopPropagation();
             playSong(currentSong);
           }}
-          className='w-full sm:w-auto gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 h-10 rounded-full shadow-lg shadow-primary/15 cursor-pointer active:scale-95 transition-all duration-200'
+          className='w-full sm:w-auto gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 h-10 rounded-full shadow-lg shadow-scrim/15 cursor-pointer active:scale-95 transition-all duration-200'
         >
           <Play fill='currentColor' className='w-3.5 h-3.5' />
           Resume
@@ -258,7 +258,7 @@ export const ResumeSession = () => {
       </div>
 
       {progressPercent > 0 && (
-        <div className='absolute bottom-0 left-0 right-0 h-[3px] bg-white/5 overflow-hidden'>
+        <div className='absolute bottom-0 left-0 right-0 h-[3px] bg-foreground/5 overflow-hidden'>
           <div
             className='h-full bg-primary transition-all duration-300'
             style={{ width: `${progressPercent}%` }}

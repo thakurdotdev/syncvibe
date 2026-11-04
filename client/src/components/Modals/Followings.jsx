@@ -37,7 +37,7 @@ const Followings = ({ following }) => {
                     state: { user: follow?.followingDetail },
                   });
                 }}
-                className='flex items-center p-2 hover:bg-gray-200 dark:hover:bg-slate-700 cursor-pointer'
+                className='flex items-center p-2 hover:bg-secondary dark:hover:bg-raised cursor-pointer'
               >
                 <Avatar>
                   <AvatarImage
@@ -53,7 +53,9 @@ const Followings = ({ following }) => {
                 <div className='ml-4'>
                   {follow?.followingDetail?.name}
 
-                  <p className='text-sm text-neutral-500'>@{follow?.followingDetail?.username}</p>
+                  <p className='text-sm text-muted-foreground'>
+                    @{follow?.followingDetail?.username}
+                  </p>
                 </div>
               </div>
             </DialogTrigger>

@@ -167,7 +167,7 @@ const StoryViewer = ({
         }}
       >
         <div
-          className='text-white px-3 py-1.5 rounded-lg whitespace-nowrap bg-black/50'
+          className='text-on-scrim px-3 py-1.5 rounded-lg whitespace-nowrap bg-scrim/50'
           style={{
             fontSize: `${overlay.size}px`,
             opacity: isMediaLoaded ? 1 : 0,
@@ -192,15 +192,15 @@ const StoryViewer = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className='max-w-3xl h-svh p-0 gap-0 bg-black max-sm:border-none overflow-hidden'>
+      <DialogContent className='max-w-3xl h-svh p-0 gap-0 bg-scrim max-sm:border-none overflow-hidden'>
         <div className='relative h-full flex flex-col'>
           {/* Progress Bars */}
-          <div className='absolute top-0 left-0 right-0 z-20 flex gap-1.5 p-2 bg-linear-to-b from-black/40 via-black/20 to-transparent'>
+          <div className='absolute top-0 left-0 right-0 z-20 flex gap-1.5 p-2 bg-linear-to-b from-scrim/40 via-scrim/20 to-transparent'>
             {currentUserStories.map((_, idx) => (
-              <div key={idx} className='flex-1 h-1 bg-white/30 rounded-full overflow-hidden'>
+              <div key={idx} className='flex-1 h-1 bg-on-scrim/30 rounded-full overflow-hidden'>
                 <div
                   className={cn(
-                    'h-full bg-white origin-left transition-transform',
+                    'h-full bg-on-scrim origin-left transition-transform',
                     idx === currentStoryIndex
                       ? 'ease-linear'
                       : idx < currentStoryIndex
@@ -216,20 +216,20 @@ const StoryViewer = ({
           </div>
 
           {/* Header */}
-          <div className='absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 pt-6 bg-black/20'>
+          <div className='absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 pt-6 bg-scrim/20'>
             <div className='flex items-center gap-3'>
-              <Avatar className='w-8 h-8 ring-2 ring-white/50'>
+              <Avatar className='w-8 h-8 ring-2 ring-on-scrim/50'>
                 <AvatarImage
                   src={getProfileCloudinaryUrl(currentUser.profilepic)}
                   alt={currentUser.username}
                 />
                 <AvatarFallback>{currentUser.username[0]}</AvatarFallback>
               </Avatar>
-              <div className='text-white'>
+              <div className='text-on-scrim'>
                 <div className='font-medium flex items-center gap-2'>
                   {currentUser.name}
-                  <span className='text-xs text-white/70'>•</span>
-                  <span className='text-sm font-normal text-white/70'>
+                  <span className='text-xs text-on-scrim/70'>•</span>
+                  <span className='text-sm font-normal text-on-scrim/70'>
                     {TimeAgo(currentStory.postedtime)}
                   </span>
                 </div>
@@ -238,10 +238,10 @@ const StoryViewer = ({
           </div>
 
           {/* Main Content */}
-          <div className='flex-1 flex items-center justify-center bg-black/90 relative'>
+          <div className='flex-1 flex items-center justify-center bg-scrim/90 relative'>
             {(isPreloading || !isMediaLoaded) && (
-              <div className='absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-xs'>
-                <div className='w-8 h-8 border-3 border-white/10 border-t-white rounded-full animate-spin' />
+              <div className='absolute inset-0 flex items-center justify-center bg-scrim/20 backdrop-blur-xs'>
+                <div className='w-8 h-8 border-3 border-on-scrim/10 border-t-white rounded-full animate-spin' />
               </div>
             )}
 
@@ -296,7 +296,7 @@ const StoryViewer = ({
           {(currentStoryIndex > 0 || currentUserIndex > 0) && (
             <button
               onClick={goToPrevStory}
-              className='absolute left-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition-colors duration-200'
+              className='absolute left-4 top-1/2 -translate-y-1/2 text-on-scrim/60 hover:text-on-scrim transition-colors duration-200'
             >
               <ChevronLeft className='w-8 h-8' />
             </button>
@@ -306,18 +306,18 @@ const StoryViewer = ({
             currentUserIndex < stories.length - 1) && (
             <button
               onClick={goToNextStory}
-              className='absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition-colors duration-200'
+              className='absolute right-4 top-1/2 -translate-y-1/2 text-on-scrim/60 hover:text-on-scrim transition-colors duration-200'
             >
               <ChevronRight className='w-8 h-8' />
             </button>
           )}
 
           {/* Message Input */}
-          {/* <div className="absolute bottom-0 left-0 right-0 p-4 bg-linear-to-t from-black/60 to-transparent">
+          {/* <div className="absolute bottom-0 left-0 right-0 p-4 bg-linear-to-t from-scrim/60 to-transparent">
             <input
               type="text"
               placeholder="Send message"
-              className="w-full bg-white/10 text-white placeholder-white/50 text-sm px-4 py-2 rounded-full border border-white/20 focus:outline-hidden focus:border-white/40 transition-colors"
+              className="w-full bg-on-scrim/10 text-on-scrim placeholder-white/50 text-sm px-4 py-2 rounded-full border border-on-scrim/20 focus:outline-hidden focus:border-on-scrim/40 transition-colors"
               onClick={(e) => e.stopPropagation()}
             />
           </div> */}

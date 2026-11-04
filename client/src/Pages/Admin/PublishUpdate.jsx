@@ -173,7 +173,7 @@ export default function PublishUpdate() {
                 checked={critical}
                 onChange={(e) => setCritical(e.target.checked)}
                 disabled={uploading}
-                className='w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary accent-primary'
+                className='w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary'
               />
               <Label
                 htmlFor='critical'

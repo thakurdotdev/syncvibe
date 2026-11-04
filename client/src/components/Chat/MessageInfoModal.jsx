@@ -29,7 +29,7 @@ const MessageInfoModal = ({ message, onClose }) => {
 
         <div className='space-y-3 my-2'>
           <div className='flex items-start gap-3 p-3 bg-card border rounded-lg'>
-            <div className='flex text-blue-500 mt-0.5'>
+            <div className='flex text-foreground mt-0.5'>
               <Check size={16} />
               <Check size={16} className='-ml-2.5' />
             </div>

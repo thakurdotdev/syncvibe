@@ -47,7 +47,7 @@ const BentoFeatures = memo(() => {
             <div className='mt-6 p-3.5 rounded-xl bg-secondary/60 border border-border space-y-2.5'>
               <div className='flex items-center justify-between text-[11px] text-muted-foreground font-mono'>
                 <span className='text-foreground'>Room Master Clock</span>
-                <span className='text-emerald-400'>● Active Sync (0ms)</span>
+                <span className='text-foreground'>● Active Sync (0ms)</span>
               </div>
               <div className='h-1.5 w-full rounded-full bg-muted overflow-hidden'>
                 <div className='h-full w-3/4 bg-primary rounded-full' />
@@ -143,7 +143,7 @@ const BentoFeatures = memo(() => {
             </div>
             <div className='mt-5 p-2 rounded-lg bg-secondary/60 text-xs text-muted-foreground font-mono text-[11px] border border-border flex items-center justify-between'>
               <span>Background audio</span>
-              <span className='text-emerald-400 text-[10px]'>Active</span>
+              <span className='text-foreground text-[10px]'>Active</span>
             </div>
           </div>
         </div>

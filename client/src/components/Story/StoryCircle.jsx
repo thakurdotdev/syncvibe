@@ -8,11 +8,11 @@ const StoryCircle = ({ user, hasStory, viewed, onClick }) => {
       <div
         className={cn(
           'p-[2px] rounded-full',
-          hasStory && !viewed && 'bg-linear-to-tr from-yellow-400 to-fuchsia-600',
-          hasStory && viewed && 'bg-gray-300 dark:bg-gray-600'
+          hasStory && !viewed && 'bg-linear-to-tr from-foreground to-foreground',
+          hasStory && viewed && 'bg-secondary dark:bg-raised'
         )}
       >
-        <div className='bg-white dark:bg-gray-900 p-[2px] rounded-full'>
+        <div className='bg-card p-[2px] rounded-full'>
           <Avatar className='w-14 h-14'>
             <AvatarImage src={user.profilepic} alt={user.username} />
             <AvatarFallback>{user.username[0]}</AvatarFallback>

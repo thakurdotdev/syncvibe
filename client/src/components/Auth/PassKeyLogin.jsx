@@ -139,14 +139,14 @@ export const PasskeyLogin = () => {
     <>
       <div className='mb-8'>
         <div className='flex items-center gap-2.5 mb-2'>
-          <div className='p-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800'>
-            <KeyRound className='w-5 h-5 text-zinc-900 dark:text-zinc-50' />
+          <div className='p-2 rounded-xl bg-muted dark:bg-card border border-border'>
+            <KeyRound className='w-5 h-5 text-foreground' />
           </div>
-          <h1 className='text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50'>
+          <h1 className='text-2xl sm:text-3xl font-semibold tracking-tight text-foreground'>
             Login with Passkey
           </h1>
         </div>
-        <p className='text-sm text-zinc-500 dark:text-zinc-400 mt-2'>
+        <p className='text-sm text-muted-foreground mt-2'>
           Use your device's biometric authentication (Face ID, Touch ID, Windows Hello) or security
           key to sign in securely.
         </p>
@@ -160,7 +160,7 @@ export const PasskeyLogin = () => {
             name='email'
             render={({ field }) => (
               <FormItem>
-                <FormLabel className='text-xs font-semibold text-zinc-500 dark:text-zinc-400'>
+                <FormLabel className='text-xs font-semibold text-muted-foreground'>
                   Email Address
                 </FormLabel>
                 <FormControl>
@@ -168,7 +168,7 @@ export const PasskeyLogin = () => {
                     placeholder='Enter your email'
                     type='email'
                     autoComplete='email webauthn'
-                    className='h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-650 focus-visible:border-transparent transition-all'
+                    className='h-12 px-4 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-transparent transition-all'
                     {...field}
                   />
                 </FormControl>
@@ -180,7 +180,7 @@ export const PasskeyLogin = () => {
           {error && (
             <Alert
               variant='destructive'
-              className='rounded-xl border-red-200/50 bg-red-50/50 dark:bg-red-950/20 dark:border-red-900/50'
+              className='rounded-xl border-destructive/50 bg-destructive/50 dark:bg-destructive/20'
             >
               <AlertCircle className='h-4 w-4' />
               <AlertDescription className='text-xs'>{error}</AlertDescription>
@@ -190,7 +190,7 @@ export const PasskeyLogin = () => {
           <div className='space-y-3 pt-2'>
             <Button
               type='submit'
-              className='w-full h-12 rounded-xl bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 hover:bg-zinc-900 dark:hover:bg-zinc-200 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer'
+              className='w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer'
               disabled={isLoading}
             >
               {isLoading ? (
@@ -209,7 +209,7 @@ export const PasskeyLogin = () => {
             <Button
               type='button'
               variant='outline'
-              className='w-full h-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer'
+              className='w-full h-12 rounded-xl border border-border bg-card hover:bg-muted dark:hover:bg-raised text-foreground font-medium transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer'
               onClick={() => navigate('/login')}
             >
               Login with Password
@@ -218,7 +218,7 @@ export const PasskeyLogin = () => {
         </form>
       </Form>
 
-      <p className='text-xs text-zinc-400 dark:text-zinc-500 text-center mt-6'>
+      <p className='text-xs text-muted-foreground text-center mt-6'>
         Passkeys provide a more secure, phishing-resistant way to sign in without passwords.
       </p>
     </>

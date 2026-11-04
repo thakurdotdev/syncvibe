@@ -48,16 +48,16 @@ const Album = () => {
           backgroundSize: 'cover',
         }}
       >
-        <div className='rounded-2xl w-full h-full bg-black/60 backdrop-blur-xs flex items-center p-3 gap-6'>
+        <div className='rounded-2xl w-full h-full bg-scrim/60 backdrop-blur-xs flex items-center p-3 gap-6'>
           <div className='w-[200px] h-[200px]'>
             <img src={bgUrl} className='rounded-lg' />
           </div>
           <div className='h-[200px] flex flex-col py-3'>
-            <h1 className='text-white text-3xl font-semibold'>{albumData.name}</h1>
-            <p className='text-base text-white/70 font-medium mt-1'>:- {artistName}</p>
+            <h1 className='text-on-scrim text-3xl font-semibold'>{albumData.name}</h1>
+            <p className='text-base text-on-scrim/70 font-medium mt-1'>:- {artistName}</p>
             <div className='mt-5 flex flex-col'>
-              <p className='text-sm text-white/80'>{albumData.year}</p>
-              <p className='text-sm text-white/80'>{albumData?.songcount} songs</p>
+              <p className='text-sm text-on-scrim/80'>{albumData.year}</p>
+              <p className='text-sm text-on-scrim/80'>{albumData?.songcount} songs</p>
             </div>
           </div>
         </div>

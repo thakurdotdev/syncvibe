@@ -158,9 +158,9 @@ const AddToPlaylist = ({ dialogOpen, setDialogOpen, song }) => {
                             <motion.div
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
-                              className='w-8 h-8 rounded-full bg-green-500 flex items-center justify-center'
+                              className='w-8 h-8 rounded-full bg-foreground flex items-center justify-center'
                             >
-                              <Check className='w-5 h-5 text-white' />
+                              <Check className='w-5 h-5 text-background' />
                             </motion.div>
                           ) : (
                             <Loader2 className='w-5 h-5 animate-spin' />

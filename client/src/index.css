@@ -84,6 +84,15 @@
   --color-live: hsl(var(--live));
   --color-live-foreground: hsl(var(--live-foreground));
   --color-canvas: hsl(var(--canvas));
+  /* Fixed in both themes: scrims and the text on them, over photos and video. */
+  --color-scrim: hsl(var(--scrim));
+  --color-on-scrim: hsl(var(--on-scrim));
+  /* Status only: connection quality. Everything else stays black and white. */
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+  /* Third-party logos. */
+  --color-brand-facebook: hsl(var(--brand-facebook));
+  --color-brand-whatsapp: hsl(var(--brand-whatsapp));
   --color-raised: hsl(var(--raised));
 
   /* Motion system — one set of curves for the whole app.
@@ -99,7 +108,7 @@
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
+    border-color: hsl(var(--border));
   }
 }
 
@@ -136,161 +145,169 @@
 
 @layer base {
   :root {
-    /* ═══ Light — Lilac paper ═══
-       canvas  #EEEBF3  app background behind the content panel
-       panel   #FBFAFD  content surface
-       ink     #1A1423  text
-       magenta #D12F76  actions / brand
-       amber   #B86E00  live presence only                       */
-    --canvas: 264 18% 93.5%;
-    --background: 264 33% 98.5%;
-    --foreground: 266 26% 11%;
+    /* ═══ Light — Mono ═══ (same palette as the mobile app, theme/color.ts)
+       Black and white with true neutral greys: hierarchy comes from surface steps and type
+       weight, and colour is left to the artwork. Primary is the page's inverse, so filled
+       buttons read black on light and white on dark. Red is for destructive actions only.
+       canvas  #EBEBED  app background behind the content panel
+       panel   #F6F6F7  content surface
+       ink     #0E0E10  text and actions                           */
+    --scrim: 0 0% 0%;
+    --on-scrim: 0 0% 100%;
+    --success: 152 76% 27%;
+    --warning: 34 94% 31%;
+    --brand-facebook: 214 89% 52%;
+    --brand-whatsapp: 142 70% 49%;
+    --canvas: 240 5% 92.5%;
+    --background: 240 8% 97%;
+    --foreground: 240 7% 6%;
     --card: 0 0% 100%;
-    --card-foreground: 266 26% 11%;
+    --card-foreground: 240 7% 6%;
     --popover: 0 0% 100%;
-    --popover-foreground: 266 26% 11%;
-    --raised: 264 20% 95%;
-    --primary: 334 64% 50%;
+    --popover-foreground: 240 7% 6%;
+    --raised: 240 7% 94%;
+    --primary: 240 7% 6%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 334 66% 44%;
-    --primary-active: 334 68% 38%;
-    --primary-disabled: 334 40% 80%;
-    --secondary: 264 18% 94%;
-    --secondary-foreground: 266 26% 11%;
-    --muted: 264 18% 94%;
-    --muted-foreground: 264 9% 42%;
-    --accent: 330 70% 95%;
-    --accent-foreground: 334 64% 32%;
-    --destructive: 2 72% 48%;
+    --primary-hover: 240 5% 17%;
+    --primary-active: 240 4% 24%;
+    --primary-disabled: 240 3% 73%;
+    --secondary: 240 7% 94%;
+    --secondary-foreground: 240 7% 6%;
+    --muted: 240 7% 94%;
+    --muted-foreground: 240 3% 42%;
+    --accent: 240 7% 94%;
+    --accent-foreground: 240 7% 6%;
+    --destructive: 2 64% 47%;
     --destructive-foreground: 0 0% 100%;
-    --border: 264 16% 88%;
-    --input: 264 16% 88%;
-    --ring: 334 64% 50%;
-    --live: 36 100% 36%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 240 7% 6%;
+    --live: 240 7% 6%;
     --live-foreground: 0 0% 100%;
-    --chart-1: 334 64% 50%;
-    --chart-2: 266 50% 55%;
-    --chart-3: 36 100% 42%;
-    --chart-4: 172 55% 38%;
-    --chart-5: 334 70% 72%;
+    --chart-1: 240 7% 6%;
+    --chart-2: 240 3% 30%;
+    --chart-3: 240 3% 45%;
+    --chart-4: 240 3% 60%;
+    --chart-5: 240 4% 75%;
     --radius: 0.75rem;
-    --color-1: 334 64% 50%;
-    --color-2: 266 50% 55%;
-    --color-3: 36 100% 42%;
-    --color-4: 172 55% 38%;
-    --color-5: 334 70% 72%;
+    --color-1: 240 7% 6%;
+    --color-2: 240 3% 30%;
+    --color-3: 240 3% 45%;
+    --color-4: 240 3% 60%;
+    --color-5: 240 4% 75%;
 
     /* Glass System — Light */
     --glass-bg: rgba(255, 255, 255, 0.7);
     --glass-bg-elevated: rgba(255, 255, 255, 0.82);
     --glass-bg-subtle: rgba(255, 255, 255, 0.5);
-    --glass-border: rgba(40, 20, 60, 0.07);
-    --glass-border-strong: rgba(40, 20, 60, 0.12);
+    --glass-border: rgba(14, 14, 16, 0.07);
+    --glass-border-strong: rgba(14, 14, 16, 0.12);
     --glass-highlight: rgba(255, 255, 255, 0.85);
-    --glass-shadow: 0 6px 24px -8px rgba(40, 20, 60, 0.12);
-    --glass-shadow-elevated: 0 16px 48px -12px rgba(40, 20, 60, 0.2);
-    --glass-hover: rgba(40, 20, 60, 0.035);
-    --glass-active: rgba(40, 20, 60, 0.07);
-    --glass-separator: rgba(40, 20, 60, 0.06);
-    --glass-input-bg: rgba(40, 20, 60, 0.035);
-    --glass-input-focus: rgba(40, 20, 60, 0.06);
+    --glass-shadow: 0 6px 24px -8px rgba(14, 14, 16, 0.12);
+    --glass-shadow-elevated: 0 16px 48px -12px rgba(14, 14, 16, 0.2);
+    --glass-hover: rgba(14, 14, 16, 0.035);
+    --glass-active: rgba(14, 14, 16, 0.07);
+    --glass-separator: rgba(14, 14, 16, 0.06);
+    --glass-input-bg: rgba(14, 14, 16, 0.035);
+    --glass-input-focus: rgba(14, 14, 16, 0.06);
     --glass-inset: rgba(255, 255, 255, 0.6);
     --glass-message-own: linear-gradient(
       135deg,
-      rgba(209, 47, 118, 0.13),
-      rgba(209, 47, 118, 0.06)
+      hsl(var(--foreground) / 0.09),
+      hsl(var(--foreground) / 0.05)
     );
-    --glass-message-other: rgba(40, 20, 60, 0.04);
-    --glass-sheet-bg: rgba(251, 250, 253, 0.94);
+    --glass-message-other: rgba(14, 14, 16, 0.04);
+    --glass-sheet-bg: rgba(246, 246, 247, 0.94);
 
     /* Sidebar sits directly on the canvas */
-    --sidebar-background: 264 18% 93.5%;
-    --sidebar-foreground: 266 26% 11%;
-    --sidebar-primary: 334 64% 50%;
+    --sidebar-background: 240 5% 92.5%;
+    --sidebar-foreground: 240 7% 6%;
+    --sidebar-primary: 240 7% 6%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 264 20% 88.5%;
-    --sidebar-accent-foreground: 266 26% 11%;
-    --sidebar-border: 264 16% 86%;
-    --sidebar-ring: 334 64% 50%;
+    --sidebar-accent: 240 5% 87.5%;
+    --sidebar-accent-foreground: 240 7% 6%;
+    --sidebar-border: 240 5% 86%;
+    --sidebar-ring: 240 7% 6%;
   }
 
   .dark {
-    /* ═══ Dark — Aubergine ink ═══
-       canvas  #0D0A12  app background behind the content panel
-       panel   #15111C  content surface
-       raised  #211B2B  cards, inputs
-       mist    #F2EDF7  text
-       magenta #F0468F  actions / brand
-       amber   #FFB547  live presence only                       */
-    --canvas: 266 29% 5.5%;
-    --background: 264 24% 8.8%;
-    --foreground: 270 37% 95%;
-    --card: 265 22% 11.5%;
-    --card-foreground: 270 37% 95%;
-    --popover: 265 22% 12.5%;
-    --popover-foreground: 270 37% 95%;
-    --raised: 266 22% 13.8%;
-    --primary: 334 85% 61%;
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 334 90% 67%;
-    --primary-active: 334 75% 54%;
-    --primary-disabled: 334 30% 32%;
-    --secondary: 266 20% 15%;
-    --secondary-foreground: 270 37% 95%;
-    --muted: 266 20% 15%;
-    --muted-foreground: 266 10% 64%;
-    --accent: 330 35% 17%;
-    --accent-foreground: 334 100% 80%;
-    --destructive: 2 90% 65%;
-    --destructive-foreground: 266 29% 5.5%;
-    --border: 266 18% 17.5%;
-    --input: 266 18% 17.5%;
-    --ring: 334 85% 61%;
-    --live: 37 100% 64%;
-    --live-foreground: 266 29% 5.5%;
-    --chart-1: 334 85% 61%;
-    --chart-2: 266 60% 70%;
-    --chart-3: 37 100% 64%;
-    --chart-4: 172 55% 52%;
-    --chart-5: 334 85% 78%;
-    --color-1: 334 85% 61%;
-    --color-2: 266 60% 70%;
-    --color-3: 37 100% 64%;
-    --color-4: 172 55% 52%;
-    --color-5: 334 85% 78%;
+    /* ═══ Dark — Mono ═══ (same palette as the mobile app, theme/color.ts)
+       canvas  #050506  app background behind the content panel
+       panel   #0A0A0B  content surface
+       card    #151517  cards
+       raised  #222225  inputs, chips
+       paper   #F5F5F6  text and actions                           */
+    --success: 152 60% 52%;
+    --warning: 38 95% 60%;
+    --canvas: 240 9% 2.2%;
+    --background: 240 5% 4.1%;
+    --foreground: 240 5% 96%;
+    --card: 240 5% 8.6%;
+    --card-foreground: 240 5% 96%;
+    --popover: 240 5% 11%;
+    --popover-foreground: 240 5% 96%;
+    --raised: 240 4% 13.8%;
+    --primary: 240 5% 96%;
+    --primary-foreground: 240 5% 4.1%;
+    --primary-hover: 240 3% 88%;
+    --primary-active: 240 3% 81%;
+    --primary-disabled: 240 3% 34%;
+    --secondary: 240 5% 12.7%;
+    --secondary-foreground: 240 5% 96%;
+    --muted: 240 5% 12.7%;
+    --muted-foreground: 240 4% 62%;
+    --accent: 240 5% 14.4%;
+    --accent-foreground: 240 5% 96%;
+    --destructive: 2 85% 65%;
+    --destructive-foreground: 240 5% 4.1%;
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    --ring: 240 5% 96%;
+    --live: 240 5% 96%;
+    --live-foreground: 240 5% 4.1%;
+    --chart-1: 240 5% 96%;
+    --chart-2: 240 3% 78%;
+    --chart-3: 240 3% 62%;
+    --chart-4: 240 3% 46%;
+    --chart-5: 240 3% 32%;
+    --color-1: 240 5% 96%;
+    --color-2: 240 3% 78%;
+    --color-3: 240 3% 62%;
+    --color-4: 240 3% 46%;
+    --color-5: 240 3% 32%;
 
     /* Glass System — Dark */
-    --glass-bg: rgba(242, 237, 247, 0.035);
-    --glass-bg-elevated: rgba(242, 237, 247, 0.055);
-    --glass-bg-subtle: rgba(242, 237, 247, 0.02);
-    --glass-border: rgba(242, 237, 247, 0.08);
-    --glass-border-strong: rgba(242, 237, 247, 0.13);
-    --glass-highlight: rgba(242, 237, 247, 0.05);
+    --glass-bg: rgba(245, 245, 246, 0.035);
+    --glass-bg-elevated: rgba(245, 245, 246, 0.055);
+    --glass-bg-subtle: rgba(245, 245, 246, 0.02);
+    --glass-border: rgba(245, 245, 246, 0.08);
+    --glass-border-strong: rgba(245, 245, 246, 0.13);
+    --glass-highlight: rgba(245, 245, 246, 0.05);
     --glass-shadow: 0 6px 24px -8px rgba(0, 0, 0, 0.45);
     --glass-shadow-elevated: 0 16px 48px -12px rgba(0, 0, 0, 0.6);
-    --glass-hover: rgba(242, 237, 247, 0.045);
-    --glass-active: rgba(242, 237, 247, 0.085);
-    --glass-separator: rgba(242, 237, 247, 0.05);
-    --glass-input-bg: rgba(242, 237, 247, 0.045);
-    --glass-input-focus: rgba(242, 237, 247, 0.07);
-    --glass-inset: rgba(242, 237, 247, 0.05);
+    --glass-hover: rgba(245, 245, 246, 0.045);
+    --glass-active: rgba(245, 245, 246, 0.085);
+    --glass-separator: rgba(245, 245, 246, 0.05);
+    --glass-input-bg: rgba(245, 245, 246, 0.045);
+    --glass-input-focus: rgba(245, 245, 246, 0.07);
+    --glass-inset: rgba(245, 245, 246, 0.05);
     --glass-message-own: linear-gradient(
       135deg,
-      rgba(240, 70, 143, 0.16),
-      rgba(240, 70, 143, 0.06)
+      hsl(var(--foreground) / 0.12),
+      hsl(var(--foreground) / 0.06)
     );
-    --glass-message-other: rgba(242, 237, 247, 0.045);
-    --glass-sheet-bg: rgba(21, 17, 28, 0.92);
+    --glass-message-other: rgba(245, 245, 246, 0.045);
+    --glass-sheet-bg: rgba(10, 10, 11, 0.92);
 
     /* Sidebar sits directly on the canvas */
-    --sidebar-background: 266 29% 5.5%;
-    --sidebar-foreground: 270 37% 95%;
-    --sidebar-primary: 334 85% 61%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 266 22% 12%;
-    --sidebar-accent-foreground: 270 37% 95%;
-    --sidebar-border: 266 18% 14%;
-    --sidebar-ring: 334 85% 61%;
+    --sidebar-background: 240 9% 2.2%;
+    --sidebar-foreground: 240 5% 96%;
+    --sidebar-primary: 240 5% 96%;
+    --sidebar-primary-foreground: 240 5% 4.1%;
+    --sidebar-accent: 240 5% 10%;
+    --sidebar-accent-foreground: 240 5% 96%;
+    --sidebar-border: 240 4% 12.5%;
+    --sidebar-ring: 240 5% 96%;
   }
 }
 

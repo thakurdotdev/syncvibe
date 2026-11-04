@@ -85,7 +85,7 @@ const TwoFactorAuth = ({ isOpen, onClose, userId, onSuccess, isSetup = false }) 
       <DialogContent className='sm:max-w-md'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
-            <Shield className='h-5 w-5 text-blue-500' />
+            <Shield className='h-5 w-5 text-foreground' />
             {isSetup ? 'Setup Two-Factor Authentication' : 'Two-Factor Authentication'}
           </DialogTitle>
         </DialogHeader>
@@ -95,21 +95,23 @@ const TwoFactorAuth = ({ isOpen, onClose, userId, onSuccess, isSetup = false }) 
             <Card>
               <CardContent className='p-4'>
                 <div className='text-center space-y-4'>
-                  <div className='flex items-center justify-center gap-2 text-sm text-gray-600'>
+                  <div className='flex items-center justify-center gap-2 text-sm text-muted-foreground'>
                     <Smartphone className='h-4 w-4' />
                     <span>Scan QR code with your authenticator app</span>
                   </div>
 
                   {setupLoading ? (
                     <div className='flex items-center justify-center py-8'>
-                      <Loader2 className='h-8 w-8 animate-spin text-blue-500' />
+                      <Loader2 className='h-8 w-8 animate-spin text-foreground' />
                     </div>
                   ) : qrCode ? (
                     <div className='flex justify-center'>
                       <img src={qrCode} alt='2FA QR Code' className='w-48 h-48 border rounded-lg' />
                     </div>
                   ) : (
-                    <div className='py-8 text-center text-gray-500'>Failed to generate QR code</div>
+                    <div className='py-8 text-center text-muted-foreground'>
+                      Failed to generate QR code
+                    </div>
                   )}
                 </div>
               </CardContent>
@@ -118,7 +120,7 @@ const TwoFactorAuth = ({ isOpen, onClose, userId, onSuccess, isSetup = false }) 
 
           <div className='space-y-4'>
             <div>
-              <label className='text-sm font-medium text-gray-700'>
+              <label className='text-sm font-medium text-foreground'>
                 {isSetup
                   ? 'Enter the 6-digit code from your authenticator app'
                   : 'Enter verification code'}
@@ -155,7 +157,7 @@ const TwoFactorAuth = ({ isOpen, onClose, userId, onSuccess, isSetup = false }) 
             </Button>
 
             {isSetup && (
-              <p className='text-xs text-gray-500 text-center'>
+              <p className='text-xs text-muted-foreground text-center'>
                 After verification, 2FA will be enabled for your account
               </p>
             )}

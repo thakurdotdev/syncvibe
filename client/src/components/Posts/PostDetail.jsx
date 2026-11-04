@@ -257,7 +257,7 @@ const PostDetail = () => {
 
         {/* Media Grid / Images */}
         {images.length > 0 && (
-          <div className='rounded-2xl border border-border/50 overflow-hidden bg-black/40'>
+          <div className='rounded-2xl border border-border/50 overflow-hidden bg-scrim/40'>
             {images.length === 1 ? (
               <img
                 src={getOptimizedImageUrl(images[0].image, { thumbnail: false })}
@@ -291,14 +291,14 @@ const PostDetail = () => {
               className={cn(
                 'h-4.5 w-4.5 transition-all duration-200',
                 liked
-                  ? 'fill-rose-500 text-rose-500 scale-110'
-                  : 'text-muted-foreground hover:text-rose-500'
+                  ? 'fill-destructive text-destructive scale-110'
+                  : 'text-muted-foreground hover:text-destructive'
               )}
             />
             <span
               className={cn(
                 'tabular-nums',
-                liked ? 'text-rose-500 font-semibold' : 'text-muted-foreground'
+                liked ? 'text-destructive font-semibold' : 'text-muted-foreground'
               )}
             >
               {likesCount}
@@ -316,7 +316,7 @@ const PostDetail = () => {
             onClick={() => setIsShareDrawerOpen(true)}
             aria-label='Share post'
           >
-            <Share2 className='h-4.5 w-4.5 hover:text-emerald-500 transition-colors' />
+            <Share2 className='h-4.5 w-4.5 hover:text-foreground transition-colors' />
           </button>
         </div>
 

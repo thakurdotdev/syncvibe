@@ -99,7 +99,7 @@ const UserPosts = () => {
             <div className='flex items-center gap-4 mt-2 text-sm text-muted-foreground'>
               <span className='font-medium text-foreground'>{stats.totalPosts} posts</span>
               <span className='flex items-center gap-1'>
-                <Heart className='w-4 h-4 text-red-500' />
+                <Heart className='w-4 h-4 text-destructive' />
                 {formatNumber(stats.totalLikes)}
               </span>
               <span className='flex items-center gap-1'>
@@ -153,17 +153,17 @@ const UserPosts = () => {
 
                 {hasMultiple && (
                   <div className='absolute top-2 right-2'>
-                    <Images className='w-5 h-5 text-white drop-shadow-lg' />
+                    <Images className='w-5 h-5 text-on-scrim drop-shadow-lg' />
                   </div>
                 )}
 
-                <div className='absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-6'>
-                  <div className='flex items-center gap-1.5 text-white font-semibold'>
-                    <Heart className='w-5 h-5 fill-white' />
+                <div className='absolute inset-0 bg-scrim/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-6'>
+                  <div className='flex items-center gap-1.5 text-on-scrim font-semibold'>
+                    <Heart className='w-5 h-5 fill-on-scrim' />
                     {formatNumber(post.likesCount)}
                   </div>
-                  <div className='flex items-center gap-1.5 text-white font-semibold'>
-                    <MessageCircle className='w-5 h-5 fill-white' />
+                  <div className='flex items-center gap-1.5 text-on-scrim font-semibold'>
+                    <MessageCircle className='w-5 h-5 fill-on-scrim' />
                     {formatNumber(post.commentsCount)}
                   </div>
                 </div>
@@ -197,7 +197,7 @@ const UserPosts = () => {
         <DialogContent className='max-w-3xl p-0 overflow-hidden'>
           {selectedPost && (
             <div className='flex flex-col md:flex-row max-h-[85vh]'>
-              <div className='flex-1 bg-black flex items-center justify-center min-h-[250px] md:min-h-[450px]'>
+              <div className='flex-1 bg-scrim flex items-center justify-center min-h-[250px] md:min-h-[450px]'>
                 {selectedPost.images?.length > 0 ? (
                   <img
                     src={getOptimizedImageUrl(selectedPost.images[0].image, {
@@ -213,7 +213,7 @@ const UserPosts = () => {
                     }}
                   />
                 ) : (
-                  <div className='text-white/50 text-center p-8'>
+                  <div className='text-on-scrim/50 text-center p-8'>
                     <MessageCircle className='w-12 h-12 mx-auto mb-2' />
                     <p>Text Post</p>
                   </div>
@@ -257,7 +257,7 @@ const UserPosts = () => {
                 <div className='p-4 border-t flex items-center justify-between'>
                   <div className='flex items-center gap-4 text-sm'>
                     <span className='flex items-center gap-1'>
-                      <Heart className='w-4 h-4 text-red-500' />
+                      <Heart className='w-4 h-4 text-destructive' />
                       {formatNumber(selectedPost.likesCount)}
                     </span>
                     <span className='flex items-center gap-1'>
@@ -279,7 +279,7 @@ const UserPosts = () => {
                     <Button
                       size='sm'
                       variant='ghost'
-                      className='text-red-500 hover:text-red-600 hover:bg-red-500/10'
+                      className='text-destructive hover:text-destructive hover:bg-destructive/10'
                       onClick={() => handleDelete(selectedPost.postid)}
                       disabled={deleteMutation.isPending}
                     >

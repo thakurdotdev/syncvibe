@@ -4,12 +4,12 @@ import { memo } from 'react';
 import { formatMessageTime } from './chatUtils';
 
 const ACTIVITY_META = {
-  'song-playing': { Icon: Play, tone: 'text-emerald-500' },
-  'song-added': { Icon: ListPlus, tone: 'text-sky-500' },
-  'song-skipped': { Icon: SkipForward, tone: 'text-amber-500' },
-  'queue-ended': { Icon: Music2, tone: 'text-violet-500' },
-  'user-joined': { Icon: UserPlus, tone: 'text-emerald-500' },
-  'user-left': { Icon: UserMinus, tone: 'text-rose-500' },
+  'song-playing': { Icon: Play, tone: 'text-foreground' },
+  'song-added': { Icon: ListPlus, tone: 'text-foreground' },
+  'song-skipped': { Icon: SkipForward, tone: 'text-foreground' },
+  'queue-ended': { Icon: Music2, tone: 'text-foreground' },
+  'user-joined': { Icon: UserPlus, tone: 'text-foreground' },
+  'user-left': { Icon: UserMinus, tone: 'text-destructive' },
 };
 
 const DEFAULT_META = { Icon: Info, tone: 'text-muted-foreground' };

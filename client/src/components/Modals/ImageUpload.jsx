@@ -150,7 +150,7 @@ const ImageUpload = ({ onImageUpdate, maxFileSize = 5 * 1024 * 1024, loading = f
   return (
     <div className='w-full space-y-4'>
       {uiState.error && (
-        <div className='flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-sm'>
+        <div className='flex items-center gap-2 bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-xl text-sm'>
           <X size={16} className='shrink-0' />
           <span>{uiState.error}</span>
         </div>
@@ -169,8 +169,8 @@ const ImageUpload = ({ onImageUpdate, maxFileSize = 5 * 1024 * 1024, loading = f
             transition-all duration-300 ease-out
             ${
               uiState.isDragging
-                ? 'border-blue-400 bg-blue-500/10 scale-[1.02]'
-                : 'border-zinc-700 bg-zinc-900/50 hover:border-zinc-500 hover:bg-zinc-800/50'
+                ? 'border-foreground bg-foreground/10 scale-[1.02]'
+                : 'border-border bg-card/50 hover:border-border hover:bg-raised/50'
             }
           `}
         >
@@ -186,23 +186,23 @@ const ImageUpload = ({ onImageUpdate, maxFileSize = 5 * 1024 * 1024, loading = f
             <div
               className={`
               p-4 rounded-2xl transition-colors duration-300
-              ${uiState.isDragging ? 'bg-blue-500/20 text-blue-400' : 'bg-zinc-800 text-zinc-400 group-hover:text-zinc-300'}
+              ${uiState.isDragging ? 'bg-foreground/20 text-foreground' : 'bg-raised text-muted-foreground group-hover:text-foreground'}
             `}
             >
               <ImagePlus size={28} />
             </div>
             <div className='text-center'>
-              <p className='text-sm font-medium text-zinc-300'>
+              <p className='text-sm font-medium text-foreground'>
                 {uiState.isDragging ? 'Drop your image here' : 'Click or drag to upload'}
               </p>
-              <p className='text-xs text-zinc-500 mt-1'>JPG, PNG, WebP • Max 5MB</p>
+              <p className='text-xs text-muted-foreground mt-1'>JPG, PNG, WebP • Max 5MB</p>
             </div>
           </div>
         </div>
       ) : (
         <div className='space-y-4'>
           {uiState.showCropInterface ? (
-            <div className='relative overflow-hidden rounded-2xl bg-zinc-900 border border-zinc-800'>
+            <div className='relative overflow-hidden rounded-2xl bg-card border border-border'>
               <div className='p-1'>
                 <ReactCrop
                   crop={cropConfig}
@@ -211,7 +211,7 @@ const ImageUpload = ({ onImageUpdate, maxFileSize = 5 * 1024 * 1024, loading = f
                   aspect={1}
                   circularCrop
                   ruleOfThirds
-                  className='max-h-[350px] mx-auto [&_.ReactCrop__crop-selection]:!border-blue-400 [&_.ReactCrop__crop-selection]:!border-2'
+                  className='max-h-[350px] mx-auto [&_.ReactCrop__crop-selection]:!border-foreground [&_.ReactCrop__crop-selection]:!border-2'
                 >
                   <img
                     ref={imageRef}
@@ -221,12 +221,12 @@ const ImageUpload = ({ onImageUpdate, maxFileSize = 5 * 1024 * 1024, loading = f
                   />
                 </ReactCrop>
               </div>
-              <div className='flex items-center justify-between px-4 py-3 bg-zinc-900/80 border-t border-zinc-800'>
+              <div className='flex items-center justify-between px-4 py-3 bg-card/80 border-t border-border'>
                 <Button
                   variant='ghost'
                   size='sm'
                   onClick={() => setUiState((prev) => ({ ...prev, showCropInterface: false }))}
-                  className='text-zinc-400 hover:text-zinc-200'
+                  className='text-muted-foreground hover:text-foreground'
                   disabled={isDisabled}
                 >
                   <X size={16} className='mr-1' /> Cancel
@@ -234,7 +234,7 @@ const ImageUpload = ({ onImageUpdate, maxFileSize = 5 * 1024 * 1024, loading = f
                 <Button
                   size='sm'
                   onClick={saveCroppedImage}
-                  className='bg-blue-600 hover:bg-blue-500 text-white'
+                  className='bg-foreground hover:bg-foreground/90 text-background'
                   disabled={isDisabled}
                 >
                   <Check size={16} className='mr-1' /> Apply Crop
@@ -244,7 +244,7 @@ const ImageUpload = ({ onImageUpdate, maxFileSize = 5 * 1024 * 1024, loading = f
           ) : (
             <div className='flex flex-col items-center gap-4'>
               <div className='relative group'>
-                <div className='w-48 h-48 rounded-full overflow-hidden ring-4 ring-zinc-800 ring-offset-2 ring-offset-zinc-950 shadow-2xl transition-all duration-300 group-hover:ring-blue-500/50'>
+                <div className='w-48 h-48 rounded-full overflow-hidden ring-4 ring-ring ring-offset-2 ring-offset-zinc-950 shadow-2xl transition-all duration-300 group-hover:ring-foreground/50'>
                   <img
                     src={image.cropped || image.preview}
                     alt='Preview'
@@ -252,7 +252,7 @@ const ImageUpload = ({ onImageUpdate, maxFileSize = 5 * 1024 * 1024, loading = f
                   />
                 </div>
                 {image.cropped && (
-                  <div className='absolute -bottom-1 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow-lg'>
+                  <div className='absolute -bottom-1 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow-lg'>
                     Cropped
                   </div>
                 )}
@@ -266,7 +266,7 @@ const ImageUpload = ({ onImageUpdate, maxFileSize = 5 * 1024 * 1024, loading = f
                 variant='outline'
                 onClick={resetImage}
                 disabled={isDisabled}
-                className='flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800'
+                className='flex-1 border-border text-foreground hover:bg-raised'
               >
                 <RotateCcw size={15} className='mr-1.5' /> Reset
               </Button>
@@ -274,14 +274,14 @@ const ImageUpload = ({ onImageUpdate, maxFileSize = 5 * 1024 * 1024, loading = f
                 variant='outline'
                 onClick={() => setUiState((prev) => ({ ...prev, showCropInterface: true }))}
                 disabled={isDisabled}
-                className='flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800'
+                className='flex-1 border-border text-foreground hover:bg-raised'
               >
                 <Crop size={15} className='mr-1.5' /> {image.cropped ? 'Re-crop' : 'Crop'}
               </Button>
               <Button
                 onClick={uploadImage}
                 disabled={isDisabled}
-                className='flex-1 bg-blue-600 hover:bg-blue-500 text-white'
+                className='flex-1 bg-foreground hover:bg-foreground/90 text-background'
               >
                 {loading ? (
                   <>

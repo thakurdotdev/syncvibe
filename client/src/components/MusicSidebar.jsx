@@ -89,11 +89,11 @@ export function MusicSidebar() {
 
       <SidebarFooter className='border-t border-border/40 p-3 space-y-2'>
         {isPro ? (
-          <div className='w-full p-3 rounded-lg bg-linear-to-r from-yellow-500/20 to-yellow-500/10'>
+          <div className='w-full p-3 rounded-lg bg-linear-to-r from-foreground/20 to-foreground/10'>
             <div className='flex items-center gap-2'>
-              <Crown className='h-4 w-4 text-yellow-500' />
+              <Crown className='h-4 w-4 text-foreground' />
               <span className='text-sm font-medium'>PRO Member</span>
-              <Check className='h-4 w-4 text-green-500 ml-auto' />
+              <Check className='h-4 w-4 text-foreground ml-auto' />
             </div>
             <p className='text-xs text-muted-foreground mt-1'>All features unlocked</p>
           </div>
@@ -103,7 +103,7 @@ export function MusicSidebar() {
             className='w-full p-3 rounded-lg bg-linear-to-r from-primary/20 to-primary/10 hover:from-primary/30 hover:to-primary/20 transition-all duration-200 group cursor-pointer'
           >
             <div className='flex items-center gap-2'>
-              <Crown className='h-4 w-4 text-yellow-500' />
+              <Crown className='h-4 w-4 text-foreground' />
               <span className='text-sm font-medium'>Upgrade to PRO</span>
             </div>
             <p className='text-xs text-muted-foreground mt-1 text-left'>Unlock all features</p>

@@ -43,9 +43,7 @@ const SearchPost = () => {
   return (
     <div className='container mx-auto p-6 sm:p-8'>
       <div className='flex flex-col items-center gap-6 py-6'>
-        <h2 className=' text-xl md:text-3xl font-semibold text-gray-800 dark:text-gray-100 mb-2'>
-          Search Users
-        </h2>
+        <h2 className=' text-xl md:text-3xl font-semibold text-foreground mb-2'>Search Users</h2>
         <div className='relative w-full lg:w-1/3'>
           <Input
             placeholder='Search for a user...'
@@ -58,12 +56,12 @@ const SearchPost = () => {
               onClick={() => setSearchQuery('')}
               className='absolute right-4 top-1/2 transform -translate-y-1/2'
             >
-              <LucideX className='text-gray-500 dark:text-gray-400' />
+              <LucideX className='text-muted-foreground' />
             </button>
           )}
           {!searchQuery && (
             <div className='absolute inset-y-0 right-4 flex items-center pointer-events-none'>
-              <Search className='text-gray-500 dark:text-gray-400' />
+              <Search className='text-muted-foreground' />
             </div>
           )}
         </div>
@@ -83,20 +81,18 @@ const SearchPost = () => {
                 });
               }}
               key={user?.userid}
-              className='w-full md:w-[30%] flex items-center p-4 rounded-lg cursor-pointer bg-slate-100 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 transition-shadow shadow-md hover:shadow-lg'
+              className='w-full md:w-[30%] flex items-center p-4 rounded-lg cursor-pointer bg-muted dark:bg-raised hover:bg-muted dark:hover:bg-raised transition-shadow shadow-md hover:shadow-lg'
             >
               <div className='relative'>
                 <img
                   src={getProfileCloudinaryUrl(user?.profilepic)}
                   alt={user?.name}
-                  className='w-12 h-12 rounded-full object-cover border-2 border-gray-300 dark:border-gray-600'
+                  className='w-12 h-12 rounded-full object-cover border-2 border-border'
                 />
               </div>
               <div className='flex flex-col ml-4'>
-                <p className='text-base font-semibold text-gray-800 dark:text-gray-100'>
-                  {user?.name}
-                </p>
-                <p className='text-sm text-gray-500 dark:text-gray-400'>@{user?.username}</p>
+                <p className='text-base font-semibold text-foreground'>{user?.name}</p>
+                <p className='text-sm text-muted-foreground'>@{user?.username}</p>
               </div>
             </div>
           ))}

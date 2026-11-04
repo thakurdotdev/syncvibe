@@ -55,19 +55,17 @@ const ResetPassword = () => {
   if (!isValid) {
     return (
       <div className='flex flex-col justify-center items-center text-center'>
-        <div className='rounded-2xl bg-red-500/10 p-4 mb-6'>
-          <XCircle className='h-10 w-10 text-red-500' />
+        <div className='rounded-2xl bg-destructive/10 p-4 mb-6'>
+          <XCircle className='h-10 w-10 text-destructive' />
         </div>
-        <h2 className='text-2xl font-semibold text-zinc-900 dark:text-zinc-50 mb-3'>
-          Invalid reset link
-        </h2>
-        <p className='text-sm text-zinc-500 dark:text-zinc-400 mb-6'>
+        <h2 className='text-2xl font-semibold text-foreground mb-3'>Invalid reset link</h2>
+        <p className='text-sm text-muted-foreground mb-6'>
           This password reset link is invalid or has expired. Please try requesting a new one.
         </p>
         <Link to='/login' className='w-full'>
           <Button
             variant='outline'
-            className='w-full h-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold cursor-pointer'
+            className='w-full h-12 rounded-xl border border-border bg-card hover:bg-muted dark:hover:bg-raised text-foreground font-semibold cursor-pointer'
           >
             Back to Login
           </Button>
@@ -80,17 +78,15 @@ const ResetPassword = () => {
   if (status === 'success') {
     return (
       <div className='flex flex-col justify-center items-center text-center'>
-        <div className='rounded-2xl bg-emerald-500/10 p-4 mb-6'>
-          <CheckCircle2 className='h-10 w-10 text-emerald-500' />
+        <div className='rounded-2xl bg-foreground/10 p-4 mb-6'>
+          <CheckCircle2 className='h-10 w-10 text-foreground' />
         </div>
-        <h2 className='text-2xl font-semibold text-zinc-900 dark:text-zinc-50 mb-3'>
-          Password updated
-        </h2>
-        <p className='text-sm text-zinc-500 dark:text-zinc-400 mb-6'>
+        <h2 className='text-2xl font-semibold text-foreground mb-3'>Password updated</h2>
+        <p className='text-sm text-muted-foreground mb-6'>
           Your password has been successfully reset. You can now log in with your new password.
         </p>
         <Link to='/login' className='w-full'>
-          <Button className='w-full h-12 rounded-xl bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 hover:bg-zinc-900 dark:hover:bg-zinc-200 font-semibold cursor-pointer'>
+          <Button className='w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold cursor-pointer'>
             Go to Login
           </Button>
         </Link>
@@ -101,12 +97,10 @@ const ResetPassword = () => {
   return (
     <>
       <div className='mb-8'>
-        <h1 className='text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 mb-2'>
+        <h1 className='text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-2'>
           Reset Password
         </h1>
-        <p className='text-sm text-zinc-500 dark:text-zinc-400'>
-          Choose a new password for your account.
-        </p>
+        <p className='text-sm text-muted-foreground'>Choose a new password for your account.</p>
       </div>
 
       {/* Reset Password Form */}
@@ -119,11 +113,11 @@ const ResetPassword = () => {
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading}
             autoFocus
-            className='h-12 pl-4 pr-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-650 focus-visible:border-transparent transition-all'
+            className='h-12 pl-4 pr-12 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-transparent transition-all'
           />
           <button
             type='button'
-            className='absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors focus:outline-hidden'
+            className='absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground dark:hover:text-foreground transition-colors focus:outline-hidden'
             onClick={() => setShowPassword(!showPassword)}
             tabIndex={-1}
           >
@@ -138,11 +132,11 @@ const ResetPassword = () => {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             disabled={loading}
-            className='h-12 pl-4 pr-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-650 focus-visible:border-transparent transition-all'
+            className='h-12 pl-4 pr-12 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-transparent transition-all'
           />
           <button
             type='button'
-            className='absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors focus:outline-hidden'
+            className='absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground dark:hover:text-foreground transition-colors focus:outline-hidden'
             onClick={() => setShowConfirm(!showConfirm)}
             tabIndex={-1}
           >
@@ -151,11 +145,11 @@ const ResetPassword = () => {
         </div>
 
         {status === 'error' && (
-          <p className='text-sm text-red-500 text-center'>
+          <p className='text-sm text-destructive text-center'>
             This reset link may have expired.{' '}
             <Link
               to='/login'
-              className='underline underline-offset-4 font-semibold text-zinc-900 dark:text-zinc-50'
+              className='underline underline-offset-4 font-semibold text-foreground'
             >
               Request a new one
             </Link>
@@ -164,7 +158,7 @@ const ResetPassword = () => {
 
         <Button
           type='submit'
-          className='w-full h-12 rounded-xl bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 hover:bg-zinc-900 dark:hover:bg-zinc-200 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer mt-2'
+          className='w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer mt-2'
           disabled={loading || !password || !confirmPassword}
         >
           {loading && <Loader2Icon className='h-4 w-4 animate-spin' />}
@@ -172,10 +166,10 @@ const ResetPassword = () => {
           {!loading && <ArrowRight className='h-4 w-4' />}
         </Button>
 
-        <div className='text-sm text-center text-zinc-500 dark:text-zinc-400 mt-6 pt-2'>
+        <div className='text-sm text-center text-muted-foreground mt-6 pt-2'>
           <Link
             to='/login'
-            className='text-zinc-950 dark:text-zinc-50 font-semibold underline-offset-4 hover:underline transition-all'
+            className='text-foreground font-semibold underline-offset-4 hover:underline transition-all'
           >
             Back to Login
           </Link>

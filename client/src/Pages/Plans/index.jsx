@@ -126,7 +126,8 @@ export default function PlansPage() {
           email: user?.email || '',
         },
         theme: {
-          color: '#6366f1',
+          // Razorpay's hosted checkout needs a literal hex, so it can't read a theme token.
+          color: '#0E0E10',
         },
         handler: () => {
           // Payment success handled via socket event
@@ -177,7 +178,7 @@ export default function PlansPage() {
             <Card
               key={plan.code}
               className={`relative transition-all duration-300 ${
-                plan.popular ? 'border-primary shadow-lg shadow-primary/10' : 'border-border'
+                plan.popular ? 'border-primary shadow-lg shadow-scrim/10' : 'border-border'
               } ${isCurrentPlan ? 'ring-2 ring-primary/50' : ''}`}
             >
               {plan.popular && (
@@ -189,7 +190,7 @@ export default function PlansPage() {
 
               <CardHeader className='text-center pb-2'>
                 <CardTitle className='text-xl flex items-center justify-center gap-2'>
-                  {plan.code === 'PRO' && <Zap className='h-5 w-5 text-yellow-500' />}
+                  {plan.code === 'PRO' && <Zap className='h-5 w-5 text-foreground' />}
                   {plan.name}
                 </CardTitle>
                 <CardDescription>{plan.description}</CardDescription>
@@ -204,7 +205,7 @@ export default function PlansPage() {
                 <ul className='space-y-3 text-left'>
                   {plan.features.map((feature, idx) => (
                     <li key={idx} className='flex items-start gap-2'>
-                      <Check className='h-5 w-5 text-green-500 shrink-0 mt-0.5' />
+                      <Check className='h-5 w-5 text-foreground shrink-0 mt-0.5' />
                       <span className='text-sm'>{feature}</span>
                     </li>
                   ))}

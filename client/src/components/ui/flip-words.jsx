@@ -43,10 +43,7 @@ export const FlipWords = ({ words, duration = 3000, className }) => {
             stiffness: 100,
             damping: 10,
           }}
-          className={cn(
-            'z-10 inline-block relative text-left text-neutral-900 dark:text-neutral-100 px-2',
-            className
-          )}
+          className={cn('z-10 inline-block relative text-left text-foreground px-2', className)}
         >
           {currentWord.split(' ').map((word, wordIndex) => (
             <motion.span

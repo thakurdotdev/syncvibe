@@ -73,7 +73,7 @@ export const AudioWave = memo(() => (
     {[0, 1, 2, 3].map((i) => (
       <span
         key={i}
-        className='h-full w-[3px] origin-bottom rounded-full bg-white animate-wave'
+        className='h-full w-[3px] origin-bottom rounded-full bg-on-scrim animate-wave'
         style={{ animationDelay: `${i * 0.12}s` }}
       />
     ))}
@@ -211,18 +211,18 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
             {song.type === 'song' && (
               <div
                 className={cn(
-                  'absolute inset-0 grid place-items-center rounded-md bg-black/55 transition-opacity duration-150',
+                  'absolute inset-0 grid place-items-center rounded-md bg-scrim/55 transition-opacity duration-150',
                   isCurrentSong || menuOpen || loading
                     ? 'opacity-100'
                     : 'opacity-0 group-hover:opacity-100'
                 )}
               >
                 {loading ? (
-                  <Loader2 className='w-5 h-5 text-white animate-spin' />
+                  <Loader2 className='w-5 h-5 text-on-scrim animate-spin' />
                 ) : isPlaying ? (
                   <AudioWave />
                 ) : (
-                  <Play className='w-5 h-5 text-white' fill='white' />
+                  <Play className='w-5 h-5 text-on-scrim' fill='currentColor' />
                 )}
               </div>
             )}
@@ -441,14 +441,14 @@ export const NewSongCard = memo(({ song }) => {
           </div>
           <div
             className={cn(
-              'absolute inset-0 grid place-items-center rounded-lg bg-black/45 transition-opacity duration-150',
+              'absolute inset-0 grid place-items-center rounded-lg bg-scrim/45 transition-opacity duration-150',
               isCurrentSong || menuOpen || loading
                 ? 'opacity-100'
                 : 'opacity-0 group-hover:opacity-100'
             )}
           >
             {loading ? (
-              <Loader2 className='w-8 h-8 text-white animate-spin' />
+              <Loader2 className='w-8 h-8 text-on-scrim animate-spin' />
             ) : isPlaying ? (
               <div className='scale-125'>
                 <AudioWave />
@@ -472,10 +472,10 @@ export const NewSongCard = memo(({ song }) => {
                   <Button
                     variant='ghost'
                     size='icon'
-                    className='h-7 w-7 bg-black/50 hover:bg-black/70'
+                    className='h-7 w-7 bg-scrim/50 hover:bg-scrim/70'
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <MoreVertical className='h-4 w-4 text-white' />
+                    <MoreVertical className='h-4 w-4 text-on-scrim' />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align='end' className='w-48'>
@@ -654,13 +654,6 @@ const DeleteConfirmDialog = ({ isOpen, onClose, onConfirm, playlistName }) => (
   </AlertDialog>
 );
 
-/** Stable hue from a playlist name, so covers without artwork still look distinct. */
-const nameHue = (name = '') => {
-  let h = 0;
-  for (let i = 0; i < name.length; i += 1) h = (h * 31 + name.charCodeAt(i)) % 360;
-  return h;
-};
-
 export const PlaylistCover = memo(({ playlist, className }) => {
   const images = (Array.isArray(playlist.previewSongs) ? playlist.previewSongs : [])
     .map((song) => getPlaylistImageUrl(song?.image))
@@ -681,15 +674,9 @@ export const PlaylistCover = memo(({ playlist, className }) => {
   if (single) {
     return <img src={single} alt='' loading='lazy' className={cn('object-cover', className)} />;
   }
-  const hue = nameHue(playlist.name);
   return (
-    <div
-      className={cn('grid place-items-center', className)}
-      style={{
-        background: `linear-gradient(140deg, hsl(${hue} 70% 58%), hsl(${(hue + 50) % 360} 65% 38%))`,
-      }}
-    >
-      <span className='font-display text-5xl font-bold text-white/90'>
+    <div className={cn('grid place-items-center bg-raised', className)}>
+      <span className='font-display text-5xl font-bold text-muted-foreground'>
         {playlist.name?.[0]?.toUpperCase()}
       </span>
     </div>
@@ -742,7 +729,7 @@ export const UserPlaylistCard = ({ playlist, onDelete, onEdit }) => {
               type='button'
               aria-label={`More options for ${playlist.name}`}
               className={cn(
-                'absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-opacity duration-150 hover:bg-black/65',
+                'absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-scrim/45 text-on-scrim backdrop-blur-sm transition-opacity duration-150 hover:bg-scrim/65',
                 menuOpen
                   ? 'opacity-100'
                   : 'opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100'

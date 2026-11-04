@@ -30,7 +30,7 @@ const InviteNotification = ({ invite, onAccept, onDecline }) => {
           transition={{ type: 'spring', stiffness: 450, damping: 32 }}
           className='fixed bottom-5 right-5 z-50 w-[340px] max-w-[calc(100vw-2rem)] select-none'
         >
-          <div className='relative rounded-2xl overflow-hidden backdrop-blur-2xl border border-white/[0.12] dark:border-white/[0.08] bg-background/90 shadow-2xl shadow-black/40'>
+          <div className='relative rounded-2xl overflow-hidden backdrop-blur-2xl border border-foreground/[0.12] dark:border-foreground/[0.08] bg-background/90 shadow-2xl shadow-scrim/40'>
             {/* Smooth Top Progress Countdown Bar */}
             <div className='absolute top-0 left-0 right-0 h-[2px] bg-muted/40 overflow-hidden'>
               <motion.div
@@ -50,7 +50,7 @@ const InviteNotification = ({ invite, onAccept, onDecline }) => {
                     {invite.inviterName?.charAt(0)?.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className='absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background' />
+                <span className='absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-foreground ring-2 ring-background' />
               </div>
 
               {/* Text Info */}

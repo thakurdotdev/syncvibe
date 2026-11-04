@@ -17,8 +17,8 @@ const QuickPick = memo(({ song, onPlayNow, onAddToQueue }) => (
         loading='lazy'
         className='h-full w-full object-cover'
       />
-      <span className='absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100'>
-        <Play className='h-3.5 w-3.5 fill-white text-white' />
+      <span className='absolute inset-0 flex items-center justify-center bg-scrim/40 opacity-0 transition-opacity group-hover:opacity-100'>
+        <Play className='h-3.5 w-3.5 fill-on-scrim text-on-scrim' />
       </span>
     </button>
     <div className='min-w-0 flex-1'>

@@ -224,9 +224,9 @@ const PasskeyManager = ({ getProfile }) => {
     // singleDevice = platform authenticator (TouchID, FaceID, Windows Hello)
     // multiDevice = cross-platform/roaming authenticator (security keys, synced passkeys)
     if (deviceType === 'singleDevice') {
-      return <Smartphone className='h-5 w-5 text-blue-500' />;
+      return <Smartphone className='h-5 w-5 text-foreground' />;
     }
-    return <Key className='h-5 w-5 text-purple-500' />;
+    return <Key className='h-5 w-5 text-foreground' />;
   };
 
   return (
@@ -279,7 +279,7 @@ const PasskeyManager = ({ getProfile }) => {
                       <span className='font-medium'>{passkey.nickname || 'Unnamed Passkey'}</span>
                       <Badge
                         variant='outline'
-                        className={`text-xs ${passkey.credentialBackedUp ? 'text-green-600 border-green-600' : 'text-yellow-600 border-yellow-600'}`}
+                        className={`text-xs ${passkey.credentialBackedUp ? 'text-foreground border-foreground' : 'text-foreground border-foreground'}`}
                       >
                         {passkey.credentialBackedUp ? (
                           <>
@@ -310,7 +310,7 @@ const PasskeyManager = ({ getProfile }) => {
                   <Button
                     variant='ghost'
                     size='icon'
-                    className='h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950'
+                    className='h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20'
                     onClick={() => setDeletePasskeyId(passkey.authenticatorid)}
                   >
                     <Trash2 className='h-4 w-4' />
@@ -405,7 +405,7 @@ const PasskeyManager = ({ getProfile }) => {
               <AlertDialogDescription>
                 Are you sure you want to delete this passkey? This action cannot be undone.
                 {passkeys.length === 1 && (
-                  <p className='mt-2 text-red-500 font-medium'>
+                  <p className='mt-2 text-destructive font-medium'>
                     ⚠️ This is your last passkey. Deleting it will disable passkey authentication.
                   </p>
                 )}
@@ -414,7 +414,7 @@ const PasskeyManager = ({ getProfile }) => {
             <AlertDialogFooter>
               <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
               <AlertDialogAction
-                className='bg-red-500 hover:bg-red-600'
+                className='bg-destructive hover:bg-destructive/90'
                 onClick={handleDeletePasskey}
                 disabled={isDeleting}
               >

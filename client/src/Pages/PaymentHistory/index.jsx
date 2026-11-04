@@ -13,9 +13,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { usePaymentHistoryQuery } from '@/hooks/queries/useEntitlementQuery';
 
 const statusConfig = {
-  PAID: { label: 'Success', variant: 'default', icon: CheckCircle, color: 'text-green-500' },
-  FAILED: { label: 'Failed', variant: 'destructive', icon: XCircle, color: 'text-red-500' },
-  CREATED: { label: 'Pending', variant: 'secondary', icon: Clock, color: 'text-yellow-500' },
+  PAID: { label: 'Success', variant: 'default', icon: CheckCircle, color: 'text-foreground' },
+  FAILED: { label: 'Failed', variant: 'destructive', icon: XCircle, color: 'text-destructive' },
+  CREATED: { label: 'Pending', variant: 'secondary', icon: Clock, color: 'text-foreground' },
 };
 
 const formatAmount = (amountInPaise, currency = 'INR') => {

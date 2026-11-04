@@ -126,7 +126,7 @@ const ResponsiveDialogOverlay = ({ className, ...props }) => {
     <ResponsiveDialogOverlay
       {...props}
       className={cn(
-        'fixed inset-0 z-50 bg-black/60 sm:data-[state=open]:animate-in sm:data-[state=closed]:animate-out sm:data-[state=closed]:fade-out-0 sm:data-[state=open]:fade-in-0 duration-200',
+        'fixed inset-0 z-50 bg-scrim/60 sm:data-[state=open]:animate-in sm:data-[state=closed]:animate-out sm:data-[state=closed]:fade-out-0 sm:data-[state=open]:fade-in-0 duration-200',
         className
       )}
     />

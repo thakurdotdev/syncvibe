@@ -72,7 +72,7 @@ const RegisterForm = memo(({ onSubmit, loading }) => {
                   {...field}
                   autoComplete='name'
                   disabled={loading}
-                  className='h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-600 focus-visible:border-transparent transition-all'
+                  className='h-12 px-4 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-transparent transition-all'
                 />
               </FormControl>
               <FormMessage />
@@ -92,7 +92,7 @@ const RegisterForm = memo(({ onSubmit, loading }) => {
                   {...field}
                   autoComplete='email'
                   disabled={loading}
-                  className='h-12 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-600 focus-visible:border-transparent transition-all'
+                  className='h-12 px-4 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-transparent transition-all'
                 />
               </FormControl>
               <FormMessage />
@@ -113,11 +113,11 @@ const RegisterForm = memo(({ onSubmit, loading }) => {
                     {...field}
                     autoComplete='new-password'
                     disabled={loading}
-                    className='h-12 pl-4 pr-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-600 focus-visible:border-transparent transition-all'
+                    className='h-12 pl-4 pr-12 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-transparent transition-all'
                   />
                   <button
                     type='button'
-                    className='absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors focus:outline-hidden'
+                    className='absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground dark:hover:text-foreground transition-colors focus:outline-hidden'
                     onClick={() => setShowPassword(!showPassword)}
                     tabIndex={-1}
                   >
@@ -132,7 +132,7 @@ const RegisterForm = memo(({ onSubmit, loading }) => {
 
         <Button
           type='submit'
-          className='w-full h-12 rounded-xl bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 hover:bg-zinc-900 dark:hover:bg-zinc-200 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer mt-2'
+          className='w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer mt-2'
           disabled={loading}
         >
           {loading && <Loader2Icon className='h-4 w-4 animate-spin' />}
@@ -187,10 +187,10 @@ const Register = () => {
   return (
     <>
       <div className='mb-8'>
-        <h1 className='text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 mb-2'>
+        <h1 className='text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-2'>
           Create your account
         </h1>
-        <p className='text-sm text-zinc-500 dark:text-zinc-400'>
+        <p className='text-sm text-muted-foreground'>
           Join SyncVibe today! Please enter your details.
         </p>
       </div>
@@ -200,7 +200,7 @@ const Register = () => {
         <Button
           variant='outline'
           onClick={handleGoogleLogin}
-          className='w-full h-12 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium transition-all shadow-xs flex items-center justify-center gap-2.5 cursor-pointer'
+          className='w-full h-12 rounded-xl border border-border bg-card hover:bg-muted dark:hover:bg-raised text-foreground font-medium transition-all shadow-xs flex items-center justify-center gap-2.5 cursor-pointer'
           disabled={loading}
         >
           <img src={googleIcon} alt='Google' className='w-5 h-5 object-contain' />
@@ -211,10 +211,10 @@ const Register = () => {
       {/* Or Separator */}
       <div className='relative my-6'>
         <div className='absolute inset-0 flex items-center'>
-          <span className='w-full border-t border-zinc-200 dark:border-zinc-800' />
+          <span className='w-full border-t border-border' />
         </div>
         <div className='relative flex justify-center text-xs uppercase'>
-          <span className='bg-zinc-50/40 dark:bg-[#050505] px-2.5 text-zinc-400 dark:text-zinc-500 font-medium'>
+          <span className='bg-muted/40 dark:bg-background px-2.5 text-muted-foreground font-medium'>
             or
           </span>
         </div>
@@ -224,11 +224,11 @@ const Register = () => {
       <RegisterForm onSubmit={handleFormSubmit} loading={loading} />
 
       {/* Bottom Link for mobile/fallback */}
-      <div className='text-sm text-center text-zinc-500 dark:text-zinc-400 mt-6'>
+      <div className='text-sm text-center text-muted-foreground mt-6'>
         Already have an account?{' '}
         <Link
           to='/login'
-          className='text-zinc-950 dark:text-zinc-50 font-semibold underline-offset-4 hover:underline transition-all'
+          className='text-foreground font-semibold underline-offset-4 hover:underline transition-all'
         >
           Login
         </Link>

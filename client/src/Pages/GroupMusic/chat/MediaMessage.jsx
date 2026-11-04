@@ -49,11 +49,11 @@ const MediaMessage = ({ url, globalBlur }) => {
         className={cn(
           'absolute inset-0 flex cursor-pointer items-center justify-center rounded-xl transition-opacity duration-200',
           blurred
-            ? 'bg-black/30 opacity-100'
+            ? 'bg-scrim/30 opacity-100'
             : 'opacity-0 focus-visible:opacity-100 group-hover/media:opacity-100'
         )}
       >
-        <span className='inline-flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur-md'>
+        <span className='inline-flex items-center gap-1.5 rounded-full bg-scrim/50 px-3 py-1.5 text-[11px] font-medium text-on-scrim backdrop-blur-md'>
           {blurred ? <Eye className='h-3 w-3' /> : <EyeOff className='h-3 w-3' />}
           {blurred ? 'Show' : 'Hide'}
         </span>

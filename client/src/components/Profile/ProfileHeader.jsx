@@ -48,8 +48,8 @@ const ProfileHeader = memo(
 
               {/* Uploading Spinner Overlay */}
               {loading && (
-                <div className='absolute inset-0 flex items-center justify-center bg-black/50 rounded-full backdrop-blur-xs'>
-                  <Loader2 size={24} className='text-white animate-spin' />
+                <div className='absolute inset-0 flex items-center justify-center bg-scrim/50 rounded-full backdrop-blur-xs'>
+                  <Loader2 size={24} className='text-on-scrim animate-spin' />
                 </div>
               )}
 
@@ -97,7 +97,7 @@ const ProfileHeader = memo(
                   {user?.name || 'User'}
                 </h1>
                 {user?.verified && (
-                  <BadgeCheck className='text-blue-500 fill-blue-500/20 shrink-0' size={20} />
+                  <BadgeCheck className='text-foreground fill-foreground/20 shrink-0' size={20} />
                 )}
               </div>
               <p className='text-xs sm:text-sm font-medium text-muted-foreground mt-0.5'>

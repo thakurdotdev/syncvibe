@@ -74,25 +74,25 @@ const VideoCallUI = () => {
         icon: <Wifi className='w-3.5 h-3.5' />,
         text: 'Connected',
         variant: 'secondary',
-        className: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10',
+        className: 'text-success border-success/20 bg-success/10',
       },
       connecting: {
         icon: <Wifi className='w-3.5 h-3.5 animate-pulse' />,
         text: 'Connecting',
         variant: 'secondary',
-        className: 'text-amber-400 border-amber-500/20 bg-amber-500/10',
+        className: 'text-warning border-warning/20 bg-warning/10',
       },
       disconnected: {
         icon: <WifiOff className='w-3.5 h-3.5' />,
         text: 'Connection Lost',
         variant: 'secondary',
-        className: 'text-red-400 border-red-500/20 bg-red-500/10',
+        className: 'text-destructive border-destructive/20 bg-destructive/10',
       },
       failed: {
         icon: <WifiOff className='w-3.5 h-3.5' />,
         text: 'Connection Failed',
         variant: 'secondary',
-        className: 'text-red-400 border-red-500/20 bg-red-500/10',
+        className: 'text-destructive border-destructive/20 bg-destructive/10',
       },
     };
 
@@ -101,7 +101,7 @@ const VideoCallUI = () => {
         icon: <Wifi className='w-3.5 h-3.5 animate-pulse' />,
         text: 'Initializing',
         variant: 'secondary',
-        className: 'text-zinc-400 border-zinc-500/20 bg-zinc-500/10',
+        className: 'text-muted-foreground border-border/20 bg-muted-foreground/10',
       }
     );
   }, [connectionState]);
@@ -205,13 +205,13 @@ const VideoCallUI = () => {
   const secondaryParticipant = isRemotePrimary ? user : currentCall;
 
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center bg-black overflow-hidden'>
+    <div className='fixed inset-0 z-50 flex items-center justify-center bg-scrim overflow-hidden'>
       <div
         ref={refs.fullscreenContainer}
-        className='relative w-full h-full overflow-hidden select-none bg-black'
+        className='relative w-full h-full overflow-hidden select-none bg-scrim'
       >
         {/* Primary Video Area */}
-        <div className='relative w-full h-full overflow-hidden bg-zinc-950'>
+        <div className='relative w-full h-full overflow-hidden bg-background'>
           <video
             ref={refs.remoteVideo}
             className='w-full h-full object-cover'
@@ -222,19 +222,19 @@ const VideoCallUI = () => {
 
           {/* Connecting / No Video State */}
           {!remoteStream && (
-            <div className='absolute inset-0 flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-zinc-900 to-black'>
+            <div className='absolute inset-0 flex flex-col items-center justify-center gap-6 bg-gradient-to-b from-card to-scrim'>
               <div className='relative'>
                 <div className='absolute inset-0 bg-primary/20 blur-2xl rounded-full animate-pulse'></div>
-                <Avatar className='relative w-32 h-32 md:w-40 md:h-40 border-4 border-zinc-800 shadow-2xl'>
+                <Avatar className='relative w-32 h-32 md:w-40 md:h-40 border-4 border-border shadow-2xl'>
                   <AvatarImage src={currentCall?.profilepic} alt={currentCall?.name} />
-                  <AvatarFallback className='text-5xl font-light text-zinc-400 bg-zinc-900'>
+                  <AvatarFallback className='text-5xl font-light text-muted-foreground bg-card'>
                     {currentCall?.name?.[0]}
                   </AvatarFallback>
                 </Avatar>
               </div>
               <div className='text-center'>
-                <p className='text-white text-xl font-medium mb-2'>{currentCall?.name}</p>
-                <p className='text-zinc-400 text-sm flex items-center gap-2 justify-center'>
+                <p className='text-on-scrim text-xl font-medium mb-2'>{currentCall?.name}</p>
+                <p className='text-muted-foreground text-sm flex items-center gap-2 justify-center'>
                   <span className='w-2 h-2 bg-primary rounded-full animate-bounce'></span>
                   {connectionState === 'connected' ? 'Starting video...' : 'Connecting...'}
                 </p>
@@ -244,8 +244,8 @@ const VideoCallUI = () => {
 
           {/* Primary Participant Info */}
           {remoteStream && (
-            <div className='absolute bottom-24 md:bottom-8 left-4 md:left-8 z-10 flex items-center gap-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-lg text-white'>
-              <Avatar className='h-8 w-8 border border-white/20'>
+            <div className='absolute bottom-24 md:bottom-8 left-4 md:left-8 z-10 flex items-center gap-3 bg-scrim/40 backdrop-blur-md px-4 py-2 rounded-full border border-on-scrim/10 shadow-lg text-on-scrim'>
+              <Avatar className='h-8 w-8 border border-on-scrim/20'>
                 <AvatarImage src={primaryParticipant?.profilepic} alt={primaryParticipant?.name} />
                 <AvatarFallback className='bg-muted text-foreground text-xs'>
                   {primaryParticipant?.name?.[0]}
@@ -261,7 +261,7 @@ const VideoCallUI = () => {
         {/* Secondary Video (Picture-in-Picture) */}
         <div
           onClick={swapVideos}
-          className='group absolute top-20 md:top-6 right-4 md:right-6 w-28 sm:w-44 md:w-56 aspect-video rounded-xl overflow-hidden ring-1 ring-white/10 shadow-2xl transition-all hover:ring-white/40 cursor-pointer bg-black/50 z-20'
+          className='group absolute top-20 md:top-6 right-4 md:right-6 w-28 sm:w-44 md:w-56 aspect-video rounded-xl overflow-hidden ring-1 ring-on-scrim/10 shadow-2xl transition-all hover:ring-on-scrim/40 cursor-pointer bg-scrim/50 z-20'
         >
           <video
             ref={refs.localVideo}
@@ -272,8 +272,8 @@ const VideoCallUI = () => {
           />
 
           {/* Secondary Participant Info */}
-          <div className='absolute bottom-2 left-2 z-10 flex items-center gap-2 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-md text-white text-xs font-medium pointer-events-none'>
-            <Avatar className='h-5 w-5 border border-white/20'>
+          <div className='absolute bottom-2 left-2 z-10 flex items-center gap-2 bg-scrim/60 backdrop-blur-sm px-2.5 py-1 rounded-md text-on-scrim text-xs font-medium pointer-events-none'>
+            <Avatar className='h-5 w-5 border border-on-scrim/20'>
               <AvatarImage
                 src={secondaryParticipant?.profilepic}
                 alt={secondaryParticipant?.name}
@@ -286,8 +286,8 @@ const VideoCallUI = () => {
           </div>
 
           {/* Swap Indicator Overlay */}
-          <div className='absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none'>
-            <div className='flex items-center gap-2 text-white text-xs font-medium bg-black/60 px-3 py-1.5 rounded-full'>
+          <div className='absolute inset-0 flex items-center justify-center bg-scrim/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none'>
+            <div className='flex items-center gap-2 text-on-scrim text-xs font-medium bg-scrim/60 px-3 py-1.5 rounded-full'>
               <ArrowLeftRight className='w-3 h-3' />
               Swap
             </div>
@@ -298,7 +298,7 @@ const VideoCallUI = () => {
         <div className='absolute top-4 left-4 md:left-6 flex items-center gap-2 z-30'>
           <Badge
             variant='secondary'
-            className='bg-black/50 backdrop-blur-md text-white border-white/10 hover:bg-black/50 gap-1.5 px-3 py-1.5 font-mono'
+            className='bg-scrim/50 backdrop-blur-md text-on-scrim border-on-scrim/10 hover:bg-scrim/50 gap-1.5 px-3 py-1.5 font-mono'
           >
             <Video className='w-3.5 h-3.5' />
             <CallTimer remoteStream={remoteStream} />
@@ -306,7 +306,7 @@ const VideoCallUI = () => {
 
           <Badge
             variant='secondary'
-            className={`${status.className} backdrop-blur-md border hover:bg-black/50 gap-1.5 px-3 py-1.5 hidden sm:flex`}
+            className={`${status.className} backdrop-blur-md border hover:bg-scrim/50 gap-1.5 px-3 py-1.5 hidden sm:flex`}
           >
             {status.icon}
             {status.text}
@@ -315,7 +315,7 @@ const VideoCallUI = () => {
 
         {/* Bottom Controls Bar */}
         <div className='absolute bottom-6 left-1/2 -translate-x-1/2 z-30 w-full px-4 flex justify-center'>
-          <div className='flex items-center gap-1.5 sm:gap-2 bg-zinc-900/80 backdrop-blur-xl border border-white/10 p-2 rounded-2xl shadow-2xl'>
+          <div className='flex items-center gap-1.5 sm:gap-2 bg-card/80 backdrop-blur-xl border border-on-scrim/10 p-2 rounded-2xl shadow-2xl'>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -364,7 +364,7 @@ const VideoCallUI = () => {
                   variant='ghost'
                   size='icon'
                   onClick={swapVideos}
-                  className='h-12 w-12 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white shrink-0 hidden sm:inline-flex transition-transform active:scale-95'
+                  className='h-12 w-12 rounded-xl hover:bg-on-scrim/10 text-foreground hover:text-on-scrim shrink-0 hidden sm:inline-flex transition-transform active:scale-95'
                   aria-label='Swap video positions'
                 >
                   <ArrowLeftRight className='h-5 w-5' />
@@ -379,7 +379,7 @@ const VideoCallUI = () => {
                   variant='ghost'
                   size='icon'
                   onClick={toggleFullscreen}
-                  className='h-12 w-12 rounded-xl hover:bg-white/10 text-zinc-300 hover:text-white shrink-0 hidden sm:inline-flex transition-transform active:scale-95'
+                  className='h-12 w-12 rounded-xl hover:bg-on-scrim/10 text-foreground hover:text-on-scrim shrink-0 hidden sm:inline-flex transition-transform active:scale-95'
                   aria-label={callState.isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
                 >
                   {callState.isFullscreen ? (
@@ -394,14 +394,14 @@ const VideoCallUI = () => {
               </TooltipContent>
             </Tooltip>
 
-            <div className='w-px h-8 bg-white/10 mx-1 hidden sm:block'></div>
+            <div className='w-px h-8 bg-on-scrim/10 mx-1 hidden sm:block'></div>
 
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant='destructive'
                   size='icon'
-                  className='h-12 w-12 rounded-xl shrink-0 bg-red-600 hover:bg-red-700 transition-transform active:scale-95'
+                  className='h-12 w-12 rounded-xl shrink-0 bg-destructive hover:bg-destructive/90 transition-transform active:scale-95'
                   onClick={handleEndCall}
                   aria-label='End call'
                 >

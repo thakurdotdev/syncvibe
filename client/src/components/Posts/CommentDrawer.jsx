@@ -49,18 +49,16 @@ const Comment = ({ comment, comments, onReply, replyingTo }) => {
         <div className='flex-1 min-w-0'>
           <div className='space-y-1'>
             <div className='flex items-center gap-2'>
-              <span className='font-semibold text-sm text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer'>
+              <span className='font-semibold text-sm text-foreground hover:text-foreground cursor-pointer'>
                 {comment.user?.name}
               </span>
-              <span className='text-xs text-gray-500'>{TimeAgo(comment.createdat)}</span>
+              <span className='text-xs text-muted-foreground'>{TimeAgo(comment.createdat)}</span>
             </div>
-            <p className='text-sm text-gray-700 dark:text-gray-300 leading-relaxed'>
-              {comment.comment}
-            </p>
+            <p className='text-sm text-foreground leading-relaxed'>{comment.comment}</p>
             <div className='flex items-center gap-4 mt-2'>
               <button
                 onClick={() => onReply(comment.id, comment.user?.name)}
-                className='text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                className='text-xs font-medium text-muted-foreground hover:text-foreground'
               >
                 Reply
               </button>
@@ -69,7 +67,7 @@ const Comment = ({ comment, comments, onReply, replyingTo }) => {
                 <div className='mt-1'>
                   <button
                     onClick={() => setShowReplies(!showReplies)}
-                    className='flex items-center gap-2 text-xs font-medium text-blue-500 hover:text-blue-600 transition-colors'
+                    className='flex items-center gap-2 text-xs font-medium text-foreground hover:text-foreground transition-colors'
                   >
                     {showReplies ? (
                       <>
@@ -87,7 +85,7 @@ const Comment = ({ comment, comments, onReply, replyingTo }) => {
               )}
             </div>
             {showReplies && (
-              <div className='mt-3 space-y-4 pl-4 border-l-2 border-gray-100 dark:border-gray-800'>
+              <div className='mt-3 space-y-4 pl-4 border-l-2 border-border'>
                 {replies.map((reply) => (
                   <div key={reply.id} className='flex items-start gap-3'>
                     <Avatar className='h-10 w-10'>
@@ -110,21 +108,23 @@ const Comment = ({ comment, comments, onReply, replyingTo }) => {
                     </Avatar>
                     <div className='flex-1 min-w-0'>
                       <div className='flex items-center gap-2'>
-                        <span className='font-semibold text-xs text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer'>
+                        <span className='font-semibold text-xs text-foreground hover:text-foreground cursor-pointer'>
                           {reply.user?.name}
                         </span>
-                        <span className='text-xs text-gray-500'>{TimeAgo(reply.createdat)}</span>
+                        <span className='text-xs text-muted-foreground'>
+                          {TimeAgo(reply.createdat)}
+                        </span>
                       </div>
-                      <p className='text-xs text-gray-700 dark:text-gray-300 mt-1 leading-relaxed'>
+                      <p className='text-xs text-foreground mt-1 leading-relaxed'>
                         {reply.comment}
                       </p>
                       <div className='flex items-center gap-4 mt-2'>
-                        {/* <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-                              <Heart className="w-3 h-3 text-gray-500" />
+                        {/* <button className="p-1 hover:bg-muted dark:hover:bg-raised rounded-full transition-colors">
+                              <Heart className="w-3 h-3 text-muted-foreground" />
                             </button> */}
                         <button
                           onClick={() => onReply(comment.id, reply.user?.name)}
-                          className='text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                          className='text-xs font-medium text-muted-foreground hover:text-foreground'
                         >
                           Reply
                         </button>
@@ -184,10 +184,10 @@ const CommentDrawer = ({ postid, isOpen, onClose }) => {
   return (
     <ResponsiveDialog open={isOpen} onOpenChange={onClose}>
       <ResponsiveDialogContent className='max-sm:max-h-[85%] sm:max-h-[90vh] sm:max-w-lg p-0 flex flex-col'>
-        <ResponsiveDialogHeader className='border-b border-gray-100 dark:border-gray-800 px-4 py-3 shrink-0'>
+        <ResponsiveDialogHeader className='border-b border-border px-4 py-3 shrink-0'>
           <ResponsiveDialogTitle className='text-lg font-semibold'>Comments</ResponsiveDialogTitle>
           <ResponsiveDialogClose className='absolute right-3 top-3'>
-            <button className='p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'>
+            <button className='p-1.5 rounded-full hover:bg-muted dark:hover:bg-raised transition-colors'>
               <X className='w-5 h-5' />
             </button>
           </ResponsiveDialogClose>
@@ -196,14 +196,14 @@ const CommentDrawer = ({ postid, isOpen, onClose }) => {
         <ScrollArea className='flex-1 overflow-y-auto'>
           {loading ? (
             <div className='flex justify-center items-center h-32'>
-              <Loader2 className='w-6 h-6 animate-spin text-blue-500' />
+              <Loader2 className='w-6 h-6 animate-spin text-foreground' />
             </div>
           ) : parentComments.length === 0 ? (
             <div className='flex justify-center items-center h-32'>
-              <p className='text-gray-500 dark:text-gray-400'>No comments yet</p>
+              <p className='text-muted-foreground'>No comments yet</p>
             </div>
           ) : (
-            <div className='divide-y divide-gray-100 dark:divide-gray-800 px-4 mt-3'>
+            <div className='divide-y divide-border px-4 mt-3'>
               {parentComments.map((comment) => (
                 <Comment
                   key={comment.id}
@@ -217,11 +217,12 @@ const CommentDrawer = ({ postid, isOpen, onClose }) => {
           )}
         </ScrollArea>
 
-        <div className='border-t border-gray-100 dark:border-gray-800 p-4 bg-white dark:bg-gray-900 shrink-0'>
+        <div className='border-t border-border p-4 bg-card shrink-0'>
           {replyingTo && (
             <div className='flex items-center gap-2 mb-2'>
-              <span className='text-sm text-gray-600 dark:text-gray-400'>
-                Replying to <span className='text-blue-500 font-medium'>@{replyingToUsername}</span>
+              <span className='text-sm text-muted-foreground'>
+                Replying to{' '}
+                <span className='text-foreground font-medium'>@{replyingToUsername}</span>
               </span>
               <button
                 onClick={() => {
@@ -229,7 +230,7 @@ const CommentDrawer = ({ postid, isOpen, onClose }) => {
                   setReplyingToUsername('');
                   setCommentText('');
                 }}
-                className='text-xs text-gray-500 hover:text-gray-700 ml-auto'
+                className='text-xs text-muted-foreground hover:text-foreground ml-auto'
               >
                 Cancel
               </button>

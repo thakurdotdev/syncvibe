@@ -122,7 +122,7 @@ const TermsOfService = () => {
             <h2 className='text-xl font-semibold '>10. Contact Us</h2>
             <p className='mt-2'>
               If you have questions about these Terms of Service, please contact us at{' '}
-              <a href='mailto:info@thakur.dev' className='text-blue-600 hover:underline'>
+              <a href='mailto:info@thakur.dev' className='text-foreground hover:underline'>
                 info@thakur.dev
               </a>
               .

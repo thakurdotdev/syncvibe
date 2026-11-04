@@ -142,7 +142,7 @@ const ProfileDropdownMenu = ({ fromSidebar = true, collapsed = false }) => {
                     {user.name}
                   </span>
                   {user.verified && (
-                    <BadgeCheck className='text-blue-500 fill-blue-500/20 shrink-0' size={14} />
+                    <BadgeCheck className='text-foreground fill-foreground/20 shrink-0' size={14} />
                   )}
                 </div>
                 <span className='truncate text-xs text-muted-foreground font-normal'>

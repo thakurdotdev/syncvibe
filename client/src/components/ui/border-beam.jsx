@@ -6,8 +6,8 @@ export const BorderBeam = ({
   duration = 15,
   anchor = 90,
   borderWidth = 1.5,
-  colorFrom = '#ffaa40',
-  colorTo = '#9c40ff',
+  colorFrom = 'hsl(var(--border))',
+  colorTo = 'hsl(var(--muted-foreground))',
   delay = 0,
 }) => {
   return (

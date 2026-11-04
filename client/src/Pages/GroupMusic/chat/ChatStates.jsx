@@ -28,7 +28,7 @@ export const ChatLockedOverlay = memo(({ onUpgrade }) => (
       <button
         type='button'
         onClick={onUpgrade}
-        className='flex cursor-pointer items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-sm font-medium text-white transition-transform hover:scale-105 active:scale-95'
+        className='flex cursor-pointer items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-transform hover:scale-105 active:scale-95'
       >
         <Sparkles className='h-3.5 w-3.5' />
         Upgrade to PRO
