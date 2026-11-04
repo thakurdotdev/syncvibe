@@ -211,16 +211,8 @@ export const usePlayerStore = create<PlayerStore>()(
       handleNextSong: (isAutoPlay = false) => {
         const { activePlayerMode } = get();
         if (activePlayerMode !== 'normal') return;
-        if (!isAutoPlay) {
-          const { currentSong, playlist } = get();
-          if (currentSong && playlist.length) {
-            const currentIndex = playlist.findIndex((s) => s.id === currentSong.id);
-            if (currentIndex !== -1) {
-              const nextSong = playlist[(currentIndex + 1) % playlist.length];
-              set({ currentSong: nextSong, isPlaying: true });
-            }
-          }
-        }
+        // The bridge works out the next song from the current one and sets it in this same
+        // tick. Moving currentSong here first made it skip one song further.
         onHandleNextSong?.(isAutoPlay);
         checkAndFetchRecommendations();
       },

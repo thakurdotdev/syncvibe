@@ -47,11 +47,18 @@ const RESTORE_RETRY_MS = 250;
 const RESTORE_MAX_TRIES = 20;
 /** A saved spot this close to the end restarts the song instead (it would just end). */
 const RESTORE_END_MARGIN_S = 3;
+/** A native "ended" this soon after you changed song belongs to the song you just left. */
+const ENDED_IGNORE_AFTER_CHANGE_MS = 1500;
+/** Wait before trusting "ready but silent": a play command may still be on its way. */
+const PAUSE_CHECK_DELAY_MS = 300;
 
 let initialized = false;
 let userId: number | undefined;
 let appStateSub: ReturnType<typeof AppState.addEventListener> | null = null;
 let pendingPlay: { song: Song; uid?: number } | null = null;
+
+let lastSongChangeAt = 0;
+let pauseCheckTimer: ReturnType<typeof setTimeout> | null = null;
 
 let errorRetries = 0;
 let lastErrorTime = 0;
@@ -332,6 +339,7 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
   stopGroupPlayback();
   resetErrors();
   switchToNormalMode();
+  lastSongChangeAt = Date.now();
   // You're choosing playback now: a still-pending launch restore must not override it.
   restoreAttempt += 1;
   restorePending = false;
@@ -441,6 +449,7 @@ export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
   stopGroupPlayback();
   switchToNormalMode();
   if (!isAutoPlay) {
+    lastSongChangeAt = Date.now();
     restoreAttempt += 1;
     restorePending = false;
     cancelResumeGuard();
@@ -481,17 +490,18 @@ export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
     return;
   }
 
-  // Can we use native skip?
-  const queue = TrackPlayer.getQueue();
-  const activeIdx = TrackPlayer.getActiveMediaItemIndex();
-  const canSkipNative =
-    nativeMatchesSong && activeIdx != null && activeIdx >= 0 && activeIdx < queue.length - 1;
+  // Already in the native queue? Jump to that exact item: after a reorder the item after
+  // the current one natively may not be the next song in your queue.
+  const nextInPlaylist = playlist[currentIdx + 1];
+  const nextQueueIdx =
+    nativeMatchesSong && nextInPlaylist
+      ? TrackPlayer.getQueue().findIndex((t) => t.mediaId === nextInPlaylist.id)
+      : -1;
 
-  if (canSkipNative) {
-    const nextSong = playlist[currentIdx + 1];
-    if (nextSong) s.setCurrentSong(nextSong);
+  if (nextQueueIdx >= 0) {
+    s.setCurrentSong(nextInPlaylist);
     s.setPlaying(true);
-    TrackPlayer.skipToNext();
+    TrackPlayer.skipToIndex(nextQueueIdx);
     // Skipping while paused must start the new song, or the UI says playing in silence.
     TrackPlayer.play();
     fillQueue();
@@ -520,6 +530,7 @@ export const bridgeHandlePrevSong = (uid?: number, force = false) => {
 
   stopGroupPlayback();
   switchToNormalMode();
+  lastSongChangeAt = Date.now();
   restoreAttempt += 1;
   restorePending = false;
   cancelResumeGuard();
@@ -829,6 +840,19 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
     switch (event.type) {
       case Event.PlaybackStateChanged: {
         const state = event.state as string;
+        if (state === 'ready') {
+          // Buffering doesn't update the store (see IsPlayingChanged), so if a pause landed
+          // during it, catch up here once a pending play command has had time to arrive.
+          if (pauseCheckTimer) clearTimeout(pauseCheckTimer);
+          pauseCheckTimer = setTimeout(() => {
+            pauseCheckTimer = null;
+            const st = store();
+            if (st.activePlayerMode !== 'normal' || !st.isPlaying) return;
+            if (TrackPlayer.getPlaybackState() === 'ready' && !TrackPlayer.isPlaying()) {
+              st.setPlaying(false);
+            }
+          }, PAUSE_CHECK_DELAY_MS);
+        }
         if (state === 'ended') {
           if (restorePending) {
             // The restored spot ran past the stream's real end: hold the song at the
@@ -838,6 +862,11 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
             TrackPlayer.pause();
             break;
           }
+          // A late "ended" from the song you just left must not skip the one you chose.
+          const stale =
+            Date.now() - lastSongChangeAt < ENDED_IGNORE_AFTER_CHANGE_MS ||
+            TrackPlayer.getActiveMediaItem()?.mediaId !== s.currentSong?.id;
+          if (stale) break;
           bridgeHandleNextSong(true, userId);
         }
         break;
@@ -846,7 +875,12 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
       case Event.IsPlayingChanged: {
         const playing = !!event.playing;
         if (playing) restorePending = false;
-        s.setPlaying(playing);
+        // isPlaying also goes false while buffering (loading a song, seeking). That isn't a
+        // pause: only believe it when the player is ready and really silent. Real stops
+        // (end of queue, errors, stop) set the store themselves.
+        const reallyPaused =
+          !playing && TrackPlayer.getPlaybackState() === 'ready' && !TrackPlayer.isPlaying();
+        if (playing || reallyPaused) s.setPlaying(playing);
         if (!restorePending) saveNativeProgress(playing);
         break;
       }
@@ -855,6 +889,8 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
       case Event.MediaItemTransition: {
         if (event.item && event.index !== undefined) {
           const trackId = (event.item as MediaItem).mediaId;
+          // Quick skips can leave this event behind: acting on it would pull you back a song.
+          if (trackId && TrackPlayer.getActiveMediaItem()?.mediaId !== trackId) break;
           if (trackId) {
             // Restoring (and any re-send of the restore) emits transitions too. They
             // must not overwrite the saved position with a fresh 0:00 start, and neither
@@ -968,6 +1004,10 @@ export const handleTrackPlayerEvents = dispatchTrackPlayerEvent;
 
 export const destroyTrackPlayer = async () => {
   pendingPlay = null;
+  if (pauseCheckTimer) {
+    clearTimeout(pauseCheckTimer);
+    pauseCheckTimer = null;
+  }
   restoredSongId = null;
   restorePending = false;
   cancelResumeGuard();
