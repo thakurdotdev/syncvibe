@@ -35,7 +35,7 @@ const SyncLines = memo(function SyncLines({ colors }: { colors: Colors }) {
           <Animated.View
             style={[
               styles.fill,
-              { width: `${(PLAYHEAD / length) * 100}%`, backgroundColor: colors.foreground },
+              { width: `${(PLAYHEAD / length) * 100}%`, backgroundColor: `${colors.foreground}40` },
               !reduced && {
                 animationName: {
                   from: { transform: [{ scaleX: 0.05 }] },

@@ -13,7 +13,7 @@ const LoginModal = ({ title }: { title?: string }) => {
       <BlurView intensity={10} tint='dark' style={styles.blurContainer}>
         <View style={styles.modalContent}>
           <LinearGradient
-            colors={['#111827', '#0f172a']}
+            colors={['#151517', '#0A0A0B']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.gradientContainer}
@@ -23,7 +23,7 @@ const LoginModal = ({ title }: { title?: string }) => {
 
             <View style={styles.iconContainer}>
               <LinearGradient
-                colors={['#3b82f6', '#6366f1']}
+                colors={['#F5F5F6', '#D9D9DC']}
                 style={styles.iconBackground}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -52,7 +52,7 @@ const LoginModal = ({ title }: { title?: string }) => {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={['#3b82f6', '#6366f1']}
+                  colors={['#F5F5F6', '#D9D9DC']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.gradientButton}
@@ -60,7 +60,7 @@ const LoginModal = ({ title }: { title?: string }) => {
                   <Ionicons
                     name='log-in-outline'
                     size={20}
-                    color='#fff'
+                    color='#0A0A0B'
                     style={styles.buttonIcon}
                   />
                   <Text style={styles.buttonText}>Sign In</Text>
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     zIndex: -1,
   },
   glassmorphicAccent2: {
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: 'rgba(99, 102, 241, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     zIndex: -1,
   },
   gradientContainer: {
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     marginBottom: 28,
-    shadowColor: '#3b82f6',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
     shadowRadius: 15,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 16,
-    shadowColor: '#3b82f6',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   buttonText: {
-    color: '#fff',
+    color: '#0A0A0B',
     fontWeight: '600',
     fontSize: 16,
     letterSpacing: 0.5,

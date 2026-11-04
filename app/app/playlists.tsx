@@ -292,15 +292,15 @@ export default function PlaylistScreen() {
                     styles.groupButton,
                     {
                       backgroundColor: isDark
-                        ? 'rgba(168, 85, 247, 0.16)'
-                        : 'rgba(147, 51, 234, 0.1)',
-                      borderColor: isDark ? 'rgba(168, 85, 247, 0.35)' : 'rgba(147, 51, 234, 0.25)',
+                        ? 'rgba(127, 127, 127, 0.16)'
+                        : 'rgba(127, 127, 127, 0.1)',
+                      borderColor: isDark ? 'rgba(127, 127, 127, 0.35)' : 'rgba(127, 127, 127, 0.25)',
                     },
                     groupBtnAnim,
                   ]}
                 >
-                  <Ionicons name='people' size={18} color='#a855f7' />
-                  <Text style={[styles.groupButtonText, { color: '#a855f7' }]}>
+                  <Ionicons name='people' size={18} color={colors.foreground} />
+                  <Text style={[styles.groupButtonText, { color: colors.foreground }]}>
                     Add to Group Queue ({newSongs.length})
                   </Text>
                 </Animated.View>

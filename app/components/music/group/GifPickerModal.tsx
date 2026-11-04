@@ -118,7 +118,7 @@ const MediaThumbnail = React.memo(
         {/* Subtle Clip Badge */}
         {isClip && (
           <View style={thumbnailStyles.clipBadge}>
-            <Feather name='video' size={9} color='#fbbf24' />
+            <Feather name='video' size={9} color='#ffffff' />
             <Text style={thumbnailStyles.clipBadgeText}>CLIP</Text>
           </View>
         )}

@@ -102,8 +102,8 @@ const QueueItemRow = React.memo(
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
             {item.isAutoRecommended && (
               <View style={styles.autoBadge}>
-                <Ionicons name='sparkles' size={10} color='#a855f7' />
-                <Text style={styles.autoBadgeText}>Auto</Text>
+                <Ionicons name='sparkles' size={10} color={colors.foreground} />
+                <Text style={[styles.autoBadgeText, { color: colors.foreground }]}>Auto</Text>
               </View>
             )}
             {item.addedBy && !item.isAutoRecommended && (
@@ -1075,12 +1075,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: 4,
-    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+    backgroundColor: 'rgba(127, 127, 127, 0.15)',
   },
   autoBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#a855f7',
   },
   header: {
     flexDirection: 'row',
