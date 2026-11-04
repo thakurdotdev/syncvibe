@@ -76,8 +76,8 @@ export const setOnHandleNextSong = (cb: (isAutoPlay?: boolean) => void) => {
   onHandleNextSong = cb;
 };
 
-export let onHandlePrevSong: (() => void) | null = null;
-export const setOnHandlePrevSong = (cb: () => void) => {
+export let onHandlePrevSong: ((force?: boolean) => void) | null = null;
+export const setOnHandlePrevSong = (cb: (force?: boolean) => void) => {
   onHandlePrevSong = cb;
 };
 
@@ -131,7 +131,8 @@ interface PlayerActions {
   setCurrentSong: (song: Song | null) => void;
 
   handleNextSong: (isAutoPlay?: boolean) => void;
-  handlePrevSong: () => void;
+  /** Past 3s this restarts the song; `force` always goes to the previous one (swipes). */
+  handlePrevSong: (force?: boolean) => void;
 
   setPlaylist: (playlist: Song[]) => void;
   addToQueue: (songs: Song | Song[]) => void;
@@ -224,10 +225,11 @@ export const usePlayerStore = create<PlayerStore>()(
         checkAndFetchRecommendations();
       },
 
-      handlePrevSong: () => {
+      handlePrevSong: (force?: boolean) => {
         const { activePlayerMode } = get();
         if (activePlayerMode !== 'normal') return;
-        onHandlePrevSong?.();
+        // Strict check: this is also wired straight to onPress, which passes an event.
+        onHandlePrevSong?.(force === true);
       },
 
       setPlaylist: (songs: Song[]) => {
@@ -452,6 +454,19 @@ export const usePlaylistState = () =>
       setPlaylist: s.setPlaylist,
       setUserPlaylist: s.setUserPlaylist,
     }))
+  );
+
+/** The current song's place in the queue, and the songs either side of it. */
+export const useQueueNeighbors = () =>
+  usePlayerStore(
+    useShallow((s) => {
+      const idx = s.currentSong ? s.playlist.findIndex((i) => i.id === s.currentSong?.id) : -1;
+      return {
+        index: Math.max(idx, 0),
+        prev: idx > 0 ? s.playlist[idx - 1] : null,
+        next: idx >= 0 && idx < s.playlist.length - 1 ? s.playlist[idx + 1] : null,
+      };
+    })
   );
 
 export const useQueueCount = () =>

@@ -492,6 +492,8 @@ export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
     if (nextSong) s.setCurrentSong(nextSong);
     s.setPlaying(true);
     TrackPlayer.skipToNext();
+    // Skipping while paused must start the new song, or the UI says playing in silence.
+    TrackPlayer.play();
     fillQueue();
     return;
   }
@@ -512,7 +514,7 @@ export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
   bridgePlaySong(nextSong, uid);
 };
 
-export const bridgeHandlePrevSong = (uid?: number) => {
+export const bridgeHandlePrevSong = (uid?: number, force = false) => {
   if (!initialized) return;
   if (store().activePlayerMode === 'group') return;
 
@@ -524,7 +526,7 @@ export const bridgeHandlePrevSong = (uid?: number) => {
 
   // If past 3 seconds, restart current track
   const position = TrackPlayer.getProgress().position;
-  if (position > 3) {
+  if (!force && position > 3) {
     TrackPlayer.seekTo(0);
     return;
   }
@@ -546,7 +548,10 @@ export const bridgeHandlePrevSong = (uid?: number) => {
       : undefined;
     if (prevSong) s.setCurrentSong(prevSong);
     s.setPlaying(true);
-    TrackPlayer.skipToPrevious();
+    // skipToPrevious() restarts the song when past a few seconds; go by index when forced.
+    if (force) TrackPlayer.skipToIndex(activeIdx - 1);
+    else TrackPlayer.skipToPrevious();
+    TrackPlayer.play();
     return;
   }
 
@@ -1005,7 +1010,7 @@ setOnPlaySong((song) => bridgePlaySong(song, userId));
 setOnStopSong(() => bridgeStopSong());
 setOnPlayPause(() => bridgePlayPause());
 setOnHandleNextSong((isAutoPlay) => bridgeHandleNextSong(isAutoPlay, userId));
-setOnHandlePrevSong(() => bridgeHandlePrevSong(userId));
+setOnHandlePrevSong((force) => bridgeHandlePrevSong(userId, force));
 setOnRepeatModeChange((mode) => bridgeSetRepeatMode(mode));
 setOnAddToQueue(() => fillQueue());
 setOnRemoveFromQueue((songId) => bridgeRemoveFromQueue(songId));
