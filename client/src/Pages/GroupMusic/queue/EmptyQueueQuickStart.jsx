@@ -117,7 +117,7 @@ const EmptyQueueQuickStart = memo(({ userId, onAddToQueue, playNow }) => {
                         e.stopPropagation();
                         playNow(song);
                       }}
-                      className='h-7 w-7 rounded-full bg-on-scrim text-scrim flex items-center justify-center hover:scale-110 active:scale-95 transition-transform cursor-pointer'
+                      className='h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:scale-110 active:scale-95 transition-transform cursor-pointer'
                     >
                       <Play className='h-3 w-3 fill-scrim text-foreground ml-0.5' />
                     </button>

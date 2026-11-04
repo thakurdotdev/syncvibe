@@ -82,7 +82,7 @@ const ShareDrawer = ({ postid, shareLink, isOpen, onClose }) => {
       name: 'Twitter',
       icon: Twitter,
       action: () => handleShare('twitter'),
-      className: 'bg-scrim text-on-scrim dark:bg-on-scrim dark:text-scrim',
+      className: 'bg-primary text-primary-foreground',
       showOnMobile: true,
     },
     {

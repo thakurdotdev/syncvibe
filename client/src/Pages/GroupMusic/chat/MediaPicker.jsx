@@ -35,7 +35,7 @@ const MediaCard = memo(({ item, type, onSelect }) => {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         title={item.title || 'Send sticker'}
-        className='group relative w-full aspect-square rounded-xl overflow-hidden cursor-pointer border-0 p-2 bg-on-scrim/[0.03] hover:bg-on-scrim/[0.07] transition-all duration-150 flex items-center justify-center'
+        className='group relative w-full aspect-square rounded-xl overflow-hidden cursor-pointer border-0 p-2 bg-foreground/[0.03] hover:bg-foreground/[0.07] transition-all duration-150 flex items-center justify-center'
       >
         <img
           src={hovered ? animatedSrc : staticSrc}

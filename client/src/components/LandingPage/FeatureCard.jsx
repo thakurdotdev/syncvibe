@@ -1,7 +1,7 @@
 const FeatureCard = ({ icon: Icon, title, description }) => (
   <div className='relative group'>
     <div className='absolute -inset-px bg-linear-to-b from-foreground/50 to-foreground/50 rounded-xl opacity-0 group-hover:opacity-100 blur-sm transition duration-1000' />
-    <div className='relative p-8 bg-on-scrim/5 backdrop-blur-xl rounded-xl border border-on-scrim/10 transition-colors'>
+    <div className='relative p-8 bg-foreground/5 backdrop-blur-xl rounded-xl border border-foreground/10 transition-colors'>
       <div className='p-3 rounded-full bg-linear-to-r from-foreground/20 to-foreground/20 w-fit'>
         <Icon className='w-6 h-6 text-foreground' />
       </div>

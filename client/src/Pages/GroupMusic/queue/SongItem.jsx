@@ -107,7 +107,7 @@ const SongItem = memo(
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align='end'
-              className='w-48 rounded-2xl border-on-scrim/[0.08] bg-background/95 backdrop-blur-xl'
+              className='w-48 rounded-2xl border-foreground/[0.08] bg-background/95 backdrop-blur-xl'
             >
               <DropdownMenuItem
                 onClick={handlePlayNow}

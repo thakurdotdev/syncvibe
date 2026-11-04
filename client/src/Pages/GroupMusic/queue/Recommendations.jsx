@@ -36,7 +36,7 @@ const Recommendations = memo(
                   opacity: [0.15, 0.3, 0.15],
                 }}
                 transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-                className='absolute -inset-8 border border-dashed border-on-scrim/[0.08] rounded-full'
+                className='absolute -inset-8 border border-dashed border-foreground/[0.08] rounded-full'
               />
 
               {[...Array(3)].map((_, i) => (
