@@ -211,7 +211,7 @@ const LoginScreen = () => {
           >
             <BlurView intensity={theme === 'light' ? 10 : 40} tint={theme} style={styles.logoBlur}>
               <Image
-                source={require('../assets/syncvibe-cropped.png')}
+                source={require('../assets/syncvibe.png')}
                 style={styles.logo}
                 resizeMode='contain'
               />
