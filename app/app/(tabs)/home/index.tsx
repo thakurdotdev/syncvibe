@@ -232,7 +232,12 @@ function HomeScreen() {
 
   return (
     <TabSafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
-      <TabHeader kicker={greeting()} title={firstName || 'Welcome'} avatar='leading' />
+      <TabHeader
+        kicker={greeting()}
+        title={firstName || 'Welcome'}
+        avatar='leading'
+        prominentSearch
+      />
 
       <ScrollView
         style={styles.root}

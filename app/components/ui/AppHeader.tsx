@@ -1,13 +1,20 @@
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
-import { BUTTON_PRESS_SCALE } from '@/lib/motion';
+import { BUTTON_PRESS_SCALE, PRESS_IN, SPRING_PRESS } from '@/lib/motion';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { memo, type ReactNode } from 'react';
 import { Image, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
-import Animated, { type AnimatedStyle } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+  type AnimatedStyle,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PressableScale from './PressableScale';
 
@@ -58,6 +65,39 @@ const openSearch = () => router.push('/search');
 const openProfile = () => router.navigate('/(tabs)/profile');
 
 /**
+ * Home's search: bigger than other header buttons and in the accent colour, since finding
+ * music is the main thing to do from there. The lens tips and grows under your finger.
+ */
+const ProminentSearchButton = memo(function ProminentSearchButton() {
+  const { colors } = useTheme();
+  const pressed = useSharedValue(0);
+
+  const lensStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + pressed.get() * 0.14 }, { rotate: `${pressed.get() * -14}deg` }],
+  }));
+
+  return (
+    <PressableScale
+      onPress={() => {
+        Haptics.selectionAsync().catch(() => {});
+        openSearch();
+      }}
+      onPressIn={() => pressed.set(withTiming(1, PRESS_IN))}
+      onPressOut={() => pressed.set(withSpring(0, SPRING_PRESS))}
+      scaleTo={BUTTON_PRESS_SCALE}
+      hitSlop={6}
+      accessibilityRole='button'
+      accessibilityLabel='Search music, your history, playlists and people'
+      style={[styles.searchProminent, { backgroundColor: `${colors.primary}26` }]}
+    >
+      <Animated.View style={lensStyle}>
+        <Ionicons name='search' size={24} color={colors.primary} />
+      </Animated.View>
+    </PressableScale>
+  );
+});
+
+/**
  * Header for the tab roots. Same height, padding, type and action buttons everywhere:
  * a title on the left; page actions, search and your avatar (the way into Profile) on the right.
  * Home uses the greeting variant: avatar first, then a compact two-line greeting.
@@ -70,6 +110,7 @@ export const TabHeader = memo(function TabHeader({
   accessory,
   actions,
   showSearch = true,
+  prominentSearch = false,
 }: {
   title?: string;
   /** Small line above the title (e.g. "Good afternoon"); switches to the compact title size. */
@@ -80,6 +121,7 @@ export const TabHeader = memo(function TabHeader({
   accessory?: ReactNode;
   actions?: ReactNode;
   showSearch?: boolean;
+  prominentSearch?: boolean;
 }) {
   const { colors } = useTheme();
   const { user } = useUser();
@@ -121,7 +163,12 @@ export const TabHeader = memo(function TabHeader({
       </View>
       <View style={styles.actions}>
         {actions}
-        {showSearch && <HeaderIconButton icon='search' label='Search music' onPress={openSearch} />}
+        {showSearch &&
+          (prominentSearch ? (
+            <ProminentSearchButton />
+          ) : (
+            <HeaderIconButton icon='search' label='Search music' onPress={openSearch} />
+          ))}
         {avatar === 'trailing' && avatarButton}
       </View>
     </View>
@@ -182,6 +229,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconButtonSpacer: { width: 38, height: 38 },
+  searchProminent: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   tabHeader: {
     height: HEADER_HEIGHT,
