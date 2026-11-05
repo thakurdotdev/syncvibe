@@ -18,7 +18,15 @@ import { fonts } from '@/theme/typography';
 import { usePlaybackState, usePlayerControls } from '@/stores/playerStore';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { memo, useCallback, useEffect, useMemo } from 'react';
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   cancelAnimation,
@@ -38,20 +46,26 @@ const greeting = () => {
   return 'Good evening';
 };
 
+/** The first screenful renders straight away; the rest follow a section at a time. */
+const FIRST_SECTIONS = 3;
+const NEXT_SECTION_MS = 80;
+
 const goRooms = () => router.navigate('/(tabs)/group-music');
 
-/** Start-a-room invitation when you're not in a room: one quiet row, a single accent. */
-const StartRoomCard = memo(function StartRoomCard({ colors }: { colors: Colors }) {
+/** Start-a-room invitation when you're not in a room: one quiet row between the music. */
+const StartRoomRow = memo(function StartRoomRow({ colors }: { colors: Colors }) {
+  const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
+  if (inRoom) return null;
   return (
     <PressableScale
       onPress={goRooms}
       scaleTo={0.98}
       accessibilityRole='button'
       accessibilityLabel='Listen together. Start a room'
-      style={[styles.startCard, { backgroundColor: colors.card }]}
+      style={styles.startRow}
     >
       <View style={[styles.roomIcon, { backgroundColor: colors.raised }]}>
-        <Ionicons name='people' size={20} color={colors.foreground} />
+        <Ionicons name='people' size={19} color={colors.foreground} />
       </View>
       <View style={styles.roomText}>
         <Text style={[styles.startTitle, { color: colors.foreground }]}>Listen together</Text>
@@ -59,9 +73,7 @@ const StartRoomCard = memo(function StartRoomCard({ colors }: { colors: Colors }
           Start a room and play in sync with friends
         </Text>
       </View>
-      <View style={[styles.startGo, { backgroundColor: colors.primary }]}>
-        <Ionicons name='arrow-forward' size={16} color={colors.primaryForeground} />
-      </View>
+      <Ionicons name='chevron-forward' size={18} color={colors.mutedForeground} />
     </PressableScale>
   );
 });
@@ -158,9 +170,10 @@ const YourMusicCard = memo(function YourMusicCard({ colors }: { colors: Colors }
   );
 });
 
-const RoomSection = memo(function RoomSection({ colors }: { colors: Colors }) {
+/** Being in a room outranks everything else, so it leads the page. */
+const LiveRoomSection = memo(function LiveRoomSection({ colors }: { colors: Colors }) {
   const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
-  if (!inRoom) return <StartRoomCard colors={colors} />;
+  if (!inRoom) return null;
   return (
     <View style={styles.roomStack}>
       <LiveRoomCard colors={colors} />
@@ -169,6 +182,7 @@ const RoomSection = memo(function RoomSection({ colors }: { colors: Colors }) {
   );
 });
 
+/** Stand-ins shaped like the real first screen, so nothing jumps when the content arrives. */
 function HomeSkeleton({ colors }: { colors: Colors }) {
   const opacity = useSharedValue(0.5);
 
@@ -178,7 +192,7 @@ function HomeSkeleton({ colors }: { colors: Colors }) {
   }, [opacity]);
 
   const pulse = useAnimatedStyle(() => ({ opacity: opacity.get() }));
-  const block = (w: number | `${number}%`, h: number, r = 12) => ({
+  const block = (w: number | `${number}%`, h: number, r = 10) => ({
     width: w,
     height: h,
     borderRadius: r,
@@ -187,16 +201,19 @@ function HomeSkeleton({ colors }: { colors: Colors }) {
 
   return (
     <Animated.View style={[styles.skeleton, pulse]}>
+      <View style={[block('36%', 18, 7), styles.skeletonTitle]} />
       {[0, 1, 2].map((row) => (
-        <View key={row} style={{ marginBottom: 28 }}>
-          <View style={[block('40%', 18, 8), { marginBottom: 12 }]} />
-          <View style={{ flexDirection: 'row', gap: 14 }}>
-            {[0, 1, 2].map((i) => (
-              <View key={i} style={block(144, 144, 14)} />
-            ))}
-          </View>
+        <View key={row} style={styles.skeletonTiles}>
+          <View style={[block(0, 52, 11), styles.skeletonTile]} />
+          <View style={[block(0, 52, 11), styles.skeletonTile]} />
         </View>
       ))}
+      <View style={[block('36%', 18, 7), styles.skeletonTitle, styles.skeletonGap]} />
+      <View style={styles.skeletonCovers}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={block(152, 152)} />
+        ))}
+      </View>
     </Animated.View>
   );
 }
@@ -230,14 +247,67 @@ function HomeScreen() {
 
   const firstName = user?.name?.split(' ')[0];
 
+  const sections = useMemo(() => {
+    const out: { key: string; node: ReactNode }[] = [
+      { key: 'picks', node: <QuickPicks songs={recommendations?.recentlyPlayed ?? []} /> },
+      {
+        key: 'made',
+        node: (
+          <RecommendationGrid recommendations={recommendations?.songs ?? []} title='Made for you' />
+        ),
+      },
+      { key: 'room', node: <StartRoomRow colors={colors} /> },
+      { key: 'trending', node: <TrendingChart songs={trendingSongs} title='Trending now' /> },
+      {
+        key: 'playlists',
+        node: (
+          <PlaylistsGrid
+            playlists={homePageData?.playlists?.data ?? []}
+            title='Popular playlists'
+          />
+        ),
+      },
+      {
+        key: 'charts',
+        node: <PlaylistsGrid playlists={homePageData?.charts?.data ?? []} title='Charts' />,
+      },
+      {
+        key: 'albums',
+        node: <AlbumsGrid albums={homePageData?.albums?.data ?? []} title='New albums' />,
+      },
+      {
+        key: 'artists',
+        node: (
+          <ArtistGrid artists={homePageData?.artist_recos?.data ?? []} title='Artists to know' />
+        ),
+      },
+    ];
+    return out;
+  }, [colors, homePageData, recommendations, trendingSongs]);
+
+  // Mounting every section at once is what made Home slow to appear. Mounting yields to touches.
+  const [shownSections, setShownSections] = useState(FIRST_SECTIONS);
+  useEffect(() => {
+    if (loadingHome || shownSections >= sections.length) return;
+    const timer = setTimeout(() => {
+      startTransition(() => setShownSections((n) => n + 1));
+    }, NEXT_SECTION_MS);
+    return () => clearTimeout(timer);
+  }, [loadingHome, sections.length, shownSections]);
+
   return (
     <TabSafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
-      <TabHeader kicker={greeting()} title={firstName || 'Welcome'} avatar='leading' />
+      <TabHeader
+        kicker={greeting()}
+        title={firstName || 'Welcome'}
+        avatar='leading'
+        prominentSearch
+      />
 
       <ScrollView
         style={styles.root}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: DECK_CLEARANCE }}
+        contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
             refreshing={isRefetchingHome || isRefetchingRecent}
@@ -247,40 +317,12 @@ function HomeScreen() {
           />
         }
       >
-        <View style={styles.hero}>
-          <RoomSection colors={colors} />
-        </View>
+        <LiveRoomSection colors={colors} />
 
         {loadingHome ? (
           <HomeSkeleton colors={colors} />
         ) : (
-          <View>
-            <QuickPicks songs={recommendations?.recentlyPlayed ?? []} />
-
-            {(recommendations?.songs ?? []).length > 0 && (
-              <RecommendationGrid recommendations={recommendations!.songs} title='Made for you' />
-            )}
-
-            {trendingSongs.length > 0 && (
-              <TrendingChart songs={trendingSongs} title='Trending now' />
-            )}
-
-            {(homePageData?.playlists?.data?.length ?? 0) > 0 && (
-              <PlaylistsGrid playlists={homePageData!.playlists.data} title='Popular playlists' />
-            )}
-
-            {(homePageData?.charts?.data?.length ?? 0) > 0 && (
-              <PlaylistsGrid playlists={homePageData!.charts.data} title='Charts' />
-            )}
-
-            {(homePageData?.albums?.data?.length ?? 0) > 0 && (
-              <AlbumsGrid albums={homePageData!.albums.data} title='New albums' />
-            )}
-
-            {(homePageData?.artist_recos?.data?.length ?? 0) > 0 && (
-              <ArtistGrid artists={homePageData!.artist_recos.data} title='Artists to know' />
-            )}
-          </View>
+          sections.slice(0, shownSections).map(({ key, node }) => <View key={key}>{node}</View>)
         )}
       </ScrollView>
     </TabSafeAreaView>
@@ -289,25 +331,17 @@ function HomeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  hero: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 28 },
+  content: { paddingTop: 8, paddingBottom: DECK_CLEARANCE },
 
-  roomStack: { gap: 10 },
-  startCard: {
+  roomStack: { gap: 10, paddingHorizontal: 16, marginBottom: 28 },
+  startRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 10,
-    paddingRight: 12,
-    borderRadius: 18,
+    paddingHorizontal: 16,
+    marginBottom: 30,
   },
-  startTitle: { fontFamily: fonts.displaySemibold, fontSize: 16, letterSpacing: -0.2 },
-  startGo: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  startTitle: { fontFamily: fonts.displaySemibold, fontSize: 15.5, letterSpacing: -0.2 },
   liveCard: { borderRadius: 22, padding: 14, gap: 14 },
   liveTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   continueBtn: {
@@ -331,9 +365,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   roomIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -355,6 +389,11 @@ const styles = StyleSheet.create({
   liveText: { fontSize: 12, fontWeight: '700' },
 
   skeleton: { paddingHorizontal: 16 },
+  skeletonTitle: { marginBottom: 12 },
+  skeletonGap: { marginTop: 30 },
+  skeletonTiles: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  skeletonTile: { flex: 1 },
+  skeletonCovers: { flexDirection: 'row', gap: 12 },
 });
 
 export default memo(HomeScreen);

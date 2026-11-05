@@ -9,8 +9,6 @@ import { Segmented, type SegmentOption } from '@/components/ui/Segmented';
 import { useAppUpdate } from '@/context/AppUpdateContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
-import PressableScale from '@/components/ui/PressableScale';
-import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -31,7 +29,7 @@ const THEME_OPTIONS: SegmentOption<ThemeChoice>[] = [
 export default function ProfileScreen() {
   const { user, logout, getProfile, loading } = useUser();
   const { colors, setTheme, themePreference } = useTheme();
-  const { currentVersion } = useAppUpdate();
+  const { currentVersion, isUpdateAvailable } = useAppUpdate();
   const [showDeveloper, setShowDeveloper] = useState(false);
 
   useEffect(() => {
@@ -78,24 +76,31 @@ export default function ProfileScreen() {
           onEdit={() => router.push('/edit-profile')}
         />
 
-        <UpdateCard />
+        {isUpdateAvailable && (
+          <View style={styles.update}>
+            <UpdateCard />
+          </View>
+        )}
 
-        {/* The segmented control is its own surface: no second card around it. */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Appearance</Text>
-          <Segmented
-            options={THEME_OPTIONS}
-            value={themePreference as ThemeChoice}
-            onChange={setTheme}
-            accessibilityLabel='Theme'
+        <SettingsGroup title='Settings'>
+          <SettingsRow
+            icon='sun'
+            label='Appearance'
+            trailing={
+              <View style={styles.theme}>
+                <Segmented
+                  iconOnly
+                  options={THEME_OPTIONS}
+                  value={themePreference as ThemeChoice}
+                  onChange={setTheme}
+                  accessibilityLabel='Theme'
+                />
+              </View>
+            }
           />
-        </View>
-
-        <SettingsGroup title='Music'>
           <SettingsRow
             icon='globe'
             label='Music languages'
-            detail='Shapes recommendations and Home'
             onPress={() => router.push('/music-language')}
           />
           <SettingsRow
@@ -113,17 +118,8 @@ export default function ProfileScreen() {
           />
         </SettingsGroup>
 
-        <View style={styles.footer}>
-          <PressableScale
-            onPress={confirmLogout}
-            scaleTo={0.98}
-            accessibilityRole='button'
-            accessibilityLabel='Log out'
-            style={[styles.logout, { backgroundColor: colors.card }]}
-          >
-            <Feather name='log-out' size={16} color={colors.destructive} />
-            <Text style={[styles.logoutText, { color: colors.destructive }]}>Log out</Text>
-          </PressableScale>
+        <View>
+          <SettingsRow icon='log-out' label='Log out' destructive onPress={confirmLogout} />
           <Text style={[styles.version, { color: colors.mutedForeground }]}>
             SyncVibe {currentVersion}
           </Text>
@@ -138,25 +134,8 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { paddingHorizontal: 16, paddingTop: 4, gap: 26 },
-  section: { gap: 8 },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    marginLeft: 4,
-  },
-  footer: { gap: 14, alignItems: 'center' },
-  logout: {
-    alignSelf: 'stretch',
-    height: 50,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  logoutText: { fontSize: 15, fontWeight: '700' },
-  version: { fontSize: 12.5, fontVariant: ['tabular-nums'] },
+  content: { paddingTop: 8, gap: 28 },
+  update: { paddingHorizontal: 16 },
+  theme: { width: 132 },
+  version: { fontSize: 12.5, fontVariant: ['tabular-nums'], paddingHorizontal: 20, marginTop: 8 },
 });

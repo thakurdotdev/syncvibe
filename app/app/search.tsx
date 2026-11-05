@@ -1,373 +1,291 @@
-import { styles } from '@/assets/styles/search.style';
-import { SongCard } from '@/components/music/MusicCards';
-import SearchHistory from '@/components/music/SearchHistory';
+import {
+  HistoryPanel,
+  PeoplePanel,
+  PlaylistsPanel,
+  SongsPanel,
+} from '@/components/search/SearchPanels';
+import { HeaderIconButton } from '@/components/ui/AppHeader';
+import { Segmented, type SegmentOption } from '@/components/ui/Segmented';
 import { useTheme } from '@/context/ThemeContext';
-import { Song } from '@/types/song';
-import { searchSongs } from '@/utils/api/getSongs';
-import { SearchHistoryItem, searchHistoryManager } from '@/utils/searchHistory';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { SPRING } from '@/lib/motion';
+import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE } from '@/lib/swipe';
+import { Feather } from '@expo/vector-icons';
+import { useIsFetching } from '@tanstack/react-query';
+import { router } from 'expo-router';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
-  Keyboard,
   StatusBar,
-  Text,
+  StyleSheet,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { scheduleOnRN } from 'react-native-worklets';
 
-export default function SearchMusic() {
+type SearchTab = 'songs' | 'history' | 'playlists' | 'people';
+
+const DEBOUNCE_MS = 350;
+/** Resistance when dragging past the first or last tab. */
+const RUBBER_BAND = 0.2;
+
+const TABS: SegmentOption<SearchTab>[] = [
+  { value: 'songs', label: 'Songs' },
+  { value: 'history', label: 'History' },
+  { value: 'playlists', label: 'Playlists' },
+  { value: 'people', label: 'People' },
+];
+
+const PLACEHOLDERS: Record<SearchTab, string> = {
+  songs: 'Songs, artists, albums',
+  history: "Songs you've played",
+  playlists: 'Your playlists and public ones',
+  people: 'Search people by name',
+};
+
+type Search = { text: string; query: string };
+
+/**
+ * One tab's page on the strip. A page out of view keeps the search it last showed, so typing
+ * only ever fetches for the tab you're on (or are swiping to).
+ */
+function TabPage({
+  live,
+  width,
+  search,
+  children,
+}: {
+  live: boolean;
+  width: number;
+  search: Search;
+  children: (search: Search) => ReactNode;
+}) {
+  const shown = useRef(search);
+  if (live) shown.current = search;
+  return (
+    <View
+      style={{ width }}
+      accessibilityElementsHidden={!live}
+      importantForAccessibility={live ? 'auto' : 'no-hide-descendants'}
+    >
+      {children(shown.current)}
+    </View>
+  );
+}
+
+const goBack = () => (router.canGoBack() ? router.back() : router.navigate('/(tabs)/home'));
+
+/**
+ * One search field over four places to look: tap a tab or swipe between them. The words you
+ * typed carry across tabs, and a tab only fetches once you go to it.
+ */
+export default function SearchScreen() {
   const { colors, theme } = useTheme();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [showHistory, setShowHistory] = useState(true);
-  const [historyKey, setHistoryKey] = useState(0);
-  const [searchSuggestions, setSearchSuggestions] = useState<SearchHistoryItem[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [tab, setTab] = useState<SearchTab>('songs');
+  const [text, setText] = useState('');
+  const [query, setQuery] = useState('');
   const inputRef = useRef<TextInput>(null);
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const searchRequestId = useRef(0);
+  const searching = useIsFetching({ queryKey: ['search'] }) > 0;
+  const { width } = useWindowDimensions();
 
-  const executeSearch = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setSongs([]);
-      setIsLoading(false);
-      setShowHistory(true);
-      setError('');
+  // The neighbour a swipe is revealing, and every tab reached so far (the rest aren't mounted).
+  const [peek, setPeek] = useState<SearchTab | null>(null);
+  const [reached, setReached] = useState<Partial<Record<SearchTab, boolean>>>({ songs: true });
+  const page = useSharedValue(0);
+  const startPage = useSharedValue(0);
+
+  const reach = useCallback((next: SearchTab) => {
+    setReached((seen) => (seen[next] ? seen : { ...seen, [next]: true }));
+  }, []);
+
+  const selectTab = useCallback(
+    (next: SearchTab) => {
+      reach(next);
+      setTab(next);
+      page.set(
+        withSpring(
+          TABS.findIndex((t) => t.value === next),
+          SPRING
+        )
+      );
+    },
+    [page, reach]
+  );
+
+  const beginPeek = useCallback(
+    (index: number) => {
+      const next = TABS[index].value;
+      reach(next);
+      setPeek(next);
+    },
+    [reach]
+  );
+
+  const endSwipe = useCallback((index: number) => {
+    setTab(TABS[index].value);
+    setPeek(null);
+  }, []);
+
+  const lastPage = TABS.length - 1;
+  const swipe = Gesture.Pan()
+    .hitSlop({ left: -EDGE_GUARD, right: -EDGE_GUARD })
+    .activeOffsetX([-SWIPE_ACTIVATE, SWIPE_ACTIVATE])
+    .failOffsetY([-14, 14])
+    .onStart((e) => {
+      const from = Math.round(page.get());
+      startPage.set(from);
+      const neighbour = from + (e.translationX < 0 ? 1 : -1);
+      if (neighbour >= 0 && neighbour <= lastPage) scheduleOnRN(beginPeek, neighbour);
+    })
+    .onUpdate((e) => {
+      const target = startPage.get() - e.translationX / width;
+      page.set(
+        target < 0 || target > lastPage
+          ? startPage.get() - (e.translationX / width) * RUBBER_BAND
+          : target
+      );
+    })
+    .onEnd((e, success) => {
+      const from = startPage.get();
+      const neighbour = from + (e.translationX < 0 ? 1 : -1);
+      const commit =
+        success &&
+        neighbour >= 0 &&
+        neighbour <= lastPage &&
+        isSkipSwipe(e.translationX, e.velocityX, width);
+      const landed = commit ? neighbour : from;
+      page.set(withSpring(landed, { ...SPRING, velocity: success ? -e.velocityX / width : 0 }));
+      scheduleOnRN(endSwipe, landed);
+    });
+
+  const stripStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: -page.get() * width }],
+  }));
+
+  useEffect(() => {
+    const next = text.trim();
+    if (!next) {
+      setQuery('');
       return;
     }
-    const requestId = ++searchRequestId.current;
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
+    const timer = setTimeout(() => setQuery(next), DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [text]);
 
-    setIsLoading(true);
-    setError('');
-    setShowHistory(false);
-    setShowSuggestions(false);
-
-    try {
-      const results = await searchSongs(query, controller.signal);
-      if (requestId === searchRequestId.current) {
-        setSongs(results);
-      }
-    } catch (err: any) {
-      const wasCancelled =
-        err?.name === 'AbortError' || err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED';
-      if (!wasCancelled && requestId === searchRequestId.current) {
-        setError('Failed to search songs. Please try again.');
-        setSongs([]);
-      }
-    } finally {
-      if (requestId === searchRequestId.current) {
-        setIsLoading(false);
-      }
-    }
+  const pickQuery = useCallback((picked: string) => {
+    setText(picked);
+    setQuery(picked);
+    inputRef.current?.blur();
   }, []);
 
-  const handleSearch = useCallback(
-    (text: string) => {
-      setSearchQuery(text);
-
-      if (text.trim().length === 0) {
-        if (debounceTimer.current) clearTimeout(debounceTimer.current);
-        searchRequestId.current += 1;
-        abortRef.current?.abort();
-        setSongs([]);
-        setIsLoading(false);
-        setError('');
-        setShowHistory(true);
-        setShowSuggestions(false);
-        return;
-      }
-
-      if (text.trim().length > 0 && text.trim().length < 3) {
-        setShowSuggestions(true);
-        setShowHistory(false);
-        loadSearchSuggestions(text.trim());
-      } else {
-        setShowSuggestions(false);
-      }
-
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      debounceTimer.current = setTimeout(() => executeSearch(text), 450);
-    },
-    [executeSearch]
-  );
-
-  const loadSearchSuggestions = useCallback(async (query: string) => {
-    try {
-      const filtered = await searchHistoryManager.getHistory(query);
-      setSearchSuggestions(filtered.slice(0, 5));
-    } catch {
-      setSearchSuggestions([]);
-    }
-  }, []);
-
-  const handleHistoryItemPress = useCallback(
-    (query: string) => {
-      setSearchQuery(query);
-      setShowSuggestions(false);
-      inputRef.current?.blur();
-      executeSearch(query);
-    },
-    [executeSearch]
-  );
-
-  const clearSearch = useCallback(() => {
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    abortRef.current?.abort();
-    setSearchQuery('');
-    setSongs([]);
-    setIsLoading(false);
-    setError('');
-    setShowHistory(true);
-    setShowSuggestions(false);
-    setHistoryKey((prev) => prev + 1);
+  const clear = useCallback(() => {
+    setText('');
+    setQuery('');
     inputRef.current?.focus();
   }, []);
 
-  const handleInputFocus = useCallback(() => {
-    if (!searchQuery.trim()) setShowHistory(true);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    const sub = Keyboard.addListener('keyboardDidHide', () => {
-      if (!searchQuery.trim()) {
-        setShowHistory(true);
-        setShowSuggestions(false);
-      }
-    });
-    return () => sub.remove();
-  }, [searchQuery]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      abortRef.current?.abort();
-    };
-  }, []);
-
-  const renderHeader = () => (
-    <View style={[styles.header, { backgroundColor: colors.background }]}>
-      <View
-        style={[
-          styles.searchContainer,
-          {
-            backgroundColor:
-              theme === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)',
-          },
-        ]}
-      >
-        <Feather name='search' size={20} color={colors.mutedForeground} style={styles.searchIcon} />
-        <TextInput
-          ref={inputRef}
-          className='flex-1'
-          style={[styles.searchInput, { color: colors.foreground }]}
-          placeholder='Search for songs...'
-          placeholderTextColor={colors.mutedForeground}
-          value={searchQuery}
-          onChangeText={handleSearch}
-          onFocus={handleInputFocus}
-          returnKeyType='search'
-          autoCapitalize='none'
-          autoCorrect={false}
-          autoFocus
-        />
-        {isLoading && searchQuery.length > 0 && (
-          <ActivityIndicator size='small' color={colors.primary} style={{ marginRight: 6 }} />
-        )}
-        {searchQuery && !isLoading ? (
-          <TouchableOpacity
-            onPress={clearSearch}
-            style={styles.clearButton}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <View
-              style={[
-                styles.clearButtonInner,
-                {
-                  backgroundColor:
-                    theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
-                },
-              ]}
-            >
-              <Feather name='x' size={16} color={colors.foreground} />
-            </View>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-    </View>
-  );
-
-  const renderSuggestions = () => {
-    if (!showSuggestions || searchSuggestions.length === 0) return null;
-    return (
-      <View style={[styles.historyContainer, { flex: 1 }]}>
-        <View style={styles.historySection}>
-          <View style={styles.historySectionHeader}>
-            <Text style={[styles.historySectionTitle, { color: colors.foreground }]}>
-              Suggestions
-            </Text>
-          </View>
-          {searchSuggestions.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[
-                styles.historyItem,
-                {
-                  backgroundColor:
-                    theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)',
-                },
-              ]}
-              onPress={() => handleHistoryItemPress(item.query)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.historyItemContent}>
-                <Feather
-                  name='search'
-                  size={16}
-                  color={colors.mutedForeground}
-                  style={styles.historyItemIcon}
-                />
-                <Text
-                  style={[styles.historyItemText, { color: colors.foreground }]}
-                  numberOfLines={1}
-                >
-                  {item.query}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-    );
-  };
-
-  const renderEmptyState = useCallback(() => {
-    if (isLoading) return null;
-    if (searchQuery.trim()) {
-      return (
-        <View style={styles.emptyContainer}>
-          <View style={[styles.emptyIconContainer, { backgroundColor: colors.secondary }]}>
-            <Feather name='search' size={32} color={colors.primary} />
-          </View>
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-            No results for "{searchQuery}"
-          </Text>
-          <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-            Try different keywords or check your spelling
-          </Text>
-        </View>
-      );
-    }
-    return (
-      <View style={styles.emptyContainer}>
-        <View style={[styles.emptyIconContainer, { backgroundColor: colors.secondary }]}>
-          <Ionicons name='musical-notes' size={32} color={colors.primary} />
-        </View>
-        <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Search for music</Text>
-        <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-          Find artists, songs, and albums
-        </Text>
-      </View>
-    );
-  }, [isLoading, searchQuery, colors]);
-
-  const renderItem = useCallback(
-    ({ item }: { item: Song }) => (
-      <SongCard
-        song={item}
-        onPress={async () => {
-          if (searchQuery.trim()) {
-            await searchHistoryManager.addToHistoryOnSongClick(searchQuery.trim());
-          }
-        }}
-      />
-    ),
-    [searchQuery]
-  );
-
-  const getItemLayout = useCallback(
-    (_: any, index: number) => ({
-      length: 82,
-      offset: 82 * index,
-      index,
-    }),
-    []
-  );
-
-  const Separator = useCallback(() => <View style={{ height: 10 }} />, []);
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]}>
       <StatusBar
         barStyle={theme === 'light' ? 'dark-content' : 'light-content'}
         backgroundColor='transparent'
         translucent
       />
 
-      {renderHeader()}
-
-      {error ? (
-        <View style={styles.errorContainer}>
-          <View style={[styles.errorIconContainer, { backgroundColor: colors.secondary }]}>
-            <Ionicons name='alert-circle' size={32} color={colors.primary} />
-          </View>
-          <Text style={[styles.errorTitle, { color: colors.foreground }]}>{error}</Text>
-          <TouchableOpacity
-            style={[
-              styles.retryButton,
-              {
-                backgroundColor:
-                  theme === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)',
-              },
-            ]}
-            onPress={() => executeSearch(searchQuery)}
-          >
-            <Text style={[styles.retryButtonText, { color: colors.foreground }]}>Try Again</Text>
-          </TouchableOpacity>
+      <View style={styles.top}>
+        <HeaderIconButton icon='chevron-back' label='Go back' onPress={goBack} />
+        <View style={[styles.field, { backgroundColor: colors.raised }]}>
+          <Feather name='search' size={19} color={colors.mutedForeground} />
+          <TextInput
+            ref={inputRef}
+            style={[styles.input, { color: colors.foreground }]}
+            placeholder={PLACEHOLDERS[tab]}
+            placeholderTextColor={colors.mutedForeground}
+            value={text}
+            onChangeText={setText}
+            returnKeyType='search'
+            autoCapitalize='none'
+            autoCorrect={false}
+            autoFocus
+            accessibilityLabel='Search'
+          />
+          {text && searching ? <ActivityIndicator size='small' color={colors.primary} /> : null}
+          {text && !searching ? (
+            <TouchableOpacity
+              onPress={clear}
+              hitSlop={10}
+              accessibilityRole='button'
+              accessibilityLabel='Clear search'
+            >
+              <Feather name='x' size={18} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          ) : null}
         </View>
-      ) : showSuggestions ? (
-        renderSuggestions()
-      ) : showHistory ? (
-        <SearchHistory
-          key={historyKey}
-          onHistoryItemPress={handleHistoryItemPress}
-          currentQuery={searchQuery}
+      </View>
+
+      <View style={styles.tabs}>
+        <Segmented
+          options={TABS}
+          value={tab}
+          onChange={selectTab}
+          accessibilityLabel='What to search'
         />
-      ) : isLoading ? (
-        <Animated.View style={styles.loadingContainer} entering={FadeIn.duration(120)}>
-          <ActivityIndicator size='large' color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Searching...</Text>
-        </Animated.View>
-      ) : (
-        <FlatList
-          data={songs}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          getItemLayout={getItemLayout}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={renderEmptyState}
-          scrollEventThrottle={16}
-          ItemSeparatorComponent={Separator}
-          removeClippedSubviews
-          initialNumToRender={12}
-          maxToRenderPerBatch={8}
-          windowSize={8}
-          keyboardShouldPersistTaps='handled'
-          keyboardDismissMode='on-drag'
-        />
-      )}
+      </View>
+
+      <GestureDetector gesture={swipe}>
+        <View style={styles.pager}>
+          <Animated.View style={[styles.strip, { width: width * TABS.length }, stripStyle]}>
+            {TABS.map(({ value }) => (
+              <TabPage
+                key={value}
+                live={tab === value || peek === value}
+                width={width}
+                search={{ text, query }}
+              >
+                {(shown) =>
+                  !reached[value] ? null : value === 'songs' ? (
+                    <SongsPanel text={shown.text} query={shown.query} onPickQuery={pickQuery} />
+                  ) : value === 'history' ? (
+                    <HistoryPanel query={shown.query} />
+                  ) : value === 'playlists' ? (
+                    <PlaylistsPanel query={shown.query} />
+                  ) : (
+                    <PeoplePanel query={shown.query} />
+                  )
+                }
+              </TabPage>
+            ))}
+          </Animated.View>
+        </View>
+      </GestureDetector>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  pager: { flex: 1, overflow: 'hidden' },
+  strip: { flex: 1, flexDirection: 'row' },
+  top: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  field: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    height: 46,
+    borderRadius: 23,
+    paddingHorizontal: 14,
+  },
+  input: { flex: 1, fontSize: 16, paddingVertical: 0 },
+  tabs: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+});

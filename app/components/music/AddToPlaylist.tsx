@@ -165,7 +165,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
           source={
             item.image && getImageUrl(item.image)
               ? { uri: getImageUrl(item.image) }
-              : require('../../assets/icon.jpg')
+              : require('../../assets/syncvibe.png')
           }
           style={{ width: 48, height: 48, borderRadius: 8, marginRight: 14 }}
         />

@@ -1,89 +1,22 @@
-import NewPlayerDrawer from '@/components/music/NewPlayerDrawer';
 import { SectionTitle } from '@/components/music/MusicLists';
+import { PlayingBars } from '@/components/music/PlayingBars';
+import { useSongPress } from '@/components/music/useSongPress';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
-import { usePlayerControls, useSongPlaybackState } from '@/stores/playerStore';
 import { fonts } from '@/theme/typography';
 import { Song } from '@/types/song';
-import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { FlatList, Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import Animated, { useReducedMotion } from 'react-native-reanimated';
 
-const BARS = [9, 14, 11];
-
-/** Three small bars that bounce while a song plays; a still glyph when paused or Reduce Motion. */
-export const PlayingBars = memo(function PlayingBars({
-  color,
-  active,
-}: {
-  color: string;
-  active: boolean;
-}) {
-  const reduced = useReducedMotion();
-  return (
-    <View style={styles.bars} accessibilityElementsHidden importantForAccessibility='no'>
-      {BARS.map((h, i) => (
-        <Animated.View
-          key={i}
-          style={[
-            styles.bar,
-            { height: h, backgroundColor: color },
-            active &&
-              !reduced && {
-                animationName: {
-                  from: { transform: [{ scaleY: 0.35 }] },
-                  to: { transform: [{ scaleY: 1 }] },
-                },
-                animationDuration: `${420 + i * 110}ms`,
-                animationDirection: 'alternate',
-                animationIterationCount: 'infinite',
-                animationTimingFunction: 'ease-in-out',
-              },
-          ]}
-        />
-      ))}
-    </View>
-  );
-});
-
-const songArt = (song: Song, size: 'small' | 'large' = 'small') =>
-  size === 'large'
-    ? song.image?.[2]?.link || song.image?.[1]?.link || song.image?.[0]?.link
-    : song.image?.[1]?.link || song.image?.[0]?.link;
+const songArt = (song: Song) => song.image?.[1]?.link || song.image?.[0]?.link;
 
 const songArtist = (song: Song) =>
   song.artist_map?.primary_artists?.[0]?.name ||
   song.artist_map?.artists?.[0]?.name ||
   song.subtitle ||
   '';
-
-/** Tap plays (or toggles the current song); long-press opens the song's options sheet. */
-const useSongPress = (song: Song) => {
-  const { playSong, handlePlayPause } = usePlayerControls();
-  const { isCurrentSong, isPlaying } = useSongPlaybackState(song.id);
-  const [optionsOpen, setOptionsOpen] = useState(false);
-  const secured = useMemo(() => ensureHttpsForSongUrls(song), [song]);
-
-  const onPress = useCallback(() => {
-    if (isCurrentSong) handlePlayPause();
-    else playSong(secured);
-  }, [isCurrentSong, handlePlayPause, playSong, secured]);
-
-  const options = optionsOpen ? (
-    <NewPlayerDrawer isVisible onClose={() => setOptionsOpen(false)} song={secured} />
-  ) : null;
-
-  return {
-    onPress,
-    onLongPress: () => setOptionsOpen(true),
-    isCurrentSong,
-    isPlaying,
-    options,
-  };
-};
 
 // ─── Jump back in ─────────────────────────────────────
 
@@ -105,6 +38,7 @@ const QuickTile = memo(function QuickTile({ song }: { song: Song }) {
           source={{ uri: songArt(song), cache: 'force-cache' }}
           style={[styles.tileArt, { backgroundColor: colors.raised }]}
           fadeDuration={0}
+          resizeMethod='resize'
         />
         <View style={styles.tileText}>
           <Text
@@ -188,6 +122,7 @@ const ChartRow = memo(function ChartRow({ song, rank }: { song: Song; rank: numb
           source={{ uri: songArt(song), cache: 'force-cache' }}
           style={[styles.chartArt, { backgroundColor: colors.raised }]}
           fadeDuration={0}
+          resizeMethod='resize'
         />
         <View style={styles.tileText}>
           <Text
@@ -217,6 +152,8 @@ const ChartRow = memo(function ChartRow({ song, rank }: { song: Song; rank: numb
 const CHART_ROWS = 4;
 const COLUMN_GAP = 12;
 
+type ChartColumn = { key: string; start: number; items: Song[] };
+
 /**
  * Trending as a numbered chart: columns of four rows that page sideways (the next column
  * peeks in), so the ranking reads at a glance instead of as another row of square cards.
@@ -230,14 +167,30 @@ export const TrendingChart = memo(function TrendingChart({
 }) {
   const { width } = useWindowDimensions();
   const columnWidth = Math.round(width - 16 * 2 - 28);
+  const step = columnWidth + COLUMN_GAP;
   const columns = useMemo(() => {
     const list = songs.filter((s) => s?.id).slice(0, 20);
-    const out: { key: string; start: number; items: Song[] }[] = [];
+    const out: ChartColumn[] = [];
     for (let i = 0; i < list.length; i += CHART_ROWS) {
       out.push({ key: list[i].id, start: i, items: list.slice(i, i + CHART_ROWS) });
     }
     return out;
   }, [songs]);
+
+  const renderColumn = useCallback(
+    ({ item }: { item: ChartColumn }) => (
+      <View style={{ width: columnWidth }}>
+        {item.items.map((song, i) => (
+          <ChartRow key={song.id} song={song} rank={item.start + i + 1} />
+        ))}
+      </View>
+    ),
+    [columnWidth]
+  );
+  const getItemLayout = useCallback(
+    (_: unknown, index: number) => ({ length: step, offset: step * index, index }),
+    [step]
+  );
 
   if (!columns.length) return null;
 
@@ -249,23 +202,17 @@ export const TrendingChart = memo(function TrendingChart({
         keyExtractor={(c) => c.key}
         horizontal
         showsHorizontalScrollIndicator={false}
-        snapToInterval={columnWidth + COLUMN_GAP}
+        snapToInterval={step}
         decelerationRate='fast'
         disableIntervalMomentum
         contentContainerStyle={styles.chartContent}
         ItemSeparatorComponent={ColumnGap}
-        getItemLayout={(_, index) => ({
-          length: columnWidth + COLUMN_GAP,
-          offset: (columnWidth + COLUMN_GAP) * index,
-          index,
-        })}
-        renderItem={({ item }) => (
-          <View style={{ width: columnWidth }}>
-            {item.items.map((song, i) => (
-              <ChartRow key={song.id} song={song} rank={item.start + i + 1} />
-            ))}
-          </View>
-        )}
+        getItemLayout={getItemLayout}
+        renderItem={renderColumn}
+        // Only the first column and the one peeking in: that's 8 rows, not all 20.
+        initialNumToRender={2}
+        maxToRenderPerBatch={1}
+        windowSize={3}
       />
     </View>
   );
@@ -273,13 +220,10 @@ export const TrendingChart = memo(function TrendingChart({
 
 const ColumnGap = () => <View style={{ width: COLUMN_GAP }} />;
 
-const TILE_ART = 52;
+const TILE_ART = 44;
 
 const styles = StyleSheet.create({
-  section: { marginBottom: 32 },
-
-  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 14 },
-  bar: { width: 3, borderRadius: 1.5, transformOrigin: 'bottom' },
+  section: { marginBottom: 30 },
 
   grid: { paddingHorizontal: 16, gap: 8 },
   gridRow: { flexDirection: 'row', gap: 8 },
@@ -289,12 +233,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    padding: 4,
     paddingRight: 10,
-    borderRadius: 12,
-    overflow: 'hidden',
+    borderRadius: 11,
   },
   tileSpacer: { flex: 1 },
-  tileArt: { width: TILE_ART, height: TILE_ART },
+  tileArt: { width: TILE_ART, height: TILE_ART, borderRadius: 7 },
   tileText: { flex: 1, minWidth: 0 },
   tileTitle: { fontSize: 13.5, fontWeight: '700', letterSpacing: -0.1 },
   tileSub: { fontSize: 12, marginTop: 1 },

@@ -54,7 +54,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/icon.jpg"
+      "favicon": "./assets/syncvibe.png"
     },
     "plugins": [
       "expo-router",
@@ -64,7 +64,10 @@
           "image": "./assets/syncvibe.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#0B0B0C"
+          "backgroundColor": "#FFFFFF",
+          "dark": {
+            "backgroundColor": "#0B0B0C"
+          }
         }
       ],
       [

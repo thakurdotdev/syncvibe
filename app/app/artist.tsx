@@ -271,7 +271,7 @@ export default function ArtistScreen() {
   const renderPlaylistItem = useCallback(
     ({ item }: { item: Playlist }) => (
       <View style={styles.gridItem}>
-        <PlaylistCard playlist={item} isUser={false} />
+        <PlaylistCard playlist={item} />
       </View>
     ),
     []

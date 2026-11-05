@@ -6,7 +6,6 @@ import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
 import { memo } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { type GestureType } from 'react-native-gesture-handler';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ArtworkCarousel } from './ArtworkCarousel';
 import { Scrubber, secondary, Transport } from './PlayerControls';
@@ -24,7 +23,6 @@ interface PlayerTabProps {
   queueCount: number;
   bottomInset: number;
   isOpen: boolean;
-  dismissGesture: GestureType;
   onOpenQueue: () => void;
 }
 
@@ -40,7 +38,6 @@ export const PlayerTab = memo(function PlayerTab({
   queueCount,
   bottomInset,
   isOpen,
-  dismissGesture,
   onOpenQueue,
 }: PlayerTabProps) {
   const { colors } = useTheme();
@@ -57,7 +54,6 @@ export const PlayerTab = memo(function PlayerTab({
           index={queueIndex}
           size={artworkSize}
           width={screenWidth}
-          dismissGesture={dismissGesture}
         />
       </View>
 
@@ -99,7 +95,8 @@ export const PlayerTab = memo(function PlayerTab({
           {queueCount > 0 && (
             <Text style={[styles.upNextCount, { color: quiet }]}>{queueCount}</Text>
           )}
-          <Ionicons name='list' size={19} color={colors.foreground} />
+          {/* Points up: this row is also where the swipe up to the queue suggests itself. */}
+          <Ionicons name='chevron-up' size={19} color={colors.foreground} />
         </PressableScale>
       </View>
     </View>

@@ -1,11 +1,10 @@
+import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
+import { fonts } from '@/theme/typography';
 import { Album, Artist, Playlist } from '@/types/music';
 import { Song } from '@/types/song';
-import { router } from 'expo-router';
-import { memo } from 'react';
+import { memo, useCallback, type ReactElement } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
-import PressableScale from '@/components/ui/PressableScale';
-import { fonts } from '@/theme/typography';
 import { AlbumCard, ArtistCard, NewSongCard, PlaylistCard } from './MusicCards';
 
 /** Section heading used by every home row: display face, optional "See all" on the right. */
@@ -19,8 +18,8 @@ export const SectionTitle = memo(function SectionTitle({
   const { colors } = useTheme();
   if (!title) return null;
   return (
-    <View style={sectionStyles.row}>
-      <Text style={[sectionStyles.title, { color: colors.foreground }]} accessibilityRole='header'>
+    <View style={styles.titleRow}>
+      <Text style={[styles.title, { color: colors.foreground }]} accessibilityRole='header'>
         {title}
       </Text>
       {onSeeAll && (
@@ -29,17 +28,119 @@ export const SectionTitle = memo(function SectionTitle({
           hitSlop={8}
           accessibilityRole='button'
           accessibilityLabel={`See all ${title}`}
-          style={sectionStyles.seeAll}
+          style={styles.seeAll}
         >
-          <Text style={[sectionStyles.seeAllText, { color: colors.mutedForeground }]}>See all</Text>
+          <Text style={[styles.seeAllText, { color: colors.mutedForeground }]}>See all</Text>
         </PressableScale>
       )}
     </View>
   );
 });
 
-const sectionStyles = StyleSheet.create({
-  row: {
+const GAP = 12;
+
+const keyOf = (item: { id?: string }, index: number) => item?.id || String(index);
+
+/**
+ * A titled sideways row of same-width cards. The fixed width lets the list skip measuring and
+ * lands each swipe cleanly on a card. It mounts about a screenful, plus one screen either side.
+ */
+function CardRow<T extends { id?: string }>({
+  title,
+  data,
+  itemWidth,
+  renderCard,
+}: {
+  title?: string;
+  data: T[];
+  itemWidth: number;
+  renderCard: (item: T) => ReactElement;
+}) {
+  const step = itemWidth + GAP;
+  const renderItem = useCallback(
+    ({ item }: { item: T }) => <View style={{ width: itemWidth }}>{renderCard(item)}</View>,
+    [itemWidth, renderCard]
+  );
+  const getItemLayout = useCallback(
+    (_: unknown, index: number) => ({ length: step, offset: step * index, index }),
+    [step]
+  );
+
+  if (!data?.length) return null;
+
+  return (
+    <View style={styles.section}>
+      <SectionTitle title={title} />
+      <FlatList
+        data={data}
+        keyExtractor={keyOf}
+        renderItem={renderItem}
+        getItemLayout={getItemLayout}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={step}
+        decelerationRate='fast'
+        contentContainerStyle={styles.rowContent}
+        ItemSeparatorComponent={RowGap}
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        windowSize={3}
+        removeClippedSubviews
+      />
+    </View>
+  );
+}
+
+const RowGap = () => <View style={styles.gap} />;
+
+const renderSong = (song: Song) => <NewSongCard song={song} />;
+const renderAlbum = (album: Album) => <AlbumCard album={album} />;
+const renderPlaylist = (playlist: Playlist) => <PlaylistCard playlist={playlist} />;
+const renderArtist = (artist: Artist) => <ArtistCard artist={artist} />;
+
+export const RecommendationGrid = memo(function RecommendationGrid({
+  recommendations,
+  title,
+}: {
+  recommendations: Song[];
+  title?: string;
+}) {
+  return <CardRow title={title} data={recommendations} itemWidth={152} renderCard={renderSong} />;
+});
+
+export const AlbumsGrid = memo(function AlbumsGrid({
+  albums,
+  title,
+}: {
+  albums: Album[];
+  title?: string;
+}) {
+  return <CardRow title={title} data={albums} itemWidth={146} renderCard={renderAlbum} />;
+});
+
+export const PlaylistsGrid = memo(function PlaylistsGrid({
+  playlists,
+  title,
+}: {
+  playlists: Playlist[];
+  title?: string;
+}) {
+  return <CardRow title={title} data={playlists} itemWidth={136} renderCard={renderPlaylist} />;
+});
+
+export const ArtistGrid = memo(function ArtistGrid({
+  artists,
+  title,
+}: {
+  artists: Artist[];
+  title?: string;
+}) {
+  return <CardRow title={title} data={artists} itemWidth={96} renderCard={renderArtist} />;
+});
+
+const styles = StyleSheet.create({
+  section: { marginBottom: 30 },
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
@@ -49,167 +150,6 @@ const sectionStyles = StyleSheet.create({
   title: { fontFamily: fonts.display, fontSize: 20, letterSpacing: -0.4 },
   seeAll: { paddingVertical: 2 },
   seeAllText: { fontSize: 13, fontWeight: '600' },
-});
-
-interface AlbumsGridProps {
-  albums: Album[];
-  title?: string;
-}
-
-interface PlaylistsGridProps {
-  playlists: Playlist[];
-  title?: string;
-}
-
-interface ArtistGridProps {
-  artists: Artist[];
-  title?: string;
-}
-
-interface RecommendationGridProps {
-  recommendations: Song[];
-  title?: string;
-  showMore?: boolean;
-}
-
-export const AlbumsGrid = memo(({ albums, title }: AlbumsGridProps) => {
-  if (!albums?.length) return null;
-
-  return (
-    <View style={{ marginBottom: 32 }}>
-      <SectionTitle title={title} />
-      <FlatList
-        data={albums}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={{ marginRight: 14 }}>
-            <AlbumCard album={item} width={148} />
-          </View>
-        )}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
-        getItemLayout={(_, index) => ({ length: 162, offset: 162 * index, index })}
-        initialNumToRender={5}
-        maxToRenderPerBatch={5}
-        windowSize={5}
-        removeClippedSubviews
-      />
-    </View>
-  );
-});
-
-export const PlaylistsGrid = memo(({ playlists, title }: PlaylistsGridProps) => {
-  if (!playlists?.length) return null;
-
-  return (
-    <View style={{ marginBottom: 32 }}>
-      <SectionTitle title={title} />
-      <FlatList
-        data={playlists}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={{ marginRight: 14 }}>
-            <PlaylistCard playlist={item} isUser={false} width={148} />
-          </View>
-        )}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
-        getItemLayout={(_, index) => ({ length: 162, offset: 162 * index, index })}
-        initialNumToRender={5}
-        maxToRenderPerBatch={5}
-        windowSize={5}
-        removeClippedSubviews
-      />
-    </View>
-  );
-});
-
-export const RecommendationGrid = memo(
-  ({ recommendations, title, showMore = false }: RecommendationGridProps) => {
-    if (!recommendations?.length) return null;
-
-    return (
-      <View style={{ marginBottom: 32 }}>
-        <SectionTitle
-          title={title}
-          onSeeAll={showMore ? () => router.push('/song-history') : undefined}
-        />
-
-        <FlatList
-          data={recommendations}
-          keyExtractor={(item, index) => item?.id || index.toString()}
-          renderItem={({ item }) => (
-            <View style={{ marginRight: 14 }}>
-              <NewSongCard song={item} width={144} />
-            </View>
-          )}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16 }}
-          className='pb-2'
-          getItemLayout={(_, index) => ({ length: 158, offset: 158 * index, index })}
-          initialNumToRender={5}
-          maxToRenderPerBatch={5}
-          windowSize={5}
-          removeClippedSubviews
-        />
-      </View>
-    );
-  }
-);
-
-export const TrendingSongs = memo(({ songs, title }: { songs: Song[]; title: string }) => {
-  if (!songs?.length) return null;
-
-  return (
-    <View style={{ marginBottom: 32 }}>
-      <SectionTitle title={title} />
-      <FlatList
-        data={songs}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={{ marginRight: 14 }}>
-            <NewSongCard song={item} width={144} />
-          </View>
-        )}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
-        getItemLayout={(_, index) => ({ length: 158, offset: 158 * index, index })}
-        initialNumToRender={5}
-        maxToRenderPerBatch={5}
-        windowSize={5}
-        removeClippedSubviews
-      />
-    </View>
-  );
-});
-
-export const ArtistGrid = memo(({ artists, title }: ArtistGridProps) => {
-  if (!artists?.length) return null;
-
-  return (
-    <View style={{ marginBottom: 32 }}>
-      <SectionTitle title={title} />
-      <FlatList
-        data={artists}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={{ marginRight: 14 }}>
-            <ArtistCard artist={item} width={124} />
-          </View>
-        )}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
-        getItemLayout={(_, index) => ({ length: 138, offset: 138 * index, index })}
-        initialNumToRender={5}
-        maxToRenderPerBatch={5}
-        windowSize={5}
-        removeClippedSubviews
-      />
-    </View>
-  );
+  rowContent: { paddingHorizontal: 16 },
+  gap: { width: GAP },
 });

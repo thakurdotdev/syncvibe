@@ -1,5 +1,6 @@
 import { useTheme } from '@/context/ThemeContext';
 import { BUTTON_PRESS_SCALE, EASE_OUT, SPRING_PRESS } from '@/lib/motion';
+import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE } from '@/lib/swipe';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import PressableScale from '@/components/ui/PressableScale';
 import { openFullPlayer, usePlaybackState, usePlayerControls } from '@/stores/playerStore';
@@ -7,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProgress } from '@rntp/player';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -150,8 +151,6 @@ type MiniPlayerRowProps = {
   colors: ReturnType<typeof useTheme>['colors'];
 };
 
-const SWIPE_SKIP_DISTANCE = 56;
-const SWIPE_SKIP_VELOCITY = 600;
 const SWIPE_OPEN_DISTANCE = 24;
 const SWIPE_OPEN_VELOCITY = 400;
 const SONG_ENTER = FadeIn.duration(160).easing(EASE_OUT);
@@ -179,6 +178,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
 
   const artworkUri = currentSong?.image?.[1]?.link || currentSong?.image?.[2]?.link;
 
+  const { width } = useWindowDimensions();
   const x = useSharedValue(0);
   // 0 undecided, 1 sideways (skip), 2 upwards (open). Locked once for each swipe.
   const axis = useSharedValue(0);
@@ -186,7 +186,8 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
   const skipPrev = useCallback(() => handlePrevSong(true), [handlePrevSong]);
 
   const swipe = Gesture.Pan()
-    .activeOffsetX([-14, 14])
+    .hitSlop({ left: -EDGE_GUARD, right: -EDGE_GUARD })
+    .activeOffsetX([-SWIPE_ACTIVATE, SWIPE_ACTIVATE])
     .activeOffsetY([-14, 1000])
     .onStart((e) => {
       axis.set(Math.abs(e.translationX) > Math.abs(e.translationY) ? 1 : 2);
@@ -194,11 +195,13 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
     .onUpdate((e) => {
       if (axis.get() === 1) x.set(e.translationX * 0.6);
     })
-    .onEnd((e) => {
+    .onEnd((e, success) => {
+      // Not successful: the system took the touch over (its back gesture). Nothing was asked for.
+      if (!success) return;
       if (axis.get() === 1) {
-        const far = Math.abs(e.translationX) > SWIPE_SKIP_DISTANCE;
-        const fast = Math.abs(e.velocityX) > SWIPE_SKIP_VELOCITY;
-        if (far || fast) scheduleOnRN(e.translationX < 0 ? skipNext : skipPrev);
+        if (isSkipSwipe(e.translationX, e.velocityX, width)) {
+          scheduleOnRN(e.translationX < 0 ? skipNext : skipPrev);
+        }
       } else if (e.translationY < -SWIPE_OPEN_DISTANCE || e.velocityY < -SWIPE_OPEN_VELOCITY) {
         scheduleOnRN(openFullPlayer);
       }

@@ -87,7 +87,7 @@ export function SignInStep({ active, languages, onSkip }: SignInStepProps) {
             <Ring key={index} index={index} active={active} />
           ))}
           <Image
-            source={require('../../assets/syncvibe-cropped.png')}
+            source={require('../../assets/syncvibe.png')}
             style={styles.logo}
             resizeMode='contain'
             accessibilityIgnoresInvertColors
