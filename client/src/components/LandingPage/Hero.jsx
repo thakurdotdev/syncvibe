@@ -760,7 +760,7 @@ const Hero = memo(() => {
                   <div className='flex items-center gap-3 p-2 rounded-xl bg-secondary/60 border border-border/50'>
                     <div className='relative w-8 h-8 rounded-full bg-muted ring-1 ring-border overflow-hidden shrink-0'>
                       <img
-                        src='https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/r_max/f_auto/v1780744511/profiles/profiles_130_1780744510_4a18b0ed9043cc21.jpg'
+                        src='https://res.cloudinary.com/dr7lkelwl/image/upload/v1793889692/profiles/profiles_6_1793889690_21ee9015425b6812.jpg'
                         alt='Host'
                         className='w-full h-full object-cover'
                       />

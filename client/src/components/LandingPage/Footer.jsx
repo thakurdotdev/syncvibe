@@ -11,7 +11,7 @@ const Footer = memo(() => {
           <div className='md:col-span-6 space-y-3.5'>
             <Link to='/' className='flex items-center gap-2'>
               <img
-                src='https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/r_max/f_auto/v1780744511/profiles/profiles_130_1780744510_4a18b0ed9043cc21.jpg'
+                src='https://res.cloudinary.com/dr7lkelwl/image/upload/v1793889692/profiles/profiles_6_1793889690_21ee9015425b6812.jpg'
                 alt='SyncVibe'
                 className='w-6 h-6 rounded-md object-cover ring-1 ring-primary/20'
               />

@@ -10,7 +10,7 @@ const ModeChooser = () => {
       <div className='flex flex-col items-center gap-10 max-w-lg w-full'>
         <div className='flex flex-col items-center gap-3 text-center'>
           <LazyImage
-            src='https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/r_max/f_auto/v1780744511/profiles/profiles_130_1780744510_4a18b0ed9043cc21.jpg'
+            src='https://res.cloudinary.com/dr7lkelwl/image/upload/v1793889692/profiles/profiles_6_1793889690_21ee9015425b6812.jpg'
             alt='SyncVibe'
             className='h-12 w-12'
             height={48}
