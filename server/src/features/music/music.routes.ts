@@ -14,6 +14,7 @@ import {
   getPersonalizedRecommendations,
   getHistorySongs,
 } from './history.controller';
+import { recordPlayEvents } from './play-events.controller';
 import { searchSongs } from './search.controller';
 import { getLastSessionSongs } from './group-history.controller';
 import {
@@ -60,6 +61,7 @@ musicRouter.get('/playlist/songs', authMiddleware, getPlaylistSongs);
 // History & Discovery
 musicRouter.post('/history/add', authMiddleware, addToHistory);
 musicRouter.post('/music/history/add', authMiddleware, addToHistory);
+musicRouter.post('/play-events', authMiddleware, recordPlayEvents);
 
 musicRouter.get('/music/recommendations', authMiddleware, getPersonalizedRecommendations);
 musicRouter.get('/music/latestHistory', authMiddleware, getHistorySongs);

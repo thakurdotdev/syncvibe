@@ -22,6 +22,7 @@ import ChatMessage from './chat/chat-message.model';
 // Music
 import Song from './music/song.model';
 import HistorySong from './music/history-song.model';
+import PlayEvent from './music/play-event.model';
 import PlaylistSong from './music/playlist-song.model';
 import Playlist from './music/playlist.model';
 import GroupInvite from './music/group-invite.model';
@@ -102,6 +103,10 @@ LoginLog.belongsTo(User, { foreignKey: 'userid', as: 'user' });
 Song.hasMany(HistorySong, { foreignKey: 'songRefId', as: 'historyEntries' });
 HistorySong.belongsTo(Song, { foreignKey: 'songRefId', as: 'song' });
 
+// ─── Song ↔ PlayEvent ─────────────────────────────────────────────────────
+Song.hasMany(PlayEvent, { foreignKey: 'songRefId', as: 'playEvents' });
+PlayEvent.belongsTo(Song, { foreignKey: 'songRefId', as: 'song' });
+
 // ─── Song ↔ PlaylistSong ──────────────────────────────────────────────────
 Song.hasMany(PlaylistSong, { foreignKey: 'songRefId', as: 'playlistEntries' });
 PlaylistSong.belongsTo(Song, { foreignKey: 'songRefId', as: 'song' });
@@ -143,6 +148,7 @@ export {
   ChatUser,
   Song,
   HistorySong,
+  PlayEvent,
   PlaylistSong,
   Playlist,
   GroupInvite,
