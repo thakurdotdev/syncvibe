@@ -196,6 +196,7 @@ function RootLayoutNav() {
           name='search'
           options={{
             headerShown: false,
+            animation: 'fade',
           }}
         />
         <Stack.Screen
