@@ -2,10 +2,10 @@ import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import {
   checkAndFetchRecommendations,
-  usePlaybackState,
+  useCurrentSong,
   usePlayerControls,
   usePlayerStore,
-  usePlaylistState,
+  usePlaylist,
   useSongPlaybackState,
 } from '@/stores/playerStore';
 import { Song } from '@/types/song';
@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MoreVertical, Sparkles, Trash2Icon } from 'lucide-react-native';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { GestureDetector, type GestureType } from 'react-native-gesture-handler';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SwipeableModal from '../../SwipeableModal';
@@ -21,6 +22,8 @@ import { SortableQueue } from './SortableQueue';
 const ITEM_HEIGHT = 58;
 /** Row height + its vertical margins: the distance between one row and the next. */
 const ROW_STEP = ITEM_HEIGHT + 4;
+/** Long enough for the player's open animation to finish before the list starts mounting. */
+const PREPARE_DELAY_MS = 400;
 
 const SongCardQueue = memo(
   function SongCardQueue({
@@ -111,18 +114,36 @@ const SongCardQueue = memo(
     prev.onMenuPress === next.onMenuPress
 );
 
-export const QueueTab = memo(function QueueTab({ visible }: { visible: boolean }) {
+export const QueueTab = memo(function QueueTab({
+  playerOpen,
+  visible,
+  dragGesture,
+}: {
+  playerOpen: boolean;
+  visible: boolean;
+  /** Attached to the top of the queue, so it can be dragged back down. */
+  dragGesture: GestureType;
+}) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  // The list costs nothing until the queue is first opened; after that it stays mounted.
+  // The list costs nothing until the player first opens. It mounts just after that, so the rows
+  // are already there when a swipe starts lifting the queue, and then stays mounted.
   const [opened, setOpened] = useState(visible);
   useEffect(() => {
-    if (visible) setOpened(true);
-  }, [visible]);
+    if (opened) return;
+    if (visible) {
+      setOpened(true);
+      return;
+    }
+    if (!playerOpen) return;
+    const timer = setTimeout(() => setOpened(true), PREPARE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [opened, playerOpen, visible]);
   const { reorderPlaylist, clearQueue, removeFromQueue, removeFromQueueBelow, playSong } =
     usePlayerControls();
-  const { playlist } = usePlaylistState();
-  const { currentSong } = usePlaybackState();
+  // Narrow selectors: this must not re-render when playback merely pauses or buffers.
+  const playlist = usePlaylist();
+  const currentSong = useCurrentSong();
   const autoFetchRecommendations = usePlayerStore((s) => s.autoFetchRecommendations);
   const setAutoFetchRecommendations = usePlayerStore((s) => s.setAutoFetchRecommendations);
   const [menuSong, setMenuSong] = useState<Song | null>(null);
@@ -183,11 +204,14 @@ export const QueueTab = memo(function QueueTab({ visible }: { visible: boolean }
     [removeFromQueueBelow]
   );
 
-  const handleMenuRemove = useCallback(
+  // Reads the song from the store, not `playlist`: this stays stable as the queue changes, so
+  // the rows it's handed to don't all re-render.
+  const handleRemove = useCallback(
     (songId: string) => {
-      removeFromQueue(songId);
-      toast('Removed from queue');
+      const name = usePlayerStore.getState().playlist.find((s) => s.id === songId)?.name;
+      const undo = removeFromQueue(songId);
       setMenuSong(null);
+      if (undo) toast(`Removed ${name}`, { action: { label: 'Undo', onPress: undo } });
     },
     [removeFromQueue]
   );
@@ -226,56 +250,63 @@ export const QueueTab = memo(function QueueTab({ visible }: { visible: boolean }
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={queueStyles.header}>
-        <Text style={[queueStyles.countText, { color: colors.mutedForeground }]}>
-          {upcomingCount} {upcomingCount === 1 ? 'song' : 'songs'}
-        </Text>
-        <View style={queueStyles.headerActions}>
-          <Pressable
-            onPress={() => handleFetchRecommendations()}
-            disabled={isFetchingRecs || !currentSong?.id}
-            style={({ pressed }) => [queueStyles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
-          >
-            {isFetchingRecs ? (
-              <ActivityIndicator size={14} color={colors.primary} />
-            ) : (
-              <Sparkles size={14} color={colors.primary} />
-            )}
-            <Text style={[queueStyles.headerBtnText, { color: colors.primary }]}>
-              {isFetchingRecs ? 'Fetching...' : 'Get Recs'}
+      <GestureDetector gesture={dragGesture}>
+        <View style={queueStyles.dragArea}>
+          <View style={[queueStyles.grabber, { backgroundColor: `${colors.foreground}33` }]} />
+          <View style={queueStyles.header}>
+            <Text style={[queueStyles.countText, { color: colors.mutedForeground }]}>
+              {upcomingCount} {upcomingCount === 1 ? 'song' : 'songs'}
             </Text>
-          </Pressable>
+            <View style={queueStyles.headerActions}>
+              <Pressable
+                onPress={() => handleFetchRecommendations()}
+                disabled={isFetchingRecs || !currentSong?.id}
+                style={({ pressed }) => [queueStyles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
+              >
+                {isFetchingRecs ? (
+                  <ActivityIndicator size={14} color={colors.primary} />
+                ) : (
+                  <Sparkles size={14} color={colors.primary} />
+                )}
+                <Text style={[queueStyles.headerBtnText, { color: colors.primary }]}>
+                  {isFetchingRecs ? 'Fetching...' : 'Get Recs'}
+                </Text>
+              </Pressable>
 
-          <Pressable
-            onPress={handleToggleAutoFetch}
-            style={({ pressed }) => [queueStyles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
-          >
-            <Ionicons
-              name={autoFetchRecommendations ? 'sync' : 'sync-outline'}
-              size={14}
-              color={autoFetchRecommendations ? colors.primary : colors.mutedForeground}
-            />
-            <Text
-              style={[
-                queueStyles.headerBtnText,
-                { color: autoFetchRecommendations ? colors.primary : colors.mutedForeground },
-              ]}
-            >
-              Auto
-            </Text>
-          </Pressable>
+              <Pressable
+                onPress={handleToggleAutoFetch}
+                style={({ pressed }) => [queueStyles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
+              >
+                <Ionicons
+                  name={autoFetchRecommendations ? 'sync' : 'sync-outline'}
+                  size={14}
+                  color={autoFetchRecommendations ? colors.primary : colors.mutedForeground}
+                />
+                <Text
+                  style={[
+                    queueStyles.headerBtnText,
+                    { color: autoFetchRecommendations ? colors.primary : colors.mutedForeground },
+                  ]}
+                >
+                  Auto
+                </Text>
+              </Pressable>
 
-          {playlist.length > 1 && (
-            <Pressable
-              onPress={handleClearQueue}
-              style={({ pressed }) => [queueStyles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
-            >
-              <Trash2Icon size={14} color={colors.destructive} />
-              <Text style={[queueStyles.headerBtnText, { color: colors.destructive }]}>Clear</Text>
-            </Pressable>
-          )}
+              {playlist.length > 1 && (
+                <Pressable
+                  onPress={handleClearQueue}
+                  style={({ pressed }) => [queueStyles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
+                >
+                  <Trash2Icon size={14} color={colors.destructive} />
+                  <Text style={[queueStyles.headerBtnText, { color: colors.destructive }]}>
+                    Clear
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
         </View>
-      </View>
+      </GestureDetector>
 
       {opened && (
         <SortableQueue
@@ -285,6 +316,7 @@ export const QueueTab = memo(function QueueTab({ visible }: { visible: boolean }
           canDrag={canDrag}
           renderRow={renderRow}
           onReorder={reorderPlaylist}
+          onRemove={handleRemove}
         />
       )}
 
@@ -377,7 +409,7 @@ export const QueueTab = memo(function QueueTab({ visible }: { visible: boolean }
                       queueMenuStyles.optionRow,
                       { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 },
                     ]}
-                    onPress={() => handleMenuRemove(menuSong.id)}
+                    onPress={() => handleRemove(menuSong.id)}
                   >
                     <View
                       style={[
@@ -509,6 +541,8 @@ const queueMenuStyles = StyleSheet.create({
 });
 
 const queueStyles = StyleSheet.create({
+  dragArea: { paddingTop: 2 },
+  grabber: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

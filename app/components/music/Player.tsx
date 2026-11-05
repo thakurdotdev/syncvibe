@@ -1,5 +1,4 @@
 import { useTheme } from '@/context/ThemeContext';
-import { EASE_OUT } from '@/lib/motion';
 import {
   setOnOpenFullPlayer,
   useCurrentSong,
@@ -10,23 +9,28 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BackHandler, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  clamp,
   FadeIn,
   FadeOut,
   ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import NewPlayerDrawer from './NewPlayerDrawer';
-import { PlayerHeader, TabType } from './player/PlayerHeader';
+import { PLAYER_HEADER_HEIGHT, PlayerHeader, TabType } from './player/PlayerHeader';
 import { PlayerTab } from './player/PlayerTab';
 import { QueueTab } from './player/QueueTab';
 
 const DISMISS_DISTANCE = 110;
 const DISMISS_VELOCITY = 500;
+/** Share of the queue's travel that opens or closes it on release... */
+const QUEUE_COMMIT_DISTANCE = 0.2;
+/** ...or a flick this far and this fast. */
+const QUEUE_FLICK_DISTANCE = 40;
+const QUEUE_FLICK_VELOCITY = 700;
 /** Height the player's own rows need; the artwork takes whatever is left. */
 const CHROME_HEIGHT = 400;
 const MIN_ARTWORK = 180;
@@ -36,7 +40,7 @@ const system = ReduceMotion.System;
 const OPEN = { duration: 320, dampingRatio: 1, reduceMotion: system } as const;
 const CLOSE = { duration: 260, dampingRatio: 1, reduceMotion: system } as const;
 const SNAP_BACK = { duration: 260, dampingRatio: 1, reduceMotion: system } as const;
-const SWITCH = { duration: 200, easing: EASE_OUT, reduceMotion: system } as const;
+const QUEUE_SETTLE = { duration: 300, dampingRatio: 1, reduceMotion: system } as const;
 
 /** The artwork, blurred and heavily scrimmed, tints the page without hurting legibility. */
 const Backdrop = ({ uri }: { uri?: string }) => {
@@ -78,6 +82,11 @@ export default function Player() {
   const translateY = useSharedValue(screenHeight);
   const startY = useSharedValue(0);
   const queueShown = useSharedValue(0);
+  const queueOpen = useSharedValue(false);
+  const startQueueShown = useSharedValue(0);
+  const draggingQueue = useSharedValue(false);
+  /** How far the queue slides: from just below the screen up to under the header. */
+  const queueTravel = screenHeight - insets.top - PLAYER_HEADER_HEIGHT;
 
   const openPlayer = useCallback(() => {
     setIsOpen(true);
@@ -93,7 +102,8 @@ export default function Player() {
     setIsOpen(false);
     setActiveTab('player');
     queueShown.set(0);
-  }, [queueShown]);
+    queueOpen.set(false);
+  }, [queueOpen, queueShown]);
 
   const animateClosed = useCallback(
     (velocity = 0) => {
@@ -110,9 +120,10 @@ export default function Player() {
   const showTab = useCallback(
     (tab: TabType) => {
       setActiveTab(tab);
-      queueShown.set(withTiming(tab === 'queue' ? 1 : 0, SWITCH));
+      queueOpen.set(tab === 'queue');
+      queueShown.set(withSpring(tab === 'queue' ? 1 : 0, QUEUE_SETTLE));
     },
-    [queueShown]
+    [queueOpen, queueShown]
   );
   const openQueue = useCallback(() => showTab('queue'), [showTab]);
 
@@ -135,36 +146,82 @@ export default function Player() {
     return Math.min(screenWidth - 48, Math.max(MIN_ARTWORK, room));
   }, [screenWidth, screenHeight, insets.top, insets.bottom]);
 
+  /**
+   * The player's vertical swipe. On the song, up brings the queue and down closes the player;
+   * on the queue, down goes back to the song. Both follow the finger until release.
+   */
+  const makeVerticalGesture = useCallback(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY([-10, 10])
+        .failOffsetX([-20, 20])
+        .onStart((e) => {
+          startY.set(translateY.get());
+          startQueueShown.set(queueShown.get());
+          draggingQueue.set(queueOpen.get() || e.translationY < 0);
+        })
+        .onUpdate((e) => {
+          if (draggingQueue.get()) {
+            queueShown.set(clamp(startQueueShown.get() - e.translationY / queueTravel, 0, 1));
+          } else if (e.translationY > 0) {
+            translateY.set(startY.get() + e.translationY);
+          }
+        })
+        .onEnd((e, success) => {
+          if (draggingQueue.get()) {
+            const wasOpen = queueOpen.get();
+            const moved = wasOpen ? e.translationY : -e.translationY;
+            const speed = wasOpen ? e.velocityY : -e.velocityY;
+            const flip =
+              success &&
+              (moved > queueTravel * QUEUE_COMMIT_DISTANCE ||
+                (moved > QUEUE_FLICK_DISTANCE && speed > QUEUE_FLICK_VELOCITY));
+            const open = flip ? !wasOpen : wasOpen;
+            queueOpen.set(open);
+            queueShown.set(
+              withSpring(open ? 1 : 0, { ...QUEUE_SETTLE, velocity: -e.velocityY / queueTravel })
+            );
+            if (flip) scheduleOnRN(setActiveTab, open ? 'queue' : 'player');
+          } else if (
+            success &&
+            (e.translationY > DISMISS_DISTANCE || e.velocityY > DISMISS_VELOCITY)
+          ) {
+            animateClosed(e.velocityY);
+          } else {
+            translateY.set(withSpring(0, { ...SNAP_BACK, velocity: e.velocityY }));
+          }
+        }),
+    [
+      animateClosed,
+      draggingQueue,
+      queueOpen,
+      queueShown,
+      queueTravel,
+      startQueueShown,
+      startY,
+      translateY,
+    ]
+  );
+
   // One instance per detector: a gesture object can't be attached to two views.
-  const makeDismissGesture = () =>
-    Gesture.Pan()
-      .activeOffsetY([-8, 8])
-      .failOffsetX([-20, 20])
-      .onStart(() => {
-        startY.set(translateY.get());
-      })
-      .onUpdate((e) => {
-        if (e.translationY > 0) translateY.set(startY.get() + e.translationY);
-      })
-      .onEnd((e) => {
-        if (e.translationY > DISMISS_DISTANCE || e.velocityY > DISMISS_VELOCITY) {
-          animateClosed(e.velocityY);
-        } else {
-          translateY.set(withSpring(0, { ...SNAP_BACK, velocity: e.velocityY }));
-        }
-      });
+  const headerGesture = useMemo(() => makeVerticalGesture(), [makeVerticalGesture]);
+  const songGesture = useMemo(() => makeVerticalGesture(), [makeVerticalGesture]);
+  const queueGesture = useMemo(() => makeVerticalGesture(), [makeVerticalGesture]);
 
   const sheetStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.get() }],
     display: translateY.get() >= screenHeight ? 'none' : 'flex',
   }));
-  // The song is gone in the first third of the switch, so it never shows through the queue.
-  const playerLayerStyle = useAnimatedStyle(() => ({
-    opacity: Math.max(0, 1 - queueShown.get() * 3),
-  }));
+  // The song is gone early in the move, so it never shows through the rising queue.
+  const playerLayerStyle = useAnimatedStyle(() => {
+    const shown = clamp(queueShown.get(), 0, 1);
+    return {
+      opacity: Math.max(0, 1 - shown * 2.5),
+      transform: [{ translateY: shown * -48 }],
+    };
+  });
   const queueLayerStyle = useAnimatedStyle(() => ({
-    opacity: queueShown.get(),
-    transform: [{ translateY: (1 - queueShown.get()) * 16 }],
+    transform: [{ translateY: (1 - clamp(queueShown.get(), 0, 1)) * queueTravel }],
   }));
 
   useEffect(() => {
@@ -191,7 +248,7 @@ export default function Player() {
       >
         <Backdrop uri={backdropUri} />
 
-        <GestureDetector gesture={makeDismissGesture()}>
+        <GestureDetector gesture={headerGesture}>
           <View>
             <PlayerHeader
               activeTab={activeTab}
@@ -206,27 +263,34 @@ export default function Player() {
             pointerEvents={activeTab === 'player' ? 'auto' : 'none'}
             style={[styles.layer, playerLayerStyle]}
           >
-            <PlayerTab
-              currentSong={currentSong}
-              artistName={artistName}
-              artworkSize={artworkSize}
-              screenWidth={screenWidth}
-              queueIndex={queueIndex}
-              prevSong={prevSong}
-              nextSong={nextSong}
-              queueCount={queueCount}
-              bottomInset={insets.bottom}
-              isOpen={isOpen && activeTab === 'player'}
-              dismissGesture={makeDismissGesture()}
-              onOpenQueue={openQueue}
-            />
+            <GestureDetector gesture={songGesture}>
+              <View style={styles.content}>
+                <PlayerTab
+                  currentSong={currentSong}
+                  artistName={artistName}
+                  artworkSize={artworkSize}
+                  screenWidth={screenWidth}
+                  queueIndex={queueIndex}
+                  prevSong={prevSong}
+                  nextSong={nextSong}
+                  queueCount={queueCount}
+                  bottomInset={insets.bottom}
+                  isOpen={isOpen && activeTab === 'player'}
+                  onOpenQueue={openQueue}
+                />
+              </View>
+            </GestureDetector>
           </Animated.View>
 
           <Animated.View
             pointerEvents={activeTab === 'queue' ? 'auto' : 'none'}
             style={[styles.layer, queueLayerStyle]}
           >
-            <QueueTab visible={activeTab === 'queue'} />
+            <QueueTab
+              playerOpen={isOpen}
+              visible={activeTab === 'queue'}
+              dragGesture={queueGesture}
+            />
           </Animated.View>
         </View>
       </Animated.View>

@@ -6,6 +6,7 @@ import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 export type TabType = 'player' | 'queue';
+export const PLAYER_HEADER_HEIGHT = 52;
 
 interface PlayerHeaderProps {
   activeTab: TabType;
@@ -62,7 +63,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 52,
+    height: PLAYER_HEADER_HEIGHT,
     paddingHorizontal: 10,
   },
   button: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },

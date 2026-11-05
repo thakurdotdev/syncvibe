@@ -121,7 +121,8 @@ interface PlayerActions {
 
   setPlaylist: (playlist: Song[]) => void;
   addToQueue: (songs: Song | Song[]) => void;
-  removeFromQueue: (songId: string) => void;
+  /** Returns a function that undoes the removal, or nothing if no song was removed. */
+  removeFromQueue: (songId: string) => (() => void) | undefined;
   removeFromQueueBelow: (songId: string) => void;
   clearQueue: () => void;
   replaceQueue: (songs: Song[], keepCurrentSong?: boolean) => void;
@@ -136,6 +137,16 @@ interface PlayerActions {
 }
 
 export type PlayerStore = PlayerState & PlayerActions;
+
+/**
+ * Puts a song back after the one it used to follow. The queue may have changed since, so the old
+ * index is only the fallback for when that song has gone too.
+ */
+const insertAfter = (list: Song[], song: Song, afterId: string | undefined, index: number) => {
+  const anchor = afterId === undefined ? -1 : list.findIndex((s) => s.id === afterId);
+  const at = afterId === undefined ? 0 : anchor === -1 ? Math.min(index, list.length) : anchor + 1;
+  return [...list.slice(0, at), song, ...list.slice(at)];
+};
 
 export const usePlayerStore = create<PlayerStore>()(
   persist(
@@ -238,11 +249,29 @@ export const usePlayerStore = create<PlayerStore>()(
       removeFromQueue: (songId: string) => {
         const { playlist, originalPlaylist, currentSong } = get();
         if (currentSong?.id === songId) return;
+        const index = playlist.findIndex((s) => s.id === songId);
+        if (index === -1) return;
+        const song = playlist[index];
+        const before = playlist[index - 1]?.id;
+        const originalIndex = originalPlaylist.findIndex((s) => s.id === songId);
+        const originalBefore = originalPlaylist[originalIndex - 1]?.id;
 
         set({
           playlist: playlist.filter((s) => s.id !== songId),
           originalPlaylist: originalPlaylist.filter((s) => s.id !== songId),
         });
+
+        return () => {
+          const state = get();
+          if (state.playlist.some((s) => s.id === songId)) return;
+          set({
+            playlist: insertAfter(state.playlist, song, before, index),
+            originalPlaylist:
+              originalIndex === -1
+                ? state.originalPlaylist
+                : insertAfter(state.originalPlaylist, song, originalBefore, originalIndex),
+          });
+        };
       },
 
       removeFromQueueBelow: (songId: string) => {

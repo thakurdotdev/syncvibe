@@ -1,9 +1,10 @@
 import { EASE_OUT, SPRING } from '@/lib/motion';
+import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE } from '@/lib/swipe';
 import { useIsPlaying, usePlayerControls } from '@/stores/playerStore';
 import { Song } from '@/types/song';
 import { memo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
-import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   ReduceMotion,
   useAnimatedStyle,
@@ -16,8 +17,6 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 const PAUSED_SCALE = 0.93;
 const PAUSE_SETTLE_DELAY_MS = 150;
-const COMMIT_DISTANCE = 0.22; // of the screen width
-const COMMIT_VELOCITY = 700;
 const RUBBER_BAND = 0.2;
 const SLIDE = { duration: 240, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
 const SWIPE_SETTLE = { duration: 280, dampingRatio: 1, reduceMotion: ReduceMotion.System } as const;
@@ -37,7 +36,6 @@ export const ArtworkCarousel = memo(function ArtworkCarousel({
   index,
   size,
   width,
-  dismissGesture,
 }: {
   song: Song;
   prev: Song | null;
@@ -45,7 +43,6 @@ export const ArtworkCarousel = memo(function ArtworkCarousel({
   index: number;
   size: number;
   width: number;
-  dismissGesture: GestureType;
 }) {
   const isPlaying = useIsPlaying();
   const { handleNextSong, handlePrevSong } = usePlayerControls();
@@ -87,26 +84,32 @@ export const ArtworkCarousel = memo(function ArtworkCarousel({
   const goNext = useCallback(() => handleNextSong(), [handleNextSong]);
   const goPrev = useCallback(() => handlePrevSong(true), [handlePrevSong]);
 
+  // Only a swipe that starts on the cover counts, which also keeps it out of the back-gesture zone.
+  const edgeGuard = Math.max(EDGE_GUARD, (width - size) / 2);
+
   const swipe = Gesture.Pan()
-    .activeOffsetX([-12, 12])
-    .failOffsetY([-14, 14])
+    .hitSlop({ left: -edgeGuard, right: -edgeGuard })
+    .activeOffsetX([-SWIPE_ACTIVATE, SWIPE_ACTIVATE])
+    .failOffsetY([-16, 16])
     .onUpdate((e) => {
       const blocked = e.translationX > 0 ? !canPrev.get() : !canNext.get();
       x.set(goal.get() + e.translationX * (blocked ? RUBBER_BAND : 1));
     })
-    .onEnd((e) => {
-      const passed =
-        Math.abs(e.translationX) > width * COMMIT_DISTANCE ||
-        Math.abs(e.velocityX) > COMMIT_VELOCITY;
+    .onEnd((e, success) => {
       const forward = e.translationX < 0;
-      const commit = passed && (forward ? canNext.get() : canPrev.get());
+      // `success` is false when the system took the touch over, as its back gesture does. This
+      // callback still runs then, with that gesture's high velocity, and must not skip the song.
+      const commit =
+        success &&
+        isSkipSwipe(e.translationX, e.velocityX, width) &&
+        (forward ? canNext.get() : canPrev.get());
 
       if (commit) {
         const target = goal.get() + (forward ? -width : width);
         goal.set(target);
         scheduleOnRN(forward ? goNext : goPrev);
       }
-      x.set(withSpring(goal.get(), { ...SWIPE_SETTLE, velocity: e.velocityX }));
+      x.set(withSpring(goal.get(), { ...SWIPE_SETTLE, velocity: success ? e.velocityX : 0 }));
     });
 
   const stripStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
@@ -119,7 +122,7 @@ export const ArtworkCarousel = memo(function ArtworkCarousel({
   ];
 
   return (
-    <GestureDetector gesture={Gesture.Race(swipe, dismissGesture)}>
+    <GestureDetector gesture={swipe}>
       <View style={[styles.stage, { height: size, width }]}>
         <Animated.View style={[styles.stage, { height: size, width }, scaleStyle]}>
           <Animated.View style={[styles.strip, stripStyle]}>
