@@ -3,6 +3,12 @@ import { persist } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
 import { ensureHttpsForDownloadUrls, addToHistory } from '@/Pages/Music/Common';
 import axios from 'axios';
+import {
+  recordPlayEnd,
+  recordPlayProgress,
+  recordPlayStart,
+  setPlayEndReason,
+} from './playEvents';
 
 let audioElement = null;
 let nextAudioElement = null;
@@ -51,14 +57,11 @@ export const usePlayerStore = create(
       isClosed: false,
 
       closePlayer: () => {
-        const { currentSong, currentTime } = get();
         if (audioElement) {
           audioElement.pause();
         }
         set({ isPlaying: false, isClosed: true });
-        if (currentSong) {
-          addToHistory(currentSong, currentTime, 'manual_close');
-        }
+        recordPlayEnd('closed');
       },
 
       setAudioRefs: (audio, nextAudio) => {
@@ -70,7 +73,8 @@ export const usePlayerStore = create(
         if (!song?.id) return;
         set({ isLoading: true, isClosed: false });
         const secureAudio = ensureHttpsForDownloadUrls(song);
-        const { playlist } = get();
+        const { playlist, currentSong } = get();
+        if (currentSong?.id !== song.id) setPlayEndReason('selected', true);
         const isInQueue = playlist.some((item) => item.id === song.id);
         if (!isInQueue) {
           set({ playlist: [secureAudio] });
@@ -79,6 +83,7 @@ export const usePlayerStore = create(
       },
 
       stopSong: () => {
+        recordPlayEnd('closed');
         if (audioElement) {
           audioElement.pause();
           audioElement.currentTime = 0;
@@ -110,7 +115,11 @@ export const usePlayerStore = create(
 
       setPlaying: (isPlaying) => set({ isPlaying }),
       setLoading: (isLoading) => set({ isLoading }),
-      updateTime: (currentTime) => set({ currentTime }),
+      updateTime: (currentTime) => {
+        const { currentSong, isPlaying } = get();
+        if (isPlaying) recordPlayProgress(currentSong, currentTime);
+        set({ currentTime });
+      },
       setDuration: (duration) => set({ duration }),
 
       handleTimeSeek: (time) => {
@@ -222,9 +231,12 @@ export const usePlayerStore = create(
               audioElement.pause();
             }
             set({ isPlaying: false });
+            recordPlayEnd('completed');
             return;
           }
           const nextIndex = (currentIndex + 1) % playlist.length;
+          // Strict check: the media keys call this with an event object.
+          setPlayEndReason(isAutoPlay === true ? 'completed' : 'next');
           playSong(playlist[nextIndex]);
         } else if (playlist.length > 0) {
           playSong(playlist[0]);
@@ -242,6 +254,7 @@ export const usePlayerStore = create(
         const currentIndex = playlist.findIndex((song) => song.id === currentSong.id);
         if (currentIndex !== -1) {
           const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+          setPlayEndReason('previous');
           playSong(playlist[prevIndex]);
         }
       },
@@ -384,6 +397,7 @@ export const usePlayerStore = create(
             set({ currentTime: 0 });
             await audioElement.play();
             set({ isPlaying: true, _hasRestoredTime: true, isLoading: false });
+            recordPlayStart(currentSong);
             addToHistory(currentSong, 0, 'autoplay');
           }
 

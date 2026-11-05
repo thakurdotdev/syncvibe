@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef } from 'react';
 import { Context } from './Context';
 import { usePlayerStore } from '@/stores/playerStore';
+import { recordPageClosing, recordPlayEnd, setPlayEventsEnabled } from '@/stores/playEvents';
 import { useUserPlaylistsQuery } from '@/hooks/queries/usePlaylistQueries';
 
 export function PlayerProvider({ children }) {
@@ -35,6 +36,15 @@ export function PlayerProvider({ children }) {
       setUserPlaylist(userPlaylists);
     }
   }, [userPlaylists, setUserPlaylist]);
+
+  useEffect(() => {
+    if (!loading) setPlayEventsEnabled(!!user);
+  }, [user, loading]);
+
+  useEffect(() => {
+    window.addEventListener('pagehide', recordPageClosing);
+    return () => window.removeEventListener('pagehide', recordPageClosing);
+  }, []);
 
   useEffect(() => {
     if (audioRef.current && nextAudioRef.current) {
@@ -104,6 +114,7 @@ export function PlayerProvider({ children }) {
         }, delay);
       } else {
         console.error(`Audio failed after ${MAX_RETRIES} retries`);
+        recordPlayEnd('error');
         setPlaying(false);
         setLoading(false);
       }
