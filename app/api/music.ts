@@ -10,6 +10,7 @@ import type {
 } from '@/types/music';
 import { Song } from '@/types/song';
 import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
+import { markRecommendations } from '@/utils/playEvents';
 import axios from 'axios';
 
 export const getHomePageMusic = async (language = 'hindi'): Promise<HomePageResponse> => {
@@ -78,6 +79,7 @@ export const fetchSongRecommendations = async (api: any, id: string | number): P
     const response = await api.get(`/api/play-next/${id}?limit=20`);
     if (response?.data?.data?.length) {
       const newRecommendations = response.data.data?.map(ensureHttpsForSongUrls);
+      markRecommendations(String(id), newRecommendations);
       return newRecommendations;
     } else {
       return [];

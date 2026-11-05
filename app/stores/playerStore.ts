@@ -1,6 +1,7 @@
 import { API_URL } from '@/constants';
 import { Song } from '@/types/song';
 import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
+import { markRecommendations, recordPlayEnd } from '@/utils/playEvents';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { create } from 'zustand';
@@ -42,6 +43,7 @@ export const checkAndFetchRecommendations = async (targetSong?: Song | null, for
 
     if (response.data?.data?.length) {
       const newRecommendations: Song[] = response.data.data.map(ensureHttpsForSongUrls);
+      markRecommendations(song.id, newRecommendations);
       store.addToQueue(newRecommendations);
     }
   } catch (err) {
@@ -369,7 +371,10 @@ export const usePlayerStore = create<PlayerStore>()(
 
       setUserPlaylist: (playlists: any[]) => set({ userPlaylist: playlists }),
 
-      setActivePlayerMode: (mode: 'normal' | 'group') => set({ activePlayerMode: mode }),
+      setActivePlayerMode: (mode: 'normal' | 'group') => {
+        if (mode === 'group') recordPlayEnd('closed');
+        set({ activePlayerMode: mode });
+      },
     }),
     {
       name: 'player-storage',
