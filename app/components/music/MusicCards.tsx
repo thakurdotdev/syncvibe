@@ -3,12 +3,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { usePlayerControls, useSongPlaybackState } from '@/stores/playerStore';
 import { Album, Artist, Playlist } from '@/types/music';
 import { Song } from '@/types/song';
-import {
-  ensureHttpsForAlbumUrls,
-  ensureHttpsForArtistUrls,
-  ensureHttpsForPlaylistUrls,
-  ensureHttpsForSongUrls,
-} from '@/utils/getHttpsUrls';
+import { convertToHttps, ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
 import { useProgress } from '@rntp/player';
 import { router } from 'expo-router';
@@ -24,6 +19,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import NewPlayerDrawer from './NewPlayerDrawer';
+import { PlayingBars } from './PlayingBars';
+import { useSongPress } from './useSongPress';
 
 interface SongCardProps {
   song: Song;
@@ -38,7 +35,6 @@ interface AlbumCardProps {
 
 interface PlaylistCardProps {
   playlist: Playlist;
-  isUser?: boolean;
   onPress?: () => void | Promise<void>;
   onLongPress?: () => void | Promise<void>;
 }
@@ -317,500 +313,246 @@ export const SongCard = memo(
   }
 );
 
-export const CardImage = ({ uri, alt }: { uri: string; alt: string }) => {
-  const fallback =
-    'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_500,w_500/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp';
-  const sourceUri = uri && typeof uri === 'string' && uri.trim() !== '' ? uri : fallback;
-
-  return (
-    <View
-      style={{
-        width: '100%',
-        aspectRatio: 1,
-        borderRadius: 12,
-        overflow: 'hidden',
-        backgroundColor: 'rgba(255,255,255,0.05)',
-      }}
-    >
-      <Image
-        fadeDuration={0}
-        source={{ uri: sourceUri, cache: 'force-cache' }}
-        style={{ width: '100%', height: '100%' }}
-        resizeMode='cover'
-        alt={alt}
-      />
-    </View>
-  );
+/** Picks a cover whatever shape the API sent it in. Tier 2 is the 500px one, 1 the 150px one. */
+const coverUrl = (image: unknown, tier: 0 | 1 | 2 = 2): string | undefined => {
+  if (typeof image === 'string') return convertToHttps(image);
+  if (!Array.isArray(image)) return undefined;
+  const link = image[tier]?.link || image[1]?.link || image[0]?.link;
+  return typeof link === 'string' ? convertToHttps(link) : undefined;
 };
 
-export const AlbumCard = memo(
+/**
+ * One image view, rounded directly rather than clipped by a wrapper. `resizeMethod` decodes
+ * Android bitmaps at the size shown, so a card doesn't hold a full 500px cover in memory.
+ */
+const coverProps = (uri: string | undefined) =>
   ({
-    album,
-    width,
-    onPress: customOnPress,
-    onLongPress,
-  }: AlbumCardProps & { width?: number | `${number}%` }) => {
-    const { colors, theme } = useTheme();
-    const isDark = theme === 'dark';
+    source: uri ? { uri, cache: 'force-cache' as const } : {},
+    fadeDuration: 0,
+    resizeMode: 'cover',
+    resizeMethod: 'resize',
+  }) as const;
+
+const CardText = memo(function CardText({
+  title,
+  subtitle,
+  titleColor,
+  subtitleColor,
+}: {
+  title?: string;
+  subtitle?: string;
+  titleColor: string;
+  subtitleColor: string;
+}) {
+  return (
+    <View style={cardStyles.text}>
+      <Text style={[cardStyles.title, { color: titleColor }]} numberOfLines={1}>
+        {title}
+      </Text>
+      {subtitle ? (
+        <Text style={[cardStyles.subtitle, { color: subtitleColor }]} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      ) : null}
+    </View>
+  );
+});
+
+type CardWidth = { width?: number | `${number}%` };
+
+/** Album: a record sliding out of its sleeve. */
+export const AlbumCard = memo(
+  ({ album, width, onPress: customOnPress, onLongPress }: AlbumCardProps & CardWidth) => {
+    const { colors } = useTheme();
+    const id = album?.album_id || album?.id;
 
     const handlePress = useCallback(() => {
-      if (customOnPress) {
-        customOnPress();
-      } else {
-        router.push({
-          pathname: '/albums',
-          params: { id: album.album_id || album?.id },
-        });
-      }
-    }, [album?.album_id || album?.id, customOnPress]);
+      if (customOnPress) customOnPress();
+      else router.push({ pathname: '/albums', params: { id } });
+    }, [id, customOnPress]);
 
     if (!album) return null;
 
-    const securedAlbum = useMemo(() => ensureHttpsForAlbumUrls(album), [album]);
-    const name = securedAlbum.name || securedAlbum.title || '';
-    const artistName =
-      typeof securedAlbum.artist === 'object' ? securedAlbum.artist?.name : securedAlbum.artist;
-    const subtitle =
-      artistName || securedAlbum.subtitle || securedAlbum.artist_map?.artists?.[0]?.name || 'Album';
-    const imageUrl = Array.isArray(securedAlbum.image)
-      ? securedAlbum.image[2]?.link || securedAlbum.image[1]?.link || securedAlbum.image[0]?.link
-      : typeof securedAlbum.image === 'string'
-        ? securedAlbum.image
-        : undefined;
+    const name = album.name || album.title || '';
+    const artistName = typeof album.artist === 'object' ? album.artist?.name : album.artist;
 
     return (
       <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
-        <View style={cardStyles.container}>
-          <View
-            style={[
-              cardStyles.imageCover,
-              {
-                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-              },
-            ]}
-          >
-            <Image
-              fadeDuration={0}
-              source={{ uri: imageUrl || 'https://via.placeholder.com/150', cache: 'force-cache' }}
-              style={cardStyles.image}
-              resizeMode='cover'
-              alt={`Album: ${name}`}
-            />
-          </View>
-
-          <View style={cardStyles.textContainer}>
-            <Text
-              style={[cardStyles.primaryText, { color: colors.foreground }]}
-              numberOfLines={1}
-              ellipsizeMode='tail'
-            >
-              {name}
-            </Text>
-            <Text
-              style={[cardStyles.secondaryText, { color: colors.mutedForeground }]}
-              numberOfLines={1}
-              ellipsizeMode='tail'
-            >
-              {subtitle}
-            </Text>
-          </View>
+        <View style={cardStyles.sleeve}>
+          <View style={cardStyles.disc} />
+          <Image
+            {...coverProps(coverUrl(album.image))}
+            style={[cardStyles.cover, cardStyles.sleeveCover, { backgroundColor: colors.raised }]}
+            alt={`Album: ${name}`}
+          />
         </View>
+        <CardText
+          title={name}
+          subtitle={artistName || album.subtitle || album.artist_map?.artists?.[0]?.name || 'Album'}
+          titleColor={colors.foreground}
+          subtitleColor={colors.mutedForeground}
+        />
       </CardContainer>
     );
   }
 );
 
+/** Playlist: a stack, with the edges of the songs underneath showing above the top cover. */
 export const PlaylistCard = memo(
-  ({
-    playlist,
-    isUser = false,
-    width,
-    onPress: customOnPress,
-    onLongPress,
-  }: PlaylistCardProps & { width?: number | `${number}%` }) => {
-    const { colors, theme } = useTheme();
-    const isDark = theme === 'dark';
+  ({ playlist, width, onPress: customOnPress, onLongPress }: PlaylistCardProps & CardWidth) => {
+    const { colors } = useTheme();
+    const id = playlist?.id;
 
     const handlePress = useCallback(() => {
-      if (customOnPress) {
-        customOnPress();
-      } else {
-        router.push({
-          pathname: isUser ? '/user-playlist' : '/playlists',
-          params: { id: playlist.id },
-        });
-      }
-    }, [playlist?.id, isUser, customOnPress]);
+      if (customOnPress) customOnPress();
+      else router.push({ pathname: '/playlists', params: { id } });
+    }, [id, customOnPress]);
 
     if (!playlist?.name || !playlist?.image) return null;
 
-    const securedPlaylist = useMemo(() => ensureHttpsForPlaylistUrls(playlist), [playlist]);
-    const subtitle = securedPlaylist.subtitle || securedPlaylist.description || 'Playlist';
-    const imageUrl = Array.isArray(securedPlaylist.image)
-      ? securedPlaylist.image[2]?.link ||
-        securedPlaylist.image[1]?.link ||
-        securedPlaylist.image[0]?.link
-      : typeof securedPlaylist.image === 'string'
-        ? securedPlaylist.image
-        : undefined;
-
-    if (isUser) {
-      return (
-        <CardContainer
-          onPress={handlePress}
-          onLongPress={onLongPress}
-          width='100%'
-          style={{ marginBottom: 8 }}
-        >
-          <View
-            style={[
-              cardStyles.userPlaylistRow,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border + '35',
-              },
-            ]}
-          >
-            <View
-              style={[
-                cardStyles.userPlaylistImage,
-                {
-                  backgroundColor: colors.muted,
-                },
-              ]}
-            >
-              <Image
-                fadeDuration={0}
-                source={{ uri: imageUrl, cache: 'force-cache' }}
-                style={{ width: '100%', height: '100%' }}
-                resizeMode='cover'
-                alt={`Playlist: ${securedPlaylist.name}`}
-              />
-            </View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text
-                style={{ color: colors.foreground, fontWeight: '600', fontSize: 14.5 }}
-                numberOfLines={1}
-              >
-                {securedPlaylist.name}
-              </Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: 12.5 }} numberOfLines={1}>
-                {subtitle}
-              </Text>
-            </View>
-            <Ionicons name='chevron-forward' size={18} color={colors.mutedForeground} />
-          </View>
-        </CardContainer>
-      );
-    }
-
     return (
       <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
-        <View style={cardStyles.container}>
-          <View
-            style={[
-              cardStyles.imageCover,
-              {
-                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-              },
-            ]}
-          >
-            <Image
-              fadeDuration={0}
-              source={{ uri: imageUrl, cache: 'force-cache' }}
-              style={cardStyles.image}
-              resizeMode='cover'
-              alt={`Playlist: ${securedPlaylist.name}`}
-            />
-          </View>
-
-          <View style={cardStyles.textContainer}>
-            <Text
-              style={[cardStyles.primaryText, { color: colors.foreground }]}
-              numberOfLines={1}
-              ellipsizeMode='tail'
-            >
-              {securedPlaylist.name}
-            </Text>
-            <Text
-              style={[cardStyles.secondaryText, { color: colors.mutedForeground }]}
-              numberOfLines={1}
-              ellipsizeMode='tail'
-            >
-              {subtitle}
-            </Text>
-          </View>
+        <View style={cardStyles.stack}>
+          <View style={[cardStyles.edgeBack, { backgroundColor: `${colors.foreground}14` }]} />
+          <View style={[cardStyles.edgeFront, { backgroundColor: `${colors.foreground}2E` }]} />
+          <Image
+            {...coverProps(coverUrl(playlist.image))}
+            style={[cardStyles.cover, { backgroundColor: colors.raised }]}
+            alt={`Playlist: ${playlist.name}`}
+          />
         </View>
+        <CardText
+          title={playlist.name}
+          subtitle={playlist.subtitle || playlist.description || 'Playlist'}
+          titleColor={colors.foreground}
+          subtitleColor={colors.mutedForeground}
+        />
       </CardContainer>
     );
   }
 );
 
-export const NewSongCard = memo(
-  ({ song, width }: SongCardProps & { width?: number | `${number}%` }) => {
-    if (!song.id) return null;
-    const { playSong, handlePlayPause } = usePlayerControls();
-    const { isCurrentSong, isPlaying } = useSongPlaybackState(song.id);
-    const { colors, theme } = useTheme();
-    const isDark = theme === 'dark';
-    const [playerDrawerOpen, setPlayerDrawerOpen] = useState(false);
+/** Song: just the cover. Bars in the corner mark the one playing, without hiding its art. */
+export const NewSongCard = memo(({ song, width }: SongCardProps & CardWidth) => {
+  const { colors } = useTheme();
+  const { onPress, onLongPress, isCurrentSong, isPlaying, options } = useSongPress(song);
 
-    const securedSong = useMemo(() => ensureHttpsForSongUrls(song), [song]);
-    const imageUrl =
-      securedSong.image?.[2]?.link || securedSong.image?.[1]?.link || securedSong.image?.[0]?.link;
-    const artistName =
-      securedSong.subtitle || securedSong.artist_map?.artists?.[0]?.name || 'Unknown Artist';
+  if (!song.id) return null;
+
+  return (
+    <>
+      <CardContainer width={width} onPress={onPress} onLongPress={onLongPress}>
+        <View>
+          <Image
+            {...coverProps(coverUrl(song.image))}
+            style={[cardStyles.cover, { backgroundColor: colors.raised }]}
+            alt={`Song: ${song.name}`}
+          />
+          {isCurrentSong && (
+            <View style={cardStyles.playing}>
+              <PlayingBars color='#fff' active={isPlaying} />
+            </View>
+          )}
+        </View>
+        <CardText
+          title={song.name}
+          subtitle={song.subtitle || song.artist_map?.artists?.[0]?.name || 'Unknown Artist'}
+          titleColor={isCurrentSong ? colors.primary : colors.foreground}
+          subtitleColor={colors.mutedForeground}
+        />
+      </CardContainer>
+      {options}
+    </>
+  );
+});
+
+/** Artist: a person, so a circle and just their name. */
+export const ArtistCard = memo(
+  ({ artist, width, onPress: customOnPress, onLongPress }: ArtistCardProps & CardWidth) => {
+    const { colors } = useTheme();
+    const id = artist?.id;
 
     const handlePress = useCallback(() => {
-      if (isCurrentSong) {
-        handlePlayPause();
-      } else {
-        playSong(securedSong);
-      }
-    }, [isCurrentSong, handlePlayPause, playSong, securedSong]);
-
-    const handleLongPress = useCallback(() => {
-      setPlayerDrawerOpen(true);
-    }, []);
-
-    return (
-      <>
-        <CardContainer width={width} onPress={handlePress} onLongPress={handleLongPress}>
-          <View style={cardStyles.container}>
-            <View
-              style={[
-                cardStyles.imageCover,
-                {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                  borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                },
-              ]}
-            >
-              <Image
-                fadeDuration={0}
-                source={{ uri: imageUrl, cache: 'force-cache' }}
-                style={cardStyles.image}
-                resizeMode='cover'
-                alt={`Song: ${securedSong.name}`}
-              />
-
-              {/* Active Playing Overlay */}
-              {isCurrentSong && (
-                <View
-                  style={{
-                    ...StyleSheet.absoluteFill,
-                    backgroundColor: 'rgba(0,0,0,0.45)',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 18,
-                      backgroundColor: colors.primary,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Ionicons
-                      name={isPlaying ? 'pause' : 'play'}
-                      size={18}
-                      color={colors.primaryForeground}
-                      style={isPlaying ? undefined : { marginLeft: 2 }}
-                    />
-                  </View>
-                </View>
-              )}
-            </View>
-
-            <View style={cardStyles.textContainer}>
-              <Text
-                style={[
-                  cardStyles.primaryText,
-                  { color: isCurrentSong ? colors.primary : colors.foreground },
-                ]}
-                numberOfLines={1}
-                ellipsizeMode='tail'
-              >
-                {securedSong.name}
-              </Text>
-              <Text
-                style={[cardStyles.secondaryText, { color: colors.mutedForeground }]}
-                numberOfLines={1}
-                ellipsizeMode='tail'
-              >
-                {artistName}
-              </Text>
-            </View>
-          </View>
-        </CardContainer>
-
-        {playerDrawerOpen && (
-          <NewPlayerDrawer
-            isVisible={playerDrawerOpen}
-            onClose={() => setPlayerDrawerOpen(false)}
-            song={securedSong}
-          />
-        )}
-      </>
-    );
-  }
-);
-
-export const ArtistCard = memo(
-  ({
-    artist,
-    width,
-    onPress: customOnPress,
-    onLongPress,
-  }: ArtistCardProps & { width?: number | `${number}%` }) => {
-    const { colors, theme } = useTheme();
-    const isDark = theme === 'dark';
+      if (customOnPress) customOnPress();
+      else router.push({ pathname: '/artist', params: { id } });
+    }, [id, customOnPress]);
 
     if (!artist?.name || !artist?.image) return null;
 
-    const securedArtist = useMemo(() => ensureHttpsForArtistUrls(artist), [artist]);
-    const imageUrl = useMemo(
-      () =>
-        Array.isArray(securedArtist.image)
-          ? securedArtist.image[2]?.link ||
-            securedArtist.image[1]?.link ||
-            securedArtist.image[0]?.link
-          : typeof securedArtist.image === 'string'
-            ? securedArtist.image
-            : undefined,
-      [securedArtist.image]
-    );
-
-    const handlePress = useCallback(() => {
-      if (customOnPress) {
-        customOnPress();
-      } else {
-        router.push({
-          pathname: '/artist',
-          params: { id: securedArtist.id },
-        });
-      }
-    }, [securedArtist?.id, customOnPress]);
-
     return (
       <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
-        <View style={cardStyles.artistContainer}>
-          <View
-            style={[
-              cardStyles.artistAvatarWrapper,
-              {
-                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-              },
-            ]}
-          >
-            <Image
-              fadeDuration={0}
-              source={{ uri: imageUrl || 'https://via.placeholder.com/120', cache: 'force-cache' }}
-              style={cardStyles.artistAvatar}
-              resizeMode='cover'
-              alt={`Artist: ${securedArtist.name}`}
-            />
-          </View>
-
-          <View style={cardStyles.artistTextContainer}>
-            <Text
-              style={[cardStyles.primaryText, { color: colors.foreground, textAlign: 'center' }]}
-              numberOfLines={1}
-              ellipsizeMode='tail'
-            >
-              {securedArtist.name}
-            </Text>
-            <Text
-              style={[
-                cardStyles.secondaryText,
-                { color: colors.mutedForeground, textAlign: 'center' },
-              ]}
-              numberOfLines={1}
-            >
-              Artist
-            </Text>
-          </View>
-        </View>
+        <Image
+          {...coverProps(coverUrl(artist.image))}
+          style={[cardStyles.avatar, { backgroundColor: colors.raised }]}
+          alt={`Artist: ${artist.name}`}
+        />
+        <Text style={[cardStyles.artistName, { color: colors.foreground }]} numberOfLines={1}>
+          {artist.name}
+        </Text>
       </CardContainer>
     );
   }
 );
 
+/** How far the record shows past the album sleeve. */
+const DISC_PEEK = 12;
+
 const cardStyles = StyleSheet.create({
-  container: {
-    width: '100%',
-    gap: 8,
-  },
-  imageCover: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  textContainer: {
-    gap: 2,
-    paddingHorizontal: 1,
-  },
-  primaryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: -0.2,
-    lineHeight: 18,
-  },
-  secondaryText: {
-    fontSize: 12.5,
-    fontWeight: '400',
-    lineHeight: 16,
-  },
-  artistContainer: {
-    width: '100%',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 2,
-  },
-  artistAvatarWrapper: {
-    width: '100%',
-    maxWidth: 136,
+  cover: { width: '100%', aspectRatio: 1, borderRadius: 10 },
+  text: { marginTop: 8, gap: 1 },
+  title: { fontSize: 13.5, fontWeight: '600', letterSpacing: -0.15, lineHeight: 18 },
+  subtitle: { fontSize: 12, lineHeight: 16 },
+
+  sleeve: { marginRight: DISC_PEEK },
+  sleeveCover: { borderRadius: 4 },
+  disc: {
+    position: 'absolute',
+    top: '3%',
+    bottom: '3%',
+    right: -DISC_PEEK,
     aspectRatio: 1,
     borderRadius: 999,
-    overflow: 'hidden',
-    borderWidth: 1,
-    alignSelf: 'center',
+    backgroundColor: '#1C1C1F',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.16)',
   },
-  artistAvatar: {
-    width: '100%',
-    height: '100%',
+
+  stack: { marginTop: 8 },
+  edgeBack: {
+    position: 'absolute',
+    top: -8,
+    left: 14,
+    right: 14,
+    height: 16,
+    borderRadius: 7,
   },
-  artistTextContainer: {
-    width: '100%',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 4,
-  },
-  userPlaylistRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 12,
-  },
-  userPlaylistImage: {
-    width: 48,
-    height: 48,
+  edgeFront: {
+    position: 'absolute',
+    top: -4,
+    left: 7,
+    right: 7,
+    height: 16,
     borderRadius: 8,
-    overflow: 'hidden',
+  },
+
+  playing: {
+    position: 'absolute',
+    left: 7,
+    bottom: 7,
+    paddingHorizontal: 7,
+    paddingVertical: 5,
+    borderRadius: 7,
+    backgroundColor: 'rgba(0,0,0,0.62)',
+  },
+
+  avatar: { width: '100%', aspectRatio: 1, borderRadius: 999 },
+  artistName: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: -0.15,
+    lineHeight: 17,
+    textAlign: 'center',
   },
 });
 
