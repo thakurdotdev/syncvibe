@@ -21,11 +21,14 @@ function SegmentedInner<T extends string>({
   value,
   onChange,
   accessibilityLabel,
+  iconOnly = false,
 }: {
   options: SegmentOption<T>[];
   value: T;
   onChange: (value: T) => void;
   accessibilityLabel?: string;
+  /** Icons without visible labels, on a slimmer track: for sitting inside a row. */
+  iconOnly?: boolean;
 }) {
   const { colors, theme } = useTheme();
   // Light: grey track, white pill. Dark: card track, a raised pill that sits above it.
@@ -52,13 +55,20 @@ function SegmentedInner<T extends string>({
 
   return (
     <View
-      style={[styles.track, { backgroundColor: trackBg }]}
+      style={[styles.track, iconOnly && styles.trackSlim, { backgroundColor: trackBg }]}
       onLayout={(e) => setWidth(e.nativeEvent.layout.width - 8)}
       accessibilityRole='radiogroup'
       accessibilityLabel={accessibilityLabel}
     >
       {segment > 0 && (
-        <Animated.View style={[styles.pill, { width: segment, backgroundColor: pillBg }, pill]} />
+        <Animated.View
+          style={[
+            styles.pill,
+            iconOnly && styles.pillSlim,
+            { width: segment, backgroundColor: pillBg },
+            pill,
+          ]}
+        />
       )}
       {options.map((o) => {
         const selected = o.value === value;
@@ -76,7 +86,11 @@ function SegmentedInner<T extends string>({
             {o.icon ? (
               <Ionicons name={o.icon} size={15} color={selected ? colors.primary : color} />
             ) : null}
-            <Text style={[styles.label, { color }, selected && styles.labelActive]}>{o.label}</Text>
+            {iconOnly ? null : (
+              <Text style={[styles.label, { color }, selected && styles.labelActive]}>
+                {o.label}
+              </Text>
+            )}
           </PressableScale>
         );
       })}
@@ -88,6 +102,7 @@ export const Segmented = memo(SegmentedInner) as typeof SegmentedInner;
 
 const styles = StyleSheet.create({
   track: { flexDirection: 'row', borderRadius: 14, padding: 4, height: 44 },
+  trackSlim: { borderRadius: 12, height: 36 },
   pill: {
     position: 'absolute',
     top: 4,
@@ -100,6 +115,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
+  pillSlim: { borderRadius: 8 },
   option: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   label: { fontSize: 13.5, fontWeight: '500' },
   labelActive: { fontWeight: '700' },
