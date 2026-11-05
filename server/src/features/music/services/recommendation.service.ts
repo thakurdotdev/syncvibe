@@ -6,6 +6,16 @@ const CACHE_TTL_SECONDS = 3600;
 const POOL_SIZE = 50;
 const pendingUsers = new Set<number>();
 
+/** History stores the hour a song was played ("0"-"23"), so a time of day is a set of hours. */
+const hoursInSameTimeOfDay = (hour: number): string[] => {
+  const hours = (from: number, to: number) =>
+    Array.from({ length: to - from }, (_, i) => String(from + i));
+  if (hour >= 5 && hour < 12) return hours(5, 12);
+  if (hour >= 12 && hour < 17) return hours(12, 17);
+  if (hour >= 17 && hour < 21) return hours(17, 21);
+  return [...hours(21, 24), ...hours(0, 5)];
+};
+
 const shuffleArray = <T>(array: T[]): T[] => {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -86,14 +96,7 @@ const computeRecommendations = async (
   const hasArtists = artistPatterns && artistPatterns.length > 0;
   const hasLanguages = topLanguages.length > 0;
 
-  const timeCategory =
-    currentHour >= 5 && currentHour < 12
-      ? 'morning'
-      : currentHour >= 12 && currentHour < 17
-        ? 'afternoon'
-        : currentHour >= 17 && currentHour < 21
-          ? 'evening'
-          : 'night';
+  const timeOfDayHours = hoursInSameTimeOfDay(currentHour);
 
   const query = `
     SELECT "songData" FROM (
@@ -104,7 +107,7 @@ const computeRecommendations = async (
           ${hasLanguages ? `CASE WHEN s.language = ANY(ARRAY[${topLanguages.map((l) => sequelize.escape(l)).join(',')}]) THEN 0.15 ELSE 0 END` : '0'} +
           (COALESCE(hs."completionRate", 0) / 100) * 0.15 +
           (LN(COALESCE(hs."playedCount", 1) + 1) / 5) * 0.15 +
-          CASE WHEN hs."timeOfDay"::text = :timeCategory THEN 0.10 ELSE 0 END +
+          CASE WHEN hs."timeOfDay" IN (:timeOfDayHours) THEN 0.10 ELSE 0 END +
           EXP(-EXTRACT(DAY FROM NOW() - hs."lastPlayedAt") / 30) * 0.05
         ) as score,
         hs."playedCount"
@@ -118,7 +121,7 @@ const computeRecommendations = async (
   `;
 
   const results = (await sequelize.query(query, {
-    replacements: { userId, limit, timeCategory },
+    replacements: { userId, limit, timeOfDayHours },
     type: QueryTypes.SELECT,
   })) as Array<{ songData: Record<string, unknown> }>;
 
