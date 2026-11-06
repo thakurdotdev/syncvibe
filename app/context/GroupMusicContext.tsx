@@ -345,6 +345,21 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // You moved to another device, which now plays the room. Rejoining would just take it back.
+    socket.on('device-replaced', (data: { groupId: string }) => {
+      const { currentGroup, isRejoining } = ss.getState();
+      if (currentGroup && currentGroup.id !== data.groupId) return;
+      ss.setState({ isRejoining: false });
+      ss.getState().clearSession();
+      if (currentGroup) endRoomHere();
+      if (currentGroup || isRejoining) {
+        Alert.alert(
+          'Playing on your other device',
+          'This room moved to your other device. Join it again here to bring it back.'
+        );
+      }
+    });
+
     // Left on another device.
     socket.on('left-group', (data: { groupId: string }) => {
       if (data.groupId === ss.getState().currentGroup?.id) endRoomHere();
@@ -503,6 +518,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         'song-reaction',
         'sync-lost',
         'left-group',
+        'device-replaced',
         'member-presence',
         'user-typing',
         'group-invite-received',

@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Song } from '@/types/song';
 import { searchSongs } from '@/utils/api/getSongs';
 import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
+import { getDeviceId } from '@/utils/deviceId';
 import { Group, GroupMember, Message, QueueItem, ActiveSoundEffect } from './types';
 
 interface GroupSessionState {
@@ -160,11 +161,14 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
       return;
     }
 
-    socket?.emit('create-music-group', {
-      name: groupName,
-      createdBy: user.userid,
-      userName: user.name,
-      profilePic: user.profilepic,
+    void getDeviceId().then((deviceId) => {
+      socket?.emit('create-music-group', {
+        name: groupName,
+        createdBy: user.userid,
+        userName: user.name,
+        profilePic: user.profilepic,
+        deviceId,
+      });
     });
     set({ isGroupModalOpen: false });
   },
@@ -172,11 +176,14 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
   joinGroup: (socket, user, groupId) => {
     if (!groupId.trim() || !user) return;
 
-    socket?.emit('join-music-group', {
-      groupId,
-      userId: user.userid,
-      userName: user.name,
-      profilePic: user.profilepic,
+    void getDeviceId().then((deviceId) => {
+      socket?.emit('join-music-group', {
+        groupId,
+        userId: user.userid,
+        userName: user.name,
+        profilePic: user.profilepic,
+        deviceId,
+      });
     });
     set({ isGroupModalOpen: false });
   },
@@ -184,11 +191,14 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
   rejoinGroup: (socket, user, groupId) => {
     if (!groupId || !user?.userid || !socket) return;
     set({ isRejoining: true });
-    socket.emit('rejoin-music-group', {
-      groupId,
-      userId: user.userid,
-      userName: user.name,
-      profilePic: user.profilepic,
+    void getDeviceId().then((deviceId) => {
+      socket.emit('rejoin-music-group', {
+        groupId,
+        userId: user.userid,
+        userName: user.name,
+        profilePic: user.profilepic,
+        deviceId,
+      });
     });
   },
 
@@ -347,9 +357,7 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     const { currentGroup } = get();
     if (!currentGroup?.id) return;
     const nextState =
-      enabled !== undefined
-        ? enabled
-        : !(currentGroup.settings?.autoPlayRecommendations ?? true);
+      enabled !== undefined ? enabled : !(currentGroup.settings?.autoPlayRecommendations ?? true);
 
     socket?.emit('toggle-auto-recommendations', {
       groupId: currentGroup.id,
