@@ -5,7 +5,12 @@ import sequelize from '@/utils/sequelize';
 
 export const createChat = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { receiverid } = req.body as { receiverid?: number };
+    // Installed apps misspell this field, and got a 400 for every new chat until they update.
+    const { receiverid: spelled, recieverid } = req.body as {
+      receiverid?: number;
+      recieverid?: number;
+    };
+    const receiverid = spelled ?? recieverid;
     const senderid = req.user!.userid;
 
     if (!receiverid) {
