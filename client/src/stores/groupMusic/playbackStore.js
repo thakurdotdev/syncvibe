@@ -254,11 +254,18 @@ export const useGroupPlaybackStore = create((set, get) => ({
     );
     const expectedTime =
       playbackState.currentTime + (playbackState.isPlaying ? timeSinceUpdate : 0);
-    const actualTime = audioElement.currentTime;
-    const drift = Math.abs(expectedTime - actualTime);
+    const drift = expectedTime - audioElement.currentTime;
+    const size = Math.abs(drift);
 
-    if (drift > 1.0 && expectedTime <= (audioElement.duration || Infinity)) {
+    // Same approach as the app, so a browser and a phone end up together: seek for a big gap, and
+    // close a small one by playing slightly fast or slow, which doesn't interrupt the sound.
+    if (size > 1.0 && expectedTime <= (audioElement.duration || Infinity)) {
+      audioElement.playbackRate = 1;
       audioElement.currentTime = expectedTime;
+    } else if (size <= 0.04 || !playbackState.isPlaying) {
+      audioElement.playbackRate = 1;
+    } else {
+      audioElement.playbackRate = 1 + Math.max(-0.05, Math.min(0.05, drift / 10));
     }
 
     if (playbackState.isPlaying && audioElement.paused) {
@@ -281,6 +288,8 @@ export const useGroupPlaybackStore = create((set, get) => ({
 
     if (!audioElement) return;
 
+    audioElement.playbackRate = 1;
+
     let adjustedTime = newTime;
     if (serverTime) {
       const clientNow = Date.now() + get().serverTimeOffset;
@@ -288,8 +297,10 @@ export const useGroupPlaybackStore = create((set, get) => ({
       adjustedTime = newIsPlaying ? newTime + elapsed : newTime;
     }
 
+    // These only arrive when someone plays, pauses or seeks, so it's the moment to line up: a
+    // looser limit here leaves devices up to that far apart until the next seek.
     const drift = Math.abs(audioElement.currentTime - adjustedTime);
-    if (drift > 0.3 || isSeeking) {
+    if (drift > 0.05 || isSeeking) {
       audioElement.currentTime = adjustedTime;
     }
 
@@ -311,6 +322,7 @@ export const useGroupPlaybackStore = create((set, get) => ({
   ) => {
     if (syncTimerRef) clearInterval(syncTimerRef);
     lastPlaybackActionAt = Date.now();
+    if (audioElement) audioElement.playbackRate = 1;
 
     set({ currentSong: song });
 
