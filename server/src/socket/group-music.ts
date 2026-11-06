@@ -1,13 +1,6 @@
 import type { Server, Socket } from 'socket.io';
 import type { AuthenticatedSocket } from './types';
-import {
-  musicGroups,
-  getGroup,
-  TIME_TO_REJOIN,
-  getUserGroups,
-  userGroups,
-  removeGroup,
-} from './group-music/state';
+import { musicGroups, getGroup, getUserGroups } from './group-music/state';
 import { getQueueState } from './group-music/queue';
 import { setupQueueHandlers } from './group-music/queue-handlers';
 import { setupPlaybackHandlers } from './group-music/playback-handlers';
@@ -40,7 +33,16 @@ export const setupGroupMusicHandlers = (
 
   socket.on('request-sync', (data: { groupId: string }) => {
     const group = musicGroups.get(data.groupId);
-    if (!group) return;
+    // These checks run every few seconds, so they also catch a device that has lost its place:
+    // the room has ended, or this connection never got back into it after a reconnect.
+    if (!group) {
+      socket.emit('sync-lost', { groupId: data.groupId, reason: 'group-gone' });
+      return;
+    }
+    if (!socket.rooms.has(`music-group-${data.groupId}`)) {
+      socket.emit('sync-lost', { groupId: data.groupId, reason: 'not-in-room' });
+      return;
+    }
 
     const currentItem = group.currentQueueIndex >= 0 ? group.queue[group.currentQueueIndex] : null;
     const serverTime = Date.now();
@@ -63,35 +65,5 @@ export const setupGroupMusicHandlers = (
   setupChatHandlers(io, socket, userId);
 };
 
-export const handleUserDisconnect = (
-  io: Server,
-  userId: string | number,
-  userSockets: Map<string, Socket>
-): void => {
-  const userGroupSet = getUserGroups(userId);
-
-  if (userGroupSet.size > 0) {
-    setTimeout(() => {
-      const reconnected = userSockets.has(String(userId));
-
-      if (!reconnected) {
-        userGroupSet.forEach((groupId) => {
-          const group = musicGroups.get(groupId);
-
-          if (group) {
-            group.members = group.members.filter((m) => String(m.userId) !== String(userId));
-            io.to(`music-group-${groupId}`).emit('member-left', { userId });
-
-            if (group.members.length === 0) {
-              removeGroup(groupId);
-            }
-          }
-        });
-
-        userGroups.delete(String(userId));
-      }
-    }, TIME_TO_REJOIN);
-  }
-};
-
+export { handleUserDisconnect, releaseSocket } from './group-music/presence';
 export { getGroup, musicGroups };

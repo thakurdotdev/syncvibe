@@ -1,3 +1,4 @@
+import { cancelRemoval, markMemberPresent } from './presence';
 import QRCode from 'qrcode';
 import { Op } from 'sequelize';
 import type { Server, Socket } from 'socket.io';
@@ -112,6 +113,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       }
 
       trackUserGroup(data.userId, data.groupId);
+      markMemberPresent(io, data.groupId, data.userId);
 
       const groupJoinedPayload = {
         group,
@@ -173,6 +175,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       }
 
       trackUserGroup(data.userId, data.groupId);
+      markMemberPresent(io, data.groupId, data.userId);
 
       socket.emit('group-rejoined', {
         group,
@@ -193,9 +196,15 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
         (member) => String(member.userId) !== String(data.userId)
       );
       untrackUserGroup(data.userId, data.groupId);
-      socket.leave(`music-group-${data.groupId}`);
+      cancelRemoval(data.groupId, data.userId);
 
-      socket.to(`music-group-${data.groupId}`).emit('member-left', {
+      // Leaving is for the person, not the device: otherwise their other device would keep
+      // getting the room's songs after they'd left.
+      io.in(String(data.userId)).socketsLeave(`music-group-${data.groupId}`);
+      socket.leave(`music-group-${data.groupId}`);
+      socket.to(String(data.userId)).emit('left-group', { groupId: data.groupId });
+
+      io.to(`music-group-${data.groupId}`).emit('member-left', {
         userId: data.userId,
       });
 

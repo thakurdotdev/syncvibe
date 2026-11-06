@@ -1,6 +1,6 @@
 import type { Server, Socket } from 'socket.io';
 import type { AuthenticatedSocket, SocketContext } from './types';
-import { setupGroupMusicHandlers, handleUserDisconnect } from './group-music';
+import { setupGroupMusicHandlers, handleUserDisconnect, releaseSocket } from './group-music';
 import { setSocketIO } from '@/utils/socket-emitter';
 import { setupChatHandlers } from './chat';
 import { setupOnlineHandlers } from './online';
@@ -63,7 +63,11 @@ export const socketManager = (io: Server): void => {
       const userId = socket.userId;
       if (!userId) return;
 
-      handleUserDisconnect(io, userId, userSockets);
+      // Still on another device, or already back on a new connection: nothing has changed for
+      // anyone else, so no "offline", no ended call and no leaving the room.
+      const stillConnected = releaseSocket(io, userSockets, userId, socket);
+      handleUserDisconnect(io, userId);
+      if (stillConnected) return;
 
       const otherUser = handleCallDisconnect(io, userId, context);
       if (otherUser) {
@@ -73,7 +77,6 @@ export const socketManager = (io: Server): void => {
         });
       }
 
-      userSockets.delete(String(userId));
       onlineUsers.delete(String(userId));
 
       try {
