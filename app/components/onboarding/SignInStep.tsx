@@ -27,17 +27,19 @@ const Ring = memo(function Ring({ index, active }: { index: number; active: bool
 
   useEffect(() => {
     if (!active) return;
-    progress.value = 0;
-    progress.value = withDelay(
-      (index * RING_MS) / RING_COUNT,
-      withRepeat(withTiming(1, { duration: RING_MS, easing: Easing.out(Easing.quad) }), -1)
+    progress.set(0);
+    progress.set(
+      withDelay(
+        (index * RING_MS) / RING_COUNT,
+        withRepeat(withTiming(1, { duration: RING_MS, easing: Easing.out(Easing.quad) }), -1)
+      )
     );
     return () => cancelAnimation(progress);
   }, [active, index, progress]);
 
   const style = useAnimatedStyle(() => ({
-    opacity: 0.4 * (1 - progress.value),
-    transform: [{ scale: 1 + progress.value * 0.9 }],
+    opacity: 0.4 * (1 - progress.get()),
+    transform: [{ scale: 1 + progress.get() * 0.9 }],
   }));
 
   return <Animated.View style={[styles.ring, { borderColor: colors.foreground }, style]} />;
@@ -91,6 +93,7 @@ export function SignInStep({ active, languages, onSkip }: SignInStepProps) {
             style={styles.logo}
             resizeMode='contain'
             accessibilityIgnoresInvertColors
+            fadeDuration={0}
           />
         </View>
 
@@ -132,7 +135,11 @@ export function SignInStep({ active, languages, onSkip }: SignInStepProps) {
             <ActivityIndicator size='small' color={colors.foreground} />
           ) : (
             <>
-              <Image source={require('../../assets/images/google.png')} style={styles.googleIcon} />
+              <Image
+                source={require('../../assets/images/google.png')}
+                style={styles.googleIcon}
+                fadeDuration={0}
+              />
               <Text style={[styles.googleText, { color: colors.foreground }]}>
                 Continue with Google
               </Text>

@@ -1,3 +1,4 @@
+import PressableScale from '@/components/ui/PressableScale';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,7 +11,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,6 +57,7 @@ const UserRow = React.memo(
               uri: getProfileCloudinaryUrl(user.profilepic) || 'https://via.placeholder.com/40',
             }}
             style={[styles.avatar, { backgroundColor: colors.secondary }]}
+            fadeDuration={0}
           />
           <View
             style={[
@@ -97,15 +98,14 @@ const UserRow = React.memo(
               <Text style={[styles.sentText, { color: colors.foreground }]}>Sent</Text>
             </View>
           ) : (
-            <TouchableOpacity
+            <PressableScale
               onPress={() => onInvite(user.userid)}
               style={[styles.inviteButton, { backgroundColor: colors.primary }]}
-              activeOpacity={0.8}
             >
               <Text style={[styles.inviteButtonText, { color: colors.primaryForeground }]}>
                 Invite
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           )}
         </View>
       </View>
@@ -142,7 +142,7 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollOffset.value = event.nativeEvent.contentOffset.y;
+      scrollOffset.set(event.nativeEvent.contentOffset.y);
     },
     [scrollOffset]
   );
@@ -170,7 +170,7 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
       setInvitedUsers(new Set());
       setSearchQuery('');
       setHasSearched(false);
-      scrollOffset.value = 0;
+      scrollOffset.set(0);
       const timer = setTimeout(() => inputRef.current?.focus(), 350);
       return () => clearTimeout(timer);
     }
@@ -237,9 +237,9 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: 16 }]}>
           <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={onClose} style={styles.backButton}>
+            <PressableScale onPress={onClose} style={styles.backButton}>
               <Ionicons name='arrow-back' size={24} color={colors.foreground} />
-            </TouchableOpacity>
+            </PressableScale>
             <View>
               <Text style={[styles.headerTitle, { color: colors.foreground }]}>Invite Friends</Text>
               <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
@@ -260,9 +260,9 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
             leftIcon={<Feather name='search' size={16} color={colors.mutedForeground} />}
             rightIcon={
               searchQuery ? (
-                <TouchableOpacity onPress={() => handleSearchChange('')}>
+                <PressableScale onPress={() => handleSearchChange('')}>
                   <Feather name='x' size={16} color={colors.mutedForeground} />
-                </TouchableOpacity>
+                </PressableScale>
               ) : null
             }
           />

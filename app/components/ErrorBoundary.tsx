@@ -1,5 +1,6 @@
+import PressableScale from '@/components/ui/PressableScale';
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 
 interface Props {
   children: React.ReactNode;
@@ -36,12 +37,12 @@ class ErrorBoundary extends React.Component<Props, State> {
               <Text style={styles.errorText}>{this.state.error?.toString()}</Text>
             </View>
 
-            <TouchableOpacity
+            <PressableScale
               style={styles.button}
               onPress={() => this.setState({ hasError: false })}
             >
               <Text style={styles.buttonText}>Restart App</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </View>
       );

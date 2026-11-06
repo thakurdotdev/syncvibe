@@ -1,3 +1,5 @@
+import { SONG_LIST_WINDOW } from '@/lib/lists';
+import { ROW_PRESS_SCALE } from '@/lib/motion';
 import { SongCard } from '@/components/music/MusicCards';
 import SearchHistory from '@/components/music/SearchHistory';
 import PressableScale from '@/components/ui/PressableScale';
@@ -142,7 +144,7 @@ export const SongsPanel = memo(function SongsPanel({
           <PressableScale
             key={item.id}
             onPress={() => onPickQuery(item.query)}
-            scaleTo={0.98}
+            scaleTo={ROW_PRESS_SCALE}
             accessibilityRole='button'
             style={styles.suggestion}
           >
@@ -184,6 +186,7 @@ export const SongsPanel = memo(function SongsPanel({
       {...LIST_PROPS}
       data={songs}
       renderItem={renderSong}
+      {...SONG_LIST_WINDOW}
       keyExtractor={songKey}
       contentContainerStyle={styles.list}
     />
@@ -238,13 +241,14 @@ export const HistoryPanel = memo(function HistoryPanel({ query }: { query: strin
       {...LIST_PROPS}
       data={songs}
       renderItem={renderSongCard}
+      {...SONG_LIST_WINDOW}
       keyExtractor={songKey}
       contentContainerStyle={styles.list}
       ListFooterComponent={
         hasMore ? (
           <PressableScale
             onPress={() => router.push('/song-history')}
-            scaleTo={0.98}
+            scaleTo={ROW_PRESS_SCALE}
             accessibilityRole='button'
             style={styles.seeAll}
           >
@@ -286,7 +290,7 @@ const PlaylistRow = memo(function PlaylistRow({
           params: { id: String(playlist.id) },
         })
       }
-      scaleTo={0.98}
+      scaleTo={ROW_PRESS_SCALE}
       accessibilityRole='button'
       accessibilityLabel={`${playlist.name}${meta ? `, ${meta}` : ''}`}
       style={styles.row}
@@ -429,7 +433,7 @@ export const PeoplePanel = memo(function PeoplePanel({ query }: { query: string 
       <PressableScale
         onPress={() => openChat(item)}
         disabled={openingId !== null}
-        scaleTo={0.98}
+        scaleTo={ROW_PRESS_SCALE}
         accessibilityRole='button'
         accessibilityLabel={`Message ${item.name}`}
         style={styles.row}

@@ -1,9 +1,5 @@
-import {
-  fetchTrendingMedia,
-  searchMedia,
-  type KlipyMediaItem,
-  type MediaType,
-} from '@/api/gifs';
+import PressableScale from '@/components/ui/PressableScale';
+import { fetchTrendingMedia, searchMedia, type KlipyMediaItem, type MediaType } from '@/api/gifs';
 import SwipeableModal from '@/components/SwipeableModal';
 import { Tabs, type TabItem } from '@/components/ui/tabs';
 import { useTheme } from '@/context/ThemeContext';
@@ -17,7 +13,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 
@@ -75,9 +70,8 @@ const MediaThumbnail = React.memo(
 
     if (isSticker) {
       return (
-        <TouchableOpacity
+        <PressableScale
           onPress={() => onSelect(mediaUrl)}
-          activeOpacity={0.75}
           style={[
             thumbnailStyles.stickerCard,
             {
@@ -91,15 +85,15 @@ const MediaThumbnail = React.memo(
             source={{ uri: displayImage }}
             style={thumbnailStyles.stickerImage}
             resizeMode='contain'
+            fadeDuration={0}
           />
-        </TouchableOpacity>
+        </PressableScale>
       );
     }
 
     return (
-      <TouchableOpacity
+      <PressableScale
         onPress={() => onSelect(mediaUrl)}
-        activeOpacity={0.8}
         style={[
           thumbnailStyles.mediaCard,
           {
@@ -113,6 +107,7 @@ const MediaThumbnail = React.memo(
           source={{ uri: displayImage }}
           style={[thumbnailStyles.mediaImage, { width: itemWidth }]}
           resizeMode='cover'
+          fadeDuration={0}
         />
 
         {/* Subtle Clip Badge */}
@@ -122,7 +117,7 @@ const MediaThumbnail = React.memo(
             <Text style={thumbnailStyles.clipBadgeText}>CLIP</Text>
           </View>
         )}
-      </TouchableOpacity>
+      </PressableScale>
     );
   }
 );
@@ -313,7 +308,10 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
     [activeTab, itemWidth, handleSelect, colors]
   );
 
-  const keyExtractor = useCallback((item: KlipyMediaItem, index: number) => `${item.id}-${index}`, []);
+  const keyExtractor = useCallback(
+    (item: KlipyMediaItem, index: number) => `${item.id}-${index}`,
+    []
+  );
 
   return (
     <SwipeableModal
@@ -337,22 +335,22 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
               autoCorrect={false}
             />
             {query.length > 0 && (
-              <TouchableOpacity
+              <PressableScale
                 onPress={handleClearSearch}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Feather name='x-circle' size={16} color={colors.mutedForeground + '80'} />
-              </TouchableOpacity>
+              </PressableScale>
             )}
           </View>
 
-          <TouchableOpacity
+          <PressableScale
             onPress={onClose}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={[styles.closeButton, { backgroundColor: colors.secondary }]}
           >
             <Feather name='x' size={18} color={colors.mutedForeground} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         {/* Header Row 2: Consistent UI Tabs & Counter */}
@@ -381,16 +379,14 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
           <View style={styles.centered}>
             <Feather name='image' size={28} color={colors.mutedForeground + '30'} />
             <Text style={[styles.emptyText, { color: colors.mutedForeground + '60' }]}>
-              {query.trim()
-                ? `No ${activeTab} found for "${query}"`
-                : `No ${activeTab} available`}
+              {query.trim() ? `No ${activeTab} found for "${query}"` : `No ${activeTab} available`}
             </Text>
             {query.trim().length > 0 && (
-              <TouchableOpacity onPress={handleClearSearch} style={{ marginTop: 8 }}>
+              <PressableScale onPress={handleClearSearch} style={{ marginTop: 8 }}>
                 <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '600' }}>
                   Clear search
                 </Text>
-              </TouchableOpacity>
+              </PressableScale>
             )}
           </View>
         ) : (

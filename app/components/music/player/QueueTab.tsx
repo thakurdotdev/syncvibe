@@ -1,3 +1,4 @@
+import { EASE_OUT } from '@/lib/motion';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import {
@@ -237,7 +238,7 @@ export const QueueTab = memo(function QueueTab({
 
   if (!playlist.length) {
     return (
-      <Animated.View entering={FadeIn.duration(300)} style={queueStyles.emptyContainer}>
+      <Animated.View entering={EMPTY_ENTER} style={queueStyles.emptyContainer}>
         <View style={[queueStyles.emptyIconCircle, { backgroundColor: colors.muted }]}>
           <Ionicons name='musical-notes-outline' size={32} color={colors.mutedForeground} />
         </View>
@@ -343,6 +344,7 @@ export const QueueTab = memo(function QueueTab({
                   cache: 'force-cache',
                 }}
                 style={queueMenuStyles.headerImage}
+                fadeDuration={0}
               />
               <View style={queueMenuStyles.headerInfo}>
                 <Text
@@ -549,6 +551,8 @@ const queueMenuStyles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+
+const EMPTY_ENTER = FadeIn.duration(200).easing(EASE_OUT);
 
 const queueStyles = StyleSheet.create({
   dragArea: { paddingTop: 2 },

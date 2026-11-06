@@ -1,3 +1,5 @@
+import PressableScale from '@/components/ui/PressableScale';
+import { EASE_OUT } from '@/lib/motion';
 import { usePlayerControls, usePlaybackState } from '@/stores/playerStore';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
@@ -14,7 +16,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -65,9 +66,14 @@ const RecommendationItem = memo(
     const imageUrl = song.image?.[1]?.link;
 
     return (
-      <Animated.View entering={FadeIn.duration(300)}>
+      <Animated.View entering={SECTION_ENTER}>
         <View style={[recItemStyles.container, { backgroundColor: colors.card }]}>
-          <Image source={{ uri: imageUrl }} style={recItemStyles.image} resizeMode='cover' />
+          <Image
+            source={{ uri: imageUrl }}
+            style={recItemStyles.image}
+            resizeMode='cover'
+            fadeDuration={0}
+          />
           <View style={recItemStyles.info}>
             <Text style={[recItemStyles.title, { color: colors.text }]} numberOfLines={1}>
               {song.name}
@@ -79,13 +85,12 @@ const RecommendationItem = memo(
               {artistName}
             </Text>
           </View>
-          <TouchableOpacity
+          <PressableScale
             onPress={() => onAdd(song)}
-            activeOpacity={0.7}
             style={[recItemStyles.addBtn, { backgroundColor: colors.primary + '18' }]}
           >
             <Plus size={18} color={colors.primary} strokeWidth={2.5} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </Animated.View>
     );
@@ -126,6 +131,8 @@ const recItemStyles = StyleSheet.create({
     marginLeft: 8,
   },
 });
+
+const SECTION_ENTER = FadeIn.duration(200).easing(EASE_OUT);
 
 const QueueRecommendations = memo(() => {
   const { colors } = useTheme();
@@ -174,15 +181,14 @@ const QueueRecommendations = memo(() => {
 
   return (
     <Animated.View
-      entering={FadeIn.duration(400)}
+      entering={SECTION_ENTER}
       style={[containerStyles.wrapper, { borderTopColor: colors.border }]}
     >
       <View style={containerStyles.header}>
         <Text style={[containerStyles.title, { color: colors.text }]}>Recommended</Text>
         <View style={containerStyles.headerActions}>
-          <TouchableOpacity
+          <PressableScale
             onPress={handleRefresh}
-            activeOpacity={0.7}
             style={containerStyles.headerBtn}
             disabled={isFetching}
           >
@@ -191,14 +197,10 @@ const QueueRecommendations = memo(() => {
             ) : (
               <RefreshCw size={16} color={colors.mutedForeground} />
             )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleDismiss}
-            activeOpacity={0.7}
-            style={containerStyles.headerBtn}
-          >
+          </PressableScale>
+          <PressableScale onPress={handleDismiss} style={containerStyles.headerBtn}>
             <X size={16} color={colors.mutedForeground} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </View>
 

@@ -1,5 +1,6 @@
+import PressableScale from '@/components/ui/PressableScale';
 import React, { useEffect, useRef } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SwipeableModal from '@/components/SwipeableModal';
@@ -44,6 +45,7 @@ export const InviteNotification: React.FC = () => {
                   'https://via.placeholder.com/64',
               }}
               style={[styles.avatar, { backgroundColor: colors.secondary }]}
+              fadeDuration={0}
             />
             <View
               style={[
@@ -68,20 +70,18 @@ export const InviteNotification: React.FC = () => {
 
         {/* Action Buttons */}
         <View style={styles.actions}>
-          <TouchableOpacity
+          <PressableScale
             onPress={declineInvite}
             style={[styles.declineBtn, { backgroundColor: colors.secondary }]}
-            activeOpacity={0.7}
             accessibilityRole='button'
             accessibilityLabel='Decline invite'
           >
             <Text style={[styles.declineBtnText, { color: colors.mutedForeground }]}>Decline</Text>
-          </TouchableOpacity>
+          </PressableScale>
 
-          <TouchableOpacity
+          <PressableScale
             onPress={acceptInvite}
             style={[styles.acceptBtn, { backgroundColor: colors.primary }]}
-            activeOpacity={0.8}
             accessibilityRole='button'
             accessibilityLabel='Join music group'
           >
@@ -89,7 +89,7 @@ export const InviteNotification: React.FC = () => {
             <Text style={[styles.acceptBtnText, { color: colors.primaryForeground }]}>
               Join Session
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </View>
     </SwipeableModal>

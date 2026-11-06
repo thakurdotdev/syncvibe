@@ -1,5 +1,6 @@
+import PressableScale from '@/components/ui/PressableScale';
 import React, { useState } from 'react';
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import SwipeableModal from '@/components/SwipeableModal';
 import { Input } from '@/components/ui/input';
@@ -56,7 +57,7 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
         <Text style={[styles.title, { color: colors.foreground }]}>Create or Join Group</Text>
 
         <View style={[styles.tabBar, { backgroundColor: colors.secondary }]}>
-          <TouchableOpacity
+          <PressableScale
             onPress={() => setTabIndex(0)}
             style={[
               styles.tab,
@@ -71,8 +72,8 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
             >
               Create Group
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PressableScale>
+          <PressableScale
             onPress={() => setTabIndex(1)}
             style={[
               styles.tab,
@@ -87,7 +88,7 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
             >
               Join Group
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         {tabIndex === 0 ? (
@@ -101,16 +102,15 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
               size='lg'
               containerStyle={styles.inputSpacing}
             />
-            <TouchableOpacity
+            <PressableScale
               onPress={handleCreate}
               disabled={!newGroupName.trim()}
               style={[styles.primaryButton, { backgroundColor: colors.primary }]}
-              activeOpacity={0.8}
             >
               <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>
                 Create
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         ) : (
           <View>
@@ -123,7 +123,7 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
               size='lg'
               containerStyle={styles.inputSpacing}
             />
-            <TouchableOpacity
+            <PressableScale
               onPress={handleJoin}
               disabled={!groupId.trim()}
               style={[
@@ -133,7 +133,6 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
                   opacity: groupId.trim() ? 1 : 0.6,
                 },
               ]}
-              activeOpacity={0.8}
             >
               <Text
                 style={[
@@ -143,7 +142,7 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
               >
                 Join
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
 
             <View style={styles.dividerRow}>
               <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
@@ -151,25 +150,24 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
               <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
             </View>
 
-            <TouchableOpacity
+            <PressableScale
               onPress={() => {
                 onClose();
                 onScanQRCode();
               }}
               style={[styles.secondaryButton, { backgroundColor: colors.secondary }]}
-              activeOpacity={0.7}
             >
               <Ionicons name='qr-code-outline' size={20} color={colors.foreground} />
               <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
                 Scan QR Code
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         )}
 
-        <TouchableOpacity onPress={onClose} style={styles.cancelButton} activeOpacity={0.6}>
+        <PressableScale onPress={onClose} style={styles.cancelButton}>
           <Text style={[styles.cancelText, { color: colors.mutedForeground }]}>Cancel</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     </SwipeableModal>
   );

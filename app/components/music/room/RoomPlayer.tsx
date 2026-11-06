@@ -1,3 +1,4 @@
+import { blurredArt } from '@/lib/artwork';
 import { CustomSlider } from '@/components/music/MusicCards';
 import PressableScale from '@/components/ui/PressableScale';
 import { useGroupMusic } from '@/context/GroupMusicContext';
@@ -62,7 +63,7 @@ const Reactions = memo(function Reactions() {
         <PressableScale
           key={e}
           onPress={() => react(e)}
-          scaleTo={0.8}
+          scaleTo={BUTTON_PRESS_SCALE}
           accessibilityRole='button'
           accessibilityLabel={`React ${e}`}
           style={[styles.reaction, { backgroundColor: colors.raised }]}
@@ -120,9 +121,7 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      {art ? (
-        <Image source={{ uri: art }} style={styles.tint} blurRadius={45} fadeDuration={0} />
-      ) : null}
+      {art ? <Image {...blurredArt(art, 45)} style={styles.tint} /> : null}
       <View
         style={[
           StyleSheet.absoluteFill,
@@ -147,7 +146,7 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
         </View>
         <PressableScale
           onPress={() => handlePlayPause()}
-          scaleTo={0.88}
+          scaleTo={BUTTON_PRESS_SCALE}
           accessibilityRole='button'
           accessibilityLabel={isPlaying ? 'Pause for everyone' : 'Play for everyone'}
           style={[styles.play, { backgroundColor: colors.foreground }]}

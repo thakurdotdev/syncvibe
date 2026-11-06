@@ -84,6 +84,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             }}
             style={styles.messageImage}
             resizeMode='cover'
+            fadeDuration={0}
           />
           <View style={styles.imageFooter}>
             <Text style={styles.imageTime}>{timeStr}</Text>

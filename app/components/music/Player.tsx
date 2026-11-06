@@ -1,3 +1,5 @@
+import { blurredArt } from '@/lib/artwork';
+import { EASE_OUT } from '@/lib/motion';
 import { useTheme } from '@/context/ThemeContext';
 import {
   setOnOpenFullPlayer,
@@ -37,6 +39,8 @@ const MIN_ARTWORK = 180;
 
 const system = ReduceMotion.System;
 // No overshoot: the sheet must never lift past the top and show the app behind it.
+const BACKDROP_ENTER = FadeIn.duration(260).easing(EASE_OUT);
+const BACKDROP_EXIT = FadeOut.duration(200).easing(EASE_OUT);
 const OPEN = { duration: 320, dampingRatio: 1, reduceMotion: system } as const;
 const CLOSE = { duration: 260, dampingRatio: 1, reduceMotion: system } as const;
 const SNAP_BACK = { duration: 260, dampingRatio: 1, reduceMotion: system } as const;
@@ -52,12 +56,10 @@ const Backdrop = ({ uri }: { uri?: string }) => {
       {uri ? (
         <Animated.Image
           key={uri}
-          entering={FadeIn.duration(260)}
-          exiting={FadeOut.duration(260)}
-          source={{ uri }}
-          blurRadius={28}
+          entering={BACKDROP_ENTER}
+          exiting={BACKDROP_EXIT}
+          {...blurredArt(uri, 28)}
           resizeMode='cover'
-          fadeDuration={0}
           style={StyleSheet.absoluteFill}
         />
       ) : null}

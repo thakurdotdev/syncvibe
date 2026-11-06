@@ -1,3 +1,4 @@
+import PressableScale from '@/components/ui/PressableScale';
 import {
   HistoryPanel,
   PeoplePanel,
@@ -18,7 +19,6 @@ import {
   StatusBar,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -215,14 +215,14 @@ export default function SearchScreen() {
           />
           {text && searching ? <ActivityIndicator size='small' color={colors.primary} /> : null}
           {text && !searching ? (
-            <TouchableOpacity
+            <PressableScale
               onPress={clear}
               hitSlop={10}
               accessibilityRole='button'
               accessibilityLabel='Clear search'
             >
               <Feather name='x' size={18} color={colors.mutedForeground} />
-            </TouchableOpacity>
+            </PressableScale>
           ) : null}
         </View>
       </View>

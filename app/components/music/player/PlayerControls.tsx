@@ -216,7 +216,7 @@ export const Transport = memo(function Transport() {
 
       <PressableScale
         onPress={() => handlePrevSong()}
-        scaleTo={0.86}
+        scaleTo={BUTTON_PRESS_SCALE}
         hitSlop={6}
         accessibilityRole='button'
         accessibilityLabel='Previous song'
@@ -227,7 +227,7 @@ export const Transport = memo(function Transport() {
 
       <PressableScale
         onPress={handlePlayPause}
-        scaleTo={0.9}
+        scaleTo={BUTTON_PRESS_SCALE}
         accessibilityRole='button'
         accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
         style={[styles.play, { backgroundColor: colors.foreground }]}
@@ -242,7 +242,7 @@ export const Transport = memo(function Transport() {
 
       <PressableScale
         onPress={() => handleNextSong()}
-        scaleTo={0.86}
+        scaleTo={BUTTON_PRESS_SCALE}
         hitSlop={6}
         accessibilityRole='button'
         accessibilityLabel='Next song'

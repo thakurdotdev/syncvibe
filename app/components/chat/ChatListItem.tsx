@@ -1,5 +1,6 @@
+import PressableScale from '@/components/ui/PressableScale';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { TimeAgo } from '@/utils/TimeAgo';
 import Avatar from './Avatar';
@@ -30,7 +31,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
   const { colors } = useTheme();
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.65} style={styles.container}>
+    <PressableScale onPress={onPress} style={styles.container}>
       <Avatar name={user.name} profilepic={user.profilepic} size='md' isOnline={isOnline} />
 
       <View style={styles.content}>
@@ -61,7 +62,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
           )}
         </View>
       </View>
-    </TouchableOpacity>
+    </PressableScale>
   );
 };
 

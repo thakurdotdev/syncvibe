@@ -1,3 +1,4 @@
+import PressableScale from '@/components/ui/PressableScale';
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -9,7 +10,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -48,9 +48,8 @@ const SoundItemCard = memo<SoundItemCardProps>(({ sound, isPlaying, onTogglePlay
       ]}
     >
       {/* Play/Stop Preview */}
-      <TouchableOpacity
+      <PressableScale
         onPress={() => onTogglePlay(sound)}
-        activeOpacity={0.75}
         style={[
           styles.previewBtn,
           {
@@ -64,14 +63,10 @@ const SoundItemCard = memo<SoundItemCardProps>(({ sound, isPlaying, onTogglePlay
           color={isPlaying ? colors.primaryForeground : colors.foreground}
           style={!isPlaying ? { marginLeft: 1.5 } : undefined}
         />
-      </TouchableOpacity>
+      </PressableScale>
 
       {/* Title & Preview subtitle */}
-      <TouchableOpacity
-        onPress={() => onTogglePlay(sound)}
-        activeOpacity={0.7}
-        style={styles.soundInfo}
-      >
+      <PressableScale onPress={() => onTogglePlay(sound)} style={styles.soundInfo}>
         <Text style={[styles.soundTitle, { color: colors.foreground }]} numberOfLines={1}>
           {sound.name}
         </Text>
@@ -83,17 +78,16 @@ const SoundItemCard = memo<SoundItemCardProps>(({ sound, isPlaying, onTogglePlay
         >
           {isPlaying ? 'Playing preview...' : 'Tap to preview'}
         </Text>
-      </TouchableOpacity>
+      </PressableScale>
 
       {/* Send to Room Button */}
-      <TouchableOpacity
+      <PressableScale
         onPress={() => onSend(sound)}
-        activeOpacity={0.8}
         style={[styles.sendSoundBtn, { backgroundColor: colors.primary }]}
       >
         <Feather name='send' size={12} color={colors.primaryForeground} />
         <Text style={[styles.sendSoundBtnText, { color: colors.primaryForeground }]}>Send</Text>
-      </TouchableOpacity>
+      </PressableScale>
     </View>
   );
 });
@@ -125,7 +119,7 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
   const scrollOffset = useSharedValue(0);
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollOffset.value = event.nativeEvent.contentOffset.y;
+      scrollOffset.set(event.nativeEvent.contentOffset.y);
     },
     [scrollOffset]
   );
@@ -270,12 +264,9 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
               <Text style={[styles.liveBadgeText, { color: colors.primary }]}>LIVE</Text>
             </View>
           </View>
-          <TouchableOpacity
-            onPress={onClose}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
+          <PressableScale onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Feather name='x' size={20} color={colors.mutedForeground} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         {/* Search Bar */}
@@ -292,7 +283,7 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
               returnKeyType='search'
             />
             {query.length > 0 && (
-              <TouchableOpacity
+              <PressableScale
                 onPress={() => {
                   setQuery('');
                   setSelectedPreset(null);
@@ -300,7 +291,7 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
                 }}
               >
                 <Feather name='x-circle' size={15} color={colors.mutedForeground + '80'} />
-              </TouchableOpacity>
+              </PressableScale>
             )}
           </View>
         </View>
@@ -312,13 +303,12 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.presetsContent}
           >
-            <TouchableOpacity
+            <PressableScale
               onPress={() => {
                 setSelectedPreset(null);
                 setQuery('');
                 loadSounds('', 1, false);
               }}
-              activeOpacity={0.8}
               style={[
                 styles.presetChip,
                 !selectedPreset && !query
@@ -337,15 +327,14 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
               >
                 🔥 Trending
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
 
             {QUICK_SOUND_PRESETS.map((preset) => {
               const isSelected = selectedPreset === preset.id;
               return (
-                <TouchableOpacity
+                <PressableScale
                   key={preset.id}
                   onPress={() => handlePresetClick(preset)}
-                  activeOpacity={0.8}
                   style={[
                     styles.presetChip,
                     isSelected
@@ -363,7 +352,7 @@ export const SoundPickerModal: React.FC<SoundPickerModalProps> = ({
                   >
                     {preset.name}
                   </Text>
-                </TouchableOpacity>
+                </PressableScale>
               );
             })}
           </ScrollView>

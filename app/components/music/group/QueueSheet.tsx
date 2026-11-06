@@ -1,3 +1,4 @@
+import PressableScale from '@/components/ui/PressableScale';
 import DraggableFlatList, {
   ScaleDecorator,
   type RenderItemParams,
@@ -14,7 +15,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -91,6 +91,7 @@ const QueueItemRow = React.memo(
         <Image
           source={{ uri: item.song?.image?.[1]?.link }}
           style={[styles.itemArt, { backgroundColor: colors.secondary }]}
+          fadeDuration={0}
         />
         <View style={styles.itemInfo}>
           <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
@@ -112,6 +113,7 @@ const QueueItemRow = React.memo(
                   <Image
                     source={{ uri: String(item.addedBy.profilePic) }}
                     style={styles.itemAvatar}
+                    fadeDuration={0}
                   />
                 ) : null}
                 <Text style={[styles.itemAddedByText, { color: colors.mutedForeground }]}>
@@ -121,13 +123,13 @@ const QueueItemRow = React.memo(
             )}
           </View>
         </View>
-        <TouchableOpacity
+        <PressableScale
           onPress={() => onRemove(item.id)}
           style={[styles.removeButton, { backgroundColor: colors.secondary }]}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Feather name='x' size={14} color={colors.mutedForeground} />
-        </TouchableOpacity>
+        </PressableScale>
       </Pressable>
     );
   }
@@ -154,6 +156,7 @@ const SearchResultRow = React.memo(
         <Image
           source={{ uri: song.image?.[1]?.link }}
           style={[styles.itemArt, { backgroundColor: colors.secondary }]}
+          fadeDuration={0}
         />
         <View style={styles.itemInfo}>
           <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
@@ -164,24 +167,24 @@ const SearchResultRow = React.memo(
           </Text>
         </View>
         <View style={styles.searchActions}>
-          <TouchableOpacity
+          <PressableScale
             onPress={() => onPlayNext(song)}
             style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
           >
             <Feather name='skip-forward' size={13} color={colors.foreground} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PressableScale>
+          <PressableScale
             onPress={() => onPlayNow(song)}
             style={[styles.actionBtn, { backgroundColor: colors.primary }]}
           >
             <Ionicons name='play' size={13} color={colors.primaryForeground} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PressableScale>
+          <PressableScale
             onPress={() => onAddToQueue(song)}
             style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
           >
             <Feather name='plus' size={14} color={colors.foreground} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </View>
     );
@@ -249,7 +252,7 @@ const PlaylistBrowser: React.FC<{
     return (
       <View style={styles.flex}>
         <View style={[styles.playlistDetailHeader, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity
+          <PressableScale
             onPress={() => {
               setSelectedPlaylist(null);
               setPlaylistDetail(null);
@@ -257,7 +260,7 @@ const PlaylistBrowser: React.FC<{
             style={[styles.backButton, { backgroundColor: colors.secondary }]}
           >
             <Ionicons name='arrow-back' size={18} color={colors.foreground} />
-          </TouchableOpacity>
+          </PressableScale>
           <View style={styles.flex}>
             <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
               {selectedPlaylist.name}
@@ -267,7 +270,7 @@ const PlaylistBrowser: React.FC<{
             </Text>
           </View>
           {songs.length > 0 && (
-            <TouchableOpacity
+            <PressableScale
               onPress={() => onAddAll(songs)}
               style={[styles.addAllBtn, { backgroundColor: colors.primary }]}
             >
@@ -275,7 +278,7 @@ const PlaylistBrowser: React.FC<{
               <Text style={[styles.addAllBtnText, { color: colors.primaryForeground }]}>
                 Add All
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           )}
         </View>
 
@@ -340,13 +343,14 @@ const PlaylistBrowser: React.FC<{
             ? item.image
             : item.image?.[1]?.link || item.image?.[0]?.link || '';
         return (
-          <TouchableOpacity
+          <PressableScale
             onPress={() => handleSelectPlaylist(item)}
             style={[styles.playlistRow, { borderBottomColor: colors.border }]}
           >
             <Image
               source={{ uri: imageUrl }}
               style={[styles.itemArt, { backgroundColor: colors.secondary }]}
+              fadeDuration={0}
             />
             <View style={styles.itemInfo}>
               <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
@@ -360,7 +364,7 @@ const PlaylistBrowser: React.FC<{
               </Text>
             </View>
             <Feather name='chevron-right' size={18} color={colors.mutedForeground} />
-          </TouchableOpacity>
+          </PressableScale>
         );
       }}
       showsVerticalScrollIndicator={false}
@@ -436,7 +440,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollOffset.value = event.nativeEvent.contentOffset.y;
+      scrollOffset.set(event.nativeEvent.contentOffset.y);
     },
     [scrollOffset]
   );
@@ -456,7 +460,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
       setActiveTab('queue');
       setSearchQuery('');
       setSearchResults([]);
-      scrollOffset.value = 0;
+      scrollOffset.set(0);
     }
   }, [isQueueOpen]);
 
@@ -685,7 +689,11 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
       <View>
         {showNowPlaying && (
           <View style={[styles.nowPlaying, { backgroundColor: colors.secondary }]}>
-            <Image source={{ uri: currentSong.image?.[1]?.link }} style={styles.nowPlayingArt} />
+            <Image
+              source={{ uri: currentSong.image?.[1]?.link }}
+              style={styles.nowPlayingArt}
+              fadeDuration={0}
+            />
             <View style={styles.nowPlayingInfo}>
               <Text style={[styles.nowPlayingText, { color: colors.primary }]}>NOW PLAYING</Text>
               <Text style={[styles.nowPlayingName, { color: colors.foreground }]} numberOfLines={1}>
@@ -713,7 +721,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
             {upcomingQueue.length > 0 ? `UP NEXT · ${upcomingQueue.length}` : 'UP NEXT'}
           </Text>
           <View style={styles.listHeaderActions}>
-            <TouchableOpacity
+            <PressableScale
               onPress={() => toggleAutoRecommendations()}
               accessibilityRole='switch'
               accessibilityState={{ checked: autoPlay }}
@@ -737,9 +745,9 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
               >
                 Autoplay
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
             {upcomingQueue.length > 0 && (
-              <TouchableOpacity
+              <PressableScale
                 onPress={handleClearQueue}
                 accessibilityRole='button'
                 accessibilityLabel='Clear upcoming queue'
@@ -750,7 +758,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
                 <Text style={[styles.miniPillText, { color: colors.destructive || '#ef4444' }]}>
                   Clear
                 </Text>
-              </TouchableOpacity>
+              </PressableScale>
             )}
           </View>
         </View>
@@ -797,14 +805,14 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
           <View style={[styles.header, { paddingTop: 16 }]}>
             <View style={styles.headerLeft}>
               {!inline && (
-                <TouchableOpacity
+                <PressableScale
                   onPress={handleClose}
                   style={[styles.backButton, { backgroundColor: colors.secondary }]}
                   accessibilityRole='button'
                   accessibilityLabel='Close queue'
                 >
                   <Ionicons name='arrow-back' size={20} color={colors.foreground} />
-                </TouchableOpacity>
+                </PressableScale>
               )}
               <Text style={[styles.headerTitle, { color: colors.foreground }]}>Queue</Text>
               {upcomingQueue.length > 0 && (
@@ -829,14 +837,14 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
             leftIcon={<Feather name='search' size={16} color={colors.mutedForeground} />}
             rightIcon={
               searchQuery ? (
-                <TouchableOpacity
+                <PressableScale
                   onPress={() => handleSearch('')}
                   accessibilityRole='button'
                   accessibilityLabel='Clear search'
                   hitSlop={8}
                 >
                   <Feather name='x' size={16} color={colors.mutedForeground} />
-                </TouchableOpacity>
+                </PressableScale>
               ) : null
             }
           />
@@ -847,11 +855,11 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
                 const active = activeTab === tab.key;
                 const count = tab.key === 'queue' ? upcomingQueue.length : 0;
                 return (
-                  <TouchableOpacity
+                  <PressableScale
                     key={tab.key}
                     onPress={() => {
                       setActiveTab(tab.key);
-                      scrollOffset.value = 0;
+                      scrollOffset.set(0);
                     }}
                     accessibilityRole='tab'
                     accessibilityState={{ selected: active }}
@@ -895,7 +903,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
                         </Text>
                       </View>
                     )}
-                  </TouchableOpacity>
+                  </PressableScale>
                 );
               })}
             </View>
@@ -996,7 +1004,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
                               {recsSourceName}
                             </Text>
                           </Text>
-                          <TouchableOpacity
+                          <PressableScale
                             accessibilityRole='button'
                             accessibilityLabel='Refresh recommendations'
                             style={[styles.miniPill, { backgroundColor: colors.secondary }]}
@@ -1014,7 +1022,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
                             <Text style={[styles.miniPillText, { color: colors.mutedForeground }]}>
                               Refresh
                             </Text>
-                          </TouchableOpacity>
+                          </PressableScale>
                         </View>
                       ) : null
                     }

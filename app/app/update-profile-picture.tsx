@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, ActivityIndicator, Alert, Animated } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, Text, View, Image, ActivityIndicator, Alert } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { EASE_OUT } from '@/lib/motion';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
@@ -11,6 +13,8 @@ import useApi from '@/utils/hooks/useApi';
 import { Button } from '@/components/ui/button';
 import { getOptimizedImageUrl, uploadToCloudinary } from '@/utils/Cloudinary';
 
+const CONTENT_ENTER = FadeIn.duration(200).easing(EASE_OUT);
+
 export default function UpdateProfilePictureScreen() {
   const { user, setUser } = useUser();
   const { colors } = useTheme();
@@ -20,25 +24,6 @@ export default function UpdateProfilePictureScreen() {
   const [selectedUri, setSelectedUri] = useState<string | null>(null);
   const [fileDetails, setFileDetails] = useState<{ name: string; type: string } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-
-  const imageScale = React.useRef(new Animated.Value(0.9)).current;
-  const opacity = React.useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(imageScale, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 350,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [selectedUri]);
 
   const handlePickImage = async () => {
     try {
@@ -141,13 +126,14 @@ export default function UpdateProfilePictureScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Animated.View style={[styles.content, { opacity, transform: [{ scale: imageScale }] }]}>
+      <Animated.View entering={CONTENT_ENTER} style={styles.content}>
         <View style={styles.imageContainer}>
           {imageSourceUri ? (
             <Image
               source={{ uri: imageSourceUri }}
               style={[styles.avatar, { borderColor: colors.border }]}
               resizeMode='cover'
+              fadeDuration={0}
             />
           ) : (
             <View

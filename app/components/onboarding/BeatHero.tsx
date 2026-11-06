@@ -11,6 +11,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
+  ReduceMotion,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -32,14 +33,14 @@ const Bar = memo(function Bar({ index, clock, energy }: BarProps) {
   const style = useAnimatedStyle(() => {
     // Whole-number frequencies, so the wave lines up again when the clock loops.
     const frequency = 1 + (index % 3);
-    const wave = (Math.sin(clock.value * 2 * Math.PI * frequency + index * 0.9) + 1) / 2;
+    const wave = (Math.sin(clock.get() * 2 * Math.PI * frequency + index * 0.9) + 1) / 2;
     const resting = 0.14 + wave * 0.3;
     const excited = 0.35 + wave * 0.65;
 
     return {
-      transform: [{ scaleY: resting + (excited - resting) * energy.value }],
+      transform: [{ scaleY: resting + (excited - resting) * energy.get() }],
       backgroundColor: interpolateColor(
-        energy.value,
+        energy.get(),
         [0, 1],
         [colors.mutedForeground, colors.primary]
       ),
@@ -59,8 +60,8 @@ export const BeatHero = memo(function BeatHero({ active }: { active: boolean }) 
 
   useEffect(() => {
     if (!active) return;
-    clock.value = 0;
-    clock.value = withRepeat(withTiming(1, { duration: LOOP_MS, easing: Easing.linear }), -1);
+    clock.set(0);
+    clock.set(withRepeat(withTiming(1, { duration: LOOP_MS, easing: Easing.linear }), -1));
     return () => cancelAnimation(clock);
   }, [active, clock]);
 
@@ -77,7 +78,9 @@ export const BeatHero = memo(function BeatHero({ active }: { active: boolean }) 
 
   const handlePressIn = () => {
     setHolding(true);
-    energy.value = withSpring(1, { damping: 12, stiffness: 140 });
+    energy.set(
+      withSpring(1, { duration: 400, dampingRatio: 0.6, reduceMotion: ReduceMotion.System })
+    );
     pulse();
     stopPulse();
     pulseTimer.current = setInterval(pulse, HAPTIC_PULSE_MS);
@@ -85,7 +88,9 @@ export const BeatHero = memo(function BeatHero({ active }: { active: boolean }) 
 
   const handlePressOut = () => {
     setHolding(false);
-    energy.value = withSpring(0, { damping: 18, stiffness: 120 });
+    energy.set(
+      withSpring(0, { duration: 400, dampingRatio: 1, reduceMotion: ReduceMotion.System })
+    );
     stopPulse();
   };
 

@@ -1,39 +1,39 @@
+import { EASE_OUT } from '@/lib/motion';
 import React, { useEffect } from 'react';
 import { StyleSheet, Text, View, Image } from 'react-native';
-import Animated, {
-  FadeInUp,
-  FadeOutUp,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeOutUp, useReducedMotion } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 
+const BANNER_ENTER = FadeInUp.duration(200).easing(EASE_OUT);
+const BANNER_EXIT = FadeOutUp.duration(160).easing(EASE_OUT);
+
 const EqualizerBar = ({ delay, minH, maxH }: { delay: number; minH: number; maxH: number }) => {
   const { colors } = useTheme();
-  const height = useSharedValue(minH);
+  const reduced = useReducedMotion();
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      height.value = withRepeat(
-        withSequence(withTiming(maxH, { duration: 250 }), withTiming(minH, { duration: 250 })),
-        -1,
-        true
-      );
-    }, delay);
-    return () => clearTimeout(timer);
-  }, [delay, minH, maxH, height]);
-
-  const animStyle = useAnimatedStyle(() => ({
-    height: height.value,
-  }));
-
-  return <Animated.View style={[styles.eqBar, { backgroundColor: colors.primary }, animStyle]} />;
+  // Scales a full-height bar: animating its height would re-run layout for the row every frame.
+  return (
+    <Animated.View
+      style={[
+        styles.eqBar,
+        { height: maxH, backgroundColor: colors.primary },
+        !reduced && {
+          animationName: {
+            from: { transform: [{ scaleY: minH / maxH }] },
+            to: { transform: [{ scaleY: 1 }] },
+          },
+          animationDuration: '250ms',
+          animationDelay: `${delay}ms`,
+          animationDirection: 'alternate',
+          animationIterationCount: 'infinite',
+          animationTimingFunction: 'ease-in-out',
+        },
+      ]}
+    />
+  );
 };
 
 interface GlobalSoundAnimationProps {
@@ -60,8 +60,8 @@ export const GlobalSoundAnimation: React.FC<GlobalSoundAnimationProps> = ({ curr
 
   return (
     <Animated.View
-      entering={FadeInUp.springify().damping(18).stiffness(350)}
-      exiting={FadeOutUp.duration(200)}
+      entering={BANNER_ENTER}
+      exiting={BANNER_EXIT}
       style={styles.floatingContainer}
       pointerEvents='none'
     >
@@ -83,6 +83,7 @@ export const GlobalSoundAnimation: React.FC<GlobalSoundAnimationProps> = ({ curr
                 'https://via.placeholder.com/26',
             }}
             style={[styles.avatar, { borderColor: colors.primary + '80' }]}
+            fadeDuration={0}
           />
         ) : (
           <View style={[styles.iconWrap, { backgroundColor: colors.primary + '25' }]}>

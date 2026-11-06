@@ -137,7 +137,11 @@ export const TabHeader = memo(function TabHeader({
         { borderColor: colors.border },
       ]}
     >
-      <Image source={{ uri: getProfileCloudinaryUrl(user.profilepic) }} style={styles.avatar} />
+      <Image
+        source={{ uri: getProfileCloudinaryUrl(user.profilepic) }}
+        style={styles.avatar}
+        fadeDuration={0}
+      />
     </PressableScale>
   ) : null;
 

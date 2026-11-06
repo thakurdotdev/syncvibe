@@ -1,3 +1,4 @@
+import { ROW_PRESS_SCALE } from '@/lib/motion';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -67,7 +68,7 @@ export const SettingsRow = memo(function SettingsRow({
   return (
     <PressableScale
       onPress={onPress}
-      scaleTo={0.985}
+      scaleTo={ROW_PRESS_SCALE}
       accessibilityRole='button'
       accessibilityLabel={label}
       style={styles.row}

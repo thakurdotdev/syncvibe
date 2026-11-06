@@ -1,17 +1,15 @@
+import PressableScale from '@/components/ui/PressableScale';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, Camera as ExpoCamera, FlashMode, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, StyleSheet, Text, TouchableOpacity, Vibration, View } from 'react-native';
+import { SafeAreaView, StyleSheet, Text, Vibration, View } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
-import Animated, {
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  useSharedValue,
-  withSequence,
-} from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { EASE_OUT } from '@/lib/motion';
 import { BlurView } from 'expo-blur';
+
+const RESULT_ENTER = FadeIn.duration(200).easing(EASE_OUT);
 
 const QRScannerScreen = ({
   onScanComplete,
@@ -28,15 +26,6 @@ const QRScannerScreen = ({
   const [isCameraActive, setIsCameraActive] = useState(true);
   const [permission, requestPermission] = useCameraPermissions();
 
-  const scanLinePosition = useSharedValue(0);
-  const scanLineOpacity = useSharedValue(1);
-  const resultPanelHeight = useSharedValue(0);
-
-  const resultPanelStyle = useAnimatedStyle(() => ({
-    height: withSpring(resultPanelHeight.value * 200),
-    opacity: withTiming(resultPanelHeight.value),
-  }));
-
   useEffect(() => {
     (async () => {
       const { status } = await requestPermission();
@@ -48,23 +37,6 @@ const QRScannerScreen = ({
     };
   }, []);
 
-  useEffect(() => {
-    if (isCameraActive && !scanned) {
-      startScanAnimation();
-    }
-  }, [isCameraActive, scanned]);
-
-  const startScanAnimation = () => {
-    scanLinePosition.value = withSequence(
-      withTiming(1, { duration: 2000 }),
-      withTiming(0, { duration: 0 })
-    );
-    scanLineOpacity.value = withSequence(
-      withTiming(1, { duration: 1000 }),
-      withTiming(0.5, { duration: 1000 })
-    );
-  };
-
   if (!permission?.granted) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -72,18 +44,18 @@ const QRScannerScreen = ({
           <Text style={[styles.permissionText, { color: colors.foreground }]}>
             We need your permission to access the camera
           </Text>
-          <TouchableOpacity
+          <PressableScale
             style={[styles.button, { backgroundColor: colors.primary }]}
             onPress={requestPermission}
           >
             <Text style={[styles.buttonText, { color: colors.foreground }]}>Grant Permission</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PressableScale>
+          <PressableScale
             style={[styles.button, styles.cancelButton, { backgroundColor: colors.secondary }]}
             onPress={onClose}
           >
             <Text style={[styles.buttonText, { color: colors.foreground }]}>Cancel</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </View>
     );
@@ -96,7 +68,6 @@ const QRScannerScreen = ({
       setIsCameraActive(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Vibration.vibrate(100);
-      resultPanelHeight.value = withSpring(1);
     }
   };
 
@@ -104,8 +75,6 @@ const QRScannerScreen = ({
     setScanned(false);
     setScannedData(null);
     setIsCameraActive(true);
-    resultPanelHeight.value = withSpring(0);
-    startScanAnimation();
   };
 
   const toggleFlash = () => {
@@ -137,20 +106,20 @@ const QRScannerScreen = ({
           <Text style={[styles.statusText, { color: colors.foreground }]}>
             Camera access denied
           </Text>
-          <TouchableOpacity
+          <PressableScale
             style={[styles.button, { backgroundColor: colors.primary }]}
             onPress={requestPermission}
           >
             <Text style={[styles.buttonText, { color: colors.foreground }]}>
               Request Permission
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PressableScale>
+          <PressableScale
             style={[styles.button, styles.cancelButton, { backgroundColor: colors.secondary }]}
             onPress={onClose}
           >
             <Text style={[styles.buttonText, { color: colors.foreground }]}>Cancel</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </SafeAreaView>
     );
@@ -159,12 +128,12 @@ const QRScannerScreen = ({
   if (scanned && scannedData) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <Animated.View style={[styles.resultScreen, resultPanelStyle]}>
+        <Animated.View entering={RESULT_ENTER} style={styles.resultScreen}>
           <View style={[styles.resultHeader, { borderBottomColor: colors.border }]}>
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>QR Code Scanned</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <PressableScale style={styles.closeButton} onPress={handleClose}>
               <Ionicons name='close' size={24} color={colors.foreground} />
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
           <View style={styles.resultContent}>
@@ -178,7 +147,7 @@ const QRScannerScreen = ({
               QR code detected successfully!
             </Text>
 
-            <TouchableOpacity
+            <PressableScale
               style={[styles.joinButton, { backgroundColor: colors.primary }]}
               onPress={() => {
                 onScanComplete(scannedData);
@@ -186,14 +155,14 @@ const QRScannerScreen = ({
               }}
             >
               <Text style={[styles.buttonText, { color: colors.foreground }]}>Join Group</Text>
-            </TouchableOpacity>
+            </PressableScale>
 
-            <TouchableOpacity
+            <PressableScale
               style={[styles.button, styles.cancelButton, { backgroundColor: colors.secondary }]}
               onPress={resetScanner}
             >
               <Text style={[styles.buttonText, { color: colors.foreground }]}>Scan Again</Text>
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </Animated.View>
       </SafeAreaView>
@@ -204,9 +173,9 @@ const QRScannerScreen = ({
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>QR Scanner</Text>
-        <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+        <PressableScale style={styles.closeButton} onPress={handleClose}>
           <Ionicons name='close' size={24} color={colors.foreground} />
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
       <View style={styles.scannerContainer}>
@@ -238,7 +207,7 @@ const QRScannerScreen = ({
       </View>
 
       <BlurView intensity={20} style={[styles.controlsContainer, { backgroundColor: colors.card }]}>
-        <TouchableOpacity style={styles.iconButton} onPress={toggleFlash}>
+        <PressableScale style={styles.iconButton} onPress={toggleFlash}>
           <Ionicons
             name={flashMode === 'on' ? 'flash' : 'flash-outline'}
             size={28}
@@ -247,7 +216,7 @@ const QRScannerScreen = ({
           <Text style={[styles.iconText, { color: colors.mutedForeground }]}>
             {flashMode === 'on' ? 'Flash On' : 'Flash Off'}
           </Text>
-        </TouchableOpacity>
+        </PressableScale>
       </BlurView>
     </SafeAreaView>
   );

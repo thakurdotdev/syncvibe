@@ -1,9 +1,9 @@
+import PressableScale from '@/components/ui/PressableScale';
 import { styles } from '@/assets/styles/search.style';
 import { useTheme } from '@/context/ThemeContext';
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { Text, View } from 'react-native';
 
 interface SearchSuggestionsProps {
   onSuggestionPress: (suggestion: string) => void;
@@ -23,7 +23,7 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({ onSuggestionPress
 
   return (
     <View style={styles.historyContainer}>
-      <Animated.View style={styles.historySection} entering={FadeIn.duration(300)}>
+      <View style={styles.historySection}>
         <View style={styles.historySectionHeader}>
           <Text style={[styles.historySectionTitle, { color: colors.foreground }]}>
             Trending Searches
@@ -31,9 +31,9 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({ onSuggestionPress
         </View>
 
         <View style={styles.suggestionsContainer}>
-          {trendingSuggestions.map((suggestion, index) => (
-            <Animated.View key={suggestion.text} entering={FadeIn.delay(index * 100)}>
-              <TouchableOpacity
+          {trendingSuggestions.map((suggestion) => (
+            <View key={suggestion.text}>
+              <PressableScale
                 style={[
                   styles.suggestionChip,
                   {
@@ -57,11 +57,11 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({ onSuggestionPress
                 <Text style={[styles.suggestionChipText, { color: colors.foreground }]}>
                   {suggestion.text}
                 </Text>
-              </TouchableOpacity>
-            </Animated.View>
+              </PressableScale>
+            </View>
           ))}
         </View>
-      </Animated.View>
+      </View>
     </View>
   );
 };
