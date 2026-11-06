@@ -16,6 +16,9 @@ import { useUser } from './UserContext';
 import {
   isNaturalGroupSongEnd,
   useGroupPlaybackStore,
+  ROOM_ACTION_SETTLE_MS,
+  ROOM_SYNC_INTERVAL_MS,
+  noteRoomPlaybackStarted,
 } from '@/stores/groupMusic/groupPlaybackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
@@ -114,6 +117,13 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         pb.setState({ isPlaying: playing });
         if (playing) {
           pb.getState().startProgressPolling();
+          noteRoomPlaybackStarted();
+          // Sound has only just started, after however long it took to buffer: measure that now
+          // rather than leaving this phone behind until the next regular check.
+          const groupId = ss.getState().currentGroup?.id;
+          if (groupId && socket) {
+            setTimeout(() => socket.emit('request-sync', { groupId }), ROOM_ACTION_SETTLE_MS + 100);
+          }
         } else {
           pb.getState().stopProgressPolling();
         }
@@ -157,18 +167,30 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!socket || !currentGroupId) return;
 
-    const syncWithServer = () => {
+    const syncClock = () => {
       socket.emit('time-sync-request', { clientTime: Date.now() });
+    };
+    const checkDrift = () => {
+      socket.emit('request-sync', { groupId: currentGroupId });
     };
 
     socket.on('time-sync-response', (data: { clientTime: number; serverTime: number }) => {
       pb.getState().processTimeSyncResponse(data.clientTime, data.serverTime);
     });
 
-    syncWithServer();
-    syncIntervalRef.current = setInterval(syncWithServer, 5000);
+    // A quick burst on joining so the clock is accurate early, then a steady pace.
+    syncClock();
+    const burst = setInterval(syncClock, 1000);
+    const settle = setTimeout(() => {
+      clearInterval(burst);
+      syncIntervalRef.current = setInterval(syncClock, 5000);
+    }, 5000);
+    const driftTimer = setInterval(checkDrift, ROOM_SYNC_INTERVAL_MS);
 
     return () => {
+      clearInterval(burst);
+      clearTimeout(settle);
+      clearInterval(driftTimer);
       if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
       socket.off('time-sync-response');
     };
@@ -226,16 +248,17 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     });
 
     socket.on('sync-state', async (data: any) => {
-      if (data.queue) {
+      // This arrives every few seconds: only touch the queue if an update was actually missed,
+      // so screens showing it don't re-render for nothing.
+      const { queue, currentQueueIndex } = ss.getState();
+      const sameQueue =
+        data.currentQueueIndex === currentQueueIndex &&
+        data.queue?.length === queue.length &&
+        data.queue?.every((item: any, i: number) => item.id === queue[i]?.id);
+      if (data.queue && !sameQueue) {
         ss.setState({ queue: data.queue, currentQueueIndex: data.currentQueueIndex });
       }
-      if (data.playbackState?.currentTrack) {
-        await pb.getState().handleMusicUpdate({
-          song: data.playbackState.currentTrack,
-          currentTime: data.playbackState.currentTime,
-          serverTime: data.playbackState.serverTime,
-        });
-      }
+      await pb.getState().handleSyncState(data);
     });
 
     socket.on('group-created', (group: any) => {
