@@ -138,7 +138,8 @@ export default function SearchScreen() {
     .onStart((e) => {
       const from = Math.round(page.get());
       startPage.set(from);
-      const neighbour = from + (e.translationX < 0 ? 1 : -1);
+      // Translation is still 0 here on Android; velocity already says which way it's going.
+      const neighbour = from + (e.velocityX < 0 ? 1 : -1);
       if (neighbour >= 0 && neighbour <= lastPage) scheduleOnRN(beginPeek, neighbour);
     })
     .onUpdate((e) => {
