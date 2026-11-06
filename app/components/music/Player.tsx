@@ -1,5 +1,6 @@
 import { blurredArt } from '@/lib/artwork';
 import { EASE_OUT, project } from '@/lib/motion';
+import { SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { useTheme } from '@/context/ThemeContext';
 import {
   setOnOpenFullPlayer,
@@ -88,6 +89,8 @@ export default function Player() {
   const queueOpen = useSharedValue(false);
   const startQueueShown = useSharedValue(0);
   const draggingQueue = useSharedValue(false);
+  /** Which way this swipe is going isn't known yet: see SWIPE_DIRECTION_DECIDED. */
+  const directionPending = useSharedValue(false);
   /** How far the queue slides: from just below the screen up to under the header. */
   const queueTravel = screenHeight - insets.top - PLAYER_HEADER_HEIGHT;
 
@@ -161,9 +164,15 @@ export default function Player() {
         .onStart((e) => {
           startY.set(translateY.get());
           startQueueShown.set(queueShown.get());
-          draggingQueue.set(queueOpen.get() || e.translationY < 0);
+          draggingQueue.set(queueOpen.get());
+          directionPending.set(!queueOpen.get());
         })
         .onUpdate((e) => {
+          if (directionPending.get()) {
+            if (Math.abs(e.translationY) < SWIPE_DIRECTION_DECIDED) return;
+            directionPending.set(false);
+            draggingQueue.set(e.translationY < 0);
+          }
           if (draggingQueue.get()) {
             queueShown.set(clamp(startQueueShown.get() - e.translationY / queueTravel, 0, 1));
           } else if (e.translationY > 0) {
@@ -171,6 +180,11 @@ export default function Player() {
           }
         })
         .onEnd((e, success) => {
+          if (directionPending.get()) {
+            // Barely moved before lifting: a flick can still say which way it was going.
+            directionPending.set(false);
+            draggingQueue.set(e.velocityY < 0);
+          }
           if (draggingQueue.get()) {
             const wasOpen = queueOpen.get();
             const moved = wasOpen ? e.translationY : -e.translationY;
@@ -197,6 +211,7 @@ export default function Player() {
         }),
     [
       animateClosed,
+      directionPending,
       draggingQueue,
       queueOpen,
       queueShown,
