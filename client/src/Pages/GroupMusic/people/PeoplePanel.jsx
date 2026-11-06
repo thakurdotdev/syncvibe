@@ -44,7 +44,7 @@ const MemberRow = memo(({ member, isHost, isYou }) => (
         )}
       >
         {isHost && <Crown className='h-3 w-3' aria-hidden='true' />}
-        {isHost ? 'Host' : 'Listening'}
+        {member.connected === false ? 'Reconnecting…' : isHost ? 'Host' : 'Listening'}
       </p>
     </div>
   </motion.li>

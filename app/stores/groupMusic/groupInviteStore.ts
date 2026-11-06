@@ -1,3 +1,4 @@
+import { getDeviceId } from '@/utils/deviceId';
 import { router } from 'expo-router';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
@@ -34,12 +35,15 @@ export const useGroupInviteStore = create<GroupInviteStore>()((set) => ({
 
   acceptInvite: (socket, user, invite) => {
     if (!socket || !user) return;
-    socket.emit('accept-group-invite', {
-      groupId: invite.groupId,
-      userId: user.userid,
-      userName: user.name,
-      profilePic: user.profilepic,
-      inviterId: invite.inviterId,
+    void getDeviceId().then((deviceId) => {
+      socket.emit('accept-group-invite', {
+        groupId: invite.groupId,
+        userId: user.userid,
+        userName: user.name,
+        profilePic: user.profilepic,
+        inviterId: invite.inviterId,
+        deviceId,
+      });
     });
     set({ pendingInvite: null });
     router.push('/(tabs)/group-music');

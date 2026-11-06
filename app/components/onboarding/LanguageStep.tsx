@@ -1,7 +1,7 @@
+import { PRESS_IN, PRESS_SCALE, SPRING_PRESS, STATE } from '@/lib/motion';
 import { useTheme } from '@/context/ThemeContext';
 import { LANGUAGES } from '@/lib/languages';
 import { typography } from '@/theme/typography';
-import * as Haptics from 'expo-haptics';
 import { memo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
@@ -36,22 +36,22 @@ const LanguageChip = memo(function LanguageChip({
 }: LanguageChipProps) {
   const { colors } = useTheme();
   const scale = useSharedValue(1);
-  const fill = useDerivedValue(() => withTiming(selected ? 1 : 0, { duration: 160 }), [selected]);
+  const fill = useDerivedValue(() => withTiming(selected ? 1 : 0, STATE), [selected]);
 
   const style = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    backgroundColor: interpolateColor(fill.value, [0, 1], [colors.card, colors.primary]),
-    borderColor: interpolateColor(fill.value, [0, 1], [colors.border, colors.primary]),
+    transform: [{ scale: scale.get() }],
+    backgroundColor: interpolateColor(fill.get(), [0, 1], [colors.card, colors.primary]),
+    borderColor: interpolateColor(fill.get(), [0, 1], [colors.border, colors.primary]),
   }));
 
   return (
     <AnimatedPressable
       onPress={onPress}
       onPressIn={() => {
-        scale.value = withSpring(0.93, { damping: 14, stiffness: 320 });
+        scale.set(withTiming(PRESS_SCALE, PRESS_IN));
       }}
       onPressOut={() => {
-        scale.value = withSpring(1, { damping: 10, stiffness: 260 });
+        scale.set(withSpring(1, SPRING_PRESS));
       }}
       accessibilityRole='checkbox'
       accessibilityLabel={label}
@@ -93,11 +93,9 @@ export function LanguageStep({ selected, onChange }: LanguageStepProps) {
   const toggle = (id: string) => {
     // At least one language must stay selected: Home has nothing to recommend without it.
     if (selected.has(id) && count === 1) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       return;
     }
 
-    Haptics.selectionAsync().catch(() => {});
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
     else next.add(id);

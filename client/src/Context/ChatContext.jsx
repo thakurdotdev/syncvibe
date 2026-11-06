@@ -1,3 +1,4 @@
+import { bumpChat } from '@/Utils/ChatUtils';
 import axios from 'axios';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
@@ -33,6 +34,7 @@ export const ChatProvider = ({ children }) => {
           isTyping: false,
         }));
         setUsers(updatedChatList);
+        return updatedChatList;
       }
     } catch (error) {
       console.error('Error fetching chats:', error);
@@ -109,14 +111,42 @@ export const ChatProvider = ({ children }) => {
       };
     };
 
-    const handleMessageReceived = (messageData) => {
-      const { senderid } = messageData;
+    // Quietly, with no spinner over the list. A message arriving mid-fetch gets one more fetch.
+    let refreshing = false;
+    let refreshAgain = false;
+    const refreshChatList = async () => {
+      if (refreshing) {
+        refreshAgain = true;
+        return;
+      }
+      refreshing = true;
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/get/chatlist`, {
+          withCredentials: true,
+        });
+        setUsers((response.data.chatList || []).map((chat) => ({ ...chat, isTyping: false })));
+      } catch (error) {
+        console.error('Error fetching chats:', error);
+      } finally {
+        refreshing = false;
+        if (refreshAgain) {
+          refreshAgain = false;
+          refreshChatList();
+        }
+      }
+    };
 
-      setUsers((prevUsers) =>
-        prevUsers.map((u) =>
-          u?.otherUser?.userid === senderid ? { ...u, lastmessage: messageData.content } : u
-        )
-      );
+    const handleMessageReceived = (messageData) => {
+      const lastMsg = messageData.content || (messageData.fileurl ? 'Sent an attachment' : '');
+
+      setUsers((prevUsers) => {
+        const updated = bumpChat(prevUsers, messageData.chatid, lastMsg);
+        if (updated) return updated;
+        // Someone new: fetch the list to learn who they are. React may run this twice, which
+        // the refresh already copes with.
+        refreshChatList();
+        return prevUsers;
+      });
 
       showNotification(messageData);
     };
@@ -129,6 +159,8 @@ export const ChatProvider = ({ children }) => {
 
     const handleReconnect = () => {
       handleConnect();
+      // Messages may have arrived while the connection was down, first ones included.
+      refreshChatList();
       const videoCallStore = useVideoCallStore.getState();
       videoCallStore.setSocket(newSocket);
     };

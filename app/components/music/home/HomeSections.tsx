@@ -1,3 +1,4 @@
+import { ROW_PRESS_SCALE } from '@/lib/motion';
 import { SectionTitle } from '@/components/music/MusicLists';
 import { PlayingBars } from '@/components/music/PlayingBars';
 import { useSongPress } from '@/components/music/useSongPress';
@@ -106,7 +107,7 @@ const ChartRow = memo(function ChartRow({ song, rank }: { song: Song; rank: numb
         onPress={onPress}
         onLongPress={onLongPress}
         delayLongPress={350}
-        scaleTo={0.98}
+        scaleTo={ROW_PRESS_SCALE}
         accessibilityRole='button'
         accessibilityLabel={`Number ${rank}, ${song.name} by ${songArtist(song)}`}
         style={styles.chartRow}

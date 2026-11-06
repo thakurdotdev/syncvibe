@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
-  Platform,
-  Pressable,
   PressableProps,
   StyleProp,
   StyleSheet,
@@ -13,7 +10,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+import PressableScale from '@/components/ui/PressableScale';
 
 export type ButtonVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
 export type ButtonSize = 'default' | 'sm' | 'lg' | 'icon';
@@ -47,27 +44,6 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
   const { colors, theme } = useTheme();
   const [isPressed, setIsPressed] = useState(false);
-  const scale = React.useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    setIsPressed(true);
-    Animated.spring(scale, {
-      toValue: 0.96,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 5,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    setIsPressed(false);
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 5,
-    }).start();
-  };
 
   const getVariantStyles = (
     isPressed: boolean
@@ -181,19 +157,6 @@ export const Button: React.FC<ButtonProps> = ({
 
   const sizeStyles = getSizeStyles();
 
-  const getRippleColor = () => {
-    if (variant === 'outline' || variant === 'ghost' || variant === 'link') {
-      return Platform.select({
-        android: theme === 'light' ? '#00000010' : '#FFFFFF10',
-        default: 'transparent',
-      });
-    }
-    return Platform.select({
-      android: theme === 'light' ? '#00000010' : '#FFFFFF20',
-      default: 'transparent',
-    });
-  };
-
   const renderContent = (isPressed: boolean) => {
     const variantStyles = getVariantStyles(isPressed);
     const content = title || children;
@@ -247,17 +210,6 @@ export const Button: React.FC<ButtonProps> = ({
     ...props,
   };
 
-  const androidProps =
-    Platform.OS === 'android'
-      ? {
-          android_ripple: {
-            color: getRippleColor(),
-            borderless: false,
-            foreground: true,
-          },
-        }
-      : {};
-
   const variantStyles = getVariantStyles(isPressed);
   const buttonStyle = [
     styles.button,
@@ -270,27 +222,25 @@ export const Button: React.FC<ButtonProps> = ({
       width: sizeStyles.width,
       opacity: disabled ? 0.5 : 1,
       borderRadius: 12,
-      transform: [{ scale }] as any,
     },
     style,
   ];
 
   return (
-    <AnimatedPressable
+    <PressableScale
       {...commonProps}
-      {...androidProps}
       onPressIn={(e) => {
-        handlePressIn();
-        props.onPressIn && props.onPressIn(e);
+        setIsPressed(true);
+        props.onPressIn?.(e);
       }}
       onPressOut={(e) => {
-        handlePressOut();
-        props.onPressOut && props.onPressOut(e);
+        setIsPressed(false);
+        props.onPressOut?.(e);
       }}
       style={buttonStyle}
     >
       {renderContent(isPressed)}
-    </AnimatedPressable>
+    </PressableScale>
   );
 };
 

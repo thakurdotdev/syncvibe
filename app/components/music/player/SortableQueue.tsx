@@ -2,7 +2,6 @@ import { useTheme } from '@/context/ThemeContext';
 import { PRESS_IN, SPRING_PRESS, STATE } from '@/lib/motion';
 import { EDGE_GUARD, SWIPE_ACTIVATE } from '@/lib/swipe';
 import { Song } from '@/types/song';
-import * as Haptics from 'expo-haptics';
 import { Trash2 } from 'lucide-react-native';
 import {
   memo,
@@ -374,7 +373,6 @@ export const SortableQueue = memo(function SortableQueue({
       dragging.current = true;
       autoScroll.setActive(true);
       setDraggingId(id);
-      Haptics.selectionAsync().catch(() => {});
     },
     [autoScroll]
   );
@@ -396,14 +394,6 @@ export const SortableQueue = memo(function SortableQueue({
       if (next.some((song, i) => song.id !== current[i]?.id)) onReorder(next);
     },
     [autoScroll, onReorder, positions]
-  );
-
-  const removeRow = useCallback(
-    (id: string) => {
-      Haptics.selectionAsync().catch(() => {});
-      onRemove(id);
-    },
-    [onRemove]
   );
 
   const onLayout = useCallback(
@@ -445,7 +435,7 @@ export const SortableQueue = memo(function SortableQueue({
           syncDrag={syncDrag}
           onLift={onLift}
           onDrop={onDrop}
-          onRemove={removeRow}
+          onRemove={onRemove}
         />
       ))}
     </AnimatedScrollView>

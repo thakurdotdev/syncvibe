@@ -1,5 +1,6 @@
+import PressableScale from '@/components/ui/PressableScale';
 import React, { memo, useState, useEffect, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { Message } from '@/stores/groupMusic/types';
@@ -65,9 +66,8 @@ export const SoundMessageRow: React.FC<SoundMessageRowProps> = memo(({ msg, isOw
   return (
     <View style={styles.container}>
       {/* Play/Pause Button */}
-      <TouchableOpacity
+      <PressableScale
         onPress={handleTogglePlay}
-        activeOpacity={0.8}
         style={[
           styles.playBtn,
           {
@@ -81,7 +81,7 @@ export const SoundMessageRow: React.FC<SoundMessageRowProps> = memo(({ msg, isOw
           color={isOwn ? colors.primary : colors.primaryForeground}
           style={!isPlaying ? { marginLeft: 1.5 } : undefined}
         />
-      </TouchableOpacity>
+      </PressableScale>
 
       {/* Waveform & Info */}
       <View style={styles.infoCol}>
@@ -96,11 +96,7 @@ export const SoundMessageRow: React.FC<SoundMessageRowProps> = memo(({ msg, isOw
         </Text>
 
         {/* Waveform Bars */}
-        <TouchableOpacity
-          onPress={handleTogglePlay}
-          activeOpacity={0.85}
-          style={styles.waveformRow}
-        >
+        <PressableScale onPress={handleTogglePlay} style={styles.waveformRow}>
           {waveformBars.map((height, i) => (
             <View
               key={i}
@@ -119,7 +115,7 @@ export const SoundMessageRow: React.FC<SoundMessageRowProps> = memo(({ msg, isOw
               ]}
             />
           ))}
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     </View>
   );

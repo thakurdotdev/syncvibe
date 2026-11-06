@@ -9,7 +9,8 @@ import { resumePendingUpdates } from '@/features/app-update/eas-webhook.controll
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  pingTimeout: 30000,
+  // Spots a dead connection within 30s. The room's grace period covers any false alarm.
+  pingTimeout: 20000,
   pingInterval: 10000,
   connectTimeout: 20000,
   maxHttpBufferSize: 2e6,

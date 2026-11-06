@@ -1,5 +1,5 @@
 import { useTheme } from '@/context/ThemeContext';
-import { BUTTON_PRESS_SCALE, EASE_OUT, SPRING_PRESS } from '@/lib/motion';
+import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE, SPRING_PRESS } from '@/lib/motion';
 import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE } from '@/lib/swipe';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import PressableScale from '@/components/ui/PressableScale';
@@ -220,7 +220,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
       <View style={styles.miniRow}>
         <PressableScale
           onPress={openFullPlayer}
-          scaleTo={0.985}
+          scaleTo={ROW_PRESS_SCALE}
           style={styles.miniSong}
           accessibilityRole='button'
           accessibilityLabel={`Open player: ${currentSong?.name ?? ''}`}

@@ -1,3 +1,4 @@
+import { BUTTON_PRESS_SCALE } from '@/lib/motion';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { memo } from 'react';
@@ -23,7 +24,7 @@ export const MessageReactions = memo(function MessageReactions({
         <PressableScale
           key={c.emoji}
           onPress={() => onToggle(c.emoji)}
-          scaleTo={0.9}
+          scaleTo={BUTTON_PRESS_SCALE}
           accessibilityRole='button'
           accessibilityLabel={`${c.emoji} by ${c.names.join(', ')}${c.mine ? '. Tap to remove yours' : ''}`}
           style={[

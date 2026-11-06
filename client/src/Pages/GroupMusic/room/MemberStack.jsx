@@ -18,7 +18,10 @@ const MemberStack = ({ members, onClick }) => {
     >
       <span className='flex -space-x-2'>
         {visible.map((member) => (
-          <Avatar key={member.userId} className='h-7 w-7 ring-2 ring-background'>
+          <Avatar
+            key={member.userId}
+            className={`h-7 w-7 ring-2 ring-background ${member.connected === false ? 'opacity-40' : ''}`}
+          >
             <AvatarImage src={member.profilePic} />
             <AvatarFallback className='bg-accent text-[10px]'>
               {getInitial(member.userName)}

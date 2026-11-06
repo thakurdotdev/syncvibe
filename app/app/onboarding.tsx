@@ -8,7 +8,6 @@ import { LANGUAGE_STORAGE_KEY } from '@/lib/languages';
 import { ONBOARDING_STORAGE_KEY } from '@/lib/onboarding';
 import { typography } from '@/theme/typography';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
 import { ReactNode, useCallback, useRef, useState } from 'react';
@@ -41,11 +40,11 @@ function Page({ index, scrollX, width, children, footer }: PageProps) {
   const contentStyle = useAnimatedStyle(() => {
     const range = [(index - 1) * width, index * width, (index + 1) * width];
     return {
-      opacity: interpolate(scrollX.value, range, [0, 1, 0], Extrapolation.CLAMP),
+      opacity: interpolate(scrollX.get(), range, [0, 1, 0], Extrapolation.CLAMP),
       transform: [
         {
           translateX: interpolate(
-            scrollX.value,
+            scrollX.get(),
             range,
             [width * 0.25, 0, -width * 0.25],
             Extrapolation.CLAMP
@@ -72,7 +71,7 @@ function ProgressSegment({
 
   const fillStyle = useAnimatedStyle(() => ({
     width: `${interpolate(
-      scrollX.value,
+      scrollX.get(),
       [(index - 1) * width, index * width],
       [0, 100],
       Extrapolation.CLAMP
@@ -104,15 +103,14 @@ export default function OnboardingScreen() {
 
   const handlePageChange = (next: number) => {
     setPage(next);
-    Haptics.selectionAsync().catch(() => {});
   };
 
   // Works out the page from the scroll position, so swipes and button presses both update it.
   const onScroll = useAnimatedScrollHandler((event) => {
-    scrollX.value = event.contentOffset.x;
+    scrollX.set(event.contentOffset.x);
     const next = Math.round(event.contentOffset.x / width);
-    if (next !== pageIndex.value) {
-      pageIndex.value = next;
+    if (next !== pageIndex.get()) {
+      pageIndex.set(next);
       scheduleOnRN(handlePageChange, next);
     }
   });

@@ -48,6 +48,7 @@ const Avatar: React.FC<AvatarProps> = ({ name, profilepic, size = 'md', isOnline
               backgroundColor: colors.muted,
             },
           ]}
+          fadeDuration={0}
         />
       ) : (
         <View

@@ -1,13 +1,6 @@
+import PressableScale from '@/components/ui/PressableScale';
 import React from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  ActivityIndicator,
-  TouchableOpacity,
-} from 'react-native';
+import { Modal, View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { useAppUpdate } from '@/context/AppUpdateContext';
@@ -97,13 +90,13 @@ export const AppUpdateModal: React.FC = () => {
                 <Text style={[styles.criticalText, { color: colors.destructive }]}>CRITICAL</Text>
               </View>
             ) : !isDownloading && !isVerifying ? (
-              <TouchableOpacity
+              <PressableScale
                 onPress={hideUpdateModal}
                 style={[styles.closeIconBtn, { backgroundColor: colors.secondary }]}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Feather name='x' size={16} color={colors.mutedForeground} />
-              </TouchableOpacity>
+              </PressableScale>
             ) : null}
           </View>
 
@@ -241,19 +234,18 @@ export const AppUpdateModal: React.FC = () => {
                   size='lg'
                   style={styles.fullWidthButton}
                 />
-                <TouchableOpacity
+                <PressableScale
                   onPress={openManualDownloadUrl}
                   style={[
                     styles.manualDownloadButton,
                     { borderColor: colors.border, backgroundColor: colors.secondary },
                   ]}
-                  activeOpacity={0.7}
                 >
                   <MaterialCommunityIcons name='open-in-new' size={16} color={colors.primary} />
                   <Text style={[styles.manualDownloadText, { color: colors.foreground }]}>
                     Download via Browser (Direct Link)
                   </Text>
-                </TouchableOpacity>
+                </PressableScale>
                 {!isCritical && (
                   <Button
                     title='Later'
@@ -273,19 +265,18 @@ export const AppUpdateModal: React.FC = () => {
                   size='default'
                   style={styles.fullWidthButton}
                 />
-                <TouchableOpacity
+                <PressableScale
                   onPress={openManualDownloadUrl}
                   style={[
                     styles.manualDownloadButton,
                     { borderColor: colors.border, backgroundColor: colors.secondary },
                   ]}
-                  activeOpacity={0.7}
                 >
                   <MaterialCommunityIcons name='open-in-new' size={16} color={colors.primary} />
                   <Text style={[styles.manualDownloadText, { color: colors.foreground }]}>
                     Download in Browser Instead
                   </Text>
-                </TouchableOpacity>
+                </PressableScale>
               </>
             ) : isReady || isInstalling ? (
               <>
@@ -297,19 +288,18 @@ export const AppUpdateModal: React.FC = () => {
                   size='lg'
                   style={styles.fullWidthButton}
                 />
-                <TouchableOpacity
+                <PressableScale
                   onPress={openManualDownloadUrl}
                   style={[
                     styles.manualDownloadButton,
                     { borderColor: colors.border, backgroundColor: colors.secondary },
                   ]}
-                  activeOpacity={0.7}
                 >
                   <MaterialCommunityIcons name='open-in-new' size={16} color={colors.primary} />
                   <Text style={[styles.manualDownloadText, { color: colors.foreground }]}>
                     Download APK in Browser
                   </Text>
-                </TouchableOpacity>
+                </PressableScale>
               </>
             ) : isError ? (
               <View style={{ width: '100%', gap: 8 }}>

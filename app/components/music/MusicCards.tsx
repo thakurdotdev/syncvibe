@@ -1,13 +1,14 @@
 import { useGroupMusic } from '@/context/GroupMusicContext';
+import { PRESS_IN, ROW_PRESS_SCALE, SPRING_PRESS } from '@/lib/motion';
 import { useTheme } from '@/context/ThemeContext';
-import { usePlayerControls, useSongPlaybackState } from '@/stores/playerStore';
+import { usePlayerStore, useSongPlaybackState } from '@/stores/playerStore';
 import { Album, Artist, Playlist } from '@/types/music';
 import { Song } from '@/types/song';
 import { convertToHttps, ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
 import { useProgress } from '@rntp/player';
 import { router } from 'expo-router';
-import { memo, default as React, useCallback, useMemo, useState } from 'react';
+import { memo, default as React, useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import PressableScale from '@/components/ui/PressableScale';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -16,6 +17,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import NewPlayerDrawer from './NewPlayerDrawer';
@@ -70,64 +72,71 @@ export const CustomSlider = ({
   thumbSize = 14,
   trackHeight = 4,
 }: CustomSliderProps) => {
-  const [sliderWidth, setSliderWidth] = useState(0);
+  const sliderWidth = useSharedValue(0);
   const isDragging = useSharedValue(false);
-  const dragX = useSharedValue(0);
+  const dragFraction = useSharedValue(0);
+  const thumbScale = useSharedValue(1);
+  const playedFraction = useSharedValue(0);
 
-  const progressPercent = maxValue > 0 ? value / maxValue : 0;
+  useEffect(() => {
+    playedFraction.set(maxValue > 0 ? value / maxValue : 0);
+  }, [value, maxValue, playedFraction]);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    if (isDragging.value) {
-      return {
-        width: `${clamp(dragX.value * 100, 0, 100)}%`,
-      };
-    }
-    return {
-      width: `${progressPercent * 100}%`,
-    };
-  });
+  const fillStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scaleX: clamp(isDragging.get() ? dragFraction.get() : playedFraction.get(), 0, 1) },
+    ],
+  }));
 
   const thumbStyle = useAnimatedStyle(() => {
-    const leftPercent = isDragging.value ? dragX.value : progressPercent;
+    const fraction = clamp(isDragging.get() ? dragFraction.get() : playedFraction.get(), 0, 1);
     return {
-      left: `${clamp(leftPercent * 100, 0, 100)}%`,
       transform: [
-        { translateX: -thumbSize / 2 },
-        { scale: isDragging.value ? withSpring(1.2) : withSpring(1) },
+        { translateX: fraction * sliderWidth.get() - thumbSize / 2 },
+        { scale: thumbScale.get() },
       ],
     };
   });
 
-  const gesture = Gesture.Pan()
-    .onStart((event) => {
-      isDragging.value = true;
-      dragX.value = event.x / (sliderWidth || 1);
-    })
-    .onChange((event) => {
-      dragX.value = event.x / (sliderWidth || 1);
-    })
-    .onEnd(() => {
-      const finalValue = clamp(dragX.value * maxValue, 0, maxValue);
-      scheduleOnRN(onSeek, finalValue);
-      isDragging.value = false;
+  const gesture = useMemo(() => {
+    const pan = Gesture.Pan()
+      .onStart((event) => {
+        isDragging.set(true);
+        dragFraction.set(event.x / (sliderWidth.get() || 1));
+        thumbScale.set(withTiming(1.2, PRESS_IN));
+      })
+      .onChange((event) => {
+        dragFraction.set(event.x / (sliderWidth.get() || 1));
+      })
+      .onEnd(() => {
+        const fraction = clamp(dragFraction.get(), 0, 1);
+        // Stay where the finger left it until the seek's new position comes back.
+        playedFraction.set(fraction);
+        scheduleOnRN(onSeek, fraction * maxValue);
+      })
+      .onFinalize(() => {
+        isDragging.set(false);
+        thumbScale.set(withSpring(1, SPRING_PRESS));
+      });
+
+    const tap = Gesture.Tap().onEnd((event) => {
+      const fraction = clamp(event.x / (sliderWidth.get() || 1), 0, 1);
+      playedFraction.set(fraction);
+      scheduleOnRN(onSeek, fraction * maxValue);
     });
 
-  const tapGesture = Gesture.Tap().onEnd((event) => {
-    const finalValue = clamp((event.x / (sliderWidth || 1)) * maxValue, 0, maxValue);
-    scheduleOnRN(onSeek, finalValue);
-  });
-
-  const composedGesture = Gesture.Exclusive(gesture, tapGesture);
+    return Gesture.Exclusive(pan, tap);
+  }, [dragFraction, isDragging, maxValue, onSeek, playedFraction, sliderWidth, thumbScale]);
 
   return (
-    <GestureDetector gesture={composedGesture}>
+    <GestureDetector gesture={gesture}>
       <View
         style={{
           width: '100%',
           height: 40,
           justifyContent: 'center',
         }}
-        onLayout={(e) => setSliderWidth(e.nativeEvent.layout.width)}
+        onLayout={(e) => sliderWidth.set(e.nativeEvent.layout.width)}
       >
         <View
           style={{
@@ -135,33 +144,34 @@ export const CustomSlider = ({
             backgroundColor: inactiveTrackColor,
             borderRadius: trackHeight / 2,
             width: '100%',
-            position: 'relative',
+            overflow: 'hidden',
           }}
         >
           <Animated.View
             style={[
               {
                 height: '100%',
+                width: '100%',
                 backgroundColor: trackColor,
-                borderRadius: trackHeight / 2,
+                transformOrigin: 'left',
               },
-              animatedStyle,
-            ]}
-          />
-          <Animated.View
-            style={[
-              {
-                position: 'absolute',
-                width: thumbSize,
-                height: thumbSize,
-                borderRadius: thumbSize / 2,
-                backgroundColor: trackColor,
-                top: (trackHeight - thumbSize) / 2,
-              },
-              thumbStyle,
+              fillStyle,
             ]}
           />
         </View>
+        <Animated.View
+          style={[
+            {
+              position: 'absolute',
+              left: 0,
+              width: thumbSize,
+              height: thumbSize,
+              borderRadius: thumbSize / 2,
+              backgroundColor: trackColor,
+            },
+            thumbStyle,
+          ]}
+        />
       </View>
     </GestureDetector>
   );
@@ -197,12 +207,10 @@ export const SongCard = memo(
     disableOnLongPress = false,
     onPress: onPressCallback,
   }: SongCardProps & { disableOnLongPress?: boolean }) => {
-    const { playSong, handlePlayPause } = usePlayerControls();
     const { isCurrentSong, isPlaying } = useSongPlaybackState(song.id);
     const { colors, theme } = useTheme();
     const isDark = theme === 'dark';
 
-    const securedSong = useMemo(() => ensureHttpsForSongUrls(song), [song]);
     const [playerDrawerOpen, setPlayerDrawerOpen] = useState(false);
 
     const handlePress = useCallback(async () => {
@@ -210,12 +218,11 @@ export const SongCard = memo(
         await onPressCallback();
       }
 
-      if (isCurrentSong) {
-        handlePlayPause();
-      } else {
-        playSong(securedSong);
-      }
-    }, [isCurrentSong, securedSong, playSong, handlePlayPause, onPressCallback]);
+      // Read when pressed, not subscribed to: a long list stays still while the player changes.
+      const player = usePlayerStore.getState();
+      if (player.currentSong?.id === song.id) player.handlePlayPause();
+      else player.playSong(ensureHttpsForSongUrls(song));
+    }, [song, onPressCallback]);
 
     const handleLongPress = useCallback(() => {
       setPlayerDrawerOpen(true);
@@ -227,7 +234,7 @@ export const SongCard = memo(
           onPress={handlePress}
           onLongPress={disableOnLongPress ? undefined : handleLongPress}
           delayLongPress={350}
-          scaleTo={0.98}
+          scaleTo={ROW_PRESS_SCALE}
           style={{
             flexDirection: 'row',
             alignItems: 'center',
@@ -249,14 +256,9 @@ export const SongCard = memo(
             }}
           >
             <Image
-              source={{
-                uri: securedSong.image[1]?.link || securedSong.image[0]?.link,
-                cache: 'force-cache',
-              }}
+              {...coverProps(coverUrl(song.image, 1))}
               style={{ width: '100%', height: '100%' }}
               alt='Song cover'
-              fadeDuration={0}
-              resizeMode='cover'
             />
             {isCurrentSong && (
               <View
@@ -282,13 +284,13 @@ export const SongCard = memo(
               }}
               numberOfLines={1}
             >
-              {securedSong.name}
+              {song.name}
             </Text>
             <Text
               style={{ color: colors.mutedForeground, fontSize: 12.5, marginTop: 2 }}
               numberOfLines={1}
             >
-              {securedSong.subtitle || securedSong.artist_map?.artists?.[0]?.name}
+              {song.subtitle || song.artist_map?.artists?.[0]?.name}
             </Text>
           </View>
 
@@ -305,7 +307,7 @@ export const SongCard = memo(
           <NewPlayerDrawer
             isVisible={true}
             onClose={() => setPlayerDrawerOpen(false)}
-            song={securedSong}
+            song={ensureHttpsForSongUrls(song)}
           />
         )}
       </View>

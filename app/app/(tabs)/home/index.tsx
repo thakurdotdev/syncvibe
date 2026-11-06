@@ -1,3 +1,4 @@
+import { ROW_PRESS_SCALE, BUTTON_PRESS_SCALE } from '@/lib/motion';
 import { QuickPicks, TrendingChart } from '@/components/music/home/HomeSections';
 import {
   AlbumsGrid,
@@ -59,7 +60,7 @@ const StartRoomRow = memo(function StartRoomRow({ colors }: { colors: Colors }) 
   return (
     <PressableScale
       onPress={goRooms}
-      scaleTo={0.98}
+      scaleTo={ROW_PRESS_SCALE}
       accessibilityRole='button'
       accessibilityLabel='Listen together. Start a room'
       style={styles.startRow}
@@ -152,7 +153,7 @@ const YourMusicCard = memo(function YourMusicCard({ colors }: { colors: Colors }
       {canPlay ? (
         <PressableScale
           onPress={handlePlayPause}
-          scaleTo={0.86}
+          scaleTo={BUTTON_PRESS_SCALE}
           hitSlop={8}
           accessibilityRole='button'
           accessibilityLabel={isPlaying ? 'Pause your music' : 'Play your music'}

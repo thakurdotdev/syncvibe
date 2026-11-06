@@ -6,8 +6,10 @@ import { toast } from '@/context/ToastContext';
 import { Song } from '@/types/song';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import PressableScale from '@/components/ui/PressableScale';
+import { ROW_PRESS_SCALE } from '@/lib/motion';
+import React, { useEffect, useState } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import SwipeableModal from '../SwipeableModal';
 import AddToPlaylist from './AddToPlaylist';
 
@@ -17,8 +19,33 @@ interface PlayerDrawerProps {
   song: Song;
 }
 
+const OptionRow = ({
+  icon,
+  label,
+  color,
+  emphasized,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  color: string;
+  emphasized?: boolean;
+  onPress: () => void;
+}) => (
+  <PressableScale scaleTo={ROW_PRESS_SCALE} style={styles.optionRow} onPress={onPress}>
+    <View style={styles.iconContainer}>{icon}</View>
+    <Text style={[styles.optionText, { color }, emphasized && styles.optionTextEmphasized]}>
+      {label}
+    </Text>
+  </PressableScale>
+);
+
 const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song }) => {
   const { colors } = useTheme();
+  // Callers unmount this drawer from onClose, so options close it here and let it slide away.
+  const [open, setOpen] = useState(isVisible);
+  useEffect(() => setOpen(isVisible), [isVisible]);
+  const close = () => setOpen(false);
   const [playlistModal, setPlaylistModal] = useState(false);
   const { addToQueue, removeFromQueue } = usePlayerControls();
   const { currentSong } = usePlaybackState();
@@ -30,7 +57,7 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
   const albumArt = song.image?.[2]?.link || song.image?.[1]?.link;
 
   const handlePress = (id: string, path: string) => {
-    onClose();
+    close();
     router.push({
       pathname: path as any,
       params: { id },
@@ -52,16 +79,21 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
       addToQueue(song);
       toast('Added to Queue');
     }
-    onClose();
+    close();
   };
 
   return (
     <>
-      <SwipeableModal isVisible={isVisible} onClose={onClose}>
+      <SwipeableModal isVisible={open} onClose={onClose} dragAnywhere>
         <View style={styles.container}>
           <View style={styles.headerContainer}>
             <View style={styles.albumArtContainer}>
-              <Image source={{ uri: albumArt }} style={styles.albumArt} resizeMode='cover' />
+              <Image
+                source={{ uri: albumArt }}
+                style={styles.albumArt}
+                resizeMode='cover'
+                fadeDuration={0}
+              />
             </View>
             <View style={styles.songInfoContainer}>
               <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>
@@ -80,115 +112,66 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
 
           <View style={styles.optionsContainer}>
             {currentSong?.id !== song.id && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.optionRow,
-                  { backgroundColor: pressed ? colors.muted + '40' : 'transparent' },
-                ]}
+              <OptionRow
+                icon={<MaterialIcons name='queue-music' size={22} color={colors.foreground} />}
+                label={isSongInQueue ? 'Remove from Queue' : 'Add to Queue'}
+                color={colors.foreground}
                 onPress={handleAddToQueue}
-                android_ripple={{ color: colors.primary + '1A' }}
-              >
-                <View style={styles.iconContainer}>
-                  <MaterialIcons name='queue-music' size={22} color={colors.foreground} />
-                </View>
-                <Text style={[styles.optionText, { color: colors.foreground }]}>
-                  {isSongInQueue ? 'Remove from Queue' : 'Add to Queue'}
-                </Text>
-              </Pressable>
+              />
             )}
 
             {currentGroup && (
               <>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.optionRow,
-                    { backgroundColor: pressed ? 'rgba(127, 127, 127, 0.12)' : 'transparent' },
-                  ]}
+                <OptionRow
+                  icon={<Ionicons name='people-outline' size={22} color={colors.foreground} />}
+                  label='Add to Group Queue'
+                  color={colors.foreground}
+                  emphasized
                   onPress={() => {
                     addToGroupQueue(song);
                     toast('Added to Group Queue', { type: 'success' });
-                    onClose();
+                    close();
                   }}
-                  android_ripple={{ color: 'rgba(127, 127, 127, 0.25)' }}
-                >
-                  <View style={styles.iconContainer}>
-                    <Ionicons name='people-outline' size={22} color={colors.foreground} />
-                  </View>
-                  <Text
-                    style={[styles.optionText, { color: colors.foreground, fontWeight: '600' }]}
-                  >
-                    Add to Group Queue
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.optionRow,
-                    { backgroundColor: pressed ? 'rgba(127, 127, 127, 0.12)' : 'transparent' },
-                  ]}
+                />
+                <OptionRow
+                  icon={
+                    <Ionicons name='play-forward-outline' size={22} color={colors.foreground} />
+                  }
+                  label='Play Next in Group'
+                  color={colors.foreground}
+                  emphasized
                   onPress={() => {
                     playNextInGroup(song);
                     toast('Playing next in group', { type: 'success' });
-                    onClose();
+                    close();
                   }}
-                  android_ripple={{ color: 'rgba(127, 127, 127, 0.25)' }}
-                >
-                  <View style={styles.iconContainer}>
-                    <Ionicons name='play-forward-outline' size={22} color={colors.foreground} />
-                  </View>
-                  <Text
-                    style={[styles.optionText, { color: colors.foreground, fontWeight: '600' }]}
-                  >
-                    Play Next in Group
-                  </Text>
-                </Pressable>
+                />
               </>
             )}
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.optionRow,
-                { backgroundColor: pressed ? colors.muted + '40' : 'transparent' },
-              ]}
+            <OptionRow
+              icon={<MaterialIcons name='playlist-add' size={22} color={colors.foreground} />}
+              label='Add to Playlist'
+              color={colors.foreground}
               onPress={() => setPlaylistModal(true)}
-              android_ripple={{ color: colors.primary + '1A' }}
-            >
-              <View style={styles.iconContainer}>
-                <MaterialIcons name='playlist-add' size={22} color={colors.foreground} />
-              </View>
-              <Text style={[styles.optionText, { color: colors.foreground }]}>Add to Playlist</Text>
-            </Pressable>
+            />
 
             {artistName?.[0].id && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.optionRow,
-                  { backgroundColor: pressed ? colors.muted + '40' : 'transparent' },
-                ]}
+              <OptionRow
+                icon={<Ionicons name='person-outline' size={20} color={colors.foreground} />}
+                label='View Artist'
+                color={colors.foreground}
                 onPress={() => handlePress(artistName?.[0].id, paths.artist)}
-                android_ripple={{ color: colors.primary + '1A' }}
-              >
-                <View style={styles.iconContainer}>
-                  <Ionicons name='person-outline' size={20} color={colors.foreground} />
-                </View>
-                <Text style={[styles.optionText, { color: colors.foreground }]}>View Artist</Text>
-              </Pressable>
+              />
             )}
 
             {song?.album_id && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.optionRow,
-                  { backgroundColor: pressed ? colors.muted + '40' : 'transparent' },
-                ]}
+              <OptionRow
+                icon={<Ionicons name='disc-outline' size={20} color={colors.foreground} />}
+                label='View Album'
+                color={colors.foreground}
                 onPress={() => handlePress(song.album_id, paths.albums)}
-                android_ripple={{ color: colors.primary + '1A' }}
-              >
-                <View style={styles.iconContainer}>
-                  <Ionicons name='disc-outline' size={20} color={colors.foreground} />
-                </View>
-                <Text style={[styles.optionText, { color: colors.foreground }]}>View Album</Text>
-              </Pressable>
+              />
             )}
           </View>
         </View>
@@ -262,6 +245,9 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  optionTextEmphasized: {
+    fontWeight: '600',
   },
 });
 

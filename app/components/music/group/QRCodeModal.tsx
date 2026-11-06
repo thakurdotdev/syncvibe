@@ -1,5 +1,6 @@
+import PressableScale from '@/components/ui/PressableScale';
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import SwipeableModal from '@/components/SwipeableModal';
 import { useTheme } from '@/context/ThemeContext';
 
@@ -21,14 +22,15 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, qrCod
             source={{ uri: `data:image/png;base64,${qrCode}` }}
             style={styles.qrImage}
             resizeMode='contain'
+            fadeDuration={0}
           />
         </View>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
           Share this QR code with others to join your group
         </Text>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.6}>
+        <PressableScale onPress={onClose} style={styles.closeButton}>
           <Text style={[styles.closeText, { color: colors.mutedForeground }]}>Close</Text>
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     </SwipeableModal>
   );

@@ -32,8 +32,9 @@ export const PeoplePanel = memo(function PeoplePanel({
       const host = sameUser(item.userId, hostId);
       const you = sameUser(item.userId, user?.userid);
       const isTyping = Boolean(typing[String(item.userId)]);
+      const away = item.connected === false;
       return (
-        <View style={styles.row}>
+        <View style={[styles.row, away && styles.away]}>
           <Image
             source={{ uri: getProfileCloudinaryUrl(item.profilePic) }}
             style={[styles.avatar, { backgroundColor: colors.muted }]}
@@ -47,7 +48,13 @@ export const PeoplePanel = memo(function PeoplePanel({
             <Text
               style={[styles.sub, { color: isTyping ? colors.primary : colors.mutedForeground }]}
             >
-              {isTyping ? 'typing…' : host ? 'Started this room' : 'Listening'}
+              {away
+                ? 'Reconnecting…'
+                : isTyping
+                  ? 'typing…'
+                  : host
+                    ? 'Started this room'
+                    : 'Listening'}
             </Text>
           </View>
           {host && (
@@ -94,6 +101,7 @@ export const PeoplePanel = memo(function PeoplePanel({
 
 const styles = StyleSheet.create({
   list: { paddingHorizontal: 16, paddingTop: 12 },
+  away: { opacity: 0.5 },
   invite: {
     flexDirection: 'row',
     alignItems: 'center',

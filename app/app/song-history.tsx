@@ -1,3 +1,5 @@
+import PressableScale from '@/components/ui/PressableScale';
+import { SONG_LIST_WINDOW } from '@/lib/lists';
 import SwipeableModal from '@/components/SwipeableModal';
 import { SongCard } from '@/components/music/MusicCards';
 import Button from '@/components/ui/button';
@@ -16,7 +18,6 @@ import {
   TextInput as RNTextInput,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -64,6 +65,8 @@ const searchSortOptions: SortOption[] = [
   },
   ...baseSortOptions,
 ];
+
+const renderSong = ({ item }: { item: Song }) => <SongCard song={item} />;
 
 const SongHistory = () => {
   const api = useApi();
@@ -238,7 +241,7 @@ const SongHistory = () => {
             leftIcon={<Feather name='search' size={19} color={colors.mutedForeground} />}
             rightIcon={
               searchQuery ? (
-                <TouchableOpacity
+                <PressableScale
                   accessibilityLabel='Clear search'
                   accessibilityRole='button'
                   onPress={() => {
@@ -247,7 +250,7 @@ const SongHistory = () => {
                   }}
                 >
                   <Feather name='x' size={19} color={colors.mutedForeground} />
-                </TouchableOpacity>
+                </PressableScale>
               ) : undefined
             }
             autoFocus={false}
@@ -282,13 +285,13 @@ const SongHistory = () => {
         <Text style={[styles.sortText, { color: colors.secondaryForeground }]}>
           {currentSort.label} · {directionLabel}
         </Text>
-        <TouchableOpacity style={styles.sortOrderButton} onPress={toggleSortOrder}>
+        <PressableScale style={styles.sortOrderButton} onPress={toggleSortOrder}>
           <Feather
             name={sortOrder === 'ASC' ? 'arrow-up' : 'arrow-down'}
             size={16}
             color={colors.primary}
           />
-        </TouchableOpacity>
+        </PressableScale>
       </View>
     );
   };
@@ -362,7 +365,7 @@ const SongHistory = () => {
 
       <FlatList
         data={songHistory}
-        renderItem={({ item }) => <SongCard song={item} />}
+        renderItem={renderSong}
         keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
@@ -378,10 +381,7 @@ const SongHistory = () => {
             colors={[colors.primary]}
           />
         }
-        removeClippedSubviews={true}
-        initialNumToRender={10}
-        maxToRenderPerBatch={5}
-        windowSize={10}
+        {...SONG_LIST_WINDOW}
       />
 
       {/* Sort Options Modal */}
@@ -404,7 +404,7 @@ const SongHistory = () => {
                 ],
               ]}
             >
-              <TouchableOpacity
+              <PressableScale
                 style={styles.sortOptionMain}
                 onPress={() => handleSortSelect(option.value)}
               >
@@ -414,10 +414,10 @@ const SongHistory = () => {
                 <Text style={[styles.sortOptionText, { color: colors.foreground }]}>
                   {option.label}
                 </Text>
-              </TouchableOpacity>
+              </PressableScale>
 
               {sortBy === option.value && (
-                <TouchableOpacity
+                <PressableScale
                   accessibilityLabel='Toggle sort direction'
                   accessibilityRole='button'
                   style={styles.sortDirectionButton}
@@ -428,7 +428,7 @@ const SongHistory = () => {
                     size={20}
                     color={colors.primary}
                   />
-                </TouchableOpacity>
+                </PressableScale>
               )}
             </View>
           ))}

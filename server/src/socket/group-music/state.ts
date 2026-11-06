@@ -7,6 +7,8 @@ export interface GroupMember {
   userId: string | number;
   userName: string;
   profilePic?: string;
+  /** False while reconnecting, during the grace period before they count as having left. */
+  connected?: boolean;
 }
 
 export interface PlaybackState {
@@ -62,7 +64,7 @@ export interface CreateGroupData {
 
 export const musicGroups = new Map<string, MusicGroup>();
 export const userGroups = new Map<string, Set<string>>();
-export const TIME_TO_REJOIN = 10000;
+export const TIME_TO_REJOIN = 30000;
 
 export const generateGroupId = (): string => {
   const id = Math.floor(100000 + Math.random() * 900000).toString();

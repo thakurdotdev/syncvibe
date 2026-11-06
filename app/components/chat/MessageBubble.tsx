@@ -1,7 +1,6 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/context/ThemeContext';
 import { Message } from '@/context/SocketContext';
 import { getOptimizedImageUrl } from '@/utils/Cloudinary';
@@ -84,6 +83,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             }}
             style={styles.messageImage}
             resizeMode='cover'
+            fadeDuration={0}
           />
           <View style={styles.imageFooter}>
             <Text style={styles.imageTime}>{timeStr}</Text>
@@ -97,7 +97,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           onLongPress={() => {
             if (isOwn) {
               onMessageLongPress(message);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             }
           }}
           style={[

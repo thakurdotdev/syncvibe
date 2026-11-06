@@ -6,7 +6,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
+import { createDeferredStorage } from '@/utils/deferredStorage';
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
@@ -378,7 +379,7 @@ export const usePlayerStore = create<PlayerStore>()(
     }),
     {
       name: 'player-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createDeferredStorage(),
       partialize: (state) => ({
         currentSong: state.currentSong,
         playlist: state.playlist,

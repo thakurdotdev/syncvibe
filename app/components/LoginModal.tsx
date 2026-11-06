@@ -1,9 +1,10 @@
+import PressableScale from '@/components/ui/PressableScale';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 const LoginModal = ({ title }: { title?: string }) => {
   const router = useRouter();
@@ -35,6 +36,7 @@ const LoginModal = ({ title }: { title?: string }) => {
                   style={{ width: 65, height: 65 }}
                   resizeMode='contain'
                   className='rounded-full'
+                  fadeDuration={0}
                 />
               </LinearGradient>
             </View>
@@ -46,11 +48,7 @@ const LoginModal = ({ title }: { title?: string }) => {
             </Text>
 
             <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={styles.signInButton}
-                onPress={() => router.push('/login')}
-                activeOpacity={0.8}
-              >
+              <PressableScale style={styles.signInButton} onPress={() => router.push('/login')}>
                 <LinearGradient
                   colors={['#F5F5F6', '#D9D9DC']}
                   start={{ x: 0, y: 0 }}
@@ -65,15 +63,11 @@ const LoginModal = ({ title }: { title?: string }) => {
                   />
                   <Text style={styles.buttonText}>Sign In</Text>
                 </LinearGradient>
-              </TouchableOpacity>
+              </PressableScale>
 
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.back()}
-                activeOpacity={0.7}
-              >
+              <PressableScale style={styles.backButton} onPress={() => router.back()}>
                 <Text style={styles.backButtonText}>Go Back</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </View>
           </LinearGradient>
         </View>

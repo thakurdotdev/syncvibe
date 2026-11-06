@@ -3,10 +3,18 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 
 export const ConnectionBadge: React.FC = () => {
   const { colors } = useTheme();
   const quality = useGroupPlaybackStore((s) => s.connectionQuality);
+  const reconnecting = useGroupSessionStore((s) => s.isRejoining);
+
+  if (reconnecting) {
+    return (
+      <Text style={[styles.reconnecting, { color: colors.mutedForeground }]}>Reconnecting…</Text>
+    );
+  }
 
   const config = {
     good: { color: '#10b981', bars: 3, label: 'Connected' },
@@ -33,6 +41,7 @@ export const ConnectionBadge: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  reconnecting: { fontSize: 11, fontWeight: '600' },
   container: {
     flexDirection: 'row',
     alignItems: 'flex-end',

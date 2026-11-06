@@ -1,3 +1,4 @@
+import PressableScale from '@/components/ui/PressableScale';
 import { API_URL } from '@/constants';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -14,7 +15,6 @@ import {
   Image,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   KeyboardAvoidingView,
   Platform,
@@ -214,6 +214,7 @@ const LoginScreen = () => {
                 source={require('../assets/syncvibe.png')}
                 style={styles.logo}
                 resizeMode='contain'
+                fadeDuration={0}
               />
             </BlurView>
           </View>
@@ -254,13 +255,13 @@ const LoginScreen = () => {
             autoComplete='password'
             textContentType='password'
             rightIcon={
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <PressableScale onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
                   color={colors.mutedForeground}
                 />
-              </TouchableOpacity>
+              </PressableScale>
             }
             error={!!passwordError}
             errorText={passwordError}
@@ -286,7 +287,7 @@ const LoginScreen = () => {
         </View>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
+          <PressableScale
             style={[
               styles.googleButton,
               {
@@ -297,9 +298,12 @@ const LoginScreen = () => {
             ]}
             onPress={handleGoogleSignIn}
             disabled={loading}
-            activeOpacity={0.8}
           >
-            <Image source={require('../assets/images/google.png')} style={styles.googleIcon} />
+            <Image
+              source={require('../assets/images/google.png')}
+              style={styles.googleIcon}
+              fadeDuration={0}
+            />
             {loading ? (
               <ActivityIndicator size='small' color={colors.mutedForeground} />
             ) : (
@@ -307,7 +311,7 @@ const LoginScreen = () => {
                 Continue with Google
               </Text>
             )}
-          </TouchableOpacity>
+          </PressableScale>
 
           {error ? (
             <View

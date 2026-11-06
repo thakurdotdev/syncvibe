@@ -103,7 +103,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     >
       {filePreview && (
         <View style={styles.previewWrapper}>
-          <Image source={{ uri: filePreview }} style={styles.previewImage} />
+          <Image source={{ uri: filePreview }} style={styles.previewImage} fadeDuration={0} />
           <Pressable
             style={[styles.removeButton, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
             onPress={onRemoveAttachment}

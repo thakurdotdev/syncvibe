@@ -1,11 +1,15 @@
+import PressableScale from '@/components/ui/PressableScale';
 import { styles } from '@/assets/styles/search.style';
 import { useTheme } from '@/context/ThemeContext';
 import { SearchHistoryItem, searchHistoryManager } from '@/utils/searchHistory';
 import { Feather } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
+import { Alert, ScrollView, Text, View } from 'react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import SearchSuggestions from './SearchSuggestions';
+
+/** Closes the gap a removed search leaves behind. */
+const ROW_REFLOW = LinearTransition.duration(180);
 
 interface SearchHistoryProps {
   onHistoryItemPress: (query: string) => void;
@@ -85,13 +89,9 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({ onHistoryItemPress, curre
     return new Date(timestamp).toLocaleDateString();
   };
 
-  const renderHistoryItem = (item: SearchHistoryItem, index: number) => (
-    <Animated.View
-      key={item.id}
-      entering={FadeIn.delay(index * 50)}
-      layout={LinearTransition.springify()}
-    >
-      <TouchableOpacity
+  const renderHistoryItem = (item: SearchHistoryItem) => (
+    <Animated.View key={item.id} layout={ROW_REFLOW}>
+      <PressableScale
         style={[
           styles.historyItem,
           {
@@ -100,7 +100,6 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({ onHistoryItemPress, curre
           },
         ]}
         onPress={() => onHistoryItemPress(item.query)}
-        activeOpacity={0.7}
       >
         <View style={styles.historyItemContent}>
           <Feather
@@ -119,7 +118,7 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({ onHistoryItemPress, curre
             {formatTimeAgo(item.timestamp)}
           </Text>
 
-          <TouchableOpacity
+          <PressableScale
             style={[
               styles.historyItemRemove,
               {
@@ -131,9 +130,9 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({ onHistoryItemPress, curre
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Feather name='x' size={14} color={colors.mutedForeground} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
-      </TouchableOpacity>
+      </PressableScale>
     </Animated.View>
   );
 
@@ -142,9 +141,9 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({ onHistoryItemPress, curre
 
     return (
       <View style={styles.suggestionsContainer}>
-        {suggestions.map((suggestion, index) => (
-          <Animated.View key={suggestion} entering={FadeIn.delay(index * 100)}>
-            <TouchableOpacity
+        {suggestions.map((suggestion) => (
+          <View key={suggestion}>
+            <PressableScale
               style={[
                 styles.suggestionChip,
                 {
@@ -158,8 +157,8 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({ onHistoryItemPress, curre
               <Text style={[styles.suggestionChipText, { color: colors.foreground }]}>
                 {suggestion}
               </Text>
-            </TouchableOpacity>
-          </Animated.View>
+            </PressableScale>
+          </View>
         ))}
       </View>
     );
@@ -184,12 +183,12 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({ onHistoryItemPress, curre
       keyboardShouldPersistTaps='handled'
     >
       {/* Search History */}
-      <Animated.View style={styles.historySection} entering={FadeIn.duration(300)}>
+      <View style={styles.historySection}>
         <View style={styles.historySectionHeader}>
           <Text style={[styles.historySectionTitle, { color: colors.foreground }]}>
             Recent Searches
           </Text>
-          <TouchableOpacity
+          <PressableScale
             style={[
               styles.clearHistoryButton,
               {
@@ -200,23 +199,20 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({ onHistoryItemPress, curre
             onPress={handleClearHistory}
           >
             <Text style={[styles.clearHistoryText, { color: colors.mutedForeground }]}>Clear</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
-        {searchHistory.map((item, index) => renderHistoryItem(item, index))}
-      </Animated.View>
+        {searchHistory.map(renderHistoryItem)}
+      </View>
 
       {/* Quick Suggestions */}
-      <Animated.View
-        style={[styles.historySection, { marginBottom: 40 }]}
-        entering={FadeIn.duration(300).delay(100)}
-      >
+      <View style={[styles.historySection, { marginBottom: 40 }]}>
         <View style={styles.historySectionHeader}>
           <Text style={[styles.historySectionTitle, { color: colors.foreground }]}>
             Quick Suggestions
           </Text>
         </View>
         {renderSuggestions()}
-      </Animated.View>
+      </View>
     </ScrollView>
   );
 };

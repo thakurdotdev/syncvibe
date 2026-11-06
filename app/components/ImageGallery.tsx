@@ -1,6 +1,6 @@
+import PressableScale from '@/components/ui/PressableScale';
 import { BlurView } from 'expo-blur';
 import * as FileSystem from 'expo-file-system';
-import * as Haptics from 'expo-haptics';
 import * as MediaLibrary from 'expo-media-library';
 import { ChevronLeftIcon, ChevronRightIcon, DownloadIcon, XIcon } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -13,7 +13,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   SafeAreaView,
 } from 'react-native';
@@ -74,7 +73,6 @@ const ImageGallery = ({
 
   const handlePrevious = useCallback(() => {
     if (currentIndex > 0) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setIsLoading(true);
       setCurrentIndex((prev) => prev - 1);
     }
@@ -82,7 +80,6 @@ const ImageGallery = ({
 
   const handleNext = useCallback(() => {
     if (currentIndex < images.length - 1) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setIsLoading(true);
       setCurrentIndex((prev) => prev + 1);
     }
@@ -90,8 +87,6 @@ const ImageGallery = ({
 
   const handleDownload = useCallback(async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
       if (!hasPermissions) {
         const { status } = await MediaLibrary.requestPermissionsAsync();
         if (status !== 'granted') {
@@ -121,13 +116,9 @@ const ImageGallery = ({
 
       await MediaLibrary.createAssetAsync(uri.uri);
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
       Alert.alert('Download Complete', 'Image has been saved to your gallery.', [{ text: 'OK' }]);
     } catch (error) {
       console.error('Download failed:', error);
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
       Alert.alert('Download Failed', 'An error occurred while downloading the image.', [
         { text: 'OK' },
@@ -150,14 +141,14 @@ const ImageGallery = ({
         <View style={styles.topGradient} />
 
         {/* Close button */}
-        <TouchableOpacity style={styles.closeButton} onPress={handleClose} activeOpacity={0.7}>
+        <PressableScale style={styles.closeButton} onPress={handleClose}>
           <XIcon color='white' size={24} />
-        </TouchableOpacity>
+        </PressableScale>
 
         {/* Navigation buttons */}
         {images.length > 1 && (
           <>
-            <TouchableOpacity
+            <PressableScale
               style={[
                 styles.navButton,
                 styles.leftButton,
@@ -165,12 +156,11 @@ const ImageGallery = ({
               ]}
               onPress={handlePrevious}
               disabled={currentIndex === 0}
-              activeOpacity={0.7}
             >
               <ChevronLeftIcon color='white' size={28} />
-            </TouchableOpacity>
+            </PressableScale>
 
-            <TouchableOpacity
+            <PressableScale
               style={[
                 styles.navButton,
                 styles.rightButton,
@@ -178,10 +168,9 @@ const ImageGallery = ({
               ]}
               onPress={handleNext}
               disabled={currentIndex === images.length - 1}
-              activeOpacity={0.7}
             >
               <ChevronRightIcon color='white' size={28} />
-            </TouchableOpacity>
+            </PressableScale>
           </>
         )}
 
@@ -197,6 +186,7 @@ const ImageGallery = ({
             style={styles.image}
             resizeMode='contain'
             onLoad={handleImageLoad}
+            fadeDuration={0}
           />
         </View>
 
@@ -213,13 +203,9 @@ const ImageGallery = ({
           </View>
 
           {/* Download button */}
-          <TouchableOpacity
-            style={styles.downloadButton}
-            onPress={handleDownload}
-            activeOpacity={0.7}
-          >
+          <PressableScale style={styles.downloadButton} onPress={handleDownload}>
             <DownloadIcon color='white' size={22} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </SafeAreaView>
     </View>

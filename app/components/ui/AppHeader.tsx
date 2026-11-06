@@ -4,7 +4,6 @@ import { BUTTON_PRESS_SCALE, PRESS_IN, SPRING_PRESS } from '@/lib/motion';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { memo, type ReactNode } from 'react';
 import { Image, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
@@ -78,10 +77,7 @@ const ProminentSearchButton = memo(function ProminentSearchButton() {
 
   return (
     <PressableScale
-      onPress={() => {
-        Haptics.selectionAsync().catch(() => {});
-        openSearch();
-      }}
+      onPress={openSearch}
       onPressIn={() => pressed.set(withTiming(1, PRESS_IN))}
       onPressOut={() => pressed.set(withSpring(0, SPRING_PRESS))}
       scaleTo={BUTTON_PRESS_SCALE}
@@ -137,7 +133,11 @@ export const TabHeader = memo(function TabHeader({
         { borderColor: colors.border },
       ]}
     >
-      <Image source={{ uri: getProfileCloudinaryUrl(user.profilepic) }} style={styles.avatar} />
+      <Image
+        source={{ uri: getProfileCloudinaryUrl(user.profilepic) }}
+        style={styles.avatar}
+        fadeDuration={0}
+      />
     </PressableScale>
   ) : null;
 

@@ -102,7 +102,9 @@ export const Scrubber = memo(function Scrubber({
   };
 
   const drag = Gesture.Pan()
-    .activeOffsetX([-3, 3])
+    // Whichever way the finger moves first wins, so a swipe up from here reaches the queue, not a seek.
+    .activeOffsetX([-6, 6])
+    .failOffsetY([-6, 6])
     .onStart((e) => {
       scrubbing.set(true);
       thick.set(withTiming(1, PRESS_IN));
@@ -216,7 +218,7 @@ export const Transport = memo(function Transport() {
 
       <PressableScale
         onPress={() => handlePrevSong()}
-        scaleTo={0.86}
+        scaleTo={BUTTON_PRESS_SCALE}
         hitSlop={6}
         accessibilityRole='button'
         accessibilityLabel='Previous song'
@@ -227,7 +229,7 @@ export const Transport = memo(function Transport() {
 
       <PressableScale
         onPress={handlePlayPause}
-        scaleTo={0.9}
+        scaleTo={BUTTON_PRESS_SCALE}
         accessibilityRole='button'
         accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
         style={[styles.play, { backgroundColor: colors.foreground }]}
@@ -242,7 +244,7 @@ export const Transport = memo(function Transport() {
 
       <PressableScale
         onPress={() => handleNextSong()}
-        scaleTo={0.86}
+        scaleTo={BUTTON_PRESS_SCALE}
         hitSlop={6}
         accessibilityRole='button'
         accessibilityLabel='Next song'

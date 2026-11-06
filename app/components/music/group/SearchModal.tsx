@@ -1,3 +1,4 @@
+import PressableScale from '@/components/ui/PressableScale';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef } from 'react';
 import {
@@ -11,7 +12,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -47,6 +47,7 @@ const SearchResultItem = React.memo(
         <Image
           source={{ uri: item.image?.[1]?.link || 'https://via.placeholder.com/50' }}
           style={[styles.resultArt, { backgroundColor: colors.secondary }]}
+          fadeDuration={0}
         />
         <View style={styles.resultInfo}>
           <Text style={[styles.resultName, { color: colors.foreground }]} numberOfLines={1}>
@@ -57,20 +58,20 @@ const SearchResultItem = React.memo(
           </Text>
         </View>
         <View style={styles.actionButtons}>
-          <TouchableOpacity
+          <PressableScale
             onPress={() => onPlayNow(item)}
             style={[styles.actionButton, { backgroundColor: colors.primary }]}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             <Ionicons name='play' size={13} color={colors.primaryForeground} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PressableScale>
+          <PressableScale
             onPress={() => onAddToQueue(item)}
             style={[styles.actionButton, { backgroundColor: colors.secondary }]}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             <Feather name='plus' size={14} color={colors.foreground} />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       </View>
     );
@@ -86,7 +87,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollOffset.value = event.nativeEvent.contentOffset.y;
+      scrollOffset.set(event.nativeEvent.contentOffset.y);
     },
     [scrollOffset]
   );
@@ -97,7 +98,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
 
   useEffect(() => {
     if (isOpen) {
-      scrollOffset.value = 0;
+      scrollOffset.set(0);
       const timer = setTimeout(() => inputRef.current?.focus(), 350);
       return () => clearTimeout(timer);
     }
@@ -155,9 +156,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
     >
       <View style={styles.container}>
         <View style={[styles.searchHeader, { paddingTop: topPadding + 8 }]}>
-          <TouchableOpacity onPress={handleClose} style={styles.backButton}>
+          <PressableScale onPress={handleClose} style={styles.backButton}>
             <Ionicons name='arrow-back' size={24} color={colors.foreground} />
-          </TouchableOpacity>
+          </PressableScale>
           <Input
             ref={inputRef}
             placeholder='Search for songs...'
@@ -168,9 +169,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose }) => 
             leftIcon={<Feather name='search' size={16} color={colors.mutedForeground} />}
             rightIcon={
               searchQuery ? (
-                <TouchableOpacity onPress={() => handleSearchChange('')}>
+                <PressableScale onPress={() => handleSearchChange('')}>
                   <Feather name='x' size={16} color={colors.mutedForeground} />
-                </TouchableOpacity>
+                </PressableScale>
               ) : null
             }
           />

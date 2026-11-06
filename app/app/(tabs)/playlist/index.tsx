@@ -20,15 +20,14 @@ import {
   useWindowDimensions,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { HeaderIconButton, TabHeader } from '@/components/ui/AppHeader';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import PressableScale from '@/components/ui/PressableScale';
-import { BUTTON_PRESS_SCALE, EASE_OUT } from '@/lib/motion';
+import { BUTTON_PRESS_SCALE } from '@/lib/motion';
 import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -90,9 +89,6 @@ const lastAddedTime = (p: any) => {
   const t = p?.lastAddedAt ? new Date(p.lastAddedAt).getTime() : 0;
   return Number.isFinite(t) ? t : 0;
 };
-
-/** Tiles fade in quickly when they mount or the sort changes: snappy, never a slide. */
-const TILE_ENTER = FadeIn.duration(160).easing(EASE_OUT);
 
 const CREATE_TILE = { id: 'create', isCreate: true } as const;
 
@@ -222,6 +218,8 @@ const PlaylistScreen = () => {
     return list;
   }, [userPlaylist, sort]);
 
+  const gridItems = useMemo(() => [CREATE_TILE, ...sortedPlaylists], [sortedPlaylists]);
+
   const isDark = theme === 'dark';
 
   if (loading && !selectedPlaylist) return <LoadingState />;
@@ -234,13 +232,13 @@ const PlaylistScreen = () => {
   const tileWidth = Math.floor((windowWidth - GRID_PADDING * 2 - GRID_GAP) / 2);
 
   const renderPlaylistItem = ({ item }: { item: any }) => (
-    <Animated.View key={`${sort}-${item.id}`} entering={TILE_ENTER} style={{ width: tileWidth }}>
+    <View style={{ width: tileWidth }}>
       {item.isCreate ? (
         <CreateTile width={tileWidth} onPress={openCreateModal} />
       ) : (
         <PlaylistTile playlist={item} width={tileWidth} onMore={handleLongPress} />
       )}
-    </Animated.View>
+    </View>
   );
 
   return (
@@ -260,9 +258,9 @@ const PlaylistScreen = () => {
       />
 
       <Animated.FlatList
-        data={[CREATE_TILE, ...sortedPlaylists]}
+        data={gridItems}
         renderItem={renderPlaylistItem}
-        keyExtractor={(item) => `playlist-${sort}-${item.id}`}
+        keyExtractor={(item) => `playlist-${item.id}`}
         numColumns={2}
         columnWrapperStyle={styles.gridRow}
         ItemSeparatorComponent={RowGap}
@@ -310,7 +308,7 @@ const PlaylistScreen = () => {
         <View style={styles.modalBody}>
           <View style={styles.modalHeaderRow}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Playlist Options</Text>
-            <TouchableOpacity
+            <PressableScale
               style={[
                 styles.modalCloseBtn,
                 { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
@@ -318,7 +316,7 @@ const PlaylistScreen = () => {
               onPress={() => setShowActionsModal(false)}
             >
               <X size={18} color={colors.mutedForeground} />
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
           <View style={{ gap: 12 }}>
@@ -354,7 +352,7 @@ const PlaylistScreen = () => {
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
               {selectedPlaylist ? 'Edit Playlist' : 'Create Playlist'}
             </Text>
-            <TouchableOpacity
+            <PressableScale
               style={[
                 styles.modalCloseBtn,
                 { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
@@ -362,7 +360,7 @@ const PlaylistScreen = () => {
               onPress={() => setShowUpdateModal(false)}
             >
               <X size={18} color={colors.mutedForeground} />
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
           <View style={{ gap: 18, paddingBottom: 20 }}>

@@ -56,7 +56,6 @@ export const RoomTabs = memo(function RoomTabs({
           <PressableScale
             key={t.key}
             onPress={() => onChange(t.key)}
-            scaleTo={0.96}
             accessibilityRole='tab'
             accessibilityState={{ selected }}
             accessibilityLabel={badge ? `${t.label}, ${badge}` : t.label}
