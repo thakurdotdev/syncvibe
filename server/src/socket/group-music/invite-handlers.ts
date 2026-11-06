@@ -1,4 +1,4 @@
-import { cancelRemoval, markMemberPresent } from './presence';
+import { cancelRemoval, claimRoomDevice, markMemberPresent } from './presence';
 import QRCode from 'qrcode';
 import { Op } from 'sequelize';
 import type { Server, Socket } from 'socket.io';
@@ -16,6 +16,7 @@ import { getQueueState } from './queue';
 import { sendPushNotification } from '../notification';
 
 interface CreateGroupSocketData {
+  deviceId?: string;
   name: string;
   createdBy: string | number;
   userName: string;
@@ -23,6 +24,7 @@ interface CreateGroupSocketData {
 }
 
 interface JoinGroupSocketData {
+  deviceId?: string;
   groupId: string;
   userId: string | number;
   userName: string;
@@ -37,6 +39,7 @@ interface SendInviteSocketData {
 }
 
 interface AcceptInviteSocketData {
+  deviceId?: string;
   groupId: string;
   userId: string | number;
   userName: string;
@@ -80,8 +83,8 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       socket.join(`music-group-${groupId}`);
       trackUserGroup(data.createdBy, groupId);
 
+      socket.data.deviceId = data.deviceId;
       socket.emit('group-created', groupWithQR);
-      io.to(String(data.createdBy)).emit('group-created', groupWithQR);
     } catch (err) {
       console.error('QR Code Generation Failed:', err);
       socket.emit('error', { message: 'QR Code generation failed' });
@@ -102,6 +105,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
         return;
       }
 
+      claimRoomDevice(io, socket, data.groupId, data.userId, data.deviceId, true);
       socket.join(`music-group-${data.groupId}`);
 
       if (!existingMember) {
@@ -122,14 +126,17 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
         ...getQueueState(group),
       };
 
+      // Only to this device: sent to all of a user's devices, it pulled the others' screens and
+      // audio into a room their connections weren't in.
       socket.emit('group-joined', groupJoinedPayload);
-      io.to(String(data.userId)).emit('group-joined', groupJoinedPayload);
 
-      socket.to(`music-group-${data.groupId}`).emit('member-joined', {
-        userId: data.userId,
-        userName: data.userName,
-        profilePic: data.profilePic,
-      });
+      if (!existingMember) {
+        socket.to(`music-group-${data.groupId}`).emit('member-joined', {
+          userId: data.userId,
+          userName: data.userName,
+          profilePic: data.profilePic,
+        });
+      }
     } else {
       socket.emit('group-not-found');
     }
@@ -139,6 +146,10 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
     const group = musicGroups.get(data.groupId);
 
     if (group) {
+      if (!claimRoomDevice(io, socket, data.groupId, data.userId, data.deviceId, false)) {
+        socket.emit('device-replaced', { groupId: data.groupId });
+        return;
+      }
       socket.join(`music-group-${data.groupId}`);
 
       const existingMemberIndex = group.members.findIndex(
@@ -288,6 +299,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       return;
     }
 
+    claimRoomDevice(io, socket, groupId, inviteeId, data.deviceId, true);
     socket.join(`music-group-${groupId}`);
 
     if (!existingMember) {
@@ -304,13 +316,14 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
     };
 
     socket.emit('group-joined', groupJoinedPayload);
-    io.to(String(inviteeId)).emit('group-joined', groupJoinedPayload);
 
-    socket.to(`music-group-${groupId}`).emit('member-joined', {
-      userId: inviteeId,
-      userName,
-      profilePic,
-    });
+    if (!existingMember) {
+      socket.to(`music-group-${groupId}`).emit('member-joined', {
+        userId: inviteeId,
+        userName,
+        profilePic,
+      });
+    }
 
     if (inviterId) {
       io.to(String(inviterId)).emit('invite-accepted', { userId: inviteeId, userName });

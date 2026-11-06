@@ -24,6 +24,39 @@ export const isUserInGroupRoom = (io: Server, userId: string | number, groupId: 
 };
 
 /**
+ * One person, one device per room: two would play over each other. Returns whether this socket may
+ * join. Joining on purpose takes the room over from any other device; an automatic rejoin doesn't,
+ * or a device coming back online would snatch the room from the one you moved to. Your own device
+ * coming back always gets in, replacing its old connection, which may not have timed out yet.
+ */
+export const claimRoomDevice = (
+  io: Server,
+  socket: Socket,
+  groupId: string,
+  userId: string | number,
+  deviceId: string | undefined,
+  takeOver: boolean
+): boolean => {
+  socket.data.deviceId = deviceId;
+  // App and web versions from before this don't say which device they are, so aren't guarded.
+  if (!deviceId && !takeOver) return true;
+
+  const room = io.sockets.adapter.rooms.get(roomOf(groupId));
+  const others = [...(io.sockets.adapter.rooms.get(String(userId)) ?? [])]
+    .filter((id) => id !== socket.id && room?.has(id))
+    .map((id) => io.sockets.sockets.get(id))
+    .filter((other): other is Socket => Boolean(other));
+
+  if (!takeOver && others.some((other) => other.data.deviceId !== deviceId)) return false;
+
+  for (const other of others) {
+    other.leave(roomOf(groupId));
+    other.emit('device-replaced', { groupId });
+  }
+  return true;
+};
+
+/**
  * Forgets a socket that has gone. A phone changing network usually connects again before its old
  * connection times out, so this must not forget the newer one that has taken over since.
  * Returns whether the user is still connected on something else.

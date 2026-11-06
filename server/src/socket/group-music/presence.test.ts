@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, mock, test } from 'node:test';
 import type { Server, Socket } from 'socket.io';
 import {
+  claimRoomDevice,
   EMPTY_ROOM_TTL,
   handleUserDisconnect,
   isUserInGroupRoom,
@@ -148,4 +149,69 @@ test('an expiring room is kept if someone came back to it', () => {
   musicGroups.get(GROUP)!.members.push({ userId: 'a', userName: 'a' });
   mock.timers.tick(EMPTY_ROOM_TTL + 1);
   assert.ok(musicGroups.has(GROUP));
+});
+
+const devices = () => {
+  const rooms = new Map<string, Set<string>>();
+  const sockets = new Map<string, any>();
+  const io = { sockets: { adapter: { rooms }, sockets } } as unknown as Server;
+  const device = (id: string, userId: string, deviceId?: string) => {
+    const socket = {
+      id,
+      data: { deviceId },
+      told: [] as string[],
+      leave: (room: string) => rooms.get(room)?.delete(id),
+      emit: (event: string) => socket.told.push(event),
+    };
+    sockets.set(id, socket);
+    for (const name of [userId, ROOM]) {
+      if (!rooms.has(name)) rooms.set(name, new Set());
+      rooms.get(name)!.add(id);
+    }
+    return socket;
+  };
+  const incoming = (id: string, userId: string) => {
+    const socket = device(id, userId);
+    rooms.get(ROOM)!.delete(id);
+    return socket as unknown as Socket;
+  };
+  return { io, device, incoming, rooms };
+};
+
+test('joining on a second device takes the room over from the first', () => {
+  const { io, device, incoming, rooms } = devices();
+  const phone = device('phone', 'a', 'phone-id');
+  assert.equal(claimRoomDevice(io, incoming('web', 'a'), GROUP, 'a', 'web-id', true), true);
+  assert.equal(rooms.get(ROOM)!.has('phone'), false);
+  assert.deepEqual(phone.told, ['device-replaced']);
+});
+
+test('a device coming back online cannot snatch the room from the one you moved to', () => {
+  const { io, device, incoming, rooms } = devices();
+  const web = device('web', 'a', 'web-id');
+  assert.equal(claimRoomDevice(io, incoming('phone2', 'a'), GROUP, 'a', 'phone-id', false), false);
+  assert.equal(rooms.get(ROOM)!.has('web'), true);
+  assert.deepEqual(web.told, []);
+});
+
+test('the same phone reconnecting replaces its own dead connection', () => {
+  const { io, device, incoming, rooms } = devices();
+  device('old', 'a', 'phone-id');
+  assert.equal(claimRoomDevice(io, incoming('new', 'a'), GROUP, 'a', 'phone-id', false), true);
+  assert.equal(rooms.get(ROOM)!.has('old'), false);
+});
+
+test("someone else's device in the room is never affected", () => {
+  const { io, device, incoming, rooms } = devices();
+  const friend = device('friend', 'b', 'friend-id');
+  assert.equal(claimRoomDevice(io, incoming('mine', 'a'), GROUP, 'a', 'my-id', true), true);
+  assert.equal(rooms.get(ROOM)!.has('friend'), true);
+  assert.deepEqual(friend.told, []);
+});
+
+test('an older app that sends no device id can still rejoin', () => {
+  const { io, device, incoming, rooms } = devices();
+  device('other', 'a', 'other-id');
+  assert.equal(claimRoomDevice(io, incoming('old-app', 'a'), GROUP, 'a', undefined, false), true);
+  assert.equal(rooms.get(ROOM)!.has('other'), true);
 });
