@@ -17,7 +17,8 @@ const FADE = { duration: 250, easing: EASE_OUT, reduceMotion: ReduceMotion.Syste
 
 const FloatingEmoji = React.memo(({ emoji, userName }: { emoji: string; userName: string }) => {
   const seed = useRef({
-    left: 15 + Math.random() * 70,
+    // Over the controls, not the artwork.
+    left: 45 + Math.random() * 45,
     sway: (Math.random() - 0.5) * 36,
     rotation: `${((Math.random() - 0.5) * 20).toFixed(1)}deg`,
   }).current;
@@ -88,7 +89,8 @@ const styles = StyleSheet.create({
   },
   floatingEmoji: {
     position: 'absolute',
-    bottom: 110,
+    // Starts by the reaction buttons, so a tap and its emoji read as one thing.
+    bottom: 30,
     alignItems: 'center',
   },
   emojiText: {

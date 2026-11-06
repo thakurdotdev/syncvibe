@@ -12,7 +12,8 @@ import { memo, useCallback, useRef } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 
 const REACTIONS = ['🔥', '❤️', '👏', '😍', '🎵'] as const;
-const REACTION_COOLDOWN_MS = 500;
+const REACTION_COOLDOWN_MS = 300;
+const REACTION_HIT_SLOP = { top: 4, bottom: 8 };
 
 /** Progress subscribes to time on its own, so the card around it doesn't re-render per tick. */
 const Progress = memo(function Progress({ onSeek }: { onSeek: (v: number) => void }) {
@@ -23,15 +24,18 @@ const Progress = memo(function Progress({ onSeek }: { onSeek: (v: number) => voi
 
   return (
     <View>
-      <CustomSlider
-        value={currentTime}
-        maxValue={duration || 1}
-        onSeek={onSeek}
-        trackColor={colors.primary}
-        inactiveTrackColor={`${colors.mutedForeground}33`}
-        thumbSize={12}
-        trackHeight={3}
-      />
+      {/* Keeps the slider's full touch height while taking little room in the layout. */}
+      <View style={styles.slider}>
+        <CustomSlider
+          value={currentTime}
+          maxValue={duration || 1}
+          onSeek={onSeek}
+          trackColor={colors.primary}
+          inactiveTrackColor={`${colors.mutedForeground}33`}
+          thumbSize={12}
+          trackHeight={3}
+        />
+      </View>
       <View style={styles.times}>
         <Text style={[styles.time, { color: colors.mutedForeground }]}>
           {formatTime(currentTime)}
@@ -64,6 +68,7 @@ const Reactions = memo(function Reactions() {
           key={e}
           onPress={() => react(e)}
           scaleTo={BUTTON_PRESS_SCALE}
+          hitSlop={REACTION_HIT_SLOP}
           accessibilityRole='button'
           accessibilityLabel={`React ${e}`}
           style={[styles.reaction, { backgroundColor: colors.raised }]}
@@ -76,8 +81,9 @@ const Reactions = memo(function Reactions() {
 });
 
 /**
- * Shared player for the room: what's playing, who added it, controls, progress and quick
- * reactions. The artwork tints the card so every song gives the room its own colour.
+ * Shared player for the room: the artwork fills the left edge, with what's playing, controls,
+ * progress and quick reactions beside it. It also tints the card, so every song gives the room
+ * its own colour.
  */
 export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseSong: () => void }) {
   const { colors, theme } = useTheme();
@@ -129,54 +135,57 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
         ]}
       />
 
-      <View style={styles.top}>
-        <Image source={{ uri: art }} style={styles.art} fadeDuration={0} />
-        <View style={styles.meta}>
-          <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
-            {song.name}
-          </Text>
-          <Text style={[styles.artist, { color: colors.mutedForeground }]} numberOfLines={1}>
-            {artist}
-          </Text>
-          {addedBy ? (
-            <Text style={[styles.addedBy, { color: colors.primary }]} numberOfLines={1}>
-              Added by {addedBy}
-            </Text>
-          ) : null}
-        </View>
-        <PressableScale
-          onPress={() => handlePlayPause()}
-          scaleTo={BUTTON_PRESS_SCALE}
-          accessibilityRole='button'
-          accessibilityLabel={isPlaying ? 'Pause for everyone' : 'Play for everyone'}
-          style={[styles.play, { backgroundColor: colors.foreground }]}
-        >
-          {isLoading ? (
-            <ActivityIndicator size='small' color={colors.background} />
-          ) : (
-            <Ionicons
-              name={isPlaying ? 'pause' : 'play'}
-              size={22}
-              color={colors.background}
-              style={{ marginLeft: isPlaying ? 0 : 2 }}
-            />
-          )}
-        </PressableScale>
-        <PressableScale
-          onPress={skipSong}
-          scaleTo={BUTTON_PRESS_SCALE}
-          hitSlop={6}
-          accessibilityRole='button'
-          accessibilityLabel='Skip to next song'
-          style={styles.skip}
-        >
-          <Ionicons name='play-skip-forward' size={20} color={colors.foreground} />
-        </PressableScale>
-      </View>
+      <View style={styles.row}>
+        <Image source={{ uri: art }} style={styles.art} resizeMode='cover' fadeDuration={0} />
 
-      <View style={styles.bottom}>
-        <Progress onSeek={handleSeek} />
-        <Reactions />
+        <View style={styles.side}>
+          <View style={styles.top}>
+            <View style={styles.meta}>
+              <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
+                {song.name}
+              </Text>
+              <Text style={[styles.artist, { color: colors.mutedForeground }]} numberOfLines={1}>
+                {artist}
+              </Text>
+              {addedBy ? (
+                <Text style={[styles.addedBy, { color: colors.primary }]} numberOfLines={1}>
+                  Added by {addedBy}
+                </Text>
+              ) : null}
+            </View>
+            <PressableScale
+              onPress={() => handlePlayPause()}
+              scaleTo={BUTTON_PRESS_SCALE}
+              accessibilityRole='button'
+              accessibilityLabel={isPlaying ? 'Pause for everyone' : 'Play for everyone'}
+              style={[styles.play, { backgroundColor: colors.foreground }]}
+            >
+              {isLoading ? (
+                <ActivityIndicator size='small' color={colors.background} />
+              ) : (
+                <Ionicons
+                  name={isPlaying ? 'pause' : 'play'}
+                  size={19}
+                  color={colors.background}
+                  style={{ marginLeft: isPlaying ? 0 : 2 }}
+                />
+              )}
+            </PressableScale>
+            <PressableScale
+              onPress={skipSong}
+              scaleTo={BUTTON_PRESS_SCALE}
+              hitSlop={6}
+              accessibilityRole='button'
+              accessibilityLabel='Skip to next song'
+              style={styles.skip}
+            >
+              <Ionicons name='play-skip-forward' size={18} color={colors.foreground} />
+            </PressableScale>
+          </View>
+
+          <Progress onSeek={handleSeek} />
+          <Reactions />
+        </View>
       </View>
     </View>
   );
@@ -185,27 +194,30 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
 const styles = StyleSheet.create({
   card: { borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   tint: { ...StyleSheet.absoluteFill, width: '100%', height: '100%', transform: [{ scale: 1.4 }] },
-  top: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, paddingBottom: 6 },
-  art: { width: 64, height: 64, borderRadius: 14 },
+  row: { flexDirection: 'row' },
+  // Stretches to the card's height, however tall larger text makes the side column.
+  art: { width: 136, alignSelf: 'stretch' },
+  side: { flex: 1, minWidth: 0, paddingHorizontal: 12, paddingVertical: 10, gap: 6 },
+  // Above the slider, whose touch area reaches up behind this row.
+  top: { flexDirection: 'row', alignItems: 'center', gap: 6, zIndex: 1 },
   meta: { flex: 1, minWidth: 0 },
-  title: { fontFamily: fonts.displaySemibold, fontSize: 17, letterSpacing: -0.3 },
-  artist: { fontSize: 13, marginTop: 1 },
-  addedBy: { fontSize: 11.5, fontWeight: '600', marginTop: 3 },
-  play: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  skip: { width: 36, height: 48, alignItems: 'center', justifyContent: 'center' },
-  bottom: { paddingHorizontal: 12, paddingBottom: 10, gap: 6 },
-  times: { flexDirection: 'row', justifyContent: 'space-between', marginTop: -2 },
-  time: { fontSize: 11, fontVariant: ['tabular-nums'] },
-  reactions: { flexDirection: 'row', justifyContent: 'space-between' },
+  title: { fontFamily: fonts.displaySemibold, fontSize: 16, letterSpacing: -0.3 },
+  artist: { fontSize: 12.5, marginTop: 1 },
+  addedBy: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  play: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  skip: { width: 28, height: 40, alignItems: 'center', justifyContent: 'center' },
+  slider: { marginVertical: -13 },
+  times: { flexDirection: 'row', justifyContent: 'space-between' },
+  time: { fontSize: 10.5, fontVariant: ['tabular-nums'] },
+  reactions: { flexDirection: 'row', gap: 4 },
   reaction: {
     flex: 1,
-    marginHorizontal: 3,
-    height: 36,
-    borderRadius: 12,
+    height: 30,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  reactionText: { fontSize: 18 },
+  reactionText: { fontSize: 15 },
 
   empty: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 22 },
   emptyIcon: {

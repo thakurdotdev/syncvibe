@@ -52,6 +52,21 @@ interface GroupMusicContextType {
   declineInvite: () => void;
 }
 
+const FLOATING_REACTION_MS = 1000;
+
+/** Floats an emoji over the player, for just as long as its animation runs. */
+const showFloatingReaction = (emoji: string, userName: string) => {
+  const id = `${Date.now()}-${Math.random()}`;
+  useGroupSessionStore.setState((state) => ({
+    floatingReactions: [...state.floatingReactions, { id, emoji, userName }],
+  }));
+  setTimeout(() => {
+    useGroupSessionStore.setState((state) => ({
+      floatingReactions: state.floatingReactions.filter((r) => r.id !== id),
+    }));
+  }, FLOATING_REACTION_MS);
+};
+
 const GroupMusicContext = createContext<GroupMusicContextType | null>(null);
 
 export function GroupMusicProvider({ children }: { children: ReactNode }) {
@@ -346,18 +361,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     );
 
     socket.on('song-reaction', (data: { emoji: string; userName: string }) => {
-      const reactionId = `${Date.now()}-${Math.random()}`;
-      ss.setState((state) => ({
-        floatingReactions: [
-          ...state.floatingReactions,
-          { id: reactionId, emoji: data.emoji, userName: data.userName },
-        ],
-      }));
-      setTimeout(() => {
-        ss.setState((state) => ({
-          floatingReactions: state.floatingReactions.filter((r) => r.id !== reactionId),
-        }));
-      }, 3000);
+      showFloatingReaction(data.emoji, data.userName);
     });
 
     socket.on('user-typing', (data: { userId: string; userName: string; isTyping: boolean }) => {
@@ -514,6 +518,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
   const sendReaction = useCallback(
     (emoji: string) => {
       if (!groupId || !user) return;
+      // The server sends reactions to everyone else in the room, so yours shows from here.
+      showFloatingReaction(emoji, '');
       socket?.emit('song-reaction', {
         groupId,
         emoji,
