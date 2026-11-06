@@ -32,8 +32,10 @@ const DISMISS_VELOCITY = 500;
 const QUEUE_COMMIT_DISTANCE = 0.15;
 /** Shorter than this was a stray touch, however fast. */
 const QUEUE_MIN_MOVE = 16;
-/** Height the player's own rows need; the artwork takes whatever is left. */
-const CHROME_HEIGHT = 400;
+/** Height the header and the player's own rows need; the artwork takes whatever is left. */
+const CHROME_HEIGHT = 350;
+/** Space either side of the artwork. */
+const ARTWORK_MARGIN = 16;
 const MIN_ARTWORK = 180;
 
 const system = ReduceMotion.System;
@@ -144,7 +146,7 @@ export default function Player() {
 
   const artworkSize = useMemo(() => {
     const room = screenHeight - insets.top - insets.bottom - CHROME_HEIGHT;
-    return Math.min(screenWidth - 48, Math.max(MIN_ARTWORK, room));
+    return Math.min(screenWidth - ARTWORK_MARGIN * 2, Math.max(MIN_ARTWORK, room));
   }, [screenWidth, screenHeight, insets.top, insets.bottom]);
 
   /**
