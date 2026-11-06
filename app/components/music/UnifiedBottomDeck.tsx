@@ -1,6 +1,6 @@
 import { useTheme } from '@/context/ThemeContext';
 import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE, SPRING_PRESS } from '@/lib/motion';
-import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE } from '@/lib/swipe';
+import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE, SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import PressableScale from '@/components/ui/PressableScale';
 import { openFullPlayer, usePlaybackState, usePlayerControls } from '@/stores/playerStore';
@@ -54,9 +54,6 @@ const TAB_ITEMS = [
     inactiveIcon: 'chatbubble-ellipses-outline',
   },
 ] as const;
-
-const PILL_WIDTH = 56;
-const PILL_HEIGHT = 30;
 
 /** Thin line along the dock's top edge. Glides between the 1s ticks (transform only). */
 const MiniProgressBar = memo(function MiniProgressBar({
@@ -119,15 +116,8 @@ const TabButton = memo(function TabButton({
       accessibilityState={{ selected: isFocused }}
     >
       <View style={styles.tabInner}>
-        {/* Tab switches happen 100+ times a day: the pill just appears, no slide. */}
-        {/* Always set a background (transparent when inactive): on Android, a background
-            added after first render can lose its borderRadius and draw square. */}
-        <View
-          style={[
-            styles.tabIconBox,
-            { backgroundColor: isFocused ? `${activeColor}26` : 'transparent' },
-          ]}
-        >
+        {/* Tab switches happen 100+ times a day, so nothing animates: the icon just fills in. */}
+        <View style={styles.tabIconBox}>
           <Ionicons name={isFocused ? activeIcon : inactiveIcon} size={21} color={color} />
           {live && <View style={[styles.liveDot, { backgroundColor: liveColor }]} />}
         </View>
@@ -189,16 +179,25 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
     .hitSlop({ left: -EDGE_GUARD, right: -EDGE_GUARD })
     .activeOffsetX([-SWIPE_ACTIVATE, SWIPE_ACTIVATE])
     .activeOffsetY([-14, 1000])
-    .onStart((e) => {
-      axis.set(Math.abs(e.translationX) > Math.abs(e.translationY) ? 1 : 2);
+    .onStart(() => {
+      axis.set(0);
     })
     .onUpdate((e) => {
+      if (
+        axis.get() === 0 &&
+        Math.max(Math.abs(e.translationX), Math.abs(e.translationY)) >= SWIPE_DIRECTION_DECIDED
+      ) {
+        axis.set(Math.abs(e.translationX) > Math.abs(e.translationY) ? 1 : 2);
+      }
       if (axis.get() === 1) x.set(e.translationX * 0.6);
     })
     .onEnd((e, success) => {
       // Not successful: the system took the touch over (its back gesture). Nothing was asked for.
       if (!success) return;
-      if (axis.get() === 1) {
+      // Barely moved before lifting: a flick can still say which way it was going.
+      const swipedSideways =
+        axis.get() === 1 || (axis.get() === 0 && Math.abs(e.velocityX) > Math.abs(e.velocityY));
+      if (swipedSideways) {
         if (isSkipSwipe(e.translationX, e.velocityX, width)) {
           scheduleOnRN(e.translationX < 0 ? skipNext : skipPrev);
         }
@@ -417,17 +416,15 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   tabIconBox: {
-    width: PILL_WIDTH,
-    height: PILL_HEIGHT,
-    borderRadius: PILL_HEIGHT / 2,
-    overflow: 'hidden',
+    width: 48,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
   liveDot: {
     position: 'absolute',
-    top: 4,
-    right: 14,
+    top: 2,
+    right: 10,
     width: 7,
     height: 7,
     borderRadius: 4,

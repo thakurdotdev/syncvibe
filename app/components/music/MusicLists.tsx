@@ -38,6 +38,8 @@ export const SectionTitle = memo(function SectionTitle({
 });
 
 const GAP = 12;
+/** Space does the separating on Home, so sections get plenty of it. */
+export const SECTION_GAP = 40;
 
 const keyOf = (item: { id?: string }, index: number) => item?.id || String(index);
 
@@ -105,7 +107,7 @@ export const RecommendationGrid = memo(function RecommendationGrid({
   recommendations: Song[];
   title?: string;
 }) {
-  return <CardRow title={title} data={recommendations} itemWidth={152} renderCard={renderSong} />;
+  return <CardRow title={title} data={recommendations} itemWidth={140} renderCard={renderSong} />;
 });
 
 export const AlbumsGrid = memo(function AlbumsGrid({
@@ -115,7 +117,7 @@ export const AlbumsGrid = memo(function AlbumsGrid({
   albums: Album[];
   title?: string;
 }) {
-  return <CardRow title={title} data={albums} itemWidth={146} renderCard={renderAlbum} />;
+  return <CardRow title={title} data={albums} itemWidth={140} renderCard={renderAlbum} />;
 });
 
 export const PlaylistsGrid = memo(function PlaylistsGrid({
@@ -125,7 +127,7 @@ export const PlaylistsGrid = memo(function PlaylistsGrid({
   playlists: Playlist[];
   title?: string;
 }) {
-  return <CardRow title={title} data={playlists} itemWidth={136} renderCard={renderPlaylist} />;
+  return <CardRow title={title} data={playlists} itemWidth={140} renderCard={renderPlaylist} />;
 });
 
 export const ArtistGrid = memo(function ArtistGrid({
@@ -135,19 +137,19 @@ export const ArtistGrid = memo(function ArtistGrid({
   artists: Artist[];
   title?: string;
 }) {
-  return <CardRow title={title} data={artists} itemWidth={96} renderCard={renderArtist} />;
+  return <CardRow title={title} data={artists} itemWidth={88} renderCard={renderArtist} />;
 });
 
 const styles = StyleSheet.create({
-  section: { marginBottom: 30 },
+  section: { marginBottom: SECTION_GAP },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  title: { fontFamily: fonts.display, fontSize: 20, letterSpacing: -0.4 },
+  title: { fontFamily: fonts.displaySemibold, fontSize: 18, letterSpacing: -0.3 },
   seeAll: { paddingVertical: 2 },
   seeAllText: { fontSize: 13, fontWeight: '600' },
   rowContent: { paddingHorizontal: 16 },

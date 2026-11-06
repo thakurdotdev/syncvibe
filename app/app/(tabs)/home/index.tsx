@@ -5,6 +5,7 @@ import {
   ArtistGrid,
   PlaylistsGrid,
   RecommendationGrid,
+  SECTION_GAP,
 } from '@/components/music/MusicLists';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import { TabHeader } from '@/components/ui/AppHeader';
@@ -53,7 +54,7 @@ const NEXT_SECTION_MS = 80;
 
 const goRooms = () => router.navigate('/(tabs)/group-music');
 
-/** Start-a-room invitation when you're not in a room: one quiet row between the music. */
+/** A way into rooms when you're not in one: one quiet line between the music. */
 const StartRoomRow = memo(function StartRoomRow({ colors }: { colors: Colors }) {
   const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
   if (inRoom) return null;
@@ -62,19 +63,11 @@ const StartRoomRow = memo(function StartRoomRow({ colors }: { colors: Colors }) 
       onPress={goRooms}
       scaleTo={ROW_PRESS_SCALE}
       accessibilityRole='button'
-      accessibilityLabel='Listen together. Start a room'
+      accessibilityLabel='Listen with friends. Open rooms'
       style={styles.startRow}
     >
-      <View style={[styles.roomIcon, { backgroundColor: colors.raised }]}>
-        <Ionicons name='people' size={19} color={colors.foreground} />
-      </View>
-      <View style={styles.roomText}>
-        <Text style={[styles.startTitle, { color: colors.foreground }]}>Listen together</Text>
-        <Text style={[styles.roomSub, { color: colors.mutedForeground }]} numberOfLines={1}>
-          Start a room and play in sync with friends
-        </Text>
-      </View>
-      <Ionicons name='chevron-forward' size={18} color={colors.mutedForeground} />
+      <Text style={[styles.startTitle, { color: colors.foreground }]}>Listen with friends</Text>
+      <Ionicons name='chevron-forward' size={17} color={colors.mutedForeground} />
     </PressableScale>
   );
 });
@@ -202,17 +195,20 @@ function HomeSkeleton({ colors }: { colors: Colors }) {
 
   return (
     <Animated.View style={[styles.skeleton, pulse]}>
-      <View style={[block('36%', 18, 7), styles.skeletonTitle]} />
+      <View style={[block('36%', 16, 6), styles.skeletonTitle]} />
       {[0, 1, 2].map((row) => (
-        <View key={row} style={styles.skeletonTiles}>
-          <View style={[block(0, 52, 11), styles.skeletonTile]} />
-          <View style={[block(0, 52, 11), styles.skeletonTile]} />
+        <View key={row} style={styles.skeletonRow}>
+          <View style={block(48, 48, 6)} />
+          <View style={styles.skeletonLines}>
+            <View style={block('60%', 13, 5)} />
+            <View style={block('38%', 11, 5)} />
+          </View>
         </View>
       ))}
-      <View style={[block('36%', 18, 7), styles.skeletonTitle, styles.skeletonGap]} />
+      <View style={[block('36%', 16, 6), styles.skeletonTitle, styles.skeletonGap]} />
       <View style={styles.skeletonCovers}>
         {[0, 1, 2].map((i) => (
-          <View key={i} style={block(152, 152)} />
+          <View key={i} style={block(140, 140, 10)} />
         ))}
       </View>
     </Animated.View>
@@ -246,8 +242,6 @@ function HomeScreen() {
     [homePageData?.trending]
   );
 
-  const firstName = user?.name?.split(' ')[0];
-
   const sections = useMemo(() => {
     const out: { key: string; node: ReactNode }[] = [
       { key: 'picks', node: <QuickPicks songs={recommendations?.recentlyPlayed ?? []} /> },
@@ -257,8 +251,8 @@ function HomeScreen() {
           <RecommendationGrid recommendations={recommendations?.songs ?? []} title='Made for you' />
         ),
       },
-      { key: 'room', node: <StartRoomRow colors={colors} /> },
       { key: 'trending', node: <TrendingChart songs={trendingSongs} title='Trending now' /> },
+      { key: 'room', node: <StartRoomRow colors={colors} /> },
       {
         key: 'playlists',
         node: (
@@ -298,12 +292,7 @@ function HomeScreen() {
 
   return (
     <TabSafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
-      <TabHeader
-        kicker={greeting()}
-        title={firstName || 'Welcome'}
-        avatar='leading'
-        prominentSearch
-      />
+      <TabHeader title={greeting()} />
 
       <ScrollView
         style={styles.root}
@@ -334,15 +323,16 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingTop: 8, paddingBottom: DECK_CLEARANCE },
 
-  roomStack: { gap: 10, paddingHorizontal: 16, marginBottom: 28 },
+  roomStack: { gap: 10, paddingHorizontal: 16, marginBottom: SECTION_GAP },
   startRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
+    height: 44,
     paddingHorizontal: 16,
-    marginBottom: 30,
+    marginBottom: SECTION_GAP,
   },
-  startTitle: { fontFamily: fonts.displaySemibold, fontSize: 15.5, letterSpacing: -0.2 },
+  startTitle: { fontSize: 15, fontWeight: '600', letterSpacing: -0.15 },
   liveCard: { borderRadius: 22, padding: 14, gap: 14 },
   liveTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   continueBtn: {
@@ -365,13 +355,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  roomIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   roomThumb: {
     width: 52,
     height: 52,
@@ -390,10 +373,10 @@ const styles = StyleSheet.create({
   liveText: { fontSize: 12, fontWeight: '700' },
 
   skeleton: { paddingHorizontal: 16 },
-  skeletonTitle: { marginBottom: 12 },
-  skeletonGap: { marginTop: 30 },
-  skeletonTiles: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  skeletonTile: { flex: 1 },
+  skeletonTitle: { marginBottom: 14 },
+  skeletonGap: { marginTop: SECTION_GAP },
+  skeletonRow: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 60 },
+  skeletonLines: { flex: 1, gap: 7 },
   skeletonCovers: { flexDirection: 'row', gap: 12 },
 });
 

@@ -1,12 +1,10 @@
 import { ROW_PRESS_SCALE } from '@/lib/motion';
-import { SectionTitle } from '@/components/music/MusicLists';
+import { SECTION_GAP, SectionTitle } from '@/components/music/MusicLists';
 import { PlayingBars } from '@/components/music/PlayingBars';
 import { useSongPress } from '@/components/music/useSongPress';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
-import { fonts } from '@/theme/typography';
 import { Song } from '@/types/song';
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { memo, useCallback, useMemo } from 'react';
 import { FlatList, Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -19,87 +17,14 @@ const songArtist = (song: Song) =>
   song.subtitle ||
   '';
 
-// ─── Jump back in ─────────────────────────────────────
+// ─── Rows ─────────────────────────────────────────────
 
-const QuickTile = memo(function QuickTile({ song }: { song: Song }) {
+/** One song, with nothing around it but space. A rank makes it a chart row. */
+const SongRow = memo(function SongRow({ song, rank }: { song: Song; rank?: number }) {
   const { colors } = useTheme();
   const { onPress, onLongPress, isCurrentSong, isPlaying, options } = useSongPress(song);
-
-  return (
-    <>
-      <PressableScale
-        onPress={onPress}
-        onLongPress={onLongPress}
-        delayLongPress={350}
-        accessibilityRole='button'
-        accessibilityLabel={`${isCurrentSong && isPlaying ? 'Pause' : 'Play'} ${song.name}`}
-        style={[styles.tile, { backgroundColor: isCurrentSong ? colors.accent : colors.card }]}
-      >
-        <Image
-          source={{ uri: songArt(song), cache: 'force-cache' }}
-          style={[styles.tileArt, { backgroundColor: colors.raised }]}
-          fadeDuration={0}
-          resizeMethod='resize'
-        />
-        <View style={styles.tileText}>
-          <Text
-            style={[
-              styles.tileTitle,
-              { color: isCurrentSong ? colors.accentForeground : colors.foreground },
-            ]}
-            numberOfLines={1}
-          >
-            {song.name}
-          </Text>
-          <Text
-            style={[
-              styles.tileSub,
-              { color: isCurrentSong ? colors.accentForeground : colors.mutedForeground },
-            ]}
-            numberOfLines={1}
-          >
-            {songArtist(song)}
-          </Text>
-        </View>
-        {isCurrentSong && <PlayingBars color={colors.primary} active={isPlaying} />}
-      </PressableScale>
-      {options}
-    </>
-  );
-});
-
-/**
- * The first thing on Home: your last six songs as compact two-up tiles, one tap to play.
- * Denser than a carousel, and everything is visible without scrolling sideways.
- */
-export const QuickPicks = memo(function QuickPicks({ songs }: { songs: Song[] }) {
-  const picks = useMemo(() => songs.filter((s) => s?.id).slice(0, 6), [songs]);
-  if (picks.length < 2) return null;
-  const rows: Song[][] = [];
-  for (let i = 0; i < picks.length; i += 2) rows.push(picks.slice(i, i + 2));
-
-  return (
-    <View style={styles.section}>
-      <SectionTitle title='Jump back in' onSeeAll={() => router.push('/song-history')} />
-      <View style={styles.grid}>
-        {rows.map((row) => (
-          <View key={row.map((s) => s.id).join('-')} style={styles.gridRow}>
-            {row.map((song) => (
-              <QuickTile key={song.id} song={song} />
-            ))}
-            {row.length === 1 && <View style={styles.tileSpacer} />}
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-});
-
-// ─── Trending chart ───────────────────────────────────
-
-const ChartRow = memo(function ChartRow({ song, rank }: { song: Song; rank: number }) {
-  const { colors } = useTheme();
-  const { onPress, onLongPress, isCurrentSong, isPlaying, options } = useSongPress(song);
+  const artist = songArtist(song);
+  const bars = isCurrentSong ? <PlayingBars color={colors.foreground} active={isPlaying} /> : null;
 
   return (
     <>
@@ -109,46 +34,61 @@ const ChartRow = memo(function ChartRow({ song, rank }: { song: Song; rank: numb
         delayLongPress={350}
         scaleTo={ROW_PRESS_SCALE}
         accessibilityRole='button'
-        accessibilityLabel={`Number ${rank}, ${song.name} by ${songArtist(song)}`}
-        style={styles.chartRow}
+        accessibilityLabel={`${rank ? `Number ${rank}, ` : ''}${
+          isCurrentSong && isPlaying ? 'Pause' : 'Play'
+        } ${song.name} by ${artist}`}
+        style={styles.row}
       >
-        <View style={styles.rank}>
-          {isCurrentSong ? (
-            <PlayingBars color={colors.primary} active={isPlaying} />
-          ) : (
-            <Text style={[styles.rankText, { color: colors.mutedForeground }]}>{rank}</Text>
-          )}
-        </View>
+        {rank ? (
+          <View style={styles.rank}>
+            {bars ?? (
+              <Text style={[styles.rankText, { color: colors.mutedForeground }]}>{rank}</Text>
+            )}
+          </View>
+        ) : null}
         <Image
           source={{ uri: songArt(song), cache: 'force-cache' }}
-          style={[styles.chartArt, { backgroundColor: colors.raised }]}
+          style={[styles.art, { backgroundColor: colors.raised }]}
           fadeDuration={0}
           resizeMethod='resize'
         />
-        <View style={styles.tileText}>
-          <Text
-            style={[
-              styles.chartTitle,
-              { color: isCurrentSong ? colors.primary : colors.foreground },
-            ]}
-            numberOfLines={1}
-          >
+        <View style={styles.text}>
+          <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
             {song.name}
           </Text>
-          <Text style={[styles.tileSub, { color: colors.mutedForeground }]} numberOfLines={1}>
-            {songArtist(song)}
+          <Text style={[styles.sub, { color: colors.mutedForeground }]} numberOfLines={1}>
+            {artist}
           </Text>
         </View>
-        <Ionicons
-          name={isCurrentSong && isPlaying ? 'pause' : 'play'}
-          size={15}
-          color={colors.mutedForeground}
-        />
+        {rank ? null : bars}
       </PressableScale>
       {options}
     </>
   );
 });
+
+// ─── Jump back in ─────────────────────────────────────
+
+const QUICK_PICKS = 3;
+
+/** The first thing on Home: your last few songs, one tap to play. The rest are behind See all. */
+export const QuickPicks = memo(function QuickPicks({ songs }: { songs: Song[] }) {
+  const picks = useMemo(() => songs.filter((s) => s?.id).slice(0, QUICK_PICKS), [songs]);
+  if (picks.length < 2) return null;
+
+  return (
+    <View style={styles.section}>
+      <SectionTitle title='Jump back in' onSeeAll={() => router.push('/song-history')} />
+      <View style={styles.rows}>
+        {picks.map((song) => (
+          <SongRow key={song.id} song={song} />
+        ))}
+      </View>
+    </View>
+  );
+});
+
+// ─── Trending chart ───────────────────────────────────
 
 const CHART_ROWS = 4;
 const COLUMN_GAP = 12;
@@ -182,7 +122,7 @@ export const TrendingChart = memo(function TrendingChart({
     ({ item }: { item: ChartColumn }) => (
       <View style={{ width: columnWidth }}>
         {item.items.map((song, i) => (
-          <ChartRow key={song.id} song={song} rank={item.start + i + 1} />
+          <SongRow key={song.id} song={song} rank={item.start + i + 1} />
         ))}
       </View>
     ),
@@ -221,38 +161,17 @@ export const TrendingChart = memo(function TrendingChart({
 
 const ColumnGap = () => <View style={{ width: COLUMN_GAP }} />;
 
-const TILE_ART = 44;
-
 const styles = StyleSheet.create({
-  section: { marginBottom: 30 },
+  section: { marginBottom: SECTION_GAP },
 
-  grid: { paddingHorizontal: 16, gap: 8 },
-  gridRow: { flexDirection: 'row', gap: 8 },
-  tile: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 4,
-    paddingRight: 10,
-    borderRadius: 11,
-  },
-  tileSpacer: { flex: 1 },
-  tileArt: { width: TILE_ART, height: TILE_ART, borderRadius: 7 },
-  tileText: { flex: 1, minWidth: 0 },
-  tileTitle: { fontSize: 13.5, fontWeight: '700', letterSpacing: -0.1 },
-  tileSub: { fontSize: 12, marginTop: 1 },
+  rows: { paddingHorizontal: 16 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 60 },
+  art: { width: 48, height: 48, borderRadius: 6 },
+  text: { flex: 1, minWidth: 0 },
+  title: { fontSize: 15, fontWeight: '600', letterSpacing: -0.15 },
+  sub: { fontSize: 13, marginTop: 2 },
 
   chartContent: { paddingHorizontal: 16 },
-  chartRow: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 62 },
-  rank: { width: 22, alignItems: 'center' },
-  rankText: {
-    fontFamily: fonts.display,
-    fontSize: 17,
-    letterSpacing: -0.4,
-    fontVariant: ['tabular-nums'],
-  },
-  chartArt: { width: 48, height: 48, borderRadius: 10 },
-  chartTitle: { fontSize: 14.5, fontWeight: '600', letterSpacing: -0.1 },
+  rank: { width: 20, alignItems: 'center' },
+  rankText: { fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] },
 });
