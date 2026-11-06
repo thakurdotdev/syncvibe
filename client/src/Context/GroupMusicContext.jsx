@@ -290,6 +290,18 @@ export function GroupMusicProvider({ children }) {
       }
     });
 
+    // You moved to another device or tab, which now plays the room. Rejoining would just take it back.
+    socket.on('device-replaced', ({ groupId }) => {
+      const { currentGroup, isRejoining } = ss.getState();
+      if (currentGroup && currentGroup.id !== groupId) return;
+      ss.setState({ isRejoining: false });
+      ss.getState().clearSession();
+      if (currentGroup) ss.getState().resetSession(() => pb.getState().reset());
+      if (currentGroup || isRejoining) {
+        toast.info('This room moved to your other device. Join it again here to bring it back.');
+      }
+    });
+
     // Left on another device.
     socket.on('left-group', ({ groupId }) => {
       if (groupId === getGroupId()) ss.getState().resetSession(() => pb.getState().reset());
@@ -506,6 +518,7 @@ export function GroupMusicProvider({ children }) {
         'group-not-found',
         'sync-lost',
         'left-group',
+        'device-replaced',
         'member-presence',
         'member-joined',
         'member-left',

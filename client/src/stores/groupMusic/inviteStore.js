@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { toast } from 'sonner';
+import { getDeviceId } from './deviceId';
 
 export const useGroupInviteStore = create((set, get) => ({
   pendingInvite: null,
@@ -13,6 +14,7 @@ export const useGroupInviteStore = create((set, get) => ({
       userName: user.name,
       profilePic: user.profilepic,
       inviterId: invite.inviterId,
+      deviceId: getDeviceId(),
     });
     set({ pendingInvite: null });
     navigate('/rooms');
