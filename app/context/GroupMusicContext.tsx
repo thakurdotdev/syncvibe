@@ -7,7 +7,7 @@ import {
   useRef,
   useMemo,
 } from 'react';
-import { Alert } from 'react-native';
+import { AppState, Alert } from 'react-native';
 import TrackPlayer, { Event, PlaybackState } from '@rntp/player';
 import { Song } from '@/types/song';
 import type { Message, MessageReactions } from '@/stores/groupMusic/types';
@@ -167,10 +167,14 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!socket || !currentGroupId) return;
 
+    // A disconnected socket queues what it's given and sends it all on reconnecting, by which
+    // time these would be stale.
     const syncClock = () => {
+      if (!socket.connected) return;
       socket.emit('time-sync-request', { clientTime: Date.now() });
     };
     const checkDrift = () => {
+      if (!socket.connected) return;
       socket.emit('request-sync', { groupId: currentGroupId });
     };
 
@@ -186,11 +190,16 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       syncIntervalRef.current = setInterval(syncClock, 5000);
     }, 5000);
     const driftTimer = setInterval(checkDrift, ROOM_SYNC_INTERVAL_MS);
+    // Timers can stall while the phone is in a pocket, so check as soon as it's back in hand.
+    const foreground = AppState.addEventListener('change', (state) => {
+      if (state === 'active') checkDrift();
+    });
 
     return () => {
       clearInterval(burst);
       clearTimeout(settle);
       clearInterval(driftTimer);
+      foreground.remove();
       if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
       socket.off('time-sync-response');
     };
@@ -198,10 +207,16 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
 
   // --- Session rejoin on socket connect ---
   useEffect(() => {
-    if (!socket || !user || hasAttemptedRejoin.current) return;
+    if (!socket || !user) return;
 
     const handleSetupComplete = async () => {
-      if (ss.getState().currentGroup) return;
+      // Every reconnect is a new connection the server hasn't put in the room yet.
+      const inRoom = ss.getState().currentGroup?.id;
+      if (inRoom) {
+        ss.getState().rejoinGroup(socket, user, inRoom);
+        return;
+      }
+      if (hasAttemptedRejoin.current) return;
 
       const stored = await ss.getState().getStoredSession();
       if (stored?.groupId) {
@@ -210,7 +225,13 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // Music plays on while the connection is down, so show that it's out of step for now.
+    const handleDisconnect = () => {
+      if (ss.getState().currentGroup) ss.setState({ isRejoining: true });
+    };
+
     socket.on('setup-complete', handleSetupComplete);
+    socket.on('disconnect', handleDisconnect);
     // Also try immediately if socket is already connected
     if (socket.connected) {
       handleSetupComplete();
@@ -218,6 +239,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
 
     return () => {
       socket.off('setup-complete', handleSetupComplete);
+      socket.off('disconnect', handleDisconnect);
     };
   }, [socket, user]);
 
@@ -301,10 +323,39 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    const endRoomHere = () => {
+      ss.getState().resetSession(() => pb.getState().reset());
+    };
+
     socket.on('group-not-found', () => {
       ss.setState({ isRejoining: false });
       ss.getState().clearSession();
+      // Rejoining a room that ended while the connection was down: don't stay in a phantom one.
+      if (ss.getState().currentGroup) endRoomHere();
       Alert.alert('Group Not Found', 'The group no longer exists.');
+    });
+
+    socket.on('sync-lost', (data: { groupId: string; reason: string }) => {
+      if (!user || data.groupId !== ss.getState().currentGroup?.id) return;
+      if (data.reason === 'not-in-room') {
+        ss.getState().rejoinGroup(socket, user, data.groupId);
+      } else {
+        endRoomHere();
+        Alert.alert('Room Ended', 'This room is no longer active.');
+      }
+    });
+
+    // Left on another device.
+    socket.on('left-group', (data: { groupId: string }) => {
+      if (data.groupId === ss.getState().currentGroup?.id) endRoomHere();
+    });
+
+    socket.on('member-presence', (data: { userId: number | string; connected: boolean }) => {
+      ss.setState((state) => ({
+        groupMembers: state.groupMembers.map((m) =>
+          String(m.userId) === String(data.userId) ? { ...m, connected: data.connected } : m
+        ),
+      }));
     });
 
     socket.on('group-full', () => {
@@ -450,6 +501,9 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         'chat-history',
         'message-reaction',
         'song-reaction',
+        'sync-lost',
+        'left-group',
+        'member-presence',
         'user-typing',
         'group-invite-received',
         'invite-sent',

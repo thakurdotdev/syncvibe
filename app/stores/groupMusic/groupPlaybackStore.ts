@@ -308,7 +308,8 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     // The fastest reply had the least time to be delayed one way more than the other, which is
     // what would throw this estimate off. Mobile networks vary a lot from one reply to the next.
     const best = clockSamples.reduce((a, b) => (b.rtt < a.rtt ? b : a));
-    set({ serverTimeOffset: best.offset, lastSync: endTime });
+    const quality = best.rtt < 150 ? 'good' : best.rtt < 400 ? 'fair' : 'poor';
+    set({ serverTimeOffset: best.offset, lastSync: endTime, connectionQuality: quality });
   },
 
   handlePlaybackUpdate: async (data) => {
@@ -417,6 +418,18 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     set({ currentSong: playbackState.currentTrack });
 
     if (!trackPlayerReady) return;
+
+    // Back after a dropped connection with the song still playing: reloading it would cut the
+    // sound for everyone's most common case, when a normal correction is all it needs.
+    const loaded = TrackPlayer.getActiveMediaItem();
+    if (
+      usePlayerStore.getState().activePlayerMode === 'group' &&
+      (loaded?.mediaId || (loaded as any)?.id) === playbackState.currentTrack.id
+    ) {
+      lastRoomActionAt = 0;
+      await get().handleSyncState({ playbackState });
+      return;
+    }
 
     claimGroupPlayer();
     markRoomAction();
@@ -565,7 +578,8 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     if (!trackPlayerReady || !groupId) return;
 
     markRoomAction();
-    socket?.emit('music-seek', { groupId, currentTime: value, isPlaying });
+    // Not queued for later: by the time a disconnected socket sent it, it would be out of date.
+    if (socket?.connected) socket.emit('music-seek', { groupId, currentTime: value, isPlaying });
 
     TrackPlayer.seekTo(value);
     set({ currentTime: value });

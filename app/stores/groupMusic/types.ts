@@ -1,6 +1,8 @@
 import { Song } from '@/types/song';
 
 export interface GroupMember {
+  /** False while reconnecting, before they count as having left. */
+  connected?: boolean;
   groupId: string;
   userId: number;
   userName: string;
