@@ -11,9 +11,7 @@ const DateBubble: React.FC<DateBubbleProps> = ({ date }) => {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.pill, { backgroundColor: colors.card }]}>
-        <Text style={[styles.text, { color: colors.mutedForeground }]}>{date}</Text>
-      </View>
+      <Text style={[styles.text, { color: colors.mutedForeground }]}>{date}</Text>
     </View>
   );
 };
@@ -21,15 +19,11 @@ const DateBubble: React.FC<DateBubbleProps> = ({ date }) => {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    marginVertical: 8,
-  },
-  pill: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 8,
+    marginTop: 20,
+    marginBottom: 8,
   },
   text: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
 });

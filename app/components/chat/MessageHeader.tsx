@@ -1,5 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import PressableScale from '@/components/ui/PressableScale';
+import { BUTTON_PRESS_SCALE } from '@/lib/motion';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 import Avatar from './Avatar';
@@ -22,18 +24,26 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({ onBack, user, isOnline, i
 
   return (
     <View style={[styles.header, { borderBottomColor: colors.border }]}>
-      <Pressable onPress={onBack} hitSlop={10} style={styles.backButton}>
-        <Ionicons name='chevron-back' size={22} color={colors.foreground} />
-      </Pressable>
+      <PressableScale
+        onPress={onBack}
+        scaleTo={BUTTON_PRESS_SCALE}
+        accessibilityRole='button'
+        accessibilityLabel='Go back'
+        style={styles.backButton}
+      >
+        <Ionicons name='chevron-back' size={24} color={colors.foreground} />
+      </PressableScale>
 
       <Avatar name={user?.name} profilepic={user?.profilepic} size='sm' isOnline={isOnline} />
 
       <View style={styles.textContainer}>
-        <Text style={[styles.name, { color: colors.foreground }]}>{user?.name}</Text>
+        <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={1}>
+          {user?.name}
+        </Text>
         {isTyping ? (
-          <Text style={[styles.status, { color: colors.primary }]}>typing...</Text>
+          <Text style={[styles.status, { color: colors.foreground }]}>typing…</Text>
         ) : isOnline ? (
-          <Text style={[styles.status, { color: colors.mutedForeground }]}>online</Text>
+          <Text style={[styles.status, { color: colors.mutedForeground }]}>Online</Text>
         ) : null}
       </View>
     </View>
@@ -44,16 +54,18 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
+    paddingHorizontal: 6,
+    height: 56,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backButton: {
-    padding: 6,
-    marginRight: 4,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textContainer: {
-    marginLeft: 10,
+    marginLeft: 8,
     flex: 1,
   },
   name: {
