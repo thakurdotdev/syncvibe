@@ -145,7 +145,11 @@ export function GroupMusicProvider({ children }) {
     if (!socket || !user?.userid) return;
 
     const handleSetupComplete = () => {
-      if (!hasAttemptedRejoinRef.current) {
+      // Every reconnect is a new connection the server hasn't put in the room yet.
+      const inRoom = useGroupSessionStore.getState().currentGroup?.id;
+      if (inRoom) {
+        useGroupSessionStore.getState().rejoinGroup(socket, user, inRoom);
+      } else if (!hasAttemptedRejoinRef.current) {
         const stored = useGroupSessionStore.getState().getStoredSession();
         if (stored?.groupId) {
           hasAttemptedRejoinRef.current = true;
@@ -155,8 +159,19 @@ export function GroupMusicProvider({ children }) {
       socket.emit('get-pending-invites');
     };
 
+    // Music plays on while the connection is down, so show that it's out of step for now.
+    const handleDisconnect = () => {
+      if (useGroupSessionStore.getState().currentGroup) {
+        useGroupSessionStore.setState({ isRejoining: true });
+      }
+    };
+
     socket.on('setup-complete', handleSetupComplete);
-    return () => socket.off('setup-complete', handleSetupComplete);
+    socket.on('disconnect', handleDisconnect);
+    return () => {
+      socket.off('setup-complete', handleSetupComplete);
+      socket.off('disconnect', handleDisconnect);
+    };
   }, [socket, user]);
 
   useEffect(() => {
@@ -260,7 +275,32 @@ export function GroupMusicProvider({ children }) {
     socket.on('group-not-found', () => {
       ss.setState({ isRejoining: false });
       ss.getState().clearSession();
+      // Rejoining a room that ended while the connection was down: don't stay in a phantom one.
+      if (ss.getState().currentGroup) ss.getState().resetSession(() => pb.getState().reset());
       toast.error('The group no longer exists');
+    });
+
+    socket.on('sync-lost', ({ groupId, reason }) => {
+      if (groupId !== getGroupId()) return;
+      if (reason === 'not-in-room') {
+        ss.getState().rejoinGroup(socket, user, groupId);
+      } else {
+        ss.getState().resetSession(() => pb.getState().reset());
+        toast.error('This room is no longer active');
+      }
+    });
+
+    // Left on another device.
+    socket.on('left-group', ({ groupId }) => {
+      if (groupId === getGroupId()) ss.getState().resetSession(() => pb.getState().reset());
+    });
+
+    socket.on('member-presence', ({ userId, connected }) => {
+      ss.setState((state) => ({
+        groupMembers: state.groupMembers.map((m) =>
+          String(m.userId) === String(userId) ? { ...m, connected } : m
+        ),
+      }));
     });
 
     socket.on('member-joined', (member) => {
@@ -464,6 +504,9 @@ export function GroupMusicProvider({ children }) {
         'group-joined',
         'group-rejoined',
         'group-not-found',
+        'sync-lost',
+        'left-group',
+        'member-presence',
         'member-joined',
         'member-left',
         'group-disbanded',

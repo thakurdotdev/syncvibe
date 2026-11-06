@@ -419,6 +419,18 @@ export const useGroupPlaybackStore = create((set, get) => ({
   ) => {
     if (!playbackState?.currentTrack) return;
 
+    // Back after a dropped connection with the song still loaded: reloading it would cut the sound
+    // when a normal correction is all it needs.
+    if (get().currentSong?.id === playbackState.currentTrack.id && audioElement?.src) {
+      lastPlaybackActionAt = 0;
+      await get().handleSyncState(
+        { playbackState, queue: serverQueue, currentQueueIndex: serverQueueIndex },
+        socket,
+        groupId
+      );
+      return;
+    }
+
     set({ currentSong: playbackState.currentTrack });
     const url = getHighQualityUrl(playbackState.currentTrack);
 
