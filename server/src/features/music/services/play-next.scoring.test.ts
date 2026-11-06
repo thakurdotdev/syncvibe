@@ -34,6 +34,7 @@ describe('isVersionOfSeed', () => {
     assert.ok(isVersionOfSeed('New York X Munbe Vaa', 'Munbe Vaa'));
     assert.ok(isVersionOfSeed('Kala Chashma Club Mix DJ Notorious', 'Kala Chashma'));
     assert.ok(isVersionOfSeed('Kala Chashma', 'Kala Chashma Club Mix DJ Notorious'));
+    assert.ok(isVersionOfSeed('Saiyaara Reprise - Female', 'Saiyaara'));
   });
 
   it('leaves different songs alone', () => {
@@ -48,6 +49,7 @@ describe('hasVariantTag', () => {
     assert.ok(hasVariantTag('9XM Smashup # 55'));
     assert.ok(hasVariantTag('Saturday Saturday (Sped Up)'));
     assert.ok(hasVariantTag('Sanam Re (Lounge Mix)'));
+    assert.ok(hasVariantTag('Mere Dil Mein (Dialogue Version)'));
   });
 
   it('does not match words that only contain a tag', () => {
@@ -88,6 +90,22 @@ describe('scoreSong', () => {
     const sameLanguage = scoreSong(song({ singers: ['arijit singh'] }), seed);
     assert.ok(otherLanguage < 25, 'below the minimum score');
     assert.ok(sameLanguage > otherLanguage);
+  });
+});
+
+describe('scoreSong with playlist links', () => {
+  const seed = song({ singers: ['arijit singh'] });
+
+  it('adds points for a link, up to a cap', () => {
+    const none = scoreSong(song(), seed);
+    assert.equal(scoreSong(song(), seed, 0, 0.25) - none, 30);
+    assert.equal(scoreSong(song(), seed, 0, 5) - none, 70);
+  });
+
+  it('lets a strong link beat a shared singer alone', () => {
+    const strongLink = scoreSong(song(), seed, 0, 0.5);
+    const sharedSinger = scoreSong(song({ singers: ['arijit singh'] }), seed);
+    assert.ok(strongLink > sharedSinger);
   });
 });
 

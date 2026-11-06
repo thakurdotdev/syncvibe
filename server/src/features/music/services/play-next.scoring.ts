@@ -46,6 +46,7 @@ const VARIANT_TAGS = [
   'trap',
   'instrumental',
   'karaoke',
+  'dialogue',
   'cover',
   'recreated',
   'unplugged',
@@ -58,6 +59,9 @@ const VARIANT_TAGS = [
 /** A few shared listeners say little about taste, so co-listening can only nudge the score. */
 const CO_LISTEN_POINTS_PER_WEIGHT = 2.5;
 const MAX_CO_LISTEN_POINTS = 15;
+/** Editors placing two songs together is the strongest signal of fit, so it can outweigh a singer. */
+const PLAYLIST_LINK_POINTS = 120;
+const MAX_PLAYLIST_LINK_POINTS = 70;
 const MAX_SONGS_PER_SINGER = 4;
 /** Longer than this is usually film dialogue or a long recital, not a next song. */
 const LONG_TRACK_SECONDS = 600;
@@ -88,19 +92,25 @@ export const hasVariantTag = (name: string): boolean => {
 export const dedupKey = (name: string, artist: string): string =>
   `${cleanTitle(name)}::${normalize(artist)}`;
 
-const containsTitle = (title: string, inner: string): boolean => {
-  // One word ("Baarish") is too common a title to prove two songs are the same song.
-  if (inner.split(' ').length < 2) return false;
+const containsWord = (title: string, inner: string): boolean => {
   const escaped = inner.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, 'u').test(title);
 };
+
+// One word ("Baarish") is too common a title to prove two songs are the same song.
+const containsTitle = (title: string, inner: string): boolean =>
+  inner.split(' ').length >= 2 && containsWord(title, inner);
 
 /** True for another copy, cover, remix or mashup of the song that is already playing. */
 export const isVersionOfSeed = (candidateName: string, seedName: string): boolean => {
   const candidate = cleanTitle(candidateName);
   const seed = cleanTitle(seedName);
   if (!candidate || !seed) return false;
-  return candidate === seed || containsTitle(candidate, seed) || containsTitle(seed, candidate);
+  if (candidate === seed || containsTitle(candidate, seed) || containsTitle(seed, candidate)) {
+    return true;
+  }
+  // A one-word title is only proof with a variant tag: "Saiyaara Reprise", not "Baarish Ban Jaana".
+  return hasVariantTag(candidateName) && containsWord(candidate, seed);
 };
 
 /** Long tracks only follow long tracks, so a recital can follow a recital but not a film song. */
@@ -116,8 +126,14 @@ const normalizePlayCount = (playCount: number): number => {
   return Math.min(Math.log10(playCount) / 9, 1);
 };
 
-export const scoreSong = (candidate: SongEntry, baseSong: SongEntry, coWeight = 0): number => {
+export const scoreSong = (
+  candidate: SongEntry,
+  baseSong: SongEntry,
+  coWeight = 0,
+  linkStrength = 0
+): number => {
   let score = 0;
+  score += Math.min(linkStrength * PLAYLIST_LINK_POINTS, MAX_PLAYLIST_LINK_POINTS);
   if (coWeight > 0) {
     score += Math.min(coWeight * CO_LISTEN_POINTS_PER_WEIGHT, MAX_CO_LISTEN_POINTS);
   }
