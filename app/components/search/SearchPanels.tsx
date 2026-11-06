@@ -414,10 +414,14 @@ export const PeoplePanel = memo(function PeoplePanel({ query }: { query: string 
     async (person: PersonResult) => {
       setOpeningId(person.userid);
       try {
-        const response = await api.post('/api/create/chat', { recieverid: person.userid });
-        setCurrentChat(response.data.chat);
-        socket?.emit('join-room', response.data.chat.chatid);
-        await getAllExistingChats();
+        const response = await api.post('/api/create/chat', { receiverid: person.userid });
+        const { chat } = response.data;
+        socket?.emit('join-room', chat.chatid);
+        // The response is only the bare chat; the screen also needs who it's with.
+        const list = await getAllExistingChats();
+        setCurrentChat(
+          list?.find((c) => c.chatid === chat.chatid) ?? ({ ...chat, otherUser: person } as any)
+        );
         router.push('/message');
       } catch {
         toast(`Couldn't open a chat with ${person.name}`);

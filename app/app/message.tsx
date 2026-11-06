@@ -1,3 +1,4 @@
+import { bumpChat } from '@/utils/chatList';
 import ImageGallery from '@/components/ImageGallery';
 import SwipeableModal from '@/components/SwipeableModal';
 import { Message, useChat } from '@/context/SocketContext';
@@ -63,7 +64,7 @@ const ChatWithUser = () => {
   const { user } = useUser();
   const { colors } = useTheme();
   const loggedInUserId = user?.userid;
-  const { currentChat, setCurrentChat, socket, onlineStatuses } = useChat();
+  const { currentChat, setCurrentChat, setUsers, socket, onlineStatuses } = useChat();
 
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -386,6 +387,9 @@ const ChatWithUser = () => {
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
+    setUsers(
+      (prev) => bumpChat(prev, currentChat.chatid, currentMsgText || 'Sent an attachment') ?? prev
+    );
     setMessage('');
     setFile(null);
     setFilePreview(null);
@@ -425,7 +429,8 @@ const ChatWithUser = () => {
       chatid: currentChat.chatid,
       content: currentMsgText || null,
       fileurl: uploadedUrl || null,
-      recipientId: currentChat.otherUser.userid,
+      // The server works out the recipient itself, so a missing one must not stop the send.
+      recipientId: currentChat.otherUser?.userid,
       senderName: user?.name,
       participants: currentChat.participants,
     });

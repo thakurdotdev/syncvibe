@@ -69,17 +69,21 @@ const ChatListScreen: React.FC = () => {
   );
 
   const createChat = useCallback(
-    async (userid: string) => {
+    async (person: any) => {
       try {
         setLoading(true);
         const response = await api.post(`/api/create/chat`, {
-          recieverid: userid,
+          receiverid: person.userid,
         });
 
         if (response.status === 200) {
-          setCurrentChat(response.data.chat);
-          socket?.emit('join-room', response.data.chat.chatid);
-          await getAllExistingChats();
+          const { chat } = response.data;
+          socket?.emit('join-room', chat.chatid);
+          // The response is only the bare chat; the screen also needs who it's with.
+          const list = await getAllExistingChats();
+          setCurrentChat(
+            list?.find((c) => c.chatid === chat.chatid) ?? { ...chat, otherUser: person }
+          );
           setSearchResults([]);
           setSearchQuery('');
           Keyboard.dismiss();
@@ -97,7 +101,7 @@ const ChatListScreen: React.FC = () => {
   const handleUserSelect = useCallback(
     (item: any, isSearchResult = false) => {
       if (isSearchResult) {
-        createChat(item.userid);
+        createChat(item);
       } else {
         setCurrentChat(item);
         router.push('/message');
@@ -212,9 +216,7 @@ const ChatListScreen: React.FC = () => {
         ref={flatListRef}
         data={isSearching ? searchResults : users}
         keyExtractor={(item, index) =>
-          isSearching
-            ? `search-${item.userid}-${index}`
-            : `chat-${item?.otherUser?.userid}-${index}`
+          isSearching ? `search-${item.userid}-${index}` : `chat-${item?.chatid}`
         }
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
