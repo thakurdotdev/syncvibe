@@ -92,19 +92,25 @@ export const hasVariantTag = (name: string): boolean => {
 export const dedupKey = (name: string, artist: string): string =>
   `${cleanTitle(name)}::${normalize(artist)}`;
 
-const containsTitle = (title: string, inner: string): boolean => {
-  // One word ("Baarish") is too common a title to prove two songs are the same song.
-  if (inner.split(' ').length < 2) return false;
+const containsWord = (title: string, inner: string): boolean => {
   const escaped = inner.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, 'u').test(title);
 };
+
+// One word ("Baarish") is too common a title to prove two songs are the same song.
+const containsTitle = (title: string, inner: string): boolean =>
+  inner.split(' ').length >= 2 && containsWord(title, inner);
 
 /** True for another copy, cover, remix or mashup of the song that is already playing. */
 export const isVersionOfSeed = (candidateName: string, seedName: string): boolean => {
   const candidate = cleanTitle(candidateName);
   const seed = cleanTitle(seedName);
   if (!candidate || !seed) return false;
-  return candidate === seed || containsTitle(candidate, seed) || containsTitle(seed, candidate);
+  if (candidate === seed || containsTitle(candidate, seed) || containsTitle(seed, candidate)) {
+    return true;
+  }
+  // A one-word title is only proof with a variant tag: "Saiyaara Reprise", not "Baarish Ban Jaana".
+  return hasVariantTag(candidateName) && containsWord(candidate, seed);
 };
 
 /** Long tracks only follow long tracks, so a recital can follow a recital but not a film song. */

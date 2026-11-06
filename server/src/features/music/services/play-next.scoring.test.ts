@@ -34,6 +34,7 @@ describe('isVersionOfSeed', () => {
     assert.ok(isVersionOfSeed('New York X Munbe Vaa', 'Munbe Vaa'));
     assert.ok(isVersionOfSeed('Kala Chashma Club Mix DJ Notorious', 'Kala Chashma'));
     assert.ok(isVersionOfSeed('Kala Chashma', 'Kala Chashma Club Mix DJ Notorious'));
+    assert.ok(isVersionOfSeed('Saiyaara Reprise - Female', 'Saiyaara'));
   });
 
   it('leaves different songs alone', () => {
