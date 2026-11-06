@@ -14,8 +14,17 @@ import {
   type SongEntry,
 } from './play-next.scoring';
 
-const CACHE_PREFIX = 'pn:v6:';
 const CACHE_TTL = 30 * 24 * 60 * 60;
+/** Playlists change, so combined results are recomputed sooner. */
+const HYBRID_CACHE_TTL = 7 * 24 * 60 * 60;
+const MAX_LINKED_SONGS = 150;
+const SINGLE_ARTIST_PLAYLIST_WEIGHT = 0.25;
+const LINK_SHRINKAGE = 2;
+
+/** Read on each call so that switching the flag and restarting takes effect cleanly. */
+const isHybridEngine = (): boolean => process.env.RECO_ENGINE === 'hybrid';
+const cacheKey = (songId: string): string => `${isHybridEngine() ? 'pn:h1:' : 'pn:v6:'}${songId}`;
+const cacheTtl = (): number => (isHybridEngine() ? HYBRID_CACHE_TTL : CACHE_TTL);
 const SONG_ATTRS = [
   'id',
   'songId',
@@ -189,6 +198,64 @@ const getCoOccurrenceCandidates = async (
   }
 };
 
+/** Songs that editors place with the seed, strongest first, in the seed's language. */
+const getLinkedCandidates = async (
+  baseSongId: string,
+  language: string
+): Promise<Array<{ song: SongRow; linkStrength: number }>> => {
+  if (!language) return [];
+  try {
+    const weight = `CASE WHEN p."isSingleArtist" THEN ${SINGLE_ARTIST_PLAYLIST_WEIGHT} ELSE 1 END`;
+    const rows = (await sequelize.query(
+      `
+      WITH seed AS (
+        SELECT ps."playlistId", ${weight} AS weight
+        FROM editorial_playlist_songs ps
+        JOIN editorial_playlists p ON p.id = ps."playlistId"
+        WHERE ps."songId" = :baseSongId
+      ),
+      together AS (
+        SELECT ps."songId", SUM(seed.weight) AS shared
+        FROM seed
+        JOIN editorial_playlist_songs ps ON ps."playlistId" = seed."playlistId"
+        WHERE ps."songId" <> :baseSongId
+        GROUP BY ps."songId"
+      ),
+      appearances AS (
+        SELECT ps."songId", SUM(${weight}) AS total
+        FROM editorial_playlist_songs ps
+        JOIN editorial_playlists p ON p.id = ps."playlistId"
+        WHERE ps."songId" IN (SELECT "songId" FROM together)
+        GROUP BY ps."songId"
+      )
+      SELECT s.id, s."songId", s.name, s."artistNames", s."albumName", s.language, s.duration,
+        s."songData",
+        t.shared / (SQRT((SELECT SUM(weight) FROM seed) * a.total) + :shrinkage) AS strength
+      FROM together t
+      JOIN appearances a ON a."songId" = t."songId"
+      JOIN songs s ON s."songId" = t."songId"
+      WHERE s.language = :language
+      ORDER BY strength DESC
+      LIMIT :limit
+      `,
+      {
+        replacements: {
+          baseSongId,
+          language,
+          shrinkage: LINK_SHRINKAGE,
+          limit: MAX_LINKED_SONGS,
+        },
+        type: QueryTypes.SELECT,
+      }
+    )) as Array<SongRow & { strength: string }>;
+    return rows.map(({ strength, ...song }) => ({ song, linkStrength: Number(strength) }));
+  } catch (err) {
+    // The tables may not exist yet: carry on with the other candidates.
+    console.error('[PlayNext] Playlist link search error:', (err as Error).message);
+    return [];
+  }
+};
+
 /**
  * Same language first and then the best known, so a big singer's 250 slots aren't an arbitrary
  * pick that can crowd out the seed's own language.
@@ -209,12 +276,23 @@ const computeForSong = async (baseSongId: string): Promise<string[]> => {
   if (!baseSongRow) return [];
 
   const baseSong = buildEntry(baseSongRow);
-  const candidateMap = new Map<string, { songRow: SongRow; coWeight: number }>();
+  const candidateMap = new Map<
+    string,
+    { songRow: SongRow; coWeight: number; linkStrength?: number }
+  >();
 
   const coCandidates = await getCoOccurrenceCandidates(baseSongRow.id);
   for (const item of coCandidates) {
     if (item.song.songId !== baseSongId) {
       candidateMap.set(item.song.songId, { songRow: item.song, coWeight: item.coWeight });
+    }
+  }
+
+  if (isHybridEngine()) {
+    const linked = await getLinkedCandidates(baseSongId, baseSong.language);
+    for (const { song, linkStrength } of linked) {
+      const existing = candidateMap.get(song.songId);
+      candidateMap.set(song.songId, { songRow: song, coWeight: existing?.coWeight ?? 0, linkStrength });
     }
   }
 
@@ -279,7 +357,7 @@ const computeForSong = async (baseSongId: string): Promise<string[]> => {
   const seen = new Set<string>();
   const scored: ScoredItem[] = [];
 
-  for (const { songRow, coWeight } of candidateMap.values()) {
+  for (const { songRow, coWeight, linkStrength } of candidateMap.values()) {
     const entry = buildEntry(songRow);
     if (isVersionOfSeed(entry.name, baseSong.name) || !hasPlausibleLength(entry, baseSong)) {
       continue;
@@ -288,7 +366,7 @@ const computeForSong = async (baseSongId: string): Promise<string[]> => {
     if (seen.has(dk)) continue;
     seen.add(dk);
 
-    const score = scoreSong(entry, baseSong, coWeight);
+    const score = scoreSong(entry, baseSong, coWeight, linkStrength);
     if (score < MIN_SCORE_THRESHOLD) continue;
 
     scored.push({
@@ -364,12 +442,12 @@ export const getPlayNextSongs = async ({
   limit = 20,
   excludeSongIds = [],
 }: PlayNextParams): Promise<Array<Record<string, unknown>>> => {
-  let cachedIds = await cache.get<string[]>(`${CACHE_PREFIX}${baseSongId}`);
+  let cachedIds = await cache.get<string[]>(cacheKey(baseSongId));
 
   if (!cachedIds) {
     cachedIds = await computeForSong(baseSongId);
     if (cachedIds.length > 0) {
-      await cache.set(`${CACHE_PREFIX}${baseSongId}`, cachedIds, CACHE_TTL);
+      await cache.set(cacheKey(baseSongId), cachedIds, cacheTtl());
     }
   }
 
@@ -424,7 +502,7 @@ export const rebuildAllPlayNext = async (): Promise<{ processed: number; total: 
       batch.map(async ({ songId }) => {
         const ids = await computeForSong(songId);
         if (ids.length > 0) {
-          await cache.set(`${CACHE_PREFIX}${songId}`, ids, CACHE_TTL);
+          await cache.set(cacheKey(songId), ids, cacheTtl());
         }
         processed++;
       })
@@ -438,5 +516,5 @@ export const rebuildAllPlayNext = async (): Promise<{ processed: number; total: 
 };
 
 export const invalidateSong = async (songId: string): Promise<void> => {
-  await cache.del(`${CACHE_PREFIX}${songId}`);
+  await cache.del(cacheKey(songId));
 };

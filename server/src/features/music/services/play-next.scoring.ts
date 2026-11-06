@@ -46,6 +46,7 @@ const VARIANT_TAGS = [
   'trap',
   'instrumental',
   'karaoke',
+  'dialogue',
   'cover',
   'recreated',
   'unplugged',
@@ -58,6 +59,9 @@ const VARIANT_TAGS = [
 /** A few shared listeners say little about taste, so co-listening can only nudge the score. */
 const CO_LISTEN_POINTS_PER_WEIGHT = 2.5;
 const MAX_CO_LISTEN_POINTS = 15;
+/** Editors placing two songs together is the strongest signal of fit, so it can outweigh a singer. */
+const PLAYLIST_LINK_POINTS = 120;
+const MAX_PLAYLIST_LINK_POINTS = 70;
 const MAX_SONGS_PER_SINGER = 4;
 /** Longer than this is usually film dialogue or a long recital, not a next song. */
 const LONG_TRACK_SECONDS = 600;
@@ -116,8 +120,14 @@ const normalizePlayCount = (playCount: number): number => {
   return Math.min(Math.log10(playCount) / 9, 1);
 };
 
-export const scoreSong = (candidate: SongEntry, baseSong: SongEntry, coWeight = 0): number => {
+export const scoreSong = (
+  candidate: SongEntry,
+  baseSong: SongEntry,
+  coWeight = 0,
+  linkStrength = 0
+): number => {
   let score = 0;
+  score += Math.min(linkStrength * PLAYLIST_LINK_POINTS, MAX_PLAYLIST_LINK_POINTS);
   if (coWeight > 0) {
     score += Math.min(coWeight * CO_LISTEN_POINTS_PER_WEIGHT, MAX_CO_LISTEN_POINTS);
   }
