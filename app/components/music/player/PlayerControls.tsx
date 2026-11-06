@@ -102,7 +102,9 @@ export const Scrubber = memo(function Scrubber({
   };
 
   const drag = Gesture.Pan()
-    .activeOffsetX([-3, 3])
+    // Whichever way the finger moves first wins, so a swipe up from here reaches the queue, not a seek.
+    .activeOffsetX([-6, 6])
+    .failOffsetY([-6, 6])
     .onStart((e) => {
       scrubbing.set(true);
       thick.set(withTiming(1, PRESS_IN));
