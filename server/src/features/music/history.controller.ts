@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { QueryTypes } from 'sequelize';
-import { HistorySong, Song } from '@/models/index';
+import { Song } from '@/models/index';
 import sequelize from '@/utils/sequelize';
 import {
   getRecommendationsForUser,
@@ -41,19 +41,42 @@ export const addToHistory = async (req: Request, res: Response): Promise<void> =
 
     const song = await Song.getOrCreate(songData);
 
-    const playedTimeInt = Math.round(Number(playedTime) || 0);
-    const completionRate = calculateCompletionRate(playedTimeInt, song.duration ?? 0);
-    await HistorySong.upsert({
-      userId,
-      songRefId: song.id,
-      playedCount: 1,
-      playedTime: playedTimeInt,
-      totalPlayTime: playedTimeInt,
-      completionRate,
-      timeOfDay: String(new Date().getHours()),
-      deviceType: getDeviceType(req.headers['user-agent']),
-      lastPlayedAt: new Date(),
-    });
+    const playedTimeInt = Math.max(Math.round(Number(playedTime) || 0), 0);
+    // Current clients call this when a song starts and report time through play events, so
+    // 0 must leave the listening time from earlier plays alone.
+    await sequelize.query(
+      `
+      INSERT INTO history_songs (
+        "userId", "songRefId", "playedCount", "playedTime", "totalPlayTime", "completionRate",
+        "timeOfDay", "deviceType", "lastPlayedAt", createdat
+      )
+      VALUES (
+        :userId, :songRefId, 1, :playedTime, :playedTime, :completionRate,
+        :timeOfDay, :deviceType, NOW(), NOW()
+      )
+      ON CONFLICT ("userId", "songRefId") DO UPDATE SET
+        "playedCount" = history_songs."playedCount" + 1,
+        "timeOfDay" = EXCLUDED."timeOfDay",
+        "deviceType" = EXCLUDED."deviceType",
+        "lastPlayedAt" = EXCLUDED."lastPlayedAt",
+        "playedTime" = CASE WHEN :playedTime > 0 THEN :playedTime
+          ELSE history_songs."playedTime" END,
+        "totalPlayTime" = COALESCE(history_songs."totalPlayTime", 0) + :playedTime,
+        "completionRate" = CASE WHEN :playedTime > 0 THEN :completionRate
+          ELSE history_songs."completionRate" END
+      `,
+      {
+        replacements: {
+          userId,
+          songRefId: song.id,
+          playedTime: playedTimeInt,
+          completionRate: calculateCompletionRate(playedTimeInt, song.duration ?? 0),
+          timeOfDay: String(new Date().getHours()),
+          deviceType: getDeviceType(req.headers['user-agent']),
+        },
+        type: QueryTypes.INSERT,
+      }
+    );
 
     queueUserForRecalc(userId);
     res.json({ message: 'History updated successfully' });
