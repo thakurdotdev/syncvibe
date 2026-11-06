@@ -8,7 +8,6 @@ import { LANGUAGE_STORAGE_KEY } from '@/lib/languages';
 import { ONBOARDING_STORAGE_KEY } from '@/lib/onboarding';
 import { typography } from '@/theme/typography';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
 import { ReactNode, useCallback, useRef, useState } from 'react';
@@ -104,7 +103,6 @@ export default function OnboardingScreen() {
 
   const handlePageChange = (next: number) => {
     setPage(next);
-    Haptics.selectionAsync().catch(() => {});
   };
 
   // Works out the page from the scroll position, so swipes and button presses both update it.

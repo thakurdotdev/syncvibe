@@ -4,7 +4,6 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { EASE_OUT } from '@/lib/motion';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import * as Haptics from 'expo-haptics';
 import { Camera, Image as ImageIcon, Check } from 'lucide-react-native';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -50,7 +49,6 @@ export default function UpdateProfilePictureScreen() {
           name: asset.fileName || 'profile.jpg',
           type: asset.mimeType || 'image/jpeg',
         });
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     } catch (error) {
       console.error(error);
@@ -80,7 +78,6 @@ export default function UpdateProfilePictureScreen() {
           name: asset.fileName || 'camera.jpg',
           type: asset.mimeType || 'image/jpeg',
         });
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     } catch (error) {
       console.error(error);
@@ -92,7 +89,6 @@ export default function UpdateProfilePictureScreen() {
     if (!selectedUri || !fileDetails) return;
 
     setIsUploading(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
 
     try {
       const secureUrl = await uploadToCloudinary(
@@ -109,7 +105,6 @@ export default function UpdateProfilePictureScreen() {
 
       if (response.status === 200) {
         setUser((prev) => (prev ? { ...prev, profilepic: response.data.profilepic } : null));
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         toast('Profile picture updated!', { type: 'success' });
         router.back();
       }

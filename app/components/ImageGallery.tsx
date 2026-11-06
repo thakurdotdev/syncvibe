@@ -1,7 +1,6 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { BlurView } from 'expo-blur';
 import * as FileSystem from 'expo-file-system';
-import * as Haptics from 'expo-haptics';
 import * as MediaLibrary from 'expo-media-library';
 import { ChevronLeftIcon, ChevronRightIcon, DownloadIcon, XIcon } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -74,7 +73,6 @@ const ImageGallery = ({
 
   const handlePrevious = useCallback(() => {
     if (currentIndex > 0) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setIsLoading(true);
       setCurrentIndex((prev) => prev - 1);
     }
@@ -82,7 +80,6 @@ const ImageGallery = ({
 
   const handleNext = useCallback(() => {
     if (currentIndex < images.length - 1) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setIsLoading(true);
       setCurrentIndex((prev) => prev + 1);
     }
@@ -90,8 +87,6 @@ const ImageGallery = ({
 
   const handleDownload = useCallback(async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
       if (!hasPermissions) {
         const { status } = await MediaLibrary.requestPermissionsAsync();
         if (status !== 'granted') {
@@ -121,13 +116,9 @@ const ImageGallery = ({
 
       await MediaLibrary.createAssetAsync(uri.uri);
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
       Alert.alert('Download Complete', 'Image has been saved to your gallery.', [{ text: 'OK' }]);
     } catch (error) {
       console.error('Download failed:', error);
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
       Alert.alert('Download Failed', 'An error occurred while downloading the image.', [
         { text: 'OK' },

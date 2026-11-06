@@ -2,7 +2,6 @@ import { SoundMessageRow } from '@/components/music/group/SoundMessageRow';
 import { useTheme } from '@/context/ThemeContext';
 import type { Message } from '@/stores/groupMusic/types';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
-import * as Haptics from 'expo-haptics';
 import { memo, useMemo, useRef } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { AnchorRect } from './MessageActions';
@@ -50,7 +49,6 @@ export const MessageBubble = memo(function MessageBubble({
   const bubbleRef = useRef<View>(null);
 
   const handleLongPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     bubbleRef.current?.measureInWindow((x, y, width, height) =>
       onLongPress(m, { x, y, width, height })
     );

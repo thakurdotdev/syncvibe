@@ -6,7 +6,6 @@ import { useTheme } from '@/context/ThemeContext';
 import { uploadToCloudinary } from '@/utils/Cloudinary';
 import useApi from '@/utils/hooks/useApi';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -189,8 +188,6 @@ const ChatWithUser = () => {
           msg.messageid === failedMsg.messageid ? { ...msg, status: 'pending' } : msg
         )
       );
-
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       const queuedItem = outboxQueueRef.current.get(tempId);
       if (queuedItem) {
@@ -392,7 +389,6 @@ const ChatWithUser = () => {
     setMessage('');
     setFile(null);
     setFilePreview(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     if (socket?.connected && currentChat?.otherUser?.userid) {
       socket.emit('typing', {
@@ -450,7 +446,6 @@ const ChatWithUser = () => {
         if (!result.canceled && result.assets?.[0]) {
           setFile(result);
           setFilePreview(result.assets[0].uri);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
       }
     } catch (error) {
@@ -497,7 +492,6 @@ const ChatWithUser = () => {
       if (index !== -1) {
         setSelectedImageIndex(index);
         setShowGallery(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
     [findImageIndex]
@@ -532,8 +526,6 @@ const ChatWithUser = () => {
           messageid: selectedMessage.messageid,
           chatid: currentChat?.chatid,
         });
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (error) {
       console.error('Error deleting message:', error);
@@ -567,8 +559,6 @@ const ChatWithUser = () => {
           chatid: currentChat?.chatid,
           content: editText,
         });
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (error) {
       console.error('Error updating message:', error);
@@ -586,7 +576,6 @@ const ChatWithUser = () => {
   const handleCopyText = useCallback(() => {
     if (selectedMessage?.content) {
       setShowMessageOptions(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   }, [selectedMessage]);
 
@@ -638,7 +627,6 @@ const ChatWithUser = () => {
       <Wrapper {...wrapperProps}>
         <MessageHeader
           onBack={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setCurrentChat(null);
             router.back();
           }}
@@ -801,7 +789,6 @@ const OptionItem = React.memo(
         style={styles.optionItem}
         onPress={() => {
           onPress();
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }}
       >
         <Ionicons name={icon} size={22} color={itemColor} />

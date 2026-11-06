@@ -1,9 +1,8 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, Camera as ExpoCamera, FlashMode, useCameraPermissions } from 'expo-camera';
-import * as Haptics from 'expo-haptics';
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, StyleSheet, Text, Vibration, View } from 'react-native';
+import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { EASE_OUT } from '@/lib/motion';
@@ -66,8 +65,6 @@ const QRScannerScreen = ({
       setScanned(true);
       setScannedData(data);
       setIsCameraActive(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Vibration.vibrate(100);
     }
   };
 
@@ -79,7 +76,6 @@ const QRScannerScreen = ({
 
   const toggleFlash = () => {
     setFlashMode(flashMode === 'off' ? 'on' : 'off');
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleClose = () => {

@@ -2,7 +2,6 @@ import { PRESS_IN, PRESS_SCALE, SPRING_PRESS, STATE } from '@/lib/motion';
 import { useTheme } from '@/context/ThemeContext';
 import { LANGUAGES } from '@/lib/languages';
 import { typography } from '@/theme/typography';
-import * as Haptics from 'expo-haptics';
 import { memo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
@@ -94,11 +93,9 @@ export function LanguageStep({ selected, onChange }: LanguageStepProps) {
   const toggle = (id: string) => {
     // At least one language must stay selected: Home has nothing to recommend without it.
     if (selected.has(id) && count === 1) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       return;
     }
 
-    Haptics.selectionAsync().catch(() => {});
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
     else next.add(id);

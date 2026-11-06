@@ -6,7 +6,6 @@ import { toast } from '@/context/ToastContext';
 import { useSongRecommendationsQuery } from '@/queries/useMusic';
 import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { RefreshCw, Plus, X } from 'lucide-react-native';
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -159,7 +158,6 @@ const QueueRecommendations = memo(() => {
 
   const handleAdd = useCallback(
     (song: Song) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       addToQueue(song);
       toast('Added to queue');
     },
@@ -172,7 +170,6 @@ const QueueRecommendations = memo(() => {
   }, [currentSong?.id]);
 
   const handleRefresh = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     refetch();
   }, [refetch]);
 

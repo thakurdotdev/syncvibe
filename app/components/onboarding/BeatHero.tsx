@@ -1,7 +1,6 @@
 import { useTheme } from '@/context/ThemeContext';
 import { typography } from '@/theme/typography';
-import * as Haptics from 'expo-haptics';
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   cancelAnimation,
@@ -19,7 +18,6 @@ import Animated, {
 const BAR_COUNT = 17;
 const BAR_HEIGHT = 170;
 const LOOP_MS = 2400;
-const HAPTIC_PULSE_MS = 260;
 
 interface BarProps {
   index: number;
@@ -50,12 +48,11 @@ const Bar = memo(function Bar({ index, clock, energy }: BarProps) {
   return <Animated.View style={[styles.bar, style]} />;
 });
 
-/** Equaliser that idles on its own and comes alive, with haptics, while it's held down. */
+/** Equaliser that idles on its own and comes alive while it's held down. */
 export const BeatHero = memo(function BeatHero({ active }: { active: boolean }) {
   const { colors } = useTheme();
   const clock = useSharedValue(0);
   const energy = useSharedValue(0);
-  const pulseTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [holding, setHolding] = useState(false);
 
   useEffect(() => {
@@ -65,25 +62,11 @@ export const BeatHero = memo(function BeatHero({ active }: { active: boolean }) 
     return () => cancelAnimation(clock);
   }, [active, clock]);
 
-  const stopPulse = () => {
-    if (pulseTimer.current) clearInterval(pulseTimer.current);
-    pulseTimer.current = null;
-  };
-
-  useEffect(() => stopPulse, []);
-
-  const pulse = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-  };
-
   const handlePressIn = () => {
     setHolding(true);
     energy.set(
       withSpring(1, { duration: 400, dampingRatio: 0.6, reduceMotion: ReduceMotion.System })
     );
-    pulse();
-    stopPulse();
-    pulseTimer.current = setInterval(pulse, HAPTIC_PULSE_MS);
   };
 
   const handlePressOut = () => {
@@ -91,14 +74,13 @@ export const BeatHero = memo(function BeatHero({ active }: { active: boolean }) 
     energy.set(
       withSpring(0, { duration: 400, dampingRatio: 1, reduceMotion: ReduceMotion.System })
     );
-    stopPulse();
   };
 
   return (
     <Pressable
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      accessibilityLabel='Animated equaliser. Press and hold to feel the beat.'
+      accessibilityLabel='Animated equaliser. Press and hold to bring it alive.'
       style={styles.hero}
     >
       <View style={styles.bars}>
