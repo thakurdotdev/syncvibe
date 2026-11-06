@@ -202,6 +202,15 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
       }
     };
 
+    const handleMessageEdited = (data) => {
+      if (data?.chatid !== currentChat.chatid) return;
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.messageid === data.messageid ? { ...msg, content: data.content } : msg
+        )
+      );
+    };
+
     const handleCallLog = (callMessage) => {
       if (callMessage.chatid === currentChat.chatid) {
         setMessages((prevMessages) => [...prevMessages, callMessage]);
@@ -211,6 +220,7 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
     socket.on('connect', handleConnect);
     socket.on('message-received', handleNewMessage);
     socket.on('message-deleted', handleMessageDeleted);
+    socket.on('message-edited', handleMessageEdited);
     socket.on('message-ack', handleMessageAck);
     socket.on('message-error', handleMessageError);
     socket.on('messages-read-status', handleReadStatus);
@@ -220,6 +230,7 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
       socket.off('connect', handleConnect);
       socket.off('message-received', handleNewMessage);
       socket.off('message-deleted', handleMessageDeleted);
+      socket.off('message-edited', handleMessageEdited);
       socket.off('message-ack', handleMessageAck);
       socket.off('message-error', handleMessageError);
       socket.off('messages-read-status', handleReadStatus);
