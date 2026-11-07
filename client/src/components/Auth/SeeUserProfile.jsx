@@ -56,8 +56,9 @@ const SeeUserProfile = () => {
 
   const handleFollow = async () => {
     try {
-      const response = await axios.get(
+      const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/user/follow/${userid}`,
+        null,
         { withCredentials: true }
       );
 
