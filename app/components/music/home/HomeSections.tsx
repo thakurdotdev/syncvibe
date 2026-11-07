@@ -106,7 +106,7 @@ export const TrendingChart = memo(function TrendingChart({
 
   return (
     <View style={styles.section}>
-      <SectionTitle title={title} />
+      <SectionTitle title={title} onSeeAll={() => router.push('/browse')} />
       <View style={styles.rows}>
         {top.map((song, i) => (
           <SongRow key={song.id} song={song} rank={i + 1} />

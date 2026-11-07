@@ -41,22 +41,24 @@ const GAP = 12;
 /** Space does the separating on Home, so sections get plenty of it. */
 export const SECTION_GAP = 40;
 
-const keyOf = (item: { id?: string }, index: number) => item?.id || String(index);
+const defaultKeyOf = (item: { id?: string }, index: number) => item?.id || String(index);
 
 /**
  * A titled sideways row of same-width cards that scrolls freely. The fixed width lets the list
  * skip measuring. It mounts about a screenful, plus two screens either side.
  */
-function CardRow<T extends { id?: string }>({
+export function CardRow<T>({
   title,
   data,
   itemWidth,
   renderCard,
+  keyOf = defaultKeyOf as (item: T, index: number) => string,
 }: {
   title?: string;
   data: T[];
   itemWidth: number;
-  renderCard: (item: T) => ReactElement;
+  renderCard: (item: T) => ReactElement | null;
+  keyOf?: (item: T, index: number) => string;
 }) {
   const step = itemWidth + GAP;
   const renderItem = useCallback(

@@ -50,19 +50,18 @@ const CONTENT_ENTER = FadeIn.duration(180).easing(EASE_OUT);
 
 const goRooms = () => router.navigate('/(tabs)/group-music');
 
-/** A way into rooms when you're not in one: one quiet line between the music. */
-const StartRoomRow = memo(function StartRoomRow({ colors }: { colors: Colors }) {
-  const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
-  if (inRoom) return null;
+const goBrowse = () => router.push('/browse');
+
+/** Home stays short; everything else the service offers is one tap away. */
+const BrowseRow = memo(function BrowseRow({ colors }: { colors: Colors }) {
   return (
     <PressableScale
-      onPress={goRooms}
+      onPress={goBrowse}
       scaleTo={ROW_PRESS_SCALE}
       accessibilityRole='button'
-      accessibilityLabel='Listen with friends. Open rooms'
-      style={styles.startRow}
+      style={styles.browseRow}
     >
-      <Text style={[styles.startTitle, { color: colors.foreground }]}>Listen with friends</Text>
+      <Text style={[styles.browseText, { color: colors.foreground }]}>Browse all music</Text>
       <Ionicons name='chevron-forward' size={17} color={colors.mutedForeground} />
     </PressableScale>
   );
@@ -248,7 +247,6 @@ function HomeScreen() {
         ),
       },
       { key: 'trending', node: <TrendingChart songs={trendingSongs} title='Trending now' /> },
-      { key: 'room', node: <StartRoomRow colors={colors} /> },
       {
         key: 'albums',
         node: <AlbumsGrid albums={homePageData?.albums?.data ?? []} title='New albums' />,
@@ -262,6 +260,7 @@ function HomeScreen() {
           />
         ),
       },
+      { key: 'browse', node: <BrowseRow colors={colors} /> },
     ];
     return out;
   }, [colors, homePageData, recommendations, trendingSongs]);
@@ -315,7 +314,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 8, paddingBottom: DECK_CLEARANCE },
 
   roomStack: { gap: 10, paddingHorizontal: 16, marginBottom: SECTION_GAP },
-  startRow: {
+  browseRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -323,7 +322,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: SECTION_GAP,
   },
-  startTitle: { fontSize: 15, fontWeight: '600', letterSpacing: -0.15 },
+  browseText: { fontSize: 15, fontWeight: '600', letterSpacing: -0.15 },
   liveCard: { borderRadius: 22, padding: 14, gap: 14 },
   liveTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   continueBtn: {

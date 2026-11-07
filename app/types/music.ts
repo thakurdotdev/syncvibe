@@ -166,6 +166,8 @@ export interface HomePageResponse {
   artist_recos: {
     data: Artist[];
   };
+  /** More sections come and go by language and over time: see lib/browseSections. */
+  [section: string]: unknown;
 }
 
 export interface RecentMusicResponse {
