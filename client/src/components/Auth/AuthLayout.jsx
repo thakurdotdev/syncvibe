@@ -1,18 +1,23 @@
+import { lazy, Suspense } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import authImage from '@/assets/auth.png';
 import { LOGO_URL } from '@/components/shell/nav';
+import useMediaQuery from '@/hooks/use-media-query';
+
+const AuthShowcase = lazy(() => import('./AuthShowcase'));
 
 /**
  * Frame for the sign-in pages. Same layering as the app shell: the canvas behind, the form on
- * the content panel, and the artwork as a second panel on wide screens.
+ * the content panel, and a live room as a second panel on wide screens.
  */
 const AuthLayout = () => {
   const { pathname } = useLocation();
   const isRegister = pathname === '/register';
+  // The showcase is hidden below this width, so phones skip its code and artwork entirely.
+  const isWide = useMediaQuery('(min-width: 1024px)');
 
   return (
     <div className='flex min-h-dvh w-full gap-2 bg-canvas text-foreground md:p-2'>
-      <div className='flex min-w-0 flex-1 flex-col bg-background md:rounded-[20px] md:border md:border-border/60 md:shadow-[0_1px_0_0_hsl(var(--foreground)/0.03)]'>
+      <div className='flex min-w-0 flex-1 flex-col bg-background lg:w-[max(420px,30%)] lg:flex-none md:rounded-[20px] md:border md:border-border/60 md:shadow-[0_1px_0_0_hsl(var(--foreground)/0.03)]'>
         <header className='flex h-16 items-center justify-between px-5 md:px-8'>
           <Link to='/' aria-label='SyncVibe home' className='flex items-center gap-2.5'>
             <img src={LOGO_URL} alt='' className='h-7 w-7 rounded-full' />
@@ -22,7 +27,7 @@ const AuthLayout = () => {
             to={isRegister ? '/login' : '/register'}
             className='press rounded-full px-3.5 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground'
           >
-            {isRegister ? 'Log in' : 'Sign up'}
+            {isRegister ? 'Sign in' : 'Sign up'}
           </Link>
         </header>
 
@@ -45,19 +50,15 @@ const AuthLayout = () => {
         </footer>
       </div>
 
-      <aside className='relative hidden overflow-hidden rounded-[20px] border border-border/60 lg:block lg:w-[46%] xl:w-[52%]'>
-        <img
-          src={authImage}
-          alt=''
-          className='absolute inset-0 h-full w-full select-none object-cover'
-          loading='eager'
-        />
-        <div className='absolute inset-x-0 bottom-0 bg-gradient-to-t from-scrim/75 via-scrim/30 to-transparent p-10 pt-32 text-on-scrim'>
-          <p className='font-display text-3xl font-bold xl:text-4xl'>Music is better in sync</p>
-          <p className='mt-2 max-w-sm text-sm text-on-scrim/80'>
-            Start a room and hear every beat at the same moment as your friends, wherever they are.
-          </p>
-        </div>
+      <aside
+        aria-label='A live SyncVibe room you can try'
+        className='relative hidden overflow-hidden rounded-[20px] border border-border/60 min-w-0 lg:block lg:flex-1'
+      >
+        {isWide && (
+          <Suspense fallback={null}>
+            <AuthShowcase />
+          </Suspense>
+        )}
       </aside>
     </div>
   );
