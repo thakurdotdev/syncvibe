@@ -73,22 +73,31 @@ Don't run `pnpm dev`, `expo start` or other watchers from an agent. Ask the user
 
 ## Deployment (read before merging)
 
-- **Merging to `main` deploys.** Shipyard rebuilds and restarts the server (`syncvibe-api` under
-  `pm0`, port 4000) and the web app (`client/`) within minutes. A GitHub workflow queues an EAS
-  Android build for changes in `app/`. There is no staging.
-- Production server is the machine you may be running on: `~/.local/bin/pm0 ls` lists processes.
-  The live build's folder is `readlink /proc/<pid>/cwd`. Its env (including `DATABASE_URL`) is in
-  `/proc/<pid>/environ`. **Never print secrets or env values**; read them into variables.
+- **Merging to `main` deploys.** Shipyard rebuilds and restarts the server and the web app
+  (`client/`) within minutes. A GitHub workflow queues an EAS Android build for changes in `app/`.
+  There is no staging.
 - The web hosts `client/public/.well-known/assetlinks.json` for Android passkeys. Don't remove it.
+
+### Only when running on the production server
+
+You may be on the production machine or on a local dev machine. Check first: production has
+`~/.local/bin/pm0` and `pm0 ls` shows `syncvibe-api` on port 4000. If it doesn't, skip this part and
+ask the user to run production steps (migrations, restarts) themselves.
+
+- The live build's folder is `readlink /proc/<pid>/cwd`; its env (including `DATABASE_URL`) is in
+  `/proc/<pid>/environ`. **Never print secrets or env values**; read them into variables.
+- Restart with `pm0 restart syncvibe-api`, logs in `~/.pm0/logs/syncvibe-api-*.log`.
 
 ## Database
 
 - Schema changes are plain SQL files in `server/sql/`, numbered (`005_...sql`), idempotent
   (`IF NOT EXISTS`) and run by hand with `psql`. There is no `sequelize.sync` and no ORM migration.
-- **MUST:** run a new migration on production **before** merging code that needs it. Better Auth
+- **MUST:** a new migration runs on production **before** the code that needs it is merged (on the
+  production machine an agent may run it after asking; elsewhere the user runs it). Better Auth
   checks the schema at runtime: a missing column makes every session check fail with
-  "Database schema mismatch". If that happens, run the migration, then `pm0 restart syncvibe-api`
-  (it caches the failed check).
+  "Database schema mismatch". If that happens, run the migration, then restart the server (it
+  caches the failed check).
+- Locally, run migrations against your own dev database (`DATABASE_URL` in `server/.env`).
 - **MUST:** ask the user before any destructive SQL (`DROP`, `DELETE`, `TRUNCATE`, data rewrites).
   Back up first.
 
@@ -115,9 +124,10 @@ Don't run `pnpm dev`, `expo start` or other watchers from an agent. Ask the user
   a separate commit, `chore(app): bump version to X.Y.Z`. The update server refuses a version it
   already has.
 - Installed apps update from `/api/app-update/latest` (APK on R2). EAS cloud builds publish through
-  the EAS webhook. When EAS minutes are used up, build on a borrowed box with the
-  `syncvibe-android-build` skill (`~/.agents/skills/syncvibe-android-build`). This ARM64 machine
-  can't build Android.
+  the EAS webhook. Without EAS minutes, build with `eas build --local` on an x86_64 Linux machine
+  with JDK 17 and the Android SDK (ARM64 Linux can't build Android). If the
+  `syncvibe-android-build` skill is installed (`~/.agents/skills/`), use it: it drives a borrowed
+  box over SSH and publishes the APK.
 - Ship server changes before the app version that needs them.
 - Every release APK **MUST** be signed with the EAS keystore above. Never a debug or local key.
 
