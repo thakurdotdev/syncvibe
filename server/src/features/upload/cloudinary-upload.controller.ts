@@ -27,14 +27,9 @@ const resolveFolder = (intent: string): UploadFolder | null => {
 
 export const getUploadSignature = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userid, role } = req.user!;
+    const { userid } = req.user!;
     const intent = (req.query.intent as string) || 'post';
     const resourceType = (req.query.resourceType as string) || 'image';
-
-    if (role === 'guest') {
-      res.status(403).json({ message: 'Guest users cannot upload files', code: 'FORBIDDEN' });
-      return;
-    }
 
     const isAllowed = await checkRateLimit(userid);
     if (!isAllowed) {

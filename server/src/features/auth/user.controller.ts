@@ -13,6 +13,7 @@ import {
   getInviteListService,
   updatePushTokenService,
   getUserProfileService,
+  getLoginLogsService,
 } from './services/user.service';
 
 // ── Get User Details ────────────────────────────────────────────────────────
@@ -42,9 +43,9 @@ export const getUserDetails = async (req: Request, res: Response): Promise<void>
 export const updateProfilePic = async (req: Request, res: Response): Promise<void> => {
   try {
     const { profilepic } = req.body as { profilepic?: string };
-    const { userid, role } = req.user!;
+    const { userid } = req.user!;
 
-    const newProfilePic = await updateProfilePicService(userid, role, profilepic);
+    const newProfilePic = await updateProfilePicService(userid, profilepic);
     res.status(200).json({ message: 'Profile picture updated', profilepic: newProfilePic });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -69,13 +70,13 @@ export const updateUserDetails = async (req: Request, res: Response): Promise<vo
   try {
     await updateValidation.validate(req.body, { abortEarly: false });
 
-    const { userid, role } = req.user!;
+    const { userid } = req.user!;
     if (!userid) {
       res.status(401).json({ message: 'Unauthorized' });
       return;
     }
 
-    const updatedUser = await updateUserDetailsService(userid, role, req.body);
+    const updatedUser = await updateUserDetailsService(userid, req.body);
     res.status(200).json({ message: 'User details updated successfully', user: updatedUser });
   } catch (error) {
     if (error instanceof Yup.ValidationError) {
@@ -95,8 +96,8 @@ export const updateUserDetails = async (req: Request, res: Response): Promise<vo
 
 export const getOtpForAccountDelete = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userid, role } = req.user!;
-    await getOtpForAccountDeleteService(userid, role);
+    const { userid } = req.user!;
+    await getOtpForAccountDeleteService(userid);
     res.status(200).json({ message: 'Success' });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -110,10 +111,10 @@ export const getOtpForAccountDelete = async (req: Request, res: Response): Promi
 
 export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userid, role } = req.user!;
+    const { userid } = req.user!;
     const { otp } = req.body as { otp?: string | number };
 
-    await deleteUserAccountService(userid, role, otp);
+    await deleteUserAccountService(userid, otp);
     res.status(200).json({ message: 'Success' });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -208,22 +209,22 @@ export const getInviteList = async (req: Request, res: Response): Promise<void> 
 
 export const updatePushToken = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { token } = req.body as { token?: string };
-    if (!token) {
-      res.status(400).json({ message: 'Token is required' });
+    const { expoPushToken, token } = req.body as { expoPushToken?: string; token?: string };
+    const pushToken = expoPushToken || token;
+    if (!pushToken) {
+      res.status(400).json({ success: false, message: 'Push token is required' });
       return;
     }
 
-    const { userid, role } = req.user!;
-    await updatePushTokenService(userid, role, token);
-    res.status(200).json({ message: 'Push token updated successfully' });
+    await updatePushTokenService(req.user!.userid, pushToken);
+    res.status(200).json({ success: true, message: 'Push token updated successfully' });
   } catch (error) {
     if (error instanceof AuthError) {
       res.status(error.statusCode).json({ message: error.message });
       return;
     }
     console.error('Error updating push token:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ success: false, message: 'Failed to update push token' });
   }
 };
 
@@ -232,12 +233,27 @@ export const updatePushToken = async (req: Request, res: Response): Promise<void
 export const getUserProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await getUserProfileService(req.user!.userid);
-    res.status(200).json(user);
+    res.status(200).json({
+      user: { ...user, isAdmin: user.email === process.env.ADMIN_EMAIL },
+    });
   } catch (error) {
     if (error instanceof AuthError) {
       res.status(error.statusCode).json({ message: error.message });
       return;
     }
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ message: 'Failed to fetch profile' });
+  }
+};
+
+// ── Login History ───────────────────────────────────────────────────────────
+
+export const getLoginLogs = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const logs = await getLoginLogsService(req.user!.userid);
+    res.status(200).json(logs);
+  } catch (error) {
+    console.error('Error fetching login logs:', error);
+    res.status(500).json({ message: 'Failed to fetch login history' });
   }
 };

@@ -11,8 +11,12 @@ declare global {
       // Redis
       REDIS_URL?: string;
 
-      // JWT
-      JWT_SECRET: string;
+      // Better Auth
+      BETTER_AUTH_SECRET: string;
+      /** Public URL of this API, for example https://syncvibeapi.thakur.dev */
+      BETTER_AUTH_URL: string;
+      /** Domain the session cookie is shared on in production. Defaults to .thakur.dev */
+      AUTH_COOKIE_DOMAIN?: string;
 
       // Cloudinary
       CLOUD_NAME: string;
@@ -22,18 +26,16 @@ declare global {
       // Google OAuth
       GOOGLE_CLIENT_ID: string;
       GOOGLE_CLIENT_SECRET: string;
-      GOOGLE_CALLBACK_URL: string;
       /** Web client ID the mobile app signs in with, when it differs from GOOGLE_CLIENT_ID. */
       GOOGLE_MOBILE_CLIENT_ID?: string;
 
       // Email (Resend)
       RESEND_API_KEY: string;
       RESEND_EMAIL?: string;
-      PRODUCTION_DOMAINS?: string;
 
-      // Encryption
-      ENCRYPTION_KEY: string;
-      ENCRYPTION_IV: string;
+      // Legacy two-factor secret encryption, read only by the auth migration script
+      ENCRYPTION_KEY?: string;
+      ENCRYPTION_IV?: string;
 
       // Music sync
       SONG_API_URL: string;
