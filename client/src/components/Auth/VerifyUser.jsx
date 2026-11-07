@@ -1,12 +1,11 @@
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, MailCheck } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useProfile } from '@/Context/Context';
 import { authClient, getErrorMessage, unwrap } from '@/lib/auth-client';
+import { AuthHeader, AuthSubmit, authInputClass, OtpField, TextAction } from './AuthUI';
 
 const RESEND_DELAY_SECONDS = 60;
 
@@ -72,97 +71,63 @@ const VerifyUser = () => {
 
   return (
     <>
-      <div className='mb-8'>
-        <h1 className='text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-2'>
-          Email Verification
-        </h1>
-        <p className='text-sm text-muted-foreground'>
-          {showOtpInput
-            ? 'Enter the 6-digit verification code sent to your email address.'
-            : 'Enter your email to receive a verification code.'}
-        </p>
-      </div>
+      <AuthHeader
+        icon={MailCheck}
+        title='Verify your email'
+        description={
+          showOtpInput
+            ? `Enter the 6-digit code we sent to ${email.trim() || 'your email'}.`
+            : 'Enter your email and we will send you a verification code.'
+        }
+      />
 
-      <div className='flex flex-col gap-6'>
-        {!showOtpInput ? (
-          <div className='space-y-4'>
-            <Input
-              type='email'
-              placeholder='Enter your email'
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-              className='h-12 px-4 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-transparent transition-all'
-              autoComplete='email'
-            />
-            <Button
+      {!showOtpInput ? (
+        <form
+          className='space-y-3'
+          onSubmit={(event) => {
+            event.preventDefault();
+            sendOTP();
+          }}
+        >
+          <Input
+            type='email'
+            placeholder='Email'
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
+            className={authInputClass}
+            autoComplete='email'
+          />
+          <AuthSubmit type='submit' loading={loading} disabled={loading || !email}>
+            Send code
+            <ArrowRight className='h-4 w-4' />
+          </AuthSubmit>
+        </form>
+      ) : (
+        <div className='space-y-6'>
+          <OtpField value={otp} onChange={setOtp} autoFocus />
+
+          <AuthSubmit
+            onClick={handleVerify}
+            loading={loading}
+            loadingText='Verifying...'
+            disabled={loading || otp.length !== 6}
+          >
+            Verify email
+          </AuthSubmit>
+
+          <div className='flex items-center justify-center gap-1.5 text-sm text-muted-foreground'>
+            Didn't get it?
+            <TextAction
               onClick={sendOTP}
-              disabled={loading || !email}
-              className='w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer'
+              disabled={resendTimer > 0 || loading}
+              className='text-foreground'
             >
-              {loading ? (
-                <Loader2 className='h-4 w-4 animate-spin' />
-              ) : (
-                <ArrowRight className='h-4 w-4' />
-              )}
-              <span>Get Verification Code</span>
-            </Button>
+              {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend code'}
+            </TextAction>
           </div>
-        ) : (
-          <>
-            <div className='flex justify-center'>
-              <InputOTP
-                maxLength={6}
-                value={otp}
-                onChange={setOtp}
-                className='gap-2 justify-center'
-              >
-                <InputOTPGroup className='gap-2'>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <InputOTPSlot
-                      key={i}
-                      index={i}
-                      className='rounded-xl border border-border bg-card text-foreground h-12 w-12 text-center text-lg focus-visible:ring-ring focus:border-border'
-                    />
-                  ))}
-                </InputOTPGroup>
-              </InputOTP>
-            </div>
-
-            <div className='flex flex-col gap-4'>
-              <Button
-                onClick={handleVerify}
-                disabled={loading || otp.length !== 6}
-                className='w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer'
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className='h-4 w-4 animate-spin' />
-                    <span>Verifying...</span>
-                  </>
-                ) : (
-                  <>
-                    <ArrowRight className='h-4 w-4' />
-                    <span>Verify Email</span>
-                  </>
-                )}
-              </Button>
-
-              <div className='flex items-center justify-between text-sm mt-2'>
-                <span className='text-muted-foreground'>Didn't receive the code?</span>
-                <Button
-                  variant='link'
-                  onClick={sendOTP}
-                  disabled={resendTimer > 0 || loading}
-                  className='p-0 h-auto font-semibold text-foreground hover:underline transition-all'
-                >
-                  {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 };

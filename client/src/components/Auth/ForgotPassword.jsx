@@ -1,4 +1,3 @@
-import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -8,10 +7,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Loader2Icon, Mail } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { authClient, getErrorMessage, unwrap } from '@/lib/auth-client';
+import { AuthSubmit, authInputClass, TextAction } from './AuthUI';
 
 const ForgotPassword = () => {
   const [open, setOpen] = useState(false);
@@ -55,14 +55,9 @@ const ForgotPassword = () => {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <button
-          type='button'
-          className='text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer'
-        >
-          Forgot password?
-        </button>
+        <TextAction>Forgot password?</TextAction>
       </DialogTrigger>
-      <DialogContent className='sm:max-w-md bg-background/95 backdrop-blur-sm'>
+      <DialogContent className='rounded-2xl sm:max-w-md'>
         <DialogHeader>
           <DialogTitle>{sent ? 'Check your email' : 'Reset your password'}</DialogTitle>
           <DialogDescription>
@@ -74,18 +69,14 @@ const ForgotPassword = () => {
 
         {sent ? (
           <div className='flex flex-col items-center gap-4 py-4'>
-            <div className='rounded-full bg-foreground/10 p-4'>
-              <Mail className='h-8 w-8 text-foreground' />
-            </div>
+            <span className='grid h-14 w-14 place-items-center rounded-2xl border bg-raised'>
+              <Mail className='h-6 w-6' />
+            </span>
             <p className='text-sm text-muted-foreground text-center'>
               Didn't receive the email? Check your spam folder or{' '}
-              <button
-                type='button'
-                className='text-primary underline-offset-4 hover:underline cursor-pointer'
-                onClick={() => setSent(false)}
-              >
+              <TextAction onClick={() => setSent(false)} className='text-foreground'>
                 try again
-              </button>
+              </TextAction>
             </p>
           </div>
         ) : (
@@ -96,12 +87,18 @@ const ForgotPassword = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
+              autoComplete='email'
+              className={authInputClass}
               autoFocus
             />
-            <Button type='submit' className='w-full' disabled={loading || !email.trim()}>
-              {loading && <Loader2Icon className='mr-2 h-4 w-4 animate-spin' />}
-              {loading ? 'Sending...' : 'Send reset link'}
-            </Button>
+            <AuthSubmit
+              type='submit'
+              loading={loading}
+              loadingText='Sending...'
+              disabled={loading || !email.trim()}
+            >
+              Send reset link
+            </AuthSubmit>
           </form>
         )}
       </DialogContent>
