@@ -1,7 +1,6 @@
 import { useTheme } from '@/context/ThemeContext';
 import { PRESS_IN, SPRING_PRESS, STATE } from '@/lib/motion';
 import { EDGE_GUARD, SWIPE_ACTIVATE } from '@/lib/swipe';
-import { Song } from '@/types/song';
 import { Trash2 } from 'lucide-react-native';
 import {
   memo,
@@ -57,10 +56,13 @@ const REMOVE_REVERSE_VELOCITY = 300;
 
 type Positions = Record<string, number>;
 
-const toPositions = (songs: Song[]): Positions => {
+/** What the queue needs from a row's item: the player's songs and a room's queue items both fit. */
+type Sortable = { id: string };
+
+const toPositions = (items: Sortable[]): Positions => {
   const out: Positions = {};
-  songs.forEach((song, i) => {
-    out[song.id] = i;
+  items.forEach((item, i) => {
+    out[item.id] = i;
   });
   return out;
 };
@@ -94,8 +96,8 @@ type DragState = {
   count: SharedValue<number>;
 };
 
-const SortableRow = memo(function SortableRow({
-  song,
+function SortableRowInner<T extends Sortable>({
+  item,
   index,
   rowHeight,
   rowWidth,
@@ -108,14 +110,14 @@ const SortableRow = memo(function SortableRow({
   onDrop,
   onRemove,
 }: {
-  song: Song;
+  item: T;
   index: number;
   rowHeight: number;
   rowWidth: number;
-  /** False for the song playing now: it can't be moved or removed. */
+  /** False for what's playing now: it can't be moved or removed. */
   draggable: boolean;
   isDragging: boolean;
-  renderRow: (song: Song, isActive: boolean) => ReactNode;
+  renderRow: (item: T, isActive: boolean) => ReactNode;
   drag: DragState;
   syncDrag: () => void;
   onLift: (id: string) => void;
@@ -123,7 +125,7 @@ const SortableRow = memo(function SortableRow({
   onRemove: (id: string) => void;
 }) {
   const { colors } = useTheme();
-  const id = song.id;
+  const id = item.id;
   const swipeX = useSharedValue(0);
 
   // A song that starts playing mid-swipe can't be removed any more, so put its row back.
@@ -239,11 +241,13 @@ const SortableRow = memo(function SortableRow({
         </Animated.View>
       )}
       <GestureDetector gesture={gesture}>
-        <Animated.View style={contentStyle}>{renderRow(song, isDragging)}</Animated.View>
+        <Animated.View style={contentStyle}>{renderRow(item, isDragging)}</Animated.View>
       </GestureDetector>
     </Animated.View>
   );
-});
+}
+
+const SortableRow = memo(SortableRowInner) as typeof SortableRowInner;
 
 /**
  * Queue list with long-press reordering and swipe left to remove. Rows are absolutely positioned by a UI-thread map
@@ -251,7 +255,7 @@ const SortableRow = memo(function SortableRow({
  * new order. That is what keeps it steady: list libraries that re-lay rows out after a drop
  * briefly paint the new order with the old drag offset still applied.
  */
-export const SortableQueue = memo(function SortableQueue({
+function SortableQueueInner<T extends Sortable>({
   data,
   rowHeight,
   bottomPadding,
@@ -260,12 +264,12 @@ export const SortableQueue = memo(function SortableQueue({
   onReorder,
   onRemove,
 }: {
-  data: Song[];
+  data: T[];
   rowHeight: number;
   bottomPadding: number;
-  canDrag: (song: Song) => boolean;
-  renderRow: (song: Song, isActive: boolean) => ReactNode;
-  onReorder: (songs: Song[]) => void;
+  canDrag: (item: T) => boolean;
+  renderRow: (item: T, isActive: boolean) => ReactNode;
+  onReorder: (items: T[]) => void;
   onRemove: (id: string) => void;
 }) {
   const { width: rowWidth } = useWindowDimensions();
@@ -384,14 +388,14 @@ export const SortableQueue = memo(function SortableQueue({
       setTimeout(() => setDraggingId(null), PRESS_LOCK_AFTER_DROP_MS);
 
       const current = dataRef.current;
-      const byId = new Map(current.map((song) => [song.id, song]));
-      const ordered = ids.map((id) => byId.get(id)).filter((s): s is Song => Boolean(s));
+      const byId = new Map(current.map((item) => [item.id, item]));
+      const ordered = ids.map((id) => byId.get(id)).filter((item): item is T => Boolean(item));
       // Songs that arrived mid-drag (auto recommendations) keep their place at the end.
       const known = new Set(ids);
-      const next = [...ordered, ...current.filter((song) => !known.has(song.id))];
+      const next = [...ordered, ...current.filter((item) => !known.has(item.id))];
 
       positions.set(toPositions(next));
-      if (next.some((song, i) => song.id !== current[i]?.id)) onReorder(next);
+      if (next.some((item, i) => item.id !== current[i]?.id)) onReorder(next);
     },
     [autoScroll, onReorder, positions]
   );
@@ -405,11 +409,11 @@ export const SortableQueue = memo(function SortableQueue({
   const end = Math.min((firstBlock + BLOCKS_AFTER + 1) * WINDOW_BLOCK, mountLimit);
 
   const rows = useMemo(() => {
-    const inWindow = data.slice(start, end).map((song, i) => ({ song, index: start + i }));
+    const inWindow = data.slice(start, end).map((item, i) => ({ item, index: start + i }));
     // The lifted row stays mounted even when auto-scroll carries it out of the window.
-    if (draggingId === null || inWindow.some((row) => row.song.id === draggingId)) return inWindow;
-    const index = data.findIndex((song) => song.id === draggingId);
-    return index < 0 ? inWindow : [...inWindow, { song: data[index], index }];
+    if (draggingId === null || inWindow.some((row) => row.item.id === draggingId)) return inWindow;
+    const index = data.findIndex((item) => item.id === draggingId);
+    return index < 0 ? inWindow : [...inWindow, { item: data[index], index }];
   }, [data, draggingId, end, start]);
 
   return (
@@ -421,15 +425,15 @@ export const SortableQueue = memo(function SortableQueue({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ height: data.length * rowHeight + bottomPadding }}
     >
-      {rows.map(({ song, index }) => (
+      {rows.map(({ item, index }) => (
         <SortableRow
-          key={song.id}
-          song={song}
+          key={item.id}
+          item={item}
           index={index}
           rowHeight={rowHeight}
           rowWidth={rowWidth}
-          draggable={canDrag(song)}
-          isDragging={song.id === draggingId}
+          draggable={canDrag(item)}
+          isDragging={item.id === draggingId}
           renderRow={renderRow}
           drag={drag}
           syncDrag={syncDrag}
@@ -440,7 +444,9 @@ export const SortableQueue = memo(function SortableQueue({
       ))}
     </AnimatedScrollView>
   );
-});
+}
+
+export const SortableQueue = memo(SortableQueueInner) as typeof SortableQueueInner;
 
 const styles = StyleSheet.create({
   row: { position: 'absolute', left: 0, right: 0, top: 0 },
