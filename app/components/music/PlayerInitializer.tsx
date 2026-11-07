@@ -12,6 +12,7 @@ import { useEffect } from 'react';
 import TrackPlayer, { Event } from '@rntp/player';
 import { useQueryClient } from '@tanstack/react-query';
 import { runAfterIdle } from '@/utils/runAfterIdle';
+import { recoverPlayEvents, setPlayEventsEnabled } from '@/utils/playEvents';
 
 export default function PlayerInitializer() {
   const { user } = useUser();
@@ -55,12 +56,17 @@ export default function PlayerInitializer() {
 
   useEffect(() => {
     if (!user?.userid) {
+      setPlayEventsEnabled(false);
       setOnAfterSongTransition(null);
       return;
     }
 
+    setPlayEventsEnabled(true);
+    void recoverPlayEvents();
+
     setOnAfterSongTransition((song) => {
-      addToHistory(api, song, 10)
+      // Only says the song started. Listening time arrives as a play event when it ends.
+      addToHistory(api, song)
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ['recentMusic'] });
           queryClient.invalidateQueries({ queryKey: ['musicHistory'] });

@@ -133,8 +133,9 @@ const PostDetail = () => {
   const handleFollow = async (followid) => {
     try {
       setFollowing(!following);
-      const response = await axios.get(
+      const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/user/follow/${followid}`,
+        null,
         {
           withCredentials: true,
         }

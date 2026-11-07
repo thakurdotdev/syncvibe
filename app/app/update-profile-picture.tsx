@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, ActivityIndicator, Alert, Animated } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, Text, View, Image, ActivityIndicator, Alert } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { EASE_OUT } from '@/lib/motion';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import * as Haptics from 'expo-haptics';
 import { Camera, Image as ImageIcon, Check } from 'lucide-react-native';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -10,6 +11,8 @@ import { useToast } from '@/context/ToastContext';
 import useApi from '@/utils/hooks/useApi';
 import { Button } from '@/components/ui/button';
 import { getOptimizedImageUrl, uploadToCloudinary } from '@/utils/Cloudinary';
+
+const CONTENT_ENTER = FadeIn.duration(200).easing(EASE_OUT);
 
 export default function UpdateProfilePictureScreen() {
   const { user, setUser } = useUser();
@@ -20,25 +23,6 @@ export default function UpdateProfilePictureScreen() {
   const [selectedUri, setSelectedUri] = useState<string | null>(null);
   const [fileDetails, setFileDetails] = useState<{ name: string; type: string } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-
-  const imageScale = React.useRef(new Animated.Value(0.9)).current;
-  const opacity = React.useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(imageScale, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 350,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [selectedUri]);
 
   const handlePickImage = async () => {
     try {
@@ -65,7 +49,6 @@ export default function UpdateProfilePictureScreen() {
           name: asset.fileName || 'profile.jpg',
           type: asset.mimeType || 'image/jpeg',
         });
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     } catch (error) {
       console.error(error);
@@ -95,7 +78,6 @@ export default function UpdateProfilePictureScreen() {
           name: asset.fileName || 'camera.jpg',
           type: asset.mimeType || 'image/jpeg',
         });
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     } catch (error) {
       console.error(error);
@@ -107,7 +89,6 @@ export default function UpdateProfilePictureScreen() {
     if (!selectedUri || !fileDetails) return;
 
     setIsUploading(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
 
     try {
       const secureUrl = await uploadToCloudinary(
@@ -124,7 +105,6 @@ export default function UpdateProfilePictureScreen() {
 
       if (response.status === 200) {
         setUser((prev) => (prev ? { ...prev, profilepic: response.data.profilepic } : null));
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         toast('Profile picture updated!', { type: 'success' });
         router.back();
       }
@@ -141,13 +121,14 @@ export default function UpdateProfilePictureScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Animated.View style={[styles.content, { opacity, transform: [{ scale: imageScale }] }]}>
+      <Animated.View entering={CONTENT_ENTER} style={styles.content}>
         <View style={styles.imageContainer}>
           {imageSourceUri ? (
             <Image
               source={{ uri: imageSourceUri }}
               style={[styles.avatar, { borderColor: colors.border }]}
               resizeMode='cover'
+              fadeDuration={0}
             />
           ) : (
             <View

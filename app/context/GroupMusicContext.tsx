@@ -7,7 +7,7 @@ import {
   useRef,
   useMemo,
 } from 'react';
-import { Alert } from 'react-native';
+import { AppState, Alert } from 'react-native';
 import TrackPlayer, { Event, PlaybackState } from '@rntp/player';
 import { Song } from '@/types/song';
 import type { Message, MessageReactions } from '@/stores/groupMusic/types';
@@ -16,6 +16,9 @@ import { useUser } from './UserContext';
 import {
   isNaturalGroupSongEnd,
   useGroupPlaybackStore,
+  ROOM_ACTION_SETTLE_MS,
+  ROOM_SYNC_INTERVAL_MS,
+  noteRoomPlaybackStarted,
 } from '@/stores/groupMusic/groupPlaybackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
@@ -51,6 +54,21 @@ interface GroupMusicContextType {
   acceptInvite: () => void;
   declineInvite: () => void;
 }
+
+const FLOATING_REACTION_MS = 1000;
+
+/** Floats an emoji over the player, for just as long as its animation runs. */
+const showFloatingReaction = (emoji: string, userName: string) => {
+  const id = `${Date.now()}-${Math.random()}`;
+  useGroupSessionStore.setState((state) => ({
+    floatingReactions: [...state.floatingReactions, { id, emoji, userName }],
+  }));
+  setTimeout(() => {
+    useGroupSessionStore.setState((state) => ({
+      floatingReactions: state.floatingReactions.filter((r) => r.id !== id),
+    }));
+  }, FLOATING_REACTION_MS);
+};
 
 const GroupMusicContext = createContext<GroupMusicContextType | null>(null);
 
@@ -99,6 +117,13 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         pb.setState({ isPlaying: playing });
         if (playing) {
           pb.getState().startProgressPolling();
+          noteRoomPlaybackStarted();
+          // Sound has only just started, after however long it took to buffer: measure that now
+          // rather than leaving this phone behind until the next regular check.
+          const groupId = ss.getState().currentGroup?.id;
+          if (groupId && socket) {
+            setTimeout(() => socket.emit('request-sync', { groupId }), ROOM_ACTION_SETTLE_MS + 100);
+          }
         } else {
           pb.getState().stopProgressPolling();
         }
@@ -142,18 +167,39 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!socket || !currentGroupId) return;
 
-    const syncWithServer = () => {
+    // A disconnected socket queues what it's given and sends it all on reconnecting, by which
+    // time these would be stale.
+    const syncClock = () => {
+      if (!socket.connected) return;
       socket.emit('time-sync-request', { clientTime: Date.now() });
+    };
+    const checkDrift = () => {
+      if (!socket.connected) return;
+      socket.emit('request-sync', { groupId: currentGroupId });
     };
 
     socket.on('time-sync-response', (data: { clientTime: number; serverTime: number }) => {
       pb.getState().processTimeSyncResponse(data.clientTime, data.serverTime);
     });
 
-    syncWithServer();
-    syncIntervalRef.current = setInterval(syncWithServer, 5000);
+    // A quick burst on joining so the clock is accurate early, then a steady pace.
+    syncClock();
+    const burst = setInterval(syncClock, 1000);
+    const settle = setTimeout(() => {
+      clearInterval(burst);
+      syncIntervalRef.current = setInterval(syncClock, 5000);
+    }, 5000);
+    const driftTimer = setInterval(checkDrift, ROOM_SYNC_INTERVAL_MS);
+    // Timers can stall while the phone is in a pocket, so check as soon as it's back in hand.
+    const foreground = AppState.addEventListener('change', (state) => {
+      if (state === 'active') checkDrift();
+    });
 
     return () => {
+      clearInterval(burst);
+      clearTimeout(settle);
+      clearInterval(driftTimer);
+      foreground.remove();
       if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
       socket.off('time-sync-response');
     };
@@ -161,10 +207,16 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
 
   // --- Session rejoin on socket connect ---
   useEffect(() => {
-    if (!socket || !user || hasAttemptedRejoin.current) return;
+    if (!socket || !user) return;
 
     const handleSetupComplete = async () => {
-      if (ss.getState().currentGroup) return;
+      // Every reconnect is a new connection the server hasn't put in the room yet.
+      const inRoom = ss.getState().currentGroup?.id;
+      if (inRoom) {
+        ss.getState().rejoinGroup(socket, user, inRoom);
+        return;
+      }
+      if (hasAttemptedRejoin.current) return;
 
       const stored = await ss.getState().getStoredSession();
       if (stored?.groupId) {
@@ -173,7 +225,13 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // Music plays on while the connection is down, so show that it's out of step for now.
+    const handleDisconnect = () => {
+      if (ss.getState().currentGroup) ss.setState({ isRejoining: true });
+    };
+
     socket.on('setup-complete', handleSetupComplete);
+    socket.on('disconnect', handleDisconnect);
     // Also try immediately if socket is already connected
     if (socket.connected) {
       handleSetupComplete();
@@ -181,6 +239,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
 
     return () => {
       socket.off('setup-complete', handleSetupComplete);
+      socket.off('disconnect', handleDisconnect);
     };
   }, [socket, user]);
 
@@ -211,16 +270,17 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     });
 
     socket.on('sync-state', async (data: any) => {
-      if (data.queue) {
+      // This arrives every few seconds: only touch the queue if an update was actually missed,
+      // so screens showing it don't re-render for nothing.
+      const { queue, currentQueueIndex } = ss.getState();
+      const sameQueue =
+        data.currentQueueIndex === currentQueueIndex &&
+        data.queue?.length === queue.length &&
+        data.queue?.every((item: any, i: number) => item.id === queue[i]?.id);
+      if (data.queue && !sameQueue) {
         ss.setState({ queue: data.queue, currentQueueIndex: data.currentQueueIndex });
       }
-      if (data.playbackState?.currentTrack) {
-        await pb.getState().handleMusicUpdate({
-          song: data.playbackState.currentTrack,
-          currentTime: data.playbackState.currentTime,
-          serverTime: data.playbackState.serverTime,
-        });
-      }
+      await pb.getState().handleSyncState(data);
     });
 
     socket.on('group-created', (group: any) => {
@@ -263,10 +323,54 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    const endRoomHere = () => {
+      ss.getState().resetSession(() => pb.getState().reset());
+    };
+
     socket.on('group-not-found', () => {
       ss.setState({ isRejoining: false });
       ss.getState().clearSession();
+      // Rejoining a room that ended while the connection was down: don't stay in a phantom one.
+      if (ss.getState().currentGroup) endRoomHere();
       Alert.alert('Group Not Found', 'The group no longer exists.');
+    });
+
+    socket.on('sync-lost', (data: { groupId: string; reason: string }) => {
+      if (!user || data.groupId !== ss.getState().currentGroup?.id) return;
+      if (data.reason === 'not-in-room') {
+        ss.getState().rejoinGroup(socket, user, data.groupId);
+      } else {
+        endRoomHere();
+        Alert.alert('Room Ended', 'This room is no longer active.');
+      }
+    });
+
+    // You moved to another device, which now plays the room. Rejoining would just take it back.
+    socket.on('device-replaced', (data: { groupId: string }) => {
+      const { currentGroup, isRejoining } = ss.getState();
+      if (currentGroup && currentGroup.id !== data.groupId) return;
+      ss.setState({ isRejoining: false });
+      ss.getState().clearSession();
+      if (currentGroup) endRoomHere();
+      if (currentGroup || isRejoining) {
+        Alert.alert(
+          'Playing on your other device',
+          'This room moved to your other device. Join it again here to bring it back.'
+        );
+      }
+    });
+
+    // Left on another device.
+    socket.on('left-group', (data: { groupId: string }) => {
+      if (data.groupId === ss.getState().currentGroup?.id) endRoomHere();
+    });
+
+    socket.on('member-presence', (data: { userId: number | string; connected: boolean }) => {
+      ss.setState((state) => ({
+        groupMembers: state.groupMembers.map((m) =>
+          String(m.userId) === String(data.userId) ? { ...m, connected: data.connected } : m
+        ),
+      }));
     });
 
     socket.on('group-full', () => {
@@ -346,18 +450,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     );
 
     socket.on('song-reaction', (data: { emoji: string; userName: string }) => {
-      const reactionId = `${Date.now()}-${Math.random()}`;
-      ss.setState((state) => ({
-        floatingReactions: [
-          ...state.floatingReactions,
-          { id: reactionId, emoji: data.emoji, userName: data.userName },
-        ],
-      }));
-      setTimeout(() => {
-        ss.setState((state) => ({
-          floatingReactions: state.floatingReactions.filter((r) => r.id !== reactionId),
-        }));
-      }, 3000);
+      showFloatingReaction(data.emoji, data.userName);
     });
 
     socket.on('user-typing', (data: { userId: string; userName: string; isTyping: boolean }) => {
@@ -423,6 +516,10 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         'chat-history',
         'message-reaction',
         'song-reaction',
+        'sync-lost',
+        'left-group',
+        'device-replaced',
+        'member-presence',
         'user-typing',
         'group-invite-received',
         'invite-sent',
@@ -514,6 +611,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
   const sendReaction = useCallback(
     (emoji: string) => {
       if (!groupId || !user) return;
+      // The server sends reactions to everyone else in the room, so yours shows from here.
+      showFloatingReaction(emoji, '');
       socket?.emit('song-reaction', {
         groupId,
         emoji,

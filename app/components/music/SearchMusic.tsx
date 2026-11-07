@@ -83,6 +83,7 @@ export default function SearchMusic() {
                 source={{ uri: song.image[2]?.link || song.image[0]?.link }}
                 className='w-full h-full'
                 resizeMode='cover'
+                fadeDuration={0}
               />
               <BlurView intensity={10} tint='dark' className='absolute inset-0 opacity-25' />
             </View>

@@ -1,6 +1,6 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
-import { ENTER, EXIT, POP_FROM_SCALE } from '@/lib/motion';
+import { BUTTON_PRESS_SCALE, ENTER, EXIT, POP_FROM_SCALE } from '@/lib/motion';
 import type { Message } from '@/stores/groupMusic/types';
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useEffect } from 'react';
@@ -124,7 +124,7 @@ export const MessageActions = memo(function MessageActions({
         {QUICK_REACTIONS.map((e) => (
           <PressableScale
             key={e}
-            scaleTo={0.78}
+            scaleTo={BUTTON_PRESS_SCALE}
             onPress={() => dismiss(() => onReact(message.id, e))}
             accessibilityRole='button'
             accessibilityLabel={`React with ${e}`}
@@ -149,7 +149,6 @@ export const MessageActions = memo(function MessageActions({
         ]}
       >
         <PressableScale
-          scaleTo={0.97}
           onPress={() => dismiss(() => onReply(message))}
           accessibilityRole='button'
           style={styles.action}

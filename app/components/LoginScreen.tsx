@@ -1,9 +1,9 @@
-import { API_URL } from '@/constants';
+import PressableScale from '@/components/ui/PressableScale';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
 import { googleLoginErrorMessage, useGoogleLogin } from '@/hooks/useGoogleLogin';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import { authClient, unwrap } from '@/lib/auth-client';
+import { isPasskeySupported, PasskeyCancelledError, signInWithPasskey } from '@/lib/passkey';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -14,7 +14,6 @@ import {
   Image,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   KeyboardAvoidingView,
   Platform,
@@ -29,7 +28,7 @@ import TwoFactorLogin from './TwoFactorLogin';
 const { width, height } = Dimensions.get('window');
 
 const LoginScreen = () => {
-  const { getProfile, setUser } = useUser();
+  const { getProfile } = useUser();
   const { colors, theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,8 +42,9 @@ const LoginScreen = () => {
   const [passwordError, setPasswordError] = useState('');
 
   const [show2FA, setShow2FA] = useState(false);
-  const [twoFactorUserId, setTwoFactorUserId] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const passkeysSupported = isPasskeySupported();
 
   const signInWithGoogle = useGoogleLogin();
 
@@ -70,6 +70,24 @@ const LoginScreen = () => {
       setIsLoggingIn(false);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasskeySignIn = async () => {
+    setError('');
+    setPasskeyLoading(true);
+    try {
+      await signInWithPasskey();
+      setIsLoggingIn(true);
+      await getProfile();
+      navigateAfterLogin();
+    } catch (err: any) {
+      if (!(err instanceof PasskeyCancelledError)) {
+        setError(err.message || 'Passkey sign-in failed. Please try again.');
+      }
+      setIsLoggingIn(false);
+    } finally {
+      setPasskeyLoading(false);
     }
   };
 
@@ -105,56 +123,32 @@ const LoginScreen = () => {
     setError('');
 
     try {
-      const response = await axios.post(`${API_URL}/api/login`, {
-        email,
-        password,
-      });
+      const result = await unwrap(authClient.signIn.email({ email, password }));
 
-      if (response.status === 200) {
-        if (response.data.twoFactorRequired) {
-          setTwoFactorUserId(response.data.userId);
-          setShow2FA(true);
-        } else {
-          const { token, user: loggedInUser } = response.data;
-          if (loggedInUser) {
-            await AsyncStorage.multiSet([
-              ['token', token],
-              ['@user_profile', JSON.stringify(loggedInUser)],
-            ]);
-            setUser(loggedInUser);
-          } else {
-            await AsyncStorage.setItem('token', token);
-          }
-          setIsLoggingIn(true);
-          navigateAfterLogin();
-          getProfile().catch(console.error);
-        }
+      if (result && 'twoFactorRedirect' in result && result.twoFactorRedirect) {
+        setShow2FA(true);
+      } else {
+        setIsLoggingIn(true);
+        await getProfile();
+        navigateAfterLogin();
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      setError(err.message || 'Login failed. Please try again.');
       setIsLoggingIn(false);
     } finally {
       setLoading(false);
     }
   };
 
-  const handle2FASuccess = async (token: string) => {
+  const handle2FASuccess = async () => {
     setShow2FA(false);
-    setTwoFactorUserId(null);
-    await AsyncStorage.setItem('token', token);
     setIsLoggingIn(true);
-    try {
-      await getProfile();
-      navigateAfterLogin();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch profile. Please try again.');
-      setIsLoggingIn(false);
-    }
+    await getProfile();
+    navigateAfterLogin();
   };
 
   const handle2FAClose = () => {
     setShow2FA(false);
-    setTwoFactorUserId(null);
   };
 
   if (isLoggingIn) {
@@ -173,13 +167,7 @@ const LoginScreen = () => {
   }
 
   if (show2FA) {
-    return (
-      <TwoFactorLogin
-        userId={twoFactorUserId}
-        onSuccess={handle2FASuccess}
-        onClose={handle2FAClose}
-      />
-    );
+    return <TwoFactorLogin onSuccess={handle2FASuccess} onClose={handle2FAClose} />;
   }
 
   return (
@@ -214,6 +202,7 @@ const LoginScreen = () => {
                 source={require('../assets/syncvibe.png')}
                 style={styles.logo}
                 resizeMode='contain'
+                fadeDuration={0}
               />
             </BlurView>
           </View>
@@ -254,13 +243,13 @@ const LoginScreen = () => {
             autoComplete='password'
             textContentType='password'
             rightIcon={
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <PressableScale onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
                   color={colors.mutedForeground}
                 />
-              </TouchableOpacity>
+              </PressableScale>
             }
             error={!!passwordError}
             errorText={passwordError}
@@ -286,7 +275,7 @@ const LoginScreen = () => {
         </View>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
+          <PressableScale
             style={[
               styles.googleButton,
               {
@@ -297,9 +286,12 @@ const LoginScreen = () => {
             ]}
             onPress={handleGoogleSignIn}
             disabled={loading}
-            activeOpacity={0.8}
           >
-            <Image source={require('../assets/images/google.png')} style={styles.googleIcon} />
+            <Image
+              source={require('../assets/images/google.png')}
+              style={styles.googleIcon}
+              fadeDuration={0}
+            />
             {loading ? (
               <ActivityIndicator size='small' color={colors.mutedForeground} />
             ) : (
@@ -307,7 +299,39 @@ const LoginScreen = () => {
                 Continue with Google
               </Text>
             )}
-          </TouchableOpacity>
+          </PressableScale>
+
+          {passkeysSupported && (
+            <PressableScale
+              style={[
+                styles.googleButton,
+                styles.secondaryButton,
+                {
+                  backgroundColor: theme === 'light' ? colors.secondary : colors.card,
+                  borderColor: colors.border,
+                },
+                passkeyLoading && styles.buttonDisabled,
+              ]}
+              onPress={handlePasskeySignIn}
+              disabled={loading || passkeyLoading}
+              accessibilityRole='button'
+              accessibilityLabel='Continue with passkey'
+            >
+              <Ionicons
+                name='finger-print'
+                size={20}
+                color={colors.foreground}
+                style={styles.googleIcon}
+              />
+              {passkeyLoading ? (
+                <ActivityIndicator size='small' color={colors.mutedForeground} />
+              ) : (
+                <Text style={[styles.buttonText, { color: colors.foreground }]}>
+                  Continue with passkey
+                </Text>
+              )}
+            </PressableScale>
+          )}
 
           {error ? (
             <View
@@ -438,6 +462,9 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 12,
     borderWidth: 1,
+  },
+  secondaryButton: {
+    marginTop: 12,
   },
   buttonDisabled: {
     opacity: 0.6,

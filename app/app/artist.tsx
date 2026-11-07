@@ -1,3 +1,6 @@
+import PressableScale from '@/components/ui/PressableScale';
+import { blurredArt } from '@/lib/artwork';
+import { SONG_LIST_WINDOW } from '@/lib/lists';
 import { AlbumCard, ArtistCard, PlaylistCard, SongCard } from '@/components/music/MusicCards';
 import { Tabs, TabItem } from '@/components/ui/tabs';
 import { SONG_URL } from '@/constants';
@@ -24,7 +27,6 @@ import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -36,8 +38,6 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import { StackHeader } from '@/components/ui/AppHeader';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
@@ -72,9 +72,6 @@ export default function ArtistScreen() {
   const [activeTab, setActiveTab] = useState<ArtistTab>('songs');
 
   const scrollY = useSharedValue(0);
-  const playScale = useSharedValue(1);
-  const shuffleScale = useSharedValue(1);
-  const groupScale = useSharedValue(1);
 
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const { addPlaylistToQueue } = useGroupMusic();
@@ -102,15 +99,15 @@ export default function ArtistScreen() {
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
+      scrollY.set(event.contentOffset.y);
     },
   });
 
   const imageSize = useMemo(() => Math.min(width * 0.42, 168), [width]);
 
   const heroAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [0, 150], [1, 0], Extrapolation.CLAMP);
-    const scale = interpolate(scrollY.value, [0, 150], [1, 0.9], Extrapolation.CLAMP);
+    const opacity = interpolate(scrollY.get(), [0, 150], [1, 0], Extrapolation.CLAMP);
+    const scale = interpolate(scrollY.get(), [0, 150], [1, 0.9], Extrapolation.CLAMP);
     return {
       opacity,
       transform: [{ scale }],
@@ -118,21 +115,9 @@ export default function ArtistScreen() {
   });
 
   const topTitleAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [100, 160], [0, 1], Extrapolation.CLAMP);
+    const opacity = interpolate(scrollY.get(), [100, 160], [0, 1], Extrapolation.CLAMP);
     return { opacity };
   });
-
-  const playBtnAnim = useAnimatedStyle(() => ({
-    transform: [{ scale: playScale.value }],
-  }));
-
-  const shuffleBtnAnim = useAnimatedStyle(() => ({
-    transform: [{ scale: shuffleScale.value }],
-  }));
-
-  const groupBtnAnim = useAnimatedStyle(() => ({
-    transform: [{ scale: groupScale.value }],
-  }));
 
   const bgUrl = useMemo(() => {
     if (!artistData?.image) return '';
@@ -315,12 +300,12 @@ export default function ArtistScreen() {
         <Text style={[styles.emptyText, { color: colors.foreground }]}>
           No artist data available
         </Text>
-        <Pressable
+        <PressableScale
           onPress={fetchArtistData}
           style={[styles.primaryButton, { backgroundColor: colors.primary, width: 140 }]}
         >
           <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Retry</Text>
-        </Pressable>
+        </PressableScale>
       </View>
     );
   }
@@ -346,6 +331,7 @@ export default function ArtistScreen() {
               },
             ]}
             resizeMode='cover'
+            fadeDuration={0}
           />
         </View>
 
@@ -366,70 +352,52 @@ export default function ArtistScreen() {
 
       {/* Action Bar */}
       <View style={styles.actionsContainer}>
-        <Pressable
-          onPress={handlePlayAll}
-          disabled={!newSongs.length}
-          onPressIn={() => (playScale.value = withTiming(0.96, { duration: 60 }))}
-          onPressOut={() => (playScale.value = withSpring(1, { damping: 16, stiffness: 350 }))}
-          style={{ flex: 1 }}
-        >
-          <Animated.View
-            style={[styles.primaryButton, { backgroundColor: colors.primary }, playBtnAnim]}
-          >
+        <PressableScale onPress={handlePlayAll} disabled={!newSongs.length} style={{ flex: 1 }}>
+          <View style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
             <Ionicons name='play' size={18} color={colors.primaryForeground} />
             <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>
               Play All
             </Text>
-          </Animated.View>
-        </Pressable>
+          </View>
+        </PressableScale>
 
-        <Pressable
-          onPress={handleShuffle}
-          disabled={!newSongs.length}
-          onPressIn={() => (shuffleScale.value = withTiming(0.96, { duration: 60 }))}
-          onPressOut={() => (shuffleScale.value = withSpring(1, { damping: 16, stiffness: 350 }))}
-          style={{ flex: 1 }}
-        >
-          <Animated.View
+        <PressableScale onPress={handleShuffle} disabled={!newSongs.length} style={{ flex: 1 }}>
+          <View
             style={[
               styles.secondaryButton,
               {
                 backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
                 borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
               },
-              shuffleBtnAnim,
             ]}
           >
             <Ionicons name='shuffle' size={18} color={colors.foreground} />
             <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>Shuffle</Text>
-          </Animated.View>
-        </Pressable>
+          </View>
+        </PressableScale>
       </View>
 
       {currentGroup && (
-        <Pressable
+        <PressableScale
           onPress={handleAddToGroup}
           disabled={!newSongs.length}
-          onPressIn={() => (groupScale.value = withTiming(0.96, { duration: 60 }))}
-          onPressOut={() => (groupScale.value = withSpring(1, { damping: 16, stiffness: 350 }))}
           style={{ marginBottom: 12, marginHorizontal: 16 }}
         >
-          <Animated.View
+          <View
             style={[
               styles.groupButton,
               {
                 backgroundColor: isDark ? 'rgba(127, 127, 127, 0.16)' : 'rgba(127, 127, 127, 0.1)',
                 borderColor: isDark ? 'rgba(127, 127, 127, 0.35)' : 'rgba(127, 127, 127, 0.25)',
               },
-              groupBtnAnim,
             ]}
           >
             <Ionicons name='people' size={18} color={colors.foreground} />
             <Text style={[styles.groupButtonText, { color: colors.foreground }]}>
               Add to Group Queue ({newSongs.length})
             </Text>
-          </Animated.View>
-        </Pressable>
+          </View>
+        </PressableScale>
       )}
 
       {/* Reusable Themed Tabs */}
@@ -448,9 +416,7 @@ export default function ArtistScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Edge-to-Edge Ambient Background */}
-      {coverUrl ? (
-        <Image source={{ uri: coverUrl }} style={styles.heroBackgroundImage} blurRadius={60} />
-      ) : null}
+      {coverUrl ? <Image {...blurredArt(coverUrl, 60)} style={styles.heroBackgroundImage} /> : null}
       <LinearGradient
         colors={[
           'rgba(0,0,0,0.15)',
@@ -469,6 +435,7 @@ export default function ArtistScreen() {
           key='songs'
           data={newSongs}
           renderItem={renderSongsItem}
+          {...SONG_LIST_WINDOW}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { ensureHttpsForDownloadUrls } from '@/Pages/Music/Common';
 import { toast } from 'sonner';
+import { getDeviceId } from './deviceId';
 import axios from 'axios';
 import _ from 'lodash';
 
@@ -80,6 +81,7 @@ export const useGroupSessionStore = create((set, get) => ({
       createdBy: user.userid,
       userName: user.name,
       profilePic: user.profilepic,
+      deviceId: getDeviceId(),
     });
     set({ isGroupModalOpen: false });
   },
@@ -91,6 +93,7 @@ export const useGroupSessionStore = create((set, get) => ({
       userId: user.userid,
       userName: user.name,
       profilePic: user.profilepic,
+      deviceId: getDeviceId(),
     });
     set({ isGroupModalOpen: false });
   },
@@ -103,6 +106,7 @@ export const useGroupSessionStore = create((set, get) => ({
       userId: user.userid,
       userName: user.name,
       profilePic: user.profilepic,
+      deviceId: getDeviceId(),
     });
   },
 
@@ -183,7 +187,9 @@ export const useGroupSessionStore = create((set, get) => ({
     const { currentGroup, messages } = get();
     if (currentGroup?.id !== groupId) return;
     set({
-      messages: messages.map((m) => (m.id === messageId ? { ...m, reactions: reactions || {} } : m)),
+      messages: messages.map((m) =>
+        m.id === messageId ? { ...m, reactions: reactions || {} } : m
+      ),
     });
   },
 

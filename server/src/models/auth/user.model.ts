@@ -12,24 +12,16 @@ export interface UserAttributes {
   name: string;
   username: string;
   email: string;
-  password: string;
   bio: string | null;
   profilepic: string | null;
   verified: boolean;
-  logintype: string;
   isDeleted: boolean;
-  passkeyEnabled: boolean;
-  lastPasskeyLogin: Date | null;
-  passKeyChallenge: string | null;
-  challengeExpiry: Date | null;
   expoPushToken: string | null;
   lastLogin: Date | null;
   lastLogout: Date | null;
   twoFactorEnabled: boolean;
-  twoFactorSecret: string | null;
-  resetPasswordToken: string | null;
-  resetPasswordExpires: Date | null;
   createdAt: Date | null;
+  updatedAt: Date | null;
 }
 
 class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
@@ -37,24 +29,16 @@ class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
   declare name: string;
   declare username: string;
   declare email: string;
-  declare password: string;
   declare bio: string | null;
   declare profilepic: string | null;
   declare verified: CreationOptional<boolean>;
-  declare logintype: CreationOptional<string>;
   declare isDeleted: CreationOptional<boolean>;
-  declare passkeyEnabled: CreationOptional<boolean>;
-  declare lastPasskeyLogin: Date | null;
-  declare passKeyChallenge: string | null;
-  declare challengeExpiry: Date | null;
   declare expoPushToken: string | null;
   declare lastLogin: Date | null;
   declare lastLogout: Date | null;
   declare twoFactorEnabled: CreationOptional<boolean>;
-  declare twoFactorSecret: string | null;
-  declare resetPasswordToken: string | null;
-  declare resetPasswordExpires: Date | null;
   declare createdAt: CreationOptional<Date | null>;
+  declare updatedAt: CreationOptional<Date | null>;
 }
 
 User.init(
@@ -76,10 +60,6 @@ User.init(
       type: DataTypes.TEXT,
       allowNull: false,
     },
-    password: {
-      type: DataTypes.STRING(500),
-      allowNull: false,
-    },
     bio: {
       type: DataTypes.STRING(500),
       allowNull: true,
@@ -93,32 +73,10 @@ User.init(
       allowNull: false,
       defaultValue: false,
     },
-    logintype: {
-      type: DataTypes.STRING(30),
-      allowNull: false,
-      defaultValue: 'EMAILPASSWORD',
-    },
     isDeleted: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
-    },
-    passkeyEnabled: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-    },
-    lastPasskeyLogin: {
-      type: DataTypes.DATE,
-      allowNull: true,
-    },
-    passKeyChallenge: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-    challengeExpiry: {
-      type: DataTypes.DATE,
-      allowNull: true,
     },
     expoPushToken: {
       type: DataTypes.STRING(500),
@@ -137,19 +95,12 @@ User.init(
       allowNull: false,
       defaultValue: false,
     },
-    twoFactorSecret: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-    resetPasswordToken: {
-      type: DataTypes.STRING(500),
-      allowNull: true,
-    },
-    resetPasswordExpires: {
+    createdAt: {
       type: DataTypes.DATE,
       allowNull: true,
+      defaultValue: DataTypes.NOW,
     },
-    createdAt: {
+    updatedAt: {
       type: DataTypes.DATE,
       allowNull: true,
       defaultValue: DataTypes.NOW,

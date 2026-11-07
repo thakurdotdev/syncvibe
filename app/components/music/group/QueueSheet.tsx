@@ -1,7 +1,7 @@
-import DraggableFlatList, {
-  ScaleDecorator,
-  type RenderItemParams,
-} from 'react-native-draggable-flatlist';
+import PressableScale from '@/components/ui/PressableScale';
+import { SortableQueue } from '@/components/music/player/SortableQueue';
+import { Segmented, type SegmentOption } from '@/components/ui/Segmented';
+import { BUTTON_PRESS_SCALE, IMAGE_FADE_MS, LIST_PRESS_DELAY, ROW_PRESS_SCALE } from '@/lib/motion';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,11 +10,9 @@ import {
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,55 +40,48 @@ import {
 
 type TabKey = 'queue' | 'playlists' | 'recommended';
 
+const QUEUE_ROW_HEIGHT = 64;
+const RECOMMENDATIONS_SHOWN = 10;
+const SOURCE_TABS: SegmentOption<TabKey>[] = [
+  { value: 'queue', label: 'Up next' },
+  { value: 'playlists', label: 'Playlists' },
+  { value: 'recommended', label: 'For you' },
+];
+
 /**
- * Up-next row. Tap plays it for everyone; drag the handle (or long-press the row) to
- * reorder; × removes it.
+ * Up-next row. Tap plays it for everyone, hold to reorder, swipe left to remove. Who added it
+ * shows as their face at the end, and a sparkle marks a song autoplay chose.
  */
 const QueueItemRow = React.memo(
   ({
     item,
-    onRemove,
     onPlay,
-    drag,
     isActive,
     colors,
   }: {
     item: QueueItem;
-    onRemove: (id: string) => void;
     onPlay: (item: QueueItem) => void;
-    drag?: () => void;
     isActive?: boolean;
     colors: any;
   }) => {
     const artist = item.song?.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
+    const addedBy = item.isAutoRecommended ? 'autoplay' : item.addedBy?.userName;
 
     return (
-      <Pressable
+      <PressableScale
         onPress={() => onPlay(item)}
-        onLongPress={drag}
-        delayLongPress={250}
         disabled={isActive}
+        unstable_pressDelay={LIST_PRESS_DELAY}
+        scaleTo={ROW_PRESS_SCALE}
         accessibilityRole='button'
-        accessibilityLabel={`Play ${item.song?.name} now`}
-        accessibilityHint='Long press or drag the handle to reorder'
-        style={[
-          styles.queueItem,
-          { borderBottomColor: colors.border },
-          isActive && { backgroundColor: colors.card, borderRadius: 14, elevation: 6 },
-        ]}
+        accessibilityLabel={`Play ${item.song?.name} by ${artist} now${addedBy ? `, added by ${addedBy}` : ''}`}
+        accessibilityHint='Hold to reorder, swipe left to remove'
+        style={[styles.queueItem, isActive && { backgroundColor: colors.raised, borderRadius: 12 }]}
       >
-        <Pressable
-          onPressIn={drag}
-          hitSlop={8}
-          accessibilityRole='button'
-          accessibilityLabel='Drag to reorder'
-          style={styles.dragHandle}
-        >
-          <Ionicons name='reorder-two' size={20} color={colors.mutedForeground} />
-        </Pressable>
         <Image
           source={{ uri: item.song?.image?.[1]?.link }}
-          style={[styles.itemArt, { backgroundColor: colors.secondary }]}
+          style={[styles.itemArt, { backgroundColor: colors.raised }]}
+          fadeDuration={IMAGE_FADE_MS}
         />
         <View style={styles.itemInfo}>
           <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
@@ -99,36 +90,17 @@ const QueueItemRow = React.memo(
           <Text style={[styles.itemArtist, { color: colors.mutedForeground }]} numberOfLines={1}>
             {artist}
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            {item.isAutoRecommended && (
-              <View style={styles.autoBadge}>
-                <Ionicons name='sparkles' size={10} color={colors.foreground} />
-                <Text style={[styles.autoBadgeText, { color: colors.foreground }]}>Auto</Text>
-              </View>
-            )}
-            {item.addedBy && !item.isAutoRecommended && (
-              <View style={styles.itemAddedBy}>
-                {item.addedBy.profilePic ? (
-                  <Image
-                    source={{ uri: String(item.addedBy.profilePic) }}
-                    style={styles.itemAvatar}
-                  />
-                ) : null}
-                <Text style={[styles.itemAddedByText, { color: colors.mutedForeground }]}>
-                  {item.addedBy.userName}
-                </Text>
-              </View>
-            )}
-          </View>
         </View>
-        <TouchableOpacity
-          onPress={() => onRemove(item.id)}
-          style={[styles.removeButton, { backgroundColor: colors.secondary }]}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Feather name='x' size={14} color={colors.mutedForeground} />
-        </TouchableOpacity>
-      </Pressable>
+        {item.isAutoRecommended ? (
+          <Ionicons name='sparkles' size={15} color={colors.mutedForeground} />
+        ) : item.addedBy?.profilePic ? (
+          <Image
+            source={{ uri: String(item.addedBy.profilePic) }}
+            style={[styles.itemAvatar, { backgroundColor: colors.raised }]}
+            fadeDuration={0}
+          />
+        ) : null}
+      </PressableScale>
     );
   }
 );
@@ -150,10 +122,11 @@ const SearchResultRow = React.memo(
     const artist = song.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
 
     return (
-      <View style={[styles.searchItem, { borderBottomColor: colors.border }]}>
+      <View style={styles.searchItem}>
         <Image
           source={{ uri: song.image?.[1]?.link }}
           style={[styles.itemArt, { backgroundColor: colors.secondary }]}
+          fadeDuration={0}
         />
         <View style={styles.itemInfo}>
           <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
@@ -164,24 +137,33 @@ const SearchResultRow = React.memo(
           </Text>
         </View>
         <View style={styles.searchActions}>
-          <TouchableOpacity
+          <PressableScale
             onPress={() => onPlayNext(song)}
-            style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
+            scaleTo={BUTTON_PRESS_SCALE}
+            accessibilityRole='button'
+            accessibilityLabel={`Play ${song.name} next`}
+            style={styles.actionBtn}
           >
-            <Feather name='skip-forward' size={13} color={colors.foreground} />
-          </TouchableOpacity>
-          <TouchableOpacity
+            <Feather name='skip-forward' size={16} color={colors.foreground} />
+          </PressableScale>
+          <PressableScale
             onPress={() => onPlayNow(song)}
-            style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+            scaleTo={BUTTON_PRESS_SCALE}
+            accessibilityRole='button'
+            accessibilityLabel={`Play ${song.name} now`}
+            style={[styles.actionBtn, { backgroundColor: colors.foreground }]}
           >
-            <Ionicons name='play' size={13} color={colors.primaryForeground} />
-          </TouchableOpacity>
-          <TouchableOpacity
+            <Ionicons name='play' size={14} color={colors.background} style={{ marginLeft: 1 }} />
+          </PressableScale>
+          <PressableScale
             onPress={() => onAddToQueue(song)}
-            style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
+            scaleTo={BUTTON_PRESS_SCALE}
+            accessibilityRole='button'
+            accessibilityLabel={`Add ${song.name} to the queue`}
+            style={styles.actionBtn}
           >
-            <Feather name='plus' size={14} color={colors.foreground} />
-          </TouchableOpacity>
+            <Feather name='plus' size={19} color={colors.foreground} />
+          </PressableScale>
         </View>
       </View>
     );
@@ -248,8 +230,8 @@ const PlaylistBrowser: React.FC<{
   if (selectedPlaylist) {
     return (
       <View style={styles.flex}>
-        <View style={[styles.playlistDetailHeader, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity
+        <View style={styles.playlistDetailHeader}>
+          <PressableScale
             onPress={() => {
               setSelectedPlaylist(null);
               setPlaylistDetail(null);
@@ -257,7 +239,7 @@ const PlaylistBrowser: React.FC<{
             style={[styles.backButton, { backgroundColor: colors.secondary }]}
           >
             <Ionicons name='arrow-back' size={18} color={colors.foreground} />
-          </TouchableOpacity>
+          </PressableScale>
           <View style={styles.flex}>
             <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
               {selectedPlaylist.name}
@@ -267,7 +249,7 @@ const PlaylistBrowser: React.FC<{
             </Text>
           </View>
           {songs.length > 0 && (
-            <TouchableOpacity
+            <PressableScale
               onPress={() => onAddAll(songs)}
               style={[styles.addAllBtn, { backgroundColor: colors.primary }]}
             >
@@ -275,7 +257,7 @@ const PlaylistBrowser: React.FC<{
               <Text style={[styles.addAllBtnText, { color: colors.primaryForeground }]}>
                 Add All
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           )}
         </View>
 
@@ -340,13 +322,11 @@ const PlaylistBrowser: React.FC<{
             ? item.image
             : item.image?.[1]?.link || item.image?.[0]?.link || '';
         return (
-          <TouchableOpacity
-            onPress={() => handleSelectPlaylist(item)}
-            style={[styles.playlistRow, { borderBottomColor: colors.border }]}
-          >
+          <PressableScale onPress={() => handleSelectPlaylist(item)} style={styles.playlistRow}>
             <Image
               source={{ uri: imageUrl }}
               style={[styles.itemArt, { backgroundColor: colors.secondary }]}
+              fadeDuration={0}
             />
             <View style={styles.itemInfo}>
               <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
@@ -360,7 +340,7 @@ const PlaylistBrowser: React.FC<{
               </Text>
             </View>
             <Feather name='chevron-right' size={18} color={colors.mutedForeground} />
-          </TouchableOpacity>
+          </PressableScale>
         );
       }}
       showsVerticalScrollIndicator={false}
@@ -436,7 +416,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollOffset.value = event.nativeEvent.contentOffset.y;
+      scrollOffset.set(event.nativeEvent.contentOffset.y);
     },
     [scrollOffset]
   );
@@ -456,7 +436,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
       setActiveTab('queue');
       setSearchQuery('');
       setSearchResults([]);
-      scrollOffset.value = 0;
+      scrollOffset.set(0);
     }
   }, [isQueueOpen]);
 
@@ -473,7 +453,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
         const data = await fetchSongRecommendations(api, songId);
         const existingIds = new Set(currentQueue.map((q) => q.song?.id));
         const filtered = (data || []).filter((s) => !existingIds.has(s.id));
-        setRecommendations(filtered.slice(0, 15));
+        setRecommendations(filtered.slice(0, RECOMMENDATIONS_SHOWN));
       } catch {
         setRecommendations([]);
       } finally {
@@ -501,7 +481,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
                 const currentQueue = queueRef.current || [];
                 const existingIds = new Set(currentQueue.map((q) => q.song?.id));
                 const filtered = data.filter((s) => !existingIds.has(s.id));
-                setRecommendations(filtered.slice(0, 15));
+                setRecommendations(filtered.slice(0, RECOMMENDATIONS_SHOWN));
                 return;
               }
             }
@@ -518,7 +498,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
               const currentQueue = queueRef.current || [];
               const existingIds = new Set(currentQueue.map((q) => q.song?.id));
               const filtered = data.filter((s) => !existingIds.has(s.id));
-              setRecommendations(filtered.slice(0, 15));
+              setRecommendations(filtered.slice(0, RECOMMENDATIONS_SHOWN));
               return;
             }
           }
@@ -532,7 +512,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
           const filtered = modules.trending.data
             .map(ensureHttpsForSongUrls)
             .filter((s) => !existingIds.has(s.id));
-          setRecommendations(filtered.slice(0, 15));
+          setRecommendations(filtered.slice(0, RECOMMENDATIONS_SHOWN));
         }
       } catch (err) {
         console.error('Failed to load fallback recommendations:', err);
@@ -611,14 +591,19 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
     [removeFromQueue, playNow]
   );
 
-  const handleDragEnd = useCallback(
-    ({ data, from, to }: { data: QueueItem[]; from: number; to: number }) => {
-      if (from === to) return;
-      const offset = useGroupSessionStore.getState().currentQueueIndex + 1;
+  const handleReorder = useCallback(
+    (next: QueueItem[]) => {
+      const { queue: current, currentQueueIndex: playing } = useGroupSessionStore.getState();
+      const offset = playing + 1;
+      const before = current.slice(offset);
+      const first = next.findIndex((item, i) => item.id !== before[i]?.id);
+      if (first < 0) return;
+      let last = next.length - 1;
+      while (last > first && next[last].id === before[last]?.id) last--;
+      // One row moved, so either it went down from `first`, or up from `last`.
+      const [from, to] = next[last].id === before[first].id ? [first, last] : [last, first];
       // Show the new order immediately; the server confirms with queue-updated.
-      useGroupSessionStore.setState((s) => ({
-        queue: [...s.queue.slice(0, offset), ...data],
-      }));
+      useGroupSessionStore.setState({ queue: [...current.slice(0, offset), ...next] });
       reorderQueue(offset + from, offset + to);
     },
     [reorderQueue]
@@ -643,20 +628,12 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
   const currentArtist = currentSong?.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
 
   const renderQueueItem = useCallback(
-    ({ item, drag, isActive }: RenderItemParams<QueueItem>) => (
-      <ScaleDecorator activeScale={1.03}>
-        <QueueItemRow
-          item={item}
-          onRemove={handleRemove}
-          onPlay={handlePlayQueued}
-          drag={drag}
-          isActive={isActive}
-          colors={colors}
-        />
-      </ScaleDecorator>
+    (item: QueueItem, isActive: boolean) => (
+      <QueueItemRow item={item} onPlay={handlePlayQueued} isActive={isActive} colors={colors} />
     ),
-    [handleRemove, handlePlayQueued, colors]
+    [handlePlayQueued, colors]
   );
+  const canReorder = useCallback(() => true, []);
 
   const renderSearchResult = useCallback(
     ({ item }: { item: Song }) => (
@@ -671,7 +648,6 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
     [handleAddToQueue, handlePlayNow, handlePlayNext, colors]
   );
 
-  const queueKeyExtractor = useCallback((item: QueueItem) => item.id, []);
   const songKeyExtractor = useCallback((item: Song) => item.id, []);
 
   /**
@@ -685,7 +661,11 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
       <View>
         {showNowPlaying && (
           <View style={[styles.nowPlaying, { backgroundColor: colors.secondary }]}>
-            <Image source={{ uri: currentSong.image?.[1]?.link }} style={styles.nowPlayingArt} />
+            <Image
+              source={{ uri: currentSong.image?.[1]?.link }}
+              style={styles.nowPlayingArt}
+              fadeDuration={0}
+            />
             <View style={styles.nowPlayingInfo}>
               <Text style={[styles.nowPlayingText, { color: colors.primary }]}>NOW PLAYING</Text>
               <Text style={[styles.nowPlayingName, { color: colors.foreground }]} numberOfLines={1}>
@@ -709,50 +689,39 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
         )}
 
         <View style={styles.listHeader}>
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-            {upcomingQueue.length > 0 ? `UP NEXT · ${upcomingQueue.length}` : 'UP NEXT'}
-          </Text>
-          <View style={styles.listHeaderActions}>
-            <TouchableOpacity
-              onPress={() => toggleAutoRecommendations()}
-              accessibilityRole='switch'
-              accessibilityState={{ checked: autoPlay }}
-              accessibilityLabel='Autoplay recommendations'
-              hitSlop={8}
+          <PressableScale
+            onPress={() => toggleAutoRecommendations()}
+            accessibilityRole='switch'
+            accessibilityState={{ checked: autoPlay }}
+            accessibilityLabel='Autoplay recommendations'
+            hitSlop={10}
+            style={styles.textAction}
+          >
+            <Ionicons
+              name={autoPlay ? 'sparkles' : 'sparkles-outline'}
+              size={14}
+              color={autoPlay ? colors.foreground : colors.mutedForeground}
+            />
+            <Text
               style={[
-                styles.miniPill,
-                { backgroundColor: autoPlay ? colors.primary + '1F' : colors.secondary },
+                styles.textActionLabel,
+                { color: autoPlay ? colors.foreground : colors.mutedForeground },
               ]}
             >
-              <Ionicons
-                name='sparkles'
-                size={11}
-                color={autoPlay ? colors.primary : colors.mutedForeground}
-              />
-              <Text
-                style={[
-                  styles.miniPillText,
-                  { color: autoPlay ? colors.primary : colors.mutedForeground },
-                ]}
-              >
-                Autoplay
-              </Text>
-            </TouchableOpacity>
-            {upcomingQueue.length > 0 && (
-              <TouchableOpacity
-                onPress={handleClearQueue}
-                accessibilityRole='button'
-                accessibilityLabel='Clear upcoming queue'
-                hitSlop={8}
-                style={[styles.miniPill, { backgroundColor: colors.secondary }]}
-              >
-                <Feather name='trash-2' size={11} color={colors.destructive || '#ef4444'} />
-                <Text style={[styles.miniPillText, { color: colors.destructive || '#ef4444' }]}>
-                  Clear
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+              Autoplay {autoPlay ? 'on' : 'off'}
+            </Text>
+          </PressableScale>
+          {upcomingQueue.length > 0 && (
+            <PressableScale
+              onPress={handleClearQueue}
+              accessibilityRole='button'
+              accessibilityLabel='Clear upcoming queue'
+              hitSlop={10}
+              style={styles.textAction}
+            >
+              <Text style={[styles.textActionLabel, { color: colors.mutedForeground }]}>Clear</Text>
+            </PressableScale>
+          )}
         </View>
       </View>
     );
@@ -768,12 +737,6 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
     handleClearQueue,
     toggleAutoRecommendations,
   ]);
-
-  const TABS: { key: TabKey; label: string; icon: keyof typeof Feather.glyphMap }[] = [
-    { key: 'queue', label: 'Up next', icon: 'list' },
-    { key: 'playlists', label: 'Playlists', icon: 'disc' },
-    { key: 'recommended', label: 'For you', icon: 'zap' },
-  ];
 
   const listBottomInset = Math.max(insets.bottom, 12) + 16;
 
@@ -797,14 +760,14 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
           <View style={[styles.header, { paddingTop: 16 }]}>
             <View style={styles.headerLeft}>
               {!inline && (
-                <TouchableOpacity
+                <PressableScale
                   onPress={handleClose}
                   style={[styles.backButton, { backgroundColor: colors.secondary }]}
                   accessibilityRole='button'
                   accessibilityLabel='Close queue'
                 >
                   <Ionicons name='arrow-back' size={20} color={colors.foreground} />
-                </TouchableOpacity>
+                </PressableScale>
               )}
               <Text style={[styles.headerTitle, { color: colors.foreground }]}>Queue</Text>
               {upcomingQueue.length > 0 && (
@@ -829,76 +792,28 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
             leftIcon={<Feather name='search' size={16} color={colors.mutedForeground} />}
             rightIcon={
               searchQuery ? (
-                <TouchableOpacity
+                <PressableScale
                   onPress={() => handleSearch('')}
                   accessibilityRole='button'
                   accessibilityLabel='Clear search'
                   hitSlop={8}
                 >
                   <Feather name='x' size={16} color={colors.mutedForeground} />
-                </TouchableOpacity>
+                </PressableScale>
               ) : null
             }
           />
 
           {!searchQuery.trim() && (
-            <View style={styles.chipRow} accessibilityRole='tablist'>
-              {TABS.map((tab) => {
-                const active = activeTab === tab.key;
-                const count = tab.key === 'queue' ? upcomingQueue.length : 0;
-                return (
-                  <TouchableOpacity
-                    key={tab.key}
-                    onPress={() => {
-                      setActiveTab(tab.key);
-                      scrollOffset.value = 0;
-                    }}
-                    accessibilityRole='tab'
-                    accessibilityState={{ selected: active }}
-                    accessibilityLabel={count ? `${tab.label}, ${count} songs` : tab.label}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: active ? colors.primary + '1F' : colors.secondary,
-                        borderColor: active ? colors.primary + '55' : 'transparent',
-                      },
-                    ]}
-                  >
-                    <Feather
-                      name={tab.icon}
-                      size={13}
-                      color={active ? colors.primary : colors.mutedForeground}
-                    />
-                    <Text
-                      style={[
-                        styles.chipText,
-                        { color: active ? colors.primary : colors.foreground },
-                        active && styles.chipTextActive,
-                      ]}
-                    >
-                      {tab.label}
-                    </Text>
-                    {count > 0 && (
-                      <View
-                        style={[
-                          styles.chipCount,
-                          { backgroundColor: active ? colors.primary : colors.muted },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.chipCountText,
-                            { color: active ? colors.primaryForeground : colors.mutedForeground },
-                          ]}
-                        >
-                          {count}
-                        </Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <Segmented
+              options={SOURCE_TABS}
+              value={activeTab}
+              onChange={(next) => {
+                setActiveTab(next);
+                scrollOffset.set(0);
+              }}
+              accessibilityLabel='Where to find songs'
+            />
           )}
         </View>
 
@@ -934,30 +849,31 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
           /* Tab Content */
           <View style={styles.flex}>
             {activeTab === 'queue' && (
-              <DraggableFlatList
-                data={upcomingQueue}
-                keyExtractor={queueKeyExtractor}
-                renderItem={renderQueueItem}
-                onDragEnd={handleDragEnd}
-                activationDistance={12}
-                containerStyle={styles.flex}
-                ListHeaderComponent={renderQueueHeader}
-                ListEmptyComponent={
+              <View style={styles.flex}>
+                {renderQueueHeader()}
+                {upcomingQueue.length > 0 ? (
+                  // The same list as the player's queue. The row moves only on the UI thread, and
+                  // a drop changes no layout, so nothing can flicker when the new order arrives.
+                  <SortableQueue
+                    data={upcomingQueue}
+                    rowHeight={QUEUE_ROW_HEIGHT}
+                    bottomPadding={listBottomInset}
+                    canDrag={canReorder}
+                    renderRow={renderQueueItem}
+                    onReorder={handleReorder}
+                    onRemove={handleRemove}
+                  />
+                ) : (
                   <View style={styles.emptyQueue}>
-                    <Feather name='music' size={32} color={colors.mutedForeground} />
                     <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                      Queue is empty
+                      Nothing up next
                     </Text>
                     <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-                      Search and add songs to keep the music going
+                      Search above to add a song.
                     </Text>
                   </View>
-                }
-                contentContainerStyle={[styles.listContent, { paddingBottom: listBottomInset }]}
-                showsVerticalScrollIndicator={false}
-                onScroll={handleScroll}
-                scrollEventThrottle={16}
-              />
+                )}
+              </View>
             )}
 
             {activeTab === 'playlists' && (
@@ -996,7 +912,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
                               {recsSourceName}
                             </Text>
                           </Text>
-                          <TouchableOpacity
+                          <PressableScale
                             accessibilityRole='button'
                             accessibilityLabel='Refresh recommendations'
                             style={[styles.miniPill, { backgroundColor: colors.secondary }]}
@@ -1014,7 +930,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
                             <Text style={[styles.miniPillText, { color: colors.mutedForeground }]}>
                               Refresh
                             </Text>
-                          </TouchableOpacity>
+                          </PressableScale>
                         </View>
                       ) : null
                     }
@@ -1045,13 +961,6 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
 };
 
 const styles = StyleSheet.create({
-  dragHandle: {
-    width: 28,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 2,
-  },
   inlineWrapper: { flex: 1, minHeight: 0 },
   flex: { flex: 1 },
   container: {
@@ -1061,26 +970,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   listHeader: {
-    marginTop: 8,
-    marginBottom: 2,
+    height: 40,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  autoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-    backgroundColor: 'rgba(127, 127, 127, 0.15)',
-  },
-  autoBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
+  textAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  textActionLabel: { fontSize: 13, fontWeight: '600' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1115,28 +1012,6 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     gap: 8,
   },
-  chipRow: { flexDirection: 'row', gap: 6 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    height: 32,
-    paddingHorizontal: 11,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  chipText: { fontSize: 12.5, fontWeight: '500' },
-  chipTextActive: { fontWeight: '700' },
-  chipCount: {
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 5,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chipCountText: { fontSize: 10.5, fontWeight: '800' },
-  listHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   miniPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1190,12 +1065,6 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     height: '60%',
   },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
-    paddingHorizontal: 4,
-  },
   recsHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1207,30 +1076,26 @@ const styles = StyleSheet.create({
   queueItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    height: QUEUE_ROW_HEIGHT,
     paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   searchItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    height: QUEUE_ROW_HEIGHT,
     paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   playlistRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    height: QUEUE_ROW_HEIGHT,
     paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   playlistDetailHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 12,
   },
   addAllBtn: {
@@ -1245,56 +1110,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  itemArt: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-  },
+  itemArt: { width: 48, height: 48, borderRadius: 6 },
   itemInfo: {
     marginLeft: 12,
     flex: 1,
   },
-  itemName: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  itemArtist: {
-    fontSize: 12,
-    marginTop: 1,
-  },
-  itemAddedBy: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 3,
-    gap: 4,
-  },
-  itemAvatar: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  itemAddedByText: {
-    fontSize: 10,
-  },
-  searchActions: {
-    flexDirection: 'row',
-    gap: 6,
-    marginLeft: 8,
-  },
+  itemName: { fontSize: 15, fontWeight: '600', letterSpacing: -0.15 },
+  itemArtist: { fontSize: 13, marginTop: 2 },
+  itemAvatar: { width: 22, height: 22, borderRadius: 11, marginLeft: 8 },
+  searchActions: { flexDirection: 'row', alignItems: 'center', gap: 2, marginLeft: 8 },
   actionBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  removeButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
   },
   emptyQueue: {
     alignItems: 'center',

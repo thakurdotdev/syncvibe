@@ -65,13 +65,20 @@ interface ReorderQueueData {
   toIndex: number;
 }
 
+/** How many songs autoplay adds each time the queue runs low. */
+const AUTO_RECOMMENDATIONS = 10;
+
 export const ensureGroupHasRecommendations = async (
   io: Server,
   groupId: string,
   seedSongId?: string
 ): Promise<boolean> => {
   const group = musicGroups.get(groupId);
-  if (!group || group.settings.autoPlayRecommendations === false || group.isFetchingRecommendations) {
+  if (
+    !group ||
+    group.settings.autoPlayRecommendations === false ||
+    group.isFetchingRecommendations
+  ) {
     return false;
   }
 
@@ -82,7 +89,9 @@ export const ensureGroupHasRecommendations = async (
 
   const baseSongId =
     seedSongId ||
-    (group.currentQueueIndex >= 0 ? (group.queue[group.currentQueueIndex]?.song?.id as string) : null) ||
+    (group.currentQueueIndex >= 0
+      ? (group.queue[group.currentQueueIndex]?.song?.id as string)
+      : null) ||
     (group.queue.length > 0 ? (group.queue[group.queue.length - 1]?.song?.id as string) : null);
 
   if (!baseSongId) return false;
@@ -92,7 +101,7 @@ export const ensureGroupHasRecommendations = async (
     const existingSongIds = group.queue.map((q) => String(q.song?.id)).filter(Boolean);
     const recs = await getPlayNextSongs({
       baseSongId: String(baseSongId),
-      limit: 5,
+      limit: AUTO_RECOMMENDATIONS,
       excludeSongIds: existingSongIds,
     });
 
@@ -195,6 +204,9 @@ export const setupQueueHandlers = (io: Server, socket: Socket): void => {
           addedBy: addedBy.userName,
         });
       }
+
+      // Autoplay fills the queue as soon as there's a song to base it on, not just at the end of one.
+      ensureGroupHasRecommendations(io, groupId);
     } else {
       socket.emit('queue-error', { error: result.error });
     }
@@ -239,6 +251,8 @@ export const setupQueueHandlers = (io: Server, socket: Socket): void => {
           addedBy: addedBy.userName,
         });
       }
+
+      ensureGroupHasRecommendations(io, groupId);
     } else {
       socket.emit('queue-error', { error: result.error });
     }
@@ -457,25 +471,22 @@ export const setupQueueHandlers = (io: Server, socket: Socket): void => {
     }
   });
 
-  socket.on(
-    'toggle-auto-recommendations',
-    (data: ToggleAutoRecommendationsData) => {
-      const { groupId, enabled } = data;
-      const group = musicGroups.get(groupId);
-      if (!group) return;
+  socket.on('toggle-auto-recommendations', (data: ToggleAutoRecommendationsData) => {
+    const { groupId, enabled } = data;
+    const group = musicGroups.get(groupId);
+    if (!group) return;
 
-      group.settings.autoPlayRecommendations =
-        typeof enabled === 'boolean' ? enabled : !group.settings.autoPlayRecommendations;
+    group.settings.autoPlayRecommendations =
+      typeof enabled === 'boolean' ? enabled : !group.settings.autoPlayRecommendations;
 
-      io.to(`music-group-${groupId}`).emit('group-settings-updated', {
-        settings: group.settings,
-      });
+    io.to(`music-group-${groupId}`).emit('group-settings-updated', {
+      settings: group.settings,
+    });
 
-      if (group.settings.autoPlayRecommendations) {
-        ensureGroupHasRecommendations(io, groupId);
-      }
+    if (group.settings.autoPlayRecommendations) {
+      ensureGroupHasRecommendations(io, groupId);
     }
-  );
+  });
 
   socket.on('reorder-queue', (data: ReorderQueueData) => {
     const { groupId, fromIndex, toIndex } = data;

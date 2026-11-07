@@ -1,16 +1,13 @@
-import { ChatContext } from '@/Context/ChatContext';
-import { usePlayerStore } from '@/stores/playerStore';
+import { useLogout } from '@/hooks/useLogout';
 import { uploadToCloudinary } from '@/Utils/cloudinaryUpload';
 import axios from 'axios';
 import { useCallback, useContext, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Context } from '../../Context/Context';
 import getFollowList from '../../Utils/getFollowList';
 import DeleteAccount from '../Modals/DeleteAccount';
 import DisableTwoFactor from '../Modals/DisableTwoFactor';
 import ImageUpload from '../Modals/ImageUpload';
-import LoginLogs from '../Modals/LoginLogs';
 import TwoFactorAuth from '../Modals/TwoFactorAuth';
 import UpdatePassword from '../Modals/UpdatePassword';
 import UpdateProfileModel from '../Modals/UpdateProfileModel';
@@ -32,10 +29,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 
 const Profile = () => {
-  const { user, setUser, getProfile } = useContext(Context);
-  const navigate = useNavigate();
-  const stopSong = usePlayerStore((s) => s.stopSong);
-  const { cleanUpSocket } = useContext(ChatContext);
+  const { user, setUser } = useContext(Context);
+  const handleLogout = useLogout();
 
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
@@ -44,10 +39,7 @@ const Profile = () => {
 
   // Dialog & Modal states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isLoginLogsOpen, setIsLoginLogsOpen] = useState(false);
   const [isUpdateProfileOpen, setIsUpdateProfileOpen] = useState(false);
-  const [loginLogs, setLoginLogs] = useState([]);
-  const [isLogsLoading, setIsLogsLoading] = useState(false);
   const [updatePassword, setUpdatePassword] = useState(false);
   const [deleteAccount, setDeleteAccount] = useState(false);
   const [is2FASetupOpen, setIs2FASetupOpen] = useState(false);
@@ -56,17 +48,13 @@ const Profile = () => {
   const [isLogoutAlertOpen, setIsLogoutAlertOpen] = useState(false);
 
   const toggleUpdatePassword = () => setUpdatePassword((prev) => !prev);
-  const toggleLoginLogs = () => setIsLoginLogsOpen((prev) => !prev);
   const toggleUpdateProfile = () => setIsUpdateProfileOpen((prev) => !prev);
   const toggle2FASetup = () => setIs2FASetupOpen((prev) => !prev);
   const toggleDisable2FA = () => setIsDisable2FAOpen((prev) => !prev);
 
-  const handle2FASuccess = (token) => {
+  const handle2FASuccess = () => {
     setTwoFactorEnabled(true);
     setUser((prevUser) => ({ ...prevUser, twoFactorEnabled: true }));
-    if (token) {
-      console.log('Login token received:', token);
-    }
     toast.success('Two-Factor Authentication enabled successfully!');
   };
 
@@ -90,41 +78,6 @@ const Profile = () => {
         setFollowersLoading(false);
       });
   }, [user?.userid]);
-
-  useEffect(() => {
-    getLoginLogs();
-  }, []);
-
-  const getLoginLogs = async () => {
-    try {
-      setIsLogsLoading(true);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/login-logs`, {
-        withCredentials: true,
-      });
-      if (response.status === 200) {
-        setLoginLogs(response.data);
-        setIsLogsLoading(false);
-      }
-    } catch (error) {
-      setIsLogsLoading(false);
-      console.error('Error fetching login logs:', error);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await axios.get(`${import.meta.env.VITE_API_URL}/api/logout`, {
-        withCredentials: true,
-      });
-    } catch (error) {
-      console.error('Logout request failed; clearing local session anyway:', error);
-    } finally {
-      cleanUpSocket();
-      stopSong();
-      setUser(null);
-      navigate('/login', { replace: true });
-    }
-  };
 
   const handleProfilePicUpdate = useCallback(
     async (croppedImageUrl, file) => {
@@ -211,12 +164,10 @@ const Profile = () => {
           <TabsContent value='security' className='mt-0 focus-visible:outline-none'>
             <SecurityTab
               twoFactorEnabled={twoFactorEnabled}
+              hasPassword={user?.hasPassword}
               onUpdatePassword={toggleUpdatePassword}
               onSetup2FA={toggle2FASetup}
               onDisable2FA={toggleDisable2FA}
-              onViewLogs={toggleLoginLogs}
-              isLogsLoading={isLogsLoading}
-              getProfile={getProfile}
             />
           </TabsContent>
 
@@ -271,9 +222,6 @@ const Profile = () => {
         setUser={setUser}
       />
 
-      {/* Login History Logs Modal */}
-      <LoginLogs isOpen={isLoginLogsOpen} toggleDialog={toggleLoginLogs} loginLogs={loginLogs} />
-
       {/* Change Password Modal */}
       <UpdatePassword isOpen={updatePassword} toggleDialog={toggleUpdatePassword} />
 
@@ -284,9 +232,8 @@ const Profile = () => {
       <TwoFactorAuth
         isOpen={is2FASetupOpen}
         onClose={toggle2FASetup}
-        userId={user?.userid}
         onSuccess={handle2FASuccess}
-        isSetup={!twoFactorEnabled}
+        hasPassword={user?.hasPassword}
       />
 
       {/* 2FA Disable Modal */}
@@ -294,6 +241,7 @@ const Profile = () => {
         isOpen={isDisable2FAOpen}
         onClose={toggleDisable2FA}
         onSuccess={handleDisable2FASuccess}
+        hasPassword={user?.hasPassword}
       />
     </div>
   );

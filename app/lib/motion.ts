@@ -36,8 +36,37 @@ export const STATE = { duration: 180, easing: EASE_OUT, reduceMotion: system } a
 export const ENTER = { duration: 200, easing: EASE_OUT, reduceMotion: system } as const;
 export const EXIT = { duration: 140, easing: EASE_OUT, reduceMotion: system } as const;
 
-/** Press-down scale for cards and rows; small icon buttons use a slightly deeper one. */
+/** Sheet opening from a tap: starts fast so the first frame already moves, then settles. */
+export const SHEET_OPEN = { duration: 280, easing: EASE_SHEET, reduceMotion: system } as const;
+/** Sheet leaving on its own; quicker than it arrived. */
+export const SHEET_CLOSE = { duration: 180, easing: EASE_OUT, reduceMotion: system } as const;
+
+/** Press-down scale: cards and buttons, full-width rows (less, they're wide), small icon buttons. */
 export const PRESS_SCALE = 0.97;
+export const ROW_PRESS_SCALE = 0.98;
 export const BUTTON_PRESS_SCALE = 0.92;
+/**
+ * Holds back press feedback on things inside a scrolling list. Without it, every row under your
+ * finger dips each time you start to scroll. A real tap still shows it.
+ */
+export const LIST_PRESS_DELAY = 70;
+/**
+ * Android's cross-fade for an image that had to be downloaded. Short enough to feel instant, and
+ * images already in memory appear with no fade at all.
+ */
+export const IMAGE_FADE_MS = 120;
+
 /** Popovers start here, never from 0. */
 export const POP_FROM_SCALE = 0.95;
+
+/** Where a flick would come to rest: a fast short swipe commits, a slow long one doesn't. */
+export function project(velocity: number, decelerationRate = 0.998) {
+  'worklet';
+  return ((velocity / 1000) * decelerationRate) / (1 - decelerationRate);
+}
+
+/** The further past an edge, the less the element follows. */
+export function rubberband(overshoot: number, dimension: number, constant = 0.55) {
+  'worklet';
+  return (overshoot * dimension * constant) / (dimension + constant * Math.abs(overshoot));
+}

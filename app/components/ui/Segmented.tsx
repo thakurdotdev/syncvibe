@@ -1,10 +1,10 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
-import { SPRING } from '@/lib/motion';
+import { INDICATOR } from '@/lib/motion';
 import { Ionicons } from '@expo/vector-icons';
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 export type SegmentOption<T extends string> = {
   value: T;
@@ -13,7 +13,7 @@ export type SegmentOption<T extends string> = {
 };
 
 /**
- * Segmented control with a sliding selection pill (same spring as the tab bar).
+ * Segmented control with a sliding selection pill (same motion as the room tabs).
  * Generic so settings, filters and room panels all look and move the same way.
  */
 function SegmentedInner<T extends string>({
@@ -41,11 +41,13 @@ function SegmentedInner<T extends string>({
     options.findIndex((o) => o.value === value)
   );
   const x = useSharedValue(-1);
+  const placed = useRef(false);
 
   useEffect(() => {
     if (!segment) return;
     const target = index * segment;
-    x.set(x.get() < 0 ? target : withSpring(target, SPRING));
+    x.set(placed.current ? withTiming(target, INDICATOR) : target);
+    placed.current = true;
   }, [index, segment, x]);
 
   const pill = useAnimatedStyle(() => ({
@@ -77,7 +79,6 @@ function SegmentedInner<T extends string>({
           <PressableScale
             key={o.value}
             onPress={() => onChange(o.value)}
-            scaleTo={0.95}
             accessibilityRole='radio'
             accessibilityState={{ checked: selected }}
             accessibilityLabel={o.label}

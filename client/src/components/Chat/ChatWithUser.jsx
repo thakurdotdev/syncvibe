@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { ChatContext } from '../../Context/ChatContext';
 import { Context } from '../../Context/Context';
 import { useVideoCallStore } from '../../stores/videoCallStore';
-import { getAllMessages } from '../../Utils/ChatUtils';
+import { bumpChat, getAllMessages } from '../../Utils/ChatUtils';
 import { uploadToCloudinary } from '../../Utils/cloudinaryUpload';
 import ChatHeader from './ChatHeader';
 import ImageGallery from './ImageGallery';
@@ -20,6 +20,16 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { setUsers } = useContext(ChatContext);
+
+  // Opening a chat reads it, so its unread badge goes.
+  useEffect(() => {
+    if (!currentChat?.chatid) return;
+    setUsers((prev) =>
+      prev.map((chat) =>
+        chat.chatid === currentChat.chatid && chat.unreadCount ? { ...chat, unreadCount: 0 } : chat
+      )
+    );
+  }, [currentChat?.chatid, setUsers]);
   const { isInCall, incomingCall, startCall } = useVideoCallStore();
 
   // State
@@ -192,6 +202,15 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
       }
     };
 
+    const handleMessageEdited = (data) => {
+      if (data?.chatid !== currentChat.chatid) return;
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.messageid === data.messageid ? { ...msg, content: data.content } : msg
+        )
+      );
+    };
+
     const handleCallLog = (callMessage) => {
       if (callMessage.chatid === currentChat.chatid) {
         setMessages((prevMessages) => [...prevMessages, callMessage]);
@@ -201,6 +220,7 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
     socket.on('connect', handleConnect);
     socket.on('message-received', handleNewMessage);
     socket.on('message-deleted', handleMessageDeleted);
+    socket.on('message-edited', handleMessageEdited);
     socket.on('message-ack', handleMessageAck);
     socket.on('message-error', handleMessageError);
     socket.on('messages-read-status', handleReadStatus);
@@ -210,6 +230,7 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
       socket.off('connect', handleConnect);
       socket.off('message-received', handleNewMessage);
       socket.off('message-deleted', handleMessageDeleted);
+      socket.off('message-edited', handleMessageEdited);
       socket.off('message-ack', handleMessageAck);
       socket.off('message-error', handleMessageError);
       socket.off('messages-read-status', handleReadStatus);
@@ -249,12 +270,9 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
       setMessages((prev) => [...prev, optimisticMessage]);
 
       // Update last message in chat list
-      setUsers((prevUsers) =>
-        prevUsers.map((chat) =>
-          chat.chatid === currentChat.chatid
-            ? { ...chat, lastmessage: contentText || 'Sent an image' }
-            : chat
-        )
+      setUsers(
+        (prevUsers) =>
+          bumpChat(prevUsers, currentChat.chatid, contentText || 'Sent an image') ?? prevUsers
       );
 
       // Upload file via Cloudinary presigned URL (same flow as posts)
@@ -281,7 +299,8 @@ const ChatWithUser = ({ setCurrentChat, currentChat, loggedInUserId, socket }) =
         chatid: currentChat.chatid,
         content: contentText || null,
         fileurl: uploadedFileUrl,
-        recipientId: currentChat.otherUser.userid,
+        // The server works out the recipient itself, so a missing one must not stop the send.
+        recipientId: currentChat.otherUser?.userid,
         senderName: user?.name,
         participants: currentChat.participants,
       });

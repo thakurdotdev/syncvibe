@@ -1,5 +1,6 @@
+import PressableScale from '@/components/ui/PressableScale';
 import React from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
 
@@ -33,9 +34,9 @@ const ChatSearchBar: React.FC<ChatSearchBarProps> = ({
           autoCapitalize='none'
         />
         {value.length > 0 && (
-          <TouchableOpacity onPress={onClear} style={styles.clearButton}>
+          <PressableScale onPress={onClear} style={styles.clearButton}>
             <Ionicons name='close-circle' size={18} color={colors.mutedForeground} />
-          </TouchableOpacity>
+          </PressableScale>
         )}
       </View>
     </View>

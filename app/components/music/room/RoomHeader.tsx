@@ -1,3 +1,4 @@
+import { ROW_PRESS_SCALE } from '@/lib/motion';
 import { ConnectionBadge } from '@/components/music/group/ConnectionBadge';
 import SwipeableModal from '@/components/SwipeableModal';
 import { HeaderIconButton } from '@/components/ui/AppHeader';
@@ -48,7 +49,7 @@ const MoreSheet = ({
         {actions.map((a) => (
           <PressableScale
             key={a.key}
-            scaleTo={0.98}
+            scaleTo={ROW_PRESS_SCALE}
             onPress={() => {
               pending.current = a.onPress;
               onClose();
@@ -122,7 +123,6 @@ export const RoomHeader = memo(function RoomHeader({
         </View>
         <PressableScale
           onPress={onShowPeople}
-          scaleTo={0.97}
           accessibilityRole='button'
           accessibilityLabel={`${members.length} in the room. Show people`}
           style={styles.people}

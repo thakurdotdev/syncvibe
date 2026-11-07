@@ -1,3 +1,4 @@
+import { bumpChat } from '@/utils/chatList';
 import ImageGallery from '@/components/ImageGallery';
 import SwipeableModal from '@/components/SwipeableModal';
 import { Message, useChat } from '@/context/SocketContext';
@@ -6,22 +7,28 @@ import { useTheme } from '@/context/ThemeContext';
 import { uploadToCloudinary } from '@/utils/Cloudinary';
 import useApi from '@/utils/hooks/useApi';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import * as Clipboard from 'expo-clipboard';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
-  KeyboardEvent,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import PressableScale from '@/components/ui/PressableScale';
+import { toast } from '@/context/ToastContext';
+import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE } from '@/lib/motion';
+import { saveImageToGallery } from '@/utils/saveImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MessageHeader from '@/components/chat/MessageHeader';
 import MessageBubble from '@/components/chat/MessageBubble';
@@ -59,12 +66,22 @@ const formatDate = (dateString: string) => {
   }
 };
 
+/** A gap this long starts a new run of messages, even from the same person. */
+const GROUP_GAP_MS = 5 * 60 * 1000;
+/** Scrolled this far back, a button appears to return to the latest message. */
+const JUMP_BUTTON_AFTER = 400;
+/** Time for one sheet to get out of the way before another opens. */
+const SHEET_SWAP_MS = 200;
+
+const JUMP_ENTER = FadeIn.duration(140).easing(EASE_OUT);
+const JUMP_EXIT = FadeOut.duration(100).easing(EASE_OUT);
+
 const ChatWithUser = () => {
   const api = useApi();
   const { user } = useUser();
   const { colors } = useTheme();
   const loggedInUserId = user?.userid;
-  const { currentChat, setCurrentChat, socket, onlineStatuses } = useChat();
+  const { currentChat, setCurrentChat, setUsers, socket, onlineStatuses } = useChat();
 
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -78,25 +95,10 @@ const ChatWithUser = () => {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editText, setEditText] = useState('');
-  const [androidKeyboardHeight, setAndroidKeyboardHeight] = useState(0);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
+  const listRef = useRef<FlatList>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-
-    const showSub = Keyboard.addListener('keyboardDidShow', (e: KeyboardEvent) => {
-      setAndroidKeyboardHeight(e.endCoordinates.height);
-    });
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
-      setAndroidKeyboardHeight(0);
-    });
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   const fetchMessages = useCallback(async () => {
     if (!currentChat?.chatid) return;
@@ -190,8 +192,6 @@ const ChatWithUser = () => {
         )
       );
 
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
       const queuedItem = outboxQueueRef.current.get(tempId);
       if (queuedItem) {
         sendQueuedMessage(queuedItem.payload);
@@ -225,8 +225,33 @@ const ChatWithUser = () => {
 
     const handleNewMessage = (newMessageReceived: Message) => {
       if (newMessageReceived.chatid === currentChat.chatid) {
-        setMessages((prev) => [...prev, newMessageReceived]);
+        setMessages((prev) =>
+          prev.some((m) => m.messageid === newMessageReceived.messageid)
+            ? prev
+            : [...prev, newMessageReceived]
+        );
       }
+    };
+
+    const handleMessageDeleted = (data: {
+      chatid?: number;
+      messageid?: number;
+      messageId?: number;
+    }) => {
+      if (data?.chatid !== currentChat.chatid) return;
+      const id = data.messageid ?? data.messageId;
+      setMessages((prev) => prev.filter((m) => m.messageid !== id));
+    };
+
+    const handleMessageEdited = (data: {
+      chatid?: number;
+      messageid?: number;
+      content?: string;
+    }) => {
+      if (data?.chatid !== currentChat.chatid) return;
+      setMessages((prev) =>
+        prev.map((m) => (m.messageid === data.messageid ? { ...m, content: data.content } : m))
+      );
     };
 
     const handleMessageAck = (data: { tempId: number; message: Message }) => {
@@ -242,6 +267,8 @@ const ChatWithUser = () => {
                   senderName: user?.name,
                   isread: false,
                   status: 'sent',
+                  // Keeps the same list key, so an image doesn't reload when it finishes sending.
+                  tempId: data.tempId,
                 }
               : msg
           )
@@ -281,6 +308,8 @@ const ChatWithUser = () => {
 
     socket.on('connect', handleConnect);
     socket.on('message-received', handleNewMessage);
+    socket.on('message-deleted', handleMessageDeleted);
+    socket.on('message-edited', handleMessageEdited);
     socket.on('message-ack', handleMessageAck);
     socket.on('message-error', handleMessageError);
     socket.on('messages-read-status', handleReadStatus);
@@ -288,6 +317,8 @@ const ChatWithUser = () => {
     return () => {
       socket.off('connect', handleConnect);
       socket.off('message-received', handleNewMessage);
+      socket.off('message-deleted', handleMessageDeleted);
+      socket.off('message-edited', handleMessageEdited);
       socket.off('message-ack', handleMessageAck);
       socket.off('message-error', handleMessageError);
       socket.off('messages-read-status', handleReadStatus);
@@ -389,10 +420,12 @@ const ChatWithUser = () => {
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
+    setUsers(
+      (prev) => bumpChat(prev, currentChat.chatid, currentMsgText || 'Sent an attachment') ?? prev
+    );
     setMessage('');
     setFile(null);
     setFilePreview(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     if (socket?.connected && currentChat?.otherUser?.userid) {
       socket.emit('typing', {
@@ -429,7 +462,8 @@ const ChatWithUser = () => {
       chatid: currentChat.chatid,
       content: currentMsgText || null,
       fileurl: uploadedUrl || null,
-      recipientId: currentChat.otherUser.userid,
+      // The server works out the recipient itself, so a missing one must not stop the send.
+      recipientId: currentChat.otherUser?.userid,
       senderName: user?.name,
       participants: currentChat.participants,
     });
@@ -450,7 +484,6 @@ const ChatWithUser = () => {
         if (!result.canceled && result.assets?.[0]) {
           setFile(result);
           setFilePreview(result.assets[0].uri);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
       }
     } catch (error) {
@@ -458,33 +491,44 @@ const ChatWithUser = () => {
     }
   };
 
-  const processedMessages = useCallback(() => {
+  const isOwnMessage = useCallback(
+    (msg: Message) => Boolean(loggedInUserId && String(msg.senderid) === String(loggedInUserId)),
+    [loggedInUserId]
+  );
+
+  // Newest first, for the inverted list. Items keep the same message objects between renders, so
+  // only rows whose message changed draw again.
+  const listItems = useMemo(() => {
+    const sameRun = (a?: Message, b?: Message) =>
+      Boolean(
+        a &&
+        b &&
+        a.senderid === b.senderid &&
+        formatDate(a.createdat) === formatDate(b.createdat) &&
+        Math.abs(new Date(a.createdat).getTime() - new Date(b.createdat).getTime()) < GROUP_GAP_MS
+      );
+
     const result: any[] = [];
-    let currentDate = '';
-
-    messages.forEach((msg) => {
-      const messageDate = formatDate(msg.createdat);
-
-      if (messageDate !== currentDate) {
-        result.push({
-          id: `date-${messageDate}`,
-          type: 'date',
-          date: messageDate,
-        });
-        currentDate = messageDate;
+    messages.forEach((msg, i) => {
+      const before = messages[i - 1];
+      const date = formatDate(msg.createdat);
+      if (!before || formatDate(before.createdat) !== date) {
+        result.push({ type: 'date', id: `date-${msg.createdat}`, date });
       }
-
       result.push({
-        ...msg,
         type: 'message',
+        message: msg,
+        startsGroup: !sameRun(before, msg),
+        endsGroup: !sameRun(msg, messages[i + 1]),
       });
     });
-
-    // Reverse for inverted FlatList — newest at index 0
     return result.reverse();
   }, [messages]);
 
-  const chatImages = messages.filter((msg) => msg.fileurl).map((msg) => msg.fileurl || '');
+  const chatImages = useMemo(
+    () => messages.filter((msg) => msg.fileurl).map((msg) => msg.fileurl || ''),
+    [messages]
+  );
 
   const findImageIndex = useCallback(
     (url: string) => chatImages.findIndex((imgUrl) => imgUrl === url),
@@ -497,13 +541,13 @@ const ChatWithUser = () => {
       if (index !== -1) {
         setSelectedImageIndex(index);
         setShowGallery(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
     [findImageIndex]
   );
 
   const handleMessageLongPress = useCallback((msg: Message) => {
+    Keyboard.dismiss();
     setSelectedMessage(msg);
     setShowMessageOptions(true);
   }, []);
@@ -516,79 +560,112 @@ const ChatWithUser = () => {
     }
   }, [selectedMessage]);
 
-  const handleDeleteMessage = useCallback(async () => {
-    if (!selectedMessage?.messageid) {
-      setShowMessageOptions(false);
+  const deleteMessage = useCallback(
+    async (target: Message) => {
+      const before = messages;
+      setMessages((prev) => prev.filter((msg) => msg.messageid !== target.messageid));
+      try {
+        await api.delete(`/api/message/${target.messageid}`);
+        socket?.emit('delete-message', {
+          // Web reads messageId; both spellings keep it updating live.
+          messageid: target.messageid,
+          messageId: target.messageid,
+          chatid: currentChat?.chatid,
+          recipientId: currentChat?.otherUser?.userid,
+        });
+      } catch (error) {
+        console.error('Error deleting message:', error);
+        setMessages(before);
+        toast("Couldn't delete the message. Try again.", { type: 'error' });
+      }
+    },
+    [api, currentChat?.chatid, currentChat?.otherUser?.userid, messages, socket]
+  );
+
+  const handleDeleteMessage = useCallback(() => {
+    const target = selectedMessage;
+    setShowMessageOptions(false);
+    if (!target) return;
+    // Never reached the server, so there's nothing to delete there.
+    if (target.status === 'failed') {
+      setMessages((prev) => prev.filter((msg) => msg.messageid !== target.messageid));
       return;
     }
-
-    try {
-      const response = await api.delete(`/api/message/${selectedMessage.messageid}`);
-
-      if (response.status === 200) {
-        setMessages((prev) => prev.filter((msg) => msg.messageid !== selectedMessage.messageid));
-
-        socket?.emit('message-deleted', {
-          messageid: selectedMessage.messageid,
-          chatid: currentChat?.chatid,
-        });
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    } catch (error) {
-      console.error('Error deleting message:', error);
-    } finally {
-      setShowMessageOptions(false);
-    }
-  }, [selectedMessage, api, socket, currentChat?.chatid]);
+    Alert.alert('Delete this message?', 'It will be removed for both of you.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteMessage(target) },
+    ]);
+  }, [deleteMessage, selectedMessage]);
 
   const handleSaveEdit = useCallback(async () => {
-    if (!selectedMessage?.messageid || !editText.trim()) {
-      setEditMode(false);
-      return;
-    }
+    const target = selectedMessage;
+    const content = editText.trim();
+    setEditMode(false);
+    setEditText('');
+    if (!target?.messageid || !content || content === target.content) return;
 
+    setMessages((prev) =>
+      prev.map((msg) => (msg.messageid === target.messageid ? { ...msg, content } : msg))
+    );
     try {
-      const response = await api.put(`/api/message/${selectedMessage.messageid}`, {
-        content: editText,
+      await api.put(`/api/message/${target.messageid}`, { content });
+      socket?.emit('edit-message', {
+        messageid: target.messageid,
+        chatid: currentChat?.chatid,
+        recipientId: currentChat?.otherUser?.userid,
+        content,
       });
-
-      if (response.status === 200) {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.messageid === selectedMessage.messageid
-              ? { ...msg, content: editText, edited: true }
-              : msg
-          )
-        );
-
-        socket?.emit('message-edited', {
-          messageid: selectedMessage.messageid,
-          chatid: currentChat?.chatid,
-          content: editText,
-        });
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
     } catch (error) {
       console.error('Error updating message:', error);
-    } finally {
-      setEditMode(false);
-      setEditText('');
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.messageid === target.messageid ? { ...msg, content: target.content } : msg
+        )
+      );
+      toast("Couldn't save your edit. Try again.", { type: 'error' });
     }
-  }, [selectedMessage, editText, api, socket, currentChat?.chatid]);
+  }, [selectedMessage, editText, api, socket, currentChat?.chatid, currentChat?.otherUser?.userid]);
 
   const handleCancelEdit = useCallback(() => {
     setEditMode(false);
     setEditText('');
   }, []);
 
-  const handleCopyText = useCallback(() => {
-    if (selectedMessage?.content) {
-      setShowMessageOptions(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const handleCopyText = useCallback(async () => {
+    setShowMessageOptions(false);
+    if (!selectedMessage?.content) return;
+    await Clipboard.setStringAsync(selectedMessage.content);
+    toast('Copied');
+  }, [selectedMessage]);
+
+  const handleSavePhoto = useCallback(async () => {
+    setShowMessageOptions(false);
+    if (!selectedMessage?.fileurl) return;
+    try {
+      await saveImageToGallery(selectedMessage.fileurl);
+      toast('Saved to gallery', { type: 'success' });
+    } catch (error) {
+      toast(
+        error instanceof Error && error.message === 'permission'
+          ? 'Allow SyncVibe to add photos in your phone settings'
+          : "Couldn't save the photo",
+        { type: 'error' }
+      );
     }
   }, [selectedMessage]);
+
+  const handleShowInfo = useCallback(() => {
+    setShowMessageOptions(false);
+    setTimeout(() => setShowMessageInfo(true), SHEET_SWAP_MS);
+  }, []);
+
+  const handleListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setShowJumpToLatest(e.nativeEvent.contentOffset.y > JUMP_BUTTON_AFTER);
+  }, []);
+
+  const jumpToLatest = useCallback(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, []);
 
   const renderItem = useCallback(
     ({ item }: any) => {
@@ -598,47 +675,39 @@ const ChatWithUser = () => {
 
       return (
         <MessageBubble
-          message={item}
-          isOwn={Boolean(
-            loggedInUserId && item.senderid && String(item.senderid) === String(loggedInUserId)
-          )}
+          message={item.message}
+          isOwn={isOwnMessage(item.message)}
+          startsGroup={item.startsGroup}
+          endsGroup={item.endsGroup}
           onImagePress={handleImagePress}
           onMessageLongPress={handleMessageLongPress}
           onRetry={handleRetryMessage}
         />
       );
     },
-    [loggedInUserId, handleImagePress, handleMessageLongPress, handleRetryMessage]
+    [isOwnMessage, handleImagePress, handleMessageLongPress, handleRetryMessage]
   );
 
   const keyExtractor = useCallback(
-    (item: any) => (item.type === 'date' ? item.id : `msg-${item.messageid}`),
+    (item: any) =>
+      item.type === 'date' ? item.id : `msg-${item.message.tempId ?? item.message.messageid}`,
     []
   );
 
   const isOnline = onlineStatuses[currentChat?.otherUser?.userid || ''];
 
-  const Wrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
-  const wrapperProps =
-    Platform.OS === 'ios'
-      ? {
-          style: styles.container,
-          behavior: 'padding' as const,
-          keyboardVerticalOffset: 0,
-        }
-      : {
-          style: [styles.container, { paddingBottom: androidKeyboardHeight }],
-        };
+  const selectedIsOwn = selectedMessage ? isOwnMessage(selectedMessage) : false;
+  const selectedOnServer =
+    selectedMessage?.status !== 'pending' && selectedMessage?.status !== 'failed';
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
       edges={['top']}
     >
-      <Wrapper {...wrapperProps}>
+      <KeyboardAvoidingView behavior='padding' style={styles.container}>
         <MessageHeader
           onBack={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setCurrentChat(null);
             router.back();
           }}
@@ -647,23 +716,58 @@ const ChatWithUser = () => {
           isTyping={currentChat?.isTyping}
         />
 
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size='large' color={colors.primary} />
-          </View>
-        ) : (
-          <FlatList
-            inverted
-            data={processedMessages()}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            contentContainerStyle={styles.messageList}
-            initialNumToRender={20}
-            maxToRenderPerBatch={10}
-            windowSize={10}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
+        <View style={styles.container}>
+          {/* Refetching after a reconnect keeps what's on screen: only a first load shows this. */}
+          {loading && messages.length === 0 ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size='large' color={colors.primary} />
+            </View>
+          ) : messages.length === 0 ? (
+            <View style={styles.centered}>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                Say hello to {currentChat?.otherUser?.name?.split(' ')[0] || 'them'}
+              </Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                Your messages will appear here.
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              ref={listRef}
+              inverted
+              data={listItems}
+              renderItem={renderItem}
+              keyExtractor={keyExtractor}
+              contentContainerStyle={styles.messageList}
+              initialNumToRender={20}
+              maxToRenderPerBatch={10}
+              windowSize={10}
+              showsVerticalScrollIndicator={false}
+              // Tapping a bubble's photo or retry works with the keyboard up; dragging puts it away.
+              keyboardShouldPersistTaps='handled'
+              keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+              onScroll={handleListScroll}
+              scrollEventThrottle={100}
+            />
+          )}
+
+          {showJumpToLatest ? (
+            <Animated.View entering={JUMP_ENTER} exiting={JUMP_EXIT} style={styles.jump}>
+              <PressableScale
+                onPress={jumpToLatest}
+                scaleTo={BUTTON_PRESS_SCALE}
+                accessibilityRole='button'
+                accessibilityLabel='Go to latest message'
+                style={[
+                  styles.jumpButton,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+              >
+                <Ionicons name='chevron-down' size={20} color={colors.foreground} />
+              </PressableScale>
+            </Animated.View>
+          ) : null}
+        </View>
 
         <ChatInput
           message={message}
@@ -693,91 +797,73 @@ const ChatWithUser = () => {
         <SwipeableModal
           isVisible={showMessageOptions}
           onClose={() => setShowMessageOptions(false)}
-          maxHeight='35%'
+          dragAnywhere
         >
-          <View style={styles.modalContent}>
-            {selectedMessage?.senderid &&
-              loggedInUserId &&
-              String(selectedMessage.senderid) === String(loggedInUserId) && (
-                <OptionItem
-                  icon='information-circle-outline'
-                  text='Message Info'
-                  onPress={() => {
-                    setShowMessageOptions(false);
-                    setShowMessageInfo(true);
-                  }}
-                />
-              )}
-            <OptionItem icon='pencil' text='Edit' onPress={handleEditMessage} />
-            <OptionItem icon='copy-outline' text='Copy' onPress={handleCopyText} />
-            <OptionItem
-              icon='trash-outline'
-              text='Delete'
-              onPress={handleDeleteMessage}
-              color={colors.destructive}
-            />
+          <View style={styles.sheet}>
+            {selectedMessage?.content ? (
+              <OptionItem icon='copy-outline' text='Copy text' onPress={handleCopyText} />
+            ) : null}
+            {selectedMessage?.fileurl && selectedOnServer ? (
+              <OptionItem icon='download-outline' text='Save photo' onPress={handleSavePhoto} />
+            ) : null}
+            {selectedIsOwn && selectedOnServer && selectedMessage?.content ? (
+              <OptionItem icon='pencil-outline' text='Edit' onPress={handleEditMessage} />
+            ) : null}
+            {selectedIsOwn && selectedOnServer ? (
+              <OptionItem
+                icon='information-circle-outline'
+                text='Message info'
+                onPress={handleShowInfo}
+              />
+            ) : null}
+            {selectedIsOwn && selectedMessage?.status !== 'pending' ? (
+              <OptionItem
+                icon='trash-outline'
+                text='Delete'
+                onPress={handleDeleteMessage}
+                color={colors.destructive}
+              />
+            ) : null}
           </View>
         </SwipeableModal>
 
         <SwipeableModal
           isVisible={showMessageInfo}
           onClose={() => setShowMessageInfo(false)}
-          maxHeight='45%'
+          dragAnywhere
         >
-          <View style={styles.infoModalContent}>
-            <Text style={[styles.infoTitle, { color: colors.foreground }]}>Message Info</Text>
-
-            {selectedMessage?.content ? (
-              <View style={[styles.infoPreviewBox, { backgroundColor: colors.accent }]}>
-                <Text
-                  style={[styles.infoPreviewText, { color: colors.foreground }]}
-                  numberOfLines={2}
-                >
-                  {selectedMessage.content}
-                </Text>
-              </View>
-            ) : null}
-
-            <View style={styles.infoRows}>
-              <View
-                style={[
-                  styles.infoRow,
-                  { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
-                ]}
-              >
-                <View style={styles.infoRowLeft}>
-                  <MaterialCommunityIcons
-                    name='check-all'
-                    size={22}
-                    color={selectedMessage?.isread ? colors.primary : colors.mutedForeground}
-                  />
-                  <View style={styles.infoTextGroup}>
-                    <Text style={[styles.infoLabel, { color: colors.foreground }]}>Read</Text>
-                    <Text style={[styles.infoSubtext, { color: colors.mutedForeground }]}>
-                      {selectedMessage?.isread
-                        ? formatFullDateTime(selectedMessage.readat) || 'Read'
-                        : 'Not read yet'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.infoRow}>
-                <View style={styles.infoRowLeft}>
-                  <MaterialCommunityIcons name='check' size={22} color={colors.mutedForeground} />
-                  <View style={styles.infoTextGroup}>
-                    <Text style={[styles.infoLabel, { color: colors.foreground }]}>Delivered</Text>
-                    <Text style={[styles.infoSubtext, { color: colors.mutedForeground }]}>
-                      {formatFullDateTime(selectedMessage?.createdat)}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
+          <View style={styles.sheet}>
+            <InfoRow
+              icon='check'
+              label='Sent'
+              value={formatFullDateTime(selectedMessage?.createdat)}
+            />
+            <InfoRow
+              icon='check-all'
+              label='Read'
+              value={
+                selectedMessage?.isread
+                  ? formatFullDateTime(selectedMessage.readat) || 'Read'
+                  : 'Not read yet'
+              }
+            />
           </View>
         </SwipeableModal>
-      </Wrapper>
+      </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+};
+
+const InfoRow = ({ icon, label, value }: { icon: any; label: string; value: string }) => {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.infoRow}>
+      <MaterialCommunityIcons name={icon} size={20} color={colors.mutedForeground} />
+      <View>
+        <Text style={[styles.infoLabel, { color: colors.foreground }]}>{label}</Text>
+        <Text style={[styles.infoValue, { color: colors.mutedForeground }]}>{value}</Text>
+      </View>
+    </View>
   );
 };
 
@@ -797,87 +883,52 @@ const OptionItem = React.memo(
     const itemColor = color || colors.foreground;
 
     return (
-      <Pressable
+      <PressableScale
+        onPress={onPress}
+        scaleTo={ROW_PRESS_SCALE}
+        accessibilityRole='button'
         style={styles.optionItem}
-        onPress={() => {
-          onPress();
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }}
       >
         <Ionicons name={icon} size={22} color={itemColor} />
         <Text style={[styles.optionText, { color: itemColor }]}>{text}</Text>
-      </Pressable>
+      </PressableScale>
     );
   }
 );
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  container: { flex: 1 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  emptyTitle: { fontSize: 17, fontWeight: '600', letterSpacing: -0.2 },
+  emptyText: { fontSize: 14, marginTop: 4 },
+  messageList: { paddingHorizontal: 12, paddingVertical: 12 },
+  jump: { position: 'absolute', right: 12, bottom: 10 },
+  jumpButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  messageList: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  modalContent: {
-    padding: 16,
-  },
+  sheet: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8 },
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    gap: 14,
+    height: 52,
+    paddingHorizontal: 12,
   },
-  optionText: {
-    fontSize: 16,
-    marginLeft: 12,
-    fontWeight: '500',
-  },
-  infoModalContent: {
-    padding: 20,
-  },
-  infoTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 14,
-  },
-  infoPreviewBox: {
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  infoPreviewText: {
-    fontSize: 14,
-    fontWeight: '400',
-  },
-  infoRows: {
-    gap: 2,
-  },
+  optionText: { fontSize: 16, fontWeight: '500' },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  infoRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  infoTextGroup: {
-    gap: 2,
-  },
-  infoLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  infoSubtext: {
-    fontSize: 13,
-  },
+  infoLabel: { fontSize: 15, fontWeight: '600' },
+  infoValue: { fontSize: 13, marginTop: 2 },
 });
 
 export default ChatWithUser;

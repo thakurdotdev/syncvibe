@@ -1,15 +1,36 @@
 import type { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { User } from '@/models/index';
-import type { UserAttributes } from '@/models/auth/user.model';
-import { cache } from '@/utils/redis';
+import { fromNodeHeaders } from 'better-auth/node';
+import { auth, type AuthSession } from '@/features/auth/auth';
 
-interface JwtPayload {
-  email: string;
-  role?: string;
-}
+const toRequestUser = (user: AuthSession['user']): Express.User => ({
+  userid: Number(user.id),
+  name: user.name,
+  username: user.username ?? '',
+  email: user.email,
+  profilepic: user.image ?? null,
+  bio: user.bio ?? null,
+  verified: user.emailVerified,
+});
 
-const USER_SESSION_TTL_SECONDS = 10 * 60; // 10 minutes
+/**
+ * Resolves the Better Auth session for the request. Any refreshed session cookie is passed on
+ * to the response so that active sessions keep sliding forward.
+ */
+const resolveUser = async (
+  req: Request,
+  res: Response
+): Promise<{ user: Express.User; sessionId: string } | null> => {
+  const { headers, response } = await auth.api.getSession({
+    headers: fromNodeHeaders(req.headers),
+    returnHeaders: true,
+  });
+
+  const cookies = headers.getSetCookie();
+  if (cookies.length > 0) res.append('Set-Cookie', cookies);
+
+  if (!response || response.user.isDeleted) return null;
+  return { user: toRequestUser(response.user), sessionId: String(response.session.id) };
+};
 
 export const authMiddleware = async (
   req: Request,
@@ -17,82 +38,32 @@ export const authMiddleware = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    let token = req.cookies?.token as string | undefined;
-
-    const authHeader = req.headers.authorization;
-    if (!token && authHeader?.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
-    }
-
-    if (!token) {
-      res.status(401).json({ error: 'Unauthorized: Missing token' });
+    const resolved = await resolveUser(req, res);
+    if (!resolved) {
+      res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET) as JwtPayload;
-    const cacheKey = `user:session:${decoded.email}`;
-
-    const cachedUser = await cache.get<UserAttributes>(cacheKey);
-    if (cachedUser) {
-      req.user = { ...cachedUser, role: decoded.role ?? 'user' };
-      next();
-      return;
-    }
-
-    const existingUser = await User.findOne({
-      where: { email: decoded.email },
-      raw: true,
-    });
-
-    if (!existingUser) {
-      res.status(401).json({ error: 'Unauthorized: User not found' });
-      return;
-    }
-
-    const userData = existingUser as unknown as UserAttributes;
-    await cache.set(cacheKey, userData, USER_SESSION_TTL_SECONDS);
-
-    req.user = { ...userData, role: decoded.role ?? 'user' };
+    req.user = resolved.user;
+    req.sessionId = resolved.sessionId;
     next();
   } catch (error) {
-    console.error('Error verifying token:', error);
-    res.status(401).json({ error: 'Unauthorized: Error verifying token' });
+    console.error('Error resolving session:', error);
+    res.status(401).json({ error: 'Unauthorized' });
   }
 };
 
 export const optionalAuthMiddleware = async (
   req: Request,
-  _res: Response,
+  res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    let token = req.cookies?.token as string | undefined;
-    const authHeader = req.headers.authorization;
-    if (!token && authHeader?.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
-    }
-
-    if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET) as JwtPayload;
-      const cacheKey = `user:session:${decoded.email}`;
-
-      const cachedUser = await cache.get<UserAttributes>(cacheKey);
-      if (cachedUser) {
-        req.user = { ...cachedUser, role: decoded.role ?? 'user' };
-      } else {
-        const existingUser = await User.findOne({
-          where: { email: decoded.email },
-          raw: true,
-        });
-        if (existingUser) {
-          const userData = existingUser as unknown as UserAttributes;
-          await cache.set(cacheKey, userData, USER_SESSION_TTL_SECONDS);
-          req.user = { ...userData, role: decoded.role ?? 'user' };
-        }
-      }
-    }
-  } catch {
-    // Ignore invalid tokens for optional auth
+    const resolved = await resolveUser(req, res);
+    req.user = resolved?.user;
+    req.sessionId = resolved?.sessionId;
+  } catch (error) {
+    console.error('Error resolving session:', error);
   }
   next();
 };

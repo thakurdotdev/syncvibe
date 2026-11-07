@@ -1,16 +1,7 @@
 import { useTheme } from '@/context/ThemeContext';
 import React, { memo, useCallback } from 'react';
-import {
-  FlatList,
-  Pressable,
-  StyleProp,
-  StyleSheet,
-  Text,
-  TextStyle,
-  View,
-  ViewStyle,
-} from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import PressableScale from '@/components/ui/PressableScale';
+import { FlatList, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 
 export interface TabItem<T extends string = string> {
   id: T;
@@ -37,8 +28,6 @@ export interface TabsProps<T extends string = string> {
   activeTextStyle?: StyleProp<TextStyle>;
 }
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 interface SingleTabProps<T extends string> {
   tab: TabItem<T>;
   isActive: boolean;
@@ -63,20 +52,7 @@ const TabButton = memo(function TabButton<T extends string>({
   activeTextStyle,
 }: SingleTabProps<T>) {
   const { colors, theme } = useTheme();
-  const scale = useSharedValue(1);
   const isDark = theme === 'dark';
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.95, { damping: 15, stiffness: 350 });
-  }, [scale]);
-
-  const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 350 });
-  }, [scale]);
 
   const handlePress = useCallback(() => {
     if (!tab.disabled) {
@@ -110,10 +86,8 @@ const TabButton = memo(function TabButton<T extends string>({
   const iconColor = isActive ? activeTextColor : inactiveTextColor;
 
   return (
-    <AnimatedPressable
+    <PressableScale
       onPress={handlePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       disabled={tab.disabled}
       accessibilityRole='tab'
       accessibilityState={{ selected: isActive, disabled: tab.disabled }}
@@ -131,7 +105,6 @@ const TabButton = memo(function TabButton<T extends string>({
         tabStyle,
         isActive && activeTabStyle,
         tab.disabled && { opacity: 0.4 },
-        animatedStyle,
       ]}
     >
       <View style={styles.tabContent}>
@@ -182,7 +155,7 @@ const TabButton = memo(function TabButton<T extends string>({
           </View>
         )}
       </View>
-    </AnimatedPressable>
+    </PressableScale>
   );
 }) as <T extends string>(props: SingleTabProps<T>) => React.ReactElement | null;
 

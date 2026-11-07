@@ -8,6 +8,12 @@ export const EDGE_GUARD = 32;
 /** Sideways travel before a touch counts as a swipe at all. */
 export const SWIPE_ACTIVATE = 24;
 
+/**
+ * Android zeroes a pan's translation at the moment it activates, so `onStart` can't tell which way
+ * a swipe is going. Decide on the first update that has moved this far instead.
+ */
+export const SWIPE_DIRECTION_DECIDED = 2;
+
 /** Drag at least this share of the width, at any speed... */
 const COMMIT_DISTANCE = 0.3;
 /** ...or flick: this far, and this fast in the same direction. */

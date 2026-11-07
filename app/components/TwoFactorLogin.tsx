@@ -13,58 +13,66 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as WebBrowser from 'expo-web-browser';
-import axios from 'axios';
-import { API_URL } from '@/constants';
+import { authClient, unwrap } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTheme } from '@/context/ThemeContext';
 
 interface TwoFactorLoginProps {
-  userId: string | null;
-  onSuccess: (token: string) => void;
+  /** Called once the code is accepted and the session cookie is stored. */
+  onSuccess: () => void;
   onClose: () => void;
 }
 
 const { width, height } = Dimensions.get('window');
 
-export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginProps) => {
+export const TwoFactorLogin = ({ onSuccess, onClose }: TwoFactorLoginProps) => {
   const insets = useSafeAreaInsets();
   const { colors, theme } = useTheme();
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState('');
+  const [useBackupCode, setUseBackupCode] = useState(false);
+
+  const isCodeComplete = useBackupCode ? otp.length >= 8 : otp.length === 6;
 
   const handleVerify = async () => {
-    if (!otp || otp.length !== 6) {
-      setError('Please enter a valid 6-digit code');
+    if (!isCodeComplete) {
+      setError(useBackupCode ? 'Please enter a backup code' : 'Please enter a valid 6-digit code');
       return;
     }
 
     try {
       setLoading(true);
       setError('');
-      const response = await axios.post(`${API_URL}/api/2fa/verify`, {
-        userId: userId,
-        token: otp,
-      });
+      // The two-factor cookie set by the password step identifies the pending sign-in.
+      await unwrap(
+        useBackupCode
+          ? authClient.twoFactor.verifyBackupCode({ code: otp })
+          : authClient.twoFactor.verifyTotp({ code: otp })
+      );
 
-      if (response.status === 200) {
-        setIsVerified(true);
-        setTimeout(() => {
-          onSuccess(response.data.token);
-        }, 1000);
-      }
+      setIsVerified(true);
+      setTimeout(onSuccess, 1000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid verification code');
+      setError(err.message || 'Invalid verification code');
     } finally {
       setLoading(false);
     }
   };
 
   const handleOtpChange = (text: string) => {
-    const cleaned = text.replace(/\D/g, '').slice(0, 6);
+    const cleaned = useBackupCode
+      ? text.replace(/[^A-Za-z0-9-]/g, '').slice(0, 24)
+      : text.replace(/\D/g, '').slice(0, 6);
     setOtp(cleaned);
+  };
+
+  const toggleBackupCode = () => {
+    setUseBackupCode((prev) => !prev);
+    setOtp('');
+    setError('');
   };
 
   return (
@@ -104,7 +112,9 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
               Two-Factor Verification
             </Text>
             <Text style={[styles.appSubtitle, { color: colors.mutedForeground }]}>
-              Enter the 6-digit code from your authenticator app
+              {useBackupCode
+                ? 'Enter one of the backup codes you saved when you set up two-factor'
+                : 'Enter the 6-digit code from your authenticator app'}
             </Text>
           </View>
         </View>
@@ -112,16 +122,20 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
         <View style={styles.formContainer}>
           <Input
             variant='outline'
-            placeholder='000000'
+            placeholder={useBackupCode ? 'xxxxx-xxxxx' : '000000'}
             value={otp}
             onChangeText={handleOtpChange}
-            keyboardType='number-pad'
-            maxLength={6}
+            keyboardType={useBackupCode ? 'default' : 'number-pad'}
+            autoCapitalize='none'
+            autoCorrect={false}
+            autoComplete={useBackupCode ? 'off' : 'one-time-code'}
+            textContentType={useBackupCode ? 'none' : 'oneTimeCode'}
+            maxLength={useBackupCode ? 24 : 6}
             editable={!loading && !isVerified}
             textAlign='center'
             inputStyle={{
-              fontSize: 24,
-              letterSpacing: 8,
+              fontSize: useBackupCode ? 20 : 24,
+              letterSpacing: useBackupCode ? 2 : 8,
               color: colors.foreground,
             }}
             error={!!error}
@@ -131,7 +145,7 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
 
           <Button
             variant='default'
-            disabled={loading || otp.length !== 6 || isVerified}
+            disabled={loading || !isCodeComplete || isVerified}
             onPress={handleVerify}
             className='w-full py-4 rounded-xl'
             textStyle={{ fontWeight: '600', fontSize: 16 }}
@@ -143,6 +157,15 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
             ) : (
               'Verify'
             )}
+          </Button>
+
+          <Button
+            variant='ghost'
+            disabled={loading || isVerified}
+            onPress={toggleBackupCode}
+            className='w-full mt-3'
+          >
+            {useBackupCode ? 'Use authenticator app instead' : 'Use a backup code'}
           </Button>
 
           <Button

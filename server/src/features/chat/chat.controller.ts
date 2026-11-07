@@ -5,7 +5,12 @@ import sequelize from '@/utils/sequelize';
 
 export const createChat = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { receiverid } = req.body as { receiverid?: number };
+    // Installed apps misspell this field, and got a 400 for every new chat until they update.
+    const { receiverid: spelled, recieverid } = req.body as {
+      receiverid?: number;
+      recieverid?: number;
+    };
+    const receiverid = spelled ?? recieverid;
     const senderid = req.user!.userid;
 
     if (!receiverid) {
@@ -127,6 +132,46 @@ export const getChatList = async (req: Request, res: Response): Promise<void> =>
   } catch (error) {
     console.error('Error in getChatList:', error);
     res.status(500).json({ error: 'An error occurred while fetching chats.' });
+  }
+};
+
+const MAX_MESSAGE_LENGTH = 500;
+
+export const updateMessage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const messageid = parseInt(String(req.params.messageid), 10);
+    const { userid } = req.user!;
+    const content = String((req.body as { content?: unknown })?.content ?? '').trim();
+
+    if (!messageid || isNaN(messageid)) {
+      res.status(400).json({ message: 'Message not found' });
+      return;
+    }
+    if (!content || content.length > MAX_MESSAGE_LENGTH) {
+      res.status(400).json({ message: `Messages can be 1 to ${MAX_MESSAGE_LENGTH} characters` });
+      return;
+    }
+
+    const message = await ChatMessage.findOne({
+      where: { messageid, isdeleted: false },
+      attributes: ['messageid', 'senderid'],
+    });
+
+    if (!message) {
+      res.status(404).json({ message: 'Message not found' });
+      return;
+    }
+
+    if (message.senderid !== userid) {
+      res.status(403).json({ message: 'You cannot edit this message' });
+      return;
+    }
+
+    await message.update({ content });
+    res.status(200).json({ message: 'Message updated', content });
+  } catch (error) {
+    console.error('Error updating message:', error);
+    res.status(500).json({ error: 'An error occurred while updating a message.' });
   }
 };
 

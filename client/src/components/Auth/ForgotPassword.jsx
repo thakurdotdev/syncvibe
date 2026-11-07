@@ -1,23 +1,20 @@
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import axios from 'axios';
-import { Loader2Icon, Mail } from 'lucide-react';
-import { useState } from 'react';
+import { KeyRound, Mail } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { authClient, getErrorMessage, unwrap } from '@/lib/auth-client';
+import { AuthHeader, AuthStatus, AuthSubmit, authInputClass, TextAction } from './AuthUI';
 
 const ForgotPassword = () => {
-  const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+
+  useEffect(() => {
+    document.title = 'SyncVibe - Forgot Password';
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,80 +26,78 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/forgot-password`, {
-        email: email.trim(),
-      });
+      await unwrap(
+        authClient.requestPasswordReset({
+          email: email.trim(),
+          redirectTo: `${window.location.origin}/reset-password`,
+        })
+      );
       setSent(true);
-      toast.success(response.data.message);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Something went wrong');
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenChange = (value) => {
-    setOpen(value);
-    if (!value) {
-      setEmail('');
-      setSent(false);
-    }
-  };
+  if (sent) {
+    return (
+      <AuthStatus
+        icon={Mail}
+        title='Check your email'
+        description={`If an account exists for ${email.trim()}, we've sent a password reset link. It expires in 1 hour.`}
+      >
+        <Button asChild variant='outline' size='lg' className='press w-full rounded-xl'>
+          <Link to='/login'>Back to sign in</Link>
+        </Button>
+        <p className='mt-4 text-sm text-muted-foreground'>
+          Didn&apos;t get it? Check your spam folder or{' '}
+          <TextAction onClick={() => setSent(false)} className='text-foreground'>
+            try again
+          </TextAction>
+        </p>
+      </AuthStatus>
+    );
+  }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <button
-          type='button'
-          className='text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer'
-        >
-          Forgot password?
-        </button>
-      </DialogTrigger>
-      <DialogContent className='sm:max-w-md bg-background/95 backdrop-blur-sm'>
-        <DialogHeader>
-          <DialogTitle>{sent ? 'Check your email' : 'Reset your password'}</DialogTitle>
-          <DialogDescription>
-            {sent
-              ? "We've sent a password reset link to your email. It expires in 1 hour."
-              : "Enter the email associated with your account and we'll send you a reset link."}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <AuthHeader
+        icon={KeyRound}
+        title='Forgot your password?'
+        description="Enter your account's email and we'll send you a link to set a new one."
+      />
 
-        {sent ? (
-          <div className='flex flex-col items-center gap-4 py-4'>
-            <div className='rounded-full bg-foreground/10 p-4'>
-              <Mail className='h-8 w-8 text-foreground' />
-            </div>
-            <p className='text-sm text-muted-foreground text-center'>
-              Didn't receive the email? Check your spam folder or{' '}
-              <button
-                type='button'
-                className='text-primary underline-offset-4 hover:underline cursor-pointer'
-                onClick={() => setSent(false)}
-              >
-                try again
-              </button>
-            </p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className='space-y-4'>
-            <Input
-              type='email'
-              placeholder='Enter your email'
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-              autoFocus
-            />
-            <Button type='submit' className='w-full' disabled={loading || !email.trim()}>
-              {loading && <Loader2Icon className='mr-2 h-4 w-4 animate-spin' />}
-              {loading ? 'Sending...' : 'Send reset link'}
-            </Button>
-          </form>
-        )}
-      </DialogContent>
-    </Dialog>
+      <form onSubmit={handleSubmit} className='space-y-3'>
+        <Input
+          type='email'
+          placeholder='Email'
+          aria-label='Email'
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={loading}
+          autoComplete='email'
+          className={authInputClass}
+        />
+        <AuthSubmit
+          type='submit'
+          loading={loading}
+          loadingText='Sending...'
+          disabled={loading || !email.trim()}
+        >
+          Send reset link
+        </AuthSubmit>
+      </form>
+
+      <p className='mt-6 text-center text-sm'>
+        <Link
+          to='/login'
+          className='font-semibold text-foreground underline-offset-4 hover:underline'
+        >
+          Back to sign in
+        </Link>
+      </p>
+    </>
   );
 };
 

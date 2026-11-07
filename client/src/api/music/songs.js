@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { markRecommendations } from '@/stores/playEvents';
 
 const SONG_URL = import.meta.env.VITE_SONG_URL;
 
@@ -52,8 +53,12 @@ export const fetchExternalPlaylist = async (id) => {
 
 export const fetchSongRecommendations = async (id) => {
   try {
-    const { data } = await axios.get(`${API_URL}/api/play-next/${id}?limit=20`);
-    return data?.data || [];
+    const { data } = await axios.get(`${API_URL}/api/play-next/${id}?limit=20`, {
+      withCredentials: true,
+    });
+    const songs = data?.data || [];
+    markRecommendations(id, songs);
+    return songs;
   } catch {
     return [];
   }

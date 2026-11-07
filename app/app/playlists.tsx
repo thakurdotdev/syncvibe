@@ -1,3 +1,6 @@
+import PressableScale from '@/components/ui/PressableScale';
+import { blurredArt } from '@/lib/artwork';
+import { SONG_LIST_WINDOW } from '@/lib/lists';
 import { SongCard } from '@/components/music/MusicCards';
 import { SONG_URL } from '@/constants';
 import { usePlayerControls } from '@/stores/playerStore';
@@ -15,7 +18,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -27,8 +29,6 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
-  withSpring,
 } from 'react-native-reanimated';
 import { StackHeader } from '@/components/ui/AppHeader';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
@@ -43,6 +43,8 @@ interface PlaylistData {
   songs: Song[];
 }
 
+const renderSong = ({ item }: { item: Song }) => <SongCard song={item} />;
+
 export default function PlaylistScreen() {
   const { colors, theme } = useTheme();
   const { id } = useLocalSearchParams();
@@ -51,10 +53,6 @@ export default function PlaylistScreen() {
   const [loading, setLoading] = useState(true);
   const { width } = useWindowDimensions();
   const scrollY = useSharedValue(0);
-
-  const playScale = useSharedValue(1);
-  const shuffleScale = useSharedValue(1);
-  const groupScale = useSharedValue(1);
 
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const { addPlaylistToQueue } = useGroupMusic();
@@ -80,7 +78,7 @@ export default function PlaylistScreen() {
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
+      scrollY.set(event.contentOffset.y);
     },
   });
 
@@ -95,8 +93,8 @@ export default function PlaylistScreen() {
   const imageSize = useMemo(() => Math.min(width * 0.45, 175), [width]);
 
   const heroAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [0, 150], [1, 0], Extrapolation.CLAMP);
-    const scale = interpolate(scrollY.value, [0, 150], [1, 0.9], Extrapolation.CLAMP);
+    const opacity = interpolate(scrollY.get(), [0, 150], [1, 0], Extrapolation.CLAMP);
+    const scale = interpolate(scrollY.get(), [0, 150], [1, 0.9], Extrapolation.CLAMP);
     return {
       opacity,
       transform: [{ scale }],
@@ -104,21 +102,9 @@ export default function PlaylistScreen() {
   });
 
   const topTitleAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.value, [100, 160], [0, 1], Extrapolation.CLAMP);
+    const opacity = interpolate(scrollY.get(), [100, 160], [0, 1], Extrapolation.CLAMP);
     return { opacity };
   });
-
-  const playBtnAnim = useAnimatedStyle(() => ({
-    transform: [{ scale: playScale.value }],
-  }));
-
-  const shuffleBtnAnim = useAnimatedStyle(() => ({
-    transform: [{ scale: shuffleScale.value }],
-  }));
-
-  const groupBtnAnim = useAnimatedStyle(() => ({
-    transform: [{ scale: groupScale.value }],
-  }));
 
   const newSongs = useMemo(() => {
     if (!playlistData?.songs) return [];
@@ -187,7 +173,7 @@ export default function PlaylistScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Edge-to-Edge Ambient Background */}
-      <Image source={{ uri: coverUrl }} style={styles.heroBackgroundImage} blurRadius={60} />
+      <Image {...blurredArt(coverUrl, 60)} style={styles.heroBackgroundImage} />
       <LinearGradient
         colors={[
           'rgba(0,0,0,0.1)',
@@ -202,7 +188,8 @@ export default function PlaylistScreen() {
 
       <Animated.FlatList
         data={newSongs}
-        renderItem={({ item }) => <SongCard song={item} />}
+        renderItem={renderSong}
+        {...SONG_LIST_WINDOW}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
@@ -217,6 +204,7 @@ export default function PlaylistScreen() {
                   source={{ uri: coverUrl }}
                   style={[styles.playlistImage, { width: imageSize, height: imageSize }]}
                   resizeMode='cover'
+                  fadeDuration={0}
                 />
               </View>
 
@@ -231,80 +219,66 @@ export default function PlaylistScreen() {
 
             {/* Clean Action Bar */}
             <View style={styles.actionsContainer}>
-              <Pressable
+              <PressableScale
                 onPress={handlePlayAll}
                 disabled={!newSongs.length}
-                onPressIn={() => (playScale.value = withTiming(0.96, { duration: 60 }))}
-                onPressOut={() =>
-                  (playScale.value = withSpring(1, { damping: 16, stiffness: 350 }))
-                }
                 style={{ flex: 1 }}
               >
-                <Animated.View
-                  style={[styles.primaryButton, { backgroundColor: colors.primary }, playBtnAnim]}
-                >
+                <View style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
                   <Ionicons name='play' size={18} color={colors.primaryForeground} />
                   <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>
                     Play All
                   </Text>
-                </Animated.View>
-              </Pressable>
+                </View>
+              </PressableScale>
 
-              <Pressable
+              <PressableScale
                 onPress={handleShuffle}
                 disabled={!newSongs.length}
-                onPressIn={() => (shuffleScale.value = withTiming(0.96, { duration: 60 }))}
-                onPressOut={() =>
-                  (shuffleScale.value = withSpring(1, { damping: 16, stiffness: 350 }))
-                }
                 style={{ flex: 1 }}
               >
-                <Animated.View
+                <View
                   style={[
                     styles.secondaryButton,
                     {
                       backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
                       borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
                     },
-                    shuffleBtnAnim,
                   ]}
                 >
                   <Ionicons name='shuffle' size={18} color={colors.foreground} />
                   <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
                     Shuffle
                   </Text>
-                </Animated.View>
-              </Pressable>
+                </View>
+              </PressableScale>
             </View>
 
             {currentGroup && (
-              <Pressable
+              <PressableScale
                 onPress={handleAddToGroup}
                 disabled={!newSongs.length}
-                onPressIn={() => (groupScale.value = withTiming(0.96, { duration: 60 }))}
-                onPressOut={() =>
-                  (groupScale.value = withSpring(1, { damping: 16, stiffness: 350 }))
-                }
                 style={{ marginBottom: 16 }}
               >
-                <Animated.View
+                <View
                   style={[
                     styles.groupButton,
                     {
                       backgroundColor: isDark
                         ? 'rgba(127, 127, 127, 0.16)'
                         : 'rgba(127, 127, 127, 0.1)',
-                      borderColor: isDark ? 'rgba(127, 127, 127, 0.35)' : 'rgba(127, 127, 127, 0.25)',
+                      borderColor: isDark
+                        ? 'rgba(127, 127, 127, 0.35)'
+                        : 'rgba(127, 127, 127, 0.25)',
                     },
-                    groupBtnAnim,
                   ]}
                 >
                   <Ionicons name='people' size={18} color={colors.foreground} />
                   <Text style={[styles.groupButtonText, { color: colors.foreground }]}>
                     Add to Group Queue ({newSongs.length})
                   </Text>
-                </Animated.View>
-              </Pressable>
+                </View>
+              </PressableScale>
             )}
 
             {/* Songs Section Label */}

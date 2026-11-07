@@ -1,24 +1,31 @@
+import PressableScale from '@/components/ui/PressableScale';
 import { usePlaylistState } from '@/stores/playerStore';
 import { Song } from '@/types/song';
 import useApi from '@/utils/hooks/useApi';
 import { useTheme } from '@/context/ThemeContext';
 import { MaterialIcons } from '@expo/vector-icons';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Animated,
   FlatList,
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import SwipeableModal from '../SwipeableModal';
-import { useSharedValue } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
+import { ENTER, EXIT } from '@/lib/motion';
 
 export interface Playlist {
   id: string;
@@ -48,13 +55,14 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
   const scrollOffset = useSharedValue(0);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    scrollOffset.value = event.nativeEvent.contentOffset.y;
+    scrollOffset.set(event.nativeEvent.contentOffset.y);
   };
 
-  const successOpacity = useRef(new Animated.Value(0)).current;
+  const successOpacity = useSharedValue(0);
+  const successStyle = useAnimatedStyle(() => ({ opacity: successOpacity.get() }));
 
   useEffect(() => {
-    scrollOffset.value = 0;
+    scrollOffset.set(0);
     if (!dialogOpen) {
       setSearchQuery('');
       setSelectedPlaylistId(null);
@@ -63,19 +71,27 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
   }, [dialogOpen]);
 
   useEffect(() => {
-    if (addingSuccess) {
-      Animated.sequence([
-        Animated.timing(successOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.delay(900),
-        Animated.timing(successOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-      ]).start(() => {
-        setDialogOpen(false);
-        setAddingSuccess(false);
-        setSelectedPlaylistId(null);
-      });
-    } else {
-      successOpacity.setValue(0);
+    if (!addingSuccess) {
+      successOpacity.set(0);
+      return;
     }
+    const finish = () => {
+      setDialogOpen(false);
+      setAddingSuccess(false);
+      setSelectedPlaylistId(null);
+    };
+    successOpacity.set(
+      withSequence(
+        withTiming(1, ENTER),
+        withDelay(
+          900,
+          withTiming(0, EXIT, (finished) => {
+            'worklet';
+            if (finished) scheduleOnRN(finish);
+          })
+        )
+      )
+    );
   }, [addingSuccess]);
 
   const getPlaylists = async () => {
@@ -144,7 +160,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
     const isDisabled = addingSong && !isSelected;
 
     return (
-      <TouchableOpacity
+      <PressableScale
         onPress={() => !addingSong && handleAddToPlaylist(item.id)}
         style={[
           {
@@ -159,7 +175,6 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
             opacity: isDisabled ? 0.45 : 1,
           },
         ]}
-        activeOpacity={isDisabled ? 1 : 0.7}
       >
         <Image
           source={
@@ -168,6 +183,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
               : require('../../assets/syncvibe.png')
           }
           style={{ width: 48, height: 48, borderRadius: 8, marginRight: 14 }}
+          fadeDuration={0}
         />
         <View style={{ flex: 1 }}>
           <Text
@@ -192,7 +208,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
             }}
           >
             {addingSuccess ? (
-              <Animated.View style={{ opacity: successOpacity }}>
+              <Animated.View style={successStyle}>
                 <MaterialIcons name='check' size={18} color={colors.primaryForeground} />
               </Animated.View>
             ) : (
@@ -200,7 +216,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
             )}
           </View>
         )}
-      </TouchableOpacity>
+      </PressableScale>
     );
   };
 
@@ -237,7 +253,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
             >
               Add to Playlist
             </Text>
-            <TouchableOpacity
+            <PressableScale
               onPress={() => setDialogOpen(false)}
               style={{
                 padding: 6,
@@ -247,7 +263,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <MaterialIcons name='close' size={18} color={colors.mutedForeground} />
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
           <View
@@ -278,16 +294,16 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
               selectionColor={colors.primary}
             />
             {searchQuery ? (
-              <TouchableOpacity
+              <PressableScale
                 onPress={() => setSearchQuery('')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <MaterialIcons name='close' size={16} color={colors.mutedForeground} />
-              </TouchableOpacity>
+              </PressableScale>
             ) : null}
           </View>
 
-          <TouchableOpacity
+          <PressableScale
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -299,7 +315,6 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
             }}
             onPress={() => setNewPlaylistDialog(true)}
             disabled={loading}
-            activeOpacity={0.75}
           >
             <MaterialIcons name='add' size={20} color={colors.primaryForeground} />
             <Text
@@ -312,7 +327,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
             >
               New Playlist
             </Text>
-          </TouchableOpacity>
+          </PressableScale>
 
           {loading ? (
             <View style={{ alignItems: 'center', paddingVertical: 32, gap: 10 }}>
@@ -389,7 +404,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
           />
 
           <View style={{ flexDirection: 'row', gap: 10 }}>
-            <TouchableOpacity
+            <PressableScale
               style={{
                 flex: 1,
                 backgroundColor: colors.secondary,
@@ -403,14 +418,13 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
                 setNewPlaylistDialog(false);
                 setNewPlaylistName('');
               }}
-              activeOpacity={0.7}
             >
               <Text style={{ color: colors.foreground, fontWeight: '500', fontSize: 15 }}>
                 Cancel
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
 
-            <TouchableOpacity
+            <PressableScale
               style={{
                 flex: 1,
                 backgroundColor: colors.primary,
@@ -421,7 +435,6 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
               }}
               onPress={handleCreatePlaylist}
               disabled={!newPlaylistName.trim() || loading}
-              activeOpacity={0.75}
             >
               {loading ? (
                 <ActivityIndicator size='small' color={colors.primaryForeground} />
@@ -430,7 +443,7 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
                   Create
                 </Text>
               )}
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </View>
       </SwipeableModal>

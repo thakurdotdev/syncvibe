@@ -7,9 +7,9 @@ import AppShell from './components/shell/AppShell';
 import GroupMusic from './Pages/GroupMusic/GroupMusic';
 import { paths } from './lib/paths';
 import Login from './components/Auth/Login';
-import PasskeyLogin from './components/Auth/PassKeyLogin';
 import Register from './components/Auth/Register';
 import VerifyUser from './components/Auth/VerifyUser';
+import ForgotPassword from './components/Auth/ForgotPassword';
 import ResetPassword from './components/Auth/ResetPassword';
 
 const Header = lazy(() => import('./components/LandingPage/Header'));
@@ -101,11 +101,13 @@ export const publicRoutes = [
   { path: '/register', element: <Register /> },
   { path: '/verify', element: <VerifyUser /> },
   { path: '/login', element: <Login /> },
-  { path: '/passkey-login', element: <PasskeyLogin /> },
+  // Passkey sign-in starts from the login page. Old links to this page land there.
+  { path: '/passkey-login', element: <Navigate to='/login' replace /> },
   { path: '/privacy-policy', element: <PrivacyPolicy /> },
   { path: '/terms-of-services', element: <TermsOfService /> },
   { path: '/refund-policy', element: <RefundPolicy /> },
   { path: '/plans', element: <PlansPage /> },
+  { path: '/forgot-password', element: <ForgotPassword /> },
   { path: '/reset-password', element: <ResetPassword /> },
   { path: '*', element: <NotFoundPage /> },
 ];
@@ -136,7 +138,7 @@ export const PublicRoutes = () => {
     '/login',
     '/register',
     '/verify',
-    '/passkey-login',
+    '/forgot-password',
     '/reset-password',
   ];
   const hideHeaderFooter = noHeaderFooterRoutes.includes(location.pathname);

@@ -10,6 +10,7 @@ import type {
 } from '@/types/music';
 import { Song } from '@/types/song';
 import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
+import { markRecommendations } from '@/utils/playEvents';
 import axios from 'axios';
 
 export const getHomePageMusic = async (language = 'hindi'): Promise<HomePageResponse> => {
@@ -21,6 +22,23 @@ export const getHomePageMusic = async (language = 'hindi'): Promise<HomePageResp
   });
 
   return response.data.data;
+};
+
+const fetchedSongs = new Map<string, Promise<Song>>();
+
+/** Some home sections list songs with no audio link. This fetches the full song, once each. */
+export const getFullSong = (id: string): Promise<Song> => {
+  let pending = fetchedSongs.get(id);
+  if (!pending) {
+    pending = axios.get(`${SONG_URL}/song`, { params: { id } }).then((response) => {
+      const song = response.data?.data?.songs?.[0];
+      if (!song?.download_url?.length) throw new Error('Song has no audio');
+      return song as Song;
+    });
+    pending.catch(() => fetchedSongs.delete(id));
+    fetchedSongs.set(id, pending);
+  }
+  return pending;
 };
 
 export const getRecentMusic = async (api: any): Promise<RecentMusicResponse> => {
@@ -78,6 +96,7 @@ export const fetchSongRecommendations = async (api: any, id: string | number): P
     const response = await api.get(`/api/play-next/${id}?limit=20`);
     if (response?.data?.data?.length) {
       const newRecommendations = response.data.data?.map(ensureHttpsForSongUrls);
+      markRecommendations(String(id), newRecommendations);
       return newRecommendations;
     } else {
       return [];

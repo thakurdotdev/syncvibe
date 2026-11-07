@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import { startRegistration } from '@simplewebauthn/browser';
+import { useState, useEffect, useCallback } from 'react';
+import { authClient, getErrorMessage, isPasskeyCancelled, unwrap } from '@/lib/auth-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   AlertDialog,
@@ -29,7 +28,6 @@ import {
   LockKeyhole,
   Trash2,
   PlusCircle,
-  Shield,
   Smartphone,
   Key,
   Pencil,
@@ -38,31 +36,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 
-// WebAuthn error messages for better UX
-const getWebAuthnErrorMessage = (error) => {
-  const name = error?.name || '';
-  const message = error?.message || '';
-
-  switch (name) {
-    case 'NotAllowedError':
-      if (message.includes('timed out')) {
-        return 'Authentication timed out. Please try again.';
-      }
-      return 'Request was cancelled or not allowed. Please try again.';
-    case 'InvalidStateError':
-      return 'This passkey is already registered on this device.';
-    case 'SecurityError':
-      return 'Security error. Make sure you are using HTTPS.';
-    case 'NotSupportedError':
-      return 'Passkeys are not supported on this device or browser.';
-    case 'AbortError':
-      return 'The operation was cancelled.';
-    default:
-      return error?.response?.data?.message || 'An unexpected error occurred. Please try again.';
-  }
-};
-
-const PasskeyManager = ({ getProfile }) => {
+const PasskeyManager = () => {
   const [passkeys, setPasskeys] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
@@ -76,11 +50,8 @@ const PasskeyManager = ({ getProfile }) => {
   const fetchPasskeys = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/passkey`, {
-        withCredentials: true,
-      });
-      setPasskeys(response.data);
-    } catch (error) {
+      setPasskeys(await unwrap(authClient.passkey.listUserPasskeys()));
+    } catch {
       toast.error('Failed to fetch passkeys');
     } finally {
       setIsLoading(false);
@@ -92,58 +63,25 @@ const PasskeyManager = ({ getProfile }) => {
   }, [fetchPasskeys]);
 
   const handlePasskeyRegister = async () => {
-    if (!nickname.trim()) {
+    const name = nickname.trim();
+    if (!name) {
       toast.error('Please enter a nickname for your passkey');
       return;
     }
 
-    try {
-      setIsPasskeyLoading(true);
+    setIsPasskeyLoading(true);
+    const { error } = await authClient.passkey.addPasskey({ name });
+    setIsPasskeyLoading(false);
 
-      // Step 1: Get registration options from server
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/auth/passkey/register`,
-        {},
-        {
-          withCredentials: true,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-
-      if (!response.data) {
-        throw new Error('Failed to get registration options');
-      }
-
-      // Step 2: Create credentials using WebAuthn API
-      const attResp = await startRegistration({
-        optionsJSON: response.data,
-      });
-
-      // Step 3: Verify with server
-      const verificationRes = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/auth/passkey/register/verify`,
-        {
-          attestationResponse: attResp,
-          nickname: nickname.trim(),
-        },
-        { withCredentials: true }
-      );
-
-      if (verificationRes.data.verified) {
-        toast.success('Passkey registered successfully!');
-        getProfile?.();
-        fetchPasskeys();
-        setIsNicknameDialogOpen(false);
-        setNickname('');
-      } else {
-        toast.error('Registration verification failed');
-      }
-    } catch (error) {
-      console.error('Passkey registration error:', error);
-      toast.error(getWebAuthnErrorMessage(error));
-    } finally {
-      setIsPasskeyLoading(false);
+    if (error) {
+      if (!isPasskeyCancelled(error)) toast.error(getErrorMessage(error, 'Failed to add passkey'));
+      return;
     }
+
+    toast.success('Passkey registered successfully!');
+    fetchPasskeys();
+    setIsNicknameDialogOpen(false);
+    setNickname('');
   };
 
   const handleAddPasskeyClick = () => {
@@ -153,7 +91,7 @@ const PasskeyManager = ({ getProfile }) => {
 
   const handleEditPasskey = (passkey) => {
     setEditingPasskey(passkey);
-    setNickname(passkey.nickname || '');
+    setNickname(passkey.name || '');
   };
 
   const handleUpdatePasskey = async () => {
@@ -161,17 +99,15 @@ const PasskeyManager = ({ getProfile }) => {
 
     try {
       setIsUpdating(true);
-      await axios.patch(
-        `${import.meta.env.VITE_API_URL}/api/auth/passkey/${editingPasskey.authenticatorid}`,
-        { nickname: nickname.trim() },
-        { withCredentials: true }
+      await unwrap(
+        authClient.passkey.updatePasskey({ id: editingPasskey.id, name: nickname.trim() })
       );
       toast.success('Passkey updated successfully');
       fetchPasskeys();
       setEditingPasskey(null);
       setNickname('');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update passkey');
+      toast.error(getErrorMessage(error, 'Failed to update passkey'));
     } finally {
       setIsUpdating(false);
     }
@@ -182,14 +118,11 @@ const PasskeyManager = ({ getProfile }) => {
 
     try {
       setIsDeleting(true);
-      await axios.delete(`${import.meta.env.VITE_API_URL}/api/auth/passkey/${deletePasskeyId}`, {
-        withCredentials: true,
-      });
+      await unwrap(authClient.passkey.deletePasskey({ id: deletePasskeyId }));
       toast.success('Passkey deleted successfully');
       fetchPasskeys();
-      getProfile?.();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to delete passkey');
+      toast.error(getErrorMessage(error, 'Failed to delete passkey'));
     } finally {
       setIsDeleting(false);
       setDeletePasskeyId(null);
@@ -203,20 +136,6 @@ const PasskeyManager = ({ getProfile }) => {
       month: 'short',
       day: 'numeric',
     });
-  };
-
-  const formatRelativeTime = (dateString) => {
-    if (!dateString) return 'Never';
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    return formatDate(dateString);
   };
 
   // Get icon based on device type
@@ -269,19 +188,19 @@ const PasskeyManager = ({ getProfile }) => {
           <div className='space-y-3'>
             {passkeys.map((passkey) => (
               <div
-                key={passkey.authenticatorid}
+                key={passkey.id}
                 className='flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors'
               >
                 <div className='flex items-center gap-3'>
-                  {getDeviceIcon(passkey.credentialDeviceType)}
+                  {getDeviceIcon(passkey.deviceType)}
                   <div className='space-y-1'>
                     <div className='flex items-center gap-2'>
-                      <span className='font-medium'>{passkey.nickname || 'Unnamed Passkey'}</span>
+                      <span className='font-medium'>{passkey.name || 'Unnamed Passkey'}</span>
                       <Badge
                         variant='outline'
-                        className={`text-xs ${passkey.credentialBackedUp ? 'text-foreground border-foreground' : 'text-foreground border-foreground'}`}
+                        className={`text-xs ${passkey.backedUp ? 'text-foreground border-foreground' : 'text-foreground border-foreground'}`}
                       >
-                        {passkey.credentialBackedUp ? (
+                        {passkey.backedUp ? (
                           <>
                             <CloudyIcon className='h-3 w-3 mr-1' /> Synced
                           </>
@@ -293,8 +212,7 @@ const PasskeyManager = ({ getProfile }) => {
                       </Badge>
                     </div>
                     <div className='text-sm text-muted-foreground'>
-                      Created {formatDate(passkey.createdat)} · Last used{' '}
-                      {formatRelativeTime(passkey.lastUsed)}
+                      Created {formatDate(passkey.createdAt)}
                     </div>
                   </div>
                 </div>
@@ -311,7 +229,7 @@ const PasskeyManager = ({ getProfile }) => {
                     variant='ghost'
                     size='icon'
                     className='h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20'
-                    onClick={() => setDeletePasskeyId(passkey.authenticatorid)}
+                    onClick={() => setDeletePasskeyId(passkey.id)}
                   >
                     <Trash2 className='h-4 w-4' />
                   </Button>

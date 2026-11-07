@@ -1,6 +1,6 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
-import { EASE_OUT } from '@/lib/motion';
+import { EASE_OUT, ROW_PRESS_SCALE } from '@/lib/motion';
 import { fonts } from '@/theme/typography';
 import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
@@ -72,7 +72,7 @@ export const PlayerTab = memo(function PlayerTab({
 
         <PressableScale
           onPress={onOpenQueue}
-          scaleTo={0.98}
+          scaleTo={ROW_PRESS_SCALE}
           accessibilityRole='button'
           accessibilityLabel={nextSong ? `Open queue. Up next: ${nextSong.name}` : 'Open queue'}
           style={[styles.upNext, { backgroundColor: `${colors.foreground}0F` }]}

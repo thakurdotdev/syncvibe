@@ -1,11 +1,13 @@
 import { API_URL } from '@/constants';
 import { Song } from '@/types/song';
 import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuthHeaders } from '@/lib/auth-client';
+import { markRecommendations, recordPlayEnd } from '@/utils/playEvents';
 import axios from 'axios';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
+import { createDeferredStorage } from '@/utils/deferredStorage';
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
@@ -31,9 +33,10 @@ export const checkAndFetchRecommendations = async (targetSong?: Song | null, for
     isFetchingRecs = true;
     lastFetchedRecSongId = song.id;
 
-    const token = await AsyncStorage.getItem('token');
-    const headers: Record<string, string> = { Accept: 'application/json' };
-    if (token) headers.Authorization = `Bearer ${token}`;
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      ...(await getAuthHeaders()),
+    };
 
     const response = await axios.get(`${API_URL}/api/play-next/${song.id}?limit=20`, {
       headers,
@@ -42,6 +45,7 @@ export const checkAndFetchRecommendations = async (targetSong?: Song | null, for
 
     if (response.data?.data?.length) {
       const newRecommendations: Song[] = response.data.data.map(ensureHttpsForSongUrls);
+      markRecommendations(song.id, newRecommendations);
       store.addToQueue(newRecommendations);
     }
   } catch (err) {
@@ -369,11 +373,14 @@ export const usePlayerStore = create<PlayerStore>()(
 
       setUserPlaylist: (playlists: any[]) => set({ userPlaylist: playlists }),
 
-      setActivePlayerMode: (mode: 'normal' | 'group') => set({ activePlayerMode: mode }),
+      setActivePlayerMode: (mode: 'normal' | 'group') => {
+        if (mode === 'group') recordPlayEnd('closed');
+        set({ activePlayerMode: mode });
+      },
     }),
     {
       name: 'player-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createDeferredStorage(),
       partialize: (state) => ({
         currentSong: state.currentSong,
         playlist: state.playlist,

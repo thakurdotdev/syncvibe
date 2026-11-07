@@ -2,10 +2,29 @@ import { Op, QueryTypes } from 'sequelize';
 import { Song, HistorySong } from '@/models/index';
 import { cache } from '@/utils/redis';
 import sequelize from '@/utils/sequelize';
+import {
+  dedupKey,
+  hasPlausibleLength,
+  hasVariantTag,
+  isVersionOfSeed,
+  normalize,
+  rankWithDiversity,
+  scoreSong,
+  type ScoredItem,
+  type SongEntry,
+} from './play-next.scoring';
 
-const SONG_API_URL = process.env.SONG_API_URL || 'https://song.thakur.dev';
-const CACHE_PREFIX = 'pn:v5:';
 const CACHE_TTL = 30 * 24 * 60 * 60;
+/** Playlists change, so combined results are recomputed sooner. */
+const HYBRID_CACHE_TTL = 7 * 24 * 60 * 60;
+const MAX_LINKED_SONGS = 150;
+const SINGLE_ARTIST_PLAYLIST_WEIGHT = 0.25;
+const LINK_SHRINKAGE = 2;
+
+/** Read on each call so that switching the flag and restarting takes effect cleanly. */
+const isHybridEngine = (): boolean => process.env.RECO_ENGINE === 'hybrid';
+const cacheKey = (songId: string): string => `${isHybridEngine() ? 'pn:h1:' : 'pn:v6:'}${songId}`;
+const cacheTtl = (): number => (isHybridEngine() ? HYBRID_CACHE_TTL : CACHE_TTL);
 const SONG_ATTRS = [
   'id',
   'songId',
@@ -30,29 +49,6 @@ interface SongRow {
   year?: string;
 }
 
-interface SongEntry {
-  id: number;
-  songId: string;
-  name: string;
-  singers: string[];
-  musicDirectors: string[];
-  lyricists: string[];
-  albumName: string;
-  albumId: string;
-  language: string;
-  duration: number;
-  playCount: number;
-  year: number;
-  isVariant: boolean;
-}
-
-interface ScoredItem {
-  songId: string;
-  score: number;
-  name: string;
-  topSinger: string;
-}
-
 const buildArtistILike = (name: string) => {
   if (name.length <= 3) {
     return {
@@ -66,54 +62,6 @@ const buildArtistILike = (name: string) => {
   }
   return { artistNames: { [Op.iLike]: `%${name}%` } };
 };
-
-const VARIANT_TAGS = [
-  'remix',
-  'dubstep',
-  'edm',
-  'lofi',
-  'lo-fi',
-  'slowed',
-  'reverb',
-  '8d',
-  'mashup',
-  'nightcore',
-  'bass boosted',
-  'phonk',
-  'trap',
-  'instrumental',
-  'karaoke',
-  'cover',
-  'unplugged',
-  'acoustic',
-  'reprise',
-  'jhankar',
-  'jhankar beats',
-];
-
-const normalize = (str: string | undefined | null): string => (str || '').toLowerCase().trim();
-
-const cleanTitle = (name: string): string => {
-  return normalize(name)
-    .replace(/\s*[([].*?[)\]]/g, '')
-    .replace(
-      /\s*-\s*(from|feat|ft|remix|unplugged|reprise|acoustic|lofi|slowed|reverb|version|male|female|duet|sad|happy|jhankar|remastered|deluxe).*$/i,
-      ''
-    )
-    .replace(/\s+/g, ' ')
-    .trim();
-};
-
-const hasVariantTag = (name: string): boolean => {
-  const lower = normalize(name);
-  return VARIANT_TAGS.some((tag) => {
-    const pattern = new RegExp(`\\b${tag}\\b|[\\(\\[]\\s*${tag}`, 'i');
-    return pattern.test(lower);
-  });
-};
-
-const dedupKey = (name: string, artist: string): string =>
-  `${cleanTitle(name)}::${normalize(artist)}`;
 
 const extractSingers = (songData: Record<string, unknown>, artistNamesStr = ''): string[] => {
   const artistMap = songData?.artist_map as Record<string, unknown> | undefined;
@@ -170,11 +118,6 @@ const extractLyricists = (songData: Record<string, unknown>): string[] => {
     .filter((a) => (a?.role || '').toLowerCase().includes('lyricist'))
     .map((a) => normalize(a?.name))
     .filter(Boolean);
-};
-
-const normalizePlayCount = (playCount: number): number => {
-  if (!playCount || playCount <= 0) return 0;
-  return Math.min(Math.log10(playCount) / 9, 1);
 };
 
 const buildEntry = (song: SongRow): SongEntry => {
@@ -255,87 +198,74 @@ const getCoOccurrenceCandidates = async (
   }
 };
 
-const getSongVibeVector = (entry: SongEntry) => {
-  const dur = entry.duration || 0;
-  const isUpbeatPaced =
-    (dur > 0 && dur < 240) || entry.isVariant || (entry.singers || []).length >= 3;
-  const isSlowBallad = !isUpbeatPaced;
-  return { isUpbeatPaced, isSlowBallad, isVariant: entry.isVariant };
+/** Songs that editors place with the seed, strongest first, in the seed's language. */
+const getLinkedCandidates = async (
+  baseSongId: string,
+  language: string
+): Promise<Array<{ song: SongRow; linkStrength: number }>> => {
+  if (!language) return [];
+  try {
+    const weight = `CASE WHEN p."isSingleArtist" THEN ${SINGLE_ARTIST_PLAYLIST_WEIGHT} ELSE 1 END`;
+    const rows = (await sequelize.query(
+      `
+      WITH seed AS (
+        SELECT ps."playlistId", ${weight} AS weight
+        FROM editorial_playlist_songs ps
+        JOIN editorial_playlists p ON p.id = ps."playlistId"
+        WHERE ps."songId" = :baseSongId
+      ),
+      together AS (
+        SELECT ps."songId", SUM(seed.weight) AS shared
+        FROM seed
+        JOIN editorial_playlist_songs ps ON ps."playlistId" = seed."playlistId"
+        WHERE ps."songId" <> :baseSongId
+        GROUP BY ps."songId"
+      ),
+      appearances AS (
+        SELECT ps."songId", SUM(${weight}) AS total
+        FROM editorial_playlist_songs ps
+        JOIN editorial_playlists p ON p.id = ps."playlistId"
+        WHERE ps."songId" IN (SELECT "songId" FROM together)
+        GROUP BY ps."songId"
+      )
+      SELECT s.id, s."songId", s.name, s."artistNames", s."albumName", s.language, s.duration,
+        s."songData",
+        t.shared / (SQRT((SELECT SUM(weight) FROM seed) * a.total) + :shrinkage) AS strength
+      FROM together t
+      JOIN appearances a ON a."songId" = t."songId"
+      JOIN songs s ON s."songId" = t."songId"
+      WHERE s.language = :language
+      ORDER BY strength DESC
+      LIMIT :limit
+      `,
+      {
+        replacements: {
+          baseSongId,
+          language,
+          shrinkage: LINK_SHRINKAGE,
+          limit: MAX_LINKED_SONGS,
+        },
+        type: QueryTypes.SELECT,
+      }
+    )) as Array<SongRow & { strength: string }>;
+    return rows.map(({ strength, ...song }) => ({ song, linkStrength: Number(strength) }));
+  } catch (err) {
+    // The tables may not exist yet: carry on with the other candidates.
+    console.error('[PlayNext] Playlist link search error:', (err as Error).message);
+    return [];
+  }
 };
 
-const scoreSong = (candidate: SongEntry, baseSong: SongEntry, coWeight = 0): number => {
-  let score = 0;
-  if (coWeight > 0) score += Math.min(coWeight * 20, 70);
-  if (candidate.albumId && candidate.albumId === baseSong.albumId) score += 55;
-  else if (candidate.albumName && candidate.albumName === baseSong.albumName) score += 50;
-
-  const sharedSingers = candidate.singers.filter((s) => baseSong.singers.includes(s));
-  score += Math.min(sharedSingers.length, 3) * 35;
-
-  const sharedMDs = candidate.musicDirectors.filter((m) => baseSong.musicDirectors.includes(m));
-  score += Math.min(sharedMDs.length, 2) * 20;
-
-  const sharedLyricists = candidate.lyricists.filter((l) => baseSong.lyricists.includes(l));
-  if (sharedLyricists.length > 0) score += 10;
-
-  if (candidate.language && candidate.language === baseSong.language) score += 20;
-  else if (candidate.language && baseSong.language && candidate.language !== baseSong.language)
-    score -= 50;
-
-  const baseVector = getSongVibeVector(baseSong);
-  const candVector = getSongVibeVector(candidate);
-  if (baseVector.isUpbeatPaced && candVector.isUpbeatPaced) score += 20;
-  else if (baseVector.isSlowBallad && candVector.isSlowBallad) score += 20;
-  else score -= 55;
-
-  if (candidate.duration > 0 && baseSong.duration > 0) {
-    const durationDiff = Math.abs(candidate.duration - baseSong.duration);
-    if (durationDiff <= 30) score += 8;
-    else if (durationDiff <= 60) score += 4;
-  }
-
-  if (candidate.year > 0 && baseSong.year > 0) {
-    const yearDiff = Math.abs(candidate.year - baseSong.year);
-    if (yearDiff === 0) score += 10;
-    else if (yearDiff <= 3) score += 7;
-    else if (yearDiff <= 5) score += 4;
-    else if (yearDiff > 12) score -= 15;
-  }
-
-  if (baseSong.isVariant !== candidate.isVariant) score -= 35;
-  score += normalizePlayCount(candidate.playCount) * 5;
-
-  return score;
-};
-
-const diversifyScored = (scored: ScoredItem[], limit: number): string[] => {
-  const seenNames = new Set<string>();
-  const singerBuckets = new Map<string, string[]>();
-
-  for (const item of scored) {
-    const nameKey = cleanTitle(item.name);
-    if (seenNames.has(nameKey)) continue;
-    seenNames.add(nameKey);
-
-    const topSinger = item.topSinger || 'unknown';
-    if (!singerBuckets.has(topSinger)) singerBuckets.set(topSinger, []);
-    const bucket = singerBuckets.get(topSinger)!;
-    if (bucket.length < 4) bucket.push(item.songId);
-  }
-
-  const result: string[] = [];
-  const maxBucketLength = Math.max(0, ...[...singerBuckets.values()].map((b) => b.length));
-
-  for (let i = 0; i < maxBucketLength; i++) {
-    for (const [, bucket] of singerBuckets.entries()) {
-      if (result.length >= limit) break;
-      if (bucket[i]) result.push(bucket[i]!);
-    }
-    if (result.length >= limit) break;
-  }
-
-  return result;
-};
+/**
+ * Same language first and then the best known, so a big singer's 250 slots aren't an arbitrary
+ * pick that can crowd out the seed's own language.
+ */
+const candidateOrder = (language: string) =>
+  sequelize.literal(
+    `("language" = ${sequelize.escape(language)}) DESC NULLS LAST, ` +
+      `CASE WHEN "songData"->>'play_count' ~ '^[0-9]+$' ` +
+      `THEN ("songData"->>'play_count')::bigint ELSE 0 END DESC`
+  );
 
 const computeForSong = async (baseSongId: string): Promise<string[]> => {
   const baseSongRow = (await Song.findOne({
@@ -346,12 +276,23 @@ const computeForSong = async (baseSongId: string): Promise<string[]> => {
   if (!baseSongRow) return [];
 
   const baseSong = buildEntry(baseSongRow);
-  const candidateMap = new Map<string, { songRow: SongRow; coWeight: number }>();
+  const candidateMap = new Map<
+    string,
+    { songRow: SongRow; coWeight: number; linkStrength?: number }
+  >();
 
   const coCandidates = await getCoOccurrenceCandidates(baseSongRow.id);
   for (const item of coCandidates) {
     if (item.song.songId !== baseSongId) {
       candidateMap.set(item.song.songId, { songRow: item.song, coWeight: item.coWeight });
+    }
+  }
+
+  if (isHybridEngine()) {
+    const linked = await getLinkedCandidates(baseSongId, baseSong.language);
+    for (const { song, linkStrength } of linked) {
+      const existing = candidateMap.get(song.songId);
+      candidateMap.set(song.songId, { songRow: song, coWeight: existing?.coWeight ?? 0, linkStrength });
     }
   }
 
@@ -366,6 +307,7 @@ const computeForSong = async (baseSongId: string): Promise<string[]> => {
     const primaryCandidates = (await Song.findAll({
       where: { [Op.or]: primaryConditions, songId: { [Op.ne]: baseSongId } },
       attributes: [...SONG_ATTRS],
+      order: candidateOrder(baseSong.language),
       raw: true,
       limit: 250,
     })) as unknown as SongRow[];
@@ -389,6 +331,7 @@ const computeForSong = async (baseSongId: string): Promise<string[]> => {
           ],
         },
         attributes: [...SONG_ATTRS],
+        order: candidateOrder(baseSong.language),
         raw: true,
         limit: 150,
       })) as unknown as SongRow[];
@@ -414,13 +357,16 @@ const computeForSong = async (baseSongId: string): Promise<string[]> => {
   const seen = new Set<string>();
   const scored: ScoredItem[] = [];
 
-  for (const { songRow, coWeight } of candidateMap.values()) {
+  for (const { songRow, coWeight, linkStrength } of candidateMap.values()) {
     const entry = buildEntry(songRow);
+    if (isVersionOfSeed(entry.name, baseSong.name) || !hasPlausibleLength(entry, baseSong)) {
+      continue;
+    }
     const dk = dedupKey(entry.name, entry.singers[0] || 'unknown');
     if (seen.has(dk)) continue;
     seen.add(dk);
 
-    const score = scoreSong(entry, baseSong, coWeight);
+    const score = scoreSong(entry, baseSong, coWeight, linkStrength);
     if (score < MIN_SCORE_THRESHOLD) continue;
 
     scored.push({
@@ -432,41 +378,7 @@ const computeForSong = async (baseSongId: string): Promise<string[]> => {
   }
 
   scored.sort((a, b) => b.score - a.score);
-  return diversifyScored(scored, 100);
-};
-
-const deduplicateExternal = (
-  songs: Array<Record<string, unknown>>
-): Array<Record<string, unknown>> => {
-  const seen = new Set<string>();
-  return songs.filter((s) => {
-    const artistMap = s.artist_map as Record<string, unknown> | undefined;
-    const primaryArtists = artistMap?.primary_artists as Array<{ name?: string }> | undefined;
-    const key = dedupKey((s.name as string) || '', primaryArtists?.[0]?.name || '');
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-};
-
-const fetchExternalRecommendations = async (
-  songId: string
-): Promise<Array<Record<string, unknown>>> => {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
-    const response = await fetch(`${SONG_API_URL}/song/recommend?id=${songId}`, {
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    if (!response.ok) return [];
-    const json = (await response.json()) as Record<string, unknown>;
-    const data = (json?.data as Array<Record<string, unknown>>) || [];
-    const valid = data.filter((s) => s?.id && (s?.download_url as unknown[])?.length > 0);
-    return deduplicateExternal(valid);
-  } catch {
-    return [];
-  }
+  return rankWithDiversity(scored, 100);
 };
 
 interface UserHistoryResult {
@@ -530,19 +442,12 @@ export const getPlayNextSongs = async ({
   limit = 20,
   excludeSongIds = [],
 }: PlayNextParams): Promise<Array<Record<string, unknown>>> => {
-  const external = await fetchExternalRecommendations(baseSongId);
-  if (external && external.length > 0) {
-    const excludeSet = new Set(excludeSongIds);
-    const filtered = external.filter((s) => !excludeSet.has(s.id as string));
-    if (filtered.length > 0) return filtered.slice(0, limit);
-  }
-
-  let cachedIds = await cache.get<string[]>(`${CACHE_PREFIX}${baseSongId}`);
+  let cachedIds = await cache.get<string[]>(cacheKey(baseSongId));
 
   if (!cachedIds) {
     cachedIds = await computeForSong(baseSongId);
     if (cachedIds.length > 0) {
-      await cache.set(`${CACHE_PREFIX}${baseSongId}`, cachedIds, CACHE_TTL);
+      await cache.set(cacheKey(baseSongId), cachedIds, cacheTtl());
     }
   }
 
@@ -597,7 +502,7 @@ export const rebuildAllPlayNext = async (): Promise<{ processed: number; total: 
       batch.map(async ({ songId }) => {
         const ids = await computeForSong(songId);
         if (ids.length > 0) {
-          await cache.set(`${CACHE_PREFIX}${songId}`, ids, CACHE_TTL);
+          await cache.set(cacheKey(songId), ids, cacheTtl());
         }
         processed++;
       })
@@ -611,5 +516,5 @@ export const rebuildAllPlayNext = async (): Promise<{ processed: number; total: 
 };
 
 export const invalidateSong = async (songId: string): Promise<void> => {
-  await cache.del(`${CACHE_PREFIX}${songId}`);
+  await cache.del(cacheKey(songId));
 };

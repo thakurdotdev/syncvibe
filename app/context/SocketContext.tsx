@@ -1,3 +1,4 @@
+import { bumpChat } from '@/utils/chatList';
 import { API_URL } from '@/constants';
 import { User } from '@/types/user';
 import useApi from '@/utils/hooks/useApi';
@@ -44,7 +45,8 @@ interface ChatContextType {
   currentChat: ChatUser | null;
   setCurrentChat: React.Dispatch<React.SetStateAction<ChatUser | null>>;
   socket: Socket | null;
-  getAllExistingChats: () => Promise<void>;
+  /** Refreshes the list and returns it, or nothing if that failed. */
+  getAllExistingChats: () => Promise<ChatUser[] | undefined>;
   cleanUpSocket: () => void;
 }
 
@@ -91,6 +93,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
           isTyping: false,
         }));
         setUsers(updatedChatList);
+        return updatedChatList;
       }
     } catch (error) {
       console.error('Error fetching chats:', error);
@@ -170,13 +173,40 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       }
     };
 
+    // Quietly, with no spinner over the list. A message arriving mid-fetch gets one more fetch.
+    let refreshing = false;
+    let refreshAgain = false;
+    const refreshChatList = async () => {
+      if (refreshing) {
+        refreshAgain = true;
+        return;
+      }
+      refreshing = true;
+      try {
+        const response = await api.get(`/api/get/chatlist`);
+        setUsers((response.data.chatList || []).map((chat: any) => ({ ...chat, isTyping: false })));
+      } catch (error) {
+        console.error('Error fetching chats:', error);
+      } finally {
+        refreshing = false;
+        if (refreshAgain) {
+          refreshAgain = false;
+          void refreshChatList();
+        }
+      }
+    };
+
     const handleMessageReceived = (messageData: Message) => {
-      const { senderid } = messageData;
       const lastMsg = messageData.content || (messageData.fileurl ? 'Sent an attachment' : '');
 
-      setUsers((prevUsers) =>
-        prevUsers.map((u) => (u.otherUser.userid === senderid ? { ...u, lastmessage: lastMsg } : u))
-      );
+      setUsers((prevUsers) => {
+        const updated = bumpChat(prevUsers, messageData.chatid, lastMsg);
+        if (updated) return updated;
+        // Someone new: fetch the list to learn who they are. React may run this twice, which
+        // the refresh already copes with.
+        void refreshChatList();
+        return prevUsers;
+      });
 
       showNotification(messageData);
     };
@@ -222,7 +252,11 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     };
 
     newSocket.on('connect', handleConnect);
-    newSocket.io.on('reconnect', handleConnect);
+    newSocket.io.on('reconnect', () => {
+      handleConnect();
+      // Messages may have arrived while the connection was down, first ones included.
+      void refreshChatList();
+    });
     newSocket.on('typing_status', handleTypingStatus);
     newSocket.on('user_online', (onlineUserId: number) => {
       setOnlineStatuses((prev) => ({ ...prev, [onlineUserId]: true }));

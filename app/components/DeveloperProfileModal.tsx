@@ -1,5 +1,6 @@
+import PressableScale from '@/components/ui/PressableScale';
 import React, { useState } from 'react';
-import { Dimensions, Image, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, Linking, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/context/ThemeContext';
@@ -58,27 +59,27 @@ const DeveloperProfileModal: React.FC<DeveloperProfileModalProps> = ({ isVisible
             end={{ x: 1, y: 1 }}
             style={styles.banner}
           />
-          <TouchableOpacity
+          <PressableScale
             style={[styles.closeButton, { backgroundColor: 'rgba(0, 0, 0, 0.3)' }]}
             onPress={onClose}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <Feather name='x' size={18} color='#FFFFFF' />
-          </TouchableOpacity>
+          </PressableScale>
         </View>
 
         <View style={styles.content}>
-          <TouchableOpacity
+          <PressableScale
             onLongPress={handleLongPress}
             delayLongPress={800}
             style={styles.avatarContainer}
-            activeOpacity={0.9}
           >
             <Image
               source={{
                 uri: 'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1745152151/lmdhpag0p6ubockyjs1q.jpg',
               }}
               style={[styles.avatar, { borderColor: colors.card }]}
+              fadeDuration={0}
             />
             {showEasterEgg && (
               <View
@@ -92,7 +93,7 @@ const DeveloperProfileModal: React.FC<DeveloperProfileModalProps> = ({ isVisible
                 </Text>
               </View>
             )}
-          </TouchableOpacity>
+          </PressableScale>
 
           <Text style={[styles.name, { color: colors.foreground }]}>Pankaj Thakur</Text>
 
@@ -107,21 +108,19 @@ const DeveloperProfileModal: React.FC<DeveloperProfileModalProps> = ({ isVisible
 
           <View style={styles.socialLinks}>
             {socialLinks.map((link) => (
-              <TouchableOpacity
+              <PressableScale
                 key={link.name}
                 style={[styles.socialButton, { backgroundColor: colors.secondary }]}
                 onPress={() => handleSocialLink(link.url)}
-                activeOpacity={0.7}
               >
                 <Feather name={link.icon} size={20} color={colors.foreground} />
-              </TouchableOpacity>
+              </PressableScale>
             ))}
           </View>
 
-          <TouchableOpacity
+          <PressableScale
             style={[styles.portfolioLink, { backgroundColor: colors.primary }]}
             onPress={() => handleSocialLink('https://thakur.dev')}
-            activeOpacity={0.9}
           >
             <Text style={[styles.portfolioText, { color: colors.primaryForeground }]}>
               Visit my portfolio
@@ -132,7 +131,7 @@ const DeveloperProfileModal: React.FC<DeveloperProfileModalProps> = ({ isVisible
               color={colors.primaryForeground}
               style={styles.linkIcon}
             />
-          </TouchableOpacity>
+          </PressableScale>
 
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: colors.mutedForeground }]}>

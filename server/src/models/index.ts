@@ -13,7 +13,6 @@ import User from './auth/user.model';
 import Follower from './auth/follower.model';
 import LoginLog from './auth/login-log.model';
 import OTP from './auth/otp.model';
-import Authenticator from './auth/passkey.model';
 
 // Chat
 import Chat from './chat/chat.model';
@@ -22,6 +21,7 @@ import ChatMessage from './chat/chat-message.model';
 // Music
 import Song from './music/song.model';
 import HistorySong from './music/history-song.model';
+import PlayEvent from './music/play-event.model';
 import PlaylistSong from './music/playlist-song.model';
 import Playlist from './music/playlist.model';
 import GroupInvite from './music/group-invite.model';
@@ -72,10 +72,6 @@ Post.belongsTo(User, { foreignKey: 'createdby', as: 'user' });
 User.hasMany(Story, { foreignKey: 'createdby', as: 'stories' });
 Story.belongsTo(User, { foreignKey: 'createdby', as: 'user' });
 
-// ─── User ↔ Authenticator ──────────────────────────────────────────────────
-User.hasMany(Authenticator, { foreignKey: 'userid', as: 'authenticators' });
-Authenticator.belongsTo(User, { foreignKey: 'userid', as: 'user' });
-
 // ─── User ↔ Follower (self-referential many-to-many) ───────────────────────
 User.belongsToMany(User, {
   through: Follower,
@@ -101,6 +97,10 @@ LoginLog.belongsTo(User, { foreignKey: 'userid', as: 'user' });
 // ─── Song ↔ HistorySong ───────────────────────────────────────────────────
 Song.hasMany(HistorySong, { foreignKey: 'songRefId', as: 'historyEntries' });
 HistorySong.belongsTo(Song, { foreignKey: 'songRefId', as: 'song' });
+
+// ─── Song ↔ PlayEvent ─────────────────────────────────────────────────────
+Song.hasMany(PlayEvent, { foreignKey: 'songRefId', as: 'playEvents' });
+PlayEvent.belongsTo(Song, { foreignKey: 'songRefId', as: 'song' });
 
 // ─── Song ↔ PlaylistSong ──────────────────────────────────────────────────
 Song.hasMany(PlaylistSong, { foreignKey: 'songRefId', as: 'playlistEntries' });
@@ -137,12 +137,12 @@ export {
   Follower,
   LoginLog,
   OTP,
-  Authenticator,
   Chat,
   ChatMessage,
   ChatUser,
   Song,
   HistorySong,
+  PlayEvent,
   PlaylistSong,
   Playlist,
   GroupInvite,

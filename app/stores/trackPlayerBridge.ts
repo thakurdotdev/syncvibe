@@ -1,5 +1,11 @@
 import { Song } from '@/types/song';
 import { playbackHistory } from '@/utils/playbackHistory';
+import {
+  recordPlayEnd,
+  recordPlayProgress,
+  recordPlayStart,
+  setPlayEndReason,
+} from '@/utils/playEvents';
 import { AppState, AppStateStatus } from 'react-native';
 import TrackPlayer, { Event, RepeatMode } from '@rntp/player';
 import { setupPlayer } from '@/utils/playerSetup';
@@ -324,6 +330,8 @@ let restorePending = false;
 const recordSongStart = (song: Song, resumed = false) => {
   if (!song?.id) return;
 
+  recordPlayStart(song, resumed);
+
   // A resumed song keeps its saved position; only a fresh start resets it to 0.
   if (!resumed) {
     playbackHistory.resetProgress(song).catch(console.error);
@@ -362,6 +370,7 @@ export const bridgePlaySong = (song: Song, uid?: number) => {
   resetErrors();
   switchToNormalMode();
   lastSongChangeAt = Date.now();
+  setPlayEndReason('selected', true);
   // You're choosing playback now: a still-pending launch restore must not override it.
   restoreAttempt += 1;
   restorePending = false;
@@ -410,6 +419,7 @@ export const bridgeStopSong = async () => {
   if (store().activePlayerMode === 'group') return;
   try {
     const currentSong = store().currentSong;
+    recordPlayEnd('closed');
     if (currentSong) {
       const { position, duration } = TrackPlayer.getProgress();
       await playbackHistory
@@ -508,9 +518,12 @@ export const bridgeHandleNextSong = (isAutoPlay = false, uid?: number) => {
 
   // End of playlist with repeat off
   if (isAutoPlay && isLast && repeatMode === 'off') {
+    recordPlayEnd('completed');
     s.setPlaying(false);
     return;
   }
+
+  setPlayEndReason(isAutoPlay === true ? 'completed' : 'next');
 
   // Already in the native queue? Jump to that exact item: after a reorder the item after
   // the current one natively may not be the next song in your queue.
@@ -567,6 +580,8 @@ export const bridgeHandlePrevSong = (uid?: number, force = false) => {
   const s = store();
   const { currentSong, playlist } = s;
   if (!currentSong || !playlist.length) return;
+
+  setPlayEndReason('previous');
 
   const activeItem = TrackPlayer.getActiveMediaItem();
   const nativeMatchesSong = activeItem?.mediaId === currentSong.id;
@@ -891,6 +906,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
         lastErrorTime = Date.now();
 
         if (recovering || hasExceededRetries()) {
+          recordPlayEnd('error');
           recovering = false;
           s.setPlaying(false);
           TrackPlayer.pause();
@@ -919,6 +935,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
             }
           }
           // Everything failed
+          recordPlayEnd('error');
           recovering = false;
           s.setPlaying(false);
         }
@@ -947,6 +964,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
         // final tick on pause. Save it so a killed app comes back to this spot.
         if (restorePending || !s.currentSong || mediaId !== s.currentSong.id) break;
         if (position >= 1) {
+          recordPlayProgress(s.currentSong, position, duration);
           playbackHistory
             .updatePlaybackProgress(
               s.currentSong,

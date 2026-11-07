@@ -1,3 +1,6 @@
+import { blurredArt } from '@/lib/artwork';
+import { EASE_OUT, project } from '@/lib/motion';
+import { SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { useTheme } from '@/context/ThemeContext';
 import {
   setOnOpenFullPlayer,
@@ -26,17 +29,20 @@ import { QueueTab } from './player/QueueTab';
 
 const DISMISS_DISTANCE = 110;
 const DISMISS_VELOCITY = 500;
-/** Share of the queue's travel that opens or closes it on release... */
-const QUEUE_COMMIT_DISTANCE = 0.2;
-/** ...or a flick this far and this fast. */
-const QUEUE_FLICK_DISTANCE = 40;
-const QUEUE_FLICK_VELOCITY = 700;
-/** Height the player's own rows need; the artwork takes whatever is left. */
-const CHROME_HEIGHT = 400;
+/** Share of the queue's travel a swipe must be heading past, on release, to open or close it. */
+const QUEUE_COMMIT_DISTANCE = 0.15;
+/** Shorter than this was a stray touch, however fast. */
+const QUEUE_MIN_MOVE = 16;
+/** Height the header and the player's own rows need; the artwork takes whatever is left. */
+const CHROME_HEIGHT = 350;
+/** Space either side of the artwork. */
+const ARTWORK_MARGIN = 16;
 const MIN_ARTWORK = 180;
 
 const system = ReduceMotion.System;
 // No overshoot: the sheet must never lift past the top and show the app behind it.
+const BACKDROP_ENTER = FadeIn.duration(260).easing(EASE_OUT);
+const BACKDROP_EXIT = FadeOut.duration(200).easing(EASE_OUT);
 const OPEN = { duration: 320, dampingRatio: 1, reduceMotion: system } as const;
 const CLOSE = { duration: 260, dampingRatio: 1, reduceMotion: system } as const;
 const SNAP_BACK = { duration: 260, dampingRatio: 1, reduceMotion: system } as const;
@@ -52,12 +58,10 @@ const Backdrop = ({ uri }: { uri?: string }) => {
       {uri ? (
         <Animated.Image
           key={uri}
-          entering={FadeIn.duration(260)}
-          exiting={FadeOut.duration(260)}
-          source={{ uri }}
-          blurRadius={28}
+          entering={BACKDROP_ENTER}
+          exiting={BACKDROP_EXIT}
+          {...blurredArt(uri, 28)}
           resizeMode='cover'
-          fadeDuration={0}
           style={StyleSheet.absoluteFill}
         />
       ) : null}
@@ -85,6 +89,8 @@ export default function Player() {
   const queueOpen = useSharedValue(false);
   const startQueueShown = useSharedValue(0);
   const draggingQueue = useSharedValue(false);
+  /** Which way this swipe is going isn't known yet: see SWIPE_DIRECTION_DECIDED. */
+  const directionPending = useSharedValue(false);
   /** How far the queue slides: from just below the screen up to under the header. */
   const queueTravel = screenHeight - insets.top - PLAYER_HEADER_HEIGHT;
 
@@ -143,7 +149,7 @@ export default function Player() {
 
   const artworkSize = useMemo(() => {
     const room = screenHeight - insets.top - insets.bottom - CHROME_HEIGHT;
-    return Math.min(screenWidth - 48, Math.max(MIN_ARTWORK, room));
+    return Math.min(screenWidth - ARTWORK_MARGIN * 2, Math.max(MIN_ARTWORK, room));
   }, [screenWidth, screenHeight, insets.top, insets.bottom]);
 
   /**
@@ -158,9 +164,15 @@ export default function Player() {
         .onStart((e) => {
           startY.set(translateY.get());
           startQueueShown.set(queueShown.get());
-          draggingQueue.set(queueOpen.get() || e.translationY < 0);
+          draggingQueue.set(queueOpen.get());
+          directionPending.set(!queueOpen.get());
         })
         .onUpdate((e) => {
+          if (directionPending.get()) {
+            if (Math.abs(e.translationY) < SWIPE_DIRECTION_DECIDED) return;
+            directionPending.set(false);
+            draggingQueue.set(e.translationY < 0);
+          }
           if (draggingQueue.get()) {
             queueShown.set(clamp(startQueueShown.get() - e.translationY / queueTravel, 0, 1));
           } else if (e.translationY > 0) {
@@ -168,14 +180,20 @@ export default function Player() {
           }
         })
         .onEnd((e, success) => {
+          if (directionPending.get()) {
+            // Barely moved before lifting: a flick can still say which way it was going.
+            directionPending.set(false);
+            draggingQueue.set(e.velocityY < 0);
+          }
           if (draggingQueue.get()) {
             const wasOpen = queueOpen.get();
             const moved = wasOpen ? e.translationY : -e.translationY;
             const speed = wasOpen ? e.velocityY : -e.velocityY;
+            // Where the swipe was going decides: an easy flick is enough, and pulling back cancels.
             const flip =
               success &&
-              (moved > queueTravel * QUEUE_COMMIT_DISTANCE ||
-                (moved > QUEUE_FLICK_DISTANCE && speed > QUEUE_FLICK_VELOCITY));
+              moved > QUEUE_MIN_MOVE &&
+              moved + project(speed) > queueTravel * QUEUE_COMMIT_DISTANCE;
             const open = flip ? !wasOpen : wasOpen;
             queueOpen.set(open);
             queueShown.set(
@@ -193,6 +211,7 @@ export default function Player() {
         }),
     [
       animateClosed,
+      directionPending,
       draggingQueue,
       queueOpen,
       queueShown,

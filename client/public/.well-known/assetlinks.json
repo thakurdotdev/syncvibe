@@ -1,0 +1,13 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.thakurdotdev.syncvibe",
+      "sha256_cert_fingerprints": ["8B:EF:50:C2:17:AB:3B:A4:3B:05:B5:50:F9:5E:F7:87:F6:E1:B9:61:AB:3D:84:8E:84:1E:A3:2A:B4:D9:AF:A5"]
+    }
+  }
+]

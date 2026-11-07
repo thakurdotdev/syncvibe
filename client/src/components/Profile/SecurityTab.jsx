@@ -2,18 +2,10 @@ import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import PasskeyManager from '@/components/Auth/PasskeyManager';
-import { Loader2 } from 'lucide-react';
+import SignedInDevices from '@/components/Auth/SignedInDevices';
 
 const SecurityTab = memo(
-  ({
-    twoFactorEnabled,
-    onUpdatePassword,
-    onSetup2FA,
-    onDisable2FA,
-    onViewLogs,
-    isLogsLoading,
-    getProfile,
-  }) => {
+  ({ twoFactorEnabled, hasPassword, onUpdatePassword, onSetup2FA, onDisable2FA }) => {
     return (
       <div className='space-y-6'>
         {/* Core Authentication Settings Card */}
@@ -21,28 +13,31 @@ const SecurityTab = memo(
           <CardHeader className='pb-4'>
             <CardTitle className='text-base font-semibold'>Account Security</CardTitle>
             <CardDescription className='text-xs text-muted-foreground'>
-              Manage your credentials, two-factor authentication, and login sessions
+              Manage your password and two-factor authentication
             </CardDescription>
           </CardHeader>
 
           <CardContent className='p-0'>
             {/* Password Row */}
-            <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 sm:py-4.5 border-t border-border/50'>
-              <div className='space-y-1 max-w-md'>
-                <div className='text-sm font-medium text-foreground'>Password</div>
-                <p className='text-xs text-muted-foreground leading-relaxed'>
-                  Ensure your account has a strong, unique password to prevent unauthorized access.
-                </p>
+            {hasPassword && (
+              <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 sm:py-4.5 border-t border-border/50'>
+                <div className='space-y-1 max-w-md'>
+                  <div className='text-sm font-medium text-foreground'>Password</div>
+                  <p className='text-xs text-muted-foreground leading-relaxed'>
+                    Ensure your account has a strong, unique password to prevent unauthorized
+                    access.
+                  </p>
+                </div>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={onUpdatePassword}
+                  className='h-8.5 px-3.5 rounded-xl text-xs font-medium shrink-0 cursor-pointer self-start sm:self-auto'
+                >
+                  Change password
+                </Button>
               </div>
-              <Button
-                variant='outline'
-                size='sm'
-                onClick={onUpdatePassword}
-                className='h-8.5 px-3.5 rounded-xl text-xs font-medium shrink-0 cursor-pointer self-start sm:self-auto'
-              >
-                Change password
-              </Button>
-            </div>
+            )}
 
             {/* Two-Factor Authentication Row */}
             <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 sm:py-4.5 border-t border-border/50'>
@@ -88,31 +83,13 @@ const SecurityTab = memo(
                 </Button>
               )}
             </div>
-
-            {/* Login History Row */}
-            <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 sm:py-4.5 border-t border-border/50'>
-              <div className='space-y-1 max-w-md'>
-                <div className='text-sm font-medium text-foreground'>Login Activity</div>
-                <p className='text-xs text-muted-foreground leading-relaxed'>
-                  View your recent sign-ins, IP addresses, and authorized devices.
-                </p>
-              </div>
-              <Button
-                variant='outline'
-                size='sm'
-                onClick={onViewLogs}
-                disabled={isLogsLoading}
-                className='h-8.5 px-3.5 rounded-xl text-xs font-medium shrink-0 cursor-pointer self-start sm:self-auto'
-              >
-                {isLogsLoading && <Loader2 size={13} className='animate-spin mr-1.5' />}
-                View history
-              </Button>
-            </div>
           </CardContent>
         </Card>
 
         {/* Passkeys Management */}
-        <PasskeyManager getProfile={getProfile} />
+        <PasskeyManager />
+
+        <SignedInDevices />
       </div>
     );
   }

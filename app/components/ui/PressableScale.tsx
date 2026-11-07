@@ -1,5 +1,5 @@
-import { PRESS_IN, PRESS_SCALE, SPRING_PRESS } from '@/lib/motion';
-import { forwardRef, memo, type ReactNode } from 'react';
+import { PRESS_SCALE } from '@/lib/motion';
+import { forwardRef, memo, useState, type ReactNode } from 'react';
 import {
   Pressable,
   type GestureResponderEvent,
@@ -8,64 +8,62 @@ import {
   type View,
   type ViewStyle,
 } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { cubicBezier, useReducedMotion } from 'react-native-reanimated';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 // A finger drifting a little shouldn't cancel a press the user meant.
 const RETENTION = { top: 16, bottom: 16, left: 16, right: 16 };
 
+const TIMING = {
+  transitionDuration: 120,
+  transitionTimingFunction: cubicBezier(0.23, 1, 0.32, 1),
+} as const;
+const SCALE_TRANSITION = { ...TIMING, transitionProperty: 'transform' } as const;
+// With Reduce Motion, a gentle opacity dip replaces the scale.
+const DIM_TRANSITION = { ...TIMING, transitionProperty: 'opacity' } as const;
+const DIMMED = { opacity: 0.7 };
+const REST = { transform: [{ scale: 1 }] };
+
 type PressableScaleProps = Omit<PressableProps, 'style' | 'children'> & {
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
-  /** Scale while pressed. Defaults to 0.97 (cards, rows). */
+  /** Scale while pressed. Defaults to PRESS_SCALE (cards, buttons). */
   scaleTo?: number;
 };
 
 /**
- * Pressable with press feedback that runs entirely on the UI thread: it scales down in
- * ~120ms on touch and springs back on release. No JS re-render per press, so lists stay
- * smooth while scrolling and tapping.
+ * Pressable with the app's press feedback: a CSS transition, so a row costs nothing until it's
+ * touched. Screens can hold hundreds of these, and a shared value and animated style for each one
+ * is what slows lists down on Android. It renders twice per press, never per frame.
  */
 const PressableScale = forwardRef<View, PressableScaleProps>(function PressableScale(
-  { children, style, scaleTo = PRESS_SCALE, onPressIn, onPressOut, disabled, ...rest },
+  { children, style, scaleTo = PRESS_SCALE, onPressIn, onPressOut, ...rest },
   ref
 ) {
-  const scale = useSharedValue(1);
-  const dim = useSharedValue(1);
+  const [pressed, setPressed] = useState(false);
   const reduceMotion = useReducedMotion();
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: dim.get(),
-    transform: [{ scale: scale.get() }],
-  }));
-
   // Feedback on press-in (what the user perceives as latency), settle on release.
-  // With Reduce Motion, a gentle opacity dip replaces the scale.
   const handlePressIn = (e: GestureResponderEvent) => {
-    if (reduceMotion) dim.set(withTiming(0.7, PRESS_IN));
-    else scale.set(withTiming(scaleTo, PRESS_IN));
+    setPressed(true);
     onPressIn?.(e);
   };
   const handlePressOut = (e: GestureResponderEvent) => {
-    if (reduceMotion) dim.set(withTiming(1, PRESS_IN));
-    else scale.set(withSpring(1, SPRING_PRESS));
+    setPressed(false);
     onPressOut?.(e);
   };
+
+  const feedback = reduceMotion
+    ? [DIM_TRANSITION, pressed && DIMMED]
+    : [SCALE_TRANSITION, pressed ? { transform: [{ scale: scaleTo }] } : REST];
 
   return (
     <AnimatedPressable
       ref={ref}
-      disabled={disabled}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       pressRetentionOffset={RETENTION}
-      style={[style, animatedStyle]}
+      style={[style, feedback]}
       {...rest}
     >
       {children}

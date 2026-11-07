@@ -1,7 +1,8 @@
+import { EASE_OUT } from '@/lib/motion';
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  Easing,
+  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -10,9 +11,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 
+const POP = { duration: 250, dampingRatio: 0.6, reduceMotion: ReduceMotion.System } as const;
+const RISE = { duration: 800, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
+const FADE = { duration: 250, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
+
 const FloatingEmoji = React.memo(({ emoji, userName }: { emoji: string; userName: string }) => {
   const seed = useRef({
-    left: 15 + Math.random() * 70,
+    // Over the controls, not the artwork.
+    left: 45 + Math.random() * 45,
     sway: (Math.random() - 0.5) * 36,
     rotation: `${((Math.random() - 0.5) * 20).toFixed(1)}deg`,
   }).current;
@@ -24,37 +30,28 @@ const FloatingEmoji = React.memo(({ emoji, userName }: { emoji: string; userName
 
   useEffect(() => {
     // Instant crisp spring pop
-    scale.value = withSpring(1, { damping: 12, stiffness: 280, mass: 0.4 });
+    scale.set(withSpring(1, POP));
 
     // Balanced 800ms upward rise
-    translateY.value = withTiming(-180, {
-      duration: 800,
-      easing: Easing.out(Easing.quad),
-    });
+    translateY.set(withTiming(-180, RISE));
 
     // Natural organic sway
-    translateX.value = withTiming(seed.sway, {
-      duration: 800,
-      easing: Easing.out(Easing.quad),
-    });
+    translateX.set(withTiming(seed.sway, RISE));
 
     // Smooth fade out near top of flight
-    opacity.value = withDelay(
-      550,
-      withTiming(0, { duration: 250, easing: Easing.in(Easing.quad) })
-    );
+    opacity.set(withDelay(550, withTiming(0, FADE)));
   }, [seed.sway, scale, translateY, translateX, opacity]);
 
   const rotationStr = seed.rotation;
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateY: translateY.value },
-      { translateX: translateX.value },
-      { scale: scale.value },
+      { translateY: translateY.get() },
+      { translateX: translateX.get() },
+      { scale: scale.get() },
       { rotate: rotationStr },
     ],
-    opacity: opacity.value,
+    opacity: opacity.get(),
   }));
 
   return (
@@ -92,7 +89,8 @@ const styles = StyleSheet.create({
   },
   floatingEmoji: {
     position: 'absolute',
-    bottom: 110,
+    // Starts by the reaction buttons, so a tap and its emoji read as one thing.
+    bottom: 30,
     alignItems: 'center',
   },
   emojiText: {

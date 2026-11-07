@@ -3,7 +3,6 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import Player from '@/components/music/Player';
 import GlobalBottomDeck from '@/components/shell/GlobalBottomDeck';
 import PlayerInitializer from '@/components/music/PlayerInitializer';
-import { AppUpdateProvider } from '@/context/AppUpdateContext';
 import { GroupMusicProvider } from '@/context/GroupMusicContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { ChatProvider } from '@/context/SocketContext';
@@ -83,23 +82,21 @@ function RootLayout() {
           <KeyboardProvider>
             <ThemeProvider>
               <ToastProvider>
-                <AppUpdateProvider>
-                  <PersistQueryClientProvider
-                    client={queryClient}
-                    persistOptions={{ persister: asyncStoragePersister }}
-                  >
-                    <UserProvider>
-                      <ChatProvider>
-                        <NotificationProvider>
-                          <GroupMusicProvider>
-                            <PlayerInitializer />
-                            <RootLayoutNav />
-                          </GroupMusicProvider>
-                        </NotificationProvider>
-                      </ChatProvider>
-                    </UserProvider>
-                  </PersistQueryClientProvider>
-                </AppUpdateProvider>
+                <PersistQueryClientProvider
+                  client={queryClient}
+                  persistOptions={{ persister: asyncStoragePersister }}
+                >
+                  <UserProvider>
+                    <ChatProvider>
+                      <NotificationProvider>
+                        <GroupMusicProvider>
+                          <PlayerInitializer />
+                          <RootLayoutNav />
+                        </GroupMusicProvider>
+                      </NotificationProvider>
+                    </ChatProvider>
+                  </UserProvider>
+                </PersistQueryClientProvider>
               </ToastProvider>
             </ThemeProvider>
           </KeyboardProvider>
@@ -200,6 +197,12 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
+          name='browse'
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name='albums'
           options={{
             headerShown: false,
@@ -260,6 +263,13 @@ function RootLayoutNav() {
           name='edit-profile'
           options={{
             title: 'Edit Profile',
+          }}
+        />
+        <Stack.Screen
+          name='security'
+          options={{
+            headerShown: false,
+            title: 'Security',
           }}
         />
         <Stack.Screen

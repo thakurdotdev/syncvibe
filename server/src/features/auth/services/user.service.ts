@@ -3,6 +3,7 @@ import { Op } from 'sequelize';
 import { User, Follower, OTP, Chat } from '@/models/index';
 import { otpForDeleteMailSender, accountDeletedMailSender } from '@/utils/resend';
 import sequelize from '@/utils/sequelize';
+import { authDatabase } from '../database';
 import { AuthError } from '../auth.errors';
 
 const generateSixDigitOTP = (): number => crypto.randomInt(100000, 999999);
@@ -19,15 +20,7 @@ export const getUserDetailsService = async (userid: number) => {
   return user;
 };
 
-export const updateProfilePicService = async (
-  userid: number,
-  role: string | undefined,
-  profilepic?: string
-) => {
-  if (role === 'guest') {
-    throw new AuthError('Guest users cannot update profile picture', 403);
-  }
-
+export const updateProfilePicService = async (userid: number, profilepic?: string) => {
   const user = await User.findByPk(userid);
   if (!user) {
     throw new AuthError('User not found', 404);
@@ -45,15 +38,7 @@ export interface UpdateUserDetailsInput {
   bio?: string;
 }
 
-export const updateUserDetailsService = async (
-  userid: number,
-  role: string | undefined,
-  data: UpdateUserDetailsInput
-) => {
-  if (role === 'guest') {
-    throw new AuthError('Guest users cannot update user details', 403);
-  }
-
+export const updateUserDetailsService = async (userid: number, data: UpdateUserDetailsInput) => {
   const user = await User.findByPk(userid);
   if (!user) {
     throw new AuthError('User not found', 404);
@@ -76,14 +61,7 @@ export const updateUserDetailsService = async (
   return user;
 };
 
-export const getOtpForAccountDeleteService = async (
-  userid: number,
-  role: string | undefined
-): Promise<void> => {
-  if (role === 'guest') {
-    throw new AuthError('Guest account cannot be deleted', 403);
-  }
-
+export const getOtpForAccountDeleteService = async (userid: number): Promise<void> => {
   const user = await User.findByPk(userid);
   if (!user) {
     throw new AuthError('User not found', 404);
@@ -100,13 +78,8 @@ export const getOtpForAccountDeleteService = async (
 
 export const deleteUserAccountService = async (
   userid: number,
-  role: string | undefined,
   otp?: string | number
 ): Promise<void> => {
-  if (role === 'guest') {
-    throw new AuthError('Guest account cannot be deleted', 403);
-  }
-
   const user = await User.findByPk(userid);
   if (!user) {
     throw new AuthError('User not found', 404);
@@ -239,15 +212,7 @@ export const getInviteListService = async (currentUserId: number, search?: strin
     .sort((a, b) => (a.isFollowing === b.isFollowing ? 0 : a.isFollowing ? -1 : 1));
 };
 
-export const updatePushTokenService = async (
-  userId: number,
-  role: string | undefined,
-  token: string
-): Promise<void> => {
-  if (role === 'guest') {
-    throw new AuthError('Guest accounts cannot register push tokens', 403);
-  }
-
+export const updatePushTokenService = async (userId: number, token: string): Promise<void> => {
   const user = await User.findByPk(userId);
   if (!user) {
     throw new AuthError('User not found', 404);
@@ -257,13 +222,39 @@ export const updatePushTokenService = async (
   await user.save();
 };
 
+// Users who only sign in with Google or a passkey have no password account.
+const hasPasswordAccount = async (userId: number): Promise<boolean> => {
+  const { rowCount } = await authDatabase.query(
+    `SELECT 1 FROM accounts WHERE "userId" = $1 AND "providerId" = 'credential' LIMIT 1`,
+    [userId]
+  );
+  return (rowCount ?? 0) > 0;
+};
+
 export const getUserProfileService = async (userId: number) => {
-  const user = await User.findByPk(userId, {
-    attributes: ['userid', 'name', 'username', 'email', 'profilepic', 'bio', 'verified'],
-  });
+  const [user, hasPassword] = await Promise.all([
+    User.findByPk(userId, {
+      attributes: [
+        'userid',
+        'name',
+        'username',
+        'email',
+        'profilepic',
+        'bio',
+        'verified',
+        'twoFactorEnabled',
+      ],
+    }),
+    hasPasswordAccount(userId),
+  ]);
 
   if (!user) {
     throw new AuthError('User not found', 404);
   }
-  return user;
+  return { ...user.get({ plain: true }), hasPassword };
+};
+
+export const getPushTokenService = async (userid: number): Promise<string | null> => {
+  const user = await User.findByPk(userid, { attributes: ['expoPushToken'], raw: true });
+  return user?.expoPushToken ?? null;
 };

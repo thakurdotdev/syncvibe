@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef, useState } from 'react';
+import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -7,9 +7,6 @@ import {
   StyleSheet,
   View,
   ViewStyle,
-  ScrollView,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
   Pressable,
   StatusBar,
   useWindowDimensions,
@@ -17,6 +14,7 @@ import {
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
+  useAnimatedScrollHandler,
   useAnimatedStyle,
   withSpring,
   withTiming,
@@ -28,12 +26,20 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
-import { EASE_OUT, SPRING_SHEET, SPRING_SNAP } from '@/lib/motion';
+import {
+  project,
+  rubberband,
+  SHEET_CLOSE,
+  SHEET_OPEN,
+  SPRING_SHEET,
+  SPRING_SNAP,
+} from '@/lib/motion';
 
-const DISMISS_VELOCITY = 700;
-const CLOSE_DURATION = 190;
 const DRAG_REGION_HEIGHT = 72;
-const AnimatedKeyboardAvoidingView = Animated.createAnimatedComponent(KeyboardAvoidingView);
+/** A sheet can't be flicked further than this before it dismisses, however tall it is. */
+const MAX_DISMISS_DISTANCE = 220;
+/** Pulling a sheet up past its resting place barely moves it: nothing is underneath to show. */
+const OVERDRAG_RESISTANCE = 0.15;
 
 interface SwipeableModalProps {
   isVisible: boolean;
@@ -45,18 +51,43 @@ interface SwipeableModalProps {
   style?: ViewStyle;
   scrollable?: boolean;
   useScrollView?: boolean;
-  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   /** Shared scroll offset for FlatList/ScrollView content rendered by the caller. */
   scrollOffset?: SharedValue<number>;
   keyboardAvoiding?: boolean;
   keyboardVerticalOffset?: number;
   /** Present as an edge-to-edge modal screen instead of a rounded bottom sheet. */
   fullScreen?: boolean;
+  /** Drag from anywhere on the sheet, not only its top edge. For sheets with nothing to scroll. */
+  dragAnywhere?: boolean;
+  /** False keeps it open against drags, the back button and backdrop taps. */
+  dismissible?: boolean;
 }
 
-const SwipeableModal: React.FC<SwipeableModalProps> = ({
+/**
+ * Screens keep many closed sheets around, so a closed one holds no shared values, animated styles
+ * or gestures. It opens each time `isVisible` turns true and stays closed until then, even if the
+ * user dismissed it and the caller is still deciding what to do about that.
+ */
+const SwipeableModal: React.FC<SwipeableModalProps> = (props) => {
+  const { isVisible } = props;
+  const [mounted, setMounted] = useState(isVisible);
+  const [wasVisible, setWasVisible] = useState(isVisible);
+
+  if (isVisible !== wasVisible) {
+    setWasVisible(isVisible);
+    if (isVisible) setMounted(true);
+  }
+
+  const handleClosed = useCallback(() => setMounted(false), []);
+
+  if (!mounted) return null;
+  return <Sheet {...props} onClosed={handleClosed} />;
+};
+
+const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
   isVisible,
   onClose,
+  onClosed,
   children,
   maxHeight,
   hideHandle = false,
@@ -64,16 +95,16 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
   style,
   scrollable = false,
   useScrollView = false,
-  onScroll,
   scrollOffset,
   keyboardAvoiding = true,
   keyboardVerticalOffset = 0,
   fullScreen = false,
+  dragAnywhere = false,
+  dismissible = true,
 }) => {
   const { colors, theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const [modalMounted, setModalMounted] = useState(false);
 
   const topInset = Math.max(
     insets.top,
@@ -87,11 +118,13 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
   const internalScrollOffset = useSharedValue(0);
   const touchStartY = useSharedValue(0);
   const sheetTop = useSharedValue(0);
+  // Off-screen whatever its real size, until the first layout says how far it has to travel.
+  const sheetHeight = useSharedValue(windowHeight);
   const dragEligible = useSharedValue(false);
   const gestureActive = useSharedValue(false);
+  const dragOrigin = useSharedValue(0);
   const closing = useSharedValue(0);
   const activeScrollOffset = scrollOffset ?? internalScrollOffset;
-  const modalMountedRef = useRef(false);
   const closingRef = useRef(false);
   const onCloseRef = useRef(onClose);
 
@@ -100,30 +133,24 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
   }, [onClose]);
 
   useEffect(() => {
-    // Hidden modal instances are kept in many screens; avoid registering
-    // keyboard listeners until a sheet is actually open.
     // Android resizes a full-screen modal through the window insets. Applying
     // a second JS-managed inset there causes the blank area left after the
     // keyboard closes. iOS needs the frame value to animate its sheet safely.
     if (!keyboardAvoiding || !isVisible || Platform.OS !== 'ios') return;
 
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillChangeFrame' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const updateKeyboardHeight = (event: { endCoordinates: { height: number } }) => {
-      keyboardInset.value = withTiming(Math.max(0, event.endCoordinates.height), {
-        duration: 220,
-      });
+      keyboardInset.set(withTiming(Math.max(0, event.endCoordinates.height), { duration: 220 }));
     };
 
-    const showSubscription = Keyboard.addListener(showEvent, updateKeyboardHeight);
-    const hideSubscription = Keyboard.addListener(hideEvent, () => {
-      keyboardInset.value = withTiming(0, { duration: 180 });
+    const showSubscription = Keyboard.addListener('keyboardWillChangeFrame', updateKeyboardHeight);
+    const hideSubscription = Keyboard.addListener('keyboardWillHide', () => {
+      keyboardInset.set(withTiming(0, { duration: 180 }));
     });
 
     return () => {
       showSubscription.remove();
       hideSubscription.remove();
-      keyboardInset.value = withTiming(0, { duration: CLOSE_DURATION });
+      keyboardInset.set(withTiming(0, SHEET_CLOSE));
     };
   }, [keyboardAvoiding, isVisible, keyboardInset]);
 
@@ -132,174 +159,179 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
       ? Math.min(maxHeight, availableHeight)
       : typeof maxHeight === 'string' && maxHeight.endsWith('%')
         ? (parseFloat(maxHeight) / 100) * availableHeight
-        : maxHeight === 'auto'
-          ? availableHeight * 0.85
-          : availableHeight * 0.85;
+        : availableHeight * 0.85;
 
   const hasExplicitHeight = fullScreen || StyleSheet.flatten(style)?.height != null;
   const finishClose = useCallback(() => {
-    modalMountedRef.current = false;
     closingRef.current = false;
-    closing.value = 0;
-    setModalMounted(false);
+    onClosed();
     onCloseRef.current();
-  }, [closing]);
+  }, [onClosed]);
 
   const animateOpen = useCallback(() => {
-    cancelAnimation(progress);
     cancelAnimation(gestureY);
-    closing.value = 0;
+    closing.set(0);
     closingRef.current = false;
-    gestureActive.value = false;
-    gestureY.value = 0;
-    // Sheet spring (~300ms), clamped: a sheet opening on its own has no momentum to overshoot.
-    progress.value = withSpring(1, { ...SPRING_SHEET, overshootClamping: true });
+    gestureActive.set(false);
+    gestureY.set(0);
+    // Nothing carried momentum into a tap, so a curve: it moves from the first frame, where a
+    // spring would still be picking up speed.
+    progress.set(withTiming(1, SHEET_OPEN));
   }, [progress, gestureY, closing, gestureActive]);
 
   const animateClose = useCallback(() => {
-    if (!modalMountedRef.current || closingRef.current || closing.value === 1) return;
+    if (closingRef.current || closing.get() === 1) return;
 
     closingRef.current = true;
-    closing.value = 1;
-    cancelAnimation(progress);
-    cancelAnimation(gestureY);
-    progress.value = withTiming(0, { duration: CLOSE_DURATION, easing: EASE_OUT }, (finished) => {
-      'worklet';
-      if (finished) {
-        scheduleOnRN(finishClose);
-      }
-    });
-    gestureY.value = withTiming(0, { duration: CLOSE_DURATION, easing: EASE_OUT });
+    closing.set(1);
+    progress.set(
+      withTiming(0, SHEET_CLOSE, (finished) => {
+        'worklet';
+        if (finished) scheduleOnRN(finishClose);
+      })
+    );
+    gestureY.set(withTiming(0, SHEET_CLOSE));
   }, [progress, gestureY, closing, finishClose]);
 
   useEffect(() => {
     if (isVisible) {
-      modalMountedRef.current = true;
-      closingRef.current = false;
-      setModalMounted(true);
-      keyboardInset.value = 0;
       const frame = requestAnimationFrame(animateOpen);
       return () => cancelAnimationFrame(frame);
     }
-
-    if (modalMountedRef.current && !closingRef.current) {
-      animateClose();
-    }
+    animateClose();
   }, [isVisible, animateOpen, animateClose]);
 
-  const handleInternalScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      internalScrollOffset.value = event.nativeEvent.contentOffset.y;
-      onScroll?.(event);
-    },
-    [internalScrollOffset, onScroll]
-  );
+  const internalScrollHandler = useAnimatedScrollHandler((event) => {
+    internalScrollOffset.set(event.contentOffset.y);
+  });
 
-  const panGesture = Gesture.Pan()
-    .manualActivation(true)
-    .failOffsetX([-36, 36])
-    .onTouchesDown((event) => {
-      'worklet';
-      const touch = event.allTouches[0];
-      touchStartY.value = touch?.absoluteY ?? 0;
-      dragEligible.value = !!touch && touch.absoluteY <= sheetTop.value + DRAG_REGION_HEIGHT;
-      gestureActive.value = false;
-    })
-    .onTouchesMove((event, stateManager) => {
-      'worklet';
-      if (!dragEligible.value) {
-        stateManager.fail();
-        return;
-      }
-
-      const touch = event.allTouches[0];
-      if (!touch) return;
-
-      const translationY = touch.absoluteY - touchStartY.value;
-      const isAtTop = activeScrollOffset.value <= 1;
-
-      // Let the list own upward scrolling and all drags that begin below its top.
-      // The sheet can take over only for a downward pull from the top edge.
-      if (!scrollable && translationY > 4) {
-        stateManager.activate();
-        gestureActive.value = true;
-      } else if (scrollable && isAtTop && translationY > 4) {
-        stateManager.activate();
-        gestureActive.value = true;
-      } else if (translationY < -4 || (scrollable && !isAtTop)) {
-        stateManager.fail();
-      }
-    })
-    .onTouchesUp((_, stateManager) => {
-      'worklet';
-      if (!gestureActive.value) stateManager.fail();
-    })
-    .onUpdate((e) => {
-      'worklet';
-      const translation = e.translationY;
-      const resistance = Math.min(Math.abs(translation) / Math.max(resolvedMaxHeight, 1), 0.35);
-      gestureY.value = translation > 0 ? translation * (1 - resistance) : translation * 0.12;
-    })
-    .onEnd((e) => {
-      'worklet';
-      gestureActive.value = false;
-      if (closing.value === 1) return;
-
-      const dismissDistance = Math.min(resolvedMaxHeight * 0.28, 220);
-      const shouldDismiss = e.translationY > dismissDistance || e.velocityY > DISMISS_VELOCITY;
-
-      if (shouldDismiss) {
-        // A finger released it: spring out carrying the flick's velocity (progress units).
-        closing.value = 1;
-        progress.value = withSpring(
-          0,
-          {
-            ...SPRING_SHEET,
-            overshootClamping: true,
-            velocity: -e.velocityY / Math.max(windowHeight, 1),
-          },
-          (finished) => {
-            'worklet';
-            if (finished) scheduleOnRN(finishClose);
+  // Memoized: a new gesture on each render can drop a drag that's mid-flight.
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(dismissible)
+        .manualActivation(true)
+        .failOffsetX([-36, 36])
+        .onTouchesDown((event) => {
+          'worklet';
+          const touch = event.allTouches[0];
+          touchStartY.set(touch?.absoluteY ?? 0);
+          dragEligible.set(
+            !!touch && (dragAnywhere || touch.absoluteY <= sheetTop.get() + DRAG_REGION_HEIGHT)
+          );
+          gestureActive.set(false);
+        })
+        .onTouchesMove((event, stateManager) => {
+          'worklet';
+          if (!dragEligible.get()) {
+            stateManager.fail();
+            return;
           }
-        );
-      } else {
-        // Not far or fast enough: snap home with the drag's velocity.
-        gestureY.value = withSpring(0, { ...SPRING_SNAP, velocity: e.velocityY });
-      }
-    });
+
+          const touch = event.allTouches[0];
+          if (!touch) return;
+
+          const translationY = touch.absoluteY - touchStartY.get();
+          const isAtTop = activeScrollOffset.get() <= 1;
+
+          // Let the list own upward scrolling and all drags that begin below its top.
+          // The sheet can take over only for a downward pull from the top edge.
+          if (!scrollable && translationY > 4) {
+            stateManager.activate();
+            gestureActive.set(true);
+          } else if (scrollable && isAtTop && translationY > 4) {
+            stateManager.activate();
+            gestureActive.set(true);
+          } else if (translationY < -4 || (scrollable && !isAtTop)) {
+            stateManager.fail();
+          }
+        })
+        .onTouchesUp((_, stateManager) => {
+          'worklet';
+          if (!gestureActive.get()) stateManager.fail();
+        })
+        .onStart((e) => {
+          'worklet';
+          // Grabbing it mid-settle continues from where it is on screen, with no jump.
+          dragOrigin.set(gestureY.get() - e.translationY);
+        })
+        .onUpdate((e) => {
+          'worklet';
+          // Downward follows the finger exactly; upward past the resting place resists.
+          const next = dragOrigin.get() + e.translationY;
+          gestureY.set(
+            next >= 0 ? next : rubberband(next, sheetHeight.get(), OVERDRAG_RESISTANCE)
+          );
+        })
+        .onEnd((e) => {
+          'worklet';
+          gestureActive.set(false);
+          if (closing.get() === 1) return;
+
+          // Where the flick was going decides, so a quick one is enough from any distance.
+          const dismissAt = Math.min(sheetHeight.get() * 0.4, MAX_DISMISS_DISTANCE);
+          if (gestureY.get() + project(e.velocityY) > dismissAt) {
+            // Spring out carrying the flick's velocity (in progress units).
+            closing.set(1);
+            progress.set(
+              withSpring(
+                0,
+                {
+                  ...SPRING_SHEET,
+                  overshootClamping: true,
+                  velocity: -e.velocityY / Math.max(sheetHeight.get(), 1),
+                },
+                (finished) => {
+                  'worklet';
+                  if (finished) scheduleOnRN(finishClose);
+                }
+              )
+            );
+          } else {
+            // Clamped: an overshoot would lift the sheet off the bottom of the screen.
+            gestureY.set(
+              withSpring(0, { ...SPRING_SNAP, overshootClamping: true, velocity: e.velocityY })
+            );
+          }
+        }),
+    [
+      activeScrollOffset,
+      closing,
+      dismissible,
+      dragAnywhere,
+      dragEligible,
+      dragOrigin,
+      finishClose,
+      gestureActive,
+      gestureY,
+      progress,
+      scrollable,
+      sheetHeight,
+      sheetTop,
+      touchStartY,
+    ]
+  );
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity:
-      interpolate(progress.value, [0, 1], [0, backdropOpacity], Extrapolation.CLAMP) *
+      interpolate(progress.get(), [0, 1], [0, backdropOpacity], Extrapolation.CLAMP) *
       interpolate(
-        Math.max(gestureY.value, 0),
-        [0, resolvedMaxHeight],
+        Math.max(gestureY.get(), 0),
+        [0, sheetHeight.get()],
         [1, 0.35],
         Extrapolation.CLAMP
       ),
   }));
 
+  // Travels its own height, not the window's: a short sheet is on screen from the first frame.
   const sheetStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateY:
-          interpolate(progress.value, [0, 1], [windowHeight, 0], Extrapolation.CLAMP) +
-          gestureY.value,
-      },
-    ],
-  }));
-
-  const fixedKeyboardRootStyle = useAnimatedStyle(() => ({
-    // An explicit-height sheet already resizes below. Adding padding here too
-    // is what previously left a keyboard-sized blank area after dismissal.
-    paddingBottom: 0,
+    transform: [{ translateY: (1 - progress.get()) * sheetHeight.get() + gestureY.get() }],
   }));
 
   const fixedKeyboardSheetStyle = useAnimatedStyle(() => {
-    if (Platform.OS === 'ios' && hasExplicitHeight && keyboardInset.value > 0.5) {
+    if (Platform.OS === 'ios' && hasExplicitHeight && keyboardInset.get() > 0.5) {
       return {
-        height: Math.max(0, Math.min(resolvedMaxHeight, availableHeight - keyboardInset.value)),
+        height: Math.max(0, Math.min(resolvedMaxHeight, availableHeight - keyboardInset.get())),
       };
     }
 
@@ -308,15 +340,14 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
     return {};
   });
 
-  if (!modalMounted) return null;
-
   return (
     <Modal
       visible={true}
       transparent
       animationType='none'
       statusBarTranslucent
-      onRequestClose={() => animateClose()}
+      hardwareAccelerated
+      onRequestClose={dismissible ? animateClose : undefined}
     >
       <GestureHandlerRootView style={styles.root}>
         {fullScreen && (
@@ -326,15 +357,15 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
             barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
           />
         )}
-        <AnimatedKeyboardAvoidingView
+        <KeyboardAvoidingView
           enabled={keyboardAvoiding && !hasExplicitHeight}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={keyboardVerticalOffset}
-          style={[styles.keyboardRoot, fixedKeyboardRootStyle]}
+          style={styles.keyboardRoot}
         >
           <Pressable
             style={fullScreen ? styles.fullScreenBackdropTouchable : styles.backdropTouchable}
-            onPress={animateClose}
+            onPress={dismissible ? animateClose : undefined}
           />
 
           <Animated.View style={[styles.backdrop, backdropStyle]} pointerEvents='none' />
@@ -360,7 +391,8 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
                 fixedKeyboardSheetStyle,
               ]}
               onLayout={(event) => {
-                sheetTop.value = event.nativeEvent.layout.y;
+                sheetTop.set(event.nativeEvent.layout.y);
+                sheetHeight.set(event.nativeEvent.layout.height);
               }}
             >
               {!hideHandle && (
@@ -369,8 +401,8 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
                 </View>
               )}
               {scrollable && useScrollView ? (
-                <ScrollView
-                  onScroll={handleInternalScroll}
+                <Animated.ScrollView
+                  onScroll={internalScrollHandler}
                   scrollEventThrottle={16}
                   style={styles.scrollView}
                   contentContainerStyle={styles.scrollContent}
@@ -379,13 +411,13 @@ const SwipeableModal: React.FC<SwipeableModalProps> = ({
                   keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                 >
                   {children}
-                </ScrollView>
+                </Animated.ScrollView>
               ) : (
                 children
               )}
             </Animated.View>
           </GestureDetector>
-        </AnimatedKeyboardAvoidingView>
+        </KeyboardAvoidingView>
       </GestureHandlerRootView>
     </Modal>
   );
@@ -439,4 +471,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default React.memo(SwipeableModal);
+export default SwipeableModal;

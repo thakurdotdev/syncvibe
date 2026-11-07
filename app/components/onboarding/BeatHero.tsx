@@ -1,7 +1,6 @@
 import { useTheme } from '@/context/ThemeContext';
 import { typography } from '@/theme/typography';
-import * as Haptics from 'expo-haptics';
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   cancelAnimation,
@@ -11,6 +10,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
+  ReduceMotion,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -18,7 +18,6 @@ import Animated, {
 const BAR_COUNT = 17;
 const BAR_HEIGHT = 170;
 const LOOP_MS = 2400;
-const HAPTIC_PULSE_MS = 260;
 
 interface BarProps {
   index: number;
@@ -32,14 +31,14 @@ const Bar = memo(function Bar({ index, clock, energy }: BarProps) {
   const style = useAnimatedStyle(() => {
     // Whole-number frequencies, so the wave lines up again when the clock loops.
     const frequency = 1 + (index % 3);
-    const wave = (Math.sin(clock.value * 2 * Math.PI * frequency + index * 0.9) + 1) / 2;
+    const wave = (Math.sin(clock.get() * 2 * Math.PI * frequency + index * 0.9) + 1) / 2;
     const resting = 0.14 + wave * 0.3;
     const excited = 0.35 + wave * 0.65;
 
     return {
-      transform: [{ scaleY: resting + (excited - resting) * energy.value }],
+      transform: [{ scaleY: resting + (excited - resting) * energy.get() }],
       backgroundColor: interpolateColor(
-        energy.value,
+        energy.get(),
         [0, 1],
         [colors.mutedForeground, colors.primary]
       ),
@@ -49,51 +48,39 @@ const Bar = memo(function Bar({ index, clock, energy }: BarProps) {
   return <Animated.View style={[styles.bar, style]} />;
 });
 
-/** Equaliser that idles on its own and comes alive, with haptics, while it's held down. */
+/** Equaliser that idles on its own and comes alive while it's held down. */
 export const BeatHero = memo(function BeatHero({ active }: { active: boolean }) {
   const { colors } = useTheme();
   const clock = useSharedValue(0);
   const energy = useSharedValue(0);
-  const pulseTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [holding, setHolding] = useState(false);
 
   useEffect(() => {
     if (!active) return;
-    clock.value = 0;
-    clock.value = withRepeat(withTiming(1, { duration: LOOP_MS, easing: Easing.linear }), -1);
+    clock.set(0);
+    clock.set(withRepeat(withTiming(1, { duration: LOOP_MS, easing: Easing.linear }), -1));
     return () => cancelAnimation(clock);
   }, [active, clock]);
 
-  const stopPulse = () => {
-    if (pulseTimer.current) clearInterval(pulseTimer.current);
-    pulseTimer.current = null;
-  };
-
-  useEffect(() => stopPulse, []);
-
-  const pulse = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-  };
-
   const handlePressIn = () => {
     setHolding(true);
-    energy.value = withSpring(1, { damping: 12, stiffness: 140 });
-    pulse();
-    stopPulse();
-    pulseTimer.current = setInterval(pulse, HAPTIC_PULSE_MS);
+    energy.set(
+      withSpring(1, { duration: 400, dampingRatio: 0.6, reduceMotion: ReduceMotion.System })
+    );
   };
 
   const handlePressOut = () => {
     setHolding(false);
-    energy.value = withSpring(0, { damping: 18, stiffness: 120 });
-    stopPulse();
+    energy.set(
+      withSpring(0, { duration: 400, dampingRatio: 1, reduceMotion: ReduceMotion.System })
+    );
   };
 
   return (
     <Pressable
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      accessibilityLabel='Animated equaliser. Press and hold to feel the beat.'
+      accessibilityLabel='Animated equaliser. Press and hold to bring it alive.'
       style={styles.hero}
     >
       <View style={styles.bars}>

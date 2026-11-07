@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, Dimensions, Animated, Pressable } from 'react-native';
+import { StyleSheet, Text, View, Dimensions } from 'react-native';
+import PressableScale from '@/components/ui/PressableScale';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,8 +10,6 @@ import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { Button } from '@/components/ui/button';
 import { LANGUAGES, LANGUAGE_STORAGE_KEY } from '@/lib/languages';
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const { width } = Dimensions.get('window');
 const CHIP_WIDTH = (width - 40 - 16) / 3;
@@ -30,40 +29,12 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
   onPress,
   colors,
 }) => {
-  const scale = React.useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scale, {
-      toValue: 0.94,
-      useNativeDriver: true,
-      tension: 150,
-      friction: 6,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 150,
-      friction: 6,
-    }).start();
-  };
-
   return (
-    <AnimatedPressable
+    <PressableScale
       onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       accessibilityRole='button'
       accessibilityState={{ selected: isSelected }}
-      style={[
-        styles.chip,
-        {
-          backgroundColor: isSelected ? colors.primary : colors.card,
-          transform: [{ scale }],
-        },
-      ]}
+      style={[styles.chip, { backgroundColor: isSelected ? colors.primary : colors.card }]}
     >
       <Text
         style={[
@@ -87,7 +58,7 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
       >
         {label}
       </Text>
-    </AnimatedPressable>
+    </PressableScale>
   );
 };
 

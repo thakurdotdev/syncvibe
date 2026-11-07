@@ -6,10 +6,10 @@ import { SettingsGroup, SettingsRow } from '@/components/profile/SettingsGroup';
 import { UpdateCard } from '@/components/profile/UpdateCard';
 import { StackHeader } from '@/components/ui/AppHeader';
 import { Segmented, type SegmentOption } from '@/components/ui/Segmented';
-import { useAppUpdate } from '@/context/AppUpdateContext';
+import { CURRENT_APP_VERSION, useAppUpdateStore } from '@/stores/appUpdateStore';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { hasStoredSession } from '@/lib/auth-client';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -29,12 +29,12 @@ const THEME_OPTIONS: SegmentOption<ThemeChoice>[] = [
 export default function ProfileScreen() {
   const { user, logout, getProfile, loading } = useUser();
   const { colors, setTheme, themePreference } = useTheme();
-  const { currentVersion, isUpdateAvailable } = useAppUpdate();
+  const isUpdateAvailable = useAppUpdateStore((s) => s.isUpdateAvailable);
   const [showDeveloper, setShowDeveloper] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('token').then((token) => {
-      if (!user && token) getProfile();
+    hasStoredSession().then((signedIn) => {
+      if (!user && signedIn) getProfile();
     });
   }, [user, getProfile]);
 
@@ -99,6 +99,12 @@ export default function ProfileScreen() {
             }
           />
           <SettingsRow
+            icon='shield'
+            label='Security'
+            detail='Passkeys and two-factor'
+            onPress={() => router.push('/security')}
+          />
+          <SettingsRow
             icon='globe'
             label='Music languages'
             onPress={() => router.push('/music-language')}
@@ -121,7 +127,7 @@ export default function ProfileScreen() {
         <View>
           <SettingsRow icon='log-out' label='Log out' destructive onPress={confirmLogout} />
           <Text style={[styles.version, { color: colors.mutedForeground }]}>
-            SyncVibe {currentVersion}
+            SyncVibe {CURRENT_APP_VERSION}
           </Text>
         </View>
       </ScrollView>

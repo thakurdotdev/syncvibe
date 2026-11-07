@@ -92,7 +92,7 @@ const SearchUser = ({
   }, [searchQuery, searchUsers]);
 
   const createChat = useCallback(
-    async (userid) => {
+    async (userid, person) => {
       try {
         setLoading(true);
         const response = await axios.post(
@@ -102,9 +102,13 @@ const SearchUser = ({
         );
 
         if (response.status === 200) {
-          setCurrentChat(response.data.chat);
-          socket?.emit('join-room', response.data.chat.chatid);
-          await getAllExistingChats();
+          const { chat } = response.data;
+          socket?.emit('join-room', chat.chatid);
+          // The response is only the bare chat; the screen also needs who it's with.
+          const list = await getAllExistingChats();
+          setCurrentChat(
+            list?.find((c) => c.chatid === chat.chatid) ?? { ...chat, otherUser: person }
+          );
           setNewUsers([]);
           setSearchQuery('');
         }
@@ -124,7 +128,7 @@ const SearchUser = ({
 
   const handleSelectChat = (user, isSearchResult = false) => {
     if (isSearchResult) {
-      createChat(user.userid);
+      createChat(user.userid, user);
     } else {
       setCurrentChat(user);
       setActiveTab(user.otherUser?.userid);

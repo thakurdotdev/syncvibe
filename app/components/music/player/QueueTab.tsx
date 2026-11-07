@@ -1,3 +1,4 @@
+import { EASE_OUT } from '@/lib/motion';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import {
@@ -147,6 +148,8 @@ export const QueueTab = memo(function QueueTab({
   const autoFetchRecommendations = usePlayerStore((s) => s.autoFetchRecommendations);
   const setAutoFetchRecommendations = usePlayerStore((s) => s.setAutoFetchRecommendations);
   const [menuSong, setMenuSong] = useState<Song | null>(null);
+  // Separate from the song, so the sheet keeps its content while it slides away.
+  const [menuOpen, setMenuOpen] = useState(false);
   const [isFetchingRecs, setIsFetchingRecs] = useState(false);
 
   const upcomingCount = useMemo(() => {
@@ -156,6 +159,7 @@ export const QueueTab = memo(function QueueTab({
 
   const handleMenuPress = useCallback((song: Song) => {
     setMenuSong(song);
+    setMenuOpen(true);
   }, []);
 
   const renderRow = useCallback(
@@ -199,7 +203,7 @@ export const QueueTab = memo(function QueueTab({
     (songId: string) => {
       removeFromQueueBelow(songId);
       toast('Removed songs below');
-      setMenuSong(null);
+      setMenuOpen(false);
     },
     [removeFromQueueBelow]
   );
@@ -210,7 +214,7 @@ export const QueueTab = memo(function QueueTab({
     (songId: string) => {
       const name = usePlayerStore.getState().playlist.find((s) => s.id === songId)?.name;
       const undo = removeFromQueue(songId);
-      setMenuSong(null);
+      setMenuOpen(false);
       if (undo) toast(`Removed ${name}`, { action: { label: 'Undo', onPress: undo } });
     },
     [removeFromQueue]
@@ -218,7 +222,7 @@ export const QueueTab = memo(function QueueTab({
 
   const handleMenuFetchRecs = useCallback(
     (songId: string) => {
-      setMenuSong(null);
+      setMenuOpen(false);
       handleFetchRecommendations(songId);
     },
     [handleFetchRecommendations]
@@ -226,7 +230,7 @@ export const QueueTab = memo(function QueueTab({
 
   const handleMenuPlayNow = useCallback(
     (song: Song) => {
-      setMenuSong(null);
+      setMenuOpen(false);
       playSong(song);
     },
     [playSong]
@@ -234,7 +238,7 @@ export const QueueTab = memo(function QueueTab({
 
   if (!playlist.length) {
     return (
-      <Animated.View entering={FadeIn.duration(300)} style={queueStyles.emptyContainer}>
+      <Animated.View entering={EMPTY_ENTER} style={queueStyles.emptyContainer}>
         <View style={[queueStyles.emptyIconCircle, { backgroundColor: colors.muted }]}>
           <Ionicons name='musical-notes-outline' size={32} color={colors.mutedForeground} />
         </View>
@@ -321,7 +325,14 @@ export const QueueTab = memo(function QueueTab({
       )}
 
       {menuSong && (
-        <SwipeableModal isVisible={!!menuSong} onClose={() => setMenuSong(null)}>
+        <SwipeableModal
+          isVisible={menuOpen}
+          onClose={() => {
+            setMenuOpen(false);
+            setMenuSong(null);
+          }}
+          dragAnywhere
+        >
           <View style={queueMenuStyles.container}>
             <View style={queueMenuStyles.header}>
               <Image
@@ -333,6 +344,7 @@ export const QueueTab = memo(function QueueTab({
                   cache: 'force-cache',
                 }}
                 style={queueMenuStyles.headerImage}
+                fadeDuration={0}
               />
               <View style={queueMenuStyles.headerInfo}>
                 <Text
@@ -539,6 +551,8 @@ const queueMenuStyles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+
+const EMPTY_ENTER = FadeIn.duration(200).easing(EASE_OUT);
 
 const queueStyles = StyleSheet.create({
   dragArea: { paddingTop: 2 },
