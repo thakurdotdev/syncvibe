@@ -57,6 +57,47 @@ export const HeaderIconButton = memo(function HeaderIconButton({
 const openSearch = () => router.push('/search');
 const openProfile = () => router.navigate('/(tabs)/profile');
 
+/** Your avatar, the way into Profile. Nothing when signed out. */
+const AvatarButton = memo(function AvatarButton() {
+  const { colors } = useTheme();
+  const { user } = useUser();
+  if (!user?.profilepic) return null;
+  return (
+    <PressableScale
+      onPress={openProfile}
+      scaleTo={BUTTON_PRESS_SCALE}
+      accessibilityRole='button'
+      accessibilityLabel='Your profile'
+      style={[styles.avatarRing, { borderColor: colors.border }]}
+    >
+      <Image
+        source={{ uri: getProfileCloudinaryUrl(user.profilepic) }}
+        style={styles.avatar}
+        fadeDuration={0}
+      />
+    </PressableScale>
+  );
+});
+
+/** Home's header: search is the second most likely thing you came for, so it's right there. */
+export const HomeHeader = memo(function HomeHeader() {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.homeHeader}>
+      <PressableScale
+        onPress={openSearch}
+        accessibilityRole='button'
+        accessibilityLabel='Search music, your history, playlists and people'
+        style={[styles.homeSearch, { backgroundColor: colors.raised }]}
+      >
+        <Ionicons name='search' size={18} color={colors.mutedForeground} />
+        <Text style={[styles.homeSearchText, { color: colors.mutedForeground }]}>Search music</Text>
+      </PressableScale>
+      <AvatarButton />
+    </View>
+  );
+});
+
 /**
  * Header for the tab roots. Same height, padding, type and action buttons everywhere:
  * a title on the left; page actions, search and your avatar (the way into Profile) on the right.
@@ -78,23 +119,6 @@ export const TabHeader = memo(function TabHeader({
   showSearch?: boolean;
 }) {
   const { colors } = useTheme();
-  const { user } = useUser();
-
-  const avatarButton = user?.profilepic ? (
-    <PressableScale
-      onPress={openProfile}
-      scaleTo={BUTTON_PRESS_SCALE}
-      accessibilityRole='button'
-      accessibilityLabel='Your profile'
-      style={[styles.avatarRing, { borderColor: colors.border }]}
-    >
-      <Image
-        source={{ uri: getProfileCloudinaryUrl(user.profilepic) }}
-        style={styles.avatar}
-        fadeDuration={0}
-      />
-    </PressableScale>
-  ) : null;
 
   return (
     <View style={styles.tabHeader}>
@@ -113,7 +137,7 @@ export const TabHeader = memo(function TabHeader({
       <View style={styles.actions}>
         {actions}
         {showSearch && <HeaderIconButton icon='search' label='Search music' onPress={openSearch} />}
-        {avatar === 'trailing' && avatarButton}
+        {avatar === 'trailing' && <AvatarButton />}
       </View>
     </View>
   );
@@ -173,6 +197,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconButtonSpacer: { width: 38, height: 38 },
+
+  homeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 12,
+  },
+  homeSearch: {
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 15,
+  },
+  homeSearchText: { fontSize: 15 },
 
   tabHeader: {
     height: HEADER_HEIGHT,

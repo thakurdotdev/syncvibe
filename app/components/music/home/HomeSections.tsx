@@ -1,15 +1,31 @@
-import { IMAGE_FADE_MS, LIST_PRESS_DELAY, ROW_PRESS_SCALE } from '@/lib/motion';
-import { SECTION_GAP, SectionTitle } from '@/components/music/MusicLists';
 import { PlayingBars } from '@/components/music/PlayingBars';
 import { useSongPress } from '@/components/music/useSongPress';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
+import {
+  BUTTON_PRESS_SCALE,
+  EASE_OUT,
+  IMAGE_FADE_MS,
+  LIST_PRESS_DELAY,
+  ROW_PRESS_SCALE,
+} from '@/lib/motion';
+import { fonts } from '@/theme/typography';
 import { Song } from '@/types/song';
-import { router } from 'expo-router';
-import { memo, useMemo } from 'react';
+import { convertToHttps } from '@/utils/getHttpsUrls';
+import { Ionicons } from '@expo/vector-icons';
+import { memo } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
-const songArt = (song: Song) => song.image?.[1]?.link || song.image?.[0]?.link;
+export const songCoverUrl = (song: Song) => {
+  const link = song.image?.[2]?.link || song.image?.[1]?.link || song.image?.[0]?.link;
+  return link ? convertToHttps(link) : undefined;
+};
+
+const songThumb = (song: Song) => {
+  const link = song.image?.[1]?.link || song.image?.[0]?.link;
+  return link ? convertToHttps(link) : undefined;
+};
 
 const songArtist = (song: Song) =>
   song.artist_map?.primary_artists?.[0]?.name ||
@@ -17,14 +33,75 @@ const songArtist = (song: Song) =>
   song.subtitle ||
   '';
 
-// ─── Rows ─────────────────────────────────────────────
+const COVER_ENTER = FadeIn.duration(200).easing(EASE_OUT);
+const COVER_EXIT = FadeOut.duration(200).easing(EASE_OUT);
+const TEXT_ENTER = FadeIn.duration(200).easing(EASE_OUT);
 
-/** One song, with nothing around it but space. A rank makes it a chart row. */
-const SongRow = memo(function SongRow({ song, rank }: { song: Song; rank?: number }) {
+/**
+ * The next thing to play, and the one big thing on Home. Tap anywhere on it to start. When the
+ * song changes, the covers cross-fade: Home's only motion besides presses.
+ */
+export const HomeHero = memo(function HomeHero({ song }: { song: Song }) {
+  const { colors } = useTheme();
+  const { onPress, onLongPress, isCurrentSong, isPlaying, options } = useSongPress(song);
+  const pause = isCurrentSong && isPlaying;
+
+  return (
+    <View style={styles.hero}>
+      <PressableScale
+        onPress={onPress}
+        onLongPress={onLongPress}
+        delayLongPress={350}
+        unstable_pressDelay={LIST_PRESS_DELAY}
+        accessibilityRole='button'
+        accessibilityLabel={`${pause ? 'Pause' : 'Play'} ${song.name} by ${songArtist(song)}`}
+        style={[styles.cover, { backgroundColor: colors.raised }]}
+      >
+        <Animated.Image
+          key={song.id}
+          entering={COVER_ENTER}
+          exiting={COVER_EXIT}
+          source={{ uri: songCoverUrl(song), cache: 'force-cache' }}
+          style={styles.coverImage}
+          fadeDuration={IMAGE_FADE_MS}
+          resizeMethod='resize'
+        />
+      </PressableScale>
+
+      <View style={styles.heroRow}>
+        <Animated.View key={song.id} entering={TEXT_ENTER} style={styles.text}>
+          <Text style={[styles.heroTitle, { color: colors.foreground }]} numberOfLines={1}>
+            {song.name}
+          </Text>
+          <Text style={[styles.heroSub, { color: colors.mutedForeground }]} numberOfLines={1}>
+            {songArtist(song)}
+          </Text>
+        </Animated.View>
+        <PressableScale
+          onPress={onPress}
+          scaleTo={BUTTON_PRESS_SCALE}
+          accessibilityRole='button'
+          accessibilityLabel={pause ? 'Pause' : 'Play'}
+          style={[styles.play, { backgroundColor: colors.foreground }]}
+        >
+          <Ionicons
+            name={pause ? 'pause' : 'play'}
+            size={22}
+            color={colors.background}
+            style={pause ? undefined : styles.playGlyph}
+          />
+        </PressableScale>
+      </View>
+      {options}
+    </View>
+  );
+});
+
+/** One song, with nothing around it but space. */
+export const SongRow = memo(function SongRow({ song }: { song: Song }) {
   const { colors } = useTheme();
   const { onPress, onLongPress, isCurrentSong, isPlaying, options } = useSongPress(song);
   const artist = songArtist(song);
-  const bars = isCurrentSong ? <PlayingBars color={colors.foreground} active={isPlaying} /> : null;
 
   return (
     <>
@@ -35,20 +112,11 @@ const SongRow = memo(function SongRow({ song, rank }: { song: Song; rank?: numbe
         unstable_pressDelay={LIST_PRESS_DELAY}
         scaleTo={ROW_PRESS_SCALE}
         accessibilityRole='button'
-        accessibilityLabel={`${rank ? `Number ${rank}, ` : ''}${
-          isCurrentSong && isPlaying ? 'Pause' : 'Play'
-        } ${song.name} by ${artist}`}
+        accessibilityLabel={`${isCurrentSong && isPlaying ? 'Pause' : 'Play'} ${song.name} by ${artist}`}
         style={styles.row}
       >
-        {rank ? (
-          <View style={styles.rank}>
-            {bars ?? (
-              <Text style={[styles.rankText, { color: colors.mutedForeground }]}>{rank}</Text>
-            )}
-          </View>
-        ) : null}
         <Image
-          source={{ uri: songArt(song), cache: 'force-cache' }}
+          source={{ uri: songThumb(song), cache: 'force-cache' }}
           style={[styles.art, { backgroundColor: colors.raised }]}
           fadeDuration={IMAGE_FADE_MS}
           resizeMethod='resize'
@@ -61,71 +129,32 @@ const SongRow = memo(function SongRow({ song, rank }: { song: Song; rank?: numbe
             {artist}
           </Text>
         </View>
-        {rank ? null : bars}
+        {isCurrentSong ? <PlayingBars color={colors.foreground} active={isPlaying} /> : null}
       </PressableScale>
       {options}
     </>
   );
 });
 
-// ─── Jump back in ─────────────────────────────────────
-
-const QUICK_PICKS = 3;
-
-/** The first thing on Home: your last few songs, one tap to play. The rest are behind See all. */
-export const QuickPicks = memo(function QuickPicks({ songs }: { songs: Song[] }) {
-  const picks = useMemo(() => songs.filter((s) => s?.id).slice(0, QUICK_PICKS), [songs]);
-  if (picks.length < 2) return null;
-
-  return (
-    <View style={styles.section}>
-      <SectionTitle title='Jump back in' onSeeAll={() => router.push('/song-history')} />
-      <View style={styles.rows}>
-        {picks.map((song) => (
-          <SongRow key={song.id} song={song} />
-        ))}
-      </View>
-    </View>
-  );
-});
-
-// ─── Trending chart ───────────────────────────────────
-
-const CHART_SIZE = 5;
-
-/** The top of the chart, numbered because the order is the point. */
-export const TrendingChart = memo(function TrendingChart({
-  songs,
-  title,
-}: {
-  songs: Song[];
-  title: string;
-}) {
-  const top = useMemo(() => songs.filter((s) => s?.id).slice(0, CHART_SIZE), [songs]);
-  if (!top.length) return null;
-
-  return (
-    <View style={styles.section}>
-      <SectionTitle title={title} onSeeAll={() => router.push('/browse')} />
-      <View style={styles.rows}>
-        {top.map((song, i) => (
-          <SongRow key={song.id} song={song} rank={i + 1} />
-        ))}
-      </View>
-    </View>
-  );
-});
-
 const styles = StyleSheet.create({
-  section: { marginBottom: SECTION_GAP },
+  hero: { paddingHorizontal: 16 },
+  cover: { width: '100%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden' },
+  coverImage: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 14, paddingLeft: 2 },
+  heroTitle: { fontFamily: fonts.display, fontSize: 27, lineHeight: 31, letterSpacing: -0.6 },
+  heroSub: { fontSize: 14.5, marginTop: 3 },
+  play: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playGlyph: { marginLeft: 3 },
 
-  rows: { paddingHorizontal: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 60 },
   art: { width: 48, height: 48, borderRadius: 6 },
   text: { flex: 1, minWidth: 0 },
   title: { fontSize: 15, fontWeight: '600', letterSpacing: -0.15 },
   sub: { fontSize: 13, marginTop: 2 },
-
-  rank: { width: 20, alignItems: 'center' },
-  rankText: { fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] },
 });

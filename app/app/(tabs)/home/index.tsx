@@ -1,58 +1,49 @@
-import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE } from '@/lib/motion';
-import { QuickPicks, TrendingChart } from '@/components/music/home/HomeSections';
-import {
-  AlbumsGrid,
-  PlaylistsGrid,
-  RecommendationGrid,
-  SECTION_GAP,
-} from '@/components/music/MusicLists';
+import { HomeHero, songCoverUrl, SongRow } from '@/components/music/home/HomeSections';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
-import { TabHeader } from '@/components/ui/AppHeader';
+import { HomeHeader } from '@/components/ui/AppHeader';
 import PressableScale from '@/components/ui/PressableScale';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
+import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE } from '@/lib/motion';
 import { useHomePageMusic, useRecentMusic } from '@/queries/useMusic';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import { usePlaybackState, usePlayerControls, usePlayerStore } from '@/stores/playerStore';
 import { fonts } from '@/theme/typography';
-import { usePlaybackState, usePlayerControls } from '@/stores/playerStore';
+import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsRestoring } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import {
-  memo,
-  startTransition,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 type Colors = ReturnType<typeof useTheme>['colors'];
 
-const greeting = () => {
-  const h = new Date().getHours();
-  if (h < 5) return 'Up late';
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-};
-
-/** The first screenful renders straight away; the rest follow a section at a time. */
-const FIRST_SECTIONS = 3;
-const NEXT_SECTION_MS = 80;
+/** Short on purpose: the page ends, and everything else is in Browse. */
+const LIST_SIZE = 10;
 const SKELETON_DELAY_MS = 200;
 const CONTENT_ENTER = FadeIn.duration(180).easing(EASE_OUT);
 
 const goRooms = () => router.navigate('/(tabs)/group-music');
-
 const goBrowse = () => router.push('/browse');
 
-/** Home stays short; everything else the service offers is one tap away. */
+/** New for you and your own recent songs in turn, then what's trending, each song once. */
+const buildPool = (fresh: Song[], recent: Song[], trending: Song[]) => {
+  const mixed: Song[] = [];
+  for (let i = 0; i < Math.max(fresh.length, recent.length); i++) {
+    if (fresh[i]) mixed.push(fresh[i]);
+    if (recent[i]) mixed.push(recent[i]);
+  }
+  const seen = new Set<string>();
+  return [...mixed, ...trending].filter((song) => {
+    if (!song?.id || seen.has(song.id)) return false;
+    seen.add(song.id);
+    return true;
+  });
+};
+
 const BrowseRow = memo(function BrowseRow({ colors }: { colors: Colors }) {
   return (
     <PressableScale
@@ -171,9 +162,9 @@ const LiveRoomSection = memo(function LiveRoomSection({ colors }: { colors: Colo
   );
 });
 
-/** Stand-ins shaped like the real first screen, so nothing jumps when the content arrives. */
+/** Stand-ins shaped like the real screen, so nothing jumps when the content arrives. Still. */
 function HomeSkeleton({ colors }: { colors: Colors }) {
-  const block = (w: number | `${number}%`, h: number, r = 10) => ({
+  const block = (w: number | `${number}%`, h: number, r = 6) => ({
     width: w,
     height: h,
     borderRadius: r,
@@ -182,20 +173,18 @@ function HomeSkeleton({ colors }: { colors: Colors }) {
 
   return (
     <View style={styles.skeleton}>
-      <View style={[block('36%', 16, 6), styles.skeletonTitle]} />
-      {[0, 1, 2].map((row) => (
-        <View key={row} style={styles.skeletonRow}>
-          <View style={block(48, 48, 6)} />
-          <View style={styles.skeletonLines}>
-            <View style={block('60%', 13, 5)} />
-            <View style={block('38%', 11, 5)} />
+      <View style={[block('100%', 0, 10), styles.skeletonCover]} />
+      <View style={[block('60%', 24), styles.skeletonTitle]} />
+      <View style={block('38%', 13)} />
+      <View style={styles.list}>
+        {[0, 1, 2].map((row) => (
+          <View key={row} style={styles.skeletonRow}>
+            <View style={block(48, 48)} />
+            <View style={styles.skeletonLines}>
+              <View style={block('60%', 13, 5)} />
+              <View style={block('38%', 11, 5)} />
+            </View>
           </View>
-        </View>
-      ))}
-      <View style={[block('36%', 16, 6), styles.skeletonTitle, styles.skeletonGap]} />
-      <View style={styles.skeletonCovers}>
-        {[0, 1, 2].map((i) => (
-          <View key={i} style={block(140, 140, 8)} />
         ))}
       </View>
     </View>
@@ -205,8 +194,12 @@ function HomeSkeleton({ colors }: { colors: Colors }) {
 function HomeScreen() {
   const { user } = useUser();
   const { colors } = useTheme();
+  const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
+  const currentSong = usePlayerStore((s) => s.currentSong);
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const currentId = currentSong?.id;
 
-  const { data: homePageData, isLoading, refetch: refetchHome } = useHomePageMusic();
+  const { data: homePageData, isLoading, isError, refetch: refetchHome } = useHomePageMusic();
   const { data: recommendations, refetch: refetchRecent } = useRecentMusic();
 
   // Saved data is still being read from storage, which is too quick to show anything for.
@@ -216,12 +209,14 @@ function HomeScreen() {
   // Only when you pull: data also refreshes by itself in the background, and a spinner appearing
   // for that, with nothing touched, reads as something going wrong.
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshes, setRefreshes] = useState(0);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     const requests: Promise<unknown>[] = [refetchHome()];
     if (user?.userid) requests.push(refetchRecent());
     await Promise.allSettled(requests);
     setRefreshing(false);
+    setRefreshes((n) => n + 1);
   }, [user?.userid, refetchHome, refetchRecent]);
 
   // A fast load goes straight to the music, with no skeleton flashing up in between.
@@ -232,52 +227,50 @@ function HomeScreen() {
     return () => clearTimeout(timer);
   }, [waiting]);
 
-  const trendingSongs = useMemo(
-    () => homePageData?.trending?.data?.filter((i) => i?.type === 'song') ?? [],
-    [homePageData?.trending]
+  const pool = useMemo(
+    () =>
+      buildPool(
+        recommendations?.songs ?? [],
+        recommendations?.recentlyPlayed ?? [],
+        homePageData?.trending?.data?.filter((i) => i?.type === 'song') ?? []
+      ),
+    [homePageData?.trending, recommendations]
+  );
+  const hasPool = pool.length > 0;
+
+  // The song restored from last time is there to resume until you play something. After that the
+  // cover stays on what's next, or pausing would make it jump back.
+  const [startedPlaying, setStartedPlaying] = useState(false);
+  if (isPlaying && !startedPlaying) setStartedPlaying(true);
+  const resumeSong = !startedPlaying ? currentSong : null;
+
+  // Changes when the song does or you pull to refresh, not whenever data updates in the background:
+  // a cover swapping while you're looking at it, for no reason you can see, feels broken.
+  const nextPick = useMemo(
+    () => pool.find((song) => song.id !== currentId) ?? null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [currentId, hasPool, refreshes]
+  );
+  const hero = resumeSong ?? nextPick;
+  const heroId = hero?.id;
+
+  const rows = useMemo(
+    () => pool.filter((song) => song.id !== heroId).slice(0, LIST_SIZE),
+    [heroId, pool]
   );
 
-  const sections = useMemo(() => {
-    const out: { key: string; node: ReactNode }[] = [
-      { key: 'picks', node: <QuickPicks songs={recommendations?.recentlyPlayed ?? []} /> },
-      {
-        key: 'made',
-        node: (
-          <RecommendationGrid recommendations={recommendations?.songs ?? []} title='Made for you' />
-        ),
-      },
-      { key: 'trending', node: <TrendingChart songs={trendingSongs} title='Trending now' /> },
-      {
-        key: 'albums',
-        node: <AlbumsGrid albums={homePageData?.albums?.data ?? []} title='New albums' />,
-      },
-      {
-        key: 'playlists',
-        node: (
-          <PlaylistsGrid
-            playlists={homePageData?.playlists?.data ?? []}
-            title='Popular playlists'
-          />
-        ),
-      },
-      { key: 'browse', node: <BrowseRow colors={colors} /> },
-    ];
-    return out;
-  }, [colors, homePageData, recommendations, trendingSongs]);
-
-  // Mounting every section at once is what made Home slow to appear. Mounting yields to touches.
-  const [shownSections, setShownSections] = useState(FIRST_SECTIONS);
+  // So the next cover is already there when this one is played.
+  const upcomingCover = useMemo(() => {
+    const upcoming = pool.find((song) => song.id !== heroId && song.id !== currentId);
+    return upcoming ? songCoverUrl(upcoming) : undefined;
+  }, [currentId, heroId, pool]);
   useEffect(() => {
-    if (waiting || shownSections >= sections.length) return;
-    const timer = setTimeout(() => {
-      startTransition(() => setShownSections((n) => n + 1));
-    }, NEXT_SECTION_MS);
-    return () => clearTimeout(timer);
-  }, [waiting, sections.length, shownSections]);
+    if (upcomingCover) Image.prefetch(upcomingCover).catch(() => {});
+  }, [upcomingCover]);
 
   return (
     <TabSafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
-      <TabHeader title={greeting()} />
+      <HomeHeader />
 
       <ScrollView
         style={styles.root}
@@ -292,16 +285,32 @@ function HomeScreen() {
           />
         }
       >
-        <LiveRoomSection colors={colors} />
+        {inRoom ? <LiveRoomSection colors={colors} /> : null}
 
         {waiting ? (
-          skeletonShown && <HomeSkeleton colors={colors} />
+          skeletonShown && !inRoom && <HomeSkeleton colors={colors} />
+        ) : !hasPool ? (
+          <View style={styles.empty}>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+              {isError ? "Couldn't load music. Check your connection." : 'Nothing to play yet.'}
+            </Text>
+            <PressableScale
+              onPress={onRefresh}
+              accessibilityRole='button'
+              style={[styles.retry, { backgroundColor: colors.raised }]}
+            >
+              <Text style={[styles.retryText, { color: colors.foreground }]}>Try again</Text>
+            </PressableScale>
+          </View>
         ) : (
-          // The screen's one piece of motion nobody asked for, and only if a skeleton was showing.
           <Animated.View entering={skeletonShown ? CONTENT_ENTER : undefined}>
-            {sections.slice(0, shownSections).map(({ key, node }) => (
-              <View key={key}>{node}</View>
-            ))}
+            {hero && !inRoom ? <HomeHero song={hero} /> : null}
+            <View style={styles.list}>
+              {rows.map((song) => (
+                <SongRow key={song.id} song={song} />
+              ))}
+            </View>
+            <BrowseRow colors={colors} />
           </Animated.View>
         )}
       </ScrollView>
@@ -311,16 +320,17 @@ function HomeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  content: { paddingTop: 8, paddingBottom: DECK_CLEARANCE },
+  content: { paddingBottom: DECK_CLEARANCE },
+  list: { paddingHorizontal: 16, paddingTop: 18 },
 
-  roomStack: { gap: 10, paddingHorizontal: 16, marginBottom: SECTION_GAP },
+  roomStack: { gap: 10, paddingHorizontal: 16 },
   browseRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 44,
+    height: 56,
     paddingHorizontal: 16,
-    marginBottom: SECTION_GAP,
+    marginTop: 8,
   },
   browseText: { fontSize: 15, fontWeight: '600', letterSpacing: -0.15 },
   liveCard: { borderRadius: 22, padding: 14, gap: 14 },
@@ -363,11 +373,15 @@ const styles = StyleSheet.create({
   liveText: { fontSize: 12, fontWeight: '700' },
 
   skeleton: { paddingHorizontal: 16 },
-  skeletonTitle: { marginBottom: 14 },
-  skeletonGap: { marginTop: SECTION_GAP },
+  skeletonCover: { height: undefined, aspectRatio: 1, marginBottom: 14 },
+  skeletonTitle: { marginBottom: 8 },
   skeletonRow: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 60 },
   skeletonLines: { flex: 1, gap: 7 },
-  skeletonCovers: { flexDirection: 'row', gap: 12 },
+
+  empty: { alignItems: 'center', gap: 14, paddingTop: 96, paddingHorizontal: 24 },
+  emptyText: { fontSize: 14, textAlign: 'center' },
+  retry: { height: 40, paddingHorizontal: 18, borderRadius: 20, justifyContent: 'center' },
+  retryText: { fontSize: 14, fontWeight: '600' },
 });
 
 export default memo(HomeScreen);

@@ -1,13 +1,10 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { fonts } from '@/theme/typography';
-import { Album, Playlist } from '@/types/music';
-import { Song } from '@/types/song';
 import { memo, useCallback, type ReactElement } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { AlbumCard, NewSongCard, PlaylistCard } from './MusicCards';
 
-/** Section heading used by every home row: display face, optional "See all" on the right. */
+/** Section heading used by every row: display face, optional "See all" on the right. */
 export const SectionTitle = memo(function SectionTitle({
   title,
   onSeeAll,
@@ -38,8 +35,8 @@ export const SectionTitle = memo(function SectionTitle({
 });
 
 const GAP = 12;
-/** Space does the separating on Home, so sections get plenty of it. */
-export const SECTION_GAP = 40;
+/** Space does the separating, so sections get plenty of it. */
+const SECTION_GAP = 40;
 
 const defaultKeyOf = (item: { id?: string }, index: number) => item?.id || String(index);
 
@@ -95,40 +92,6 @@ export function CardRow<T>({
 }
 
 const RowGap = () => <View style={styles.gap} />;
-
-const renderSong = (song: Song) => <NewSongCard song={song} />;
-const renderAlbum = (album: Album) => <AlbumCard album={album} />;
-const renderPlaylist = (playlist: Playlist) => <PlaylistCard playlist={playlist} />;
-
-export const RecommendationGrid = memo(function RecommendationGrid({
-  recommendations,
-  title,
-}: {
-  recommendations: Song[];
-  title?: string;
-}) {
-  return <CardRow title={title} data={recommendations} itemWidth={140} renderCard={renderSong} />;
-});
-
-export const AlbumsGrid = memo(function AlbumsGrid({
-  albums,
-  title,
-}: {
-  albums: Album[];
-  title?: string;
-}) {
-  return <CardRow title={title} data={albums} itemWidth={140} renderCard={renderAlbum} />;
-});
-
-export const PlaylistsGrid = memo(function PlaylistsGrid({
-  playlists,
-  title,
-}: {
-  playlists: Playlist[];
-  title?: string;
-}) {
-  return <CardRow title={title} data={playlists} itemWidth={140} renderCard={renderPlaylist} />;
-});
 
 const styles = StyleSheet.create({
   section: { marginBottom: SECTION_GAP },
