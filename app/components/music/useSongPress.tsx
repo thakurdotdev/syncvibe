@@ -7,7 +7,7 @@ import { useCallback, useState } from 'react';
 import NewPlayerDrawer from './NewPlayerDrawer';
 
 /** Some lists give a song without its audio link, which playing and queueing both need. */
-const playable = async (song: Song) =>
+export const playable = async (song: Song) =>
   ensureHttpsForSongUrls(song.download_url?.length ? song : await getFullSong(song.id));
 
 /**
