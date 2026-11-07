@@ -54,6 +54,34 @@ const isCancellation = (error: unknown) => {
   return /cancel/i.test(`${code ?? ''} ${name ?? ''} ${message ?? ''}`);
 };
 
+/**
+ * Native errors read "Call to function 'ReactNativePasskeys.create' has been rejected.
+ * → Caused by: <reason>". Only the reason is useful, and some reasons need a hint.
+ */
+const describeNativeError = (error: unknown): Error => {
+  const raw = error instanceof Error ? error.message : String(error);
+  const reason =
+    raw
+      .split(/Caused by:\s*/)
+      .pop()
+      ?.trim() || raw;
+  if (/SecurityError|cannot be validated|RP ID/i.test(reason)) {
+    return new Error(
+      'This device couldn’t verify SyncVibe for passkeys yet. Check your connection and try again in a few minutes.'
+    );
+  }
+  if (/NotConfigured/i.test(reason)) {
+    return new Error(
+      'No passkey provider is set up. Turn on Google Password Manager under Settings › Passwords & accounts.'
+    );
+  }
+  if (/NoCredentials/i.test(reason)) return new Error('No SyncVibe passkey on this device.');
+  if (/InvalidStateError|previously registered/i.test(reason)) {
+    return new Error('This device already has a passkey for your account.');
+  }
+  return new Error(`Passkey failed: ${reason}`);
+};
+
 /** Runs a native ceremony, mapping a dismissed prompt to PasskeyCancelledError. */
 const runCeremony = async <T>(ceremony: (native: typeof PasskeysModule) => Promise<T | null>) => {
   const native = getNative();
@@ -68,7 +96,8 @@ const runCeremony = async <T>(ceremony: (native: typeof PasskeysModule) => Promi
     if (error instanceof PasskeyCancelledError || isCancellation(error)) {
       throw new PasskeyCancelledError();
     }
-    throw error;
+    console.warn('Passkey ceremony failed:', error);
+    throw describeNativeError(error);
   }
 };
 
