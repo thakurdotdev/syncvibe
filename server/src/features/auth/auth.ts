@@ -19,6 +19,7 @@ import {
 } from './auth.config';
 import { authDatabase } from './database';
 import { loginActivity } from './login-activity.plugin';
+import { createRedisRateLimitStorage } from './rate-limit-storage';
 import { hashPassword, verifyPassword } from './password';
 import { signUpPolicy } from './sign-up-policy';
 import { generateUniqueUsername } from './username';
@@ -141,7 +142,7 @@ export const auth = betterAuth({
     '/email-otp/change-email',
   ],
 
-  rateLimit: { customRules: authRateLimits },
+  rateLimit: { customRules: authRateLimits, customStorage: createRedisRateLimitStorage() },
 
   advanced: {
     database: { generateId: 'serial' },
