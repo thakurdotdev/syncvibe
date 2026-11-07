@@ -6,7 +6,7 @@ import { SettingsGroup, SettingsRow } from '@/components/profile/SettingsGroup';
 import { UpdateCard } from '@/components/profile/UpdateCard';
 import { StackHeader } from '@/components/ui/AppHeader';
 import { Segmented, type SegmentOption } from '@/components/ui/Segmented';
-import { useAppUpdate } from '@/context/AppUpdateContext';
+import { CURRENT_APP_VERSION, useAppUpdateStore } from '@/stores/appUpdateStore';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -29,7 +29,7 @@ const THEME_OPTIONS: SegmentOption<ThemeChoice>[] = [
 export default function ProfileScreen() {
   const { user, logout, getProfile, loading } = useUser();
   const { colors, setTheme, themePreference } = useTheme();
-  const { currentVersion, isUpdateAvailable } = useAppUpdate();
+  const isUpdateAvailable = useAppUpdateStore((s) => s.isUpdateAvailable);
   const [showDeveloper, setShowDeveloper] = useState(false);
 
   useEffect(() => {
@@ -121,7 +121,7 @@ export default function ProfileScreen() {
         <View>
           <SettingsRow icon='log-out' label='Log out' destructive onPress={confirmLogout} />
           <Text style={[styles.version, { color: colors.mutedForeground }]}>
-            SyncVibe {currentVersion}
+            SyncVibe {CURRENT_APP_VERSION}
           </Text>
         </View>
       </ScrollView>

@@ -30,7 +30,7 @@
         "EXPO_USE_PNPM": "1"
       },
       "android": {
-        "buildType": "apk"
+        "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a"
       }
     }
   }

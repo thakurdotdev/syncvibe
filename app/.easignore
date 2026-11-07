@@ -11,6 +11,7 @@ node_modules
 node_modules/
 
 android/
+!modules/*/android/
 ios/
 web/
 
