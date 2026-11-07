@@ -41,6 +41,7 @@ import {
 type TabKey = 'queue' | 'playlists' | 'recommended';
 
 const QUEUE_ROW_HEIGHT = 64;
+const RECOMMENDATIONS_SHOWN = 10;
 const SOURCE_TABS: SegmentOption<TabKey>[] = [
   { value: 'queue', label: 'Up next' },
   { value: 'playlists', label: 'Playlists' },
@@ -452,7 +453,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
         const data = await fetchSongRecommendations(api, songId);
         const existingIds = new Set(currentQueue.map((q) => q.song?.id));
         const filtered = (data || []).filter((s) => !existingIds.has(s.id));
-        setRecommendations(filtered.slice(0, 15));
+        setRecommendations(filtered.slice(0, RECOMMENDATIONS_SHOWN));
       } catch {
         setRecommendations([]);
       } finally {
@@ -480,7 +481,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
                 const currentQueue = queueRef.current || [];
                 const existingIds = new Set(currentQueue.map((q) => q.song?.id));
                 const filtered = data.filter((s) => !existingIds.has(s.id));
-                setRecommendations(filtered.slice(0, 15));
+                setRecommendations(filtered.slice(0, RECOMMENDATIONS_SHOWN));
                 return;
               }
             }
@@ -497,7 +498,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
               const currentQueue = queueRef.current || [];
               const existingIds = new Set(currentQueue.map((q) => q.song?.id));
               const filtered = data.filter((s) => !existingIds.has(s.id));
-              setRecommendations(filtered.slice(0, 15));
+              setRecommendations(filtered.slice(0, RECOMMENDATIONS_SHOWN));
               return;
             }
           }
@@ -511,7 +512,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
           const filtered = modules.trending.data
             .map(ensureHttpsForSongUrls)
             .filter((s) => !existingIds.has(s.id));
-          setRecommendations(filtered.slice(0, 15));
+          setRecommendations(filtered.slice(0, RECOMMENDATIONS_SHOWN));
         }
       } catch (err) {
         console.error('Failed to load fallback recommendations:', err);

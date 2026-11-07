@@ -216,7 +216,7 @@ const QueueRecommendations = memo(() => {
         </View>
       ) : (
         <FlatList
-          data={recommendations.slice(0, 8)}
+          data={recommendations.slice(0, 10)}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <RecommendationItem song={item} onAdd={handleAdd} colors={colors} />
