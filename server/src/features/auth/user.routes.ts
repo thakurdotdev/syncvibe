@@ -12,7 +12,6 @@ import {
   getInviteList,
   updatePushToken,
   getUserProfile,
-  getLoginLogs,
 } from './user.controller';
 import { listDeviceSessions, revokeDeviceSession, revokeOtherDeviceSessions } from './sessions';
 
@@ -24,7 +23,6 @@ userRouter.post('/mobile/pushToken', authMiddleware, updatePushToken);
 userRouter.post('/user/pushToken', authMiddleware, updatePushToken);
 
 // Session & Profile
-userRouter.get('/login-logs', authMiddleware, getLoginLogs);
 userRouter.get('/profile', authMiddleware, getUserProfile);
 userRouter.get('/user/me', authMiddleware, getUserProfile);
 userRouter.get('/user/sessions', authMiddleware, listDeviceSessions);

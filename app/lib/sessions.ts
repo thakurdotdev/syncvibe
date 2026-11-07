@@ -12,6 +12,8 @@ export interface DeviceSession {
   ipAddress: string | null;
   /** City, region and country where it signed in, from Cloudflare. */
   location: string | null;
+  /** password, password-2fa, backup-code, google, passkey or email-code. Null for older sessions. */
+  loginMethod: string | null;
   createdAt: string;
   /** Moves forward at most once a day. */
   lastActiveAt: string;
@@ -45,6 +47,19 @@ export const revokeOtherSessions = (api: AxiosInstance) =>
     api.delete<{ revoked: number }>('/api/user/sessions'),
     'Couldn’t sign out your other devices'
   );
+
+const LOGIN_METHODS: Record<string, string> = {
+  password: 'Password',
+  'password-2fa': 'Password + 2FA',
+  'backup-code': 'Backup code',
+  google: 'Google',
+  passkey: 'Passkey',
+  'email-code': 'Email code',
+};
+
+/** e.g. "Passkey". Null for sessions from before the method was recorded. */
+export const loginMethodLabel = (session: DeviceSession) =>
+  (session.loginMethod && LOGIN_METHODS[session.loginMethod]) || null;
 
 export const sessionIcon = (session: DeviceSession) =>
   session.kind === 'unknown' ? 'help-circle' : session.mobile ? 'smartphone' : 'monitor';

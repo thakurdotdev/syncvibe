@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { Op } from 'sequelize';
-import { User, Follower, OTP, Chat, LoginLog } from '@/models/index';
+import { User, Follower, OTP, Chat } from '@/models/index';
 import { otpForDeleteMailSender, accountDeletedMailSender } from '@/utils/resend';
 import sequelize from '@/utils/sequelize';
 import { authDatabase } from '../database';
@@ -257,18 +257,4 @@ export const getUserProfileService = async (userId: number) => {
 export const getPushTokenService = async (userid: number): Promise<string | null> => {
   const user = await User.findByPk(userid, { attributes: ['expoPushToken'], raw: true });
   return user?.expoPushToken ?? null;
-};
-
-export const getLoginLogsService = async (userId: number) => {
-  const loginLogs = await LoginLog.findAll({
-    where: { userid: userId },
-    order: [['createdAt', 'DESC']],
-    raw: true,
-  });
-
-  return loginLogs.map((log) => {
-    const ipaddress = log.ipaddress?.split(',')[0]?.trim() ?? log.ipaddress;
-    const hasLocation = log.location && !/undefined|null/.test(log.location);
-    return { ...log, ipaddress, location: hasLocation ? log.location : 'Unknown' };
-  });
 };

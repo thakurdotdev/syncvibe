@@ -8,7 +8,6 @@ import getFollowList from '../../Utils/getFollowList';
 import DeleteAccount from '../Modals/DeleteAccount';
 import DisableTwoFactor from '../Modals/DisableTwoFactor';
 import ImageUpload from '../Modals/ImageUpload';
-import LoginLogs from '../Modals/LoginLogs';
 import TwoFactorAuth from '../Modals/TwoFactorAuth';
 import UpdatePassword from '../Modals/UpdatePassword';
 import UpdateProfileModel from '../Modals/UpdateProfileModel';
@@ -40,10 +39,7 @@ const Profile = () => {
 
   // Dialog & Modal states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isLoginLogsOpen, setIsLoginLogsOpen] = useState(false);
   const [isUpdateProfileOpen, setIsUpdateProfileOpen] = useState(false);
-  const [loginLogs, setLoginLogs] = useState([]);
-  const [isLogsLoading, setIsLogsLoading] = useState(false);
   const [updatePassword, setUpdatePassword] = useState(false);
   const [deleteAccount, setDeleteAccount] = useState(false);
   const [is2FASetupOpen, setIs2FASetupOpen] = useState(false);
@@ -52,7 +48,6 @@ const Profile = () => {
   const [isLogoutAlertOpen, setIsLogoutAlertOpen] = useState(false);
 
   const toggleUpdatePassword = () => setUpdatePassword((prev) => !prev);
-  const toggleLoginLogs = () => setIsLoginLogsOpen((prev) => !prev);
   const toggleUpdateProfile = () => setIsUpdateProfileOpen((prev) => !prev);
   const toggle2FASetup = () => setIs2FASetupOpen((prev) => !prev);
   const toggleDisable2FA = () => setIsDisable2FAOpen((prev) => !prev);
@@ -83,26 +78,6 @@ const Profile = () => {
         setFollowersLoading(false);
       });
   }, [user?.userid]);
-
-  useEffect(() => {
-    getLoginLogs();
-  }, []);
-
-  const getLoginLogs = async () => {
-    try {
-      setIsLogsLoading(true);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/login-logs`, {
-        withCredentials: true,
-      });
-      if (response.status === 200) {
-        setLoginLogs(response.data);
-        setIsLogsLoading(false);
-      }
-    } catch (error) {
-      setIsLogsLoading(false);
-      console.error('Error fetching login logs:', error);
-    }
-  };
 
   const handleProfilePicUpdate = useCallback(
     async (croppedImageUrl, file) => {
@@ -193,8 +168,6 @@ const Profile = () => {
               onUpdatePassword={toggleUpdatePassword}
               onSetup2FA={toggle2FASetup}
               onDisable2FA={toggleDisable2FA}
-              onViewLogs={toggleLoginLogs}
-              isLogsLoading={isLogsLoading}
             />
           </TabsContent>
 
@@ -248,9 +221,6 @@ const Profile = () => {
         user={user}
         setUser={setUser}
       />
-
-      {/* Login History Logs Modal */}
-      <LoginLogs isOpen={isLoginLogsOpen} toggleDialog={toggleLoginLogs} loginLogs={loginLogs} />
 
       {/* Change Password Modal */}
       <UpdatePassword isOpen={updatePassword} toggleDialog={toggleUpdatePassword} />
