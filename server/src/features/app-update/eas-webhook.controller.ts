@@ -149,26 +149,36 @@ const processUpdateInBackground = async (
   }
 };
 
+/** Expo signs the raw body with HMAC-SHA1 of the webhook secret, sent as `sha1=<hex>`. */
+const hasValidSignature = (rawBody: Buffer, signature: string, secret: string): boolean => {
+  const expected = Buffer.from(
+    `sha1=${crypto.createHmac('sha1', secret).update(rawBody).digest('hex')}`
+  );
+  const received = Buffer.from(signature);
+  return received.length === expected.length && crypto.timingSafeEqual(received, expected);
+};
+
 export const handleEasWebhook = async (req: Request, res: Response): Promise<void> => {
   try {
-    const signature = req.headers['expo-signature'] as string | undefined;
+    // A payload here publishes an APK to every installed app, so unsigned requests are refused.
     const secret = process.env.EAS_WEBHOOK_SECRET;
-
-    let payload: Record<string, unknown> = req.body as Record<string, unknown>;
-    if (Buffer.isBuffer(req.body)) {
-      payload = JSON.parse((req.body as Buffer).toString()) as Record<string, unknown>;
+    if (!secret) {
+      console.error('EAS webhook rejected: EAS_WEBHOOK_SECRET is not set');
+      res.status(503).json({ success: false, message: 'Webhook not configured' });
+      return;
     }
 
-    if (secret && signature) {
-      const hmac = crypto.createHmac('sha1', secret);
-      const dataToSign = Buffer.isBuffer(req.body) ? req.body : JSON.stringify(req.body);
-      hmac.update(dataToSign);
-      const calculated = `sha1=${hmac.digest('hex')}`;
-      if (signature !== calculated) {
-        res.status(401).json({ success: false, message: 'Invalid signature' });
-        return;
-      }
+    const signature = req.headers['expo-signature'];
+    if (
+      !Buffer.isBuffer(req.body) ||
+      typeof signature !== 'string' ||
+      !hasValidSignature(req.body, signature, secret)
+    ) {
+      res.status(401).json({ success: false, message: 'Invalid signature' });
+      return;
     }
+
+    const payload = JSON.parse(req.body.toString()) as Record<string, unknown>;
 
     const { status, platform, artifacts, metadata } = payload as {
       status?: string;
