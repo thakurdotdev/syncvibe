@@ -1,45 +1,33 @@
-import { memo, lazy, Suspense } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Loader2 } from 'lucide-react';
-import { Button } from '../ui/button';
-import Hero from './Hero';
+import { MotionConfig } from 'framer-motion';
+import { memo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import ArtStrip from './ArtStrip';
 import BentoFeatures from './BentoFeatures';
+import CtaButtons from './CtaButtons';
+import { DEMO_PLAYLIST } from './demoSong';
+import FAQ from './FAQ';
+import Hero from './Hero';
 import HowItWorks from './HowItWorks';
 import MobileShowcase from './MobileShowcase';
 import PricingSection from './PricingSection';
-
-const FAQ = lazy(() => import('./FAQ'));
+import WebShowcase from './WebShowcase';
 
 const FinalCTA = memo(() => (
-  <section className='py-24 px-4 sm:px-6 relative border-t border-border/60 overflow-hidden'>
-    <div className='max-w-3xl mx-auto text-center relative z-10 space-y-5'>
-      <h2 className='text-3xl sm:text-5xl font-bold text-foreground tracking-tight leading-tight'>
-        Ready to listen in sync?
-      </h2>
-
-      <p className='text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed font-normal'>
-        Create a room, invite your friends, and start streaming together in seconds.
-      </p>
-
-      <div className='flex flex-col sm:flex-row items-center justify-center gap-3 pt-2'>
-        <Link to='/register'>
-          <Button
-            size='lg'
-            className='h-11 px-7 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs cursor-pointer shadow-lg shadow-scrim/25 transition-all active:scale-98'
-          >
-            <span>Get Started Free</span>
-            <ArrowRight className='ml-2 h-3.5 w-3.5' />
-          </Button>
-        </Link>
-        <Link to='/login'>
-          <Button
-            size='lg'
-            variant='outline'
-            className='h-11 px-6 rounded-full border-border bg-secondary/50 hover:bg-secondary text-foreground text-xs cursor-pointer transition-all'
-          >
-            Sign In
-          </Button>
-        </Link>
+  <section className='mx-auto max-w-7xl px-4 pb-20 sm:px-6 sm:pb-28'>
+    <div className='bezel'>
+      <div className='bezel-inner px-5 py-12 sm:px-12 sm:py-20'>
+        <img
+          src={DEMO_PLAYLIST[0].cover}
+          alt=''
+          aria-hidden='true'
+          loading='lazy'
+          className='absolute inset-0 -z-10 h-full w-full scale-125 object-cover opacity-20 blur-3xl'
+        />
+        <h2 className='text-[clamp(2.1rem,8.5vw,6rem)] leading-[1] font-semibold tracking-[-0.04em] [font-variation-settings:"wdth"_100]'>
+          <span className='block'>Pick a song.</span>
+          <span className='block'>Call your friends.</span>
+        </h2>
+        <CtaButtons className='mt-8' />
       </div>
     </div>
   </section>
@@ -48,24 +36,27 @@ const FinalCTA = memo(() => (
 FinalCTA.displayName = 'FinalCTA';
 
 const Home = () => {
+  const { hash } = useLocation();
+
+  // The page is lazy-loaded, so a link like /#pricing arrives before its section exists.
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
+  }, [hash]);
+
   return (
-    <div className='min-h-screen bg-background text-foreground selection:bg-primary/30 selection:text-foreground overflow-x-hidden'>
-      <Hero />
-      <BentoFeatures />
-      <HowItWorks />
-      <MobileShowcase />
-      <PricingSection />
-      <Suspense
-        fallback={
-          <div className='h-24 flex items-center justify-center'>
-            <Loader2 className='w-5 h-5 animate-spin text-primary' />
-          </div>
-        }
-      >
+    <MotionConfig reducedMotion='user'>
+      <div className='min-h-screen overflow-x-clip bg-background text-foreground'>
+        <Hero />
+        <ArtStrip />
+        <HowItWorks />
+        <WebShowcase />
+        <BentoFeatures />
+        <MobileShowcase />
+        <PricingSection />
         <FAQ />
-      </Suspense>
-      <FinalCTA />
-    </div>
+        <FinalCTA />
+      </div>
+    </MotionConfig>
   );
 };
 

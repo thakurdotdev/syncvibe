@@ -21,15 +21,16 @@ import { useEntitlementQuery, usePlansQuery } from '@/hooks/queries/useEntitleme
 
 const planFeatures = {
   FREE: [
+    'Real-time music sync',
     'Up to 2 members in group music',
+    'Up to 3 songs in the room queue',
     'Basic music streaming',
     'Create playlists',
-    'View posts and stories',
   ],
   PRO: [
     'Up to 10 members in group music',
+    'Up to 50 songs in the room queue',
     'Real-time chat in groups',
-    'Real-time music sync',
     'Priority support',
     'Exclusive badges',
   ],

@@ -50,10 +50,10 @@ const ResetPassword = () => {
         icon={XCircle}
         tone='destructive'
         title='This link has expired'
-        description='Password reset links work once and expire after an hour. Request a new one from the sign-in page.'
+        description='Password reset links work once and expire after an hour. Request a new one to try again.'
       >
         <Button asChild variant='outline' size='lg' className='press w-full rounded-xl bg-card'>
-          <Link to='/login'>Back to sign in</Link>
+          <Link to='/forgot-password'>Request a new link</Link>
         </Button>
       </AuthStatus>
     );
@@ -102,7 +102,7 @@ const ResetPassword = () => {
           <p className='text-center text-sm text-destructive'>
             This reset link may have expired.{' '}
             <Link
-              to='/login'
+              to='/forgot-password'
               className='font-semibold text-foreground underline underline-offset-4'
             >
               Request a new one

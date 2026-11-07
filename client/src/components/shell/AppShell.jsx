@@ -45,6 +45,13 @@ const AppShell = () => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [pathname]);
 
+  // Only here, inside the signed-in app: public pages never ask for permissions.
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
   return (
     <div className='flex h-dvh w-full overflow-hidden bg-canvas'>
       {hasSidebar && <Sidebar collapsed={!isExpanded} canExpand={canExpand} />}

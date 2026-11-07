@@ -153,6 +153,10 @@
        panel   #F6F6F7  content surface
        ink     #0E0E10  text and actions                           */
     --scrim: 0 0% 0%;
+    --btn-top: 240 4% 24%;
+    --btn-bottom: 240 7% 6%;
+    --btn-edge: 240 7% 6%;
+    --btn-shine: 0 0% 100% / 0.22;
     --on-scrim: 0 0% 100%;
     --success: 152 76% 27%;
     --warning: 34 94% 31%;
@@ -237,6 +241,10 @@
        card    #151517  cards
        raised  #222225  inputs, chips
        paper   #F5F5F6  text and actions                           */
+    --btn-top: 0 0% 100%;
+    --btn-bottom: 240 4% 84%;
+    --btn-edge: 0 0% 100% / 0.75;
+    --btn-shine: 0 0% 100%;
     --success: 152 60% 52%;
     --warning: 38 95% 60%;
     --canvas: 240 9% 2.2%;
@@ -327,6 +335,24 @@
     }
     50% {
       height: 12px;
+    }
+  }
+
+  /* Wensity infinite-marquee: one duplicate of the strip, so -50% loops seamlessly. */
+  @keyframes wensity-marquee-x {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+  @keyframes wensity-marquee-x-reverse {
+    from {
+      transform: translate3d(-50%, 0, 0);
+    }
+    to {
+      transform: translate3d(0, 0, 0);
     }
   }
 
@@ -465,5 +491,95 @@
     .group:hover .art-zoom img {
       transform: none;
     }
+  }
+}
+
+/* Marketing and sign-in pages: framed cards with hairline borders, and lighter section headings. */
+@layer utilities {
+  .bezel {
+    padding: 6px;
+    border-radius: 1.75rem;
+    border: 1px solid hsl(var(--foreground) / 0.08);
+    background: hsl(var(--foreground) / 0.02);
+  }
+
+  .bezel-inner {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: calc(1.75rem - 7px);
+    border: 1px solid hsl(var(--foreground) / 0.07);
+    background: linear-gradient(180deg, hsl(var(--card)), hsl(var(--background)));
+    box-shadow:
+      inset 0 1px 0 hsl(var(--foreground) / 0.05),
+      0 1px 2px hsl(var(--scrim) / 0.1),
+      0 16px 40px -24px hsl(var(--scrim) / 0.35);
+  }
+
+  .section-title {
+    font-size: clamp(2.25rem, 5vw, 3.75rem);
+    font-weight: 600;
+    font-variation-settings: 'wdth' 100;
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+  }
+
+  /* Buttons: a soft top-to-bottom sheen, a lit top edge and a hairline. Colours follow the theme,
+     so filled buttons stay black on light and white on dark. */
+  .btn-primary {
+    border: 1px solid hsl(var(--btn-edge));
+    background-image: linear-gradient(180deg, hsl(var(--btn-top)), hsl(var(--btn-bottom)));
+    box-shadow:
+      inset 0 1px 0 hsl(var(--btn-shine)),
+      inset 0 -1px 0 hsl(var(--scrim) / 0.12),
+      0 1px 2px hsl(var(--scrim) / 0.2),
+      0 6px 16px -8px hsl(var(--scrim) / 0.45);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.08);
+  }
+
+  .btn-surface {
+    border: 1px solid hsl(var(--foreground) / 0.1);
+    background-image: linear-gradient(
+      180deg,
+      hsl(var(--foreground) / 0.07),
+      hsl(var(--foreground) / 0.025)
+    );
+    box-shadow:
+      inset 0 1px 0 hsl(var(--foreground) / 0.07),
+      0 1px 2px hsl(var(--scrim) / 0.12);
+  }
+  .btn-surface:hover {
+    border-color: hsl(var(--foreground) / 0.18);
+    background-image: linear-gradient(
+      180deg,
+      hsl(var(--foreground) / 0.11),
+      hsl(var(--foreground) / 0.05)
+    );
+  }
+
+  .surface-card {
+    border: 1px solid hsl(var(--foreground) / 0.08);
+    box-shadow:
+      inset 0 1px 0 hsl(var(--foreground) / 0.05),
+      0 1px 2px hsl(var(--scrim) / 0.1);
+  }
+
+  .surface-input {
+    border-color: hsl(var(--foreground) / 0.1);
+    box-shadow: inset 0 1px 2px hsl(var(--scrim) / 0.12);
+  }
+
+  .hairline-glow {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.08) 20%,
+      hsl(var(--foreground) / 0.32) 50%,
+      hsl(var(--foreground) / 0.08) 80%,
+      transparent
+    );
   }
 }

@@ -9,6 +9,7 @@ import { paths } from './lib/paths';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import VerifyUser from './components/Auth/VerifyUser';
+import ForgotPassword from './components/Auth/ForgotPassword';
 import ResetPassword from './components/Auth/ResetPassword';
 
 const Header = lazy(() => import('./components/LandingPage/Header'));
@@ -106,6 +107,7 @@ export const publicRoutes = [
   { path: '/terms-of-services', element: <TermsOfService /> },
   { path: '/refund-policy', element: <RefundPolicy /> },
   { path: '/plans', element: <PlansPage /> },
+  { path: '/forgot-password', element: <ForgotPassword /> },
   { path: '/reset-password', element: <ResetPassword /> },
   { path: '*', element: <NotFoundPage /> },
 ];
@@ -132,7 +134,13 @@ export const ProtectedRoutes = () => {
 
 export const PublicRoutes = () => {
   const location = useLocation();
-  const noHeaderFooterRoutes = ['/login', '/register', '/verify', '/reset-password'];
+  const noHeaderFooterRoutes = [
+    '/login',
+    '/register',
+    '/verify',
+    '/forgot-password',
+    '/reset-password',
+  ];
   const hideHeaderFooter = noHeaderFooterRoutes.includes(location.pathname);
 
   if (hideHeaderFooter) {
