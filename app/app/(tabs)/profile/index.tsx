@@ -99,6 +99,12 @@ export default function ProfileScreen() {
             }
           />
           <SettingsRow
+            icon='shield'
+            label='Security'
+            detail='Passkeys and two-factor'
+            onPress={() => router.push('/security')}
+          />
+          <SettingsRow
             icon='globe'
             label='Music languages'
             onPress={() => router.push('/music-language')}

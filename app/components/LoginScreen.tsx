@@ -3,6 +3,7 @@ import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
 import { googleLoginErrorMessage, useGoogleLogin } from '@/hooks/useGoogleLogin';
 import { authClient, unwrap } from '@/lib/auth-client';
+import { isPasskeySupported, PasskeyCancelledError, signInWithPasskey } from '@/lib/passkey';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -42,6 +43,8 @@ const LoginScreen = () => {
 
   const [show2FA, setShow2FA] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const passkeysSupported = isPasskeySupported();
 
   const signInWithGoogle = useGoogleLogin();
 
@@ -67,6 +70,24 @@ const LoginScreen = () => {
       setIsLoggingIn(false);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasskeySignIn = async () => {
+    setError('');
+    setPasskeyLoading(true);
+    try {
+      await signInWithPasskey();
+      setIsLoggingIn(true);
+      await getProfile();
+      navigateAfterLogin();
+    } catch (err: any) {
+      if (!(err instanceof PasskeyCancelledError)) {
+        setError(err.message || 'Passkey sign-in failed. Please try again.');
+      }
+      setIsLoggingIn(false);
+    } finally {
+      setPasskeyLoading(false);
     }
   };
 
@@ -280,6 +301,38 @@ const LoginScreen = () => {
             )}
           </PressableScale>
 
+          {passkeysSupported && (
+            <PressableScale
+              style={[
+                styles.googleButton,
+                styles.secondaryButton,
+                {
+                  backgroundColor: theme === 'light' ? colors.secondary : colors.card,
+                  borderColor: colors.border,
+                },
+                passkeyLoading && styles.buttonDisabled,
+              ]}
+              onPress={handlePasskeySignIn}
+              disabled={loading || passkeyLoading}
+              accessibilityRole='button'
+              accessibilityLabel='Continue with passkey'
+            >
+              <Ionicons
+                name='finger-print'
+                size={20}
+                color={colors.foreground}
+                style={styles.googleIcon}
+              />
+              {passkeyLoading ? (
+                <ActivityIndicator size='small' color={colors.mutedForeground} />
+              ) : (
+                <Text style={[styles.buttonText, { color: colors.foreground }]}>
+                  Continue with passkey
+                </Text>
+              )}
+            </PressableScale>
+          )}
+
           {error ? (
             <View
               style={[
@@ -409,6 +462,9 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 12,
     borderWidth: 1,
+  },
+  secondaryButton: {
+    marginTop: 12,
   },
   buttonDisabled: {
     opacity: 0.6,
