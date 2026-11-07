@@ -1,7 +1,13 @@
 import SwipeableModal from '@/components/SwipeableModal';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/context/ThemeContext';
-import { formatDate, formatLastActive, sessionIcon, type DeviceSession } from '@/lib/sessions';
+import {
+  formatDate,
+  formatLastActive,
+  loginMethodLabel,
+  sessionIcon,
+  type DeviceSession,
+} from '@/lib/sessions';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SheetLayout } from './SheetLayout';
@@ -59,6 +65,9 @@ export default function SessionSheet({
         >
           <View style={[styles.details, { backgroundColor: colors.raised }]}>
             <DetailRow label='Signed in' value={formatDate(target.session.createdAt)} />
+            {loginMethodLabel(target.session) ? (
+              <DetailRow label='Signed in with' value={loginMethodLabel(target.session)!} />
+            ) : null}
             <DetailRow label='Last seen' value={formatLastActive(target.session.lastActiveAt)} />
             {target.session.location ? (
               <DetailRow label='Location' value={target.session.location} />

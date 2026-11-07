@@ -21,6 +21,7 @@ import {
 import {
   formatLastActive,
   listSessions,
+  loginMethodLabel,
   revokeOtherSessions,
   revokeSession,
   sessionIcon,
@@ -313,11 +314,13 @@ export default function SecurityScreen() {
                 icon={sessionIcon(session)}
                 label={session.name}
                 detail={
-                  session.isCurrent
-                    ? (session.detail ?? undefined)
-                    : [session.location ?? session.detail, formatLastActive(session.lastActiveAt)]
-                        .filter(Boolean)
-                        .join(' · ')
+                  [
+                    session.isCurrent ? session.detail : (session.location ?? session.detail),
+                    loginMethodLabel(session) && `via ${loginMethodLabel(session)}`,
+                    !session.isCurrent && formatLastActive(session.lastActiveAt),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || undefined
                 }
                 trailing={session.isCurrent ? <CurrentPill /> : undefined}
                 onPress={
