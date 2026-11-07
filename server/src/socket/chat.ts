@@ -17,6 +17,13 @@ interface DeleteMessageData {
   messageid?: string | number;
 }
 
+interface EditMessageData {
+  recipientId?: string | number;
+  messageid?: string | number;
+  chatid?: string | number;
+  content?: string;
+}
+
 interface TypingData {
   recipientId?: string | number;
   isTyping: boolean;
@@ -108,6 +115,11 @@ export const setupChatHandlers = (
       console.error('send-message error:', error);
       socket.emit('message-error', { tempId, error: 'Failed to send message' });
     }
+  });
+
+  socket.on('edit-message', (messageData: EditMessageData) => {
+    if (!socket.userId || !messageData?.recipientId) return;
+    io.to(String(messageData.recipientId)).emit('message-edited', messageData);
   });
 
   socket.on('delete-message', (messageData: DeleteMessageData) => {

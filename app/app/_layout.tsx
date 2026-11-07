@@ -200,6 +200,12 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
+          name='browse'
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name='albums'
           options={{
             headerShown: false,

@@ -7,6 +7,7 @@ import {
   type QueueItem,
 } from './state';
 import { prunePlayedSongs, getQueueState } from './queue';
+import { ensureGroupHasRecommendations } from './queue-handlers';
 
 interface MusicChangeData {
   groupId: string;
@@ -82,6 +83,9 @@ export const setupPlaybackHandlers = (io: Server, socket: Socket): void => {
       ...getQueueState(group),
       action: 'play-now',
     });
+
+    // Based on the song just chosen, so what follows it sounds like it.
+    ensureGroupHasRecommendations(io, groupId, String(song?.id ?? ''));
   });
 
   socket.on('music-playback', (data: MusicPlaybackData) => {

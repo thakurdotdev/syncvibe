@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { authMiddleware } from '@/middleware/auth.middleware';
-import { createChat, getChatList, deleteMessage, getAllMessages } from './chat.controller';
+import {
+  createChat,
+  getChatList,
+  deleteMessage,
+  getAllMessages,
+  updateMessage,
+} from './chat.controller';
 
 export const chatRouter: Router = Router();
 
@@ -17,7 +23,7 @@ chatRouter.get('/chats', authMiddleware, getChatList);
 // Message Delete
 chatRouter.delete('/delete/message/:messageid', authMiddleware, deleteMessage);
 chatRouter.delete('/message/:messageid', authMiddleware, deleteMessage);
-chatRouter.put('/message/:messageid', authMiddleware, deleteMessage);
+chatRouter.put('/message/:messageid', authMiddleware, updateMessage);
 
 // Messages by Chat ID
 chatRouter.get('/get/messages/:chatid', authMiddleware, getAllMessages);

@@ -1,19 +1,13 @@
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
-import { BUTTON_PRESS_SCALE, PRESS_IN, SPRING_PRESS } from '@/lib/motion';
+import { BUTTON_PRESS_SCALE } from '@/lib/motion';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { memo, type ReactNode } from 'react';
 import { Image, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-  type AnimatedStyle,
-} from 'react-native-reanimated';
+import Animated, { type AnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PressableScale from './PressableScale';
 
@@ -63,75 +57,18 @@ export const HeaderIconButton = memo(function HeaderIconButton({
 const openSearch = () => router.push('/search');
 const openProfile = () => router.navigate('/(tabs)/profile');
 
-/**
- * Home's search: bigger than other header buttons and in the accent colour, since finding
- * music is the main thing to do from there. The lens tips and grows under your finger.
- */
-const ProminentSearchButton = memo(function ProminentSearchButton() {
-  const { colors } = useTheme();
-  const pressed = useSharedValue(0);
-
-  const lensStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + pressed.get() * 0.14 }, { rotate: `${pressed.get() * -14}deg` }],
-  }));
-
-  return (
-    <PressableScale
-      onPress={openSearch}
-      onPressIn={() => pressed.set(withTiming(1, PRESS_IN))}
-      onPressOut={() => pressed.set(withSpring(0, SPRING_PRESS))}
-      scaleTo={BUTTON_PRESS_SCALE}
-      hitSlop={6}
-      accessibilityRole='button'
-      accessibilityLabel='Search music, your history, playlists and people'
-      style={[styles.searchProminent, { backgroundColor: `${colors.primary}26` }]}
-    >
-      <Animated.View style={lensStyle}>
-        <Ionicons name='search' size={24} color={colors.primary} />
-      </Animated.View>
-    </PressableScale>
-  );
-});
-
-/**
- * Header for the tab roots. Same height, padding, type and action buttons everywhere:
- * a title on the left; page actions, search and your avatar (the way into Profile) on the right.
- * Home uses the greeting variant: avatar first, then a compact two-line greeting.
- * Place it inside a view that already applies the top safe-area inset.
- */
-export const TabHeader = memo(function TabHeader({
-  title,
-  kicker,
-  avatar = 'trailing',
-  accessory,
-  actions,
-  showSearch = true,
-  prominentSearch = false,
-}: {
-  title?: string;
-  /** Small line above the title (e.g. "Good afternoon"); switches to the compact title size. */
-  kicker?: string;
-  /** Where your avatar (the way into Profile) sits; Home puts it before the greeting. */
-  avatar?: 'leading' | 'trailing' | 'none';
-  /** Small element after the title (e.g. connection badge). */
-  accessory?: ReactNode;
-  actions?: ReactNode;
-  showSearch?: boolean;
-  prominentSearch?: boolean;
-}) {
+/** Your avatar, the way into Profile. Nothing when signed out. */
+const AvatarButton = memo(function AvatarButton() {
   const { colors } = useTheme();
   const { user } = useUser();
-
-  const avatarButton = user?.profilepic ? (
+  if (!user?.profilepic) return null;
+  return (
     <PressableScale
       onPress={openProfile}
       scaleTo={BUTTON_PRESS_SCALE}
       accessibilityRole='button'
       accessibilityLabel='Your profile'
-      style={[
-        avatar === 'leading' ? styles.avatarRing : styles.avatarRingSmall,
-        { borderColor: colors.border },
-      ]}
+      style={[styles.avatarRing, { borderColor: colors.border }]}
     >
       <Image
         source={{ uri: getProfileCloudinaryUrl(user.profilepic) }}
@@ -139,20 +76,56 @@ export const TabHeader = memo(function TabHeader({
         fadeDuration={0}
       />
     </PressableScale>
-  ) : null;
+  );
+});
+
+/** Home's header: search is the second most likely thing you came for, so it's right there. */
+export const HomeHeader = memo(function HomeHeader() {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.homeHeader}>
+      <PressableScale
+        onPress={openSearch}
+        accessibilityRole='button'
+        accessibilityLabel='Search music, your history, playlists and people'
+        style={[styles.homeSearch, { backgroundColor: colors.raised }]}
+      >
+        <Ionicons name='search' size={18} color={colors.mutedForeground} />
+        <Text style={[styles.homeSearchText, { color: colors.mutedForeground }]}>Search music</Text>
+      </PressableScale>
+      <AvatarButton />
+    </View>
+  );
+});
+
+/**
+ * Header for the tab roots. Same height, padding, type and action buttons everywhere:
+ * a title on the left; page actions, search and your avatar (the way into Profile) on the right.
+ * Place it inside a view that already applies the top safe-area inset.
+ */
+export const TabHeader = memo(function TabHeader({
+  title,
+  avatar = 'trailing',
+  accessory,
+  actions,
+  showSearch = true,
+}: {
+  title?: string;
+  /** Your avatar (the way into Profile). */
+  avatar?: 'trailing' | 'none';
+  /** Small element after the title (e.g. connection badge). */
+  accessory?: ReactNode;
+  actions?: ReactNode;
+  showSearch?: boolean;
+}) {
+  const { colors } = useTheme();
 
   return (
-    <View style={[styles.tabHeader, kicker ? styles.tabHeaderTall : null]}>
+    <View style={styles.tabHeader}>
       <View style={styles.tabHeaderLeft}>
-        {avatar === 'leading' && avatarButton}
         <View style={styles.titleBlock}>
-          {kicker ? (
-            <Text style={[styles.kicker, { color: colors.mutedForeground }]} numberOfLines={1}>
-              {kicker}
-            </Text>
-          ) : null}
           <Text
-            style={[kicker ? styles.compactTitle : styles.tabTitle, { color: colors.foreground }]}
+            style={[styles.tabTitle, { color: colors.foreground }]}
             numberOfLines={1}
             accessibilityRole='header'
           >
@@ -163,13 +136,8 @@ export const TabHeader = memo(function TabHeader({
       </View>
       <View style={styles.actions}>
         {actions}
-        {showSearch &&
-          (prominentSearch ? (
-            <ProminentSearchButton />
-          ) : (
-            <HeaderIconButton icon='search' label='Search music' onPress={openSearch} />
-          ))}
-        {avatar === 'trailing' && avatarButton}
+        {showSearch && <HeaderIconButton icon='search' label='Search music' onPress={openSearch} />}
+        {avatar === 'trailing' && <AvatarButton />}
       </View>
     </View>
   );
@@ -229,13 +197,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconButtonSpacer: { width: 38, height: 38 },
-  searchProminent: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+
+  homeHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 12,
   },
+  homeSearch: {
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 15,
+  },
+  homeSearchText: { fontSize: 15 },
 
   tabHeader: {
     height: HEADER_HEIGHT,
@@ -245,15 +225,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  tabHeaderTall: { height: HEADER_HEIGHT + 8 },
   tabHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 },
   titleBlock: { flexShrink: 1 },
   tabTitle: { fontFamily: fonts.display, fontSize: 28, letterSpacing: -0.7 },
-  kicker: { fontSize: 13, fontWeight: '500', marginBottom: 1 },
-  compactTitle: { fontFamily: fonts.display, fontSize: 21, lineHeight: 25, letterSpacing: -0.4 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  avatarRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, padding: 2 },
-  avatarRingSmall: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, padding: 2 },
+  avatarRing: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, padding: 2 },
   avatar: { width: '100%', height: '100%', borderRadius: 18 },
 
   stackHeader: {

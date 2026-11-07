@@ -125,10 +125,16 @@ export default function SearchScreen() {
     [reach]
   );
 
-  const endSwipe = useCallback((index: number) => {
-    setTab(TABS[index].value);
-    setPeek(null);
-  }, []);
+  const endSwipe = useCallback(
+    (index: number) => {
+      // Mounted by the peek if it guessed the right way. A slow start can leave it guessing wrong,
+      // and a tab that was never reached renders nothing.
+      reach(TABS[index].value);
+      setTab(TABS[index].value);
+      setPeek(null);
+    },
+    [reach]
+  );
 
   const lastPage = TABS.length - 1;
   const swipe = Gesture.Pan()
@@ -138,7 +144,8 @@ export default function SearchScreen() {
     .onStart((e) => {
       const from = Math.round(page.get());
       startPage.set(from);
-      const neighbour = from + (e.translationX < 0 ? 1 : -1);
+      // Translation is still 0 here on Android; velocity already says which way it's going.
+      const neighbour = from + (e.velocityX < 0 ? 1 : -1);
       if (neighbour >= 0 && neighbour <= lastPage) scheduleOnRN(beginPeek, neighbour);
     })
     .onUpdate((e) => {

@@ -12,7 +12,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  * Pages with their own keyboard or full-screen UI (search, chat thread, login, scanner,
  * settings forms) stay deck-free.
  */
-const DECK_PAGES = new Set(['albums', 'artist', 'playlists', 'user-playlist', 'song-history']);
+const DECK_PAGES = new Set([
+  'albums',
+  'artist',
+  'browse',
+  'playlists',
+  'user-playlist',
+  'song-history',
+]);
 
 /**
  * App-wide host for the bottom deck. It shows on every tab root and on music detail pages;

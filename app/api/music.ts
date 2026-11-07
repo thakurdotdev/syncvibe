@@ -24,6 +24,23 @@ export const getHomePageMusic = async (language = 'hindi'): Promise<HomePageResp
   return response.data.data;
 };
 
+const fetchedSongs = new Map<string, Promise<Song>>();
+
+/** Some home sections list songs with no audio link. This fetches the full song, once each. */
+export const getFullSong = (id: string): Promise<Song> => {
+  let pending = fetchedSongs.get(id);
+  if (!pending) {
+    pending = axios.get(`${SONG_URL}/song`, { params: { id } }).then((response) => {
+      const song = response.data?.data?.songs?.[0];
+      if (!song?.download_url?.length) throw new Error('Song has no audio');
+      return song as Song;
+    });
+    pending.catch(() => fetchedSongs.delete(id));
+    fetchedSongs.set(id, pending);
+  }
+  return pending;
+};
+
 export const getRecentMusic = async (api: any): Promise<RecentMusicResponse> => {
   const response = await api.get('/api/music/recommendations');
   return response.data.data;

@@ -1,5 +1,11 @@
 import { useGroupMusic } from '@/context/GroupMusicContext';
-import { PRESS_IN, ROW_PRESS_SCALE, SPRING_PRESS } from '@/lib/motion';
+import {
+  IMAGE_FADE_MS,
+  LIST_PRESS_DELAY,
+  PRESS_IN,
+  ROW_PRESS_SCALE,
+  SPRING_PRESS,
+} from '@/lib/motion';
 import { useTheme } from '@/context/ThemeContext';
 import { usePlayerStore, useSongPlaybackState } from '@/stores/playerStore';
 import { Album, Artist, Playlist } from '@/types/music';
@@ -193,6 +199,7 @@ export const CardContainer = memo(
         onPress={onPress}
         onLongPress={onLongPress}
         delayLongPress={350}
+        unstable_pressDelay={LIST_PRESS_DELAY}
         style={[{ width: width ?? '100%' }, style]}
       >
         {children}
@@ -234,6 +241,7 @@ export const SongCard = memo(
           onPress={handlePress}
           onLongPress={disableOnLongPress ? undefined : handleLongPress}
           delayLongPress={350}
+          unstable_pressDelay={LIST_PRESS_DELAY}
           scaleTo={ROW_PRESS_SCALE}
           style={{
             flexDirection: 'row',
@@ -330,7 +338,7 @@ const coverUrl = (image: unknown, tier: 0 | 1 | 2 = 2): string | undefined => {
 const coverProps = (uri: string | undefined) =>
   ({
     source: uri ? { uri, cache: 'force-cache' as const } : {},
-    fadeDuration: 0,
+    fadeDuration: IMAGE_FADE_MS,
     resizeMode: 'cover',
     resizeMethod: 'resize',
   }) as const;
@@ -362,7 +370,6 @@ const CardText = memo(function CardText({
 
 type CardWidth = { width?: number | `${number}%` };
 
-/** Album: a record sliding out of its sleeve. */
 export const AlbumCard = memo(
   ({ album, width, onPress: customOnPress, onLongPress }: AlbumCardProps & CardWidth) => {
     const { colors } = useTheme();
@@ -380,14 +387,11 @@ export const AlbumCard = memo(
 
     return (
       <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
-        <View style={cardStyles.sleeve}>
-          <View style={cardStyles.disc} />
-          <Image
-            {...coverProps(coverUrl(album.image))}
-            style={[cardStyles.cover, cardStyles.sleeveCover, { backgroundColor: colors.raised }]}
-            alt={`Album: ${name}`}
-          />
-        </View>
+        <Image
+          {...coverProps(coverUrl(album.image))}
+          style={[cardStyles.cover, { backgroundColor: colors.raised }]}
+          alt={`Album: ${name}`}
+        />
         <CardText
           title={name}
           subtitle={artistName || album.subtitle || album.artist_map?.artists?.[0]?.name || 'Album'}
@@ -399,7 +403,6 @@ export const AlbumCard = memo(
   }
 );
 
-/** Playlist: a stack, with the edges of the songs underneath showing above the top cover. */
 export const PlaylistCard = memo(
   ({ playlist, width, onPress: customOnPress, onLongPress }: PlaylistCardProps & CardWidth) => {
     const { colors } = useTheme();
@@ -414,18 +417,13 @@ export const PlaylistCard = memo(
 
     return (
       <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
-        <View style={cardStyles.stack}>
-          <View style={[cardStyles.edgeBack, { backgroundColor: `${colors.foreground}14` }]} />
-          <View style={[cardStyles.edgeFront, { backgroundColor: `${colors.foreground}2E` }]} />
-          <Image
-            {...coverProps(coverUrl(playlist.image))}
-            style={[cardStyles.cover, { backgroundColor: colors.raised }]}
-            alt={`Playlist: ${playlist.name}`}
-          />
-        </View>
+        <Image
+          {...coverProps(coverUrl(playlist.image))}
+          style={[cardStyles.cover, { backgroundColor: colors.raised }]}
+          alt={`Playlist: ${playlist.name}`}
+        />
         <CardText
           title={playlist.name}
-          subtitle={playlist.subtitle || playlist.description || 'Playlist'}
           titleColor={colors.foreground}
           subtitleColor={colors.mutedForeground}
         />
@@ -496,46 +494,11 @@ export const ArtistCard = memo(
   }
 );
 
-/** How far the record shows past the album sleeve. */
-const DISC_PEEK = 12;
-
 const cardStyles = StyleSheet.create({
-  cover: { width: '100%', aspectRatio: 1, borderRadius: 10 },
+  cover: { width: '100%', aspectRatio: 1, borderRadius: 8 },
   text: { marginTop: 8, gap: 1 },
   title: { fontSize: 13.5, fontWeight: '600', letterSpacing: -0.15, lineHeight: 18 },
   subtitle: { fontSize: 12, lineHeight: 16 },
-
-  sleeve: { marginRight: DISC_PEEK },
-  sleeveCover: { borderRadius: 4 },
-  disc: {
-    position: 'absolute',
-    top: '3%',
-    bottom: '3%',
-    right: -DISC_PEEK,
-    aspectRatio: 1,
-    borderRadius: 999,
-    backgroundColor: '#1C1C1F',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.16)',
-  },
-
-  stack: { marginTop: 8 },
-  edgeBack: {
-    position: 'absolute',
-    top: -8,
-    left: 14,
-    right: 14,
-    height: 16,
-    borderRadius: 7,
-  },
-  edgeFront: {
-    position: 'absolute',
-    top: -4,
-    left: 7,
-    right: 7,
-    height: 16,
-    borderRadius: 8,
-  },
 
   playing: {
     position: 'absolute',
