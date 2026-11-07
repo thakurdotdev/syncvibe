@@ -125,10 +125,16 @@ export default function SearchScreen() {
     [reach]
   );
 
-  const endSwipe = useCallback((index: number) => {
-    setTab(TABS[index].value);
-    setPeek(null);
-  }, []);
+  const endSwipe = useCallback(
+    (index: number) => {
+      // Mounted by the peek if it guessed the right way. A slow start can leave it guessing wrong,
+      // and a tab that was never reached renders nothing.
+      reach(TABS[index].value);
+      setTab(TABS[index].value);
+      setPeek(null);
+    },
+    [reach]
+  );
 
   const lastPage = TABS.length - 1;
   const swipe = Gesture.Pan()

@@ -42,6 +42,10 @@ const LIST_PROPS = {
   initialNumToRender: 12,
   maxToRenderPerBatch: 8,
   windowSize: 8,
+  // Android's default clips rows it thinks are off screen, and a page mounts while it still is, on
+  // the strip that's about to slide in. It doesn't check again when it arrives, so the page stays
+  // blank until something else redraws it.
+  removeClippedSubviews: false,
 } as const;
 
 const songKey = (song: Song) => String(song.id);
@@ -170,8 +174,8 @@ export const SongsPanel = memo(function SongsPanel({
       />
     );
   }
-  if (isPending) return <Loading />;
-  if (!isFetching && songs.length === 0) {
+  if (isPending || (isFetching && songs.length === 0)) return <Loading />;
+  if (songs.length === 0) {
     return (
       <Message
         icon='search'
@@ -223,8 +227,8 @@ export const HistoryPanel = memo(function HistoryPanel({ query }: { query: strin
       />
     );
   }
-  if (isPending) return <Loading />;
-  if (!isFetching && songs.length === 0) {
+  if (isPending || (isFetching && songs.length === 0)) return <Loading />;
+  if (songs.length === 0) {
     return query ? (
       <Message icon='search' title={`Nothing you've played matches "${query}"`} />
     ) : (
@@ -491,8 +495,8 @@ export const PeoplePanel = memo(function PeoplePanel({ query }: { query: string 
       />
     );
   }
-  if (isPending) return <Loading />;
-  if (!isFetching && people.length === 0) {
+  if (isPending || (isFetching && people.length === 0)) return <Loading />;
+  if (people.length === 0) {
     return <Message icon='search' title={`No one found for "${query}"`} />;
   }
 
