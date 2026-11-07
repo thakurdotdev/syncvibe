@@ -19,7 +19,7 @@ import {
   trustedOrigins,
 } from './auth.config';
 import { authDatabase } from './database';
-import { loginActivity } from './login-activity.plugin';
+import { loginActivity, loginMethodForPath } from './login-activity.plugin';
 import { createRedisRateLimitStorage } from './rate-limit-storage';
 import { hashPassword, verifyPassword } from './password';
 import { signUpPolicy } from './sign-up-policy';
@@ -56,8 +56,11 @@ export const auth = betterAuth({
   session: {
     modelName: 'sessions',
     ...sessionConfig,
-    // Column added by sql/004_session_location.sql.
-    additionalFields: { location: { type: 'string', required: false, input: false } },
+    // Columns added by sql/004_session_location.sql and sql/005_session_login_method.sql.
+    additionalFields: {
+      location: { type: 'string', required: false, input: false },
+      loginMethod: { type: 'string', required: false, input: false },
+    },
   },
   account: {
     modelName: 'accounts',
@@ -110,10 +113,18 @@ export const auth = betterAuth({
       create: {
         before: async (session, ctx) => {
           await assertAccountIsActive(session.userId);
+          // A session that replaces another (e.g. turning 2FA on) carries the old one's fields.
+          const existing = session as { location?: string | null; loginMethod?: string | null };
           // Cloudflare's city/region/country headers on the sign-in request.
           const headers = ctx?.headers ? Object.fromEntries(ctx.headers.entries()) : null;
           const location = headers ? getClientLocation({ headers }) : 'Unknown';
-          return { data: { ...session, location: location === 'Unknown' ? null : location } };
+          return {
+            data: {
+              ...session,
+              location: existing.location ?? (location === 'Unknown' ? null : location),
+              loginMethod: existing.loginMethod ?? loginMethodForPath(ctx?.path),
+            },
+          };
         },
       },
     },

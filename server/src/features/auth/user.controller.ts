@@ -13,7 +13,6 @@ import {
   getInviteListService,
   updatePushTokenService,
   getUserProfileService,
-  getLoginLogsService,
 } from './services/user.service';
 
 // ── Get User Details ────────────────────────────────────────────────────────
@@ -243,17 +242,5 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
     }
     console.error('Error fetching user profile:', error);
     res.status(500).json({ message: 'Failed to fetch profile' });
-  }
-};
-
-// ── Login History ───────────────────────────────────────────────────────────
-
-export const getLoginLogs = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const logs = await getLoginLogsService(req.user!.userid);
-    res.status(200).json(logs);
-  } catch (error) {
-    console.error('Error fetching login logs:', error);
-    res.status(500).json({ message: 'Failed to fetch login history' });
   }
 };
