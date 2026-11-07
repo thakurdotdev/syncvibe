@@ -1,8 +1,7 @@
-import { ROW_PRESS_SCALE, BUTTON_PRESS_SCALE } from '@/lib/motion';
+import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE } from '@/lib/motion';
 import { QuickPicks, TrendingChart } from '@/components/music/home/HomeSections';
 import {
   AlbumsGrid,
-  ArtistGrid,
   PlaylistsGrid,
   RecommendationGrid,
   SECTION_GAP,
@@ -19,6 +18,7 @@ import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { fonts } from '@/theme/typography';
 import { usePlaybackState, usePlayerControls } from '@/stores/playerStore';
 import { Ionicons } from '@expo/vector-icons';
+import { useIsRestoring } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import {
   memo,
@@ -30,13 +30,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  cancelAnimation,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 type Colors = ReturnType<typeof useTheme>['colors'];
 
@@ -51,6 +45,8 @@ const greeting = () => {
 /** The first screenful renders straight away; the rest follow a section at a time. */
 const FIRST_SECTIONS = 3;
 const NEXT_SECTION_MS = 80;
+const SKELETON_DELAY_MS = 200;
+const CONTENT_ENTER = FadeIn.duration(180).easing(EASE_OUT);
 
 const goRooms = () => router.navigate('/(tabs)/group-music');
 
@@ -178,14 +174,6 @@ const LiveRoomSection = memo(function LiveRoomSection({ colors }: { colors: Colo
 
 /** Stand-ins shaped like the real first screen, so nothing jumps when the content arrives. */
 function HomeSkeleton({ colors }: { colors: Colors }) {
-  const opacity = useSharedValue(0.5);
-
-  useEffect(() => {
-    opacity.set(withRepeat(withTiming(0.9, { duration: 700 }), -1, true));
-    return () => cancelAnimation(opacity);
-  }, [opacity]);
-
-  const pulse = useAnimatedStyle(() => ({ opacity: opacity.get() }));
   const block = (w: number | `${number}%`, h: number, r = 10) => ({
     width: w,
     height: h,
@@ -194,7 +182,7 @@ function HomeSkeleton({ colors }: { colors: Colors }) {
   });
 
   return (
-    <Animated.View style={[styles.skeleton, pulse]}>
+    <View style={styles.skeleton}>
       <View style={[block('36%', 16, 6), styles.skeletonTitle]} />
       {[0, 1, 2].map((row) => (
         <View key={row} style={styles.skeletonRow}>
@@ -208,10 +196,10 @@ function HomeSkeleton({ colors }: { colors: Colors }) {
       <View style={[block('36%', 16, 6), styles.skeletonTitle, styles.skeletonGap]} />
       <View style={styles.skeletonCovers}>
         {[0, 1, 2].map((i) => (
-          <View key={i} style={block(140, 140, 10)} />
+          <View key={i} style={block(140, 140, 8)} />
         ))}
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -219,23 +207,31 @@ function HomeScreen() {
   const { user } = useUser();
   const { colors } = useTheme();
 
-  const {
-    data: homePageData,
-    isLoading: loadingHome,
-    refetch: refetchHome,
-    isRefetching: isRefetchingHome,
-  } = useHomePageMusic();
-  const {
-    data: recommendations,
-    refetch: refetchRecent,
-    isRefetching: isRefetchingRecent,
-  } = useRecentMusic();
+  const { data: homePageData, isLoading, refetch: refetchHome } = useHomePageMusic();
+  const { data: recommendations, refetch: refetchRecent } = useRecentMusic();
 
-  const onRefresh = useCallback(() => {
+  // Saved data is still being read from storage, which is too quick to show anything for.
+  const isRestoring = useIsRestoring();
+  const waiting = isLoading || isRestoring;
+
+  // Only when you pull: data also refreshes by itself in the background, and a spinner appearing
+  // for that, with nothing touched, reads as something going wrong.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
     const requests: Promise<unknown>[] = [refetchHome()];
     if (user?.userid) requests.push(refetchRecent());
-    return Promise.allSettled(requests).then(() => undefined);
+    await Promise.allSettled(requests);
+    setRefreshing(false);
   }, [user?.userid, refetchHome, refetchRecent]);
+
+  // A fast load goes straight to the music, with no skeleton flashing up in between.
+  const [skeletonShown, setSkeletonShown] = useState(false);
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = setTimeout(() => setSkeletonShown(true), SKELETON_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [waiting]);
 
   const trendingSongs = useMemo(
     () => homePageData?.trending?.data?.filter((i) => i?.type === 'song') ?? [],
@@ -254,26 +250,16 @@ function HomeScreen() {
       { key: 'trending', node: <TrendingChart songs={trendingSongs} title='Trending now' /> },
       { key: 'room', node: <StartRoomRow colors={colors} /> },
       {
+        key: 'albums',
+        node: <AlbumsGrid albums={homePageData?.albums?.data ?? []} title='New albums' />,
+      },
+      {
         key: 'playlists',
         node: (
           <PlaylistsGrid
             playlists={homePageData?.playlists?.data ?? []}
             title='Popular playlists'
           />
-        ),
-      },
-      {
-        key: 'charts',
-        node: <PlaylistsGrid playlists={homePageData?.charts?.data ?? []} title='Charts' />,
-      },
-      {
-        key: 'albums',
-        node: <AlbumsGrid albums={homePageData?.albums?.data ?? []} title='New albums' />,
-      },
-      {
-        key: 'artists',
-        node: (
-          <ArtistGrid artists={homePageData?.artist_recos?.data ?? []} title='Artists to know' />
         ),
       },
     ];
@@ -283,12 +269,12 @@ function HomeScreen() {
   // Mounting every section at once is what made Home slow to appear. Mounting yields to touches.
   const [shownSections, setShownSections] = useState(FIRST_SECTIONS);
   useEffect(() => {
-    if (loadingHome || shownSections >= sections.length) return;
+    if (waiting || shownSections >= sections.length) return;
     const timer = setTimeout(() => {
       startTransition(() => setShownSections((n) => n + 1));
     }, NEXT_SECTION_MS);
     return () => clearTimeout(timer);
-  }, [loadingHome, sections.length, shownSections]);
+  }, [waiting, sections.length, shownSections]);
 
   return (
     <TabSafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
@@ -300,7 +286,7 @@ function HomeScreen() {
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetchingHome || isRefetchingRecent}
+            refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={colors.primary}
             colors={[colors.primary]}
@@ -309,10 +295,15 @@ function HomeScreen() {
       >
         <LiveRoomSection colors={colors} />
 
-        {loadingHome ? (
-          <HomeSkeleton colors={colors} />
+        {waiting ? (
+          skeletonShown && <HomeSkeleton colors={colors} />
         ) : (
-          sections.slice(0, shownSections).map(({ key, node }) => <View key={key}>{node}</View>)
+          // The screen's one piece of motion nobody asked for, and only if a skeleton was showing.
+          <Animated.View entering={skeletonShown ? CONTENT_ENTER : undefined}>
+            {sections.slice(0, shownSections).map(({ key, node }) => (
+              <View key={key}>{node}</View>
+            ))}
+          </Animated.View>
         )}
       </ScrollView>
     </TabSafeAreaView>

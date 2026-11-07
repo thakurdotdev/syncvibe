@@ -45,6 +45,17 @@ export const SHEET_CLOSE = { duration: 180, easing: EASE_OUT, reduceMotion: syst
 export const PRESS_SCALE = 0.97;
 export const ROW_PRESS_SCALE = 0.98;
 export const BUTTON_PRESS_SCALE = 0.92;
+/**
+ * Holds back press feedback on things inside a scrolling list. Without it, every row under your
+ * finger dips each time you start to scroll. A real tap still shows it.
+ */
+export const LIST_PRESS_DELAY = 70;
+/**
+ * Android's cross-fade for an image that had to be downloaded. Short enough to feel instant, and
+ * images already in memory appear with no fade at all.
+ */
+export const IMAGE_FADE_MS = 120;
+
 /** Popovers start here, never from 0. */
 export const POP_FROM_SCALE = 0.95;
 

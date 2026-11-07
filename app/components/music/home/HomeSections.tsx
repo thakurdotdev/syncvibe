@@ -1,4 +1,4 @@
-import { ROW_PRESS_SCALE } from '@/lib/motion';
+import { IMAGE_FADE_MS, LIST_PRESS_DELAY, ROW_PRESS_SCALE } from '@/lib/motion';
 import { SECTION_GAP, SectionTitle } from '@/components/music/MusicLists';
 import { PlayingBars } from '@/components/music/PlayingBars';
 import { useSongPress } from '@/components/music/useSongPress';
@@ -6,8 +6,8 @@ import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { Song } from '@/types/song';
 import { router } from 'expo-router';
-import { memo, useCallback, useMemo } from 'react';
-import { FlatList, Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { memo, useMemo } from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 const songArt = (song: Song) => song.image?.[1]?.link || song.image?.[0]?.link;
 
@@ -32,6 +32,7 @@ const SongRow = memo(function SongRow({ song, rank }: { song: Song; rank?: numbe
         onPress={onPress}
         onLongPress={onLongPress}
         delayLongPress={350}
+        unstable_pressDelay={LIST_PRESS_DELAY}
         scaleTo={ROW_PRESS_SCALE}
         accessibilityRole='button'
         accessibilityLabel={`${rank ? `Number ${rank}, ` : ''}${
@@ -49,7 +50,7 @@ const SongRow = memo(function SongRow({ song, rank }: { song: Song; rank?: numbe
         <Image
           source={{ uri: songArt(song), cache: 'force-cache' }}
           style={[styles.art, { backgroundColor: colors.raised }]}
-          fadeDuration={0}
+          fadeDuration={IMAGE_FADE_MS}
           resizeMethod='resize'
         />
         <View style={styles.text}>
@@ -90,15 +91,9 @@ export const QuickPicks = memo(function QuickPicks({ songs }: { songs: Song[] })
 
 // ─── Trending chart ───────────────────────────────────
 
-const CHART_ROWS = 4;
-const COLUMN_GAP = 12;
+const CHART_SIZE = 5;
 
-type ChartColumn = { key: string; start: number; items: Song[] };
-
-/**
- * Trending as a numbered chart: columns of four rows that page sideways (the next column
- * peeks in), so the ranking reads at a glance instead of as another row of square cards.
- */
+/** The top of the chart, numbered because the order is the point. */
 export const TrendingChart = memo(function TrendingChart({
   songs,
   title,
@@ -106,60 +101,20 @@ export const TrendingChart = memo(function TrendingChart({
   songs: Song[];
   title: string;
 }) {
-  const { width } = useWindowDimensions();
-  const columnWidth = Math.round(width - 16 * 2 - 28);
-  const step = columnWidth + COLUMN_GAP;
-  const columns = useMemo(() => {
-    const list = songs.filter((s) => s?.id).slice(0, 20);
-    const out: ChartColumn[] = [];
-    for (let i = 0; i < list.length; i += CHART_ROWS) {
-      out.push({ key: list[i].id, start: i, items: list.slice(i, i + CHART_ROWS) });
-    }
-    return out;
-  }, [songs]);
-
-  const renderColumn = useCallback(
-    ({ item }: { item: ChartColumn }) => (
-      <View style={{ width: columnWidth }}>
-        {item.items.map((song, i) => (
-          <SongRow key={song.id} song={song} rank={item.start + i + 1} />
-        ))}
-      </View>
-    ),
-    [columnWidth]
-  );
-  const getItemLayout = useCallback(
-    (_: unknown, index: number) => ({ length: step, offset: step * index, index }),
-    [step]
-  );
-
-  if (!columns.length) return null;
+  const top = useMemo(() => songs.filter((s) => s?.id).slice(0, CHART_SIZE), [songs]);
+  if (!top.length) return null;
 
   return (
     <View style={styles.section}>
       <SectionTitle title={title} />
-      <FlatList
-        data={columns}
-        keyExtractor={(c) => c.key}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={step}
-        decelerationRate='fast'
-        disableIntervalMomentum
-        contentContainerStyle={styles.chartContent}
-        ItemSeparatorComponent={ColumnGap}
-        getItemLayout={getItemLayout}
-        renderItem={renderColumn}
-        // Only the first column and the one peeking in: that's 8 rows, not all 20.
-        initialNumToRender={2}
-        maxToRenderPerBatch={1}
-        windowSize={3}
-      />
+      <View style={styles.rows}>
+        {top.map((song, i) => (
+          <SongRow key={song.id} song={song} rank={i + 1} />
+        ))}
+      </View>
     </View>
   );
 });
-
-const ColumnGap = () => <View style={{ width: COLUMN_GAP }} />;
 
 const styles = StyleSheet.create({
   section: { marginBottom: SECTION_GAP },
@@ -171,7 +126,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 15, fontWeight: '600', letterSpacing: -0.15 },
   sub: { fontSize: 13, marginTop: 2 },
 
-  chartContent: { paddingHorizontal: 16 },
   rank: { width: 20, alignItems: 'center' },
   rankText: { fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] },
 });

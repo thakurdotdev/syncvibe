@@ -1,11 +1,11 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { fonts } from '@/theme/typography';
-import { Album, Artist, Playlist } from '@/types/music';
+import { Album, Playlist } from '@/types/music';
 import { Song } from '@/types/song';
 import { memo, useCallback, type ReactElement } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { AlbumCard, ArtistCard, NewSongCard, PlaylistCard } from './MusicCards';
+import { AlbumCard, NewSongCard, PlaylistCard } from './MusicCards';
 
 /** Section heading used by every home row: display face, optional "See all" on the right. */
 export const SectionTitle = memo(function SectionTitle({
@@ -44,8 +44,8 @@ export const SECTION_GAP = 40;
 const keyOf = (item: { id?: string }, index: number) => item?.id || String(index);
 
 /**
- * A titled sideways row of same-width cards. The fixed width lets the list skip measuring and
- * lands each swipe cleanly on a card. It mounts about a screenful, plus one screen either side.
+ * A titled sideways row of same-width cards that scrolls freely. The fixed width lets the list
+ * skip measuring. It mounts about a screenful, plus two screens either side.
  */
 function CardRow<T extends { id?: string }>({
   title,
@@ -80,14 +80,13 @@ function CardRow<T extends { id?: string }>({
         getItemLayout={getItemLayout}
         horizontal
         showsHorizontalScrollIndicator={false}
-        snapToInterval={step}
-        decelerationRate='fast'
         contentContainerStyle={styles.rowContent}
         ItemSeparatorComponent={RowGap}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
-        windowSize={3}
-        removeClippedSubviews
+        windowSize={5}
+        // Android's default clips rows out and redraws them, which flashes blank on a fast flick.
+        removeClippedSubviews={false}
       />
     </View>
   );
@@ -98,7 +97,6 @@ const RowGap = () => <View style={styles.gap} />;
 const renderSong = (song: Song) => <NewSongCard song={song} />;
 const renderAlbum = (album: Album) => <AlbumCard album={album} />;
 const renderPlaylist = (playlist: Playlist) => <PlaylistCard playlist={playlist} />;
-const renderArtist = (artist: Artist) => <ArtistCard artist={artist} />;
 
 export const RecommendationGrid = memo(function RecommendationGrid({
   recommendations,
@@ -128,16 +126,6 @@ export const PlaylistsGrid = memo(function PlaylistsGrid({
   title?: string;
 }) {
   return <CardRow title={title} data={playlists} itemWidth={140} renderCard={renderPlaylist} />;
-});
-
-export const ArtistGrid = memo(function ArtistGrid({
-  artists,
-  title,
-}: {
-  artists: Artist[];
-  title?: string;
-}) {
-  return <CardRow title={title} data={artists} itemWidth={88} renderCard={renderArtist} />;
 });
 
 const styles = StyleSheet.create({
