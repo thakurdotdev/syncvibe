@@ -21,11 +21,19 @@ export const crossSubDomainCookies = isProduction
   ? { enabled: true, domain: process.env.AUTH_COOKIE_DOMAIN || '.thakur.dev' }
   : { enabled: false };
 
+// Android apps sign passkey requests with `android:apk-key-hash:<base64url SHA-256 of the signing
+// cert>` instead of a web origin.
+const androidPasskeyOrigins = (process.env.PASSKEY_ANDROID_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 // Passkeys are bound to the web app's host, so existing credentials keep working.
+// The Android app shares them through client/public/.well-known/assetlinks.json.
 export const passkeyConfig = {
   rpID: new URL(clientUrl).hostname,
   rpName: 'SyncVibe',
-  origin: new URL(clientUrl).origin,
+  origin: [new URL(clientUrl).origin, ...androidPasskeyOrigins],
 };
 
 export const googleClientIds = [
