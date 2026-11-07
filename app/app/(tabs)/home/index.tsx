@@ -1,4 +1,7 @@
-import { HomeHero, songCoverUrl, SongRow } from '@/components/music/home/HomeSections';
+import { CoverDeck, DECK_PEEK } from '@/components/music/home/CoverDeck';
+import { SongRow } from '@/components/music/home/HomeSections';
+import { playStationFrom } from '@/components/music/home/playStation';
+import { VibeDial } from '@/components/music/home/VibeDial';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import { HomeHeader } from '@/components/ui/AppHeader';
 import PressableScale from '@/components/ui/PressableScale';
@@ -6,25 +9,43 @@ import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
 import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE } from '@/lib/motion';
-import { useHomePageMusic, useRecentMusic } from '@/queries/useMusic';
+import { buildStations, shortSongName, Station } from '@/lib/stations';
+import {
+  stationQuery,
+  useHomePageMusic,
+  useRecentMusic,
+  useStationSongs,
+} from '@/queries/useMusic';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
-import { usePlaybackState, usePlayerControls, usePlayerStore } from '@/stores/playerStore';
+import { usePlaybackState, usePlayerControls } from '@/stores/playerStore';
 import { fonts } from '@/theme/typography';
 import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
-import { useIsRestoring } from '@tanstack/react-query';
+import { useIsRestoring, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Image,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
 type Colors = ReturnType<typeof useTheme>['colors'];
 
-/** Short on purpose: the page ends, and everything else is in Browse. */
-const LIST_SIZE = 10;
+const LIST_SIZE = 8;
 const SKELETON_DELAY_MS = 200;
-const CONTENT_ENTER = FadeIn.duration(180).easing(EASE_OUT);
+const SIDE_MARGIN = 16;
+/** The cover never takes more of a short phone's screen than this. */
+const MAX_COVER_SHARE = 0.38;
+const STAGE_ENTER = FadeIn.duration(140).easing(EASE_OUT);
+const META_ENTER = FadeIn.duration(140).easing(EASE_OUT);
+const ROW_REFLOW = LinearTransition.duration(180).easing(EASE_OUT);
 
 const goRooms = () => router.navigate('/(tabs)/group-music');
 const goBrowse = () => router.push('/browse');
@@ -163,7 +184,7 @@ const LiveRoomSection = memo(function LiveRoomSection({ colors }: { colors: Colo
 });
 
 /** Stand-ins shaped like the real screen, so nothing jumps when the content arrives. Still. */
-function HomeSkeleton({ colors }: { colors: Colors }) {
+function HomeSkeleton({ colors, size }: { colors: Colors; size: number }) {
   const block = (w: number | `${number}%`, h: number, r = 6) => ({
     width: w,
     height: h,
@@ -172,11 +193,11 @@ function HomeSkeleton({ colors }: { colors: Colors }) {
   });
 
   return (
-    <View style={styles.skeleton}>
-      <View style={[block('100%', 0, 10), styles.skeletonCover]} />
-      <View style={[block('60%', 24), styles.skeletonTitle]} />
-      <View style={block('38%', 13)} />
-      <View style={styles.list}>
+    <View style={styles.stage}>
+      <View style={block(size, size, 10)} />
+      <View style={[block('56%', 18), styles.skeletonTitle]} />
+      <View style={block('34%', 12)} />
+      <View style={styles.skeletonRows}>
         {[0, 1, 2].map((row) => (
           <View key={row} style={styles.skeletonRow}>
             <View style={block(48, 48)} />
@@ -191,13 +212,120 @@ function HomeSkeleton({ colors }: { colors: Colors }) {
   );
 }
 
+const Retry = ({
+  colors,
+  message,
+  onRetry,
+}: {
+  colors: Colors;
+  message: string;
+  onRetry: () => void;
+}) => (
+  <View style={styles.empty}>
+    <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{message}</Text>
+    <PressableScale
+      onPress={onRetry}
+      accessibilityRole='button'
+      style={[styles.retry, { backgroundColor: colors.raised }]}
+    >
+      <Text style={[styles.retryText, { color: colors.foreground }]}>Try again</Text>
+    </PressableScale>
+  </View>
+);
+
+/** One vibe: its covers, the song in front, and what comes after it. Remounts per station. */
+const StationStage = memo(function StationStage({
+  station,
+  size,
+  colors,
+  initialIndex,
+  onIndexChange,
+  showDeck,
+}: {
+  station: Station;
+  size: number;
+  colors: Colors;
+  initialIndex: number;
+  onIndexChange: (key: string, index: number) => void;
+  showDeck: boolean;
+}) {
+  const { songs, isLoading, isError, refetch } = useStationSongs(station);
+  const [index, setIndex] = useState(initialIndex);
+  const front = Math.min(index, Math.max(0, songs.length - 1));
+  const song: Song | undefined = songs[front];
+
+  const changeIndex = useCallback(
+    (next: number) => {
+      setIndex(next);
+      onIndexChange(station.key, next);
+    },
+    [onIndexChange, station.key]
+  );
+
+  const playAt = useCallback(
+    (at: number) => {
+      changeIndex(at);
+      playStationFrom(songs, at);
+    },
+    [changeIndex, songs]
+  );
+
+  if (isLoading) return <HomeSkeleton colors={colors} size={size} />;
+  if (isError || !song) {
+    return (
+      <Retry
+        colors={colors}
+        message={
+          isError ? "Couldn't load this vibe. Check your connection." : 'Nothing here right now.'
+        }
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
+  return (
+    <Animated.View entering={STAGE_ENTER}>
+      {showDeck ? (
+        <View style={styles.stage}>
+          <CoverDeck
+            songs={songs}
+            index={front}
+            size={size}
+            onIndexChange={changeIndex}
+            onPlay={playAt}
+          />
+          <Animated.View key={song.id} entering={META_ENTER} style={styles.meta}>
+            <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
+              {shortSongName(song.name)}
+            </Text>
+            <Text style={[styles.sub, { color: colors.mutedForeground }]} numberOfLines={1}>
+              {song.artist_map?.primary_artists?.[0]?.name ||
+                song.artist_map?.artists?.[0]?.name ||
+                song.subtitle ||
+                ''}
+            </Text>
+          </Animated.View>
+        </View>
+      ) : null}
+      <View style={styles.list}>
+        {songs
+          .slice(showDeck ? front + 1 : 0, (showDeck ? front + 1 : 0) + LIST_SIZE)
+          .map((row) => (
+            <Animated.View key={row.id} layout={ROW_REFLOW}>
+              <SongRow song={row} onPlay={() => playAt(songs.indexOf(row))} />
+            </Animated.View>
+          ))}
+      </View>
+    </Animated.View>
+  );
+});
+
 function HomeScreen() {
   const { user } = useUser();
   const { colors } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const queryClient = useQueryClient();
   const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
-  const currentSong = usePlayerStore((s) => s.currentSong);
-  const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const currentId = currentSong?.id;
 
   const { data: homePageData, isLoading, isError, refetch: refetchHome } = useHomePageMusic();
   const { data: recommendations, refetch: refetchRecent } = useRecentMusic();
@@ -209,14 +337,12 @@ function HomeScreen() {
   // Only when you pull: data also refreshes by itself in the background, and a spinner appearing
   // for that, with nothing touched, reads as something going wrong.
   const [refreshing, setRefreshing] = useState(false);
-  const [refreshes, setRefreshes] = useState(0);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     const requests: Promise<unknown>[] = [refetchHome()];
     if (user?.userid) requests.push(refetchRecent());
     await Promise.allSettled(requests);
     setRefreshing(false);
-    setRefreshes((n) => n + 1);
   }, [user?.userid, refetchHome, refetchRecent]);
 
   // A fast load goes straight to the music, with no skeleton flashing up in between.
@@ -227,7 +353,7 @@ function HomeScreen() {
     return () => clearTimeout(timer);
   }, [waiting]);
 
-  const pool = useMemo(
+  const forYou = useMemo(
     () =>
       buildPool(
         recommendations?.songs ?? [],
@@ -236,41 +362,53 @@ function HomeScreen() {
       ),
     [homePageData?.trending, recommendations]
   );
-  const hasPool = pool.length > 0;
+  const stations = useMemo(() => buildStations(homePageData, forYou), [homePageData, forYou]);
+  const titles = useMemo(() => stations.map((s) => s.title), [stations]);
 
-  // The song restored from last time is there to resume until you play something. After that the
-  // cover stays on what's next, or pausing would make it jump back.
-  const [startedPlaying, setStartedPlaying] = useState(false);
-  if (isPlaying && !startedPlaying) setStartedPlaying(true);
-  const resumeSong = !startedPlaying ? currentSong : null;
+  // The vibe you're on is remembered by key, so a data refresh or new section can't move you.
+  const [stationKey, setStationKey] = useState<string | null>(null);
+  const found = stations.findIndex((s) => s.key === stationKey);
+  const stationIndex = found < 0 ? 0 : found;
+  const station: Station | undefined = stations[stationIndex];
 
-  // Changes when the song does or you pull to refresh, not whenever data updates in the background:
-  // a cover swapping while you're looking at it, for no reason you can see, feels broken.
-  const nextPick = useMemo(
-    () => pool.find((song) => song.id !== currentId) ?? null,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentId, hasPool, refreshes]
-  );
-  const hero = resumeSong ?? nextPick;
-  const heroId = hero?.id;
-
-  const rows = useMemo(
-    () => pool.filter((song) => song.id !== heroId).slice(0, LIST_SIZE),
-    [heroId, pool]
+  // Yields to the dial: mounting a station must never hold up your finger.
+  const onDialChange = useCallback(
+    (next: number) => {
+      const key = stations[next]?.key;
+      if (key) startTransition(() => setStationKey(key));
+    },
+    [stations]
   );
 
-  // So the next cover is already there when this one is played.
-  const upcomingCover = useMemo(() => {
-    const upcoming = pool.find((song) => song.id !== heroId && song.id !== currentId);
-    return upcoming ? songCoverUrl(upcoming) : undefined;
-  }, [currentId, heroId, pool]);
+  // Each vibe remembers the song you'd flicked to.
+  const positions = useRef<Record<string, number>>({});
+  const onIndexChange = useCallback((key: string, index: number) => {
+    positions.current[key] = index;
+  }, []);
+
+  // So the vibes either side are usually ready before you reach them.
   useEffect(() => {
-    if (upcomingCover) Image.prefetch(upcomingCover).catch(() => {});
-  }, [upcomingCover]);
+    for (const near of [stations[stationIndex - 1], stations[stationIndex + 1]]) {
+      if (near?.source) queryClient.prefetchQuery(stationQuery(near.source)).catch(() => {});
+      const cover = near?.songs?.[0]?.image?.[2]?.link;
+      if (cover) Image.prefetch(cover).catch(() => {});
+    }
+  }, [queryClient, stationIndex, stations]);
+
+  const coverSize = Math.min(
+    width - SIDE_MARGIN * 2 - DECK_PEEK * 2,
+    Math.round(height * MAX_COVER_SHARE)
+  );
 
   return (
     <TabSafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
-      <HomeHeader />
+      <HomeHeader>
+        {titles.length ? (
+          <VibeDial titles={titles} index={stationIndex} onChange={onDialChange} />
+        ) : (
+          <View style={styles.root} />
+        )}
+      </HomeHeader>
 
       <ScrollView
         style={styles.root}
@@ -288,30 +426,28 @@ function HomeScreen() {
         {inRoom ? <LiveRoomSection colors={colors} /> : null}
 
         {waiting ? (
-          skeletonShown && !inRoom && <HomeSkeleton colors={colors} />
-        ) : !hasPool ? (
-          <View style={styles.empty}>
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              {isError ? "Couldn't load music. Check your connection." : 'Nothing to play yet.'}
-            </Text>
-            <PressableScale
-              onPress={onRefresh}
-              accessibilityRole='button'
-              style={[styles.retry, { backgroundColor: colors.raised }]}
-            >
-              <Text style={[styles.retryText, { color: colors.foreground }]}>Try again</Text>
-            </PressableScale>
-          </View>
+          skeletonShown && !inRoom && <HomeSkeleton colors={colors} size={coverSize} />
+        ) : !station ? (
+          <Retry
+            colors={colors}
+            message={
+              isError ? "Couldn't load music. Check your connection." : 'Nothing to play yet.'
+            }
+            onRetry={onRefresh}
+          />
         ) : (
-          <Animated.View entering={skeletonShown ? CONTENT_ENTER : undefined}>
-            {hero && !inRoom ? <HomeHero song={hero} /> : null}
-            <View style={styles.list}>
-              {rows.map((song) => (
-                <SongRow key={song.id} song={song} />
-              ))}
-            </View>
+          <>
+            <StationStage
+              key={station.key}
+              station={station}
+              size={coverSize}
+              colors={colors}
+              initialIndex={positions.current[station.key] ?? 0}
+              onIndexChange={onIndexChange}
+              showDeck={!inRoom}
+            />
             <BrowseRow colors={colors} />
-          </Animated.View>
+          </>
         )}
       </ScrollView>
     </TabSafeAreaView>
@@ -321,7 +457,7 @@ function HomeScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingBottom: DECK_CLEARANCE },
-  list: { paddingHorizontal: 16, paddingTop: 18 },
+  list: { paddingHorizontal: SIDE_MARGIN, paddingTop: 8 },
 
   roomStack: { gap: 10, paddingHorizontal: 16 },
   browseRow: {
@@ -372,9 +508,12 @@ const styles = StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3 },
   liveText: { fontSize: 12, fontWeight: '700' },
 
-  skeleton: { paddingHorizontal: 16 },
-  skeletonCover: { height: undefined, aspectRatio: 1, marginBottom: 14 },
-  skeletonTitle: { marginBottom: 8 },
+  stage: { paddingHorizontal: SIDE_MARGIN, paddingTop: 2 },
+  meta: { paddingTop: 12, paddingBottom: 4 },
+  title: { fontSize: 20, fontWeight: '700', letterSpacing: -0.35 },
+  sub: { fontSize: 13.5, marginTop: 2 },
+  skeletonTitle: { marginTop: 14, marginBottom: 8 },
+  skeletonRows: { paddingTop: 18 },
   skeletonRow: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 60 },
   skeletonLines: { flex: 1, gap: 7 },
 

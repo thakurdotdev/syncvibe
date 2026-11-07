@@ -26,18 +26,20 @@ export const HeaderIconButton = memo(function HeaderIconButton({
   icon?: IconName;
   onPress: () => void;
   label: string;
-  tone?: 'default' | 'primary' | 'overlay';
+  tone?: 'default' | 'primary' | 'overlay' | 'plain';
   children?: ReactNode;
 }) {
   const { colors, theme } = useTheme();
   const bg =
     tone === 'primary'
       ? colors.primary
-      : tone === 'overlay'
-        ? theme === 'dark'
-          ? 'rgba(0,0,0,0.35)'
-          : 'rgba(255,255,255,0.7)'
-        : colors.raised;
+      : tone === 'plain'
+        ? 'transparent'
+        : tone === 'overlay'
+          ? theme === 'dark'
+            ? 'rgba(0,0,0,0.35)'
+            : 'rgba(255,255,255,0.7)'
+          : colors.raised;
   const fg = tone === 'primary' ? colors.primaryForeground : colors.foreground;
 
   return (
@@ -79,20 +81,17 @@ const AvatarButton = memo(function AvatarButton() {
   );
 });
 
-/** Home's header: search is the second most likely thing you came for, so it's right there. */
-export const HomeHeader = memo(function HomeHeader() {
-  const { colors } = useTheme();
+/** Home's one line: the dial, then search and your avatar. */
+export const HomeHeader = memo(function HomeHeader({ children }: { children: ReactNode }) {
   return (
     <View style={styles.homeHeader}>
-      <PressableScale
+      {children}
+      <HeaderIconButton
+        icon='search'
+        label='Search music, your history, playlists and people'
+        tone='plain'
         onPress={openSearch}
-        accessibilityRole='button'
-        accessibilityLabel='Search music, your history, playlists and people'
-        style={[styles.homeSearch, { backgroundColor: colors.raised }]}
-      >
-        <Ionicons name='search' size={18} color={colors.mutedForeground} />
-        <Text style={[styles.homeSearchText, { color: colors.mutedForeground }]}>Search music</Text>
-      </PressableScale>
+      />
       <AvatarButton />
     </View>
   );
@@ -201,21 +200,11 @@ const styles = StyleSheet.create({
   homeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 12,
+    gap: 6,
+    paddingLeft: 16,
+    paddingRight: 12,
+    height: 66,
   },
-  homeSearch: {
-    flex: 1,
-    height: 44,
-    borderRadius: 22,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 15,
-  },
-  homeSearchText: { fontSize: 15 },
 
   tabHeader: {
     height: HEADER_HEIGHT,
