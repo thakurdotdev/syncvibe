@@ -20,41 +20,28 @@ export const userRouter: Router = Router();
 
 // Push Token
 userRouter.post('/mobile/pushToken', authMiddleware, updatePushToken);
-userRouter.post('/user/pushToken', authMiddleware, updatePushToken);
 
 // Session & Profile
 userRouter.get('/profile', authMiddleware, getUserProfile);
-userRouter.get('/user/me', authMiddleware, getUserProfile);
 userRouter.get('/user/sessions', authMiddleware, listDeviceSessions);
 userRouter.delete('/user/sessions', authMiddleware, revokeOtherDeviceSessions);
 userRouter.delete('/user/sessions/:id', authMiddleware, revokeDeviceSession);
 
 // Profile Updates
 userRouter.post('/update-profilepic', authMiddleware, updateProfilePic);
-userRouter.put('/update-profilepic', authMiddleware, updateProfilePic);
-userRouter.patch('/update-profilepic', authMiddleware, updateProfilePic);
-userRouter.post('/user/profilepic', authMiddleware, updateProfilePic);
 userRouter.post('/update-profile', authMiddleware, updateUserDetails);
-userRouter.put('/update-profile', authMiddleware, updateUserDetails);
-userRouter.patch('/update-profile', authMiddleware, updateUserDetails);
-userRouter.patch('/user/profile', authMiddleware, updateUserDetails);
-userRouter.put('/user/profile', authMiddleware, updateUserDetails);
 
 // Account Deletion
 userRouter.get('/user/account/delete/otp', authMiddleware, getOtpForAccountDelete);
 userRouter.post('/user/delete/account', authMiddleware, deleteUser);
-userRouter.delete('/user/account', authMiddleware, deleteUser);
 
-// Static Discovery Endpoints (Must be before parameterized /user/:userid)
+// Static Discovery Endpoints (Must be before parameterized /user/profile/:userid)
 userRouter.get('/user/invite-list', authMiddleware, getInviteList);
 userRouter.get('/user/search', searchUser);
 
 // Follow System
 userRouter.get('/user/followlist/:userid', authMiddleware, getFollowLists);
-userRouter.get('/user/follows/:userid', authMiddleware, getFollowLists);
 userRouter.get('/user/follow/:followid', authMiddleware, followUser);
-userRouter.post('/user/follow/:followid', authMiddleware, followUser);
 
-// Parameterized User Routes (Must be last)
+// Parameterized User Routes
 userRouter.get('/user/profile/:userid', authMiddleware, getUserDetails);
-userRouter.get('/user/:userid', authMiddleware, getUserDetails);
