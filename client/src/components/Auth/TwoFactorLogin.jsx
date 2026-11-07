@@ -1,9 +1,18 @@
 import { useState } from 'react';
-import { CheckCircle, Loader2, Shield } from 'lucide-react';
+import { REGEXP_ONLY_DIGITS } from 'input-otp';
+import { CheckCircle, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
 import { authClient, getErrorMessage, unwrap } from '@/lib/auth-client';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+import { cn } from '@/lib/utils';
+import {
+  AuthHeader,
+  AuthSecondary,
+  AuthSubmit,
+  authInputClass,
+  OtpField,
+  TextAction,
+} from './AuthUI';
 
 const TOTP_LENGTH = 6;
 const BACKUP_CODE_LENGTH = 11;
@@ -11,7 +20,6 @@ const BACKUP_CODE_LENGTH = 11;
 const MODES = {
   totp: {
     description: 'Enter the 6-digit code from your authenticator app.',
-    placeholder: '000000',
     toggleLabel: 'Use a backup code instead',
     normalize: (value) => value.replace(/\D/g, '').slice(0, TOTP_LENGTH),
     isComplete: (code) => code.length === TOTP_LENGTH,
@@ -56,77 +64,63 @@ const TwoFactorLogin = ({ onSuccess, onClose }) => {
     }
   };
 
-  const handleKeyDown = (event) => {
-    if (event.key === 'Enter') handleVerify();
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    handleVerify();
   };
 
   return (
     <>
-      <div className='mb-8'>
-        <div className='flex items-center gap-2.5 mb-2'>
-          <div className='p-2 rounded-xl bg-muted dark:bg-card border border-border'>
-            <Shield className='w-5 h-5 text-foreground' />
-          </div>
-          <h1 className='text-2xl sm:text-3xl font-semibold tracking-tight text-foreground'>
-            Two-Factor Auth
-          </h1>
-        </div>
-        <p className='text-sm text-muted-foreground mt-2'>{mode.description}</p>
-      </div>
+      <AuthHeader icon={ShieldCheck} title='Two-step verification' description={mode.description} />
 
-      <div className='space-y-4'>
-        <Input
-          type='text'
-          value={code}
-          onChange={(event) => setCode(mode.normalize(event.target.value))}
-          placeholder={mode.placeholder}
-          className='text-center text-xl tracking-[0.5em] font-semibold h-12 px-4 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-transparent transition-all'
-          autoComplete='one-time-code'
-          disabled={loading || isVerified}
-          onKeyDown={handleKeyDown}
-          autoFocus
-        />
+      <form onSubmit={handleSubmit} className='space-y-6'>
+        {modeName === 'totp' ? (
+          <OtpField
+            value={code}
+            onChange={setCode}
+            pattern={REGEXP_ONLY_DIGITS}
+            disabled={loading || isVerified}
+            autoFocus
+          />
+        ) : (
+          <Input
+            value={code}
+            onChange={(event) => setCode(mode.normalize(event.target.value))}
+            placeholder={mode.placeholder}
+            className={cn(authInputClass, 'text-center font-mono text-lg tracking-[0.2em]')}
+            autoComplete='one-time-code'
+            disabled={loading || isVerified}
+            autoFocus
+          />
+        )}
 
-        <button
-          type='button'
-          onClick={switchMode}
-          disabled={loading || isVerified}
-          className='text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline transition-colors'
-        >
-          {mode.toggleLabel}
-        </button>
-
-        <div className='space-y-3 pt-2'>
-          <Button
-            onClick={handleVerify}
+        <div className='space-y-3'>
+          <AuthSubmit
+            type='submit'
+            loading={loading}
+            loadingText='Verifying...'
             disabled={!canSubmit}
-            className='w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer'
           >
-            {loading ? (
+            {isVerified ? (
               <>
-                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                <span>Verifying...</span>
-              </>
-            ) : isVerified ? (
-              <>
-                <CheckCircle className='mr-2 h-4 w-4' />
-                <span>Verified</span>
+                <CheckCircle className='h-4 w-4' />
+                Verified
               </>
             ) : (
-              <span>Verify</span>
+              'Verify'
             )}
-          </Button>
-
-          <Button
-            variant='outline'
-            onClick={onClose}
-            className='w-full h-12 rounded-xl border border-border bg-card hover:bg-muted dark:hover:bg-raised text-foreground font-medium transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer'
-            disabled={loading}
-          >
-            Cancel
-          </Button>
+          </AuthSubmit>
+          <AuthSecondary type='button' onClick={onClose} disabled={loading}>
+            Back to sign in
+          </AuthSecondary>
         </div>
-      </div>
+
+        <div className='text-center'>
+          <TextAction onClick={switchMode} disabled={loading || isVerified}>
+            {mode.toggleLabel}
+          </TextAction>
+        </div>
+      </form>
     </>
   );
 };
