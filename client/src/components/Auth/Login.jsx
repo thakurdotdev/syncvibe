@@ -13,7 +13,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { ArrowRight, KeyRound } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import * as yup from 'yup';
 import {
@@ -26,7 +26,6 @@ import {
   OrDivider,
   PasswordInput,
 } from './AuthUI';
-import ForgotPassword from './ForgotPassword';
 import TwoFactorLogin from './TwoFactorLogin';
 
 const validationSchema = yup.object().shape({
@@ -190,7 +189,12 @@ const Login = () => {
           />
 
           <div className='flex justify-end'>
-            <ForgotPassword />
+            <Link
+              to='/forgot-password'
+              className='text-sm font-medium text-muted-foreground transition-colors hover:text-foreground'
+            >
+              Forgot password?
+            </Link>
           </div>
 
           <AuthSubmit
