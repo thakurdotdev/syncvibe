@@ -59,6 +59,8 @@ interface SwipeableModalProps {
   fullScreen?: boolean;
   /** Drag from anywhere on the sheet, not only its top edge. For sheets with nothing to scroll. */
   dragAnywhere?: boolean;
+  /** False keeps it open against drags, the back button and backdrop taps. */
+  dismissible?: boolean;
 }
 
 /**
@@ -98,6 +100,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
   keyboardVerticalOffset = 0,
   fullScreen = false,
   dragAnywhere = false,
+  dismissible = true,
 }) => {
   const { colors, theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -206,6 +209,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
+        .enabled(dismissible)
         .manualActivation(true)
         .failOffsetX([-36, 36])
         .onTouchesDown((event) => {
@@ -293,6 +297,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
     [
       activeScrollOffset,
       closing,
+      dismissible,
       dragAnywhere,
       dragEligible,
       dragOrigin,
@@ -342,7 +347,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
       animationType='none'
       statusBarTranslucent
       hardwareAccelerated
-      onRequestClose={animateClose}
+      onRequestClose={dismissible ? animateClose : undefined}
     >
       <GestureHandlerRootView style={styles.root}>
         {fullScreen && (
@@ -360,7 +365,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
         >
           <Pressable
             style={fullScreen ? styles.fullScreenBackdropTouchable : styles.backdropTouchable}
-            onPress={animateClose}
+            onPress={dismissible ? animateClose : undefined}
           />
 
           <Animated.View style={[styles.backdrop, backdropStyle]} pointerEvents='none' />
