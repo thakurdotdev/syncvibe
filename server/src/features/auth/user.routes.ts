@@ -14,6 +14,7 @@ import {
   getUserProfile,
   getLoginLogs,
 } from './user.controller';
+import { listDeviceSessions, revokeDeviceSession, revokeOtherDeviceSessions } from './sessions';
 
 // Sign-in, sign-up, sessions, passwords, 2FA and passkeys are served by Better Auth under /api/auth.
 export const userRouter: Router = Router();
@@ -26,6 +27,9 @@ userRouter.post('/user/pushToken', authMiddleware, updatePushToken);
 userRouter.get('/login-logs', authMiddleware, getLoginLogs);
 userRouter.get('/profile', authMiddleware, getUserProfile);
 userRouter.get('/user/me', authMiddleware, getUserProfile);
+userRouter.get('/user/sessions', authMiddleware, listDeviceSessions);
+userRouter.delete('/user/sessions', authMiddleware, revokeOtherDeviceSessions);
+userRouter.delete('/user/sessions/:id', authMiddleware, revokeDeviceSession);
 
 // Profile Updates
 userRouter.post('/update-profilepic', authMiddleware, updateProfilePic);

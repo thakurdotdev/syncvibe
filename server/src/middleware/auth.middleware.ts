@@ -16,7 +16,10 @@ const toRequestUser = (user: AuthSession['user']): Express.User => ({
  * Resolves the Better Auth session for the request. Any refreshed session cookie is passed on
  * to the response so that active sessions keep sliding forward.
  */
-const resolveUser = async (req: Request, res: Response): Promise<Express.User | null> => {
+const resolveUser = async (
+  req: Request,
+  res: Response
+): Promise<{ user: Express.User; sessionId: string } | null> => {
   const { headers, response } = await auth.api.getSession({
     headers: fromNodeHeaders(req.headers),
     returnHeaders: true,
@@ -26,7 +29,7 @@ const resolveUser = async (req: Request, res: Response): Promise<Express.User | 
   if (cookies.length > 0) res.append('Set-Cookie', cookies);
 
   if (!response || response.user.isDeleted) return null;
-  return toRequestUser(response.user);
+  return { user: toRequestUser(response.user), sessionId: String(response.session.id) };
 };
 
 export const authMiddleware = async (
@@ -35,13 +38,14 @@ export const authMiddleware = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const user = await resolveUser(req, res);
-    if (!user) {
+    const resolved = await resolveUser(req, res);
+    if (!resolved) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-    req.user = user;
+    req.user = resolved.user;
+    req.sessionId = resolved.sessionId;
     next();
   } catch (error) {
     console.error('Error resolving session:', error);
@@ -55,7 +59,9 @@ export const optionalAuthMiddleware = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    req.user = (await resolveUser(req, res)) ?? undefined;
+    const resolved = await resolveUser(req, res);
+    req.user = resolved?.user;
+    req.sessionId = resolved?.sessionId;
   } catch (error) {
     console.error('Error resolving session:', error);
   }
