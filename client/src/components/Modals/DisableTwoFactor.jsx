@@ -1,38 +1,29 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Shield, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import axios from 'axios';
+import { authClient, getErrorMessage, unwrap } from '@/lib/auth-client';
 
-const DisableTwoFactor = ({ isOpen, onClose, onSuccess }) => {
+const DisableTwoFactor = ({ isOpen, onClose, onSuccess, hasPassword }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleDisable = async () => {
-    if (!password.trim()) {
+    if (hasPassword && !password) {
       toast.error('Please enter your password to disable 2FA');
       return;
     }
 
     try {
       setLoading(true);
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/2fa/disable`,
-        { password },
-        { withCredentials: true }
-      );
-
-      if (response.status === 200) {
-        toast.success('Two-Factor Authentication disabled successfully');
-        onSuccess();
-        onClose();
-        setPassword('');
-      }
+      await unwrap(authClient.twoFactor.disable(hasPassword ? { password } : {}));
+      onSuccess();
+      onClose();
+      setPassword('');
     } catch (error) {
-      console.error('Disable 2FA error:', error);
-      toast.error(error.response?.data?.message || 'Failed to disable 2FA');
+      toast.error(getErrorMessage(error, 'Failed to disable 2FA'));
     } finally {
       setLoading(false);
     }
@@ -68,24 +59,31 @@ const DisableTwoFactor = ({ isOpen, onClose, onSuccess }) => {
           </div>
 
           <div className='space-y-4'>
-            <div>
-              <label className='text-sm font-medium text-foreground'>
-                Enter your password to confirm
-              </label>
-              <Input
-                type='password'
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder='Your password'
-                className='mt-2'
-                disabled={loading}
-              />
-            </div>
+            {hasPassword && (
+              <div>
+                <label
+                  className='text-sm font-medium text-foreground'
+                  htmlFor='disable-2fa-password'
+                >
+                  Enter your password to confirm
+                </label>
+                <Input
+                  id='disable-2fa-password'
+                  type='password'
+                  autoComplete='current-password'
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder='Your password'
+                  className='mt-2'
+                  disabled={loading}
+                />
+              </div>
+            )}
 
             <div className='flex gap-3'>
               <Button
                 onClick={handleDisable}
-                disabled={loading || !password.trim()}
+                disabled={loading || (hasPassword && !password)}
                 variant='destructive'
                 className='flex-1'
               >

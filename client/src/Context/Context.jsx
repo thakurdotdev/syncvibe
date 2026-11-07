@@ -37,9 +37,7 @@ export const ContextProvider = ({ children }) => {
     }
   };
 
-  const getProfile = () => {
-    refetch();
-  };
+  const getProfile = () => refetch();
 
   const memoizedValue = useMemo(
     () => ({

@@ -1,16 +1,15 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import axios from 'axios';
 import { CheckCircle2, Eye, EyeOff, Loader2Icon, XCircle, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { authClient, getErrorMessage, unwrap } from '@/lib/auth-client';
 
 const ResetPassword = () => {
   document.title = 'SyncVibe - Reset Password';
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
-  const email = searchParams.get('email');
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -19,7 +18,7 @@ const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
 
-  const isValid = token && email;
+  const isValid = Boolean(token);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,16 +35,12 @@ const ResetPassword = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/reset-password`, {
-        token,
-        email,
-        password,
-      });
+      await unwrap(authClient.resetPassword({ token, newPassword: password }));
       setStatus('success');
-      toast.success(response.data.message);
+      toast.success('Your password has been reset. You can now sign in.');
     } catch (error) {
       setStatus('error');
-      toast.error(error.response?.data?.message || 'Something went wrong');
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }

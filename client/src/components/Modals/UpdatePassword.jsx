@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import axios from 'axios';
 import { toast } from 'sonner';
+import { authClient, getErrorMessage, unwrap } from '@/lib/auth-client';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -54,25 +54,19 @@ const UpdatePasswordDialog = ({ isOpen, toggleDialog }) => {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/change-password`,
-        {
-          oldPassword: data.oldPassword,
+      // Signs out every other device, so a leaked password stops working everywhere.
+      await unwrap(
+        authClient.changePassword({
+          currentPassword: data.oldPassword,
           newPassword: data.newPassword,
-        },
-        {
-          withCredentials: true,
-          headers: { 'Content-Type': 'application/json' },
-        }
+          revokeOtherSessions: true,
+        })
       );
-
-      if (response.status === 200) {
-        toast.success('Password updated successfully');
-        onClose();
-        reset();
-      }
+      toast.success('Password updated successfully');
+      reset();
+      toggleDialog();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update password. Please try again.');
+      toast.error(getErrorMessage(error, 'Failed to update password. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }

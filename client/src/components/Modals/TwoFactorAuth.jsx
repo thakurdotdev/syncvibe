@@ -1,83 +1,88 @@
-import axios from 'axios';
-import { CheckCircle, Loader2, Shield, Smartphone } from 'lucide-react';
+import QRCode from 'qrcode';
+import { Check, Copy, Loader2, Shield, Smartphone } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { authClient, getErrorMessage, unwrap } from '@/lib/auth-client';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Input } from '../ui/input';
 
-const TwoFactorAuth = ({ isOpen, onClose, userId, onSuccess, isSetup = false }) => {
-  const [otp, setOtp] = useState('');
-  const [loading, setLoading] = useState(false);
+const STEPS = { password: 'password', scan: 'scan', backupCodes: 'backupCodes' };
+
+/**
+ * Turns on 2FA in three steps: confirm the password, scan the QR code and enter a code from the
+ * app, then save the backup codes. Accounts without a password skip the first step.
+ */
+const TwoFactorAuth = ({ isOpen, onClose, onSuccess, hasPassword }) => {
+  const [step, setStep] = useState(STEPS.password);
+  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [qrCode, setQrCode] = useState('');
-  const [setupLoading, setSetupLoading] = useState(false);
-  const [isEnabled, setIsEnabled] = useState(false);
+  const [backupCodes, setBackupCodes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && isSetup) {
-      setup2FA();
-    }
-  }, [isOpen, isSetup]);
-
-  const setup2FA = async () => {
+  const startSetup = async (currentPassword) => {
+    setLoading(true);
     try {
-      setSetupLoading(true);
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/2fa/setup`,
-        {},
-        { withCredentials: true }
+      const { totpURI, backupCodes: codes } = await unwrap(
+        authClient.twoFactor.enable(currentPassword ? { password: currentPassword } : {})
       );
-
-      if (response.status === 200) {
-        setQrCode(response.data.qrCode);
-      }
+      setQrCode(await QRCode.toDataURL(totpURI, { width: 192, margin: 1 }));
+      setBackupCodes(codes);
+      setPassword('');
+      setStep(STEPS.scan);
     } catch (error) {
-      console.error('Error setting up 2FA:', error);
-      toast.error('Failed to setup 2FA. Please try again.');
-    } finally {
-      setSetupLoading(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    if (!otp || otp.length !== 6) {
-      toast.error('Please enter a valid 6-digit code');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/2fa/verify`,
-        {
-          userId: userId,
-          token: otp,
-        },
-        { withCredentials: true }
-      );
-
-      if (response.status === 200) {
-        toast.success(isSetup ? '2FA enabled successfully!' : 'Login successful!');
-        setIsEnabled(true);
-        setTimeout(() => {
-          onSuccess(response.data.token);
-          onClose();
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('2FA verification error:', error);
-      toast.error(error.response?.data?.message || 'Invalid verification code');
+      toast.error(getErrorMessage(error, 'Failed to set up 2FA. Please try again.'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleClose = () => {
-    setOtp('');
+  useEffect(() => {
+    // Accounts without a password go straight to the QR code.
+    if (isOpen && !hasPassword && step === STEPS.password) startSetup();
+  }, [isOpen, hasPassword, step]);
+
+  const handlePasswordSubmit = (event) => {
+    event.preventDefault();
+    if (password) startSetup(password);
+  };
+
+  const handleVerify = async () => {
+    if (code.length !== 6) return;
+
+    setLoading(true);
+    try {
+      await unwrap(authClient.twoFactor.verifyTotp({ code }));
+      setStep(STEPS.backupCodes);
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Invalid verification code'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyBackupCodes = async () => {
+    await navigator.clipboard.writeText(backupCodes.join('\n'));
+    setCopied(true);
+  };
+
+  const reset = () => {
+    setStep(STEPS.password);
+    setPassword('');
+    setCode('');
     setQrCode('');
-    setIsEnabled(false);
+    setBackupCodes([]);
+    setCopied(false);
+  };
+
+  const handleClose = () => {
+    const finished = step === STEPS.backupCodes;
+    reset();
     onClose();
+    if (finished) onSuccess();
   };
 
   return (
@@ -86,12 +91,39 @@ const TwoFactorAuth = ({ isOpen, onClose, userId, onSuccess, isSetup = false }) 
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <Shield className='h-5 w-5 text-foreground' />
-            {isSetup ? 'Setup Two-Factor Authentication' : 'Two-Factor Authentication'}
+            Setup Two-Factor Authentication
           </DialogTitle>
         </DialogHeader>
 
-        <div className='space-y-6'>
-          {isSetup && (
+        {step === STEPS.password && hasPassword && (
+          <form onSubmit={handlePasswordSubmit} className='space-y-4'>
+            <label className='text-sm font-medium text-foreground' htmlFor='two-factor-password'>
+              Enter your password to continue
+            </label>
+            <Input
+              id='two-factor-password'
+              type='password'
+              autoComplete='current-password'
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              disabled={loading}
+              autoFocus
+            />
+            <Button type='submit' disabled={loading || !password} className='w-full'>
+              {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+              Continue
+            </Button>
+          </form>
+        )}
+
+        {step === STEPS.password && !hasPassword && (
+          <div className='flex items-center justify-center py-8'>
+            <Loader2 className='h-8 w-8 animate-spin text-foreground' />
+          </div>
+        )}
+
+        {step === STEPS.scan && (
+          <div className='space-y-6'>
             <Card>
               <CardContent className='p-4'>
                 <div className='text-center space-y-4'>
@@ -99,70 +131,61 @@ const TwoFactorAuth = ({ isOpen, onClose, userId, onSuccess, isSetup = false }) 
                     <Smartphone className='h-4 w-4' />
                     <span>Scan QR code with your authenticator app</span>
                   </div>
-
-                  {setupLoading ? (
-                    <div className='flex items-center justify-center py-8'>
-                      <Loader2 className='h-8 w-8 animate-spin text-foreground' />
-                    </div>
-                  ) : qrCode ? (
-                    <div className='flex justify-center'>
-                      <img src={qrCode} alt='2FA QR Code' className='w-48 h-48 border rounded-lg' />
-                    </div>
-                  ) : (
-                    <div className='py-8 text-center text-muted-foreground'>
-                      Failed to generate QR code
-                    </div>
-                  )}
+                  <div className='flex justify-center'>
+                    <img src={qrCode} alt='2FA QR Code' className='w-48 h-48 border rounded-lg' />
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          )}
 
-          <div className='space-y-4'>
-            <div>
-              <label className='text-sm font-medium text-foreground'>
-                {isSetup
-                  ? 'Enter the 6-digit code from your authenticator app'
-                  : 'Enter verification code'}
+            <div className='space-y-4'>
+              <label className='text-sm font-medium text-foreground' htmlFor='two-factor-code'>
+                Enter the 6-digit code from your authenticator app
               </label>
               <Input
+                id='two-factor-code'
                 type='text'
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                inputMode='numeric'
+                autoComplete='one-time-code'
+                value={code}
+                onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                onKeyDown={(event) => event.key === 'Enter' && handleVerify()}
                 placeholder='000000'
-                className='mt-2 text-center text-lg tracking-widest'
-                maxLength={6}
-                disabled={loading || isEnabled}
+                className='text-center text-lg tracking-widest'
+                disabled={loading}
               />
+              <Button
+                onClick={handleVerify}
+                disabled={loading || code.length !== 6}
+                className='w-full'
+              >
+                {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+                Verify
+              </Button>
             </div>
-
-            <Button
-              onClick={handleVerify}
-              disabled={loading || otp.length !== 6 || isEnabled}
-              className='w-full'
-            >
-              {loading ? (
-                <>
-                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                  Verifying...
-                </>
-              ) : isEnabled ? (
-                <>
-                  <CheckCircle className='mr-2 h-4 w-4' />
-                  Verified
-                </>
-              ) : (
-                'Verify'
-              )}
-            </Button>
-
-            {isSetup && (
-              <p className='text-xs text-muted-foreground text-center'>
-                After verification, 2FA will be enabled for your account
-              </p>
-            )}
           </div>
-        </div>
+        )}
+
+        {step === STEPS.backupCodes && (
+          <div className='space-y-4'>
+            <p className='text-sm text-muted-foreground'>
+              2FA is on. Save these backup codes somewhere safe. Each one signs you in once if you
+              lose access to your authenticator app.
+            </p>
+            <div className='grid grid-cols-2 gap-2 rounded-lg border border-border bg-muted p-4 font-mono text-sm'>
+              {backupCodes.map((backupCode) => (
+                <span key={backupCode}>{backupCode}</span>
+              ))}
+            </div>
+            <Button variant='outline' onClick={copyBackupCodes} className='w-full'>
+              {copied ? <Check className='mr-2 h-4 w-4' /> : <Copy className='mr-2 h-4 w-4' />}
+              {copied ? 'Copied' : 'Copy codes'}
+            </Button>
+            <Button onClick={handleClose} className='w-full'>
+              Done
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
