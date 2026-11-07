@@ -1,3 +1,5 @@
+import { requireOptionalNativeModule } from 'expo';
+import { Platform } from 'react-native';
 import type * as PasskeysModule from 'react-native-passkeys';
 import { authClient, unwrap } from '@/lib/auth-client';
 
@@ -103,6 +105,40 @@ const runCeremony = async <T>(ceremony: (native: typeof PasskeysModule) => Promi
 
 type CreationOptions = Parameters<typeof PasskeysModule.create>[0];
 type RequestOptions = Parameters<typeof PasskeysModule.get>[0];
+type Registration = NonNullable<Awaited<ReturnType<typeof PasskeysModule.create>>>;
+type Assertion = NonNullable<Awaited<ReturnType<typeof PasskeysModule.get>>>;
+
+/**
+ * Android: hand Credential Manager the server's WebAuthn JSON as-is and parse its JSON reply
+ * (createJson/getJson come from patches/react-native-passkeys@0.4.2.patch). The library's own
+ * path rebuilds the request from Kotlin objects with Gson, which breaks in minified builds.
+ */
+interface AndroidPasskeys {
+  createJson(request: string): Promise<string | null>;
+  getJson(request: string): Promise<string | null>;
+}
+const androidNative =
+  Platform.OS === 'android'
+    ? requireOptionalNativeModule<AndroidPasskeys>('ReactNativePasskeys')
+    : null;
+
+const createCredential = async (
+  native: typeof PasskeysModule,
+  options: CreationOptions
+): Promise<Registration | null> => {
+  if (!androidNative?.createJson) return native.create(options);
+  const json = await androidNative.createJson(JSON.stringify(options));
+  return json ? (JSON.parse(json) as Registration) : null;
+};
+
+const getCredential = async (
+  native: typeof PasskeysModule,
+  options: RequestOptions
+): Promise<Assertion | null> => {
+  if (!androidNative?.getJson) return native.get(options);
+  const json = await androidNative.getJson(JSON.stringify(options));
+  return json ? (JSON.parse(json) as Assertion) : null;
+};
 
 /** Signs in with a passkey. The Expo client stores the session cookie from the response. */
 export const signInWithPasskey = async () => {
@@ -112,7 +148,7 @@ export const signInWithPasskey = async () => {
       throw: false,
     })
   );
-  const credential = await runCeremony((native) => native.get(options));
+  const credential = await runCeremony((native) => getCredential(native, options));
   // The server verifies the assertion itself; extension results aren't part of it.
   const { clientExtensionResults: _ignored, ...response } = credential;
   return unwrap(
@@ -133,7 +169,7 @@ export const addPasskey = async (name: string) => {
       throw: false,
     })
   );
-  const credential = await runCeremony((native) => native.create(options));
+  const credential = await runCeremony((native) => createCredential(native, options));
   const { clientExtensionResults: _ignored, ...response } = credential;
   return unwrap(
     authClient.$fetch('/passkey/verify-registration', {

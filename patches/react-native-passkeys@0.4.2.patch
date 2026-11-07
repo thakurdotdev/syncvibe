@@ -12,3 +12,54 @@ index b6e5e15bf5fdae4d65b9af0e62c52f21cb7b1138..bc6261ff531dceec198039b5bebb2e2c
 +  implementation "androidx.credentials:credentials-play-services-auth:1.5.0"
    implementation "com.google.code.gson:gson:2.8.9"
  }
+diff --git a/android/src/main/java/expo/modules/passkeys/ReactNativePasskeysModule.kt b/android/src/main/java/expo/modules/passkeys/ReactNativePasskeysModule.kt
+index 42f67d0ac8d4fd091b8f61c1942d1a372c36b235..c98cc7a2e50699ae00bb2827600caf064b2ab9d4 100644
+--- a/android/src/main/java/expo/modules/passkeys/ReactNativePasskeysModule.kt
++++ b/android/src/main/java/expo/modules/passkeys/ReactNativePasskeysModule.kt
+@@ -71,6 +71,46 @@ class ReactNativePasskeysModule : Module() {
+             }
+         }
+ 
++        // Raw WebAuthn JSON in and out, the way Credential Manager takes it. The Record + Gson path
++        // above serialises Kotlin fields by name, which R8 renames in minified release builds.
++        AsyncFunction("createJson") { requestJson: String, promise: Promise ->
++            val credentialManager =
++                CredentialManager.create(appContext.reactContext?.applicationContext!!)
++            mainScope.launch {
++                try {
++                    val activity = appContext.currentActivity
++                        ?: throw CreateCredentialUnknownException("No activity to show the passkey prompt")
++                    val result = credentialManager.createCredential(
++                        activity, CreatePublicKeyCredentialRequest(requestJson)
++                    )
++                    promise.resolve(
++                        result.data.getString("androidx.credentials.BUNDLE_KEY_REGISTRATION_RESPONSE_JSON")
++                    )
++                } catch (e: CreateCredentialException) {
++                    promise.reject("Passkey Create", getRegistrationException(e), e)
++                }
++            }
++        }
++
++        AsyncFunction("getJson") { requestJson: String, promise: Promise ->
++            val credentialManager =
++                CredentialManager.create(appContext.reactContext?.applicationContext!!)
++            mainScope.launch {
++                try {
++                    val activity = appContext.currentActivity
++                        ?: throw GetCredentialUnknownException("No activity to show the passkey prompt")
++                    val result = credentialManager.getCredential(
++                        activity, GetCredentialRequest(listOf(GetPublicKeyCredentialOption(requestJson)))
++                    )
++                    promise.resolve(
++                        result.credential.data.getString("androidx.credentials.BUNDLE_KEY_AUTHENTICATION_RESPONSE_JSON")
++                    )
++                } catch (e: GetCredentialException) {
++                    promise.reject("Passkey Get", getAuthenticationException(e), e)
++                }
++            }
++        }
++
+         AsyncFunction("get") { request: PublicKeyCredentialRequestOptions, promise: Promise ->
+             val credentialManager =
+                 CredentialManager.create(appContext.reactContext?.applicationContext!!)
