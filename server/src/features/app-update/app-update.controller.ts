@@ -4,10 +4,19 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { AppUpdate } from '@/models/index';
 import { buildPublishedMailSender } from '@/utils/resend';
 
+/**
+ * `fileSize` is a BIGINT, which Postgres hands back as a string. Installed apps compare it with
+ * the size on disk using `!==`, so a string makes every finished download fail its size check.
+ */
+const withNumericFileSize = <T extends { fileSize: unknown }>(update: T): T => ({
+  ...update,
+  fileSize: update.fileSize == null ? null : Number(update.fileSize),
+});
+
 export const getLatestUpdate = async (_req: Request, res: Response): Promise<void> => {
   try {
     const latest = await AppUpdate.findOne({ order: [['createdAt', 'DESC']], raw: true });
-    res.status(200).json({ success: true, latest });
+    res.status(200).json({ success: true, latest: latest && withNumericFileSize(latest) });
   } catch (error) {
     console.error('Error fetching latest update:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
@@ -17,7 +26,7 @@ export const getLatestUpdate = async (_req: Request, res: Response): Promise<voi
 export const getAllUpdates = async (_req: Request, res: Response): Promise<void> => {
   try {
     const updates = await AppUpdate.findAll({ order: [['createdAt', 'DESC']], raw: true });
-    res.status(200).json({ success: true, updates });
+    res.status(200).json({ success: true, updates: updates.map(withNumericFileSize) });
   } catch (error) {
     console.error('Error fetching app updates history:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
