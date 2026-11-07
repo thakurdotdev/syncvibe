@@ -2,11 +2,17 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useProfile } from '@/Context/Context';
+import {
+  authClient,
+  getErrorMessage,
+  getSafeReturnPath,
+  isPasskeyCancelled,
+  signInWithGoogle,
+  unwrap,
+} from '@/lib/auth-client';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { browserSupportsWebAuthnAutofill, startAuthentication } from '@simplewebauthn/browser';
-import axios from 'axios';
 import { ArrowRight, Eye, EyeOff, KeyRound, Loader2Icon } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -26,15 +32,13 @@ const validationSchema = yup.object().shape({
 const Login = () => {
   document.title = 'SyncVibe - Login';
   window.scrollTo(0, 0);
-  const { user, setUser, loading: loadingPro, getProfile } = useProfile();
+  const { user, loading: loadingPro, getProfile } = useProfile();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [show2FA, setShow2FA] = useState(false);
-  const [twoFactorUserId, setTwoFactorUserId] = useState(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const returnPath = searchParams.get('returnTo') || '/home';
-  const passkeyAuthStarted = useRef(false);
+  const returnPath = getSafeReturnPath(searchParams.get('returnTo'));
 
   const form = useForm({
     resolver: yupResolver(validationSchema),
@@ -50,138 +54,65 @@ const Login = () => {
     }
   }, [loadingPro, user, navigate, returnPath]);
 
-  // Handle passkey authentication with conditional UI (autofill)
-  const handlePasskeyAuth = useCallback(
-    async (assertionResponse, email) => {
-      try {
-        setLoading(true);
-        const verificationRes = await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/auth/passkey/authenticate/verify`,
-          {
-            assertionResponse,
-            email,
-          },
-          { withCredentials: true }
-        );
+  const completeSignIn = useCallback(async () => {
+    await getProfile();
+    navigate(returnPath);
+    toast.success('Logged in successfully');
+  }, [getProfile, navigate, returnPath]);
 
-        if (verificationRes.data.verified) {
-          await getProfile();
-          toast.success('Logged in with passkey!');
-          navigate(returnPath);
-        }
-      } catch (error) {
-        console.error('Passkey auth error:', error);
-        toast.error(error.response?.data?.message || 'Passkey authentication failed');
-      } finally {
-        setLoading(false);
-      }
-    },
-    [getProfile, navigate, returnPath]
-  );
-
-  // Initialize conditional UI (passkey autofill) on mount
+  // Offers saved passkeys in the email field's autofill list, where the browser supports it.
   useEffect(() => {
-    let isMounted = true;
+    if (!window.PublicKeyCredential?.isConditionalMediationAvailable) return;
 
-    const initConditionalUI = async () => {
-      if (passkeyAuthStarted.current) return;
+    let active = true;
+    window.PublicKeyCredential.isConditionalMediationAvailable().then(async (available) => {
+      if (!available || !active) return;
 
-      try {
-        const supportsAutofill = await browserSupportsWebAuthnAutofill();
-        if (!supportsAutofill || !isMounted) return;
-
-        passkeyAuthStarted.current = true;
-
-        const optionsRes = await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/auth/passkey/authenticate/conditional`
-        );
-
-        if (!isMounted) return;
-
-        const assertionResponse = await startAuthentication({
-          optionsJSON: optionsRes.data,
-          useBrowserAutofill: true,
-        });
-
-        if (assertionResponse && isMounted) {
-          await handlePasskeyAuth(assertionResponse, null);
-        }
-      } catch (error) {
-        // AbortError is expected when user navigates away or doesn't select a passkey
-        if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
-          console.error('Passkey autofill error:', error.message);
-        }
-        passkeyAuthStarted.current = false;
+      const { data, error } = await authClient.signIn.passkey({ autoFill: true });
+      if (!active) return;
+      if (data) {
+        await completeSignIn();
+      } else if (error && !isPasskeyCancelled(error)) {
+        toast.error(getErrorMessage(error, 'Passkey sign-in failed'));
       }
-    };
-
-    initConditionalUI();
+    });
 
     return () => {
-      isMounted = false;
-      passkeyAuthStarted.current = false;
+      active = false;
     };
-  }, [handlePasskeyAuth]);
+  }, [completeSignIn]);
 
-  const handleFormSubmit = async (data) => {
+  const handleFormSubmit = async ({ email, password }) => {
     setLoading(true);
     try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/login`,
-        {
-          ...data,
-        },
-        { withCredentials: true }
-      );
-
-      if (response.status === 200) {
-        if (response.data.twoFactorRequired) {
-          setTwoFactorUserId(response.data.userId);
-          setShow2FA(true);
-          toast.info('Please enter your 2FA code');
-        } else {
-          getProfile();
-          navigate(returnPath);
-          toast.success('Logged in successfully');
-        }
+      const result = await unwrap(authClient.signIn.email({ email, password }));
+      if (result.twoFactorRedirect) {
+        setShow2FA(true);
+        toast.info('Please enter your 2FA code');
+        return;
       }
+      await completeSignIn();
     } catch (error) {
-      handleError(error);
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleError = (error) => {
-    const errorMessage =
-      error.response?.data?.message || error.message || 'An error occurred. Please try again.';
-    toast.error(errorMessage);
-  };
-
-  const handle2FASuccess = (token) => {
-    setShow2FA(false);
-    setTwoFactorUserId(null);
-    getProfile();
-    navigate(returnPath);
-    toast.success('Logged in successfully');
-  };
-
-  const handle2FAClose = () => {
-    setShow2FA(false);
-    setTwoFactorUserId(null);
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      await signInWithGoogle(returnPath);
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Google sign-in failed'));
+      setLoading(false);
+    }
   };
 
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
 
-  // Show 2FA step if required
   if (show2FA) {
-    return (
-      <TwoFactorLogin
-        userId={twoFactorUserId}
-        onSuccess={handle2FASuccess}
-        onClose={handle2FAClose}
-      />
-    );
+    return <TwoFactorLogin onSuccess={completeSignIn} onClose={() => setShow2FA(false)} />;
   }
 
   return (
@@ -197,9 +128,7 @@ const Login = () => {
       <div className='space-y-3'>
         <Button
           variant='outline'
-          onClick={() => {
-            window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google?client=${window.location.origin}`;
-          }}
+          onClick={handleGoogleSignIn}
           className='w-full h-12 rounded-xl border border-border bg-card hover:bg-muted dark:hover:bg-raised text-foreground font-medium transition-all shadow-xs flex items-center justify-center gap-2.5 cursor-pointer'
           disabled={loading}
         >

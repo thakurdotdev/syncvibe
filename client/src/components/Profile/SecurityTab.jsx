@@ -7,12 +7,12 @@ import { Loader2 } from 'lucide-react';
 const SecurityTab = memo(
   ({
     twoFactorEnabled,
+    hasPassword,
     onUpdatePassword,
     onSetup2FA,
     onDisable2FA,
     onViewLogs,
     isLogsLoading,
-    getProfile,
   }) => {
     return (
       <div className='space-y-6'>
@@ -27,22 +27,25 @@ const SecurityTab = memo(
 
           <CardContent className='p-0'>
             {/* Password Row */}
-            <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 sm:py-4.5 border-t border-border/50'>
-              <div className='space-y-1 max-w-md'>
-                <div className='text-sm font-medium text-foreground'>Password</div>
-                <p className='text-xs text-muted-foreground leading-relaxed'>
-                  Ensure your account has a strong, unique password to prevent unauthorized access.
-                </p>
+            {hasPassword && (
+              <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 sm:py-4.5 border-t border-border/50'>
+                <div className='space-y-1 max-w-md'>
+                  <div className='text-sm font-medium text-foreground'>Password</div>
+                  <p className='text-xs text-muted-foreground leading-relaxed'>
+                    Ensure your account has a strong, unique password to prevent unauthorized
+                    access.
+                  </p>
+                </div>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={onUpdatePassword}
+                  className='h-8.5 px-3.5 rounded-xl text-xs font-medium shrink-0 cursor-pointer self-start sm:self-auto'
+                >
+                  Change password
+                </Button>
               </div>
-              <Button
-                variant='outline'
-                size='sm'
-                onClick={onUpdatePassword}
-                className='h-8.5 px-3.5 rounded-xl text-xs font-medium shrink-0 cursor-pointer self-start sm:self-auto'
-              >
-                Change password
-              </Button>
-            </div>
+            )}
 
             {/* Two-Factor Authentication Row */}
             <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-3.5 sm:py-4.5 border-t border-border/50'>
@@ -112,7 +115,7 @@ const SecurityTab = memo(
         </Card>
 
         {/* Passkeys Management */}
-        <PasskeyManager getProfile={getProfile} />
+        <PasskeyManager />
       </div>
     );
   }

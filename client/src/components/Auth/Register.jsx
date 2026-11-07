@@ -1,8 +1,8 @@
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { authClient, getErrorMessage, signInWithGoogle, unwrap } from '@/lib/auth-client';
 import { yupResolver } from '@hookform/resolvers/yup';
-import axios from 'axios';
 import { memo, useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
@@ -35,15 +35,6 @@ const validationSchema = yup.object().shape({
       PASSWORD_PATTERN,
       'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'
     ),
-});
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  withCredentials: true,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 const RegisterForm = memo(({ onSubmit, loading }) => {
@@ -153,20 +144,14 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
 
   const handleFormSubmit = useCallback(
-    async (data) => {
+    async ({ name, email, password }) => {
       setLoading(true);
       try {
-        const response = await api.post('/api/register', data);
-
-        if (response.status === 201) {
-          toast.success(response.data.message);
-          navigate('/verify', {
-            state: { email: data.email, name: data.name },
-            replace: true,
-          });
-        }
+        await unwrap(authClient.signUp.email({ name: name.trim(), email, password }));
+        toast.success('Account created. Check your email for the verification code.');
+        navigate('/verify', { state: { email, codeSent: true }, replace: true });
       } catch (error) {
-        handleError(error);
+        toast.error(getErrorMessage(error));
       } finally {
         setLoading(false);
       }
@@ -174,14 +159,14 @@ const Register = () => {
     [navigate]
   );
 
-  const handleError = useCallback((error) => {
-    const errorMessage =
-      error.response?.data?.message || error.message || 'An error occurred. Please try again.';
-    toast.error(errorMessage);
-  }, []);
-
-  const handleGoogleLogin = useCallback(() => {
-    window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`;
+  const handleGoogleLogin = useCallback(async () => {
+    setLoading(true);
+    try {
+      await signInWithGoogle('/home');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Google sign-in failed'));
+      setLoading(false);
+    }
   }, []);
 
   return (

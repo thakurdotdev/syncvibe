@@ -49,11 +49,6 @@ export const apiLimiter = rateLimit({
   keyGenerator: (req: Request) => req.ip || '',
 });
 
-export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30,
-});
-
 export const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 50,
@@ -66,5 +61,4 @@ export const paymentLimiter = rateLimit({
   keyGenerator: (req: Request) => (req.user?.userid ? String(req.user.userid) : req.ip || ''),
 });
 
-export * from './constants';
 export * from './upload';

@@ -1,6 +1,7 @@
 import { User } from '@/types/user';
 import useApi from '@/utils/hooks/useApi';
 import { signOutGoogle } from '@/lib/googleAuth';
+import { authClient, hasLegacyToken, hasStoredSession, removeLegacyToken } from '@/lib/auth-client';
 import { LANGUAGE_STORAGE_KEY } from '@/lib/languages';
 import { markOnboardingComplete } from '@/lib/onboarding';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -39,31 +40,54 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [musicConfig, setMusicConfig] = useState<Record<string, any>>({});
   const [selectedLanguages, setSelectedLanguages] = useState<string>('hindi');
 
+  /**
+   * Shows the cached profile right away, then confirms the session with Better Auth (which also
+   * refreshes the stored session cookie) and loads the fresh profile.
+   */
+  const loadProfile = async (isActive: () => boolean = () => true) => {
+    if (await hasLegacyToken()) {
+      // Sessions from before Better Auth are no longer accepted, so this user signs in again.
+      await markOnboardingComplete();
+      await AsyncStorage.removeItem('@user_profile');
+      await removeLegacyToken();
+    }
+
+    if (!(await hasStoredSession())) return;
+
+    const cachedProfile = await AsyncStorage.getItem('@user_profile');
+    if (cachedProfile && isActive()) {
+      setUser(JSON.parse(cachedProfile));
+      setLoading(false);
+    }
+
+    const { data: session, error } = await authClient.getSession();
+    if (!session && !error) {
+      await AsyncStorage.removeItem('@user_profile');
+      if (isActive()) setUser(null);
+      return;
+    }
+
+    const response = await api.get('/api/profile');
+    if (response.status === 200 && isActive()) {
+      const freshUser = response.data.user;
+      setUser(freshUser);
+      await AsyncStorage.setItem('@user_profile', JSON.stringify(freshUser));
+    }
+  };
+
+  const handleProfileError = async (error: any) => {
+    console.error('Error fetching profile:', error);
+    if (error.response?.status === 401) {
+      await AsyncStorage.removeItem('@user_profile');
+      setUser(null);
+    }
+  };
+
   const getProfile = async () => {
     try {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      const cachedProfile = await AsyncStorage.getItem('@user_profile');
-      if (cachedProfile) {
-        setUser(JSON.parse(cachedProfile));
-        setLoading(false);
-      }
-
-      const response = await api.get('/api/profile');
-      if (response.status === 200) {
-        const freshUser = response.data.user;
-        setUser(freshUser);
-        await AsyncStorage.setItem('@user_profile', JSON.stringify(freshUser));
-      }
+      await loadProfile();
     } catch (error: any) {
-      console.error('Error fetching profile:', error);
-      if (error.response?.status === 401) {
-        await AsyncStorage.multiRemove(['token', '@user_profile']);
-      }
+      await handleProfileError(error);
     } finally {
       setLoading(false);
     }
@@ -71,40 +95,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let isMounted = true;
+    const isActive = () => isMounted;
 
     const bootstrap = async () => {
       try {
-        const [token, cachedProfile, langPref] = await Promise.all([
-          AsyncStorage.getItem('token'),
-          AsyncStorage.getItem('@user_profile'),
-          AsyncStorage.getItem(LANGUAGE_STORAGE_KEY),
-        ]);
-
+        const langPref = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
         if (langPref && isMounted) {
           setSelectedLanguages(langPref);
         }
 
-        if (!token) {
-          if (isMounted) setLoading(false);
-          return;
-        }
-
-        if (cachedProfile && isMounted) {
-          setUser(JSON.parse(cachedProfile));
-          setLoading(false);
-        }
-
-        const response = await api.get('/api/profile');
-        if (response.status === 200 && isMounted) {
-          const freshUser = response.data.user;
-          setUser(freshUser);
-          await AsyncStorage.setItem('@user_profile', JSON.stringify(freshUser));
-        }
+        await loadProfile(isActive);
       } catch (error: any) {
-        console.error('Error fetching profile:', error);
-        if (error.response?.status === 401) {
-          await AsyncStorage.multiRemove(['token', '@user_profile']);
-        }
+        if (isMounted) await handleProfileError(error);
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -124,7 +126,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       queryClient.cancelQueries();
       queryClient.clear();
       // Logging out clears everything except the fact that this device has seen onboarding.
+      // The Expo auth client removes the stored session cookie before the request is sent.
       await Promise.allSettled([
+        authClient.signOut(),
         AsyncStorage.clear().then(markOnboardingComplete),
         signOutGoogle(),
       ]);

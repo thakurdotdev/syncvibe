@@ -249,11 +249,6 @@ export const deletePost = async (req: Request, res: Response): Promise<void> => 
   const createdby = req.user!.userid;
   const postid = parseInt(String(req.params.postid), 10);
 
-  if (req.user!.role === 'guest') {
-    res.status(403).json({ message: 'Guest users cannot delete posts' });
-    return;
-  }
-
   try {
     const post = await Post.findOne({ where: { postid, createdby } });
 

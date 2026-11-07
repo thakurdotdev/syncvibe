@@ -1,5 +1,5 @@
 import { Expo, type ExpoPushMessage } from 'expo-server-sdk';
-import { getPushToken } from '@/features/auth/auth.controller';
+import { getPushTokenService } from '@/features/auth/services/user.service';
 
 const expo = new Expo();
 
@@ -24,7 +24,7 @@ export async function sendPushNotification(
 ): Promise<void> {
   if (!recipientId) return;
 
-  const recipientToken = await getPushToken(Number(recipientId));
+  const recipientToken = await getPushTokenService(Number(recipientId));
   if (!recipientToken || !Expo.isExpoPushToken(recipientToken)) return;
 
   let notification: ExpoPushMessage | undefined;

@@ -1,6 +1,5 @@
 import { useState, useContext, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import {
   BadgeCheck,
   Crown,
@@ -32,20 +31,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ChatContext } from '@/Context/ChatContext';
 import { Context } from '@/Context/Context';
-import { usePlayerStore } from '@/stores/playerStore';
 import { useTheme } from '@/Context/ThemeProvider';
 import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { useLogout } from '@/hooks/useLogout';
 import { useEntitlementQuery } from '@/hooks/queries/useEntitlementQuery';
 import { paths } from '@/lib/paths';
 import { cn } from '@/lib/utils';
 
 const ProfileDropdownMenu = ({ fromSidebar = true, collapsed = false }) => {
-  const { user, setUser } = useContext(Context);
-  const stopSong = usePlayerStore((s) => s.stopSong);
-  const { cleanUpSocket } = useContext(ChatContext);
+  const { user } = useContext(Context);
+  const handleLogout = useLogout();
   const { theme, setTheme } = useTheme();
   const { data: entitlement } = useEntitlementQuery();
   const isPro = entitlement?.plan?.code === 'PRO';
@@ -53,21 +50,6 @@ const ProfileDropdownMenu = ({ fromSidebar = true, collapsed = false }) => {
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
 
   if (!user) return null;
-
-  const handleLogout = async () => {
-    try {
-      await axios.get(`${import.meta.env.VITE_API_URL}/api/logout`, {
-        withCredentials: true,
-      });
-    } catch (error) {
-      console.error('Logout request failed; clearing local session anyway:', error);
-    } finally {
-      cleanUpSocket();
-      stopSong();
-      setUser(null);
-      navigate('/login', { replace: true });
-    }
-  };
 
   const themes = [
     { value: 'light', label: 'Light', icon: Sun },

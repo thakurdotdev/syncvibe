@@ -1,6 +1,6 @@
 import { API_URL } from '@/constants';
 import { Song } from '@/types/song';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuthHeaders } from '@/lib/auth-client';
 import axios from 'axios';
 
 /**
@@ -13,17 +13,10 @@ import axios from 'axios';
 // Non-hook version that can be called directly
 const addToHistory = async (songData: Song, playedTime: number): Promise<void> => {
   try {
-    // Get token directly from AsyncStorage
-    const token = await AsyncStorage.getItem('token');
-
-    // Create headers with token if available
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      ...(await getAuthHeaders()),
     };
-
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
 
     const response = await axios.post(
       `${API_URL}/api/history/add`,

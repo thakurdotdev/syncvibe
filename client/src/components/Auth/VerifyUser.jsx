@@ -1,23 +1,23 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
-import axios from 'axios';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useProfile } from '@/Context/Context';
+import { authClient, getErrorMessage, unwrap } from '@/lib/auth-client';
 
-// API client configuration
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  headers: { 'Content-Type': 'application/json' },
-});
+const RESEND_DELAY_SECONDS = 60;
 
 const VerifyUser = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { getProfile } = useProfile();
   const [loading, setLoading] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
+  const [resendTimer, setResendTimer] = useState(
+    location?.state?.codeSent ? RESEND_DELAY_SECONDS : 0
+  );
   const [otp, setOtp] = useState('');
   const [email, setEmail] = useState(location?.state?.email || '');
   const [showOtpInput, setShowOtpInput] = useState(!!location?.state?.email);
@@ -32,31 +32,25 @@ const VerifyUser = () => {
     return () => clearInterval(timer);
   }, [resendTimer]);
 
-  const handleError = useCallback((error) => {
-    const errorMessage =
-      error.response?.data?.message || error.message || 'An error occurred. Please try again.';
-    toast.error(errorMessage);
-  }, []);
-
   const sendOTP = useCallback(async () => {
     if (resendTimer > 0 || !email) return;
 
     try {
       setLoading(true);
-      const response = await api.post('/api/sendotp/user', { email });
-
-      if (response.status === 200) {
-        toast.success('OTP sent successfully');
-        setResendTimer(60);
-        setShowOtpInput(true);
-      }
+      await unwrap(
+        authClient.emailOtp.sendVerificationOtp({ email: email.trim(), type: 'email-verification' })
+      );
+      toast.success('OTP sent successfully');
+      setResendTimer(RESEND_DELAY_SECONDS);
+      setShowOtpInput(true);
     } catch (error) {
-      handleError(error);
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
-  }, [email, resendTimer, handleError]);
+  }, [email, resendTimer]);
 
+  // A verified code also signs the user in.
   const handleVerify = useCallback(async () => {
     if (otp.length !== 6) {
       toast.error('Please enter a valid 6-digit OTP');
@@ -65,18 +59,16 @@ const VerifyUser = () => {
 
     try {
       setLoading(true);
-      const response = await api.post('/api/verify/user', { email, otp });
-
-      if (response.status === 200) {
-        toast.success('Email verified successfully');
-        navigate('/login', { replace: true });
-      }
+      await unwrap(authClient.emailOtp.verifyEmail({ email: email.trim(), otp }));
+      await getProfile();
+      toast.success('Email verified successfully');
+      navigate('/home', { replace: true });
     } catch (error) {
-      handleError(error);
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
-  }, [email, otp, navigate, handleError]);
+  }, [email, otp, navigate, getProfile]);
 
   return (
     <>

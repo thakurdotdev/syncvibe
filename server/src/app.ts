@@ -2,13 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
-import passport from 'passport';
 import timeout from 'connect-timeout';
 import hpp from 'hpp';
 import type { Request, Response, NextFunction } from 'express';
-import { security, apiLimiter, speedLimiter, authLimiter, uploadLimiter } from '@/config/index';
+import { toNodeHandler } from 'better-auth/node';
+import { security, apiLimiter, speedLimiter, uploadLimiter } from '@/config/index';
+import { auth } from '@/features/auth/auth';
 import { apiRouters, webhookRouter } from '@/routes/index';
-import '@/config/passport';
 
 const app: express.Express = express();
 
@@ -39,8 +39,9 @@ app.use(cookieParser());
 app.use(compression());
 app.use(hpp());
 
-// Webhook routes must be before JSON parser (they use raw body)
+// Webhooks and Better Auth read the raw request body, so they come before the JSON parser.
 app.use('/api', webhookRouter);
+app.all('/api/auth/*', toNodeHandler(auth));
 
 app.use(
   express.json({
@@ -60,12 +61,7 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(speedLimiter);
 app.use(apiLimiter);
 
-app.use('/api/login', authLimiter);
-app.use('/api/register', authLimiter);
-app.use('/api/forgot-password', authLimiter);
 app.use('/api/upload', uploadLimiter, timeout('60s'));
-
-app.use(passport.initialize());
 
 app.get('/health', (_: Request, res: Response) =>
   res.json({ status: 'ok', message: 'SyncVibe is running', timestamp: Date.now() })

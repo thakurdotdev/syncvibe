@@ -8,10 +8,10 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import axios from 'axios';
 import { Loader2Icon, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { authClient, getErrorMessage, unwrap } from '@/lib/auth-client';
 
 const ForgotPassword = () => {
   const [open, setOpen] = useState(false);
@@ -29,13 +29,16 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/forgot-password`, {
-        email: email.trim(),
-      });
+      const { message } = await unwrap(
+        authClient.requestPasswordReset({
+          email: email.trim(),
+          redirectTo: `${window.location.origin}/reset-password`,
+        })
+      );
       setSent(true);
-      toast.success(response.data.message);
+      toast.success(message);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Something went wrong');
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }

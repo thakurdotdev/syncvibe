@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authRouter } from '@/features/auth/auth.routes';
+import { userRouter } from '@/features/auth/user.routes';
 import { postRouter } from '@/features/post/post.routes';
 import { chatRouter } from '@/features/chat/chat.routes';
 import { storyRouter } from '@/features/story/story.routes';
@@ -15,7 +15,7 @@ webhookRouter.use(paymentWebhookRouter);
 webhookRouter.use(appUpdateWebhookRouter);
 
 export const apiRouters: Router[] = [
-  authRouter,
+  userRouter,
   postRouter,
   chatRouter,
   storyRouter,

@@ -13,7 +13,6 @@ import User from './auth/user.model';
 import Follower from './auth/follower.model';
 import LoginLog from './auth/login-log.model';
 import OTP from './auth/otp.model';
-import Authenticator from './auth/passkey.model';
 
 // Chat
 import Chat from './chat/chat.model';
@@ -72,10 +71,6 @@ Post.belongsTo(User, { foreignKey: 'createdby', as: 'user' });
 // ─── User ↔ Story ──────────────────────────────────────────────────────────
 User.hasMany(Story, { foreignKey: 'createdby', as: 'stories' });
 Story.belongsTo(User, { foreignKey: 'createdby', as: 'user' });
-
-// ─── User ↔ Authenticator ──────────────────────────────────────────────────
-User.hasMany(Authenticator, { foreignKey: 'userid', as: 'authenticators' });
-Authenticator.belongsTo(User, { foreignKey: 'userid', as: 'user' });
 
 // ─── User ↔ Follower (self-referential many-to-many) ───────────────────────
 User.belongsToMany(User, {
@@ -142,7 +137,6 @@ export {
   Follower,
   LoginLog,
   OTP,
-  Authenticator,
   Chat,
   ChatMessage,
   ChatUser,

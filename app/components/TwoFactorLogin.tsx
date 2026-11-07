@@ -13,21 +13,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as WebBrowser from 'expo-web-browser';
-import axios from 'axios';
-import { API_URL } from '@/constants';
+import { authClient, unwrap } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTheme } from '@/context/ThemeContext';
 
 interface TwoFactorLoginProps {
-  userId: string | null;
-  onSuccess: (token: string) => void;
+  /** Called once the code is accepted and the session cookie is stored. */
+  onSuccess: () => void;
   onClose: () => void;
 }
 
 const { width, height } = Dimensions.get('window');
 
-export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginProps) => {
+export const TwoFactorLogin = ({ onSuccess, onClose }: TwoFactorLoginProps) => {
   const insets = useSafeAreaInsets();
   const { colors, theme } = useTheme();
   const [otp, setOtp] = useState('');
@@ -44,19 +43,13 @@ export const TwoFactorLogin = ({ userId, onSuccess, onClose }: TwoFactorLoginPro
     try {
       setLoading(true);
       setError('');
-      const response = await axios.post(`${API_URL}/api/2fa/verify`, {
-        userId: userId,
-        token: otp,
-      });
+      // The two-factor cookie set by the password step identifies the pending sign-in.
+      await unwrap(authClient.twoFactor.verifyTotp({ code: otp }));
 
-      if (response.status === 200) {
-        setIsVerified(true);
-        setTimeout(() => {
-          onSuccess(response.data.token);
-        }, 1000);
-      }
+      setIsVerified(true);
+      setTimeout(onSuccess, 1000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid verification code');
+      setError(err.message || 'Invalid verification code');
     } finally {
       setLoading(false);
     }

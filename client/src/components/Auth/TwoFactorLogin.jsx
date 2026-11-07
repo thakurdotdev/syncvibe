@@ -1,51 +1,63 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { CheckCircle, Loader2, Shield } from 'lucide-react';
+import { toast } from 'sonner';
+import { authClient, getErrorMessage, unwrap } from '@/lib/auth-client';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Shield, Loader2, CheckCircle } from 'lucide-react';
-import { toast } from 'sonner';
-import axios from 'axios';
 
-const TwoFactorLogin = ({ userId, onSuccess, onClose }) => {
-  const [otp, setOtp] = useState('');
+const TOTP_LENGTH = 6;
+const BACKUP_CODE_LENGTH = 11;
+
+const MODES = {
+  totp: {
+    description: 'Enter the 6-digit code from your authenticator app.',
+    placeholder: '000000',
+    toggleLabel: 'Use a backup code instead',
+    normalize: (value) => value.replace(/\D/g, '').slice(0, TOTP_LENGTH),
+    isComplete: (code) => code.length === TOTP_LENGTH,
+    verify: (code) => authClient.twoFactor.verifyTotp({ code }),
+  },
+  backup: {
+    description: 'Enter one of the backup codes you saved when you turned on 2FA.',
+    placeholder: 'XXXXX-XXXXX',
+    toggleLabel: 'Use your authenticator app instead',
+    normalize: (value) => value.replace(/[^a-zA-Z0-9-]/g, '').slice(0, BACKUP_CODE_LENGTH),
+    isComplete: (code) => code.length === BACKUP_CODE_LENGTH,
+    verify: (code) => authClient.twoFactor.verifyBackupCode({ code }),
+  },
+};
+
+const TwoFactorLogin = ({ onSuccess, onClose }) => {
+  const [modeName, setModeName] = useState('totp');
+  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
 
+  const mode = MODES[modeName];
+  const canSubmit = mode.isComplete(code) && !loading && !isVerified;
+
+  const switchMode = () => {
+    setModeName((current) => (current === 'totp' ? 'backup' : 'totp'));
+    setCode('');
+  };
+
   const handleVerify = async () => {
-    if (!otp || otp.length !== 6) {
-      toast.error('Please enter a valid 6-digit code');
-      return;
-    }
+    if (!canSubmit) return;
 
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/2fa/verify`,
-        {
-          userId: userId,
-          token: otp,
-        },
-        { withCredentials: true }
-      );
-
-      if (response.status === 200) {
-        setIsVerified(true);
-        toast.success('Login successful!');
-        setTimeout(() => {
-          onSuccess(response.data.token);
-        }, 1000);
-      }
+      await unwrap(mode.verify(code));
+      setIsVerified(true);
+      await onSuccess();
     } catch (error) {
-      console.error('2FA verification error:', error);
-      toast.error(error.response?.data?.message || 'Invalid verification code');
+      toast.error(getErrorMessage(error, 'Invalid verification code'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && otp.length === 6 && !loading) {
-      handleVerify();
-    }
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter') handleVerify();
   };
 
   return (
@@ -59,28 +71,35 @@ const TwoFactorLogin = ({ userId, onSuccess, onClose }) => {
             Two-Factor Auth
           </h1>
         </div>
-        <p className='text-sm text-muted-foreground mt-2'>
-          Enter the 6-digit code from your authenticator app.
-        </p>
+        <p className='text-sm text-muted-foreground mt-2'>{mode.description}</p>
       </div>
 
       <div className='space-y-4'>
         <Input
           type='text'
-          value={otp}
-          onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          placeholder='000000'
+          value={code}
+          onChange={(event) => setCode(mode.normalize(event.target.value))}
+          placeholder={mode.placeholder}
           className='text-center text-xl tracking-[0.5em] font-semibold h-12 px-4 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-transparent transition-all'
-          maxLength={6}
+          autoComplete='one-time-code'
           disabled={loading || isVerified}
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyDown}
           autoFocus
         />
+
+        <button
+          type='button'
+          onClick={switchMode}
+          disabled={loading || isVerified}
+          className='text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline transition-colors'
+        >
+          {mode.toggleLabel}
+        </button>
 
         <div className='space-y-3 pt-2'>
           <Button
             onClick={handleVerify}
-            disabled={loading || otp.length !== 6 || isVerified}
+            disabled={!canSubmit}
             className='w-full h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer'
           >
             {loading ? (
