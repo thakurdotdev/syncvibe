@@ -41,7 +41,7 @@ userRouter.get('/user/search', searchUser);
 
 // Follow System
 userRouter.get('/user/followlist/:userid', authMiddleware, getFollowLists);
-userRouter.get('/user/follow/:followid', authMiddleware, followUser);
+userRouter.post('/user/follow/:followid', authMiddleware, followUser);
 
 // Parameterized User Routes
 userRouter.get('/user/profile/:userid', authMiddleware, getUserDetails);
