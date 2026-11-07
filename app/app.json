@@ -92,6 +92,7 @@
       "expo-media-library",
       "expo-system-ui",
       "expo-web-browser",
+      "expo-secure-store",
       "expo-audio",
       "react-native-nitro-google-signin"
     ],

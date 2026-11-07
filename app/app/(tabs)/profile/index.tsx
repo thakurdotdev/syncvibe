@@ -9,7 +9,7 @@ import { Segmented, type SegmentOption } from '@/components/ui/Segmented';
 import { CURRENT_APP_VERSION, useAppUpdateStore } from '@/stores/appUpdateStore';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { hasStoredSession } from '@/lib/auth-client';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -33,8 +33,8 @@ export default function ProfileScreen() {
   const [showDeveloper, setShowDeveloper] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('token').then((token) => {
-      if (!user && token) getProfile();
+    hasStoredSession().then((signedIn) => {
+      if (!user && signedIn) getProfile();
     });
   }, [user, getProfile]);
 

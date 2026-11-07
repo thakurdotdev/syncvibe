@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { hasStoredSession, LEGACY_TOKEN_KEY } from '@/lib/auth-client';
 import { LANGUAGE_STORAGE_KEY } from '@/lib/languages';
 
 export const ONBOARDING_STORAGE_KEY = '@onboarding_complete';
@@ -10,10 +11,9 @@ export const markOnboardingComplete = () => AsyncStorage.setItem(ONBOARDING_STOR
  * using the app before onboarding existed, so they skip it too.
  */
 export const shouldShowOnboarding = async (): Promise<boolean> => {
-  const stored = await AsyncStorage.multiGet([
-    ONBOARDING_STORAGE_KEY,
-    'token',
-    LANGUAGE_STORAGE_KEY,
+  const [stored, signedIn] = await Promise.all([
+    AsyncStorage.multiGet([ONBOARDING_STORAGE_KEY, LEGACY_TOKEN_KEY, LANGUAGE_STORAGE_KEY]),
+    hasStoredSession(),
   ]);
-  return stored.every(([, value]) => !value);
+  return !signedIn && stored.every(([, value]) => !value);
 };

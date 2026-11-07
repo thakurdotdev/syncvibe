@@ -1,3 +1,4 @@
+/** The signed-in user, as returned by GET /api/profile. */
 export interface User {
   userid: number;
   name: string;
@@ -6,12 +7,10 @@ export interface User {
   bio: string;
   profilepic: string;
   verified: boolean;
-  logintype: 'EMAILPASSWORD' | 'GOOGLE' | 'GUEST';
-  isDeleted: boolean;
-  passkeyEnabled: boolean;
-  lastPasskeyLogin?: string;
-  passKeyChallenge?: string;
-  challengeExpiry?: string;
+  twoFactorEnabled?: boolean;
+  /** False for users who only sign in with Google or a passkey. */
+  hasPassword?: boolean;
+  isAdmin?: boolean;
   expoPushToken?: string;
   favoriteGenres?: string[];
 }

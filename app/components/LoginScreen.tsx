@@ -1,10 +1,8 @@
 import PressableScale from '@/components/ui/PressableScale';
-import { API_URL } from '@/constants';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
 import { googleLoginErrorMessage, useGoogleLogin } from '@/hooks/useGoogleLogin';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import { authClient, unwrap } from '@/lib/auth-client';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -29,7 +27,7 @@ import TwoFactorLogin from './TwoFactorLogin';
 const { width, height } = Dimensions.get('window');
 
 const LoginScreen = () => {
-  const { getProfile, setUser } = useUser();
+  const { getProfile } = useUser();
   const { colors, theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,7 +41,6 @@ const LoginScreen = () => {
   const [passwordError, setPasswordError] = useState('');
 
   const [show2FA, setShow2FA] = useState(false);
-  const [twoFactorUserId, setTwoFactorUserId] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const signInWithGoogle = useGoogleLogin();
@@ -105,56 +102,32 @@ const LoginScreen = () => {
     setError('');
 
     try {
-      const response = await axios.post(`${API_URL}/api/login`, {
-        email,
-        password,
-      });
+      const result = await unwrap(authClient.signIn.email({ email, password }));
 
-      if (response.status === 200) {
-        if (response.data.twoFactorRequired) {
-          setTwoFactorUserId(response.data.userId);
-          setShow2FA(true);
-        } else {
-          const { token, user: loggedInUser } = response.data;
-          if (loggedInUser) {
-            await AsyncStorage.multiSet([
-              ['token', token],
-              ['@user_profile', JSON.stringify(loggedInUser)],
-            ]);
-            setUser(loggedInUser);
-          } else {
-            await AsyncStorage.setItem('token', token);
-          }
-          setIsLoggingIn(true);
-          navigateAfterLogin();
-          getProfile().catch(console.error);
-        }
+      if (result && 'twoFactorRedirect' in result && result.twoFactorRedirect) {
+        setShow2FA(true);
+      } else {
+        setIsLoggingIn(true);
+        await getProfile();
+        navigateAfterLogin();
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      setError(err.message || 'Login failed. Please try again.');
       setIsLoggingIn(false);
     } finally {
       setLoading(false);
     }
   };
 
-  const handle2FASuccess = async (token: string) => {
+  const handle2FASuccess = async () => {
     setShow2FA(false);
-    setTwoFactorUserId(null);
-    await AsyncStorage.setItem('token', token);
     setIsLoggingIn(true);
-    try {
-      await getProfile();
-      navigateAfterLogin();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch profile. Please try again.');
-      setIsLoggingIn(false);
-    }
+    await getProfile();
+    navigateAfterLogin();
   };
 
   const handle2FAClose = () => {
     setShow2FA(false);
-    setTwoFactorUserId(null);
   };
 
   if (isLoggingIn) {
@@ -173,13 +146,7 @@ const LoginScreen = () => {
   }
 
   if (show2FA) {
-    return (
-      <TwoFactorLogin
-        userId={twoFactorUserId}
-        onSuccess={handle2FASuccess}
-        onClose={handle2FAClose}
-      />
-    );
+    return <TwoFactorLogin onSuccess={handle2FASuccess} onClose={handle2FAClose} />;
   }
 
   return (

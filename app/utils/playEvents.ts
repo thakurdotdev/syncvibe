@@ -1,4 +1,5 @@
 import { API_URL } from '@/constants';
+import { getAuthHeaders } from '@/lib/auth-client';
 import { Song } from '@/types/song';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -72,12 +73,12 @@ const updateQueue = (change: (queue: PlayEvent[]) => PlayEvent[]): Promise<void>
 };
 
 const send = async (events: PlayEvent[]): Promise<void> => {
-  const token = await AsyncStorage.getItem('token');
-  if (!token) throw new Error('Not logged in');
+  const authHeaders = await getAuthHeaders();
+  if (!authHeaders.Cookie) throw new Error('Not logged in');
   await axios.post(
     `${API_URL}/api/play-events`,
     { events },
-    { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }
+    { headers: authHeaders, timeout: 10000 }
   );
 };
 
@@ -189,7 +190,11 @@ export const recordPlayStart = (song: Song, resumed = false) => {
   begin(song, resumed ? 'resume' : movedThroughQueue ? 'queue' : 'direct');
 };
 
-export const recordPlayProgress = (song: Song, positionSeconds: number, durationSeconds: number) => {
+export const recordPlayProgress = (
+  song: Song,
+  positionSeconds: number,
+  durationSeconds: number
+) => {
   if (!enabled) return;
   // Playing again after the player stopped, or after a restart, without a track change.
   if (!active) begin(song, 'resume', positionSeconds);

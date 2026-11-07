@@ -1,8 +1,8 @@
 import { API_URL } from '@/constants';
 import { Song } from '@/types/song';
 import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
+import { getAuthHeaders } from '@/lib/auth-client';
 import { markRecommendations, recordPlayEnd } from '@/utils/playEvents';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
@@ -33,9 +33,10 @@ export const checkAndFetchRecommendations = async (targetSong?: Song | null, for
     isFetchingRecs = true;
     lastFetchedRecSongId = song.id;
 
-    const token = await AsyncStorage.getItem('token');
-    const headers: Record<string, string> = { Accept: 'application/json' };
-    if (token) headers.Authorization = `Bearer ${token}`;
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      ...(await getAuthHeaders()),
+    };
 
     const response = await axios.get(`${API_URL}/api/play-next/${song.id}?limit=20`, {
       headers,

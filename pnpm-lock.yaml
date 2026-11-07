@@ -128,6 +128,9 @@ importers:
 
   app:
     dependencies:
+      '@better-auth/expo':
+        specifier: 1.7.18
+        version: 1.7.18(@better-auth/core@1.7.18(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.15)(kysely@0.29.8)(nanostores@1.5.5))(better-auth@1.7.18(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(expo-constants@57.0.14)(expo-linking@57.0.7)(expo-network@57.0.1(expo@57.0.16)(react@19.2.3))(expo-secure-store@57.0.4(expo@57.0.16))(expo-web-browser@57.0.2(expo@57.0.16)(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1)))
       '@expo-google-fonts/bricolage-grotesque':
         specifier: ^0.4.1
         version: 0.4.1
@@ -152,6 +155,9 @@ importers:
       axios:
         specifier: ^1.8.2
         version: 1.19.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      better-auth:
+        specifier: 1.7.18
+        version: 1.7.18(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -218,6 +224,9 @@ importers:
       expo-router:
         specifier: ~57.0.16
         version: 57.0.16(e104f6eea7f2b92b1cf2eaa742d0aa90)
+      expo-secure-store:
+        specifier: ~57.0.4
+        version: 57.0.4(expo@57.0.16)
       expo-splash-screen:
         specifier: ~57.0.8
         version: 57.0.8(expo@57.0.16)(supports-color@8.1.1)(typescript@6.0.3)
@@ -534,7 +543,7 @@ importers:
         version: 3.1117.0
       '@better-auth/expo':
         specifier: 1.7.18
-        version: 1.7.18(@better-auth/core@1.7.18(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.15)(kysely@0.29.8)(nanostores@1.5.5))(better-auth@1.7.18(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(expo-constants@57.0.14)(expo-linking@57.0.7)(expo-network@57.0.1(expo@57.0.16)(react@19.2.3))(expo-web-browser@57.0.2(expo@57.0.16)(react-native@0.86.2(@react-native/metro-config@0.86.2(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1)))
+        version: 1.7.18(@better-auth/core@1.7.18(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.15)(kysely@0.29.8)(nanostores@1.5.5))(better-auth@1.7.18(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(expo-constants@57.0.14)(expo-linking@57.0.7)(expo-network@57.0.1(expo@57.0.16)(react@19.2.3))(expo-secure-store@57.0.4(expo@57.0.16))(expo-web-browser@57.0.2(expo@57.0.16)(react-native@0.86.2(@react-native/metro-config@0.86.2(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1)))
       '@better-auth/passkey':
         specifier: 1.7.18
         version: 1.7.18(@better-auth/core@1.7.18(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.15)(kysely@0.29.8)(nanostores@1.5.5))(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-auth@1.7.18(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(better-call@1.4.5(zod@4.6.7))(nanostores@1.5.5)
@@ -4519,6 +4528,11 @@ packages:
       react-server-dom-webpack:
         optional: true
 
+  expo-secure-store@57.0.4:
+    resolution: {integrity: sha512-7zBA1RThURTXdP4w65kBzZNbcSsfArqVd+p+ETAnPRWXO8J296Qd0YaCVyRpJ0HSwlCnGdvOnqO+NgSreHsOhA==}
+    peerDependencies:
+      expo: '*'
+
   expo-server-sdk@3.15.0:
     resolution: {integrity: sha512-Y71mQ7yeDhq6miHzn4kwRQOjqvBBsWeFXvyS9PYc6uqO/+UiYvrw3vMQiQqRxg2y0qgn9jMsvjf8T+mukSH85A==}
 
@@ -7464,7 +7478,21 @@ snapshots:
       '@better-auth/core': 1.7.18(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.15)(kysely@0.29.8)(nanostores@1.5.5)
       '@better-auth/utils': 0.5.1
 
-  '@better-auth/expo@1.7.18(@better-auth/core@1.7.18(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.15)(kysely@0.29.8)(nanostores@1.5.5))(better-auth@1.7.18(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(expo-constants@57.0.14)(expo-linking@57.0.7)(expo-network@57.0.1(expo@57.0.16)(react@19.2.3))(expo-web-browser@57.0.2(expo@57.0.16)(react-native@0.86.2(@react-native/metro-config@0.86.2(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1)))':
+  '@better-auth/expo@1.7.18(@better-auth/core@1.7.18(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.15)(kysely@0.29.8)(nanostores@1.5.5))(better-auth@1.7.18(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(expo-constants@57.0.14)(expo-linking@57.0.7)(expo-network@57.0.1(expo@57.0.16)(react@19.2.3))(expo-secure-store@57.0.4(expo@57.0.16))(expo-web-browser@57.0.2(expo@57.0.16)(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1)))':
+    dependencies:
+      '@better-auth/core': 1.7.18(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.15)(kysely@0.29.8)(nanostores@1.5.5)
+      '@better-fetch/fetch': 1.3.3
+      better-auth: 1.7.18(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      better-call: 1.4.5(zod@4.6.7)
+      zod: 4.6.7
+    optionalDependencies:
+      expo-constants: 57.0.14(expo@57.0.16)(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(supports-color@8.1.1)
+      expo-linking: 57.0.7(expo@57.0.16)(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1)
+      expo-network: 57.0.1(expo@57.0.16)(react@19.2.3)
+      expo-secure-store: 57.0.4(expo@57.0.16)
+      expo-web-browser: 57.0.2(expo@57.0.16)(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))
+
+  '@better-auth/expo@1.7.18(@better-auth/core@1.7.18(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.15)(kysely@0.29.8)(nanostores@1.5.5))(better-auth@1.7.18(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(expo-constants@57.0.14)(expo-linking@57.0.7)(expo-network@57.0.1(expo@57.0.16)(react@19.2.3))(expo-secure-store@57.0.4(expo@57.0.16))(expo-web-browser@57.0.2(expo@57.0.16)(react-native@0.86.2(@react-native/metro-config@0.86.2(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1)))':
     dependencies:
       '@better-auth/core': 1.7.18(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.15)(kysely@0.29.8)(nanostores@1.5.5)
       '@better-fetch/fetch': 1.3.3
@@ -7475,6 +7503,7 @@ snapshots:
       expo-constants: 57.0.14(expo@57.0.16)(react-native@0.86.2(@react-native/metro-config@0.86.2(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(supports-color@8.1.1)
       expo-linking: 57.0.7(expo@57.0.16)(react-native@0.86.2(@react-native/metro-config@0.86.2(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1)
       expo-network: 57.0.1(expo@57.0.16)(react@19.2.3)
+      expo-secure-store: 57.0.4(expo@57.0.16)
       expo-web-browser: 57.0.2(expo@57.0.16)(react-native@0.86.2(@react-native/metro-config@0.86.2(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))
 
   '@better-auth/kysely-adapter@1.7.18(@better-auth/core@1.7.18(@better-auth/utils@0.5.1)(@better-fetch/fetch@1.3.3)(better-call@1.4.5(zod@4.6.7))(jose@6.2.15)(kysely@0.29.8)(nanostores@1.5.5))(@better-auth/utils@0.5.1)(kysely@0.29.8)':
@@ -11283,6 +11312,10 @@ snapshots:
       - expo-font
       - react-native-worklets
       - supports-color
+
+  expo-secure-store@57.0.4(expo@57.0.16):
+    dependencies:
+      expo: 57.0.16(@babel/core@7.29.7(supports-color@8.1.1))(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.13)(expo-router@57.0.16)(react-dom@19.2.3(react@19.2.3))(react-native-worklets@0.10.1(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1)(typescript@6.0.3)
 
   expo-server-sdk@3.15.0:
     dependencies:
