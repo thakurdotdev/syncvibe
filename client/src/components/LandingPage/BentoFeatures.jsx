@@ -1,156 +1,138 @@
+import { Clock3, ListMusic, QrCode, RadioTower, Video } from 'lucide-react';
 import { memo } from 'react';
-import {
-  MessageSquare,
-  Music,
-  Radio,
-  Share2,
-  Smartphone,
-  UserPlus,
-  Users,
-  Video,
-} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ART_STRIP, DEMO_PLAYLIST } from './demoSong';
 
-const BentoFeatures = memo(() => {
-  return (
-    <section id='features' className='py-20 px-4 sm:px-6 relative border-t border-border/60'>
-      <div className='max-w-5xl mx-auto'>
-        {/* Section Header */}
-        <div className='text-center max-w-lg mx-auto mb-14 space-y-2.5'>
-          <span className='text-xs font-mono font-medium text-primary uppercase tracking-widest'>
-            Capabilities
-          </span>
-          <h2 className='text-2xl sm:text-4xl font-bold text-foreground tracking-tight'>
-            Built for seamless listening.
-          </h2>
-          <p className='text-xs sm:text-sm text-muted-foreground leading-relaxed font-normal'>
-            Everything needed to discover, stream, and share music with your circle.
-          </p>
-        </div>
-
-        {/* Bento Grid */}
-        <div className='grid grid-cols-1 md:grid-cols-12 gap-4'>
-          {/* Card 1: Large Sync Engine (7 Cols) */}
-          <div className='md:col-span-7 rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-6 sm:p-7 flex flex-col justify-between hover:border-primary/40 transition-colors'>
-            <div className='space-y-2.5'>
-              <div className='w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary'>
-                <Radio size={16} />
-              </div>
-              <h3 className='text-lg sm:text-xl font-semibold text-foreground tracking-tight'>
-                Synchronized playback engine
-              </h3>
-              <p className='text-xs text-muted-foreground leading-relaxed font-normal max-w-md'>
-                Continuous WebSocket timestamp alignment ensures every member in the room hears the
-                exact same millisecond.
-              </p>
-            </div>
-
-            <div className='mt-6 p-3.5 rounded-xl bg-secondary/60 border border-border space-y-2.5'>
-              <div className='flex items-center justify-between text-[11px] text-muted-foreground font-mono'>
-                <span className='text-foreground'>Room Master Clock</span>
-                <span className='text-foreground'>● Active Sync (0ms)</span>
-              </div>
-              <div className='h-1.5 w-full rounded-full bg-muted overflow-hidden'>
-                <div className='h-full w-3/4 bg-primary rounded-full' />
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Video & Voice (5 Cols) */}
-          <div className='md:col-span-5 rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-6 sm:p-7 flex flex-col justify-between hover:border-primary/40 transition-colors'>
-            <div className='space-y-2.5'>
-              <div className='w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary'>
-                <Video size={16} />
-              </div>
-              <h3 className='text-lg sm:text-xl font-semibold text-foreground tracking-tight'>
-                Video & Voice Channels
-              </h3>
-              <p className='text-xs text-muted-foreground leading-relaxed font-normal'>
-                Join live room video or mic channels without pausing or interrupting the music
-                stream.
-              </p>
-            </div>
-
-            <div className='mt-6 grid grid-cols-2 gap-2'>
-              <div className='p-3 rounded-xl bg-secondary/60 border border-border/50 flex flex-col items-center justify-center space-y-1.5 h-22'>
-                <div className='w-7 h-7 rounded-full bg-muted ring-1 ring-primary/40 text-foreground text-xs font-bold flex items-center justify-center'>
-                  P
-                </div>
-                <span className='text-[10.5px] text-muted-foreground font-medium'>Pankaj</span>
-              </div>
-              <div className='p-3 rounded-xl bg-secondary/60 border border-border/50 flex flex-col items-center justify-center space-y-1.5 h-22'>
-                <div className='w-7 h-7 rounded-full bg-muted ring-1 ring-border text-foreground text-xs font-bold flex items-center justify-center'>
-                  A
-                </div>
-                <span className='text-[10.5px] text-muted-foreground font-medium'>Alex</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Real-Time Direct Invites (4 Cols) */}
-          <div className='md:col-span-4 rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-6 flex flex-col justify-between hover:border-primary/40 transition-colors'>
-            <div className='space-y-2.5'>
-              <div className='w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary'>
-                <UserPlus size={16} />
-              </div>
-              <h3 className='text-base font-semibold text-foreground tracking-tight'>
-                Direct Real-time Invites
-              </h3>
-              <p className='text-xs text-muted-foreground leading-relaxed font-normal'>
-                Send 1-click in-app invites directly to online friends for instant room joining.
-              </p>
-            </div>
-            <div className='mt-5 p-2 rounded-lg bg-secondary/60 border border-border flex items-center justify-between text-xs'>
-              <span className='text-foreground truncate'>Alex is online</span>
-              <span className='text-primary font-mono text-[10.5px] font-medium'>Invite Sent</span>
-            </div>
-          </div>
-
-          {/* Card 4: Collaborative Queue (4 Cols) */}
-          <div className='md:col-span-4 rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-6 flex flex-col justify-between hover:border-primary/40 transition-colors'>
-            <div className='space-y-2.5'>
-              <div className='w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary'>
-                <Music size={16} />
-              </div>
-              <h3 className='text-base font-semibold text-foreground tracking-tight'>
-                Collaborative Queue
-              </h3>
-              <p className='text-xs text-muted-foreground leading-relaxed font-normal'>
-                Democratic voting allows anyone in the room to add tracks and vote for what plays
-                next.
-              </p>
-            </div>
-            <div className='mt-5 space-y-1.5'>
-              <div className='flex items-center justify-between p-2 rounded-lg bg-secondary/60 text-xs text-foreground border border-border'>
-                <span className='truncate'>1. Main Agar Kahoon</span>
-                <span className='text-primary font-mono text-[10px] font-semibold'>+5</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 5: Android & Web (4 Cols) */}
-          <div className='md:col-span-4 rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-6 flex flex-col justify-between hover:border-primary/40 transition-colors'>
-            <div className='space-y-2.5'>
-              <div className='w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary'>
-                <Smartphone size={16} />
-              </div>
-              <h3 className='text-base font-semibold text-foreground tracking-tight'>
-                Android & Web
-              </h3>
-              <p className='text-xs text-muted-foreground leading-relaxed font-normal'>
-                Seamlessly move between desktop browser and mobile app without disconnecting from
-                the room.
-              </p>
-            </div>
-            <div className='mt-5 p-2 rounded-lg bg-secondary/60 text-xs text-muted-foreground font-mono text-[11px] border border-border flex items-center justify-between'>
-              <span>Background audio</span>
-              <span className='text-foreground text-[10px]'>Active</span>
-            </div>
-          </div>
-        </div>
+const Tile = ({ title, description, className, children }) => (
+  <article className={cn('bezel flex', className)}>
+    <div className='bezel-inner flex w-full flex-col'>
+      <div className='p-6 sm:p-8'>
+        <h3 className='text-2xl font-semibold sm:text-3xl'>{title}</h3>
+        <p className='mt-2 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base'>
+          {description}
+        </p>
       </div>
-    </section>
-  );
-});
+      <div className='mt-auto' aria-hidden='true'>
+        {children}
+      </div>
+    </div>
+  </article>
+);
+
+const ListenArt = () => (
+  <div className='flex gap-3 overflow-hidden pb-6 pl-6 sm:pb-8 sm:pl-8'>
+    {ART_STRIP.slice(0, 7).map((src) => (
+      <img
+        key={src}
+        src={src}
+        alt=''
+        loading='lazy'
+        className='h-32 w-32 shrink-0 rounded-xl bg-muted object-cover sm:h-44 sm:w-44'
+      />
+    ))}
+  </div>
+);
+
+const MessagesArt = () => (
+  <div className='mx-6 rounded-t-2xl border border-b-0 border-foreground/8 bg-background p-4 pb-5 sm:mx-8'>
+    <div className='flex items-center gap-2.5 border-b border-border pb-3'>
+      <span className='grid h-8 w-8 place-items-center rounded-full bg-muted text-xs font-semibold'>
+        M
+      </span>
+      <span className='flex-1 text-sm font-semibold'>Meera</span>
+      <Video size={17} />
+    </div>
+    <div className='mt-3 space-y-2 text-[13px]'>
+      <p className='w-fit rounded-2xl rounded-bl-md bg-muted px-3 py-2'>you up? new room</p>
+      <p className='ml-auto w-fit rounded-2xl rounded-br-md bg-primary px-3 py-2 text-primary-foreground'>
+        joining now
+      </p>
+    </div>
+  </div>
+);
+
+const LibraryArt = () => (
+  <ul className='mx-6 space-y-1 rounded-t-2xl border border-b-0 border-foreground/8 bg-background p-3 sm:mx-8'>
+    {[
+      [ListMusic, 'Late Night Fun', '2 songs'],
+      [ListMusic, 'Dance', '5 songs'],
+      [Clock3, 'History', 'Pick up where you left off'],
+    ].map(([Icon, name, detail]) => (
+      <li key={name} className='flex items-center gap-3 rounded-lg p-1.5'>
+        <span className='grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted'>
+          <Icon size={15} />
+        </span>
+        <span className='min-w-0'>
+          <span className='block truncate text-sm font-semibold'>{name}</span>
+          <span className='block truncate text-xs text-muted-foreground'>{detail}</span>
+        </span>
+      </li>
+    ))}
+  </ul>
+);
+
+const RoomsArt = () => (
+  <div className='flex flex-col gap-3 px-6 pb-6 sm:flex-row sm:px-8 sm:pb-8'>
+    <div className='flex min-w-0 flex-1 items-center gap-3 rounded-2xl border border-foreground/8 bg-background p-2.5 pr-4'>
+      <img
+        src={DEMO_PLAYLIST[1].cover}
+        alt=''
+        loading='lazy'
+        className='h-12 w-12 rounded-xl bg-muted object-cover'
+      />
+      <span className='min-w-0 flex-1'>
+        <span className='block truncate text-sm font-semibold'>Back to Fun Sunday</span>
+        <span className='block truncate text-xs text-muted-foreground'>2 listening now</span>
+      </span>
+      <RadioTower size={17} />
+    </div>
+    <div className='flex items-center gap-3 rounded-2xl border border-foreground/8 bg-background p-2.5 pr-4'>
+      <span className='grid h-12 w-12 place-items-center rounded-xl bg-muted'>
+        <QrCode size={20} />
+      </span>
+      <span className='text-sm font-semibold'>Scan to join</span>
+    </div>
+  </div>
+);
+
+const BentoFeatures = memo(() => (
+  <section id='features' className='scroll-mt-24 py-14 sm:py-20'>
+    <div className='mx-auto max-w-7xl px-4 sm:px-6'>
+      <h2 className='section-title max-w-3xl'>A full music app, even when you listen alone.</h2>
+
+      <div className='mt-10 grid gap-4 lg:grid-cols-6'>
+        <Tile
+          title='Listen'
+          description='Trending songs, charts, new albums, and quick picks based on what you play.'
+          className='lg:col-span-4'
+        >
+          <ListenArt />
+        </Tile>
+        <Tile
+          title='Messages'
+          description='Talk to friends one to one, and start a video call from the chat.'
+          className='lg:col-span-2'
+        >
+          <MessagesArt />
+        </Tile>
+        <Tile
+          title='Library'
+          description='Your playlists and listening history, on every device.'
+          className='lg:col-span-2'
+        >
+          <LibraryArt />
+        </Tile>
+        <Tile
+          title='Rooms'
+          description='Rejoin the room you were in, or scan a friend’s QR code to join theirs.'
+          className='lg:col-span-4'
+        >
+          <RoomsArt />
+        </Tile>
+      </div>
+    </div>
+  </section>
+));
 
 BentoFeatures.displayName = 'BentoFeatures';
 export default BentoFeatures;

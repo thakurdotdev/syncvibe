@@ -1,105 +1,57 @@
-import { memo, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Plus } from 'lucide-react';
+import { memo } from 'react';
 
-const FAQ = memo(() => {
-  const [openIndex, setOpenIndex] = useState(0);
+const FAQS = [
+  {
+    question: 'How does listening together work?',
+    answer:
+      'Everyone in a room follows the same player. When someone plays, pauses, skips, or moves through a song, every other device follows, and SyncVibe keeps correcting for each connection so nobody drifts.',
+  },
+  {
+    question: 'Do my friends need the app or a Pro plan?',
+    answer:
+      'No. They can join from a browser or the Android app, on any plan. Room limits come from the plan of the person who created the room.',
+  },
+  {
+    question: 'Is there an iPhone app?',
+    answer: 'Not yet. On an iPhone, open SyncVibe in your browser to listen and join rooms.',
+  },
+  {
+    question: 'What does Pro add?',
+    answer:
+      'Rooms with up to 10 listeners and 50 queued songs, room chat with GIFs and sound clips, a Pro badge, and priority support. It costs ₹299 a year.',
+  },
+  {
+    question: 'Can I use SyncVibe on my own?',
+    answer:
+      'Yes. Stream music, build playlists, and pick up from your history without ever opening a room.',
+  },
+];
 
-  const faqs = [
-    {
-      question: 'How does real-time synchronized playback work?',
-      answer:
-        'SyncVibe utilizes WebSocket streaming channels with periodic client-server timestamp alignment. When the room host or a member plays, pauses, or seeks, the event is distributed with millisecond offsets so everyone hears the same audio simultaneously.',
-    },
-    {
-      question: 'Can my friends join from mobile browsers or the Android app?',
-      answer:
-        'Yes! SyncVibe is cross-platform. Friends can join your room from Google Chrome, Safari, Firefox on any desktop/laptop, mobile browsers, or via our dedicated native Android app.',
-    },
-    {
-      question: 'Do all my friends need a PRO plan to join my room?',
-      answer:
-        'No. Free users can join any room as participants. The PRO plan allows room creators to host up to 10 members and queue up to 50 songs with live video/voice capabilities.',
-    },
-    {
-      question: 'How does the collaborative queue work?',
-      answer:
-        'Inside any active sync room, participants can search for tracks and add them to the shared queue. The room also supports democratic voting where popular songs move up automatically.',
-    },
-    {
-      question: 'Can I create and share private playlists?',
-      answer:
-        'Yes. You can organize your favorite tracks into personal playlists or make them public so other SyncVibe members can discover your curated taste.',
-    },
-  ];
-
-  const toggle = (index) => {
-    setOpenIndex(openIndex === index ? -1 : index);
-  };
-
-  return (
-    <section id='faq' className='py-20 px-4 sm:px-6 relative border-t border-border/60'>
-      <div className='max-w-3xl mx-auto'>
-        <div className='text-center max-w-md mx-auto mb-14 space-y-2.5'>
-          <span className='text-xs font-mono font-medium text-primary uppercase tracking-widest'>
-            FAQ
-          </span>
-          <h2 className='text-2xl sm:text-4xl font-bold text-foreground tracking-tight'>
-            Common questions
-          </h2>
-          <p className='text-xs sm:text-sm text-muted-foreground leading-relaxed font-normal'>
-            Everything you need to know about rooms, sync, and subscriptions.
-          </p>
-        </div>
-
-        <div className='space-y-2.5'>
-          {faqs.map((faq, index) => {
-            const isOpen = openIndex === index;
-            return (
-              <div
-                key={index}
-                className={cn(
-                  'rounded-xl border transition-all duration-200 overflow-hidden',
-                  isOpen
-                    ? 'border-primary/40 bg-card/70 shadow-sm'
-                    : 'border-border/80 bg-card/40 hover:border-border'
-                )}
-              >
-                <button
-                  type='button'
-                  onClick={() => toggle(index)}
-                  className='w-full px-5 py-4 text-left flex items-center justify-between gap-4 cursor-pointer'
-                >
-                  <span
-                    className={cn(
-                      'text-sm font-medium transition-colors',
-                      isOpen ? 'text-foreground' : 'text-muted-foreground'
-                    )}
-                  >
-                    {faq.question}
-                  </span>
-                  <ChevronDown
-                    size={15}
-                    className={cn(
-                      'text-muted-foreground transition-transform duration-200 shrink-0',
-                      isOpen && 'transform rotate-180 text-primary'
-                    )}
-                  />
-                </button>
-
-                {isOpen && (
-                  <div className='px-5 pb-4 pt-1 text-xs text-muted-foreground leading-relaxed border-t border-border/60'>
-                    {faq.answer}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+const FAQ = memo(() => (
+  <section id='faq' className='scroll-mt-24 py-14 sm:py-20'>
+    <div className='mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]'>
+      <h2 className='section-title'>Questions, answered.</h2>
+      <div className='border-t border-border'>
+        {FAQS.map(({ question, answer }) => (
+          <details key={question} className='group border-b border-border'>
+            <summary className='flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-base font-semibold sm:text-lg [&::-webkit-details-marker]:hidden'>
+              {question}
+              <Plus
+                size={18}
+                aria-hidden='true'
+                className='shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-45'
+              />
+            </summary>
+            <p className='max-w-[65ch] pb-5 text-sm leading-relaxed text-muted-foreground sm:text-base'>
+              {answer}
+            </p>
+          </details>
+        ))}
       </div>
-    </section>
-  );
-});
+    </div>
+  </section>
+));
 
 FAQ.displayName = 'FAQ';
 export default FAQ;
