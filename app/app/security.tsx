@@ -1,4 +1,5 @@
 import DisableTwoFactorSheet from '@/components/security/DisableTwoFactorSheet';
+import PasskeyActionsSheet from '@/components/security/PasskeyActionsSheet';
 import PasskeyNameSheet from '@/components/security/PasskeyNameSheet';
 import TwoFactorSetupSheet from '@/components/security/TwoFactorSetupSheet';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
@@ -21,7 +22,6 @@ import { Redirect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   RefreshControl,
   ScrollView,
@@ -74,6 +74,7 @@ export default function SecurityScreen() {
   const [twoFactorSheet, setTwoFactorSheet] = useState<'enable' | 'disable' | null>(null);
   // Bumped on every opening so each sheet mounts fresh, with no state left from last time.
   const [sheetKey, setSheetKey] = useState(0);
+  const [actionsTarget, setActionsTarget] = useState<Passkey | null>(null);
 
   const passkeysSupported = isPasskeySupported();
   const twoFactorEnabled = !!user?.twoFactorEnabled;
@@ -145,38 +146,20 @@ export default function SecurityScreen() {
     }
   };
 
-  const confirmDelete = (passkey: Passkey) => {
-    const isLast = passkeys.length === 1 && !hasPassword;
-    Alert.alert(
-      'Remove passkey?',
-      isLast
-        ? 'This is your only passkey. You’ll need to sign in with Google after removing it.'
-        : `“${passkey.name || 'Passkey'}” will no longer sign you in. Remove it from your password manager too.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deletePasskey(passkey.id);
-              setPasskeys((prev) => prev.filter((p) => p.id !== passkey.id));
-              toast('Passkey removed', { type: 'success' });
-            } catch (err: any) {
-              toast(err.message || 'Couldn’t remove this passkey', { type: 'error' });
-            }
-          },
-        },
-      ]
-    );
+  const removePasskey = async (passkey: Passkey) => {
+    try {
+      await deletePasskey(passkey.id);
+      setPasskeys((prev) => prev.filter((p) => p.id !== passkey.id));
+      toast('Passkey removed', { type: 'success' });
+    } catch (err: any) {
+      toast(err.message || 'Couldn’t remove this passkey', { type: 'error' });
+      throw err;
+    }
   };
 
   const openPasskeyActions = (passkey: Passkey) => {
-    Alert.alert(passkey.name || 'Passkey', undefined, [
-      { text: 'Rename', onPress: () => openNameSheet({ mode: 'rename', passkey }) },
-      { text: 'Remove', style: 'destructive', onPress: () => confirmDelete(passkey) },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    setActionsTarget(passkey);
+    setSheetKey((key) => key + 1);
   };
 
   if (!user) return <Redirect href='/(tabs)/profile' />;
@@ -273,6 +256,19 @@ export default function SecurityScreen() {
           setTwoFactor(false);
           toast('Two-factor authentication is off', { type: 'success' });
         }}
+      />
+      <PasskeyActionsSheet
+        key={`actions-${sheetKey}`}
+        isVisible={!!actionsTarget}
+        passkey={actionsTarget}
+        isLastWayToSignIn={passkeys.length === 1 && !hasPassword}
+        onClose={() => setActionsTarget(null)}
+        onRename={() => {
+          const passkey = actionsTarget;
+          setActionsTarget(null);
+          if (passkey) setTimeout(() => openNameSheet({ mode: 'rename', passkey }), 300);
+        }}
+        onRemove={() => (actionsTarget ? removePasskey(actionsTarget) : Promise.resolve())}
       />
       <PasskeyNameSheet
         key={`name-${sheetKey}`}

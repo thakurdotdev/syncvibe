@@ -13,13 +13,19 @@ index b6e5e15bf5fdae4d65b9af0e62c52f21cb7b1138..bc6261ff531dceec198039b5bebb2e2c
    implementation "com.google.code.gson:gson:2.8.9"
  }
 diff --git a/android/src/main/java/expo/modules/passkeys/ReactNativePasskeysModule.kt b/android/src/main/java/expo/modules/passkeys/ReactNativePasskeysModule.kt
-index 42f67d0ac8d4fd091b8f61c1942d1a372c36b235..c98cc7a2e50699ae00bb2827600caf064b2ab9d4 100644
+index 42f67d0ac8d4fd091b8f61c1942d1a372c36b235..cf07ec3aa6ff9e7538fb8b9d07955196cebc719a 100644
 --- a/android/src/main/java/expo/modules/passkeys/ReactNativePasskeysModule.kt
 +++ b/android/src/main/java/expo/modules/passkeys/ReactNativePasskeysModule.kt
-@@ -71,6 +71,46 @@ class ReactNativePasskeysModule : Module() {
-             }
-         }
- 
+@@ -67,6 +67,52 @@ class ReactNativePasskeysModule : Module() {
+                     promise.resolve(createCredentialResponse)
+                 } catch (e: CreateCredentialException) {
+                     promise.reject("Passkey Create", getRegistrationException(e), e)
++                } catch (e: Throwable) {
++                    promise.reject("Passkey Create", e.toString(), e)
++                }
++            }
++        }
++
 +        // Raw WebAuthn JSON in and out, the way Credential Manager takes it. The Record + Gson path
 +        // above serialises Kotlin fields by name, which R8 renames in minified release builds.
 +        AsyncFunction("createJson") { requestJson: String, promise: Promise ->
@@ -37,6 +43,8 @@ index 42f67d0ac8d4fd091b8f61c1942d1a372c36b235..c98cc7a2e50699ae00bb2827600caf06
 +                    )
 +                } catch (e: CreateCredentialException) {
 +                    promise.reject("Passkey Create", getRegistrationException(e), e)
++                } catch (e: Throwable) {
++                    promise.reject("Passkey Create", e.toString(), e)
 +                }
 +            }
 +        }
@@ -56,10 +64,17 @@ index 42f67d0ac8d4fd091b8f61c1942d1a372c36b235..c98cc7a2e50699ae00bb2827600caf06
 +                    )
 +                } catch (e: GetCredentialException) {
 +                    promise.reject("Passkey Get", getAuthenticationException(e), e)
-+                }
-+            }
-+        }
-+
-         AsyncFunction("get") { request: PublicKeyCredentialRequestOptions, promise: Promise ->
-             val credentialManager =
-                 CredentialManager.create(appContext.reactContext?.applicationContext!!)
++                } catch (e: Throwable) {
++                    promise.reject("Passkey Get", e.toString(), e)
+                 }
+             }
+         }
+@@ -90,6 +136,8 @@ class ReactNativePasskeysModule : Module() {
+                     promise.resolve(getCredentialResponse)
+                 } catch (e: GetCredentialException) {
+                     promise.reject("Passkey Get", getAuthenticationException(e), e)
++                } catch (e: Throwable) {
++                    promise.reject("Passkey Get", e.toString(), e)
+                 }
+             }
+         }
