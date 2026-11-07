@@ -57,7 +57,6 @@
     "react-native-keyboard-controller": "1.21.9",
     "react-native-nitro-google-signin": "2.3.1",
     "react-native-nitro-modules": "0.37.1",
-    "react-native-passkeys": "^0.4.2",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
