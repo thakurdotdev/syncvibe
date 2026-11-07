@@ -74,7 +74,7 @@ Don't run `pnpm dev`, `expo start` or other watchers from an agent. Ask the user
 ## Deployment (read before merging)
 
 - **Merging to `main` deploys.** Shipyard rebuilds and restarts the server (`syncvibe-api` under
-  `pm0`, port 4000) within minutes. Vercel deploys `client/`. A GitHub workflow queues an EAS
+  `pm0`, port 4000) and the web app (`client/`) within minutes. A GitHub workflow queues an EAS
   Android build for changes in `app/`. There is no staging.
 - Production server is the machine you may be running on: `~/.local/bin/pm0 ls` lists processes.
   The live build's folder is `readlink /proc/<pid>/cwd`. Its env (including `DATABASE_URL`) is in
