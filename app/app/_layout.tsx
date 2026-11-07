@@ -266,6 +266,13 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
+          name='security'
+          options={{
+            headerShown: false,
+            title: 'Security',
+          }}
+        />
+        <Stack.Screen
           name='update-profile-picture'
           options={{
             title: 'Profile Picture',
