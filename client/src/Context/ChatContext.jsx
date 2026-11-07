@@ -219,12 +219,6 @@ export const ChatProvider = ({ children }) => {
       );
     });
 
-    if ('Notification' in window) {
-      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-        Notification.requestPermission();
-      }
-    }
-
     const videoCallStore = useVideoCallStore.getState();
     videoCallStore.setSocket(newSocket);
     videoCallStore.setUser(user);

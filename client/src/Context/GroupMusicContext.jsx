@@ -92,14 +92,6 @@ export function GroupMusicProvider({ children }) {
   }, [socket, user, playback, session]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-        Notification.requestPermission();
-      }
-    }
-  }, []);
-
-  useEffect(() => {
     if (!socket || !session.currentGroup?.id) return;
 
     const syncWithServer = () => {
