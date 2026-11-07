@@ -1,6 +1,7 @@
 import DisableTwoFactorSheet from '@/components/security/DisableTwoFactorSheet';
 import PasskeyActionsSheet from '@/components/security/PasskeyActionsSheet';
 import PasskeyNameSheet from '@/components/security/PasskeyNameSheet';
+import SessionSheet from '@/components/security/SessionSheet';
 import TwoFactorSetupSheet from '@/components/security/TwoFactorSetupSheet';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import { SettingsGroup, SettingsRow } from '@/components/profile/SettingsGroup';
@@ -17,6 +18,15 @@ import {
   renamePasskey,
   type Passkey,
 } from '@/lib/passkey';
+import {
+  formatLastActive,
+  listSessions,
+  revokeOtherSessions,
+  revokeSession,
+  sessionIcon,
+  type DeviceSession,
+} from '@/lib/sessions';
+import useApi from '@/utils/hooks/useApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Redirect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -56,10 +66,20 @@ const StatusPill = ({ on }: { on: boolean }) => {
   );
 };
 
+const CurrentPill = () => {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.pill, { backgroundColor: `${colors.primary}1F` }]}>
+      <Text style={[styles.pillText, { color: colors.primary }]}>This device</Text>
+    </View>
+  );
+};
+
 export default function SecurityScreen() {
   const { colors } = useTheme();
   const { toast } = useToast();
   const { user, setUser } = useUser();
+  const api = useApi();
 
   const [passkeys, setPasskeys] = useState<Passkey[]>([]);
   const [loadingPasskeys, setLoadingPasskeys] = useState(true);
@@ -75,6 +95,11 @@ export default function SecurityScreen() {
   // Bumped on every opening so each sheet mounts fresh, with no state left from last time.
   const [sheetKey, setSheetKey] = useState(0);
   const [actionsTarget, setActionsTarget] = useState<Passkey | null>(null);
+  const [sessions, setSessions] = useState<DeviceSession[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
+  const [sessionTarget, setSessionTarget] = useState<
+    { type: 'one'; session: DeviceSession } | { type: 'others'; count: number } | null
+  >(null);
 
   const passkeysSupported = isPasskeySupported();
   const twoFactorEnabled = !!user?.twoFactorEnabled;
@@ -91,9 +116,46 @@ export default function SecurityScreen() {
     }
   }, [toast]);
 
+  const loadSessions = useCallback(async () => {
+    try {
+      setSessions(await listSessions(api));
+    } catch (err: any) {
+      toast(err.message, { type: 'error' });
+    } finally {
+      setLoadingSessions(false);
+    }
+  }, [api, toast]);
+
   useEffect(() => {
-    if (user) void loadPasskeys();
-  }, [user?.userid, loadPasskeys]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!user) return;
+    void loadPasskeys();
+    void loadSessions();
+  }, [user?.userid, loadPasskeys, loadSessions]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const otherSessions = sessions.filter((session) => !session.isCurrent);
+
+  const openSessionSheet = (target: NonNullable<typeof sessionTarget>) => {
+    setSheetKey((key) => key + 1);
+    setSessionTarget(target);
+  };
+
+  const confirmSessionSheet = async () => {
+    if (!sessionTarget) return;
+    try {
+      if (sessionTarget.type === 'one') {
+        await revokeSession(api, sessionTarget.session.id);
+        setSessions((prev) => prev.filter((s) => s.id !== sessionTarget.session.id));
+        toast('Device signed out', { type: 'success' });
+      } else {
+        await revokeOtherSessions(api);
+        setSessions((prev) => prev.filter((s) => s.isCurrent));
+        toast('Signed out of your other devices', { type: 'success' });
+      }
+    } catch (err: any) {
+      toast(err.message, { type: 'error' });
+      throw err;
+    }
+  };
 
   const setTwoFactor = useCallback(
     (enabled: boolean) => {
@@ -176,6 +238,7 @@ export default function SecurityScreen() {
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
+              void loadSessions();
               void loadPasskeys();
             }}
             tintColor={colors.primary}
@@ -235,6 +298,44 @@ export default function SecurityScreen() {
             }
           />
         </SettingsGroup>
+
+        <SettingsGroup title='Signed-in devices'>
+          <Text style={[styles.help, { color: colors.mutedForeground }]}>
+            Places where your account is signed in. Sign out any you don’t recognise.
+          </Text>
+
+          {loadingSessions ? (
+            <ActivityIndicator color={colors.primary} style={styles.loader} />
+          ) : (
+            sessions.map((session) => (
+              <SettingsRow
+                key={session.id}
+                icon={sessionIcon(session)}
+                label={session.name}
+                detail={
+                  session.isCurrent
+                    ? (session.detail ?? undefined)
+                    : [session.location ?? session.detail, formatLastActive(session.lastActiveAt)]
+                        .filter(Boolean)
+                        .join(' · ')
+                }
+                trailing={session.isCurrent ? <CurrentPill /> : undefined}
+                onPress={
+                  session.isCurrent ? undefined : () => openSessionSheet({ type: 'one', session })
+                }
+              />
+            ))
+          )}
+
+          {!loadingSessions && otherSessions.length > 0 && (
+            <SettingsRow
+              icon='log-out'
+              label='Sign out of all other devices'
+              destructive
+              onPress={() => openSessionSheet({ type: 'others', count: otherSessions.length })}
+            />
+          )}
+        </SettingsGroup>
       </ScrollView>
 
       <TwoFactorSetupSheet
@@ -269,6 +370,13 @@ export default function SecurityScreen() {
           if (passkey) setTimeout(() => openNameSheet({ mode: 'rename', passkey }), 300);
         }}
         onRemove={() => (actionsTarget ? removePasskey(actionsTarget) : Promise.resolve())}
+      />
+      <SessionSheet
+        key={`session-${sheetKey}`}
+        isVisible={!!sessionTarget}
+        target={sessionTarget}
+        onClose={() => setSessionTarget(null)}
+        onConfirm={confirmSessionSheet}
       />
       <PasskeyNameSheet
         key={`name-${sheetKey}`}

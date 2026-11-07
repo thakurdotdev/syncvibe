@@ -1,0 +1,24 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.syncvibepasskeys'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.syncvibepasskeys"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}
+
+// Keep equal to the version react-native-nitro-google-signin uses. Gradle ships only the newest
+// one in the APK, so a lower version here compiles but can fail at runtime with NoSuchMethodError.
+def credentialsVersion = "1.6.0"
+
+dependencies {
+  implementation "androidx.credentials:credentials:$credentialsVersion"
+  implementation "androidx.credentials:credentials-play-services-auth:$credentialsVersion"
+}

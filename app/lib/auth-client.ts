@@ -2,12 +2,31 @@ import { expoClient } from '@better-auth/expo/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAuthClient } from 'better-auth/react';
 import { twoFactorClient } from 'better-auth/client/plugins';
+import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { API_URL } from '@/constants';
+
+const clean = (value: string | null | undefined) => (value ?? '').replace(/[;()]/g, ' ').trim();
+const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+
+/**
+ * Better Auth stores the User-Agent of the request that creates a session. Without this, app
+ * sessions show up as "okhttp" on the Security page; the server parses this format instead.
+ */
+const userAgent = () => {
+  const os = `${Platform.OS === 'ios' ? 'iOS' : 'Android'} ${clean(Device.osVersion)}`.trim();
+  const device =
+    [capitalize(clean(Device.manufacturer)), clean(Device.modelName)].filter(Boolean).join(' ') ||
+    'Phone';
+  return `SyncVibe/${Constants.expoConfig?.version ?? '0'} (${os}; ${device})`;
+};
 
 // The scheme comes from the app config, so dev, preview and production builds each use their own.
 export const authClient = createAuthClient({
   baseURL: `${API_URL}/api/auth`,
+  fetchOptions: { headers: { 'User-Agent': userAgent() } },
   plugins: [expoClient({ storagePrefix: 'syncvibe', storage: SecureStore }), twoFactorClient()],
 });
 

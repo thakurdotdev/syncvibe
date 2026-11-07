@@ -13,6 +13,8 @@ declare global {
     }
     interface Request {
       user?: User;
+      /** Better Auth session behind this request, set by the auth middleware. */
+      sessionId?: string;
       entitlement?: UserEntitlement | null;
       slowDown?: {
         limit: number;
