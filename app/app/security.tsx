@@ -315,7 +315,7 @@ export default function SecurityScreen() {
                 detail={
                   session.isCurrent
                     ? (session.detail ?? undefined)
-                    : [session.detail, formatLastActive(session.lastActiveAt)]
+                    : [session.location ?? session.detail, formatLastActive(session.lastActiveAt)]
                         .filter(Boolean)
                         .join(' · ')
                 }

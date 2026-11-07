@@ -10,6 +10,8 @@ export interface DeviceSession {
   detail: string | null;
   mobile: boolean;
   ipAddress: string | null;
+  /** City, region and country where it signed in, from Cloudflare. */
+  location: string | null;
   createdAt: string;
   /** Moves forward at most once a day. */
   lastActiveAt: string;

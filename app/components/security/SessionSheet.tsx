@@ -60,6 +60,9 @@ export default function SessionSheet({
           <View style={[styles.details, { backgroundColor: colors.raised }]}>
             <DetailRow label='Signed in' value={formatDate(target.session.createdAt)} />
             <DetailRow label='Last seen' value={formatLastActive(target.session.lastActiveAt)} />
+            {target.session.location ? (
+              <DetailRow label='Location' value={target.session.location} />
+            ) : null}
             {target.session.ipAddress ? (
               <DetailRow label='IP address' value={target.session.ipAddress} />
             ) : null}
