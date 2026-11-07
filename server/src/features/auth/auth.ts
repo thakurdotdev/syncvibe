@@ -4,6 +4,7 @@ import { emailOTP, twoFactor } from 'better-auth/plugins';
 import { expo } from '@better-auth/expo';
 import { passkey } from '@better-auth/passkey';
 import { User } from '@/models/index';
+import { getClientLocation } from '@/utils/helpers';
 import { passwordResetMailSender, resendOtp, verifiedMailSender } from '@/utils/resend';
 import {
   clientUrl,
@@ -52,7 +53,12 @@ export const auth = betterAuth({
       isDeleted: { type: 'boolean', required: false, input: false, defaultValue: false },
     },
   },
-  session: { modelName: 'sessions', ...sessionConfig },
+  session: {
+    modelName: 'sessions',
+    ...sessionConfig,
+    // Column added by sql/004_session_location.sql.
+    additionalFields: { location: { type: 'string', required: false, input: false } },
+  },
   account: {
     modelName: 'accounts',
     accountLinking: { enabled: true, trustedProviders: ['google'] },
@@ -102,8 +108,12 @@ export const auth = betterAuth({
     },
     session: {
       create: {
-        before: async (session) => {
+        before: async (session, ctx) => {
           await assertAccountIsActive(session.userId);
+          // Cloudflare's city/region/country headers on the sign-in request.
+          const headers = ctx?.headers ? Object.fromEntries(ctx.headers.entries()) : null;
+          const location = headers ? getClientLocation({ headers }) : 'Unknown';
+          return { data: { ...session, location: location === 'Unknown' ? null : location } };
         },
       },
     },

@@ -20,6 +20,8 @@ interface DeviceSession {
   detail: string | null;
   mobile: boolean;
   ipAddress: string | null;
+  /** City, region and country from Cloudflare when this session signed in. */
+  location: string | null;
   createdAt: string;
   /** Moves forward at most once a day, when Better Auth extends the session. */
   lastActiveAt: string;
@@ -73,6 +75,7 @@ export const listDeviceSessions = async (req: Request, res: Response): Promise<v
       id: String(session.id),
       ...describe(session.userAgent),
       ipAddress: firstIp(session.ipAddress),
+      location: (session as { location?: string | null }).location ?? null,
       createdAt: new Date(session.createdAt).toISOString(),
       lastActiveAt: new Date(session.updatedAt).toISOString(),
       isCurrent: String(session.id) === req.sessionId,
