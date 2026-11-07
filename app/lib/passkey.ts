@@ -127,7 +127,9 @@ const createCredential = async (
   options: CreationOptions
 ): Promise<Registration | null> => {
   if (!androidNative?.createJson) return native.create(options);
-  const json = await androidNative.createJson(JSON.stringify(options));
+  // `hints` is newer than Android's WebAuthn parser; an empty list only adds risk.
+  const { hints: _hints, ...request } = options as CreationOptions & { hints?: unknown };
+  const json = await androidNative.createJson(JSON.stringify(request));
   return json ? (JSON.parse(json) as Registration) : null;
 };
 
