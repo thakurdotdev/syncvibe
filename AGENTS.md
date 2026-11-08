@@ -37,6 +37,9 @@ pnpm workspace (`pnpm@12.3.4`, `node-linker=hoisted`). Install from the root: `p
 - `src/lib/auth-client.js`: Better Auth client (`passkeyClient`, `twoFactorClient`, `emailOTPClient`).
 - API calls: axios with `` `${import.meta.env.VITE_API_URL}/api/...` `` and `withCredentials: true`.
   Toasts: `sonner`. Path alias `@/` → `src/`.
+- `src/components/LandingPage/`: public site, `src/components/Auth/`: sign-in pages and `AuthLayout`.
+  `src/components/wensity/` and `ui/resizable-navbar.jsx`, `ui/sticky-scroll-reveal.jsx` are library
+  components adapted to our stack, not stock copies.
 
 ### app/
 
@@ -70,6 +73,42 @@ cd client && npx vite build       # the client has no type-check; a build catche
 ```
 
 Don't run `pnpm dev`, `expo start` or other watchers from an agent. Ask the user to run them.
+
+To review web changes in a browser, build to a scratch folder and serve that build on an unused port:
+`npx vite build --outDir <scratch>/dist --emptyOutDir`, then
+`npx vite preview --outDir <scratch>/dist --port <port> --host 127.0.0.1 --strictPort`. Stop the
+server and any tunnel when review ends, and check `top` after opening a tunnel: this machine may also
+host production.
+
+## Web design
+
+Follow these for the public site, sign-in pages and shared UI. For new pages or larger design work, use
+the `premium-web-ui` skill if it is installed (`~/.agents/skills/`). It has the full workflow, patterns
+and browser audit scripts.
+
+- **Theme:** mono tokens in `client/src/index.css`. Album art supplies the colour. Use tokens only, and
+  check light and dark.
+- **Surfaces:** `.bezel` + `.bezel-inner` for major cards, `.section-title` for section headings,
+  `.hairline-glow` for dividers. `Button`, `Card` and `Input` use `.btn-primary`, `.btn-surface`,
+  `.surface-card` and `.surface-input`, so change them there rather than per page. They also reach the
+  signed-in app, so check those screens too.
+- **Claims:** page copy, demos and plan lists **MUST** match what the code does. Take limits and prices
+  from the plans data. No invented testimonials or counts. Update `planFeatures` in
+  `Pages/Plans/index.jsx` and `PricingSection.jsx` together.
+- **Demo data:** the hero, auth showcase and screenshots show one room, from
+  `LandingPage/demoSong.js` and `public/landing/`. Blur other people's details in screenshot files.
+- **Permissions:** public pages **MUST NOT** request permissions. The notification prompt lives only in
+  `shell/AppShell.jsx`. Camera and microphone are requested only for calls.
+- **Auth:** full flows get their own route in `AuthLayout`, not a dialog, like `/forgot-password`. Add
+  such routes to `noHeaderFooterRoutes` in `Routes.jsx`.
+- **Motion:** **MUST NOT** animate `height: 'auto'` with Framer Motion on these pages. It calls
+  `window.scrollTo` and cancels smooth scrolling, which stops nav links partway down the page. Use a CSS
+  `grid-template-rows` transition. Use `overflow-x-clip`, not `overflow-x-hidden`, around sticky content.
+- **Adding library components:** test the CLI in a scratch project first, because it rewrites
+  `index.css`. Then change `motion/react` to `framer-motion`, use `lucide-react` and our tokens. Wensity
+  returns HTTP 402 for Pro items; we don't have a Pro licence.
+- **Check:** view screenshots from 320px to 1920px in both themes before saying it's done. Keep paired
+  buttons on one line, including on phones.
 
 ## Deployment (read before merging)
 
@@ -142,7 +181,7 @@ ask the user to run production steps (migrations, restarts) themselves.
    secrets through a private prompt, not chat. `app/google-services.json` is committed on purpose.
 5. **UI:** match the existing theme and components, light and dark. App screens use theme colors,
    `SettingsRow`, `SwipeableModal` sheets, not `Alert.alert` for actions. Web uses the shadcn
-   card/dialog styles already in `components/Profile` and `components/Auth`.
+   components and the surfaces in **Web design** above.
 6. **Git:** branch from `main` (`feat/…`, `fix/…`, `refactor/…`). Conventional commits scoped by
    package: `feat(server): …`, `fix(app): …`, `feat(client): …`, `chore(app): …`. Split commits by
    package. Merge PRs with a merge commit, subject `Merge pull request #N: <title>`. Never force-push
