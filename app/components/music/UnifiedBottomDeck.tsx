@@ -3,19 +3,28 @@ import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE, SPRING_PRESS } from '@/l
 import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE, SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import PressableScale from '@/components/ui/PressableScale';
-import { openFullPlayer, usePlaybackState, usePlayerControls } from '@/stores/playerStore';
+import {
+  openFullPlayer,
+  usePlaybackState,
+  usePlayerControls,
+  usePlayerStore,
+} from '@/stores/playerStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useProgress } from '@rntp/player';
 import { router } from 'expo-router';
-import { memo, useCallback, useEffect, useMemo } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
-  FadeIn,
+  FadeInLeft,
+  FadeInRight,
   interpolate,
+  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
+  withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -143,7 +152,16 @@ type MiniPlayerRowProps = {
 
 const SWIPE_OPEN_DISTANCE = 24;
 const SWIPE_OPEN_VELOCITY = 400;
-const SONG_ENTER = FadeIn.duration(160).easing(EASE_OUT);
+/** A committed skip carries the song this far out, where it has faded away. */
+const SKIP_OUT = 120;
+const SKIP_OUT_TIMING = { duration: 110, easing: EASE_OUT, reduceMotion: ReduceMotion.System };
+/** If no new song arrives (end of the queue), the old one comes back after this. */
+const SKIP_RETURN_DELAY_MS = 400;
+// The new song comes in from the side the swipe came from, like the full player's artwork.
+const SONG_ENTER = {
+  next: FadeInRight.duration(200).easing(EASE_OUT).reduceMotion(ReduceMotion.System),
+  prev: FadeInLeft.duration(200).easing(EASE_OUT).reduceMotion(ReduceMotion.System),
+} as const;
 
 /**
  * Now playing, sitting directly on the dock: no card of its own. Tap or swipe up opens the
@@ -172,8 +190,28 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
   const x = useSharedValue(0);
   // 0 undecided, 1 sideways (skip), 2 upwards (open). Locked once for each swipe.
   const axis = useSharedValue(0);
+  /** This swipe skipped: the song keeps going out instead of springing back. */
+  const skipped = useSharedValue(false);
   const skipNext = useCallback(() => handleNextSong(), [handleNextSong]);
   const skipPrev = useCallback(() => handlePrevSong(true), [handlePrevSong]);
+
+  // Which way the song changed, worked out while rendering so the new one enters from the right
+  // side on its first frame. Only one step back is "previous"; auto-advance and jumps read as next.
+  const queueIndex = usePlayerStore((s) =>
+    s.currentSong ? s.playlist.findIndex((i) => i.id === s.currentSong?.id) : -1
+  );
+  const songId: string | undefined = currentSong?.id;
+  const [shown, setShown] = useState({ id: songId, index: queueIndex });
+  const [direction, setDirection] = useState<'next' | 'prev'>('next');
+  if (shown.id !== songId || shown.index !== queueIndex) {
+    if (shown.id !== songId) setDirection(queueIndex === shown.index - 1 ? 'prev' : 'next');
+    setShown({ id: songId, index: queueIndex });
+  }
+
+  // The new song starts centred; whatever the old one was doing is over.
+  useLayoutEffect(() => {
+    x.set(0);
+  }, [songId, x]);
 
   const swipe = Gesture.Pan()
     .hitSlop({ left: -EDGE_GUARD, right: -EDGE_GUARD })
@@ -181,6 +219,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
     .activeOffsetY([-14, 1000])
     .onStart(() => {
       axis.set(0);
+      skipped.set(false);
     })
     .onUpdate((e) => {
       if (
@@ -199,18 +238,26 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
         axis.get() === 1 || (axis.get() === 0 && Math.abs(e.velocityX) > Math.abs(e.velocityY));
       if (swipedSideways) {
         if (isSkipSwipe(e.translationX, e.velocityX, width)) {
-          scheduleOnRN(e.translationX < 0 ? skipNext : skipPrev);
+          const forward = e.translationX < 0;
+          skipped.set(true);
+          x.set(
+            withSequence(
+              withTiming(forward ? -SKIP_OUT : SKIP_OUT, SKIP_OUT_TIMING),
+              withDelay(SKIP_RETURN_DELAY_MS, withSpring(0, SPRING_PRESS))
+            )
+          );
+          scheduleOnRN(forward ? skipNext : skipPrev);
         }
       } else if (e.translationY < -SWIPE_OPEN_DISTANCE || e.velocityY < -SWIPE_OPEN_VELOCITY) {
         scheduleOnRN(openFullPlayer);
       }
     })
     .onFinalize(() => {
-      x.set(withSpring(0, SPRING_PRESS));
+      if (!skipped.get()) x.set(withSpring(0, SPRING_PRESS));
     });
 
   const songStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(Math.abs(x.get()), [0, 90], [1, 0.35], 'clamp'),
+    opacity: interpolate(Math.abs(x.get()), [0, 90, SKIP_OUT], [1, 0.35, 0], 'clamp'),
     transform: [{ translateX: x.get() }],
   }));
 
@@ -224,7 +271,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
           accessibilityRole='button'
           accessibilityLabel={`Open player: ${currentSong?.name ?? ''}`}
         >
-          <Animated.View key={currentSong?.id} entering={SONG_ENTER} style={styles.miniSongEnter}>
+          <Animated.View key={songId} entering={SONG_ENTER[direction]} style={styles.miniSongEnter}>
             <Animated.View style={[styles.miniSongInner, songStyle]}>
               <Image
                 source={{ uri: artworkUri }}
