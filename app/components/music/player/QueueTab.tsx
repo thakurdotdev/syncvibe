@@ -1,4 +1,11 @@
-import { EASE_OUT } from '@/lib/motion';
+import PressableScale from '@/components/ui/PressableScale';
+import {
+  BUTTON_PRESS_SCALE,
+  EASE_OUT,
+  IMAGE_FADE_MS,
+  LIST_PRESS_DELAY,
+  ROW_PRESS_SCALE,
+} from '@/lib/motion';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import {
@@ -15,9 +22,10 @@ import { MoreVertical, Sparkles, Trash2Icon } from 'lucide-react-native';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { FadeIn, type SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SwipeableModal from '../../SwipeableModal';
+import { PlayingBars } from '../PlayingBars';
 import { SortableQueue } from './SortableQueue';
 
 const ITEM_HEIGHT = 58;
@@ -55,44 +63,38 @@ const SongCardQueue = memo(
     const songArtist = song.subtitle || song.artist_map?.artists?.[0]?.name;
 
     return (
-      <Pressable
+      <PressableScale
         onPress={handlePress}
         disabled={isActive}
+        scaleTo={ROW_PRESS_SCALE}
+        unstable_pressDelay={LIST_PRESS_DELAY}
+        accessibilityRole='button'
+        accessibilityLabel={
+          isCurrentSong ? `${isPlaying ? 'Pause' : 'Play'} ${songName}` : `Play ${songName}`
+        }
         style={[
           queueItemStyles.itemContainer,
-          {
-            backgroundColor: isActive
-              ? colors.card
-              : isCurrentSong
-                ? `${colors.foreground}10`
-                : 'transparent',
-            borderColor: isActive ? colors.border : 'transparent',
-          },
+          isActive
+            ? [queueItemStyles.lifted, { backgroundColor: colors.card, borderColor: colors.border }]
+            : isCurrentSong && { backgroundColor: `${colors.foreground}0F` },
         ]}
-        android_ripple={{ color: `${colors.foreground}10`, borderless: false }}
       >
         <View style={queueItemStyles.thumbnailWrapper}>
           <Image
             source={{ uri: songImage, cache: 'force-cache' }}
-            style={queueItemStyles.thumbnail}
-            fadeDuration={0}
+            style={[queueItemStyles.thumbnail, { backgroundColor: colors.muted }]}
+            fadeDuration={IMAGE_FADE_MS}
             resizeMode='cover'
           />
           {isCurrentSong && (
             <View style={queueItemStyles.thumbnailOverlay}>
-              <Ionicons name={isPlaying ? 'pause' : 'play'} size={16} color='#fff' />
+              <PlayingBars color='#fff' active={isPlaying} />
             </View>
           )}
         </View>
 
         <View style={queueItemStyles.textArea}>
-          <Text
-            style={[
-              queueItemStyles.title,
-              { color: colors.text, fontWeight: isCurrentSong ? '700' : '600' },
-            ]}
-            numberOfLines={1}
-          >
+          <Text style={[queueItemStyles.title, { color: colors.text }]} numberOfLines={1}>
             {songName}
           </Text>
           <Text
@@ -103,10 +105,17 @@ const SongCardQueue = memo(
           </Text>
         </View>
 
-        <Pressable onPress={handleMenuPress} hitSlop={8} style={queueItemStyles.menuButton}>
+        <PressableScale
+          onPress={handleMenuPress}
+          hitSlop={8}
+          scaleTo={BUTTON_PRESS_SCALE}
+          accessibilityRole='button'
+          accessibilityLabel={`More options for ${songName}`}
+          style={queueItemStyles.menuButton}
+        >
           <MoreVertical size={18} color={colors.mutedForeground} />
-        </Pressable>
-      </Pressable>
+        </PressableScale>
+      </PressableScale>
     );
   },
   (prev, next) =>
@@ -119,11 +128,16 @@ export const QueueTab = memo(function QueueTab({
   playerOpen,
   visible,
   dragGesture,
+  listGesture,
+  scrollOffset,
 }: {
   playerOpen: boolean;
   visible: boolean;
   /** Attached to the top of the queue, so it can be dragged back down. */
   dragGesture: GestureType;
+  /** The same drag over the list, for pulls that start with the list scrolled to the top. */
+  listGesture: GestureType;
+  scrollOffset: SharedValue<number>;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -321,6 +335,8 @@ export const QueueTab = memo(function QueueTab({
           renderRow={renderRow}
           onReorder={reorderPlaylist}
           onRemove={handleRemove}
+          pullGesture={listGesture}
+          scrollOffset={scrollOffset}
         />
       )}
 
@@ -449,16 +465,24 @@ const queueItemStyles = StyleSheet.create({
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingLeft: 10,
+    paddingRight: 4,
     marginHorizontal: 8,
     marginVertical: 2,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'transparent',
     height: ITEM_HEIGHT,
   },
+  // The row held for reordering floats above the others.
+  lifted: {
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
   thumbnailWrapper: {
-    position: 'relative',
     width: 44,
     height: 44,
   },
@@ -470,7 +494,7 @@ const queueItemStyles = StyleSheet.create({
   thumbnailOverlay: {
     ...StyleSheet.absoluteFill,
     borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -487,8 +511,9 @@ const queueItemStyles = StyleSheet.create({
     fontSize: 13,
   },
   menuButton: {
-    width: 34,
-    height: 34,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },

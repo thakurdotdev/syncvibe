@@ -33,6 +33,11 @@ const DISMISS_VELOCITY = 500;
 const QUEUE_COMMIT_DISTANCE = 0.15;
 /** Shorter than this was a stray touch, however fast. */
 const QUEUE_MIN_MOVE = 16;
+/**
+ * A pull on the queue list takes over after this much movement. Under Android's 8dp touch slop,
+ * so it decides before the list starts to scroll or stretch.
+ */
+const PULL_SLOP = 6;
 /** Height the header and the player's own rows need; the artwork takes whatever is left. */
 const CHROME_HEIGHT = 350;
 /** Space either side of the artwork. */
@@ -91,6 +96,10 @@ export default function Player() {
   const draggingQueue = useSharedValue(false);
   /** Which way this swipe is going isn't known yet: see SWIPE_DIRECTION_DECIDED. */
   const directionPending = useSharedValue(false);
+  /** The queue list's scroll offset, so a pull on the list knows whether it starts at the top. */
+  const queueScrollY = useSharedValue(0);
+  const listTouchX = useSharedValue(0);
+  const listTouchY = useSharedValue(0);
   /** How far the queue slides: from just below the screen up to under the header. */
   const queueTravel = screenHeight - insets.top - PLAYER_HEADER_HEIGHT;
 
@@ -226,6 +235,37 @@ export default function Player() {
   const headerGesture = useMemo(() => makeVerticalGesture(), [makeVerticalGesture]);
   const songGesture = useMemo(() => makeVerticalGesture(), [makeVerticalGesture]);
   const queueGesture = useMemo(() => makeVerticalGesture(), [makeVerticalGesture]);
+  // On the list itself: a pull down closes the queue, but only one that starts with the list at
+  // its top. Started anywhere else it fails at once, so the list scrolls with no delay.
+  const queueListGesture = useMemo(
+    () =>
+      makeVerticalGesture()
+        .manualActivation(true)
+        // Explicit worklets: the Babel plugin only finds callbacks on chains that start at `Gesture.`.
+        .onTouchesDown((e, state) => {
+          'worklet';
+          const touch = e.allTouches[0];
+          if (!touch || queueScrollY.get() > 1) {
+            state.fail();
+            return;
+          }
+          listTouchX.set(touch.absoluteX);
+          listTouchY.set(touch.absoluteY);
+        })
+        .onTouchesMove((e, state) => {
+          'worklet';
+          const touch = e.allTouches[0];
+          if (!touch) return;
+          const dx = Math.abs(touch.absoluteX - listTouchX.get());
+          const dy = touch.absoluteY - listTouchY.get();
+          if (queueScrollY.get() > 1 || dy < -PULL_SLOP || (dx > PULL_SLOP && dx > dy)) {
+            state.fail();
+          } else if (dy > PULL_SLOP) {
+            state.activate();
+          }
+        }),
+    [listTouchX, listTouchY, makeVerticalGesture, queueScrollY]
+  );
 
   const sheetStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.get() }],
@@ -271,6 +311,7 @@ export default function Player() {
           <View>
             <PlayerHeader
               activeTab={activeTab}
+              queueShown={queueShown}
               onBack={handleBack}
               onOptionsPress={() => setPlayerDrawerOpen(true)}
             />
@@ -309,6 +350,8 @@ export default function Player() {
               playerOpen={isOpen}
               visible={activeTab === 'queue'}
               dragGesture={queueGesture}
+              listGesture={queueListGesture}
+              scrollOffset={queueScrollY}
             />
           </Animated.View>
         </View>
