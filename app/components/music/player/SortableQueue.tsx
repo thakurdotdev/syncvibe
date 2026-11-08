@@ -12,8 +12,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { StyleSheet, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
-import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
+import { StyleSheet, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
+import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler';
 import Animated, {
   clamp,
   scrollTo,
@@ -28,8 +28,6 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-
-const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
 const LIFT_DELAY_MS = 200;
 const LIFT_SCALE = 1.03;
@@ -263,6 +261,8 @@ function SortableQueueInner<T extends Sortable>({
   renderRow,
   onReorder,
   onRemove,
+  pullGesture,
+  scrollOffset,
 }: {
   data: T[];
   rowHeight: number;
@@ -271,6 +271,10 @@ function SortableQueueInner<T extends Sortable>({
   renderRow: (item: T, isActive: boolean) => ReactNode;
   onReorder: (items: T[]) => void;
   onRemove: (id: string) => void;
+  /** A vertical pull over the whole list. The list waits for it to fail before it scrolls. */
+  pullGesture?: GestureType;
+  /** Receives the scroll offset on the UI thread. */
+  scrollOffset?: SharedValue<number>;
 }) {
   const { width: rowWidth } = useWindowDimensions();
   const scrollRef = useAnimatedRef<any>() as AnimatedRef<any>;
@@ -365,6 +369,7 @@ function SortableQueueInner<T extends Sortable>({
 
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.set(e.contentOffset.y);
+    scrollOffset?.set(e.contentOffset.y);
     const next = Math.floor(e.contentOffset.y / (rowHeight * WINDOW_BLOCK));
     if (next !== block.get()) {
       block.set(next);
@@ -416,39 +421,57 @@ function SortableQueueInner<T extends Sortable>({
     return index < 0 ? inWindow : [...inWindow, { item: data[index], index }];
   }, [data, draggingId, end, start]);
 
+  // What RNGH's own ScrollView sets up, plus the wait for the pull.
+  const scrollGesture = useMemo(() => {
+    const native = Gesture.Native().disallowInterruption(true).shouldCancelWhenOutside(false);
+    return pullGesture ? native.requireExternalGestureToFail(pullGesture) : native;
+  }, [pullGesture]);
+
+  const list = (
+    <GestureDetector gesture={scrollGesture}>
+      <Animated.ScrollView
+        ref={scrollRef}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        onLayout={onLayout}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ height: data.length * rowHeight + bottomPadding }}
+      >
+        {rows.map(({ item, index }) => (
+          <SortableRow
+            key={item.id}
+            item={item}
+            index={index}
+            rowHeight={rowHeight}
+            rowWidth={rowWidth}
+            draggable={canDrag(item)}
+            isDragging={item.id === draggingId}
+            renderRow={renderRow}
+            drag={drag}
+            syncDrag={syncDrag}
+            onLift={onLift}
+            onDrop={onDrop}
+            onRemove={onRemove}
+          />
+        ))}
+      </Animated.ScrollView>
+    </GestureDetector>
+  );
+
+  if (!pullGesture) return list;
   return (
-    <AnimatedScrollView
-      ref={scrollRef}
-      onScroll={onScroll}
-      scrollEventThrottle={16}
-      onLayout={onLayout}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ height: data.length * rowHeight + bottomPadding }}
-    >
-      {rows.map(({ item, index }) => (
-        <SortableRow
-          key={item.id}
-          item={item}
-          index={index}
-          rowHeight={rowHeight}
-          rowWidth={rowWidth}
-          draggable={canDrag(item)}
-          isDragging={item.id === draggingId}
-          renderRow={renderRow}
-          drag={drag}
-          syncDrag={syncDrag}
-          onLift={onLift}
-          onDrop={onDrop}
-          onRemove={onRemove}
-        />
-      ))}
-    </AnimatedScrollView>
+    <GestureDetector gesture={pullGesture}>
+      <View style={styles.fill} collapsable={false}>
+        {list}
+      </View>
+    </GestureDetector>
   );
 }
 
 export const SortableQueue = memo(SortableQueueInner) as typeof SortableQueueInner;
 
 const styles = StyleSheet.create({
+  fill: { flex: 1 },
   row: { position: 'absolute', left: 0, right: 0, top: 0 },
   remove: {
     position: 'absolute',
