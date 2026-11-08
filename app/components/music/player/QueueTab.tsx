@@ -88,7 +88,12 @@ const SongCardQueue = memo(
           />
           {isCurrentSong && (
             <View style={queueItemStyles.thumbnailOverlay}>
-              <PlayingBars color='#fff' active={isPlaying} />
+              {/* Still bars, not bouncing ones: a looping animation in the list costs every frame of a scroll. */}
+              {isPlaying ? (
+                <PlayingBars color='#fff' active={false} />
+              ) : (
+                <Ionicons name='play' size={16} color='#fff' />
+              )}
             </View>
           )}
         </View>

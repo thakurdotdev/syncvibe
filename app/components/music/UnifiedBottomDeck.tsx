@@ -7,6 +7,7 @@ import {
   openFullPlayer,
   usePlaybackState,
   usePlayerControls,
+  useFullPlayerOpen,
   usePlayerStore,
 } from '@/stores/playerStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -75,12 +76,14 @@ const MiniProgressBar = memo(function MiniProgressBar({
   const { position, duration } = useProgress();
   const fraction = duration > 0 ? Math.min(1, Math.max(0, position / duration)) : 0;
   const shown = useSharedValue(fraction);
+  // Under the full player nobody sees it, and its glide would update a view on every frame.
+  const covered = useFullPlayerOpen((s) => s.open);
 
   useEffect(() => {
     // A normal tick glides; a new song or a seek jumps straight there.
-    const glide = fraction >= shown.get() && (fraction - shown.get()) * duration < 2.5;
+    const glide = !covered && fraction >= shown.get() && (fraction - shown.get()) * duration < 2.5;
     shown.set(glide ? withTiming(fraction, { duration: 1000, easing: Easing.linear }) : fraction);
-  }, [fraction, duration, shown]);
+  }, [covered, fraction, duration, shown]);
 
   const fill = useAnimatedStyle(() => ({ transform: [{ scaleX: shown.get() }] }));
 

@@ -90,6 +90,10 @@ export const setOnAfterSongTransition = (cb: ((song: Song) => void) | null) => {
   onAfterSongTransition = cb;
 };
 
+/** Whether the full player covers the app, so things hidden under it can stop animating. */
+export const useFullPlayerOpen = create<{ open: boolean }>(() => ({ open: false }));
+export const setFullPlayerOpen = (open: boolean) => useFullPlayerOpen.setState({ open });
+
 export let onOpenFullPlayer: (() => void) | null = null;
 export const setOnOpenFullPlayer = (cb: (() => void) | null) => {
   onOpenFullPlayer = cb;
