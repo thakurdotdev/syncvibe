@@ -18,7 +18,7 @@ import {
 } from '@/stores/playerStore';
 import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
-import { MoreVertical, Sparkles, Trash2Icon } from 'lucide-react-native';
+import { Sparkles, Trash2Icon } from 'lucide-react-native';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler';
@@ -118,7 +118,8 @@ const SongCardQueue = memo(
           accessibilityLabel={`More options for ${songName}`}
           style={queueItemStyles.menuButton}
         >
-          <MoreVertical size={18} color={colors.mutedForeground} />
+          {/* A font glyph, not an SVG: rows mount as the list scrolls, and an SVG is several views. */}
+          <Ionicons name='ellipsis-vertical' size={18} color={colors.mutedForeground} />
         </PressableScale>
       </PressableScale>
     );

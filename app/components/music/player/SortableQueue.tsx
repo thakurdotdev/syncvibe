@@ -8,7 +8,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -35,9 +34,10 @@ const LIFT_SCALE = 1.03;
 /** Finger this close to the top or bottom edge scrolls the list, up to this speed. */
 const AUTOSCROLL_EDGE = 70;
 const AUTOSCROLL_MAX_SPEED = 9;
-/** Rows mount in blocks around the viewport so long queues stay light. */
+/** Rows mount in blocks around the viewport so long queues stay light. Two blocks above, so a
+ * fling back up has rows ready too. */
 const WINDOW_BLOCK = 8;
-const BLOCKS_BEFORE = 1;
+const BLOCKS_BEFORE = 2;
 const BLOCKS_AFTER = 3;
 /** First paint mounts just a screenful, then the rest in small steps, never all in one frame. */
 const FIRST_PAINT_ROWS = 14;
@@ -88,127 +88,42 @@ type DragState = {
   /** Last row dragged: stays on top while it settles into its slot. */
   lastActiveId: SharedValue<string | null>;
   dragY: SharedValue<number>;
-  startY: SharedValue<number>;
-  startScroll: SharedValue<number>;
-  translation: SharedValue<number>;
-  scrollY: SharedValue<number>;
-  count: SharedValue<number>;
+  /** The row being swiped away, and how far. */
+  swipeId: SharedValue<string | null>;
+  swipeX: SharedValue<number>;
+  /** Rows swiped all the way out, held off-screen until the data drops them. */
+  removing: SharedValue<Record<string, true>>;
 };
 
+/**
+ * One row: a single animated view and nothing else. The gestures live once on the list, so
+ * mounting a row while the list scrolls costs no gesture handlers and no worklet callbacks.
+ */
 function SortableRowInner<T extends Sortable>({
   item,
   index,
   rowHeight,
   rowWidth,
-  draggable,
   isDragging,
   renderRow,
   drag,
-  syncDrag,
-  onLift,
-  onDrop,
-  onRemove,
 }: {
   item: T;
   index: number;
   rowHeight: number;
   rowWidth: number;
-  /** False for what's playing now: it can't be moved or removed. */
-  draggable: boolean;
   isDragging: boolean;
   renderRow: (item: T, isActive: boolean) => ReactNode;
   drag: DragState;
-  syncDrag: () => void;
-  onLift: (id: string) => void;
-  onDrop: (ids: string[]) => void;
-  onRemove: (id: string) => void;
 }) {
-  const { colors } = useTheme();
   const id = item.id;
-  const swipeX = useSharedValue(0);
-
-  // A song that starts playing mid-swipe can't be removed any more, so put its row back.
-  useEffect(() => {
-    if (!draggable) swipeX.set(0);
-  }, [draggable, swipeX]);
-
-  const pan = useMemo(
-    () =>
-      Gesture.Pan()
-        .enabled(draggable)
-        .activateAfterLongPress(LIFT_DELAY_MS)
-        .onStart(() => {
-          const y = (drag.positions.get()[id] ?? index) * rowHeight;
-          drag.startY.set(y);
-          drag.dragY.set(y);
-          drag.startScroll.set(drag.scrollY.get());
-          drag.translation.set(0);
-          drag.lastActiveId.set(id);
-          drag.activeId.set(id);
-          scheduleOnRN(onLift, id);
-        })
-        .onUpdate((e) => {
-          if (drag.activeId.get() !== id) return;
-          drag.translation.set(e.translationY);
-          syncDrag();
-        })
-        .onFinalize(() => {
-          if (drag.activeId.get() !== id) return;
-          const positions = drag.positions.get();
-          const ids = Object.keys(positions).sort((a, b) => positions[a] - positions[b]);
-          drag.activeId.set(null);
-          scheduleOnRN(onDrop, ids);
-        }),
-    [draggable, drag, id, index, onDrop, onLift, rowHeight, syncDrag]
-  );
-
-  // Holding still lifts the row (above); moving left before that swipes it away.
-  const gesture = useMemo(
-    () =>
-      Gesture.Race(
-        pan,
-        Gesture.Pan()
-          .enabled(draggable)
-          // A left swipe from the right edge is the system's back gesture, not a removal.
-          .hitSlop({ left: -EDGE_GUARD, right: -EDGE_GUARD })
-          .activeOffsetX(-SWIPE_ACTIVATE)
-          .failOffsetX(12)
-          .failOffsetY([-14, 14])
-          .onUpdate((e) => {
-            swipeX.set(Math.min(0, e.translationX));
-          })
-          .onEnd((e, success) => {
-            const distance = -e.translationX;
-            const speed = -e.velocityX;
-            const remove =
-              success &&
-              speed > -REMOVE_REVERSE_VELOCITY &&
-              (distance >= rowWidth * REMOVE_DISTANCE ||
-                (distance >= rowWidth * REMOVE_FLICK_DISTANCE && speed >= REMOVE_FLICK_VELOCITY));
-            if (remove) {
-              swipeX.set(
-                withTiming(-rowWidth, STATE, (finished) => {
-                  if (finished) scheduleOnRN(onRemove, id);
-                })
-              );
-            } else {
-              swipeX.set(withSpring(0, SPRING_PRESS));
-            }
-          })
-      ),
-    [draggable, id, onRemove, pan, rowWidth, swipeX]
-  );
-
   // Pull out only what the style reads. An animated style re-runs when any shared value in its
-  // closure changes, including those nested in an object: capturing `drag` whole would re-run
-  // this for every mounted row on every scroll event, because `drag` holds the scroll position.
-  const { positions, activeId, lastActiveId, dragY } = drag;
+  // closure changes, including those nested in an object.
+  const { positions, activeId, lastActiveId, dragY, swipeId, swipeX, removing } = drag;
   const slotY = useSharedValue((positions.get()[id] ?? index) * rowHeight);
   const lift = useSharedValue(1);
 
-  // Animations start only when this row's slot or lift actually changes. Starting them inside
-  // the style meant every row ran two animations each time it mounted (as the list scrolls)
-  // and on every frame of a drag, which kept the UI thread busy while scrolling.
+  // Animations start only when this row's slot or lift actually changes, never on mount.
   useAnimatedReaction(
     () => ({ slot: (positions.get()[id] ?? index) * rowHeight, active: activeId.get() === id }),
     (now, prev) => {
@@ -233,36 +148,20 @@ function SortableRowInner<T extends Sortable>({
 
   const rowStyle = useAnimatedStyle(() => {
     const active = activeId.get() === id;
+    const x = removing.get()[id] ? -rowWidth : swipeId.get() === id ? swipeX.get() : 0;
     return {
       zIndex: active || lastActiveId.get() === id ? 10 : 0,
-      transform: [{ translateY: active ? dragY.get() : slotY.get() }, { scale: lift.get() }],
+      transform: [
+        { translateY: active ? dragY.get() : slotY.get() },
+        { translateX: x },
+        { scale: lift.get() },
+      ],
     };
   });
 
-  const contentStyle = useAnimatedStyle(() => ({ transform: [{ translateX: swipeX.get() }] }));
-  // Waits just off-screen and is pulled in by the row's right edge. It can't sit behind the row,
-  // because rows are see-through, so it would show under the song's text.
-  const removeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: rowWidth + swipeX.get() }],
-  }));
-
   return (
     <Animated.View style={[styles.row, { height: rowHeight }, rowStyle]}>
-      {draggable && (
-        <Animated.View
-          pointerEvents='none'
-          style={[
-            styles.remove,
-            { width: rowWidth, backgroundColor: colors.destructive },
-            removeStyle,
-          ]}
-        >
-          <Trash2 size={20} color={colors.destructiveForeground} />
-        </Animated.View>
-      )}
-      <GestureDetector gesture={gesture}>
-        <Animated.View style={contentStyle}>{renderRow(item, isDragging)}</Animated.View>
-      </GestureDetector>
+      {renderRow(item, isDragging)}
     </Animated.View>
   );
 }
@@ -274,6 +173,10 @@ const SortableRow = memo(SortableRowInner) as typeof SortableRowInner;
  * (song id → index), so a drag never touches layout and a drop only has to tell the store the
  * new order. That is what keeps it steady: list libraries that re-lay rows out after a drop
  * briefly paint the new order with the old drag offset still applied.
+ *
+ * The lift and swipe gestures are attached once, to the list, and find their row from where the
+ * touch lands. With a detector per row, every block of rows mounted mid-scroll registered a
+ * dozen gesture handlers and their worklets, which is what made scrolling stall and fall behind.
  */
 function SortableQueueInner<T extends Sortable>({
   data,
@@ -298,6 +201,7 @@ function SortableQueueInner<T extends Sortable>({
   /** Receives the scroll offset on the UI thread. */
   scrollOffset?: SharedValue<number>;
 }) {
+  const { colors } = useTheme();
   const { width: rowWidth } = useWindowDimensions();
   const scrollRef = useAnimatedRef<any>() as AnimatedRef<any>;
   const positions = useSharedValue<Positions>(toPositions(data));
@@ -311,35 +215,50 @@ function SortableQueueInner<T extends Sortable>({
   const count = useSharedValue(data.length);
   const viewport = useSharedValue(0);
   const block = useSharedValue(0);
+  const swipeId = useSharedValue<string | null>(null);
+  const swipeX = useSharedValue(0);
+  const removing = useSharedValue<Record<string, true>>({});
+  /** Rows that can't be moved or removed (what's playing now). */
+  const locked = useSharedValue<Record<string, true>>({});
+  /** The row under the finger when the touch began. */
+  const touchId = useSharedValue<string | null>(null);
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [firstBlock, setFirstBlock] = useState(0);
   const [mountLimit, setMountLimit] = useState(FIRST_PAINT_ROWS);
 
-  const dataRef = useRef(data);
-  dataRef.current = data;
-  const dragging = useRef(false);
+  /** A row is lifted and the store hasn't been told its new order yet. */
+  const held = useSharedValue(false);
 
   const drag = useMemo<DragState>(
-    () => ({
-      positions,
-      activeId,
-      lastActiveId,
-      dragY,
-      startY,
-      startScroll,
-      translation,
-      scrollY,
-      count,
-    }),
-    [positions, activeId, lastActiveId, dragY, startY, startScroll, translation, scrollY, count]
+    () => ({ positions, activeId, lastActiveId, dragY, swipeId, swipeX, removing }),
+    [positions, activeId, lastActiveId, dragY, swipeId, swipeX, removing]
   );
 
   // Songs added or removed while nothing is being dragged: rows glide to their new places.
   useEffect(() => {
     count.set(data.length);
-    if (!dragging.current) positions.set(toPositions(data));
-  }, [data, count, positions]);
+    if (!held.get()) positions.set(toPositions(data));
+    // Forget swipes on rows that are gone, so a row put back (undo) comes back in place.
+    const present = new Set(data.map((item) => item.id));
+    const swiped = swipeId.get();
+    if (swiped !== null && !present.has(swiped)) {
+      swipeId.set(null);
+      swipeX.set(0);
+    }
+    const hidden = removing.get();
+    if (Object.keys(hidden).some((id) => !present.has(id))) {
+      const next: Record<string, true> = {};
+      for (const id of Object.keys(hidden)) if (present.has(id)) next[id] = true;
+      removing.set(next);
+    }
+  }, [data, count, held, positions, removing, swipeId, swipeX]);
+
+  useEffect(() => {
+    const next: Record<string, true> = {};
+    for (const item of data) if (!canDrag(item)) next[item.id] = true;
+    locked.set(next);
+  }, [data, canDrag, locked]);
 
   const fullWindowRows = (BLOCKS_AFTER + 1) * WINDOW_BLOCK;
   useEffect(() => {
@@ -384,24 +303,20 @@ function SortableQueueInner<T extends Sortable>({
     syncDrag();
   }, false);
 
-  // Mounting rows must never hold up a scroll, so it yields to anything more urgent.
-  const moveWindow = useCallback((next: number) => {
-    startTransition(() => setFirstBlock(next));
-  }, []);
-
+  // A normal update, not a transition: during a fling each new block would restart a pending
+  // transition before it committed, and the rows coming into view stayed blank.
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.set(e.contentOffset.y);
     scrollOffset?.set(e.contentOffset.y);
     const next = Math.floor(e.contentOffset.y / (rowHeight * WINDOW_BLOCK));
     if (next !== block.get()) {
       block.set(next);
-      scheduleOnRN(moveWindow, next);
+      scheduleOnRN(setFirstBlock, next);
     }
   });
 
   const onLift = useCallback(
     (id: string) => {
-      dragging.current = true;
       autoScroll.setActive(true);
       setDraggingId(id);
     },
@@ -410,11 +325,11 @@ function SortableQueueInner<T extends Sortable>({
 
   const onDrop = useCallback(
     (ids: string[]) => {
-      dragging.current = false;
+      held.set(false);
       autoScroll.setActive(false);
       setTimeout(() => setDraggingId(null), PRESS_LOCK_AFTER_DROP_MS);
 
-      const current = dataRef.current;
+      const current = data;
       const byId = new Map(current.map((item) => [item.id, item]));
       const ordered = ids.map((id) => byId.get(id)).filter((item): item is T => Boolean(item));
       // Songs that arrived mid-drag (auto recommendations) keep their place at the end.
@@ -424,8 +339,141 @@ function SortableQueueInner<T extends Sortable>({
       positions.set(toPositions(next));
       if (next.some((item, i) => item.id !== current[i]?.id)) onReorder(next);
     },
-    [autoScroll, onReorder, positions]
+    [autoScroll, data, held, onReorder, positions]
   );
+
+  /** The movable row at `y` (relative to the list's top), if there is one. */
+  const rowAt = useCallback(
+    (y: number) => {
+      'worklet';
+      const index = Math.floor((y + scrollY.get()) / rowHeight);
+      if (index < 0 || index >= count.get()) return null;
+      const map = positions.get();
+      for (const id of Object.keys(map)) {
+        if (map[id] === index) return locked.get()[id] || removing.get()[id] ? null : id;
+      }
+      return null;
+    },
+    [count, locked, positions, removing, rowHeight, scrollY]
+  );
+
+  // Holding still lifts the row; moving left before that swipes it away.
+  const rowGesture = useMemo(() => {
+    const lift = Gesture.Pan()
+      .activateAfterLongPress(LIFT_DELAY_MS)
+      .onTouchesDown((e, state) => {
+        const touch = e.allTouches[0];
+        const id = touch ? rowAt(touch.y) : null;
+        touchId.set(id);
+        if (id === null) state.fail();
+      })
+      .onStart(() => {
+        const id = touchId.get();
+        if (id === null) return;
+        const y = (positions.get()[id] ?? 0) * rowHeight;
+        startY.set(y);
+        dragY.set(y);
+        startScroll.set(scrollY.get());
+        translation.set(0);
+        lastActiveId.set(id);
+        activeId.set(id);
+        held.set(true);
+        scheduleOnRN(onLift, id);
+      })
+      .onUpdate((e) => {
+        if (activeId.get() === null) return;
+        translation.set(e.translationY);
+        syncDrag();
+      })
+      .onFinalize(() => {
+        if (activeId.get() === null) return;
+        const map = positions.get();
+        const ids = Object.keys(map).sort((a, b) => map[a] - map[b]);
+        activeId.set(null);
+        scheduleOnRN(onDrop, ids);
+      });
+
+    const swipe = Gesture.Pan()
+      // A left swipe from the right edge is the system's back gesture, not a removal.
+      .hitSlop({ left: -EDGE_GUARD, right: -EDGE_GUARD })
+      .activeOffsetX(-SWIPE_ACTIVATE)
+      .failOffsetX(12)
+      .failOffsetY([-14, 14])
+      .onTouchesDown((e, state) => {
+        const touch = e.allTouches[0];
+        if (!touch || rowAt(touch.y) === null) state.fail();
+      })
+      .onStart(() => {
+        swipeId.set(touchId.get());
+        swipeX.set(0);
+      })
+      .onUpdate((e) => {
+        const id = swipeId.get();
+        // A song that starts playing mid-swipe can't be removed any more, so its row stays put.
+        if (id === null || locked.get()[id]) {
+          swipeX.set(0);
+          return;
+        }
+        swipeX.set(Math.min(0, e.translationX));
+      })
+      .onEnd((e, success) => {
+        const id = swipeId.get();
+        if (id === null) return;
+        const distance = -e.translationX;
+        const speed = -e.velocityX;
+        const remove =
+          success &&
+          !locked.get()[id] &&
+          speed > -REMOVE_REVERSE_VELOCITY &&
+          (distance >= rowWidth * REMOVE_DISTANCE ||
+            (distance >= rowWidth * REMOVE_FLICK_DISTANCE && speed >= REMOVE_FLICK_VELOCITY));
+        if (remove) {
+          swipeX.set(
+            withTiming(-rowWidth, STATE, (finished) => {
+              if (!finished) return;
+              removing.set({ ...removing.get(), [id]: true });
+              scheduleOnRN(onRemove, id);
+            })
+          );
+        } else {
+          swipeX.set(withSpring(0, SPRING_PRESS));
+        }
+      });
+
+    return Gesture.Race(lift, swipe);
+  }, [
+    activeId,
+    dragY,
+    held,
+    lastActiveId,
+    locked,
+    onDrop,
+    onLift,
+    onRemove,
+    positions,
+    removing,
+    rowAt,
+    rowHeight,
+    rowWidth,
+    scrollY,
+    startScroll,
+    startY,
+    swipeId,
+    swipeX,
+    syncDrag,
+    touchId,
+    translation,
+  ]);
+
+  // Waits just off-screen and is pulled in by the swiped row's right edge. It can't sit behind
+  // the row, because rows are see-through, so it would show under the song's text.
+  const removeStyle = useAnimatedStyle(() => {
+    const id = swipeId.get();
+    const slot = id === null ? 0 : (positions.get()[id] ?? 0);
+    return {
+      transform: [{ translateY: slot * rowHeight }, { translateX: rowWidth + swipeX.get() }],
+    };
+  });
 
   const onLayout = useCallback(
     (e: LayoutChangeEvent) => viewport.set(e.nativeEvent.layout.height),
@@ -450,33 +498,42 @@ function SortableQueueInner<T extends Sortable>({
   }, [pullGesture]);
 
   const list = (
-    <GestureDetector gesture={scrollGesture}>
-      <Animated.ScrollView
-        ref={scrollRef}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        onLayout={onLayout}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ height: data.length * rowHeight + bottomPadding }}
-      >
-        {rows.map(({ item, index }) => (
-          <SortableRow
-            key={item.id}
-            item={item}
-            index={index}
-            rowHeight={rowHeight}
-            rowWidth={rowWidth}
-            draggable={canDrag(item)}
-            isDragging={item.id === draggingId}
-            renderRow={renderRow}
-            drag={drag}
-            syncDrag={syncDrag}
-            onLift={onLift}
-            onDrop={onDrop}
-            onRemove={onRemove}
-          />
-        ))}
-      </Animated.ScrollView>
+    <GestureDetector gesture={rowGesture}>
+      <View style={styles.fill} collapsable={false}>
+        <GestureDetector gesture={scrollGesture}>
+          <Animated.ScrollView
+            ref={scrollRef}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            onLayout={onLayout}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ height: data.length * rowHeight + bottomPadding }}
+          >
+            <Animated.View
+              pointerEvents='none'
+              style={[
+                styles.remove,
+                { width: rowWidth, height: rowHeight - 4, backgroundColor: colors.destructive },
+                removeStyle,
+              ]}
+            >
+              <Trash2 size={20} color={colors.destructiveForeground} />
+            </Animated.View>
+            {rows.map(({ item, index }) => (
+              <SortableRow
+                key={item.id}
+                item={item}
+                index={index}
+                rowHeight={rowHeight}
+                rowWidth={rowWidth}
+                isDragging={item.id === draggingId}
+                renderRow={renderRow}
+                drag={drag}
+              />
+            ))}
+          </Animated.ScrollView>
+        </GestureDetector>
+      </View>
     </GestureDetector>
   );
 
@@ -498,7 +555,6 @@ const styles = StyleSheet.create({
   remove: {
     position: 'absolute',
     top: 2,
-    bottom: 2,
     left: 0,
     borderRadius: 12,
     paddingLeft: 22,
