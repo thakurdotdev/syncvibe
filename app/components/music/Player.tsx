@@ -3,6 +3,7 @@ import { EASE_OUT, project } from '@/lib/motion';
 import { SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { useTheme } from '@/context/ThemeContext';
 import {
+  setFullPlayerOpen,
   setOnOpenFullPlayer,
   useCurrentSong,
   useQueueCount,
@@ -112,6 +113,8 @@ export default function Player() {
     setOnOpenFullPlayer(openPlayer);
     return () => setOnOpenFullPlayer(null);
   }, [openPlayer]);
+
+  useEffect(() => setFullPlayerOpen(isOpen), [isOpen]);
 
   const handleClosed = useCallback(() => {
     setIsOpen(false);

@@ -17,6 +17,7 @@ import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture
 import Animated, {
   clamp,
   scrollTo,
+  useAnimatedReaction,
   useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -202,18 +203,39 @@ function SortableRowInner<T extends Sortable>({
   // closure changes, including those nested in an object: capturing `drag` whole would re-run
   // this for every mounted row on every scroll event, because `drag` holds the scroll position.
   const { positions, activeId, lastActiveId, dragY } = drag;
+  const slotY = useSharedValue((positions.get()[id] ?? index) * rowHeight);
+  const lift = useSharedValue(1);
+
+  // Animations start only when this row's slot or lift actually changes. Starting them inside
+  // the style meant every row ran two animations each time it mounted (as the list scrolls)
+  // and on every frame of a drag, which kept the UI thread busy while scrolling.
+  useAnimatedReaction(
+    () => ({ slot: (positions.get()[id] ?? index) * rowHeight, active: activeId.get() === id }),
+    (now, prev) => {
+      if (prev === null) {
+        slotY.set(now.slot);
+        return;
+      }
+      if (now.active !== prev.active) {
+        lift.set(withTiming(now.active ? LIFT_SCALE : 1, PRESS_IN));
+        if (!now.active) {
+          // Dropped: glide from under the finger to its slot. The drop changes no layout, so
+          // React committing the new order can't move anything on screen.
+          slotY.set(dragY.get());
+          slotY.set(withTiming(now.slot, STATE));
+          return;
+        }
+      }
+      if (!now.active && now.slot !== prev.slot) slotY.set(withTiming(now.slot, STATE));
+    },
+    [id, index, rowHeight]
+  );
+
   const rowStyle = useAnimatedStyle(() => {
     const active = activeId.get() === id;
-    const onTop = active || lastActiveId.get() === id;
-    const slot = (positions.get()[id] ?? index) * rowHeight;
     return {
-      zIndex: onTop ? 10 : 0,
-      transform: [
-        // Every row, including the dropped one, just glides to its slot. The drop changes
-        // no layout, so React committing the new order can't move anything on screen.
-        { translateY: active ? dragY.get() : withTiming(slot, STATE) },
-        { scale: withTiming(active ? LIFT_SCALE : 1, PRESS_IN) },
-      ],
+      zIndex: active || lastActiveId.get() === id ? 10 : 0,
+      transform: [{ translateY: active ? dragY.get() : slotY.get() }, { scale: lift.get() }],
     };
   });
 
