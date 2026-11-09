@@ -54,6 +54,14 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
     leaveGroup,
     isRejoining,
     connectionQuality,
+    syncStatus,
+    outputOffsetMs,
+    setOutputOffset,
+    isHost,
+    canControl,
+    controlMode,
+    setControlMode,
+    transferHost,
     messages,
     sendMessage,
     sendMessageReaction,
@@ -85,6 +93,7 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
       isPlaying,
       isSyncing,
       isBusy: isLoading || isSyncing,
+      isLocked: !canControl,
       syncCountdown,
       currentTime,
       duration,
@@ -96,6 +105,7 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
       isPlaying,
       isSyncing,
       isLoading,
+      canControl,
       syncCountdown,
       currentTime,
       duration,
@@ -118,8 +128,8 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
   );
 
   const togglePlayFromKeyboard = useCallback(() => {
-    if (currentSong && !playback.isBusy) handlePlayPause();
-  }, [currentSong, playback.isBusy, handlePlayPause]);
+    if (currentSong && !playback.isBusy && !playback.isLocked) handlePlayPause();
+  }, [currentSong, playback.isBusy, playback.isLocked, handlePlayPause]);
 
   useRoomShortcuts({ onTogglePlay: togglePlayFromKeyboard, onFocusChat: requestChatFocus });
 
@@ -144,6 +154,7 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
       hostId={currentGroup?.createdBy}
       maxMembers={maxMembers}
       onInvite={onInvite}
+      onMakeHost={isHost ? transferHost : undefined}
     />
   );
 
@@ -170,7 +181,13 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
         group={currentGroup}
         members={groupMembers}
         connectionQuality={connectionQuality}
+        syncStatus={currentSong && isPlaying ? syncStatus : 'synced'}
         isReconnecting={isRejoining}
+        isHost={isHost}
+        controlMode={controlMode}
+        onSetControlMode={setControlMode}
+        outputOffsetMs={outputOffsetMs}
+        onSetOutputOffset={setOutputOffset}
         onShowPeople={showPeople}
         onInvite={onInvite}
         onShowQrCode={onShowQrCode}

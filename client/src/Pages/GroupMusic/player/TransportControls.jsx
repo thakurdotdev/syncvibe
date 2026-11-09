@@ -10,11 +10,11 @@ const SIZES = {
   sm: { secondary: 'h-8 w-8', primary: 'h-9 w-9', icon: 'h-3.5 w-3.5', primaryIcon: 'h-4 w-4' },
 };
 
-const ControlButton = ({ label, onClick, disabled, className, children }) => (
+const ControlButton = ({ label, title, onClick, disabled, className, children }) => (
   <motion.button
     type='button'
     aria-label={label}
-    title={label}
+    title={title || label}
     onClick={onClick}
     disabled={disabled}
     whileTap={disabled ? undefined : TAP}
@@ -30,6 +30,7 @@ const ControlButton = ({ label, onClick, disabled, className, children }) => (
 const TransportControls = ({
   isPlaying,
   isBusy,
+  isLocked = false,
   onRestart,
   onPlayPause,
   onSkip,
@@ -37,6 +38,8 @@ const TransportControls = ({
   size = 'md',
 }) => {
   const s = SIZES[size];
+  const disabled = isBusy || isLocked;
+  const lockedHint = isLocked ? 'Only the host can control playback' : null;
 
   return (
     <div className='flex items-center gap-1.5'>
@@ -44,7 +47,8 @@ const TransportControls = ({
         <ControlButton
           label='Restart song'
           onClick={onRestart}
-          disabled={isBusy}
+          title={lockedHint}
+          disabled={disabled}
           className={cn(
             s.secondary,
             'text-muted-foreground hover:bg-foreground/5 hover:text-foreground'
@@ -56,7 +60,8 @@ const TransportControls = ({
       <ControlButton
         label={isPlaying ? 'Pause' : 'Play'}
         onClick={onPlayPause}
-        disabled={isBusy}
+        title={lockedHint}
+        disabled={disabled}
         className={cn(s.primary, 'bg-foreground text-background shadow-md hover:scale-[1.04]')}
       >
         {isBusy ? (
@@ -70,7 +75,8 @@ const TransportControls = ({
       <ControlButton
         label='Skip song'
         onClick={onSkip}
-        disabled={isBusy}
+        title={lockedHint}
+        disabled={disabled}
         className={cn(
           s.secondary,
           'text-muted-foreground hover:bg-foreground/5 hover:text-foreground'

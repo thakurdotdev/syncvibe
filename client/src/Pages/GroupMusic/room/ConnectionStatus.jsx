@@ -8,8 +8,8 @@ const QUALITY = {
   poor: { bars: 1, label: 'Poor connection', color: 'bg-destructive' },
 };
 
-/** "Live" pill + signal bars, or a reconnecting state. */
-const ConnectionStatus = ({ quality = 'good', isReconnecting }) => {
+/** "Live" pill + signal bars, or a reconnecting / catching-up state. */
+const ConnectionStatus = ({ quality = 'good', syncStatus = 'synced', isReconnecting }) => {
   if (isReconnecting) {
     return (
       <span className='inline-flex items-center gap-1.5 text-[11px] font-medium text-warning'>
@@ -20,6 +20,19 @@ const ConnectionStatus = ({ quality = 'good', isReconnecting }) => {
   }
 
   const meta = QUALITY[quality] || QUALITY.good;
+
+  // Small corrections can't be heard, so only a real gap is worth showing.
+  if (syncStatus === 'catching-up') {
+    return (
+      <span
+        className='inline-flex items-center gap-1.5 text-[11px] font-medium text-warning'
+        title='Getting back in step with the room'
+      >
+        <RefreshCw className='h-3 w-3 animate-spin' />
+        Catching up
+      </span>
+    );
+  }
 
   return (
     <span className='inline-flex items-center gap-2' title={meta.label}>

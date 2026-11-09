@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { toast } from 'sonner';
 import { getDeviceId } from './deviceId';
+import { ROOM_PROTOCOL } from './roomProtocol';
 
 export const useGroupInviteStore = create((set, get) => ({
   pendingInvite: null,
@@ -15,6 +16,7 @@ export const useGroupInviteStore = create((set, get) => ({
       profilePic: user.profilepic,
       inviterId: invite.inviterId,
       deviceId: getDeviceId(),
+      protocol: ROOM_PROTOCOL,
     });
     set({ pendingInvite: null });
     navigate('/rooms');

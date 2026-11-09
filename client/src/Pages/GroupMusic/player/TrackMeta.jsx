@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Radio } from 'lucide-react';
+import { Lock, Radio } from 'lucide-react';
 import { memo } from 'react';
 import { getArtistName, getInitial } from '../utils/song';
 
@@ -32,6 +32,7 @@ const TrackMeta = ({
   addedBy,
   isSyncing,
   syncCountdown,
+  isLocked = false,
   size = 'lg',
   showEyebrow = false,
 }) => {
@@ -46,6 +47,12 @@ const TrackMeta = ({
             Now playing
           </span>
           {isSyncing && <SyncBadge countdown={syncCountdown} />}
+          {isLocked && !isSyncing && (
+            <span className='inline-flex items-center gap-1 rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[11px] font-medium text-muted-foreground'>
+              <Lock className='h-3 w-3' />
+              Host controls
+            </span>
+          )}
         </div>
       )}
       <AnimatePresence mode='wait' initial={false}>

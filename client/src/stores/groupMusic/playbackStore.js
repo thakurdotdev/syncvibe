@@ -1,492 +1,453 @@
 import { toast } from 'sonner';
 import { create } from 'zustand';
+import { clockQuality, resetClock, serverNow } from './roomClock';
+import { sendRoomCommand } from './roomProtocol';
+import { DRIFT_CHECK_MS, planCorrection, roomPositionS, syncStatusOf } from './roomSync';
+
+/*
+ * Playing the room's song in step with everyone else.
+ *
+ * The server keeps one timeline: a position at a moment of its clock. This tab knows that clock
+ * (see roomClock), so at any instant it can work out where the song should be without asking.
+ *  - A change from the room (new song, play, pause, seek) is applied the moment it arrives. Starts
+ *    are scheduled slightly ahead, so every device begins at the same instant.
+ *  - Once a second the tab compares its audio with the timeline. A small gap closes by playing up
+ *    to 5% fast or slow, which doesn't interrupt the sound; a large one takes a seek.
+ * The tab never tells other devices where the song is. It only asks the server for changes.
+ */
+
+const OFFSET_KEY = 'syncvibe_room_audio_offset';
+export const MAX_OUTPUT_OFFSET_MS = 500;
+/** After pausing or seeking here, leave the audio alone until the room has caught up with it. */
+const LOCAL_ACTION_HOLD_MS = 1500;
+const SEEK_DEBOUNCE_MS = 150;
+/**
+ * A seek that doesn't settle things (the audio there still has to download) waits longer before
+ * the next, so a slow connection can't seek in a loop.
+ */
+const SEEK_GAP_MIN_MS = 4000;
+const SEEK_GAP_MAX_MS = 30000;
+/** A paused or just-resumed player lines up exactly; a playing one is left to the drift check. */
+const ALIGN_TOLERANCE_S = 0.05;
 
 let audioElement = null;
-let syncTimerRef = null;
-let lastPlaybackActionAt = 0;
-
-const TIME_SYNC_WINDOW_SIZE = 5;
-const timeSyncSamples = [];
-let preloadedAudios = new Map();
+/** The room's playback as last told: { rev, item, playing, positionMs, anchorAt }. */
+let room = null;
+let transport = { socket: null, groupId: null };
+let loadedItemId = null;
+let startTimer = null;
+let driftTimer = null;
 let seekDebounceTimer = null;
+let holdUntil = 0;
+let seekNotBefore = 0;
+let seekGapMs = SEEK_GAP_MIN_MS;
+const preloadedAudios = new Map();
 
-const computeMedianOffset = () => {
-  if (timeSyncSamples.length === 0) return 0;
-  if (timeSyncSamples.length === 1) return timeSyncSamples[0].offset;
-
-  const rtts = timeSyncSamples.map((s) => s.rtt).sort((a, b) => a - b);
-  const medianRTT = rtts[Math.floor(rtts.length / 2)];
-  const threshold = medianRTT * 2.5;
-
-  const filtered = timeSyncSamples.filter((s) => s.rtt <= threshold);
-  if (filtered.length === 0) return timeSyncSamples[timeSyncSamples.length - 1].offset;
-
-  const offsets = filtered.map((s) => s.offset).sort((a, b) => a - b);
-  return offsets[Math.floor(offsets.length / 2)];
-};
-
-const addTimeSyncSample = (clientSendTime, serverTime, clientReceiveTime) => {
-  const rtt = clientReceiveTime - clientSendTime;
-  const offset = serverTime + rtt / 2 - clientReceiveTime;
-
-  timeSyncSamples.push({ rtt, offset, timestamp: clientReceiveTime });
-  if (timeSyncSamples.length > TIME_SYNC_WINDOW_SIZE) {
-    timeSyncSamples.shift();
+const readOutputOffset = () => {
+  try {
+    const stored = Number(localStorage.getItem(OFFSET_KEY));
+    return Number.isFinite(stored) ? stored : 0;
+  } catch {
+    return 0;
   }
-
-  return computeMedianOffset();
 };
 
-const getConnectionQuality = () => {
-  if (timeSyncSamples.length === 0) return 'good';
-  const rtts = timeSyncSamples.map((s) => s.rtt).sort((a, b) => a - b);
-  const medianRTT = rtts[Math.floor(rtts.length / 2)];
-  if (medianRTT < 100) return 'good';
-  if (medianRTT < 300) return 'fair';
-  return 'poor';
-};
-
-const getHighQualityUrl = (song) =>
-  song?.download_url?.find((u) => u.quality === '320kbps')?.link || song?.download_url?.[3]?.link;
+const getSongUrl = (song) =>
+  song?.download_url?.find((u) => u.quality === '320kbps')?.link ||
+  song?.download_url?.[3]?.link ||
+  song?.download_url?.at?.(-1)?.link;
 
 const preloadSong = (song) => {
   if (!song) return;
-  const url = getHighQualityUrl(song);
+  const url = getSongUrl(song);
   if (!url || preloadedAudios.has(song.id)) return;
 
+  // Fetching it once puts it in the browser's cache, which the real player then reads from.
   const audio = new Audio();
   audio.preload = 'auto';
   audio.src = url;
 
   if (preloadedAudios.size >= 2) {
     const oldest = preloadedAudios.keys().next().value;
-    const oldAudio = preloadedAudios.get(oldest);
-    oldAudio.src = '';
+    preloadedAudios.get(oldest).src = '';
     preloadedAudios.delete(oldest);
   }
-
   preloadedAudios.set(song.id, audio);
 };
 
-export const useGroupPlaybackStore = create((set, get) => ({
-  isPlaying: false,
-  currentTime: 0,
-  duration: 0,
-  currentSong: null,
-  volume: 1,
-  isLoading: false,
-  isSyncing: false,
-  syncCountdown: 0,
-  serverTimeOffset: 0,
-  lastSync: 0,
-  connectionQuality: 'good',
+const clearStart = () => {
+  if (startTimer) clearTimeout(startTimer);
+  startTimer = null;
+};
 
-  setAudioRef: (el) => {
-    audioElement = el;
-  },
+const stopDriftChecks = () => {
+  if (driftTimer) clearInterval(driftTimer);
+  driftTimer = null;
+};
 
-  getAudioElement: () => audioElement,
+export const useGroupPlaybackStore = create((set, get) => {
+  /** Where this tab's audio should be right now, in seconds. */
+  const targetNow = () => roomPositionS(room, serverNow()) + get().outputOffsetMs / 1000;
 
-  getServerTime: () => Date.now() + get().serverTimeOffset,
+  const setRate = (rate) => {
+    if (audioElement && audioElement.playbackRate !== rate) audioElement.playbackRate = rate;
+  };
 
-  processTimeSyncResponse: (clientSendTime, serverTime) => {
-    const clientReceiveTime = Date.now();
-    const offset = addTimeSyncSample(clientSendTime, serverTime, clientReceiveTime);
-    set({
-      serverTimeOffset: offset,
-      lastSync: clientReceiveTime,
-      connectionQuality: getConnectionQuality(),
-    });
-    return offset;
-  },
+  const setStatus = (syncStatus) => {
+    if (get().syncStatus !== syncStatus) set({ syncStatus });
+  };
 
-  formatTime: (seconds) => {
-    if (!seconds) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  },
+  const playAudio = () => {
+    if (!audioElement?.paused) return;
+    audioElement.play().then(
+      () => {
+        if (get().needsGesture) set({ needsGesture: false });
+      },
+      (err) => {
+        // Browsers only let a page start sound after a click or key press on it, which a reload
+        // that rejoins a room hasn't had.
+        if (err?.name === 'NotAllowedError') set({ needsGesture: true });
+      }
+    );
+  };
 
-  preloadUpcoming: (queue, currentQueueIndex) => {
-    const next1 = queue[currentQueueIndex + 1]?.song;
-    const next2 = queue[currentQueueIndex + 2]?.song;
-    if (next1) preloadSong(next1);
-    if (next2) preloadSong(next2);
-  },
+  const checkDrift = () => {
+    if (!audioElement || !room?.playing || !room.item || startTimer) return;
+    if (get().needsGesture || Date.now() < holdUntil || audioElement.ended) return;
 
-  loadAudio: async (url, queueItemId, socket, groupId) => {
-    try {
-      set({ isLoading: true });
-      if (!audioElement) return;
-
-      audioElement.onended = null;
-      audioElement.ontimeupdate = null;
-      audioElement.onloadedmetadata = null;
-
-      audioElement.src = url;
-      await audioElement.load();
-
-      audioElement.onloadedmetadata = () => {
-        set({ currentTime: 0, duration: audioElement.duration, isLoading: false });
-      };
-
-      audioElement.ontimeupdate = () => {
-        set({ currentTime: audioElement.currentTime });
-      };
-
-      audioElement.onended = () => {
-        if (audioElement.currentTime < 1) return;
-        set({ isPlaying: false });
-        if (groupId && socket) {
-          socket.emit('song-ended', { groupId, songId: queueItemId });
-        }
-      };
-
-      audioElement.volume = get().volume;
-    } catch (error) {
-      console.error('Error loading audio:', error);
-      toast.error('Failed to load audio');
-      set({ isLoading: false });
+    // Something other than the room stopped it (the browser, a headset button): pick it back up.
+    if (audioElement.paused) {
+      audioElement.currentTime = targetNow();
+      playAudio();
+      return;
     }
-  },
+    // Buffering. Its position means nothing until sound is coming out again.
+    if (audioElement.seeking || audioElement.readyState < 3) {
+      setRate(1);
+      setStatus('catching-up');
+      return;
+    }
 
-  handlePlayPause: async (socket, groupId, forceState) => {
-    const { isPlaying } = get();
-    if (!audioElement || !socket || !groupId) return;
+    const expected = targetNow();
+    const duration = audioElement.duration || 0;
+    if (duration && expected >= duration - 0.5) {
+      setRate(1);
+      return;
+    }
 
-    const newIsPlaying = typeof forceState === 'boolean' ? forceState : !isPlaying;
-    const currentAudioTime = audioElement.currentTime || 0;
+    const drift = expected - audioElement.currentTime;
+    const plan = planCorrection(drift, { canSeek: Date.now() >= seekNotBefore });
+    if (plan.type === 'seek') {
+      seekNotBefore = Date.now() + seekGapMs;
+      seekGapMs = Math.min(seekGapMs * 2, SEEK_GAP_MAX_MS);
+      audioElement.currentTime = expected;
+    } else if (plan.type === 'hold') {
+      seekGapMs = SEEK_GAP_MIN_MS;
+    }
+    setRate(plan.rate);
+    setStatus(syncStatusOf(drift));
+  };
 
-    socket.emit('music-playback', {
-      groupId,
-      isPlaying: newIsPlaying,
-      currentTime: currentAudioTime,
-    });
-  },
+  const startDriftChecks = () => {
+    if (!driftTimer) driftTimer = setInterval(checkDrift, DRIFT_CHECK_MS);
+  };
 
-  handleSeek: (socket, groupId, value) => {
-    if (!audioElement || !socket || !groupId) return;
-    const { isPlaying } = get();
-    const newTime = value[0];
+  /** Joins the timeline where it is now. */
+  const startAudio = (forceSeek) => {
+    if (!audioElement || !room?.playing) return;
+    const target = targetNow();
+    const off = Math.abs(audioElement.currentTime - target);
+    if (forceSeek || (audioElement.paused && off > ALIGN_TOLERANCE_S)) {
+      audioElement.currentTime = target;
+    }
+    playAudio();
+    startDriftChecks();
+  };
 
-    audioElement.currentTime = newTime;
-    set({ currentTime: newTime });
+  /** Makes the audio match what the room says. Safe to call at any time. */
+  const align = (kind) => {
+    clearStart();
+    if (!audioElement || !room?.item) return;
+    holdUntil = 0;
+    setRate(1);
 
-    if (seekDebounceTimer) clearTimeout(seekDebounceTimer);
-    seekDebounceTimer = setTimeout(() => {
-      socket.emit('music-seek', {
-        groupId,
-        currentTime: newTime,
-        isPlaying,
-      });
-      seekDebounceTimer = null;
-    }, 150);
-  },
+    if (!room.playing) {
+      stopDriftChecks();
+      if (!audioElement.paused) audioElement.pause();
+      const target = room.positionMs / 1000;
+      if (Math.abs(audioElement.currentTime - target) > ALIGN_TOLERANCE_S) {
+        audioElement.currentTime = target;
+      }
+      set({ isPlaying: false, isSyncing: false, currentTime: target, syncStatus: 'synced' });
+      return;
+    }
 
-  handleVolumeChange: (value) => {
-    const newVolume = value[0];
-    set({ volume: newVolume });
-    if (audioElement) audioElement.volume = newVolume;
-  },
+    set({ isPlaying: true });
+    seekGapMs = SEEK_GAP_MIN_MS;
+    seekNotBefore = 0;
 
-  updateMediaSession: (song, playPauseFn, skipFn) => {
-    if (!('mediaSession' in navigator)) return;
+    // A start lined up for a moment from now: wait at the starting point, then go with everyone.
+    const wait = room.anchorAt - serverNow();
+    if (wait > 20) {
+      if (!audioElement.paused) audioElement.pause();
+      audioElement.currentTime = room.positionMs / 1000;
+      if (kind === 'track') set({ isSyncing: true });
+      startTimer = setTimeout(() => {
+        startTimer = null;
+        set({ isSyncing: false });
+        startAudio(false);
+      }, wait);
+      return;
+    }
 
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: song.name,
-      artist: song?.artist_map?.artists
-        ?.slice(0, 3)
-        ?.map((a) => a.name)
-        .join(', '),
-      album: song?.album,
-      artwork: song.image?.[2]?.link
-        ? [{ src: song.image[2].link, sizes: '500x500', type: 'image/jpeg' }]
-        : [],
-    });
+    set({ isSyncing: false });
+    startAudio(kind === 'seek');
+  };
 
-    navigator.mediaSession.setActionHandler('play', () => playPauseFn(true));
-    navigator.mediaSession.setActionHandler('pause', () => playPauseFn(false));
-    navigator.mediaSession.setActionHandler('nexttrack', skipFn);
+  const loadItem = (item) => {
+    const url = getSongUrl(item.song);
+    loadedItemId = item.id;
+    if (!audioElement) return;
 
-    document.title = `${song.name} - SyncVibe`;
-  },
+    audioElement.onloadedmetadata = () => {
+      set({ duration: audioElement.duration, isLoading: false });
+    };
+    audioElement.oncanplay = () => {
+      if (get().isLoading) set({ isLoading: false });
+    };
+    audioElement.ontimeupdate = () => {
+      set({ currentTime: audioElement.currentTime });
+    };
+    audioElement.onerror = () => {
+      if (loadedItemId !== item.id) return;
+      set({ isLoading: false });
+      toast.error('Failed to load audio');
+    };
+    audioElement.onended = () => {
+      // The room moves on by itself; this just lets it do so the moment the sound stops.
+      if (audioElement.currentTime < 1) return;
+      sendRoomCommand(transport.socket, transport.groupId, 'ended', { itemId: item.id });
+    };
 
-  handleSyncState: async (data, socket, groupId) => {
-    const { playbackState, queue: serverQueue, currentQueueIndex: serverQueueIndex } = data;
-    if (!playbackState) return;
-    if (get().isSyncing) return;
+    preloadedAudios.delete(item.song?.id);
+    set({ isLoading: true, currentTime: 0, duration: Number(item.song?.duration) || 0 });
+    if (!url) {
+      set({ isLoading: false });
+      toast.error('This song has no audio to play');
+      return;
+    }
+    audioElement.src = url;
+    audioElement.load();
+    audioElement.volume = get().volume;
+  };
 
-    const recentAction = Date.now() - lastPlaybackActionAt < 4000;
-    if (recentAction) return;
+  const unloadAudio = () => {
+    loadedItemId = null;
+    if (!audioElement) return;
+    audioElement.pause();
+    audioElement.playbackRate = 1;
+    audioElement.removeAttribute('src');
+    audioElement.load();
+  };
 
-    const serverTrack = playbackState.currentTrack;
-    const currentItem = serverQueueIndex >= 0 && serverQueue ? serverQueue[serverQueueIndex] : null;
+  return {
+    isPlaying: false,
+    currentTime: 0,
+    duration: 0,
+    currentSong: null,
+    volume: 1,
+    isLoading: false,
+    isSyncing: false,
+    syncCountdown: 0,
+    lastSync: 0,
+    connectionQuality: 'good',
+    /** How closely this tab is following the room: 'synced', 'adjusting' or 'catching-up'. */
+    syncStatus: 'synced',
+    /** The browser is waiting for a click before it will play sound. */
+    needsGesture: false,
+    /**
+     * Plays this much ahead of the room (negative: behind), to make up for speakers that add
+     * their own delay, such as Bluetooth ones. Kept per browser.
+     */
+    outputOffsetMs: readOutputOffset(),
 
-    if (!serverTrack) {
-      if (audioElement && !audioElement.paused) {
+    setAudioRef: (el) => {
+      audioElement = el;
+    },
+
+    /** Where to send what this tab's player reports, such as a song ending. */
+    setTransport: (socket, groupId) => {
+      transport = { socket, groupId };
+    },
+
+    formatTime: (seconds) => {
+      if (!seconds) return '0:00';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    },
+
+    preloadUpcoming: (upcoming = []) => {
+      upcoming.slice(0, 2).forEach((item) => preloadSong(item?.song));
+    },
+
+    getPlaybackRev: () => room?.rev ?? 0,
+
+    /**
+     * The room's playback changed (or this tab is joining it). Each one replaces what was known,
+     * so an older message arriving late is dropped rather than applied over a newer one.
+     */
+    applyPlayback: (part, kind, { force = false } = {}) => {
+      if (!part || typeof part.rev !== 'number') return false;
+      if (!force && room && part.rev <= room.rev) return false;
+      room = {
+        rev: part.rev,
+        item: part.item || null,
+        playing: Boolean(part.playing),
+        positionMs: part.positionMs || 0,
+        anchorAt: part.anchorAt || 0,
+      };
+
+      if (!room.item) {
+        clearStart();
+        stopDriftChecks();
+        unloadAudio();
+        set({
+          currentSong: null,
+          isPlaying: false,
+          isLoading: false,
+          isSyncing: false,
+          currentTime: 0,
+          duration: 0,
+          syncStatus: 'synced',
+        });
+        return true;
+      }
+
+      if (room.item.id !== loadedItemId) loadItem(room.item);
+      if (get().currentSong?.id !== room.item.song?.id) set({ currentSong: room.item.song });
+      align(kind);
+      return true;
+    },
+
+    /** A ping came back: the clock may have moved, so the connection readout is refreshed. */
+    noteClockUpdate: () => {
+      const connectionQuality = clockQuality();
+      if (get().connectionQuality !== connectionQuality) set({ connectionQuality });
+    },
+
+    /** Call from a click, once the browser has refused to start sound on its own. */
+    resumeAudio: () => {
+      set({ needsGesture: false });
+      if (room?.playing) startAudio(true);
+    },
+
+    handlePlayPause: async (socket, groupId, forceState) => {
+      if (!audioElement || !groupId || !room?.item) return;
+      const play = typeof forceState === 'boolean' ? forceState : !get().isPlaying;
+
+      if (play && get().needsGesture) set({ needsGesture: false });
+      // A pause is felt at once; the room's answer then settles the exact spot for everyone.
+      if (!play) {
+        clearStart();
+        holdUntil = Date.now() + LOCAL_ACTION_HOLD_MS;
         audioElement.pause();
         set({ isPlaying: false });
       }
-      set({ currentSong: null });
-      return;
-    }
 
-    const { currentSong } = get();
-    if (!currentSong || currentSong.id !== serverTrack.id) {
-      set({ currentSong: serverTrack });
-      const url = getHighQualityUrl(serverTrack);
-      if (url && audioElement) {
-        await get().loadAudio(url, currentItem?.id, socket, groupId);
+      const result = await sendRoomCommand(socket, groupId, play ? 'play' : 'pause');
+      if (!result.ok) {
+        toast.error(result.error);
+        align();
       }
-    }
+    },
 
-    if (serverQueue) {
-      get().preloadUpcoming(serverQueue, serverQueueIndex);
-    }
+    handleSeek: (socket, groupId, value) => {
+      if (!audioElement || !groupId || !room?.item) return;
+      const newTime = Array.isArray(value) ? value[0] : value;
 
-    if (!audioElement) return;
+      holdUntil = Date.now() + LOCAL_ACTION_HOLD_MS;
+      audioElement.currentTime = newTime;
+      set({ currentTime: newTime });
 
-    const serverNow = playbackState.serverTime || Date.now() + get().serverTimeOffset;
-    const clientNow = Date.now() + get().serverTimeOffset;
-    const timeSinceUpdate = Math.max(
-      0,
-      (clientNow - (playbackState.lastUpdate || serverNow)) / 1000
-    );
-    const expectedTime =
-      playbackState.currentTime + (playbackState.isPlaying ? timeSinceUpdate : 0);
-    const drift = expectedTime - audioElement.currentTime;
-    const size = Math.abs(drift);
-
-    // Same approach as the app, so a browser and a phone end up together: seek for a big gap, and
-    // close a small one by playing slightly fast or slow, which doesn't interrupt the sound.
-    if (size > 1.0 && expectedTime <= (audioElement.duration || Infinity)) {
-      audioElement.playbackRate = 1;
-      audioElement.currentTime = expectedTime;
-    } else if (size <= 0.04 || !playbackState.isPlaying) {
-      audioElement.playbackRate = 1;
-    } else {
-      audioElement.playbackRate = 1 + Math.max(-0.05, Math.min(0.05, drift / 10));
-    }
-
-    if (playbackState.isPlaying && audioElement.paused) {
-      try {
-        await audioElement.play();
-        set({ isPlaying: true });
-      } catch (err) {
-        console.error('Autoplay blocked:', err);
-      }
-    } else if (!playbackState.isPlaying && !audioElement.paused) {
-      audioElement.pause();
-      set({ isPlaying: false });
-    }
-  },
-
-  handlePlaybackUpdate: (data) => {
-    if (get().isSyncing) return;
-    lastPlaybackActionAt = Date.now();
-    const { isPlaying: newIsPlaying, currentTime: newTime, serverTime, isSeeking } = data;
-
-    if (!audioElement) return;
-
-    audioElement.playbackRate = 1;
-
-    let adjustedTime = newTime;
-    if (serverTime) {
-      const clientNow = Date.now() + get().serverTimeOffset;
-      const elapsed = Math.max(0, (clientNow - serverTime) / 1000);
-      adjustedTime = newIsPlaying ? newTime + elapsed : newTime;
-    }
-
-    // These only arrive when someone plays, pauses or seeks, so it's the moment to line up: a
-    // looser limit here leaves devices up to that far apart until the next seek.
-    const drift = Math.abs(audioElement.currentTime - adjustedTime);
-    if (drift > 0.05 || isSeeking) {
-      audioElement.currentTime = adjustedTime;
-    }
-
-    if (newIsPlaying) {
-      audioElement.play().catch(() => {});
-      set({ isPlaying: true });
-    } else {
-      audioElement.pause();
-      set({ isPlaying: false });
-    }
-
-    set({ currentTime: adjustedTime });
-  },
-
-  handleMusicUpdate: async (
-    { song, currentTime, queueItem, autoPlay, scheduledPlayTime, serverTime },
-    socket,
-    groupId
-  ) => {
-    if (syncTimerRef) clearInterval(syncTimerRef);
-    lastPlaybackActionAt = Date.now();
-    if (audioElement) audioElement.playbackRate = 1;
-
-    set({ currentSong: song });
-
-    const preloaded = preloadedAudios.get(song.id);
-    const url = getHighQualityUrl(song);
-    const { loadAudio } = get();
-
-    if (scheduledPlayTime) {
-      set({ isSyncing: true });
-      const clientNow = Date.now() + get().serverTimeOffset;
-      const totalDelay = Math.max(0, scheduledPlayTime - clientNow);
-      set({ syncCountdown: Math.ceil(totalDelay / 1000) });
-
-      syncTimerRef = setInterval(() => {
-        const remaining = Math.max(0, scheduledPlayTime - (Date.now() + get().serverTimeOffset));
-        const secs = Math.ceil(remaining / 1000);
-        set({ syncCountdown: secs });
-        if (secs <= 0) {
-          clearInterval(syncTimerRef);
-          syncTimerRef = null;
+      if (seekDebounceTimer) clearTimeout(seekDebounceTimer);
+      seekDebounceTimer = setTimeout(async () => {
+        seekDebounceTimer = null;
+        const result = await sendRoomCommand(socket, groupId, 'seek', {
+          positionMs: Math.round(newTime * 1000),
+        });
+        if (!result.ok) {
+          toast.error(result.error);
+          align('seek');
         }
-      }, 200);
+      }, SEEK_DEBOUNCE_MS);
+    },
 
-      if (preloaded && audioElement) {
-        audioElement.onended = null;
-        audioElement.ontimeupdate = null;
-        audioElement.onloadedmetadata = null;
-        audioElement.src = preloaded.src;
-        audioElement.onloadedmetadata = () => {
-          set({ currentTime: 0, duration: audioElement.duration, isLoading: false });
-        };
-        audioElement.ontimeupdate = () => {
-          set({ currentTime: audioElement.currentTime });
-        };
-        audioElement.onended = () => {
-          if (audioElement.currentTime < 1) return;
-          set({ isPlaying: false });
-          if (groupId && socket) {
-            socket.emit('song-ended', { groupId, songId: queueItem?.id });
-          }
-        };
-        audioElement.volume = get().volume;
-        set({ isLoading: false });
-        preloadedAudios.delete(song.id);
-      } else if (url) {
-        await loadAudio(url, queueItem?.id, socket, groupId);
-      }
+    handleVolumeChange: (value) => {
+      const newVolume = value[0];
+      set({ volume: newVolume });
+      if (audioElement) audioElement.volume = newVolume;
+    },
 
-      const nowAfterLoad = Date.now() + get().serverTimeOffset;
-      const remainingDelay = Math.max(0, scheduledPlayTime - nowAfterLoad);
-
-      setTimeout(async () => {
-        set({ isSyncing: false, syncCountdown: 0 });
-        lastPlaybackActionAt = Date.now();
-        if (audioElement?.src) {
-          audioElement.currentTime = currentTime || 0;
-          try {
-            await audioElement.play();
-            set({ isPlaying: true });
-          } catch (err) {
-            console.error('Autoplay blocked:', err);
-          }
-        }
-      }, remainingDelay);
-    } else {
-      if (url) {
-        await loadAudio(url, queueItem?.id, socket, groupId);
-        if (audioElement) {
-          audioElement.currentTime = currentTime;
-          if (autoPlay) {
-            try {
-              await audioElement.play();
-              set({ isPlaying: true });
-            } catch (err) {
-              console.error('Autoplay blocked:', err);
-            }
-          }
-        }
-      }
-    }
-
-    if (queueItem?.addedBy) {
-      toast.info(`Now playing: ${song.name} (added by ${queueItem.addedBy.userName})`);
-    }
-  },
-
-  syncPlaybackFromServer: async (
-    playbackState,
-    serverQueue,
-    serverQueueIndex,
-    socket,
-    groupId,
-    serverTimeOffset
-  ) => {
-    if (!playbackState?.currentTrack) return;
-
-    // Back after a dropped connection with the song still loaded: reloading it would cut the sound
-    // when a normal correction is all it needs.
-    if (get().currentSong?.id === playbackState.currentTrack.id && audioElement?.src) {
-      lastPlaybackActionAt = 0;
-      await get().handleSyncState(
-        { playbackState, queue: serverQueue, currentQueueIndex: serverQueueIndex },
-        socket,
-        groupId
+    setOutputOffset: (ms) => {
+      const outputOffsetMs = Math.max(
+        -MAX_OUTPUT_OFFSET_MS,
+        Math.min(MAX_OUTPUT_OFFSET_MS, Math.round(Number(ms) || 0))
       );
-      return;
-    }
-
-    set({ currentSong: playbackState.currentTrack });
-    const url = getHighQualityUrl(playbackState.currentTrack);
-
-    if (url) {
-      await get().loadAudio(url, serverQueue?.[serverQueueIndex]?.id, socket, groupId);
-
-      const serverNow = Date.now() + serverTimeOffset;
-      const timePassed = (serverNow - playbackState.lastUpdate) / 1000;
-      const syncedTime = playbackState.currentTime + (playbackState.isPlaying ? timePassed : 0);
-
-      if (audioElement) {
-        audioElement.currentTime = Math.min(syncedTime, audioElement.duration || syncedTime);
-
-        if (playbackState.isPlaying) {
-          try {
-            await audioElement.play();
-            set({ isPlaying: true });
-          } catch (err) {
-            console.error('Autoplay blocked:', err);
-          }
-        }
+      set({ outputOffsetMs });
+      try {
+        localStorage.setItem(OFFSET_KEY, String(outputOffsetMs));
+      } catch {
+        // Private mode: it still applies until the tab closes.
       }
-    }
+    },
 
-    if (serverQueue) {
-      get().preloadUpcoming(serverQueue, serverQueueIndex);
-    }
-  },
+    updateMediaSession: (song, playPauseFn, skipFn) => {
+      if (!('mediaSession' in navigator)) return;
 
-  reset: () => {
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.removeAttribute('src');
-      audioElement.load();
-    }
-    if (syncTimerRef) {
-      clearInterval(syncTimerRef);
-      syncTimerRef = null;
-    }
-    if (seekDebounceTimer) {
-      clearTimeout(seekDebounceTimer);
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: song.name,
+        artist: song?.artist_map?.artists
+          ?.slice(0, 3)
+          ?.map((a) => a.name)
+          .join(', '),
+        album: song?.album,
+        artwork: song.image?.[2]?.link
+          ? [{ src: song.image[2].link, sizes: '500x500', type: 'image/jpeg' }]
+          : [],
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => playPauseFn(true));
+      navigator.mediaSession.setActionHandler('pause', () => playPauseFn(false));
+      navigator.mediaSession.setActionHandler('nexttrack', skipFn);
+
+      document.title = `${song.name} - SyncVibe`;
+    },
+
+    reset: () => {
+      clearStart();
+      stopDriftChecks();
+      if (seekDebounceTimer) clearTimeout(seekDebounceTimer);
       seekDebounceTimer = null;
-    }
-    for (const audio of preloadedAudios.values()) {
-      audio.src = '';
-    }
-    preloadedAudios.clear();
-    timeSyncSamples.length = 0;
-    set({
-      isPlaying: false,
-      currentTime: 0,
-      duration: 0,
-      currentSong: null,
-      isLoading: false,
-      isSyncing: false,
-      syncCountdown: 0,
-    });
-  },
-}));
+      room = null;
+      transport = { socket: null, groupId: null };
+      holdUntil = 0;
+      unloadAudio();
+      for (const audio of preloadedAudios.values()) audio.src = '';
+      preloadedAudios.clear();
+      resetClock();
+      set({
+        isPlaying: false,
+        currentTime: 0,
+        duration: 0,
+        currentSong: null,
+        isLoading: false,
+        isSyncing: false,
+        syncCountdown: 0,
+        syncStatus: 'synced',
+        needsGesture: false,
+        connectionQuality: 'good',
+      });
+    },
+  };
+});

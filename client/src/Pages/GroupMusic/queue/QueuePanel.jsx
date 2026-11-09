@@ -31,6 +31,9 @@ const QueuePanel = ({ className, bare = false }) => {
     removeFromQueue,
     reorderQueue,
     clearQueue,
+    shuffleQueue,
+    playQueueItem,
+    canControl,
     playNow,
     playNext,
     addToQueue,
@@ -135,7 +138,10 @@ const QueuePanel = ({ className, bare = false }) => {
             upcomingQueue={upcomingQueue}
             removeFromQueue={removeFromQueue}
             reorderQueue={reorderQueue}
-            clearQueue={clearQueue}
+            clearQueue={canControl ? clearQueue : undefined}
+            shuffleQueue={canControl ? shuffleQueue : undefined}
+            onPlayItem={canControl ? playQueueItem : undefined}
+            canReorder={canControl}
             autoPlayRecommendations={autoPlayRecommendations}
             onFetchRecs={handleShowRecsFor}
             onSaveToPlaylist={setSongToSave}
@@ -156,7 +162,11 @@ const QueuePanel = ({ className, bare = false }) => {
             idPrefix={TAB_ID_PREFIX}
             className='min-w-0 overflow-x-auto'
           />
-          <AutoplayToggle enabled={autoPlayRecommendations} onToggle={toggleAutoRecommendations} />
+          <AutoplayToggle
+            enabled={autoPlayRecommendations}
+            onToggle={toggleAutoRecommendations}
+            disabled={!canControl}
+          />
         </div>
         <QueueSearchField
           value={search.searchQuery}
