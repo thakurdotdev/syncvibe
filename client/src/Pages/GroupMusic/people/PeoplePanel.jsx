@@ -8,7 +8,7 @@ import { getInitial } from '../utils/song';
 
 const isSameUser = (a, b) => a != null && b != null && String(a) === String(b);
 
-const MemberRow = memo(({ member, isHost, isYou }) => (
+const MemberRow = memo(({ member, isHost, isYou, onMakeHost }) => (
   <motion.li
     layout
     initial={{ opacity: 0 }}
@@ -47,10 +47,21 @@ const MemberRow = memo(({ member, isHost, isYou }) => (
         {member.connected === false ? 'Reconnecting…' : isHost ? 'Host' : 'Listening'}
       </p>
     </div>
+    {onMakeHost && !isHost && !isYou && (
+      <button
+        type='button'
+        onClick={() => onMakeHost(member.userId)}
+        title={`Hand the room over to ${member.userName}`}
+        className='flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-full bg-foreground/[0.06] px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground'
+      >
+        <Crown className='h-3 w-3' aria-hidden='true' />
+        Make host
+      </button>
+    )}
   </motion.li>
 ));
 
-const PeoplePanel = ({ members, currentUserId, hostId, maxMembers, onInvite }) => {
+const PeoplePanel = ({ members, currentUserId, hostId, maxMembers, onInvite, onMakeHost }) => {
   // Host first, then you, then everyone else in join order.
   const sortedMembers = useMemo(() => {
     const rank = (m) =>
@@ -87,6 +98,7 @@ const PeoplePanel = ({ members, currentUserId, hostId, maxMembers, onInvite }) =
                 member={member}
                 isHost={isSameUser(member.userId, hostId)}
                 isYou={isSameUser(member.userId, currentUserId)}
+                onMakeHost={onMakeHost}
               />
             ))}
           </AnimatePresence>

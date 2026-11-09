@@ -33,7 +33,13 @@ const RoomTopBar = ({
   group,
   members,
   connectionQuality,
+  syncStatus,
   isReconnecting,
+  isHost,
+  controlMode,
+  onSetControlMode,
+  outputOffsetMs,
+  onSetOutputOffset,
   onShowPeople,
   onInvite,
   onShowQrCode,
@@ -47,7 +53,11 @@ const RoomTopBar = ({
       <div className='min-w-0 flex-1'>
         <div className='flex min-w-0 items-center gap-2.5'>
           <h1 className='truncate text-base font-bold tracking-tight md:text-lg'>{group?.name}</h1>
-          <ConnectionStatus quality={connectionQuality} isReconnecting={isReconnecting} />
+          <ConnectionStatus
+            quality={connectionQuality}
+            syncStatus={syncStatus}
+            isReconnecting={isReconnecting}
+          />
         </div>
         <button
           type='button'
@@ -75,7 +85,16 @@ const RoomTopBar = ({
         <span className='hidden sm:inline'>Invite</span>
       </button>
 
-      <RoomMenu onCopyCode={copy} onShowQrCode={onShowQrCode} onLeave={onLeave} />
+      <RoomMenu
+        onCopyCode={copy}
+        onShowQrCode={onShowQrCode}
+        onLeave={onLeave}
+        isHost={isHost}
+        controlMode={controlMode}
+        onSetControlMode={onSetControlMode}
+        outputOffsetMs={outputOffsetMs}
+        onSetOutputOffset={onSetOutputOffset}
+      />
     </header>
   );
 };

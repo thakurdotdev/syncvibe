@@ -24,6 +24,7 @@ import { toast } from '@/context/ToastContext';
 import { useUser } from '@/context/UserContext';
 import useApi from '@/utils/hooks/useApi';
 import { useGroupMusic } from '@/context/GroupMusicContext';
+import { useRoomControl } from '@/components/music/room/useRoomControl';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
 import { QueueItem } from '@/stores/groupMusic/types';
@@ -367,8 +368,11 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
     playNext,
     addPlaylistToQueue,
     clearQueue,
+    shuffleQueue,
+    playQueueItem,
     toggleAutoRecommendations,
   } = useGroupMusic();
+  const { canControl } = useRoomControl();
   const insets = useSafeAreaInsets();
 
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
@@ -582,13 +586,10 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
 
   const handlePlayNow = useCallback((song: Song) => playNow(song), [playNow]);
 
-  // There's no "jump to queue item" event, so play it now and drop the queued copy.
+  // Jumps to it; the songs queued before it stay where they are.
   const handlePlayQueued = useCallback(
-    (item: QueueItem) => {
-      removeFromQueue(item.id);
-      playNow(item.song);
-    },
-    [removeFromQueue, playNow]
+    (item: QueueItem) => playQueueItem(item.id),
+    [playQueueItem]
   );
 
   const handleReorder = useCallback(
@@ -602,8 +603,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
       while (last > first && next[last].id === before[last]?.id) last--;
       // One row moved, so either it went down from `first`, or up from `last`.
       const [from, to] = next[last].id === before[first].id ? [first, last] : [last, first];
-      // Show the new order immediately; the server confirms with queue-updated.
-      useGroupSessionStore.setState({ queue: [...current.slice(0, offset), ...next] });
+      // The store shows the new order immediately; the room then confirms or corrects it.
       reorderQueue(offset + from, offset + to);
     },
     [reorderQueue]
@@ -711,16 +711,34 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
               Autoplay {autoPlay ? 'on' : 'off'}
             </Text>
           </PressableScale>
-          {upcomingQueue.length > 0 && (
-            <PressableScale
-              onPress={handleClearQueue}
-              accessibilityRole='button'
-              accessibilityLabel='Clear upcoming queue'
-              hitSlop={10}
-              style={styles.textAction}
-            >
-              <Text style={[styles.textActionLabel, { color: colors.mutedForeground }]}>Clear</Text>
-            </PressableScale>
+          {canControl && upcomingQueue.length > 0 && (
+            <View style={styles.listActions}>
+              {upcomingQueue.length > 1 && (
+                <PressableScale
+                  onPress={shuffleQueue}
+                  accessibilityRole='button'
+                  accessibilityLabel='Shuffle upcoming queue'
+                  hitSlop={10}
+                  style={styles.textAction}
+                >
+                  <Ionicons name='shuffle' size={15} color={colors.mutedForeground} />
+                  <Text style={[styles.textActionLabel, { color: colors.mutedForeground }]}>
+                    Shuffle
+                  </Text>
+                </PressableScale>
+              )}
+              <PressableScale
+                onPress={handleClearQueue}
+                accessibilityRole='button'
+                accessibilityLabel='Clear upcoming queue'
+                hitSlop={10}
+                style={styles.textAction}
+              >
+                <Text style={[styles.textActionLabel, { color: colors.mutedForeground }]}>
+                  Clear
+                </Text>
+              </PressableScale>
+            </View>
           )}
         </View>
       </View>
@@ -735,6 +753,8 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
     isPlaying,
     autoPlay,
     handleClearQueue,
+    shuffleQueue,
+    canControl,
     toggleAutoRecommendations,
   ]);
 
@@ -977,6 +997,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   textAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  listActions: { flexDirection: 'row', alignItems: 'center', gap: 18 },
   textActionLabel: { fontSize: 13, fontWeight: '600' },
   header: {
     flexDirection: 'row',

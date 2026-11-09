@@ -17,6 +17,14 @@ import { useGroupInviteStore } from '@/stores/groupMusic/inviteStore';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/playbackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
 import { soundEffectsManager } from '@/lib/soundEffectsManager';
+import { seedClock } from '@/stores/groupMusic/roomClock';
+import { fetchRoomSnapshot, pingRoom } from '@/stores/groupMusic/roomProtocol';
+
+/** Pings come quickly at first so the clock is accurate early, then settle to a steady pace. */
+const PING_BURST_MS = 1000;
+const PING_BURST_COUNT = 5;
+const PING_STEADY_MS = 5000;
+const AUDIO_PROMPT_ID = 'room-audio-blocked';
 
 export const GroupMusicContext = createContext(null);
 
@@ -33,8 +41,6 @@ export function GroupMusicProvider({ children }) {
   const navigate = useNavigate();
 
   const audioRef = useRef(null);
-  const syncIntervalRef = useRef(null);
-  const periodicSyncRef = useRef(null);
   const hasAttemptedRejoinRef = useRef(false);
 
   const playback = useGroupPlaybackStore();
@@ -73,12 +79,13 @@ export function GroupMusicProvider({ children }) {
     const handleKeyDown = (e) => {
       const activeGroup = useGroupSessionStore.getState().currentGroup;
       if (!activeGroup) return;
+      // Typing, or moving the cursor, in a field must never control the room.
+      const focused = document.activeElement;
+      if (focused?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(focused?.tagName))
+        return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-      if (
-        e.key === ' ' &&
-        document.activeElement &&
-        !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)
-      ) {
+      if (e.key === ' ') {
         e.preventDefault();
         playback.handlePlayPause(socket, activeGroup.id);
       }
@@ -91,47 +98,90 @@ export function GroupMusicProvider({ children }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [socket, user, playback, session]);
 
+  // The room's clock, and a check that nothing was missed. Each ping refines this tab's idea of
+  // the server's time and brings back the room's revisions; a mismatch means an update never
+  // arrived, so the whole room is fetched again. Nothing else is polled.
   useEffect(() => {
-    if (!socket || !session.currentGroup?.id) return;
+    const groupId = session.currentGroup?.id;
+    if (!socket || !groupId) return;
 
-    const syncWithServer = () => {
-      const startTime = Date.now();
-      socket.emit('time-sync-request', { clientTime: startTime });
+    const pb = useGroupPlaybackStore;
+    const ss = useGroupSessionStore;
+    pb.getState().setTransport(socket, groupId);
+    let stopped = false;
+    let resyncing = false;
+
+    const resync = async () => {
+      if (resyncing) return;
+      resyncing = true;
+      const snapshot = await fetchRoomSnapshot(socket, groupId);
+      resyncing = false;
+      if (stopped || !snapshot || snapshot.error || ss.getState().currentGroup?.id !== groupId)
+        return;
+      seedClock(snapshot.serverTime);
+      ss.getState().applySnapshot(snapshot);
+      pb.getState().applyPlayback(snapshot.playback, 'sync', { force: true });
     };
 
-    socket.on('time-sync-response', (data) => {
-      useGroupPlaybackStore.getState().processTimeSyncResponse(data.clientTime, data.serverTime);
+    const ping = async () => {
+      const reply = await pingRoom(socket, groupId);
+      if (stopped || !reply || ss.getState().currentGroup?.id !== groupId) return;
+      pb.getState().noteClockUpdate();
+
+      if (reply.error === 'not-in-room') {
+        // This connection never got back into the room after a reconnect.
+        ss.getState().rejoinGroup(socket, user, groupId);
+      } else if (reply.error === 'gone') {
+        ss.getState().resetSession(() => pb.getState().reset());
+        toast.error('This room is no longer active');
+      } else if (reply.revs) {
+        const { queueRev, metaRev } = ss.getState();
+        const behind =
+          reply.revs.playback > pb.getState().getPlaybackRev() ||
+          reply.revs.queue > queueRev ||
+          reply.revs.meta > metaRev;
+        if (behind) resync();
+      }
+    };
+
+    let sent = 0;
+    let timer = null;
+    const loop = () => {
+      ping();
+      sent += 1;
+      timer = setTimeout(loop, sent < PING_BURST_COUNT ? PING_BURST_MS : PING_STEADY_MS);
+    };
+    loop();
+
+    // Timers are slowed in a background tab, so check as soon as it's looked at again.
+    const onVisible = () => {
+      if (!document.hidden) ping();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [socket, user, session.currentGroup?.id]);
+
+  // Browsers won't start sound until the page has been clicked, which a reload hasn't been.
+  useEffect(() => {
+    if (!playback.needsGesture) {
+      toast.dismiss(AUDIO_PROMPT_ID);
+      return;
+    }
+    toast('Your browser paused the room audio', {
+      id: AUDIO_PROMPT_ID,
+      description: 'Click to listen along with everyone.',
+      duration: Infinity,
+      action: {
+        label: 'Listen',
+        onClick: () => useGroupPlaybackStore.getState().resumeAudio(),
+      },
     });
-
-    syncWithServer();
-    const fastInterval = setInterval(syncWithServer, 3000);
-
-    const settleTimeout = setTimeout(() => {
-      clearInterval(fastInterval);
-      syncIntervalRef.current = setInterval(syncWithServer, 5000);
-    }, 15000);
-
-    return () => {
-      clearInterval(fastInterval);
-      clearTimeout(settleTimeout);
-      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
-      socket.off('time-sync-response');
-    };
-  }, [socket, session.currentGroup?.id]);
-
-  useEffect(() => {
-    const currentGroup = useGroupSessionStore.getState().currentGroup;
-    if (!currentGroup || !socket) return;
-
-    const requestSync = () => {
-      socket.emit('request-sync', { groupId: currentGroup.id });
-    };
-
-    periodicSyncRef.current = setInterval(requestSync, 10000);
-    return () => {
-      if (periodicSyncRef.current) clearInterval(periodicSyncRef.current);
-    };
-  }, [session.currentGroup, socket]);
+  }, [playback.needsGesture]);
 
   useEffect(() => {
     if (!socket || !user?.userid) return;
@@ -174,94 +224,68 @@ export function GroupMusicProvider({ children }) {
     const ss = useGroupSessionStore;
     const inv = useGroupInviteStore;
 
-    socket.on('sync-state', async (data) => {
-      if (data.queue) {
-        ss.setState({ queue: data.queue, currentQueueIndex: data.currentQueueIndex });
-      }
-      if (data.settings && ss.getState().currentGroup) {
-        ss.setState({
-          currentGroup: {
-            ...ss.getState().currentGroup,
-            settings: { ...ss.getState().currentGroup.settings, ...data.settings },
-          },
-        });
-      }
-      await pb.getState().handleSyncState(data, socket, getGroupId());
-    });
+    const inThisRoom = (data) => Boolean(data?.groupId) && data.groupId === getGroupId();
 
-    socket.on('queue-updated', (data) => {
-      const { queue, currentQueueIndex, action, item, addedCount } = data;
-      ss.setState({ queue, currentQueueIndex });
-      pb.getState().preloadUpcoming(queue, currentQueueIndex);
+    // The room's three parts. Each message carries the whole part and its revision.
+    socket.on('room:playback', (data) => {
+      if (!inThisRoom(data)) return;
+      seedClock(data.serverTime);
+      if (!pb.getState().applyPlayback(data, data.kind)) return;
+      ss.getState().applyCurrentItem(data.item);
 
-      if (action === 'remove') toast.info('Song removed from queue');
-      else if (action === 'skip') toast.info('Skipped to next song');
-      else if (action === 'clear') toast.info('Upcoming queue cleared');
-      else if (action === 'auto-recs')
-        toast.success(`Auto-added ${addedCount || ''} recommended songs`);
-    });
-
-    socket.on('group-settings-updated', ({ settings }) => {
-      const current = ss.getState().currentGroup;
-      if (current && settings) {
-        ss.setState({
-          currentGroup: {
-            ...current,
-            settings: { ...current.settings, ...settings },
-          },
-        });
+      if (data.kind === 'track' && data.item) {
+        const addedBy = data.item.addedBy;
+        const credit =
+          addedBy?.userName && addedBy.userId !== 'system' ? ` (added by ${addedBy.userName})` : '';
+        toast.info(`Now playing: ${data.item.song?.name}${credit}`);
+      } else if (data.kind === 'stop') {
+        toast.info('Queue ended');
       }
     });
 
-    socket.on('queue-error', ({ error }) => toast.error(error));
+    socket.on('room:queue', (data) => {
+      if (!inThisRoom(data) || !ss.getState().applyQueuePart(data)) return;
+      pb.getState().preloadUpcoming(data.upcoming);
 
-    socket.on('queue-ended', () => {
-      pb.setState({ isPlaying: false });
-      toast.info('Queue ended');
+      const byOther = data.by && String(data.by.userId) !== String(user?.userid);
+      if (data.action === 'remove') toast.info('Song removed from queue');
+      else if (data.action === 'clear') toast.info('Upcoming queue cleared');
+      else if (data.action === 'shuffle') toast.info('Queue shuffled');
+      else if (data.action === 'skip') toast.info('Skipped to next song');
+      else if (data.action === 'auto-recs')
+        toast.success(`Auto-added ${data.addedCount || ''} recommended songs`);
+      else if (byOther && data.action === 'add' && data.item)
+        toast.info(`${data.by.userName} added ${data.item.song?.name}`);
     });
 
-    socket.on('playback-update', (data) => {
-      pb.getState().handlePlaybackUpdate(data);
+    socket.on('room:meta', (data) => {
+      if (inThisRoom(data)) ss.getState().applyMetaPart(data);
     });
 
-    socket.on('music-update', async (data) => {
-      await pb.getState().handleMusicUpdate(data, socket, getGroupId());
-    });
+    /** Joining hands over the whole room; the audio then lines up with it. */
+    const enterRoom = (sync) => {
+      if (!sync) return;
+      seedClock(sync.serverTime);
+      pb.getState().applyPlayback(sync.playback, 'join', { force: true });
+      pb.getState().preloadUpcoming(sync.queue?.upcoming);
+    };
 
     socket.on('group-created', (group) => {
       ss.getState().handleGroupCreated(group, user, (v) => inv.setState({ isInviteSheetOpen: v }));
+      enterRoom(group?.sync);
     });
 
-    socket.on('group-joined', async (data) => {
+    socket.on('group-joined', (data) => {
       ss.getState().handleGroupJoined(data);
       ss.getState().requestChatHistory(socket, data?.group?.id);
-      const offset = pb.getState().serverTimeOffset;
-      await pb
-        .getState()
-        .syncPlaybackFromServer(
-          data.playbackState,
-          data.queue,
-          data.currentQueueIndex,
-          socket,
-          data.group.id,
-          offset
-        );
+      enterRoom(data?.sync);
     });
 
-    socket.on('group-rejoined', async (data) => {
+    // The song already loaded keeps playing through a reconnect; only its position is corrected.
+    socket.on('group-rejoined', (data) => {
       ss.getState().handleGroupRejoined(data);
       ss.getState().requestChatHistory(socket, data?.group?.id);
-      const offset = pb.getState().serverTimeOffset;
-      await pb
-        .getState()
-        .syncPlaybackFromServer(
-          data.playbackState,
-          data.queue,
-          data.currentQueueIndex,
-          socket,
-          data.group.id,
-          offset
-        );
+      enterRoom(data?.sync);
     });
 
     socket.on('group-not-found', () => {
@@ -270,16 +294,6 @@ export function GroupMusicProvider({ children }) {
       // Rejoining a room that ended while the connection was down: don't stay in a phantom one.
       if (ss.getState().currentGroup) ss.getState().resetSession(() => pb.getState().reset());
       toast.error('The group no longer exists');
-    });
-
-    socket.on('sync-lost', ({ groupId, reason }) => {
-      if (groupId !== getGroupId()) return;
-      if (reason === 'not-in-room') {
-        ss.getState().rejoinGroup(socket, user, groupId);
-      } else {
-        ss.getState().resetSession(() => pb.getState().reset());
-        toast.error('This room is no longer active');
-      }
     });
 
     // You moved to another device or tab, which now plays the room. Rejoining would just take it back.
@@ -498,17 +512,13 @@ export function GroupMusicProvider({ children }) {
 
     return () => {
       const events = [
-        'sync-state',
-        'queue-updated',
-        'queue-error',
-        'queue-ended',
-        'playback-update',
-        'music-update',
+        'room:playback',
+        'room:queue',
+        'room:meta',
         'group-created',
         'group-joined',
         'group-rejoined',
         'group-not-found',
-        'sync-lost',
         'left-group',
         'device-replaced',
         'member-presence',
@@ -527,7 +537,6 @@ export function GroupMusicProvider({ children }) {
         'group-invite-declined',
         'song-reaction',
         'user-typing',
-        'group-settings-updated',
       ];
       events.forEach((e) => socket.off(e));
       Object.values(typingTimers).forEach(clearTimeout);
@@ -605,6 +614,32 @@ export function GroupMusicProvider({ children }) {
   );
 
   const wrappedSkipSong = useCallback(() => session.skipSong(socket, user), [socket, user]);
+
+  const wrappedPlayQueueItem = useCallback(
+    (itemId) => useGroupSessionStore.getState().playQueueItem(socket, itemId),
+    [socket]
+  );
+
+  const wrappedShuffleQueue = useCallback(
+    () => useGroupSessionStore.getState().shuffleQueue(socket),
+    [socket]
+  );
+
+  const wrappedSetControlMode = useCallback(
+    (mode) => useGroupSessionStore.getState().setControlMode(socket, mode),
+    [socket]
+  );
+
+  const wrappedTransferHost = useCallback(
+    (userId) => useGroupSessionStore.getState().transferHost(socket, userId),
+    [socket]
+  );
+
+  const isHost =
+    user?.userid != null && String(session.currentGroup?.createdBy) === String(user.userid);
+  const controlMode = session.currentGroup?.settings?.controlMode || 'everyone';
+  /** Whether this person may play, pause, seek, skip and rearrange. Anyone can add songs. */
+  const canControl = controlMode !== 'host' || isHost;
 
   const wrappedReorderQueue = useCallback(
     (from, to) => session.reorderQueue(socket, from, to),
@@ -712,11 +747,15 @@ export function GroupMusicProvider({ children }) {
     isSearchLoading: session.isSearchLoading,
     setIsSearchLoading: (v) => useGroupSessionStore.setState({ isSearchLoading: v }),
 
-    serverTimeOffset: playback.serverTimeOffset,
-    setServerTimeOffset: (v) => useGroupPlaybackStore.setState({ serverTimeOffset: v }),
-    lastSync: playback.lastSync,
-    setLastSync: (v) => useGroupPlaybackStore.setState({ lastSync: v }),
     connectionQuality: playback.connectionQuality,
+    syncStatus: playback.syncStatus,
+    outputOffsetMs: playback.outputOffsetMs,
+    setOutputOffset: playback.setOutputOffset,
+    isHost,
+    canControl,
+    controlMode,
+    setControlMode: wrappedSetControlMode,
+    transferHost: wrappedTransferHost,
 
     isGroupModalOpen: session.isGroupModalOpen,
     setIsGroupModalOpen: (v) => useGroupSessionStore.setState({ isGroupModalOpen: v }),
@@ -735,6 +774,8 @@ export function GroupMusicProvider({ children }) {
     playNext: wrappedPlayNext,
     removeFromQueue: wrappedRemoveFromQueue,
     skipSong: wrappedSkipSong,
+    playQueueItem: wrappedPlayQueueItem,
+    shuffleQueue: wrappedShuffleQueue,
     reorderQueue: wrappedReorderQueue,
     clearQueue: wrappedClearQueue,
     addPlaylistToQueue: wrappedAddPlaylistToQueue,

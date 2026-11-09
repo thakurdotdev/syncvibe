@@ -1,31 +1,50 @@
 import TrackPlayer from '@rntp/player';
 import { AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { Socket } from 'socket.io-client';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { Song } from '@/types/song';
 import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { setupPlayer } from '@/utils/playerSetup';
-import { PlaybackState } from './types';
 import { usePlayerStore } from '../playerStore';
 import { isTrackPlayerReady, setResumePoint } from '../trackPlayerState';
 import { playbackHistory } from '@/utils/playbackHistory';
+import { toast } from '@/context/ToastContext';
+import { clockQuality, resetClock, serverNow } from './roomClock';
+import { sendRoomCommand } from './roomProtocol';
+import {
+  DRIFT_CHECK_MS,
+  planCorrection,
+  roomPositionS,
+  syncStatusOf,
+  type RoomPlayback,
+  type SyncStatus,
+} from './roomSync';
+import type { QueueItem } from './types';
+
+type RoomSocket = Socket | null | undefined;
+/** What prompted lining up with the room: a change it announced, or this phone (re)joining it. */
+type AlignKind = 'track' | 'play' | 'pause' | 'seek' | 'stop' | 'join' | 'sync';
 
 interface GroupPlaybackState {
   currentSong: Song | null;
   isPlaying: boolean;
   isLoading: boolean;
-  isSyncing: boolean;
-  syncCountdown: number;
   currentTime: number;
   duration: number;
-  serverTimeOffset: number;
-  lastSync: number;
   trackPlayerReady: boolean;
   connectionQuality: 'good' | 'fair' | 'poor';
+  /** How closely this phone is following the room. */
+  syncStatus: SyncStatus;
+  /**
+   * Plays this much ahead of the room (negative: behind), to make up for speakers that add their
+   * own delay, such as Bluetooth ones. Kept on this phone.
+   */
+  outputOffsetMs: number;
 }
 
 interface GroupPlaybackActions {
-  getServerTime: () => number;
   formatTime: (seconds: number) => string;
 
   initTrackPlayer: () => Promise<boolean>;
@@ -39,37 +58,31 @@ interface GroupPlaybackActions {
     duration: number;
   };
 
-  processTimeSyncResponse: (clientTime: number, serverTime: number) => void;
-  handlePlaybackUpdate: (data: {
-    isPlaying: boolean;
-    currentTime: number;
-    scheduledTime?: number;
-    serverTime?: number;
-    isSeeking?: boolean;
-  }) => Promise<void>;
-  handleMusicUpdate: (data: {
-    song: Song;
-    currentTime: number;
-    scheduledPlayTime?: number;
-    scheduledTime?: number;
-    serverTime?: number;
-    autoPlay?: boolean;
-  }) => Promise<void>;
-  syncPlaybackFromServer: (
-    playbackState: PlaybackState,
-    queue: any[],
-    currentQueueIndex: number
-  ) => Promise<void>;
-
+  /** Where to send what this phone's player reports, such as a song ending. */
+  setTransport: (socket: RoomSocket, groupId: string | undefined) => void;
+  getPlaybackRev: () => number;
+  /**
+   * The room's playback changed, or this phone is joining it. Each one replaces what was known,
+   * so an older message arriving late is dropped rather than applied over a newer one.
+   */
+  applyPlayback: (
+    part: RoomPlayback | null | undefined,
+    kind: AlignKind,
+    options?: { force?: boolean }
+  ) => boolean;
   /** Compares this phone against the room's timeline and quietly corrects any drift. */
-  handleSyncState: (data: any) => Promise<void>;
+  checkDrift: () => void;
+  /** The native player reached the end of the room's song. */
+  reportSongEnded: () => void;
+  noteClockUpdate: () => void;
+  setOutputOffset: (ms: number) => void;
 
   handlePlayPause: (
-    socket: any,
+    socket: RoomSocket,
     groupId: string | undefined,
     forceState?: boolean
   ) => Promise<void>;
-  handleSeek: (socket: any, groupId: string | undefined, value: number) => Promise<void>;
+  handleSeek: (socket: RoomSocket, groupId: string | undefined, value: number) => Promise<void>;
 
   startProgressPolling: () => void;
   stopProgressPolling: () => void;
@@ -82,33 +95,29 @@ let progressInterval: any = null;
 let pendingStart: ReturnType<typeof setTimeout> | null = null;
 
 /*
- * Staying with the room. The server keeps one timeline (a position at a moment in time), and each
- * device follows it rather than following each other, so a slow phone can't pull anyone else off.
- *  - Every few seconds the phone works out where the timeline is now and compares its own position.
- *  - A small gap closes by playing up to 5% fast or slow, which doesn't interrupt the sound.
+ * Staying with the room. The server keeps one timeline (a position at a moment of its clock), and
+ * each device follows it rather than following each other, so a slow phone can't pull anyone else
+ * off. This phone knows the server's clock (see roomClock), so it can work out where the song
+ * should be at any instant without asking.
+ *  - A change from the room is applied the moment it arrives. Starts are scheduled slightly
+ *    ahead, so every device begins at the same instant.
+ *  - Once a second the phone compares its own position with the timeline. A small gap closes by
+ *    playing up to 5% fast or slow, which doesn't interrupt the sound.
  *  - A big gap takes a seek, aiming ahead if the audio there still has to be downloaded.
  *  - How long this phone takes to start sound is measured: it decides how far ahead to aim, and
  *    how high a quality to stream, so a slow connection also has less to download.
+ * The phone never tells other devices where the song is. It only asks the server for changes.
  */
 
-/** How often the phone checks itself against the room. */
-export const ROOM_SYNC_INTERVAL_MS = 8000;
 /** After a play, pause, seek or song change, give the player this long before measuring it. */
 export const ROOM_ACTION_SETTLE_MS = 1500;
-/** Further off than this is worth a seek, even though a seek can briefly buffer. */
-const SYNC_SEEK_S = 1;
-/** Too small to hear between two phones side by side. */
-const SYNC_TOLERANCE_S = 0.04;
-/** Fastest or slowest correction speed: 5% is hard to notice with the pitch kept. */
-const SYNC_MAX_NUDGE = 0.05;
-/** On a resume, closer than this isn't worth a seek. */
+/** On a pause or resume, closer than this isn't worth a seek. */
 const ALIGN_TOLERANCE_S = 0.05;
-const CLOCK_SAMPLES = 8;
 /**
  * On a slow connection a seek makes the player stop and download, leaving it behind again. Each
  * seek that doesn't settle things waits longer before the next, so it can't seek in a loop.
  */
-const SEEK_GAP_MIN_MS = ROOM_SYNC_INTERVAL_MS;
+const SEEK_GAP_MIN_MS = 4000;
 const SEEK_GAP_MAX_MS = 60000;
 /** Never aim further ahead than this, whatever the last load took. */
 const MAX_AIM_AHEAD_S = 3;
@@ -116,8 +125,18 @@ const MAX_AIM_AHEAD_S = 3;
 const SLOW_LOAD_S = 2.5;
 const VERY_SLOW_LOAD_S = 5;
 const QUALITIES = ['320kbps', '160kbps', '128kbps', '96kbps', '48kbps', '12kbps'] as const;
+const OFFSET_KEY = '@syncvibe_room_audio_offset';
+export const MAX_OUTPUT_OFFSET_MS = 500;
 
-const clockSamples: { rtt: number; offset: number }[] = [];
+/** The room's playback as last told. */
+let room: RoomPlayback | null = null;
+let transport: { socket: RoomSocket; groupId: string | undefined } = {
+  socket: null,
+  groupId: undefined,
+};
+/** The queue entry whose song is in the native player. */
+let loadedItemId: string | null = null;
+let driftTimer: ReturnType<typeof setInterval> | null = null;
 let lastRoomActionAt = 0;
 let roomSpeed = 1;
 let seekNotBefore = 0;
@@ -125,7 +144,10 @@ let seekGapMs = SEEK_GAP_MIN_MS;
 /** Seconds this phone usually takes from asking to play to sound coming out. */
 let loadDelayS = 0.5;
 let loadStartedAt: number | null = null;
-/** What the room last told this phone. Anything different was done on the phone itself. */
+/**
+ * What the room last had this phone do. If the player is silent while this says play, it was
+ * stopped on the phone itself (lock screen, a call), and the room shouldn't restart it.
+ */
 let roomToldToPlay = false;
 
 const markRoomAction = () => {
@@ -235,20 +257,30 @@ const initialState: GroupPlaybackState = {
   currentSong: null,
   isPlaying: false,
   isLoading: false,
-  isSyncing: false,
-  syncCountdown: 0,
   currentTime: 0,
   duration: 0,
-  serverTimeOffset: 0,
-  lastSync: 0,
   trackPlayerReady: false,
   connectionQuality: 'good',
+  syncStatus: 'synced',
+  outputOffsetMs: 0,
+};
+
+const clearPendingStart = () => {
+  if (pendingStart) clearTimeout(pendingStart);
+  pendingStart = null;
+};
+
+const nativeSongId = (): string | undefined => {
+  try {
+    const active = TrackPlayer.getActiveMediaItem() as any;
+    return active?.mediaId || active?.id;
+  } catch {
+    return undefined;
+  }
 };
 
 export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => ({
   ...initialState,
-
-  getServerTime: () => Date.now() + get().serverTimeOffset,
 
   formatTime: (seconds: number) => {
     if (!seconds || isNaN(seconds)) return '0:00';
@@ -260,12 +292,10 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
   initTrackPlayer: async () => {
     try {
       const alreadyReady = isTrackPlayerReady();
-      if (alreadyReady) {
-        set({ trackPlayerReady: true });
-        return true;
-      }
-      const isSetup = setupPlayer();
+      const isSetup = alreadyReady || setupPlayer();
       set({ trackPlayerReady: isSetup });
+      // A room joined before the player was ready has been waiting for this.
+      if (isSetup && room?.item) align('join');
       return isSetup;
     } catch (error) {
       console.error('Error initializing TrackPlayer for group music:', error);
@@ -300,244 +330,116 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
     };
   },
 
-  processTimeSyncResponse: (clientTime: number, serverTime: number) => {
-    const endTime = Date.now();
-    const rtt = endTime - clientTime;
-    clockSamples.push({ rtt, offset: serverTime + rtt / 2 - endTime });
-    if (clockSamples.length > CLOCK_SAMPLES) clockSamples.shift();
-    // The fastest reply had the least time to be delayed one way more than the other, which is
-    // what would throw this estimate off. Mobile networks vary a lot from one reply to the next.
-    const best = clockSamples.reduce((a, b) => (b.rtt < a.rtt ? b : a));
-    const quality = best.rtt < 150 ? 'good' : best.rtt < 400 ? 'fair' : 'poor';
-    set({ serverTimeOffset: best.offset, lastSync: endTime, connectionQuality: quality });
+  setTransport: (socket, groupId) => {
+    transport = { socket, groupId };
   },
 
-  handlePlaybackUpdate: async (data) => {
-    const { trackPlayerReady, currentSong } = get();
-    if (!trackPlayerReady) return;
+  getPlaybackRev: () => room?.rev ?? 0,
 
-    markRoomAction();
-    setRoomSpeed(1);
-    roomToldToPlay = data.isPlaying;
+  applyPlayback: (part, kind, options) => {
+    if (!part || typeof part.rev !== 'number') return false;
+    if (!options?.force && room && part.rev <= room.rev) return false;
+    room = {
+      rev: part.rev,
+      item: part.item || null,
+      playing: Boolean(part.playing),
+      positionMs: part.positionMs || 0,
+      anchorAt: part.anchorAt || 0,
+    };
 
-    if (data.isPlaying) {
-      claimGroupPlayer();
-    }
-
-    // The message took time to get here, and the room kept playing meanwhile.
-    const elapsed =
-      data.isPlaying && data.serverTime
-        ? Math.max(0, (get().getServerTime() - data.serverTime) / 1000)
-        : 0;
-    const target = typeof data.currentTime === 'number' ? data.currentTime + elapsed : null;
-
-    const activeItem = TrackPlayer.getActiveMediaItem();
-    const activeMediaId = activeItem?.mediaId || (activeItem as any)?.id;
-    const correctTrackLoaded = currentSong && activeMediaId === currentSong.id;
-
-    if (!correctTrackLoaded && currentSong) {
-      beginTrackSwap(currentSong.id);
-      TrackPlayer.stop();
-      TrackPlayer.clear();
-      TrackPlayer.setMediaItems([get().convertSongToTrack(currentSong)]);
-      if (target !== null) TrackPlayer.seekTo(target + (data.isPlaying ? aimAhead() : 0));
-    } else if (correctTrackLoaded && target !== null) {
-      // A pause lands everyone on the same spot, as a seek does. A resume only seeks if it would
-      // be heard to be off, since seeking can make the player stop to buffer.
-      const off = Math.abs(TrackPlayer.getProgress().position - target);
-      if (data.isSeeking || !data.isPlaying || off > ALIGN_TOLERANCE_S) TrackPlayer.seekTo(target);
-    }
-
-    if (data.isPlaying) TrackPlayer.play();
-    else TrackPlayer.pause();
-
-    set({
-      isPlaying: data.isPlaying,
-      lastSync: get().getServerTime(),
-      ...(target !== null ? { currentTime: target } : {}),
-    });
-  },
-
-  handleMusicUpdate: async (data) => {
-    const { trackPlayerReady, convertSongToTrack, getServerTime } = get();
-
-    set({ currentSong: data.song, isLoading: true });
-
-    if (!trackPlayerReady) {
-      set({ isLoading: false });
-      return;
-    }
-
-    claimGroupPlayer();
-    markRoomAction();
-    setRoomSpeed(1);
-    // A quick second skip must not let the first song's start run on the new one.
-    if (pendingStart) clearTimeout(pendingStart);
-
-    try {
-      beginTrackSwap(data.song?.id);
-      TrackPlayer.stop();
-      TrackPlayer.clear();
-      const track = convertSongToTrack(data.song);
-      TrackPlayer.setMediaItems([track]);
-
-      const scheduledTime = data.scheduledPlayTime || data.scheduledTime;
-      const timeUntilPlay = scheduledTime ? scheduledTime - getServerTime() : 0;
-      // Got here after the start time, or missed the start altogether: join where the room is
-      // by the time this phone's sound will have started.
-      const late = Math.max(0, -timeUntilPlay) / 1000;
-      const startAt =
-        (data.currentTime || 0) + late + (late > 0 || !scheduledTime ? aimAhead() : 0);
-
-      // Downloading has already begun, so the wait until the start time doubles as a head start.
-      pendingStart = setTimeout(
-        () => {
-          pendingStart = null;
-          TrackPlayer.seekTo(startAt);
-          startRoomAudio();
-          set({
-            isPlaying: true,
-            isLoading: false,
-            currentTime: startAt,
-            duration: data.song.duration || 0,
-          });
-        },
-        Math.max(0, timeUntilPlay)
-      );
-    } catch (error) {
-      console.error('Error loading song:', error);
-      set({ isLoading: false });
-    }
-  },
-
-  syncPlaybackFromServer: async (playbackState, _queue, _currentQueueIndex) => {
-    const { trackPlayerReady, convertSongToTrack, getServerTime } = get();
-
-    if (!playbackState?.currentTrack) return;
-
-    set({ currentSong: playbackState.currentTrack });
-
-    if (!trackPlayerReady) return;
-
-    // Back after a dropped connection with the song still playing: reloading it would cut the
-    // sound for everyone's most common case, when a normal correction is all it needs.
-    const loaded = TrackPlayer.getActiveMediaItem();
-    if (
-      usePlayerStore.getState().activePlayerMode === 'group' &&
-      (loaded?.mediaId || (loaded as any)?.id) === playbackState.currentTrack.id
-    ) {
-      lastRoomActionAt = 0;
-      await get().handleSyncState({ playbackState });
-      return;
-    }
-
-    claimGroupPlayer();
-    markRoomAction();
-    setRoomSpeed(1);
-    seekGapMs = SEEK_GAP_MIN_MS;
-    seekNotBefore = 0;
-    roomToldToPlay = playbackState.isPlaying;
-
-    try {
-      beginTrackSwap(playbackState.currentTrack?.id);
-      TrackPlayer.stop();
-      TrackPlayer.clear();
-      const track = convertSongToTrack(playbackState.currentTrack);
-      TrackPlayer.setMediaItems([track]);
-
-      // Just joined, so this phone's clock estimate may not be ready yet. The server's own time in
-      // the message gives the elapsed time without one; the first check then fine-tunes it.
-      const serverNow = (playbackState as any).serverTime ?? getServerTime();
-      const timePassed = Math.max(0, (serverNow - playbackState.lastUpdate) / 1000);
-      const syncedTime = playbackState.isPlaying
-        ? playbackState.currentTime + timePassed + aimAhead()
-        : playbackState.currentTime;
-
-      TrackPlayer.seekTo(syncedTime);
-
-      if (playbackState.isPlaying) {
-        startRoomAudio();
-        set({ isPlaying: true });
-      }
-
-      set({
-        currentTime: syncedTime,
-        duration: playbackState.currentTrack.duration || 0,
-      });
-    } catch (error) {
-      console.error('Error syncing playback:', error);
-    }
-  },
-
-  handleSyncState: async (data) => {
-    const { trackPlayerReady, currentSong, getServerTime, handleMusicUpdate } = get();
-    const room = data?.playbackState;
-    if (!trackPlayerReady || !room?.currentTrack) return;
-    // Just acted on an event: the player is still catching up, so this reading would mislead.
-    if (Date.now() - lastRoomActionAt < ROOM_ACTION_SETTLE_MS) return;
-    // A song is waiting for its start time, so not playing yet is exactly right.
-    if (pendingStart) return;
-
-    const sinceUpdate = room.isPlaying
-      ? Math.max(0, (getServerTime() - room.lastUpdate) / 1000)
-      : 0;
-    const expected = room.currentTime + sinceUpdate;
-
-    // A song change this phone missed, say during a connection drop.
-    if (currentSong?.id !== room.currentTrack.id) {
-      await handleMusicUpdate({ song: room.currentTrack, currentTime: expected });
-      return;
-    }
-
-    if (!room.isPlaying) {
-      setRoomSpeed(1);
+    if (!room.item) {
+      clearPendingStart();
+      stopDriftChecks();
       roomToldToPlay = false;
-      if (TrackPlayer.isPlaying()) {
-        TrackPlayer.pause();
-        set({ isPlaying: false });
+      loadedItemId = null;
+      get().stopProgressPolling();
+      if (get().trackPlayerReady && usePlayerStore.getState().activePlayerMode === 'group') {
+        try {
+          beginTrackSwap();
+          setRoomSpeed(1);
+          TrackPlayer.stop();
+          TrackPlayer.clear();
+        } catch {}
       }
-      return;
+      set({
+        currentSong: null,
+        isPlaying: false,
+        isLoading: false,
+        currentTime: 0,
+        duration: 0,
+        syncStatus: 'synced',
+      });
+      return true;
     }
 
+    const song = room.item.song;
+    if (get().currentSong?.id !== song.id) {
+      set({ currentSong: song, duration: Number(song.duration) || 0 });
+    }
+    // Lined up as soon as the native player is ready (see initTrackPlayer).
+    if (get().trackPlayerReady) align(kind);
+    return true;
+  },
+
+  checkDrift: () => {
+    const { trackPlayerReady } = get();
+    if (!trackPlayerReady || !room?.item || !room.playing || pendingStart) return;
+    if (usePlayerStore.getState().activePlayerMode !== 'group') return;
+    // Just acted on a change: the player is still catching up, so this reading would mislead.
+    if (Date.now() - lastRoomActionAt < ROOM_ACTION_SETTLE_MS) return;
+
+    // Still buffering, or you paused from the lock screen or took a call: restarting it here
+    // would be wrong. A resume from the room goes through applyPlayback, not this.
     if (!TrackPlayer.isPlaying()) {
       setRoomSpeed(1);
-      // Missed the room resuming: catch up. Otherwise it's still buffering, or you paused from the
-      // lock screen or took a call, and restarting it here would be wrong.
-      if (!roomToldToPlay) {
-        roomToldToPlay = true;
-        markRoomAction();
-        TrackPlayer.seekTo(expected + aimAhead());
-        TrackPlayer.play();
-      }
       return;
     }
 
-    const total = Number(room.currentTrack.duration) || 0;
+    const expected = targetNow(get().outputOffsetMs);
+    const total = Number(room.item.song.duration) || 0;
     if (total > 0 && expected >= total - 1) return;
 
     const { position, buffered } = TrackPlayer.getProgress();
     const drift = expected - position;
-    const size = Math.abs(drift);
+    const plan = planCorrection(drift, {
+      canSeek: Date.now() >= seekNotBefore,
+      // Backgrounded timers can stall, so no speed is left running that nothing would turn off.
+      canNudge: AppState.currentState === 'active',
+    });
 
-    if (size >= SYNC_SEEK_S && Date.now() >= seekNotBefore) {
-      setRoomSpeed(1);
+    if (plan.type === 'seek') {
       markRoomAction();
       seekNotBefore = Date.now() + seekGapMs;
       seekGapMs = Math.min(seekGapMs * 2, SEEK_GAP_MAX_MS);
       // Already downloaded means an instant jump. Otherwise it will take a moment to start.
       TrackPlayer.seekTo(expected <= buffered ? expected : expected + aimAhead());
-    } else if (size <= SYNC_TOLERANCE_S) {
-      setRoomSpeed(1);
+    } else if (plan.type === 'hold') {
       seekGapMs = SEEK_GAP_MIN_MS;
-    } else if (AppState.currentState !== 'active') {
-      // Backgrounded timers can stall, so no speed is left running that nothing would turn off.
-      setRoomSpeed(1);
-    } else {
-      // Close the gap by the next check, without the stop to buffer that a seek can cause. The
-      // player keeps the pitch.
-      const nudge = drift / (ROOM_SYNC_INTERVAL_MS / 1000);
-      setRoomSpeed(1 + Math.max(-SYNC_MAX_NUDGE, Math.min(SYNC_MAX_NUDGE, nudge)));
     }
+    setRoomSpeed(plan.rate);
+
+    const syncStatus = syncStatusOf(drift);
+    if (get().syncStatus !== syncStatus) set({ syncStatus });
+  },
+
+  reportSongEnded: () => {
+    const itemId = room?.item?.id;
+    // The room moves on by itself; this just lets it do so the moment the sound stops.
+    if (itemId) void sendRoomCommand(transport.socket, transport.groupId, 'ended', { itemId });
+  },
+
+  noteClockUpdate: () => {
+    const connectionQuality = clockQuality();
+    if (get().connectionQuality !== connectionQuality) set({ connectionQuality });
+  },
+
+  setOutputOffset: (ms) => {
+    const outputOffsetMs = Math.max(
+      -MAX_OUTPUT_OFFSET_MS,
+      Math.min(MAX_OUTPUT_OFFSET_MS, Math.round(Number(ms) || 0))
+    );
+    set({ outputOffsetMs });
+    AsyncStorage.setItem(OFFSET_KEY, String(outputOffsetMs)).catch(() => {});
   },
 
   handlePlayPause: async (socket, groupId, forceState) => {
@@ -558,31 +460,53 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
         return;
       }
 
-      const active = TrackPlayer.getActiveMediaItem();
-      const isActiveSong = (active?.mediaId || (active as any)?.id) === currentSong.id;
-      // Read live: the store's copy is polled, so it can be half a second behind the audio and
-      // would pull the whole room back by that much.
-      const position = isActiveSong ? TrackPlayer.getProgress().position : get().currentTime;
+      // The room never stopped, only this phone did (lock screen, a call): rejoin it where it is.
+      if (newIsPlaying && room?.playing) {
+        align('play');
+        return;
+      }
 
-      // Everyone, this phone included, acts on the server's broadcast, so all start from one
-      // moment (see handlePlaybackUpdate).
-      socket.emit('music-playback', { groupId, isPlaying: newIsPlaying, currentTime: position });
-      set({ isPlaying: newIsPlaying });
+      // A pause is felt at once; the room's answer then settles the exact spot for everyone.
+      if (!newIsPlaying) {
+        clearPendingStart();
+        markRoomAction();
+        setRoomSpeed(1);
+        TrackPlayer.pause();
+        set({ isPlaying: false });
+      }
+
+      const result = await sendRoomCommand(socket, groupId, newIsPlaying ? 'play' : 'pause');
+      if (!result.ok) {
+        toast(result.error, { type: 'error' });
+        align('sync');
+      }
     } catch (error) {
       console.error('Playback control error:', error);
     }
   },
 
   handleSeek: async (socket, groupId, value) => {
-    const { trackPlayerReady, isPlaying } = get();
+    const { trackPlayerReady } = get();
     if (!trackPlayerReady || !groupId) return;
 
-    markRoomAction();
     // Not queued for later: by the time a disconnected socket sent it, it would be out of date.
-    if (socket?.connected) socket.emit('music-seek', { groupId, currentTime: value, isPlaying });
+    if (!socket?.connected) {
+      TrackPlayer.seekTo(value);
+      set({ currentTime: value });
+      return;
+    }
 
+    markRoomAction();
     TrackPlayer.seekTo(value);
     set({ currentTime: value });
+
+    const result = await sendRoomCommand(socket, groupId, 'seek', {
+      positionMs: Math.round(value * 1000),
+    });
+    if (!result.ok) {
+      toast(result.error, { type: 'error' });
+      align('seek');
+    }
   },
 
   startProgressPolling: () => {
@@ -611,9 +535,12 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
   reset: () => {
     const { stopProgressPolling, trackPlayerReady } = get();
     stopProgressPolling();
-    clockSamples.length = 0;
-    if (pendingStart) clearTimeout(pendingStart);
-    pendingStart = null;
+    stopDriftChecks();
+    clearPendingStart();
+    resetClock();
+    room = null;
+    transport = { socket: null, groupId: undefined };
+    loadedItemId = null;
     loadStartedAt = null;
     roomToldToPlay = false;
 
@@ -631,9 +558,151 @@ export const useGroupPlaybackStore = create<GroupPlaybackStore>()((set, get) => 
       normalStore.setActivePlayerMode('normal');
     }
 
-    set({ ...initialState, trackPlayerReady: get().trackPlayerReady });
+    set({
+      ...initialState,
+      trackPlayerReady: get().trackPlayerReady,
+      outputOffsetMs: get().outputOffsetMs,
+    });
   },
 }));
+
+AsyncStorage.getItem(OFFSET_KEY)
+  .then((stored) => {
+    const outputOffsetMs = Number(stored);
+    if (stored && Number.isFinite(outputOffsetMs))
+      useGroupPlaybackStore.setState({ outputOffsetMs });
+  })
+  .catch(() => {});
+
+function stopDriftChecks() {
+  if (driftTimer) clearInterval(driftTimer);
+  driftTimer = null;
+}
+
+function startDriftChecks() {
+  if (driftTimer) return;
+  driftTimer = setInterval(() => useGroupPlaybackStore.getState().checkDrift(), DRIFT_CHECK_MS);
+}
+
+/** Where this phone's audio should be right now, in seconds. */
+function targetNow(outputOffsetMs: number) {
+  return roomPositionS(room, serverNow()) + outputOffsetMs / 1000;
+}
+
+/** Puts the room's song in the native player, replacing whatever was there. */
+function loadRoomSong(item: QueueItem) {
+  claimGroupPlayer();
+  beginTrackSwap(item.song.id);
+  TrackPlayer.stop();
+  TrackPlayer.clear();
+  TrackPlayer.setMediaItems([useGroupPlaybackStore.getState().convertSongToTrack(item.song)]);
+  loadedItemId = item.id;
+}
+
+/** Makes the native player match what the room says. Safe to call at any time. */
+function align(kind: AlignKind) {
+  const store = useGroupPlaybackStore;
+  const { trackPlayerReady, outputOffsetMs } = store.getState();
+  if (!trackPlayerReady || !room?.item) return;
+  const item = room.item;
+  clearPendingStart();
+
+  try {
+    const alreadyLoaded =
+      usePlayerStore.getState().activePlayerMode === 'group' &&
+      loadedItemId === item.id &&
+      nativeSongId() === item.song.id;
+
+    if (!room.playing) {
+      stopDriftChecks();
+      markRoomAction();
+      setRoomSpeed(1);
+      roomToldToPlay = false;
+      const target = room.positionMs / 1000;
+      if (!alreadyLoaded) loadRoomSong(item);
+      else TrackPlayer.pause();
+      // A pause lands everyone on the same spot, as a seek does.
+      if (
+        !alreadyLoaded ||
+        Math.abs(TrackPlayer.getProgress().position - target) > ALIGN_TOLERANCE_S
+      ) {
+        TrackPlayer.seekTo(target);
+      }
+      store.setState({
+        isPlaying: false,
+        isLoading: false,
+        currentTime: target,
+        syncStatus: 'synced',
+      });
+      return;
+    }
+
+    // Back after a dropped connection with the song still going: reloading it would cut the sound
+    // when a normal correction is all it needs. Silent with nothing new from the room means it
+    // was stopped on this phone (or is buffering), which is left alone too.
+    if (alreadyLoaded && (kind === 'join' || kind === 'sync')) {
+      if (TrackPlayer.isPlaying() || roomToldToPlay) {
+        lastRoomActionAt = 0;
+        startDriftChecks();
+        return;
+      }
+    }
+
+    claimGroupPlayer();
+    markRoomAction();
+    setRoomSpeed(1);
+    seekGapMs = SEEK_GAP_MIN_MS;
+    seekNotBefore = 0;
+    if (!alreadyLoaded) {
+      loadRoomSong(item);
+      store.setState({ isLoading: true });
+    }
+
+    // A start lined up for a moment from now: wait at the starting point, then go with everyone.
+    // A new song has already begun downloading, so the wait doubles as a head start.
+    const wait = room.anchorAt - serverNow();
+    if (wait > 20) {
+      const from = room.positionMs / 1000;
+      if (alreadyLoaded) {
+        if (TrackPlayer.isPlaying()) TrackPlayer.pause();
+        if (Math.abs(TrackPlayer.getProgress().position - from) > ALIGN_TOLERANCE_S) {
+          TrackPlayer.seekTo(from);
+        }
+      } else if (from > 0) {
+        TrackPlayer.seekTo(from);
+      }
+      pendingStart = setTimeout(() => {
+        pendingStart = null;
+        markRoomAction();
+        startRoomAudio();
+        store.setState({ isPlaying: true, isLoading: false, currentTime: from });
+        startDriftChecks();
+      }, wait);
+      return;
+    }
+
+    // The room is already moving: join where it will be once this phone's sound has started.
+    const target = targetNow(outputOffsetMs);
+    const playing = alreadyLoaded && TrackPlayer.isPlaying();
+    if (!alreadyLoaded) {
+      TrackPlayer.seekTo(target + aimAhead());
+    } else {
+      const { position, buffered } = TrackPlayer.getProgress();
+      // A resume only seeks if it would be heard to be off, since seeking can make the player
+      // stop to buffer. One already playing is left to the drift check.
+      if (kind === 'seek' || (!playing && Math.abs(position - target) > ALIGN_TOLERANCE_S)) {
+        TrackPlayer.seekTo(target <= buffered ? target : target + aimAhead());
+      }
+    }
+    if (playing) roomToldToPlay = true;
+    else startRoomAudio();
+    store.setState({ isPlaying: true, isLoading: false, currentTime: target });
+    startDriftChecks();
+  } catch (error) {
+    console.error('Error lining up with the room:', error);
+    store.setState({ isLoading: false });
+  }
+}
 
 export const useGroupPlayback = () =>
   useGroupPlaybackStore(

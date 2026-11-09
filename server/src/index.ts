@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import app from '@/app';
 import sequelize from '@/utils/sequelize';
 import { socketManager } from '@/socket/index';
+import { flushRooms, restoreRooms } from '@/socket/group-music';
 import { startBackgroundRecalc } from '@/features/music/services/recommendation.service';
 import { resumePendingUpdates } from '@/features/app-update/eas-webhook.controller';
 
@@ -30,6 +31,10 @@ socketManager(io);
 sequelize
   .authenticate()
   .then(async () => {
+    // Before listening: a device that reconnected first would be told its room no longer exists.
+    const restored = await restoreRooms(io);
+    if (restored > 0) console.log(`Restored ${restored} music room(s)`);
+
     const port = process.env.PORT || 4000;
     server.listen(port, () => {
       console.log(`Server running on port ${port}`);
@@ -44,6 +49,8 @@ sequelize
 
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully...');
+  // Rooms are saved a moment after each change; don't lose the last one.
+  void flushRooms();
   server.close(async () => {
     await sequelize.close();
     process.exit(0);

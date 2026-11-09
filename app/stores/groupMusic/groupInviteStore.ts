@@ -1,6 +1,7 @@
 import { getDeviceId } from '@/utils/deviceId';
 import { router } from 'expo-router';
 import { create } from 'zustand';
+import { ROOM_PROTOCOL } from './roomProtocol';
 import { useShallow } from 'zustand/react/shallow';
 
 interface InviteData {
@@ -43,6 +44,7 @@ export const useGroupInviteStore = create<GroupInviteStore>()((set) => ({
         profilePic: user.profilepic,
         inviterId: invite.inviterId,
         deviceId,
+        protocol: ROOM_PROTOCOL,
       });
     });
     set({ pendingInvite: null });

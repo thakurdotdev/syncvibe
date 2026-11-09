@@ -157,6 +157,32 @@ ask the user to run production steps (migrations, restarts) themselves.
 - Webhooks (`/api/webhooks/eas`, Razorpay) **MUST** verify their signature. Never accept unsigned
   requests.
 
+## Rooms (group music sync)
+
+The server owns what a room is playing; devices only ask for changes and follow.
+
+- **Timeline:** `server/src/socket/group-music/`. A room's playback is a position at a moment of
+  server time (`timeline.ts`). `engine.ts` is the only code that changes it, and it moves to the next
+  song by itself on a timer, so a room keeps going with every app in the background.
+- **Protocol 2:** devices send `room:cmd` (always acknowledged), `room:ping` (clock sync plus the
+  room's revisions) and `room:sync` (whole room). The server sends three parts, each whole and with
+  its own revision: `room:playback`, `room:queue`, `room:meta`. A device that sees a newer revision
+  in a ping than it holds fetches the room again. Nothing else is polled.
+- **Staying in step is local:** each client estimates the server clock (`roomClock`), works out where
+  the song should be, and corrects itself once a second (`roomSync`): up to 5% faster or slower for
+  small gaps, a seek for large ones. `roomClock` and `roomSync` exist in both `client/` and `app/`
+  with the same logic. **MUST** change them together.
+- **Identity and permissions** come from the socket (`commands.ts`), never from the payload.
+- **Older installs:** `legacy-handlers.ts` and the legacy half of `broadcast.ts` keep app versions up
+  to 1.6.x (and stale browser tabs) working in the same rooms. Don't remove them while such versions
+  are in use, and keep the fields they read in `joinPayloadOf`.
+- **Persistence:** `room-store.ts` copies each room to Redis (`gm:room:<id>`, 12 h TTL) shortly after
+  every change, and `restoreRooms` loads them before the server starts listening, so a deploy doesn't
+  end rooms. Memory stays the source of truth; without `REDIS_URL` rooms just don't survive a restart.
+  New fields on a room **MUST** be added to `serializeCore` / `deserializeRoom` with a default. It is
+  not multi-instance: Socket.IO still runs in one process.
+- Chat, invites and presence still use their original events.
+
 ## App releases (Android)
 
 - Version is `expo.version` in `app/app.json` **and** `version` in `app/package.json`; bump both in

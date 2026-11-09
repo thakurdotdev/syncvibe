@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -17,11 +18,65 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Copy, LogOut, MoreHorizontal, QrCode } from 'lucide-react';
+import { Copy, LogOut, Minus, MoreHorizontal, Plus, QrCode } from 'lucide-react';
 import { memo, useState } from 'react';
 
+const OFFSET_STEP_MS = 25;
+
+const StepButton = ({ label, onClick, children }) => (
+  <button
+    type='button'
+    aria-label={label}
+    onClick={onClick}
+    className='flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-foreground/[0.06] text-foreground transition-colors hover:bg-foreground/10'
+  >
+    {children}
+  </button>
+);
+
+/**
+ * Bluetooth speakers and some TVs play a moment late. This moves this device's sound earlier (or
+ * later) so it lands with everyone else's.
+ */
+const SpeakerDelay = ({ valueMs = 0, onChange }) => (
+  <div className='px-2 py-1.5'>
+    <div className='flex items-center justify-between gap-2'>
+      <span className='text-sm'>Speaker delay</span>
+      <div className='flex items-center gap-2'>
+        <StepButton label='Play later' onClick={() => onChange(valueMs - OFFSET_STEP_MS)}>
+          <Minus className='h-3.5 w-3.5' />
+        </StepButton>
+        <button
+          type='button'
+          onClick={() => onChange(0)}
+          title='Reset'
+          className='w-14 cursor-pointer text-center font-mono text-xs tabular-nums text-muted-foreground hover:text-foreground'
+        >
+          {valueMs > 0 ? '+' : ''}
+          {valueMs} ms
+        </button>
+        <StepButton label='Play earlier' onClick={() => onChange(valueMs + OFFSET_STEP_MS)}>
+          <Plus className='h-3.5 w-3.5' />
+        </StepButton>
+      </div>
+    </div>
+    <p className='mt-1 text-[11px] leading-snug text-muted-foreground'>
+      On Bluetooth and hearing an echo with others nearby? Raise this until it lines up.
+    </p>
+  </div>
+);
+
 /** Secondary room actions. Chat preferences live in the chat toolbar. */
-const RoomMenu = ({ onCopyCode, onShowQrCode, onLeave }) => {
+const RoomMenu = ({
+  onCopyCode,
+  onShowQrCode,
+  onLeave,
+  isHost,
+  controlMode,
+  onSetControlMode,
+  outputOffsetMs,
+  onSetOutputOffset,
+}) => {
   const [confirmLeave, setConfirmLeave] = useState(false);
 
   return (
@@ -36,7 +91,7 @@ const RoomMenu = ({ onCopyCode, onShowQrCode, onLeave }) => {
             <MoreHorizontal className='h-4 w-4' />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align='end' className='w-60'>
+        <DropdownMenuContent align='end' className='w-64'>
           <DropdownMenuItem onSelect={onCopyCode}>
             <Copy className='mr-2 h-4 w-4' />
             Copy room code
@@ -45,6 +100,20 @@ const RoomMenu = ({ onCopyCode, onShowQrCode, onLeave }) => {
             <QrCode className='mr-2 h-4 w-4' />
             Show QR code
           </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+          {isHost && (
+            <DropdownMenuCheckboxItem
+              checked={controlMode === 'host'}
+              onCheckedChange={(checked) => onSetControlMode?.(checked ? 'host' : 'everyone')}
+              onSelect={(event) => event.preventDefault()}
+            >
+              Only I control playback
+            </DropdownMenuCheckboxItem>
+          )}
+          {onSetOutputOffset && (
+            <SpeakerDelay valueMs={outputOffsetMs} onChange={onSetOutputOffset} />
+          )}
 
           <DropdownMenuSeparator />
           <DropdownMenuLabel className='text-xs font-normal text-muted-foreground'>

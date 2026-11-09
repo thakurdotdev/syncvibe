@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Server } from 'socket.io';
 import type { PlanLimits } from '@/services/entitlement.service';
 import { appendMessage, clearHistory } from './chat-history';
+import { forgetRoom } from './room-store';
+import { STOPPED, type Timeline } from './timeline';
 
 export interface GroupMember {
   userId: string | number;
@@ -9,14 +11,6 @@ export interface GroupMember {
   profilePic?: string;
   /** False while reconnecting, during the grace period before they count as having left. */
   connected?: boolean;
-}
-
-export interface PlaybackState {
-  isPlaying: boolean;
-  currentTime: number;
-  currentTrack: unknown;
-  lastUpdate: number;
-  serverTime?: number;
 }
 
 export interface QueueItem {
@@ -28,23 +22,42 @@ export interface QueueItem {
   isAutoRecommended?: boolean;
 }
 
+export type ControlMode = 'everyone' | 'host';
+
+export interface GroupSettings {
+  allowAnyoneToAdd: boolean;
+  maxQueueSize: number;
+  autoPlayRecommendations: boolean;
+  /** Who may play, pause, seek, skip and rearrange. Anyone can still add songs. */
+  controlMode: ControlMode;
+}
+
+/**
+ * A room. The server owns what is playing and where it is; devices only ask for changes.
+ * Each part devices keep a copy of has a revision, so one that missed an update can tell.
+ */
 export interface MusicGroup {
   id: string;
   name: string;
+  /** The host. Passes to someone else when they leave. */
   createdBy: string | number;
   createdAt: number;
   members: GroupMember[];
-  queue: QueueItem[];
-  currentQueueIndex: number;
-  currentSongId: string | null;
-  playbackState: PlaybackState;
-  memberRTT: Map<string | number, number>;
-  settings: {
-    allowAnyoneToAdd: boolean;
-    maxQueueSize: number;
-    autoPlayRecommendations: boolean;
-  };
+  current: QueueItem | null;
+  upcoming: QueueItem[];
+  timeline: Timeline;
+  revs: { playback: number; queue: number; meta: number };
+  /** When the current song was started, to tell a late "it ended" from a real skip. */
+  trackStartedAt: number;
+  /** Round trip each connection last measured, by socket id. */
+  rtt: Map<string, { ms: number; at: number }>;
+  /** Songs played lately, so autoplay doesn't bring them straight back. */
+  recentSongIds: string[];
+  settings: GroupSettings;
   isFetchingRecommendations?: boolean;
+  /** Waiting on recommendations before moving to the next song. */
+  advancing?: boolean;
+  endTimer?: NodeJS.Timeout;
   maxMembers: number;
   features: {
     realtimeChat: boolean;
@@ -66,6 +79,18 @@ export const musicGroups = new Map<string, MusicGroup>();
 export const userGroups = new Map<string, Set<string>>();
 export const TIME_TO_REJOIN = 30000;
 
+/** Everyone in the room: chat, presence and members. */
+export const roomOf = (groupId: string) => `music-group-${groupId}`;
+/** Devices on the current sync protocol. */
+export const syncRoomOf = (groupId: string) => `music-group-v2-${groupId}`;
+/** App and web versions from before it, which still get the events they understand. */
+export const legacyRoomOf = (groupId: string) => `music-group-v1-${groupId}`;
+export const allRoomsOf = (groupId: string) => [
+  roomOf(groupId),
+  syncRoomOf(groupId),
+  legacyRoomOf(groupId),
+];
+
 export const generateGroupId = (): string => {
   const id = Math.floor(100000 + Math.random() * 900000).toString();
   return `syncvibe_${id}`;
@@ -74,28 +99,36 @@ export const generateGroupId = (): string => {
 export const generateQueueItemId = (): string => uuidv4();
 export const generateMessageId = (): string => uuidv4();
 
+export type ActivityType =
+  | 'song-added'
+  | 'song-playing'
+  | 'song-skipped'
+  | 'queue-ended'
+  | 'user-joined'
+  | 'user-left'
+  | 'host-changed'
+  | 'control-mode';
+
 export const emitActivityMessage = (
   io: Server,
   groupId: string,
-  activityType:
-    | 'song-added'
-    | 'song-playing'
-    | 'song-skipped'
-    | 'queue-ended'
-    | 'user-joined'
-    | 'user-left',
-  data: { userName?: string; songName?: string; addedBy?: string }
+  activityType: ActivityType,
+  data: { userName?: string; songName?: string; addedBy?: string; hostOnly?: boolean }
 ): void => {
   const group = musicGroups.get(groupId);
   if (!group?.features?.realtimeChat) return;
 
-  const activityMessages: Record<string, string> = {
+  const activityMessages: Record<ActivityType, string> = {
     'song-added': `${data.userName} added "${data.songName}" to the queue`,
     'song-playing': `Now playing "${data.songName}"${data.addedBy ? ` (added by ${data.addedBy})` : ''}`,
     'song-skipped': `${data.userName || 'Someone'} skipped to the next song`,
     'queue-ended': `Queue ended — add more songs!`,
     'user-joined': `${data.userName} joined the session`,
     'user-left': `${data.userName} left the session`,
+    'host-changed': `${data.userName} is now the host`,
+    'control-mode': data.hostOnly
+      ? 'Only the host can control playback now'
+      : 'Everyone can control playback now',
   };
 
   const message = activityMessages[activityType];
@@ -110,25 +143,28 @@ export const emitActivityMessage = (
     timestamp: Date.now(),
   };
   appendMessage(groupId, activity);
-  io.to(`music-group-${groupId}`).emit('new-message', activity);
+  io.to(roomOf(groupId)).emit('new-message', activity);
 };
 
 /** Deletes a room and everything stored for it. */
 export const removeGroup = (groupId: string): void => {
+  const group = musicGroups.get(groupId);
+  if (group?.endTimer) clearTimeout(group.endTimer);
   musicGroups.delete(groupId);
   clearHistory(groupId);
+  forgetRoom(groupId);
 };
 
 export const getGroup = (groupId: string): MusicGroup | undefined => musicGroups.get(groupId);
 
-export const getScheduledDelay = (group?: MusicGroup): number => {
-  if (!group || group.memberRTT.size === 0) return 1500;
-  let maxRTT = 0;
-  for (const rtt of group.memberRTT.values()) {
-    if (rtt > maxRTT) maxRTT = rtt;
-  }
-  return Math.max(800, Math.min(2500, maxRTT * 2 + 300));
-};
+export const isHost = (group: MusicGroup, userId: string | number | undefined): boolean =>
+  userId != null && String(group.createdBy) === String(userId);
+
+export const findMember = (
+  group: MusicGroup,
+  userId: string | number | undefined
+): GroupMember | undefined =>
+  userId == null ? undefined : group.members.find((m) => String(m.userId) === String(userId));
 
 export const trackUserGroup = (userId: string | number, groupId: string): void => {
   const key = String(userId);
@@ -166,20 +202,18 @@ export const createGroupState = (data: CreateGroupData): MusicGroup => ({
       profilePic: data.profilePic,
     },
   ],
-  queue: [],
-  currentQueueIndex: -1,
-  currentSongId: null,
-  playbackState: {
-    isPlaying: false,
-    currentTime: 0,
-    currentTrack: null,
-    lastUpdate: Date.now(),
-  },
-  memberRTT: new Map(),
+  current: null,
+  upcoming: [],
+  timeline: { ...STOPPED },
+  revs: { playback: 1, queue: 1, meta: 1 },
+  trackStartedAt: 0,
+  rtt: new Map(),
+  recentSongIds: [],
   settings: {
     allowAnyoneToAdd: true,
     maxQueueSize: data.planLimits?.realtimeSyncEnabled ? 50 : 3,
     autoPlayRecommendations: true,
+    controlMode: 'everyone',
   },
   maxMembers: data.planLimits?.maxGroupMembers || 2,
   features: {

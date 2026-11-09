@@ -6,6 +6,15 @@ import { Song } from '@/types/song';
 import { searchSongs } from '@/utils/api/getSongs';
 import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { getDeviceId } from '@/utils/deviceId';
+import { toast } from '@/context/ToastContext';
+import {
+  queueViewOf,
+  ROOM_PROTOCOL,
+  sendRoomCommand,
+  type RoomMetaPart,
+  type RoomQueuePart,
+  type RoomSnapshot,
+} from './roomProtocol';
 import { Group, GroupMember, Message, QueueItem, ActiveSoundEffect } from './types';
 
 interface GroupSessionState {
@@ -13,8 +22,14 @@ interface GroupSessionState {
   groupMembers: GroupMember[];
   messages: Message[];
 
+  // `queue` is what the screens read: the current song, then what's coming up. The room sends
+  // those as two parts, each with a revision so a late or repeated message can be told apart.
   queue: QueueItem[];
   currentQueueIndex: number;
+  currentItem: QueueItem | null;
+  upcoming: QueueItem[];
+  queueRev: number;
+  metaRev: number;
   isQueueOpen: boolean;
 
   isGroupModalOpen: boolean;
@@ -55,38 +70,71 @@ interface GroupSessionActions {
     extra?: Record<string, any>
   ) => void;
 
+  /** The song that's on changed (it travels with playback, not with the queue). */
+  applyCurrentItem: (item: QueueItem | null | undefined) => void;
+  applyQueuePart: (part: RoomQueuePart | undefined, options?: { force?: boolean }) => boolean;
+  applyMetaPart: (part: RoomMetaPart | undefined, options?: { force?: boolean }) => boolean;
+  /** The whole room at once: on joining, and whenever this phone finds it missed something. */
+  applySnapshot: (snapshot: RoomSnapshot | null | undefined) => void;
+
   addToQueue: (socket: any, user: any, song: Song) => void;
   playNow: (socket: any, user: any, song: Song) => void;
+  /** Jumps to a song that's already coming up. The ones before it stay queued. */
+  playQueueItem: (socket: any, itemId: string) => void;
   playNext: (socket: any, user: any, song: Song) => void;
   skipSong: (socket: any, user: any) => void;
   removeFromQueue: (socket: any, user: any, queueItemId: string) => void;
+  /** Positions are those of `queue`, as the list shows them. */
   reorderQueue: (socket: any, fromIndex: number, toIndex: number) => void;
   addPlaylistToQueue: (socket: any, user: any, songs: Song[]) => void;
   clearQueue: (socket: any, user: any) => void;
+  shuffleQueue: (socket: any) => void;
   toggleAutoRecommendations: (socket: any, enabled?: boolean) => void;
+  /** Who may control playback. Only the host can change it. */
+  setControlMode: (socket: any, mode: 'everyone' | 'host') => void;
+  transferHost: (socket: any, userId: number | string) => void;
 
   performSearch: (query: string) => Promise<void>;
   clearSearch: () => void;
 
-  handleGroupCreated: (group: Group, user: any, openInviteSheet?: () => void) => void;
-  handleGroupJoined: (data: {
-    group: Group;
-    members: GroupMember[];
-    queue?: QueueItem[];
-    currentQueueIndex?: number;
-    playbackState?: any;
-  }) => void;
-  handleGroupRejoined: (data: {
-    group: Group;
-    members: GroupMember[];
-    queue?: QueueItem[];
-    currentQueueIndex?: number;
-    playbackState?: any;
-  }) => void;
+  handleGroupCreated: (
+    created: Group & { sync?: RoomSnapshot },
+    user: any,
+    openInviteSheet?: () => void
+  ) => void;
+  handleGroupJoined: (data: JoinedRoom) => void;
+  handleGroupRejoined: (data: JoinedRoom) => void;
   resetSession: (resetPlayback: () => void) => void;
 }
 
+interface JoinedRoom {
+  group: Group;
+  members: GroupMember[];
+  sync?: RoomSnapshot;
+}
+
 type GroupSessionStore = GroupSessionState & GroupSessionActions;
+
+const FRESH_ROOM = {
+  queue: [] as QueueItem[],
+  currentQueueIndex: -1,
+  currentItem: null as QueueItem | null,
+  upcoming: [] as QueueItem[],
+  queueRev: 0,
+  metaRev: 0,
+};
+
+/** Sends a request to the room and shows why if it was turned down. */
+const command = async (
+  socket: any,
+  groupId: string,
+  type: string,
+  payload?: Record<string, unknown>
+) => {
+  const result = await sendRoomCommand(socket, groupId, type, payload);
+  if (!result.ok) toast(result.error, { type: 'error' });
+  return result;
+};
 
 let searchDebounceTimer: any = null;
 const SESSION_KEY = '@syncvibe_group_session';
@@ -95,8 +143,7 @@ const initialState: GroupSessionState = {
   currentGroup: null,
   groupMembers: [],
   messages: [],
-  queue: [],
-  currentQueueIndex: -1,
+  ...FRESH_ROOM,
   isQueueOpen: false,
   isGroupModalOpen: false,
   isRejoining: false,
@@ -168,6 +215,7 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
         userName: user.name,
         profilePic: user.profilepic,
         deviceId,
+        protocol: ROOM_PROTOCOL,
       });
     });
     set({ isGroupModalOpen: false });
@@ -183,6 +231,7 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
         userName: user.name,
         profilePic: user.profilepic,
         deviceId,
+        protocol: ROOM_PROTOCOL,
       });
     });
     set({ isGroupModalOpen: false });
@@ -198,6 +247,7 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
         userName: user.name,
         profilePic: user.profilepic,
         deviceId,
+        protocol: ROOM_PROTOCOL,
       });
     });
   },
@@ -243,114 +293,130 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     socket?.emit('chat-message', payload);
   },
 
+  // --- What the room sends ---
+
+  applyCurrentItem: (item) => {
+    const currentItem = item || null;
+    if (get().currentItem?.id === currentItem?.id) return;
+    set({ currentItem, ...queueViewOf(currentItem, get().upcoming) });
+  },
+
+  applyQueuePart: (part, options) => {
+    if (!part || typeof part.rev !== 'number') return false;
+    if (!options?.force && part.rev <= get().queueRev) return false;
+    const upcoming = part.upcoming || [];
+    set({ upcoming, queueRev: part.rev, ...queueViewOf(get().currentItem, upcoming) });
+    return true;
+  },
+
+  applyMetaPart: (part, options) => {
+    const { currentGroup, metaRev } = get();
+    if (!part || typeof part.rev !== 'number' || !currentGroup) return false;
+    if (!options?.force && part.rev <= metaRev) return false;
+    set({
+      metaRev: part.rev,
+      currentGroup: {
+        ...currentGroup,
+        createdBy: part.hostId ?? currentGroup.createdBy,
+        settings: { ...currentGroup.settings, ...part.settings },
+        maxMembers: part.maxMembers ?? currentGroup.maxMembers,
+        features: { ...currentGroup.features, ...part.features },
+      },
+    });
+    return true;
+  },
+
+  applySnapshot: (snapshot) => {
+    if (!snapshot || snapshot.groupId !== get().currentGroup?.id) return;
+    get().applyCurrentItem(snapshot.playback?.item);
+    get().applyQueuePart(snapshot.queue, { force: true });
+    get().applyMetaPart(snapshot.meta, { force: true });
+    if (Array.isArray(snapshot.members)) set({ groupMembers: snapshot.members });
+  },
+
+  // --- What this phone asks of the room ---
+
   addToQueue: (socket, user, song) => {
     const { currentGroup, queue } = get();
     if (!currentGroup?.id || !user) return;
 
     if (queue.some((item) => item.song?.id === song?.id)) {
-      Alert.alert('Info', 'Song is already in the queue');
+      toast('Song is already in the queue', { type: 'info' });
       return;
     }
 
-    const securedSong = ensureHttpsForSongUrls(song);
-    socket?.emit('add-to-queue', {
-      groupId: currentGroup.id,
-      song: securedSong,
-      addedBy: {
-        userId: user.userid,
-        userName: user.name,
-        profilePic: user.profilepic,
-      },
-    });
+    void command(socket, currentGroup.id, 'add', { song: ensureHttpsForSongUrls(song) });
   },
 
   playNow: (socket, user, song) => {
     const { currentGroup } = get();
     if (!currentGroup?.id || !user) return;
+    void command(socket, currentGroup.id, 'play-now', { song: ensureHttpsForSongUrls(song) });
+  },
 
-    const securedSong = ensureHttpsForSongUrls(song);
-    socket?.emit('music-change', {
-      groupId: currentGroup.id,
-      song: securedSong,
-      currentTime: 0,
-      addedBy: {
-        userId: user.userid,
-        userName: user.name,
-        profilePic: user.profilepic,
-      },
-    });
+  playQueueItem: (socket, itemId) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || !itemId) return;
+    void command(socket, currentGroup.id, 'play-item', { itemId });
   },
 
   playNext: (socket, user, song) => {
     const { currentGroup } = get();
     if (!currentGroup?.id || !user) return;
-
-    const securedSong = ensureHttpsForSongUrls(song);
-    socket?.emit('play-next', {
-      groupId: currentGroup.id,
-      song: securedSong,
-      addedBy: {
-        userId: user.userid,
-        userName: user.name,
-        profilePic: user.profilepic,
-      },
-    });
+    void command(socket, currentGroup.id, 'add-next', { song: ensureHttpsForSongUrls(song) });
   },
 
-  skipSong: (socket, user) => {
-    const { currentGroup } = get();
-    if (!currentGroup?.id) return;
-
-    socket?.emit('skip-song', {
-      groupId: currentGroup.id,
-      userName: user?.name,
-    });
+  skipSong: (socket) => {
+    const { currentGroup, currentItem } = get();
+    if (!currentGroup?.id || !currentItem) return;
+    // Naming the song means a double press can't skip two.
+    void command(socket, currentGroup.id, 'skip', { itemId: currentItem.id });
   },
 
   removeFromQueue: (socket, user, queueItemId) => {
     const { currentGroup } = get();
     if (!currentGroup?.id || !user) return;
-
-    socket?.emit('remove-from-queue', {
-      groupId: currentGroup.id,
-      queueItemId,
-      userId: user.userid,
-    });
+    void command(socket, currentGroup.id, 'remove', { itemId: queueItemId });
   },
 
   reorderQueue: (socket, fromIndex, toIndex) => {
-    const { currentGroup } = get();
+    const { currentGroup, queue, currentItem, upcoming } = get();
     if (!currentGroup?.id || fromIndex === toIndex) return;
-    socket?.emit('reorder-queue', {
-      groupId: currentGroup.id,
-      fromIndex,
-      toIndex,
-    });
+    const item = queue[fromIndex];
+    const target = toIndex - (currentItem ? 1 : 0);
+    if (!item || target < 0 || !upcoming.some((entry) => entry.id === item.id)) return;
+
+    // Shown where it was dropped straight away; the room's answer then confirms or corrects it.
+    const reordered = upcoming.filter((entry) => entry.id !== item.id);
+    reordered.splice(target, 0, item);
+    set({ upcoming: reordered, ...queueViewOf(currentItem, reordered) });
+
+    void command(socket, currentGroup.id, 'move', { itemId: item.id, toIndex: target }).then(
+      (result) => {
+        if (!result.ok) set({ upcoming, ...queueViewOf(get().currentItem, upcoming) });
+      }
+    );
   },
 
   addPlaylistToQueue: (socket, user, songs) => {
     const { currentGroup } = get();
     if (!currentGroup?.id || !user || !songs?.length) return;
-
-    const securedSongs = songs.map(ensureHttpsForSongUrls);
-    socket?.emit('add-playlist-to-queue', {
-      groupId: currentGroup.id,
-      songs: securedSongs,
-      addedBy: {
-        userId: user.userid,
-        userName: user.name,
-        profilePic: user.profilepic,
-      },
+    const limit = currentGroup.settings?.maxQueueSize || 50;
+    void command(socket, currentGroup.id, 'add-many', {
+      songs: songs.slice(0, limit).map(ensureHttpsForSongUrls),
     });
   },
 
   clearQueue: (socket, user) => {
     const { currentGroup } = get();
     if (!currentGroup?.id || !user) return;
-    socket?.emit('clear-queue', {
-      groupId: currentGroup.id,
-      userId: user.userid,
-    });
+    void command(socket, currentGroup.id, 'clear');
+  },
+
+  shuffleQueue: (socket) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id) return;
+    void command(socket, currentGroup.id, 'shuffle');
   },
 
   toggleAutoRecommendations: (socket, enabled) => {
@@ -358,23 +424,19 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     if (!currentGroup?.id) return;
     const nextState =
       enabled !== undefined ? enabled : !(currentGroup.settings?.autoPlayRecommendations ?? true);
+    void command(socket, currentGroup.id, 'set-autoplay', { enabled: nextState });
+  },
 
-    socket?.emit('toggle-auto-recommendations', {
-      groupId: currentGroup.id,
-      enabled: nextState,
-    });
+  setControlMode: (socket, mode) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id) return;
+    void command(socket, currentGroup.id, 'set-control-mode', { mode });
+  },
 
-    set((state) => ({
-      currentGroup: state.currentGroup
-        ? {
-            ...state.currentGroup,
-            settings: {
-              ...(state.currentGroup.settings || { maxQueueSize: 3, allowAnyoneToAdd: true }),
-              autoPlayRecommendations: nextState,
-            },
-          }
-        : null,
-    }));
+  transferHost: (socket, userId) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || userId == null) return;
+    void command(socket, currentGroup.id, 'transfer-host', { userId });
   },
 
   performSearch: async (query: string) => {
@@ -406,7 +468,8 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     set({ searchQuery: '', searchResults: [], isSearchLoading: false });
   },
 
-  handleGroupCreated: (group, user, openInviteSheet) => {
+  handleGroupCreated: (created, user, openInviteSheet) => {
+    const { sync, ...group } = created;
     const { saveSession } = get();
     set({
       currentGroup: group,
@@ -418,38 +481,38 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
           profilePic: user.profilepic,
         },
       ],
-      queue: [],
-      currentQueueIndex: -1,
+      ...FRESH_ROOM,
     });
+    get().applySnapshot(sync);
     saveSession(group.id);
     openInviteSheet?.();
   },
 
   handleGroupJoined: (data) => {
-    const { group, members, queue: serverQueue, currentQueueIndex: serverIdx } = data || {};
+    const { group, members } = data || {};
     if (!group) return;
     const { saveSession } = get();
     set({
       currentGroup: group,
       groupMembers: members || group.members || [],
-      queue: serverQueue || group.queue || [],
-      currentQueueIndex: serverIdx ?? group.currentQueueIndex ?? -1,
+      ...FRESH_ROOM,
       isRejoining: false,
     });
+    get().applySnapshot(data.sync);
     saveSession(group.id);
   },
 
   handleGroupRejoined: (data) => {
-    const { group, members, queue: serverQueue, currentQueueIndex: serverIdx } = data || {};
+    const { group, members } = data || {};
     if (!group) return;
     const { saveSession } = get();
+    // The queue stays on screen as it was until the snapshot replaces it, so nothing flickers.
     set({
       currentGroup: group,
       groupMembers: members || group.members || [],
-      queue: serverQueue || group.queue || [],
-      currentQueueIndex: serverIdx ?? group.currentQueueIndex ?? -1,
       isRejoining: false,
     });
+    get().applySnapshot(data.sync);
     saveSession(group.id);
   },
 

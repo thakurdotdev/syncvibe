@@ -17,9 +17,17 @@ import {
   isNaturalGroupSongEnd,
   useGroupPlaybackStore,
   ROOM_ACTION_SETTLE_MS,
-  ROOM_SYNC_INTERVAL_MS,
   noteRoomPlaybackStarted,
 } from '@/stores/groupMusic/groupPlaybackStore';
+import { seedClock } from '@/stores/groupMusic/roomClock';
+import {
+  fetchRoomSnapshot,
+  pingRoom,
+  type RoomMetaPart,
+  type RoomQueuePart,
+  type RoomSnapshot,
+} from '@/stores/groupMusic/roomProtocol';
+import type { RoomPlayback } from '@/stores/groupMusic/roomSync';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
 import { usePlayerStore } from '@/stores/playerStore';
@@ -40,6 +48,12 @@ interface GroupMusicContextType {
   playNow: (song: Song) => void;
   playNext: (song: Song) => void;
   skipSong: () => void;
+  /** Jumps to a song that's already coming up. */
+  playQueueItem: (itemId: string) => void;
+  shuffleQueue: () => void;
+  /** Who may control playback: everyone, or only the host. Only the host can change it. */
+  setControlMode: (mode: 'everyone' | 'host') => void;
+  transferHost: (userId: number | string) => void;
   removeFromQueue: (queueItemId: string) => void;
   reorderQueue: (fromIndex: number, toIndex: number) => void;
   addPlaylistToQueue: (songs: Song[]) => void;
@@ -56,6 +70,10 @@ interface GroupMusicContextType {
 }
 
 const FLOATING_REACTION_MS = 1000;
+/** Pings come quickly at first so the clock is accurate early, then settle to a steady pace. */
+const PING_BURST_MS = 1000;
+const PING_BURST_COUNT = 5;
+const PING_STEADY_MS = 5000;
 
 /** Floats an emoji over the player, for just as long as its animation runs. */
 const showFloatingReaction = (emoji: string, userName: string) => {
@@ -72,15 +90,14 @@ const showFloatingReaction = (emoji: string, userName: string) => {
 
 const GroupMusicContext = createContext<GroupMusicContextType | null>(null);
 
+const pb = useGroupPlaybackStore;
+const ss = useGroupSessionStore;
+const inv = useGroupInviteStore;
+
 export function GroupMusicProvider({ children }: { children: ReactNode }) {
   const { socket } = useChat();
   const { user } = useUser();
-  const syncIntervalRef = useRef<any>(null);
   const hasAttemptedRejoin = useRef(false);
-
-  const pb = useGroupPlaybackStore;
-  const ss = useGroupSessionStore;
-  const inv = useGroupInviteStore;
 
   const currentGroupId = ss((s) => s.currentGroup?.id);
 
@@ -118,12 +135,9 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         if (playing) {
           pb.getState().startProgressPolling();
           noteRoomPlaybackStarted();
-          // Sound has only just started, after however long it took to buffer: measure that now
-          // rather than leaving this phone behind until the next regular check.
-          const groupId = ss.getState().currentGroup?.id;
-          if (groupId && socket) {
-            setTimeout(() => socket.emit('request-sync', { groupId }), ROOM_ACTION_SETTLE_MS + 100);
-          }
+          // Sound has only just started, after however long it took to buffer: measure that as
+          // soon as the player has settled rather than waiting for the next regular check.
+          setTimeout(() => pb.getState().checkDrift(), ROOM_ACTION_SETTLE_MS + 100);
         } else {
           pb.getState().stopProgressPolling();
         }
@@ -139,12 +153,10 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
           const activePlayerMode = usePlayerStore.getState().activePlayerMode;
           if (activePlayerMode !== 'group') return;
 
-          // Only a genuine end-of-song advances the room (see isNaturalGroupSongEnd).
+          // Only a genuine end-of-song is reported (see isNaturalGroupSongEnd). The room moves
+          // on by itself either way; this lets it do so the moment the sound stops.
           if (state === PlaybackState.Ended && isNaturalGroupSongEnd()) {
-            const currentGroup = ss.getState().currentGroup;
-            if (currentGroup && socket && user) {
-              ss.getState().skipSong(socket, user);
-            }
+            pb.getState().reportSongEnded();
           }
         } catch (err) {
           console.error('Error handling playback state:', err);
@@ -161,49 +173,75 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       subPlaybackState.remove();
       subPlaybackError.remove();
     };
-  }, [socket]);
+  }, []);
 
-  // --- Time sync (only active when in a group session) ---
+  // --- The room's clock, and a check that nothing was missed ---
+  // Each ping refines this phone's idea of the server's time and brings back the room's
+  // revisions; a mismatch means an update never arrived, so the whole room is fetched again.
+  // Nothing else is polled: staying in step is worked out on the phone (see groupPlaybackStore).
   useEffect(() => {
     if (!socket || !currentGroupId) return;
+    const groupId = currentGroupId;
+    pb.getState().setTransport(socket, groupId);
+    let stopped = false;
+    let resyncing = false;
 
-    // A disconnected socket queues what it's given and sends it all on reconnecting, by which
-    // time these would be stale.
-    const syncClock = () => {
-      if (!socket.connected) return;
-      socket.emit('time-sync-request', { clientTime: Date.now() });
+    const resync = async () => {
+      if (resyncing) return;
+      resyncing = true;
+      const snapshot = await fetchRoomSnapshot(socket, groupId);
+      resyncing = false;
+      if (stopped || !snapshot || snapshot.error || ss.getState().currentGroup?.id !== groupId) {
+        return;
+      }
+      seedClock(snapshot.serverTime);
+      ss.getState().applySnapshot(snapshot);
+      pb.getState().applyPlayback(snapshot.playback, 'sync', { force: true });
     };
-    const checkDrift = () => {
-      if (!socket.connected) return;
-      socket.emit('request-sync', { groupId: currentGroupId });
+
+    const ping = async () => {
+      const reply = await pingRoom(socket, groupId);
+      if (stopped || !reply || ss.getState().currentGroup?.id !== groupId) return;
+      pb.getState().noteClockUpdate();
+
+      if (reply.error === 'not-in-room') {
+        // This connection never got back into the room after a reconnect.
+        if (user) ss.getState().rejoinGroup(socket, user, groupId);
+      } else if (reply.error === 'gone') {
+        ss.getState().resetSession(() => pb.getState().reset());
+        Alert.alert('Room Ended', 'This room is no longer active.');
+      } else if (reply.revs) {
+        const { queueRev, metaRev } = ss.getState();
+        const behind =
+          reply.revs.playback > pb.getState().getPlaybackRev() ||
+          reply.revs.queue > queueRev ||
+          reply.revs.meta > metaRev;
+        if (behind) void resync();
+      }
     };
 
-    socket.on('time-sync-response', (data: { clientTime: number; serverTime: number }) => {
-      pb.getState().processTimeSyncResponse(data.clientTime, data.serverTime);
-    });
+    let sent = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const loop = () => {
+      void ping();
+      sent += 1;
+      timer = setTimeout(loop, sent < PING_BURST_COUNT ? PING_BURST_MS : PING_STEADY_MS);
+    };
+    loop();
 
-    // A quick burst on joining so the clock is accurate early, then a steady pace.
-    syncClock();
-    const burst = setInterval(syncClock, 1000);
-    const settle = setTimeout(() => {
-      clearInterval(burst);
-      syncIntervalRef.current = setInterval(syncClock, 5000);
-    }, 5000);
-    const driftTimer = setInterval(checkDrift, ROOM_SYNC_INTERVAL_MS);
     // Timers can stall while the phone is in a pocket, so check as soon as it's back in hand.
     const foreground = AppState.addEventListener('change', (state) => {
-      if (state === 'active') checkDrift();
+      if (state !== 'active') return;
+      void ping();
+      pb.getState().checkDrift();
     });
 
     return () => {
-      clearInterval(burst);
-      clearTimeout(settle);
-      clearInterval(driftTimer);
+      stopped = true;
+      if (timer) clearTimeout(timer);
       foreground.remove();
-      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
-      socket.off('time-sync-response');
     };
-  }, [socket, currentGroupId]);
+  }, [socket, user, currentGroupId]);
 
   // --- Session rejoin on socket connect ---
   useEffect(() => {
@@ -247,47 +285,41 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('playback-update', async (data: any) => {
-      await pb.getState().handlePlaybackUpdate(data);
-    });
+    const inThisRoom = (data: { groupId?: string } | undefined) =>
+      Boolean(data?.groupId) && data?.groupId === ss.getState().currentGroup?.id;
 
-    socket.on('music-update', async (data: any) => {
-      await pb.getState().handleMusicUpdate(data);
-    });
-
-    socket.on('queue-updated', (data: any) => {
-      const { queue, currentQueueIndex } = data;
-      ss.setState({ queue, currentQueueIndex });
-    });
-
-    socket.on('queue-error', ({ error }: { error: string }) => {
-      Alert.alert('Queue Error', error);
-    });
-
-    socket.on('queue-ended', () => {
-      pb.setState({ isPlaying: false });
-      pb.getState().stopProgressPolling();
-    });
-
-    socket.on('sync-state', async (data: any) => {
-      // This arrives every few seconds: only touch the queue if an update was actually missed,
-      // so screens showing it don't re-render for nothing.
-      const { queue, currentQueueIndex } = ss.getState();
-      const sameQueue =
-        data.currentQueueIndex === currentQueueIndex &&
-        data.queue?.length === queue.length &&
-        data.queue?.every((item: any, i: number) => item.id === queue[i]?.id);
-      if (data.queue && !sameQueue) {
-        ss.setState({ queue: data.queue, currentQueueIndex: data.currentQueueIndex });
+    // The room's three parts. Each message carries the whole part and its revision.
+    socket.on(
+      'room:playback',
+      (data: RoomPlayback & { groupId: string; kind: any; serverTime: number }) => {
+        if (!inThisRoom(data)) return;
+        seedClock(data.serverTime);
+        if (!pb.getState().applyPlayback(data, data.kind)) return;
+        ss.getState().applyCurrentItem(data.item);
       }
-      await pb.getState().handleSyncState(data);
+    );
+
+    socket.on('room:queue', (data: RoomQueuePart & { groupId: string }) => {
+      if (inThisRoom(data)) ss.getState().applyQueuePart(data);
     });
+
+    socket.on('room:meta', (data: RoomMetaPart & { groupId: string }) => {
+      if (inThisRoom(data)) ss.getState().applyMetaPart(data);
+    });
+
+    /** Joining hands over the whole room; the audio then lines up with it. */
+    const enterRoom = (sync?: RoomSnapshot) => {
+      if (!sync) return;
+      seedClock(sync.serverTime);
+      pb.getState().applyPlayback(sync.playback, 'join', { force: true });
+    };
 
     socket.on('group-created', (group: any) => {
       if (!user) return;
       ss.getState().handleGroupCreated(group, user, () => {
         inv.setState({ isInviteSheetOpen: true });
       });
+      enterRoom(group?.sync);
     });
 
     const requestHistory = () => {
@@ -295,32 +327,17 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       if (id) socket.emit('get-chat-history', { groupId: id });
     };
 
-    socket.on('group-joined', async (data: any) => {
+    socket.on('group-joined', (data: any) => {
       ss.getState().handleGroupJoined(data);
       requestHistory();
-      if (data.playbackState) {
-        await pb
-          .getState()
-          .syncPlaybackFromServer(
-            data.playbackState,
-            data.queue || [],
-            data.currentQueueIndex ?? -1
-          );
-      }
+      enterRoom(data?.sync);
     });
 
-    socket.on('group-rejoined', async (data: any) => {
+    // The song already loaded keeps playing through a reconnect; only its position is corrected.
+    socket.on('group-rejoined', (data: any) => {
       ss.getState().handleGroupRejoined(data);
       requestHistory();
-      if (data.playbackState) {
-        await pb
-          .getState()
-          .syncPlaybackFromServer(
-            data.playbackState,
-            data.queue || [],
-            data.currentQueueIndex ?? -1
-          );
-      }
+      enterRoom(data?.sync);
     });
 
     const endRoomHere = () => {
@@ -333,16 +350,6 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       // Rejoining a room that ended while the connection was down: don't stay in a phantom one.
       if (ss.getState().currentGroup) endRoomHere();
       Alert.alert('Group Not Found', 'The group no longer exists.');
-    });
-
-    socket.on('sync-lost', (data: { groupId: string; reason: string }) => {
-      if (!user || data.groupId !== ss.getState().currentGroup?.id) return;
-      if (data.reason === 'not-in-room') {
-        ss.getState().rejoinGroup(socket, user, data.groupId);
-      } else {
-        endRoomHere();
-        Alert.alert('Room Ended', 'This room is no longer active.');
-      }
     });
 
     // You moved to another device, which now plays the room. Rejoining would just take it back.
@@ -483,8 +490,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       Alert.alert('Invite Sent', 'Your invite has been sent.');
     });
 
-    socket.on('invite-error', ({ message }: { message: string }) => {
-      Alert.alert('Invite Error', message);
+    socket.on('invite-error', ({ error, message }: { error?: string; message?: string }) => {
+      Alert.alert('Invite Error', error || message || 'Could not send the invite.');
     });
 
     socket.on('invite-accepted', ({ userName }: { userName: string }) => {
@@ -497,12 +504,9 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
 
     return () => {
       const events = [
-        'playback-update',
-        'music-update',
-        'queue-updated',
-        'queue-error',
-        'queue-ended',
-        'sync-state',
+        'room:playback',
+        'room:queue',
+        'room:meta',
         'group-created',
         'group-joined',
         'group-rejoined',
@@ -516,7 +520,6 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         'chat-history',
         'message-reaction',
         'song-reaction',
-        'sync-lost',
         'left-group',
         'device-replaced',
         'member-presence',
@@ -581,6 +584,23 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
   );
 
   const skipSong = useCallback(() => ss.getState().skipSong(socket, user), [socket, user]);
+
+  const playQueueItem = useCallback(
+    (itemId: string) => ss.getState().playQueueItem(socket, itemId),
+    [socket]
+  );
+
+  const shuffleQueue = useCallback(() => ss.getState().shuffleQueue(socket), [socket]);
+
+  const setControlMode = useCallback(
+    (mode: 'everyone' | 'host') => ss.getState().setControlMode(socket, mode),
+    [socket]
+  );
+
+  const transferHost = useCallback(
+    (userId: number | string) => ss.getState().transferHost(socket, userId),
+    [socket]
+  );
 
   const removeFromQueue = useCallback(
     (queueItemId: string) => ss.getState().removeFromQueue(socket, user, queueItemId),
@@ -683,6 +703,10 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       playNow,
       playNext,
       skipSong,
+      playQueueItem,
+      shuffleQueue,
+      setControlMode,
+      transferHost,
       removeFromQueue,
       reorderQueue,
       addPlaylistToQueue,
@@ -709,6 +733,10 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       playNow,
       playNext,
       skipSong,
+      playQueueItem,
+      shuffleQueue,
+      setControlMode,
+      transferHost,
       removeFromQueue,
       reorderQueue,
       addPlaylistToQueue,

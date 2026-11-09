@@ -31,6 +31,7 @@ const FullPlayer = ({ playback, controls, queueItem, onReact }) => (
         addedBy={queueItem?.addedBy}
         isSyncing={playback.isSyncing}
         syncCountdown={playback.syncCountdown}
+        isLocked={playback.isLocked}
         showEyebrow
       />
       <PlaybackProgress
@@ -38,12 +39,13 @@ const FullPlayer = ({ playback, controls, queueItem, onReact }) => (
         duration={playback.duration}
         formatTime={playback.formatTime}
         onSeek={controls.onSeek}
-        disabled={playback.isBusy}
+        disabled={playback.isBusy || playback.isLocked}
       />
       <div className='flex items-center justify-between gap-3'>
         <TransportControls
           isPlaying={playback.isPlaying}
           isBusy={playback.isBusy}
+          isLocked={playback.isLocked}
           onRestart={controls.onRestart}
           onPlayPause={controls.onPlayPause}
           onSkip={controls.onSkip}
@@ -76,6 +78,7 @@ const CompactPlayer = ({ playback, controls, onReact }) => (
         showRestart={false}
         isPlaying={playback.isPlaying}
         isBusy={playback.isBusy}
+        isLocked={playback.isLocked}
         onPlayPause={controls.onPlayPause}
         onSkip={controls.onSkip}
       />
@@ -94,7 +97,7 @@ const CompactPlayer = ({ playback, controls, onReact }) => (
 /**
  * Now-playing surface. `variant="full"` for tablet/desktop, `"compact"` for phones.
  *
- * playback: { song, isPlaying, isBusy, isSyncing, syncCountdown, currentTime, duration, volume, formatTime }
+ * playback: { song, isPlaying, isBusy, isLocked, isSyncing, syncCountdown, currentTime, duration, volume, formatTime }
  * controls: { onPlayPause, onSeek, onSkip, onRestart, onVolumeChange }
  */
 const PlayerPanel = ({

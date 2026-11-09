@@ -1,310 +1,144 @@
-import { generateQueueItemId, type MusicGroup, type QueueItem, type GroupMember } from './state';
+import {
+  generateQueueItemId,
+  isHost,
+  type GroupMember,
+  type MusicGroup,
+  type QueueItem,
+} from './state';
 
-export interface AddQueueResult {
-  success: boolean;
-  error?: string;
-  queueItem?: QueueItem;
-  autoPlay?: boolean;
-}
+/*
+ * The queue is the song that's on plus what comes after it. These only change the room's record;
+ * telling devices about it, and anything to do with time, is the engine's job.
+ */
 
-export interface SkipResult {
-  success: boolean;
-  error?: string;
-  alreadyAdvanced?: boolean;
-  hasNext?: boolean;
-  currentItem?: QueueItem;
-}
+export type QueueError = 'queue-full' | 'duplicate' | 'not-found' | 'forbidden' | 'invalid';
 
-export const addToQueue = (
-  group: MusicGroup,
+export const QUEUE_ERROR_TEXT: Record<QueueError, string> = {
+  'queue-full': 'Queue is full',
+  duplicate: 'Song is already in the queue',
+  'not-found': 'Item not found',
+  forbidden: 'Not authorized',
+  invalid: 'Invalid request',
+};
+
+export const AUTOPLAY_MEMBER: GroupMember = {
+  userId: 'system',
+  userName: 'Auto-Play',
+  profilePic: '',
+};
+
+export const songIdOf = (song: unknown): string => {
+  const id = (song as { id?: unknown } | null)?.id;
+  return typeof id === 'string' || typeof id === 'number' ? String(id) : '';
+};
+
+export const queueSize = (group: MusicGroup): number =>
+  group.upcoming.length + (group.current ? 1 : 0);
+
+export const hasSong = (group: MusicGroup, songId: string): boolean =>
+  (group.current ? songIdOf(group.current.song) === songId : false) ||
+  group.upcoming.some((item) => songIdOf(item.song) === songId);
+
+export const createQueueItem = (
   song: Record<string, unknown>,
-  addedBy: GroupMember
-): AddQueueResult => {
-  if (group.queue.length >= group.settings.maxQueueSize) {
-    return { success: false, error: 'Queue is full' };
-  }
+  addedBy: GroupMember,
+  isAutoRecommended = false
+): QueueItem => ({
+  id: generateQueueItemId(),
+  song,
+  addedBy: {
+    userId: addedBy.userId,
+    userName: addedBy.userName,
+    profilePic: addedBy.profilePic,
+  },
+  addedAt: Date.now(),
+  status: 'pending',
+  ...(isAutoRecommended ? { isAutoRecommended: true } : {}),
+});
 
-  const isDuplicate = group.queue.some((item) => item.song?.id === song?.id);
-  if (isDuplicate) {
-    return { success: false, error: 'Song is already in the queue' };
-  }
-
-  const queueItem: QueueItem = {
-    id: generateQueueItemId(),
-    song,
-    addedBy: {
-      userId: addedBy.userId,
-      userName: addedBy.userName,
-      profilePic: addedBy.profilePic,
-    },
-    addedAt: Date.now(),
-    status: 'pending',
-  };
-
-  group.queue.push(queueItem);
-
-  const shouldAutoPlay = group.currentQueueIndex === -1;
-  if (shouldAutoPlay) {
-    group.currentQueueIndex = 0;
-    group.currentSongId = queueItem.id;
-    queueItem.status = 'playing';
-    group.playbackState.currentTrack = song;
-    group.playbackState.currentTime = 0;
-    group.playbackState.isPlaying = true;
-    group.playbackState.lastUpdate = Date.now();
-  }
-
-  return { success: true, queueItem, autoPlay: shouldAutoPlay };
-};
-
-export const addPlayNext = (
+/**
+ * Adds songs after everything else, or right after the current one with `next`. Skips ones
+ * already queued and stops at the room's limit. Says why if nothing could be added.
+ */
+export const addSongs = (
   group: MusicGroup,
-  song: Record<string, unknown>,
-  addedBy: GroupMember
-): AddQueueResult => {
-  if (group.queue.length >= group.settings.maxQueueSize) {
-    return { success: false, error: 'Queue is full' };
-  }
-
-  const isDuplicate = group.queue.some((item) => item.song?.id === song?.id);
-  if (isDuplicate) {
-    return { success: false, error: 'Song is already in the queue' };
-  }
-
-  const queueItem: QueueItem = {
-    id: generateQueueItemId(),
-    song,
-    addedBy: {
-      userId: addedBy.userId,
-      userName: addedBy.userName,
-      profilePic: addedBy.profilePic,
-    },
-    addedAt: Date.now(),
-    status: 'pending',
-  };
-
-  if (group.currentQueueIndex === -1) {
-    group.queue.push(queueItem);
-    group.currentQueueIndex = 0;
-    group.currentSongId = queueItem.id;
-    queueItem.status = 'playing';
-    group.playbackState.currentTrack = song;
-    group.playbackState.currentTime = 0;
-    group.playbackState.isPlaying = true;
-    group.playbackState.lastUpdate = Date.now();
-    return { success: true, queueItem, autoPlay: true };
-  }
-
-  const insertIndex = group.currentQueueIndex + 1;
-  group.queue.splice(insertIndex, 0, queueItem);
-  return { success: true, queueItem, autoPlay: false };
-};
-
-export const removeFromQueue = (
-  group: MusicGroup,
-  queueItemId: string,
-  userId: string | number
-): { success: boolean; error?: string } => {
-  const index = group.queue.findIndex((item) => item.id === queueItemId);
-  if (index === -1) {
-    return { success: false, error: 'Item not found' };
-  }
-
-  const item = group.queue[index]!;
-
-  if (
-    String(item.addedBy.userId) !== String(userId) &&
-    String(group.createdBy) !== String(userId)
-  ) {
-    return { success: false, error: 'Not authorized' };
-  }
-
-  if (index === group.currentQueueIndex) {
-    return {
-      success: false,
-      error: 'Cannot remove currently playing song. Use skip instead.',
-    };
-  }
-
-  group.queue.splice(index, 1);
-
-  if (index < group.currentQueueIndex) {
-    group.currentQueueIndex--;
-  }
-
-  return { success: true };
-};
-
-export const skipToNext = (group: MusicGroup, expectedSongId: string | null = null): SkipResult => {
-  if (group.queue.length === 0) {
-    return { success: false, error: 'Queue is empty' };
-  }
-
-  if (expectedSongId && group.currentSongId !== expectedSongId) {
-    return {
-      success: false,
-      error: 'Song already advanced',
-      alreadyAdvanced: true,
-    };
-  }
-
-  if (group.currentQueueIndex === -1) {
-    if (group.queue.length > 0) {
-      group.currentQueueIndex = 0;
-      group.currentSongId = group.queue[0]!.id;
-      group.queue[0]!.status = 'playing';
-      group.playbackState.currentTrack = group.queue[0]!.song;
-      group.playbackState.currentTime = 0;
-      group.playbackState.isPlaying = true;
-      group.playbackState.lastUpdate = Date.now();
-      return { success: true, hasNext: true, currentItem: group.queue[0] };
-    }
-    return { success: false, error: 'Queue is empty' };
-  }
-
-  if (group.currentQueueIndex >= 0 && group.currentQueueIndex < group.queue.length) {
-    const currentItem = group.queue[group.currentQueueIndex]!;
-    if (currentItem.status === 'playing') {
-      currentItem.status = 'played';
-    }
-  }
-
-  const nextIndex = group.currentQueueIndex + 1;
-
-  if (nextIndex >= group.queue.length) {
-    group.currentQueueIndex = -1;
-    group.currentSongId = null;
-    group.playbackState.currentTrack = null;
-    group.playbackState.isPlaying = false;
-    group.playbackState.currentTime = 0;
-    return { success: true, hasNext: false };
-  }
-
-  const nextItem = group.queue[nextIndex]!;
-  group.currentQueueIndex = nextIndex;
-  group.currentSongId = nextItem.id;
-  nextItem.status = 'playing';
-  group.playbackState.currentTrack = nextItem.song;
-  group.playbackState.currentTime = 0;
-  group.playbackState.isPlaying = true;
-  group.playbackState.lastUpdate = Date.now();
-
-  return {
-    success: true,
-    hasNext: true,
-    currentItem: nextItem,
-  };
-};
-
-export const prunePlayedSongs = (group: MusicGroup): void => {
-  const playedCount = group.queue.filter((item) => item.status === 'played').length;
-  if (playedCount === 0) return;
-  group.queue = group.queue.filter((item) => item.status !== 'played');
-  if (group.currentQueueIndex >= 0) {
-    group.currentQueueIndex = Math.max(0, group.currentQueueIndex - playedCount);
-  }
-};
-
-export const reorderQueue = (
-  group: MusicGroup,
-  fromIndex: number,
-  toIndex: number
-): { success: boolean; error?: string } => {
-  if (fromIndex <= group.currentQueueIndex || toIndex <= group.currentQueueIndex) {
-    return {
-      success: false,
-      error: 'Cannot reorder played or currently playing songs',
-    };
-  }
-
-  if (
-    fromIndex < 0 ||
-    fromIndex >= group.queue.length ||
-    toIndex < 0 ||
-    toIndex >= group.queue.length
-  ) {
-    return { success: false, error: 'Invalid index' };
-  }
-
-  const [item] = group.queue.splice(fromIndex, 1);
-  if (item) {
-    group.queue.splice(toIndex, 0, item);
-  }
-
-  return { success: true };
-};
-
-export const clearPendingQueue = (
-  group: MusicGroup,
-  userId: string | number
-): { success: boolean; clearedCount: number; error?: string } => {
-  const isMember = group.members.some((m) => String(m.userId) === String(userId));
-  if (!isMember && String(group.createdBy) !== String(userId)) {
-    return { success: false, clearedCount: 0, error: 'Not authorized' };
-  }
-
-  const keepIndex = group.currentQueueIndex;
-  const initialLength = group.queue.length;
-
-  if (keepIndex >= 0) {
-    group.queue = group.queue.slice(0, keepIndex + 1);
-  } else {
-    group.queue = [];
-  }
-
-  const clearedCount = initialLength - group.queue.length;
-  return { success: true, clearedCount };
-};
-
-export const addRecommendedSongsToQueue = (
-  group: MusicGroup,
-  songs: Array<Record<string, unknown>>
-): { addedCount: number; autoPlay: boolean; firstItem?: QueueItem } => {
-  let addedCount = 0;
-  let firstItem: QueueItem | undefined;
-  let shouldAutoPlay = false;
+  songs: Array<Record<string, unknown>>,
+  addedBy: GroupMember,
+  options: { next?: boolean; isAutoRecommended?: boolean } = {}
+): { added: QueueItem[]; error?: QueueError } => {
+  const added: QueueItem[] = [];
+  let error: QueueError | undefined;
 
   for (const song of songs) {
-    if (group.queue.length >= group.settings.maxQueueSize) break;
-    const isDuplicate = group.queue.some((item) => item.song?.id === song?.id);
-    if (isDuplicate) continue;
-
-    const queueItem: QueueItem = {
-      id: generateQueueItemId(),
-      song,
-      addedBy: {
-        userId: 'system',
-        userName: 'Auto-Play',
-        profilePic: '',
-      },
-      addedAt: Date.now(),
-      status: 'pending',
-      isAutoRecommended: true,
-    };
-
-    group.queue.push(queueItem);
-    if (addedCount === 0) {
-      firstItem = queueItem;
-      if (group.currentQueueIndex === -1) {
-        shouldAutoPlay = true;
-        group.currentQueueIndex = 0;
-        group.currentSongId = queueItem.id;
-        queueItem.status = 'playing';
-        group.playbackState.currentTrack = song;
-        group.playbackState.currentTime = 0;
-        group.playbackState.isPlaying = true;
-        group.playbackState.lastUpdate = Date.now();
-      }
+    const songId = songIdOf(song);
+    if (!songId) {
+      error ??= 'invalid';
+      continue;
     }
-    addedCount++;
+    if (queueSize(group) >= group.settings.maxQueueSize) {
+      error ??= 'queue-full';
+      break;
+    }
+    if (hasSong(group, songId)) {
+      error ??= 'duplicate';
+      continue;
+    }
+    const item = createQueueItem(song, addedBy, options.isAutoRecommended);
+    if (options.next) group.upcoming.splice(added.length, 0, item);
+    else group.upcoming.push(item);
+    added.push(item);
   }
 
-  return { addedCount, autoPlay: shouldAutoPlay, firstItem };
+  return added.length > 0 ? { added } : { added, error: error ?? 'invalid' };
 };
 
-export const getQueueState = (group: MusicGroup) => ({
-  queue: group.queue,
-  currentQueueIndex: group.currentQueueIndex,
-  currentSongId: group.currentSongId,
-  currentItem: group.currentQueueIndex >= 0 ? (group.queue[group.currentQueueIndex] ?? null) : null,
-});
+/** People can take out what they added; the host can take out anything. */
+export const removeUpcoming = (
+  group: MusicGroup,
+  itemId: string,
+  userId: string | number
+): QueueError | null => {
+  const index = group.upcoming.findIndex((item) => item.id === itemId);
+  if (index === -1) return 'not-found';
+  const item = group.upcoming[index]!;
+  if (String(item.addedBy.userId) !== String(userId) && !isHost(group, userId)) return 'forbidden';
+  group.upcoming.splice(index, 1);
+  return null;
+};
+
+/** Takes a song out of what's coming up, to play it now. */
+export const takeUpcoming = (group: MusicGroup, itemId: string): QueueItem | null => {
+  const index = group.upcoming.findIndex((item) => item.id === itemId);
+  if (index === -1) return null;
+  return group.upcoming.splice(index, 1)[0] ?? null;
+};
+
+/** By id rather than by position, so two people rearranging at once can't move the wrong song. */
+export const moveUpcoming = (
+  group: MusicGroup,
+  itemId: string,
+  toIndex: number
+): QueueError | null => {
+  const from = group.upcoming.findIndex((item) => item.id === itemId);
+  if (from === -1) return 'not-found';
+  if (!Number.isInteger(toIndex) || toIndex < 0 || toIndex >= group.upcoming.length) {
+    return 'invalid';
+  }
+  const [item] = group.upcoming.splice(from, 1);
+  group.upcoming.splice(toIndex, 0, item!);
+  return null;
+};
+
+export const shuffleUpcoming = (group: MusicGroup, random: () => number = Math.random): void => {
+  const list = group.upcoming;
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [list[i], list[j]] = [list[j]!, list[i]!];
+  }
+};
+
+export const clearUpcoming = (group: MusicGroup): number => {
+  const cleared = group.upcoming.length;
+  group.upcoming = [];
+  return cleared;
+};
