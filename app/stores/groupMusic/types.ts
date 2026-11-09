@@ -26,6 +26,8 @@ export interface Group {
     maxQueueSize: number;
     allowAnyoneToAdd: boolean;
     autoPlayRecommendations?: boolean;
+    /** Who may play, pause, seek, skip and rearrange. Anyone can still add songs. */
+    controlMode?: 'everyone' | 'host';
   };
 }
 
@@ -87,12 +89,4 @@ export interface ActiveSoundEffect {
   profilePic?: string;
   senderId?: number | string;
   timestamp: number;
-}
-
-export interface PlaybackState {
-  isPlaying: boolean;
-  currentTime: number;
-  currentTrack: Song | null;
-  lastUpdate: number;
-  serverTime?: number;
 }

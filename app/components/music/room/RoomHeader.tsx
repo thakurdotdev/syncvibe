@@ -4,12 +4,15 @@ import SwipeableModal from '@/components/SwipeableModal';
 import { HeaderIconButton } from '@/components/ui/AppHeader';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
+import { useGroupMusic } from '@/context/GroupMusicContext';
+import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { fonts } from '@/theme/typography';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { memo, useRef, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
+import { useRoomControl } from './useRoomControl';
 
 type Action = {
   key: string;
@@ -84,6 +87,65 @@ const MoreSheet = ({
   );
 };
 
+const DELAY_STEP_MS = 25;
+
+/**
+ * Bluetooth speakers and some TVs play a moment late. This moves this phone's sound earlier (or
+ * later) so it lands with everyone else's. Kept on this phone only.
+ */
+const SpeakerDelaySheet = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
+  const { colors } = useTheme();
+  const offsetMs = useGroupPlaybackStore((s) => s.outputOffsetMs);
+  const setOffset = useGroupPlaybackStore((s) => s.setOutputOffset);
+
+  return (
+    <SwipeableModal isVisible={visible} onClose={onClose}>
+      <View style={styles.delaySheet}>
+        <Text style={[styles.delayTitle, { color: colors.foreground }]}>Speaker delay</Text>
+        <Text style={[styles.delayText, { color: colors.mutedForeground }]}>
+          On Bluetooth and hearing an echo with others nearby? Raise this until your sound lines up
+          with theirs.
+        </Text>
+        <View style={styles.delayRow}>
+          <PressableScale
+            onPress={() => setOffset(offsetMs - DELAY_STEP_MS)}
+            accessibilityRole='button'
+            accessibilityLabel='Play later'
+            style={[styles.delayButton, { backgroundColor: colors.raised }]}
+          >
+            <Feather name='minus' size={20} color={colors.foreground} />
+          </PressableScale>
+          <Text
+            style={[styles.delayValue, { color: colors.foreground }]}
+            accessibilityLabel={`${offsetMs} milliseconds`}
+          >
+            {offsetMs > 0 ? '+' : ''}
+            {offsetMs} ms
+          </Text>
+          <PressableScale
+            onPress={() => setOffset(offsetMs + DELAY_STEP_MS)}
+            accessibilityRole='button'
+            accessibilityLabel='Play earlier'
+            style={[styles.delayButton, { backgroundColor: colors.raised }]}
+          >
+            <Feather name='plus' size={20} color={colors.foreground} />
+          </PressableScale>
+        </View>
+        {offsetMs !== 0 && (
+          <PressableScale
+            onPress={() => setOffset(0)}
+            accessibilityRole='button'
+            hitSlop={10}
+            style={styles.delayReset}
+          >
+            <Text style={[styles.delayResetText, { color: colors.mutedForeground }]}>Reset</Text>
+          </PressableScale>
+        )}
+      </View>
+    </SwipeableModal>
+  );
+};
+
 /**
  * Room header: name with live connection state and who's here on the left; invite and a
  * "more" sheet (QR code, share code, leave) on the right.
@@ -105,8 +167,34 @@ export const RoomHeader = memo(function RoomHeader({
   const group = useGroupSessionStore((s) => s.currentGroup);
   const members = useGroupSessionStore((s) => s.groupMembers);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [delayOpen, setDelayOpen] = useState(false);
+  const { setControlMode } = useGroupMusic();
+  const { isHost, controlMode } = useRoomControl();
 
   if (!group) return null;
+
+  const hostOnly = controlMode === 'host';
+  const actions: Action[] = [
+    { key: 'qr', label: 'Show QR code', icon: 'grid', onPress: onShowQr },
+    { key: 'share', label: 'Share room code', icon: 'share-2', onPress: onShare },
+    ...(isHost
+      ? [
+          {
+            key: 'control',
+            label: hostOnly ? 'Let everyone control playback' : 'Only I control playback',
+            icon: hostOnly ? ('unlock' as const) : ('lock' as const),
+            onPress: () => setControlMode(hostOnly ? 'everyone' : 'host'),
+          },
+        ]
+      : []),
+    {
+      key: 'delay',
+      label: 'Speaker delay',
+      icon: 'bluetooth',
+      onPress: () => setDelayOpen(true),
+    },
+    { key: 'leave', label: 'Leave room', icon: 'log-out', danger: true, onPress: onLeave },
+  ];
 
   return (
     <View style={styles.row}>
@@ -162,15 +250,8 @@ export const RoomHeader = memo(function RoomHeader({
         />
       </View>
 
-      <MoreSheet
-        visible={moreOpen}
-        onClose={() => setMoreOpen(false)}
-        actions={[
-          { key: 'qr', label: 'Show QR code', icon: 'grid', onPress: onShowQr },
-          { key: 'share', label: 'Share room code', icon: 'share-2', onPress: onShare },
-          { key: 'leave', label: 'Leave room', icon: 'log-out', danger: true, onPress: onLeave },
-        ]}
-      />
+      <MoreSheet visible={moreOpen} onClose={() => setMoreOpen(false)} actions={actions} />
+      <SpeakerDelaySheet visible={delayOpen} onClose={() => setDelayOpen(false)} />
     </View>
   );
 });
@@ -211,4 +292,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sheetLabel: { fontSize: 15.5, fontWeight: '600' },
+
+  delaySheet: { paddingHorizontal: 20, paddingBottom: 12, gap: 10 },
+  delayTitle: { fontFamily: fonts.displaySemibold, fontSize: 19 },
+  delayText: { fontSize: 13.5, lineHeight: 19 },
+  delayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 22,
+    paddingVertical: 10,
+  },
+  delayButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  delayValue: { minWidth: 96, textAlign: 'center', fontSize: 22, fontVariant: ['tabular-nums'] },
+  delayReset: { alignSelf: 'center' },
+  delayResetText: { fontSize: 13.5, fontWeight: '600' },
 });

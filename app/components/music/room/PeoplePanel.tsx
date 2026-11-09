@@ -1,6 +1,7 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
+import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import type { GroupMember } from '@/stores/groupMusic/types';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
@@ -22,6 +23,8 @@ export const PeoplePanel = memo(function PeoplePanel({
   const members = useGroupSessionStore((s) => s.groupMembers);
   const hostId = useGroupSessionStore((s) => s.currentGroup?.createdBy);
   const typing = useGroupSessionStore((s) => s.typingUsers);
+  const { transferHost } = useGroupMusic();
+  const youAreHost = sameUser(hostId, user?.userid);
 
   const sorted = [...members].sort(
     (a, b) => Number(sameUser(b.userId, hostId)) - Number(sameUser(a.userId, hostId))
@@ -53,7 +56,7 @@ export const PeoplePanel = memo(function PeoplePanel({
                 : isTyping
                   ? 'typing…'
                   : host
-                    ? 'Started this room'
+                    ? 'Hosting this room'
                     : 'Listening'}
             </Text>
           </View>
@@ -63,10 +66,21 @@ export const PeoplePanel = memo(function PeoplePanel({
               <Text style={[styles.hostText, { color: colors.live }]}>Host</Text>
             </View>
           )}
+          {youAreHost && !host && !away && (
+            <PressableScale
+              onPress={() => transferHost(item.userId)}
+              accessibilityRole='button'
+              accessibilityLabel={`Make ${item.userName} the host`}
+              hitSlop={8}
+              style={[styles.hostChip, { backgroundColor: colors.raised }]}
+            >
+              <Text style={[styles.hostText, { color: colors.foreground }]}>Make host</Text>
+            </PressableScale>
+          )}
         </View>
       );
     },
-    [colors, hostId, user?.userid, typing]
+    [colors, hostId, user?.userid, typing, youAreHost, transferHost]
   );
 
   return (

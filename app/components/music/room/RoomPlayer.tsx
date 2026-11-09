@@ -10,13 +10,20 @@ import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useRef } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import { useRoomControl } from './useRoomControl';
 
 const REACTIONS = ['🔥', '❤️', '👏', '😍', '🎵'] as const;
 const REACTION_COOLDOWN_MS = 300;
 const REACTION_HIT_SLOP = { top: 4, bottom: 8 };
 
 /** Progress subscribes to time on its own, so the card around it doesn't re-render per tick. */
-const Progress = memo(function Progress({ onSeek }: { onSeek: (v: number) => void }) {
+const Progress = memo(function Progress({
+  onSeek,
+  locked,
+}: {
+  onSeek: (v: number) => void;
+  locked: boolean;
+}) {
   const { colors } = useTheme();
   const currentTime = useGroupPlaybackStore((s) => s.currentTime);
   const duration = useGroupPlaybackStore((s) => s.duration);
@@ -25,7 +32,7 @@ const Progress = memo(function Progress({ onSeek }: { onSeek: (v: number) => voi
   return (
     <View>
       {/* Keeps the slider's full touch height while taking little room in the layout. */}
-      <View style={styles.slider}>
+      <View style={styles.slider} pointerEvents={locked ? 'none' : 'auto'}>
         <CustomSlider
           value={currentTime}
           maxValue={duration || 1}
@@ -88,6 +95,7 @@ const Reactions = memo(function Reactions() {
 export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseSong: () => void }) {
   const { colors, theme } = useTheme();
   const { handlePlayPause, handleSeek, skipSong } = useGroupMusic();
+  const { canControl } = useRoomControl();
 
   const song = useGroupPlaybackStore((s) => s.currentSong);
   const isPlaying = useGroupPlaybackStore((s) => s.isPlaying);
@@ -147,7 +155,11 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
               <Text style={[styles.artist, { color: colors.mutedForeground }]} numberOfLines={1}>
                 {artist}
               </Text>
-              {addedBy ? (
+              {!canControl ? (
+                <Text style={[styles.addedBy, { color: colors.mutedForeground }]} numberOfLines={1}>
+                  Host controls playback
+                </Text>
+              ) : addedBy ? (
                 <Text style={[styles.addedBy, { color: colors.primary }]} numberOfLines={1}>
                   Added by {addedBy}
                 </Text>
@@ -155,10 +167,16 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
             </View>
             <PressableScale
               onPress={() => handlePlayPause()}
+              disabled={!canControl}
               scaleTo={BUTTON_PRESS_SCALE}
               accessibilityRole='button'
+              accessibilityState={{ disabled: !canControl }}
               accessibilityLabel={isPlaying ? 'Pause for everyone' : 'Play for everyone'}
-              style={[styles.play, { backgroundColor: colors.foreground }]}
+              style={[
+                styles.play,
+                { backgroundColor: colors.foreground },
+                !canControl && styles.locked,
+              ]}
             >
               {isLoading ? (
                 <ActivityIndicator size='small' color={colors.background} />
@@ -173,17 +191,19 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
             </PressableScale>
             <PressableScale
               onPress={skipSong}
+              disabled={!canControl}
               scaleTo={BUTTON_PRESS_SCALE}
               hitSlop={6}
               accessibilityRole='button'
+              accessibilityState={{ disabled: !canControl }}
               accessibilityLabel='Skip to next song'
-              style={styles.skip}
+              style={[styles.skip, !canControl && styles.locked]}
             >
               <Ionicons name='play-skip-forward' size={18} color={colors.foreground} />
             </PressableScale>
           </View>
 
-          <Progress onSeek={handleSeek} />
+          <Progress onSeek={handleSeek} locked={!canControl} />
           <Reactions />
         </View>
       </View>
@@ -206,6 +226,7 @@ const styles = StyleSheet.create({
   addedBy: { fontSize: 11, fontWeight: '600', marginTop: 2 },
   play: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   skip: { width: 28, height: 40, alignItems: 'center', justifyContent: 'center' },
+  locked: { opacity: 0.4 },
   slider: { marginVertical: -13 },
   times: { flexDirection: 'row', justifyContent: 'space-between' },
   time: { fontSize: 10.5, fontVariant: ['tabular-nums'] },

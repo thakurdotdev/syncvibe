@@ -9,10 +9,14 @@ export const ConnectionBadge: React.FC = () => {
   const { colors } = useTheme();
   const quality = useGroupPlaybackStore((s) => s.connectionQuality);
   const reconnecting = useGroupSessionStore((s) => s.isRejoining);
+  // Small corrections can't be heard, so only a real gap is worth showing.
+  const catchingUp = useGroupPlaybackStore((s) => s.isPlaying && s.syncStatus === 'catching-up');
 
-  if (reconnecting) {
+  if (reconnecting || catchingUp) {
     return (
-      <Text style={[styles.reconnecting, { color: colors.mutedForeground }]}>Reconnecting…</Text>
+      <Text style={[styles.reconnecting, { color: colors.mutedForeground }]}>
+        {reconnecting ? 'Reconnecting…' : 'Catching up…'}
+      </Text>
     );
   }
 
