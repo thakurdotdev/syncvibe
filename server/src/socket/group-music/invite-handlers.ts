@@ -16,6 +16,7 @@ import {
 } from './state';
 import { joinPayloadOf, publicGroupOf } from './broadcast';
 import { handleMemberGone } from './host';
+import { touchRoom } from './room-store';
 import { sendPushNotification } from '../notification';
 
 interface CreateGroupSocketData {
@@ -83,6 +84,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       group.qrCode = qrCodeBuffer.toString('base64');
 
       musicGroups.set(groupId, group);
+      touchRoom(group, 'core', 'queue');
       enterRoom(socket, groupId, data.protocol);
       trackUserGroup(data.createdBy, groupId);
 
@@ -125,6 +127,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
 
     trackUserGroup(data.userId, data.groupId);
     markMemberPresent(io, data.groupId, data.userId);
+    if (!existingMember) touchRoom(group, 'core');
 
     // Only to this device: sent to all of a user's devices, it pulled the others' screens and
     // audio into a room their connections weren't in.
@@ -199,6 +202,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
 
       trackUserGroup(data.userId, data.groupId);
       markMemberPresent(io, data.groupId, data.userId);
+      touchRoom(group, 'core');
 
       socket.emit('group-rejoined', joinPayloadOf(group));
     } else {
@@ -227,6 +231,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
         userId: data.userId,
       });
       handleMemberGone(io, group, data.userId);
+      touchRoom(group, 'core');
 
       if (group.members.length === 0) {
         removeGroup(data.groupId);

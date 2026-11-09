@@ -20,4 +20,6 @@ export const setupGroupMusicHandlers = (
 };
 
 export { handleUserDisconnect, releaseSocket } from './group-music/presence';
+export { restoreRooms } from './group-music/restore';
+export { flushRooms } from './group-music/room-store';
 export { getGroup, musicGroups };

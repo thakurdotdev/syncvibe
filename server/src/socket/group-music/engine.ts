@@ -131,6 +131,9 @@ const stop = (io: Server, group: MusicGroup, action: string): void => {
   emitActivityMessage(io, group.id, 'queue-ended', {});
 };
 
+/** A room brought back after a restart: picks its clock up where the last process left it. */
+export const resumeRoom = (io: Server, group: MusicGroup): void => scheduleEnd(io, group);
+
 // --- Autoplay ---
 
 /**

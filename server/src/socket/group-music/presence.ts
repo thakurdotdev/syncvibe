@@ -1,5 +1,6 @@
 import type { Server, Socket } from 'socket.io';
 import { handleMemberGone } from './host';
+import { touchRoom } from './room-store';
 import {
   allRoomsOf,
   getUserGroups,
@@ -128,6 +129,7 @@ const removeMember = (io: Server, groupId: string, userId: string | number) => {
   untrackUserGroup(userId, groupId);
   io.to(roomOf(groupId)).emit('member-left', { userId });
   handleMemberGone(io, group, userId);
+  touchRoom(group, 'core');
   if (group.members.length === 0) expireIfEmpty(groupId);
 };
 

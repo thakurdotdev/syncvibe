@@ -1,4 +1,5 @@
 import type { Server } from 'socket.io';
+import { touchRoom } from './room-store';
 import { legacyRoomOf, musicGroups, syncRoomOf, type GroupMember, type MusicGroup } from './state';
 
 /*
@@ -6,6 +7,8 @@ import { legacyRoomOf, musicGroups, syncRoomOf, type GroupMember, type MusicGrou
  * playback (small, changes often), the upcoming queue (large, changes less) and settings. A part
  * always replaces the device's copy, so a missed message can never leave it half-updated; the
  * revisions come back with every clock ping, which is how a device notices it missed one.
+ *
+ * Every change passes through here, so this is also where a room is marked for saving.
  *
  * App and web versions from before this protocol get the events they already understand, built
  * from the same record.
@@ -106,6 +109,7 @@ export const broadcastPlayback = (
   kind: PlaybackKind,
   by?: Actor
 ): void => {
+  touchRoom(group, 'core');
   const now = Date.now();
   io.to(syncRoomOf(group.id)).emit('room:playback', {
     groupId: group.id,
@@ -162,6 +166,7 @@ export const broadcastQueue = (
   extra: Record<string, unknown> = {},
   by?: Actor
 ): void => {
+  touchRoom(group, 'queue');
   io.to(syncRoomOf(group.id)).emit('room:queue', {
     groupId: group.id,
     action,
@@ -177,6 +182,7 @@ export const broadcastQueue = (
 };
 
 export const broadcastMeta = (io: Server, group: MusicGroup): void => {
+  touchRoom(group, 'core');
   io.to(syncRoomOf(group.id)).emit('room:meta', { groupId: group.id, ...metaPart(group) });
   io.to(legacyRoomOf(group.id)).emit('group-settings-updated', { settings: group.settings });
 };

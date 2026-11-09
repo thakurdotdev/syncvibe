@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Server } from 'socket.io';
 import type { PlanLimits } from '@/services/entitlement.service';
 import { appendMessage, clearHistory } from './chat-history';
+import { forgetRoom } from './room-store';
 import { STOPPED, type Timeline } from './timeline';
 
 export interface GroupMember {
@@ -151,6 +152,7 @@ export const removeGroup = (groupId: string): void => {
   if (group?.endTimer) clearTimeout(group.endTimer);
   musicGroups.delete(groupId);
   clearHistory(groupId);
+  forgetRoom(groupId);
 };
 
 export const getGroup = (groupId: string): MusicGroup | undefined => musicGroups.get(groupId);

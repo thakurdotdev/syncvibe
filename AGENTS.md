@@ -176,6 +176,11 @@ The server owns what a room is playing; devices only ask for changes and follow.
 - **Older installs:** `legacy-handlers.ts` and the legacy half of `broadcast.ts` keep app versions up
   to 1.6.x (and stale browser tabs) working in the same rooms. Don't remove them while such versions
   are in use, and keep the fields they read in `joinPayloadOf`.
+- **Persistence:** `room-store.ts` copies each room to Redis (`gm:room:<id>`, 12 h TTL) shortly after
+  every change, and `restoreRooms` loads them before the server starts listening, so a deploy doesn't
+  end rooms. Memory stays the source of truth; without `REDIS_URL` rooms just don't survive a restart.
+  New fields on a room **MUST** be added to `serializeCore` / `deserializeRoom` with a default. It is
+  not multi-instance: Socket.IO still runs in one process.
 - Chat, invites and presence still use their original events.
 
 ## App releases (Android)
