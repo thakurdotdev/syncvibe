@@ -1,10 +1,20 @@
 import type { Server, Socket } from 'socket.io';
-import { getUserGroups, musicGroups, removeGroup, TIME_TO_REJOIN, untrackUserGroup } from './state';
+import { handleMemberGone } from './host';
+import {
+  allRoomsOf,
+  getUserGroups,
+  legacyRoomOf,
+  musicGroups,
+  removeGroup,
+  roomOf,
+  syncRoomOf,
+  TIME_TO_REJOIN,
+  untrackUserGroup,
+} from './state';
 
 /** How long a room outlives its last member, so one person's dropped signal doesn't end it. */
 export const EMPTY_ROOM_TTL = 120000;
 
-const roomOf = (groupId: string) => `music-group-${groupId}`;
 const removalTimers = new Map<string, NodeJS.Timeout>();
 const timerKey = (groupId: string, userId: string | number) => `${groupId}:${userId}`;
 
@@ -50,10 +60,20 @@ export const claimRoomDevice = (
   if (!takeOver && others.some((other) => other.data.deviceId !== deviceId)) return false;
 
   for (const other of others) {
-    other.leave(roomOf(groupId));
+    for (const room of allRoomsOf(groupId)) other.leave(room);
     other.emit('device-replaced', { groupId });
   }
   return true;
+};
+
+/**
+ * Puts a connection in the room, and with the devices that speak its protocol so each kind is
+ * only sent the events it understands.
+ */
+export const enterRoom = (socket: Socket, groupId: string, protocol: unknown): void => {
+  const current = Number(protocol) >= 2;
+  socket.leave(current ? legacyRoomOf(groupId) : syncRoomOf(groupId));
+  socket.join([roomOf(groupId), current ? syncRoomOf(groupId) : legacyRoomOf(groupId)]);
 };
 
 /**
@@ -107,6 +127,7 @@ const removeMember = (io: Server, groupId: string, userId: string | number) => {
   group.members = group.members.filter((m) => String(m.userId) !== String(userId));
   untrackUserGroup(userId, groupId);
   io.to(roomOf(groupId)).emit('member-left', { userId });
+  handleMemberGone(io, group, userId);
   if (group.members.length === 0) expireIfEmpty(groupId);
 };
 
