@@ -117,7 +117,8 @@ export const isVersionOfSeed = (candidateName: string, seedName: string): boolea
 export const hasPlausibleLength = (candidate: SongEntry, seed: SongEntry): boolean => {
   if (candidate.duration <= 0) return true;
   if (candidate.duration > LONG_TRACK_SECONDS && seed.duration <= LONG_TRACK_SECONDS) return false;
-  if (candidate.duration < SHORT_TRACK_SECONDS && seed.duration >= SHORT_TRACK_SECONDS) return false;
+  if (candidate.duration < SHORT_TRACK_SECONDS && seed.duration >= SHORT_TRACK_SECONDS)
+    return false;
   return true;
 };
 
