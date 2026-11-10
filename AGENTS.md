@@ -181,7 +181,34 @@ The server owns what a room is playing; devices only ask for changes and follow.
   end rooms. Memory stays the source of truth; without `REDIS_URL` rooms just don't survive a restart.
   New fields on a room **MUST** be added to `serializeCore` / `deserializeRoom` with a default. It is
   not multi-instance: Socket.IO still runs in one process.
-- Chat, invites and presence still use their original events.
+- Room chat and invites still use their original events. Direct messages are separate: see below.
+
+## Messages (direct chat)
+
+The server stores every message and owns the order; devices send commands and follow events.
+
+- **Tables** (`sql/006_chat.sql`, models in `src/models/chat/`): `chat_conversations` (one per pair
+  of people, kept unique by `direct_key`), `chat_members` (each person's read and delivered
+  position), `chat_messages`, `chat_reactions`. The old `chats` / `chatmessage` tables are no longer
+  read or written.
+- **Sockets know who they are.** `socket/auth.ts` reads the Better Auth session when a socket
+  connects (browser cookie, or `auth.cookie` from the app) and only then puts it in the `user:<id>`
+  room. Messages go to that room and nowhere else. A socket without a session still gets music rooms
+  the old way, for apps up to 1.6.x; set `SOCKET_REQUIRE_SESSION=true` once none are left.
+- **Protocol:** commands and events are listed at the top of `socket/chat.ts` and
+  `features/chat/chat.realtime.ts`. Every command is answered. Reading (lists, history) is HTTP under
+  `/api/chat`. All of it goes through `features/chat/services/`, which is where rules belong.
+- **Sent once:** the device gives each message a `clientId`; `(sender_id, client_id)` is unique, so
+  sending again after a lost reply returns the stored message. Keep any new way of sending on
+  `sendMessage`.
+- **Read / delivered** are positions (`last_read_message_id`), not flags on messages, and only move
+  forward. A recipient's device confirms each `chat:message`; with no confirmation the server sends
+  a push instead.
+- **Presence** (`socket/presence.ts`) is told only to people you have a conversation with.
+- **Clients:** state lives in `stores/chatStore` and the network code in `lib/chat`, in both
+  `client/` and `app/` with the same logic. **MUST** change them together.
+- Models are used for everything except the conversation list and the bulk "mark delivered", which
+  need one SQL statement each. Don't add more raw SQL without the same kind of reason.
 
 ## App releases (Android)
 
