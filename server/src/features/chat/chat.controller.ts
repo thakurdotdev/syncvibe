@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { ChatError } from './chat.errors';
 import { asObject, parseId } from './chat.validation';
 import { listConversations, openDirectConversation } from './services/conversation.service';
-import { listMessages, markRead, sendMessage } from './services/message.service';
+import { confirmDelivered, listMessages, markRead, sendMessage } from './services/message.service';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 
@@ -55,3 +55,12 @@ export const postRead = respond(async (req) => ({
     conversationId: req.params.conversationId,
   }),
 }));
+
+/** The app's background task got a message by push: the sender's tick turns into two. */
+export const postDelivered = respond(async (req) => {
+  await confirmDelivered(req.user!.userid, {
+    ...asObject(req.body),
+    conversationId: req.params.conversationId,
+  });
+  return { ok: true };
+});

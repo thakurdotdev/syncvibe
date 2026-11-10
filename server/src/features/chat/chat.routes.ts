@@ -5,6 +5,7 @@ import {
   getMessages,
   openConversation,
   postMessage,
+  postDelivered,
   postRead,
 } from './chat.controller';
 
@@ -20,3 +21,4 @@ chatRouter.post('/chat/conversations', authMiddleware, openConversation);
 chatRouter.get('/chat/conversations/:conversationId/messages', authMiddleware, getMessages);
 chatRouter.post('/chat/conversations/:conversationId/messages', authMiddleware, postMessage);
 chatRouter.post('/chat/conversations/:conversationId/read', authMiddleware, postRead);
+chatRouter.post('/chat/conversations/:conversationId/delivered', authMiddleware, postDelivered);
