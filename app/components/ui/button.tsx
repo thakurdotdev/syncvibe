@@ -10,6 +10,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
+import { Gloss } from '@/components/ui/Finish';
 import PressableScale from '@/components/ui/PressableScale';
 
 export type ButtonVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
@@ -89,8 +90,10 @@ export const Button: React.FC<ButtonProps> = ({
             ? colors.secondaryDisabled
             : isPressed
               ? colors.secondaryActive
-              : colors.secondary,
+              : 'transparent',
           color: colors.secondaryForeground,
+          borderColor: colors.hairline,
+          borderWidth: StyleSheet.hairlineWidth,
         };
       case 'ghost':
         return {
@@ -211,6 +214,7 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const variantStyles = getVariantStyles(isPressed);
+  const gloss = variant === 'default' ? 'primary' : variant === 'secondary' ? 'surface' : null;
   const buttonStyle = [
     styles.button,
     {
@@ -239,6 +243,8 @@ export const Button: React.FC<ButtonProps> = ({
       }}
       style={buttonStyle}
     >
+      {/* The finished fill sits over the flat colour, which still shows while pressed. */}
+      {gloss && !disabled && !isPressed && <Gloss tone={gloss} />}
       {renderContent(isPressed)}
     </PressableScale>
   );

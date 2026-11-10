@@ -1,3 +1,4 @@
+import { Gloss } from '@/components/ui/Finish';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { BUTTON_PRESS_SCALE } from '@/lib/motion';
@@ -67,7 +68,10 @@ export const Composer = memo(
 
     return (
       <View
-        style={[styles.wrap, { borderTopColor: colors.border, backgroundColor: colors.background }]}
+        style={[
+          styles.wrap,
+          { borderTopColor: colors.hairline, backgroundColor: colors.background },
+        ]}
       >
         {replyTo && (
           <Animated.View
@@ -98,45 +102,60 @@ export const Composer = memo(
         )}
 
         <View style={styles.row}>
-          <PressableScale
-            onPress={onOpenGifs}
-            scaleTo={BUTTON_PRESS_SCALE}
-            accessibilityRole='button'
-            accessibilityLabel='Send a GIF'
-            style={[styles.tool, { backgroundColor: colors.raised }]}
+          {/* One field. GIFs and sounds live inside it and step aside once you start typing,
+              so the text gets the width. */}
+          <View
+            style={[styles.field, { backgroundColor: colors.raised, borderColor: colors.hairline }]}
           >
-            <Text style={[styles.gifLabel, { color: colors.foreground }]}>GIF</Text>
-          </PressableScale>
-          <PressableScale
-            onPress={onOpenSounds}
-            scaleTo={BUTTON_PRESS_SCALE}
-            accessibilityRole='button'
-            accessibilityLabel='Play a sound for the room'
-            style={[styles.tool, { backgroundColor: colors.raised }]}
-          >
-            <Ionicons name='volume-high' size={17} color={colors.foreground} />
-          </PressableScale>
-
-          <TextInput
-            ref={ref}
-            value={text}
-            onChangeText={handleChange}
-            placeholder={replyTo ? 'Write a reply' : 'Message the room'}
-            placeholderTextColor={colors.mutedForeground}
-            style={[styles.input, { backgroundColor: colors.raised, color: colors.foreground }]}
-            multiline
-            maxLength={500}
-            accessibilityLabel='Message'
-          />
+            <TextInput
+              ref={ref}
+              value={text}
+              onChangeText={handleChange}
+              placeholder={replyTo ? 'Write a reply' : 'Message the room'}
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.input, { color: colors.foreground }]}
+              multiline
+              maxLength={500}
+              accessibilityLabel='Message'
+            />
+            {!canSend && (
+              <View style={styles.tools}>
+                <PressableScale
+                  onPress={onOpenGifs}
+                  scaleTo={BUTTON_PRESS_SCALE}
+                  hitSlop={4}
+                  accessibilityRole='button'
+                  accessibilityLabel='Send a GIF'
+                  style={styles.tool}
+                >
+                  <View style={[styles.gifBadge, { borderColor: colors.mutedForeground }]}>
+                    <Text style={[styles.gifLabel, { color: colors.mutedForeground }]}>GIF</Text>
+                  </View>
+                </PressableScale>
+                <PressableScale
+                  onPress={onOpenSounds}
+                  scaleTo={BUTTON_PRESS_SCALE}
+                  hitSlop={4}
+                  accessibilityRole='button'
+                  accessibilityLabel='Play a sound for the room'
+                  style={styles.tool}
+                >
+                  <Ionicons name='volume-high' size={19} color={colors.mutedForeground} />
+                </PressableScale>
+              </View>
+            )}
+          </View>
 
           <PressableScale
             onPress={send}
             disabled={!canSend}
             scaleTo={BUTTON_PRESS_SCALE}
             accessibilityRole='button'
+            accessibilityState={{ disabled: !canSend }}
             accessibilityLabel='Send message'
             style={[styles.send, { backgroundColor: canSend ? colors.primary : colors.raised }]}
           >
+            {canSend && <Gloss />}
             <Ionicons
               name='arrow-up'
               size={20}
@@ -152,7 +171,7 @@ export const Composer = memo(
 const styles = StyleSheet.create({
   wrap: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 8,
     gap: 8,
@@ -163,18 +182,36 @@ const styles = StyleSheet.create({
   replyName: { fontSize: 12, fontWeight: '700' },
   replyText: { fontSize: 12.5 },
   replyClose: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
-  tool: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  gifLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 0.4 },
+  row: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  field: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    minHeight: 42,
+    borderRadius: 21,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingLeft: 16,
+    paddingRight: 4,
+  },
   input: {
     flex: 1,
-    minHeight: 38,
+    minHeight: 42,
     maxHeight: 110,
-    borderRadius: 19,
-    paddingHorizontal: 14,
-    paddingTop: 9,
-    paddingBottom: 9,
+    paddingTop: 11,
+    paddingBottom: 11,
+    paddingHorizontal: 0,
     fontSize: 15,
   },
-  send: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  tools: { flexDirection: 'row', alignItems: 'center', height: 42 },
+  tool: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
+  gifBadge: { borderWidth: 1.5, borderRadius: 5, paddingHorizontal: 3, paddingVertical: 1 },
+  gifLabel: { fontSize: 9.5, fontWeight: '800', letterSpacing: 0.3 },
+  send: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
 });

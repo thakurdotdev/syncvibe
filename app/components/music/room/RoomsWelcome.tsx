@@ -1,4 +1,5 @@
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
+import { Bezel, Gloss } from '@/components/ui/Finish';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
@@ -13,15 +14,18 @@ type Colors = ReturnType<typeof useTheme>['colors'];
 
 const EASE = cubicBezier(0.23, 1, 0.32, 1);
 /** Every line stops at the same point: that's the whole idea of a room. */
-const PLAYHEAD = 0.58;
-const LINES = [1, 0.82, 0.92];
-const AVATAR = 40;
+const PLAYHEAD = 0.62;
+const SEAT = 30;
+const SEAT_GAP = 12;
+/** You, then two open seats. */
+const SEATS = [0, 1, 2];
 
-/** What a room actually has (see components/music/room and the server's queue rules). */
+/** What a room actually has (see components/music/room and the server's room commands). */
 const FEATURES = [
-  { icon: 'list', title: 'Shared queue', body: 'Everyone adds songs' },
-  { icon: 'chatbubbles', title: 'Live chat', body: 'Talk while you listen' },
-  { icon: 'sparkles', title: 'Reactions', body: 'Emoji and sound effects' },
+  { icon: 'list', label: 'Shared queue' },
+  { icon: 'chatbubbles', label: 'Live chat' },
+  { icon: 'sparkles', label: 'Reactions' },
+  { icon: 'star', label: 'Host controls' },
 ] as const;
 
 /** Plays once as the screen appears, then holds still: nothing loops while you read. */
@@ -37,61 +41,9 @@ const enter = (reduced: boolean, delayMs: number, from: Record<string, unknown>)
       } as const);
 
 /**
- * Three lines run in from the left and land on one shared playhead. Abstract on purpose:
- * no fake names or numbers. Transform/opacity CSS animations; static with Reduce Motion.
- */
-const SyncLines = memo(function SyncLines({ colors }: { colors: Colors }) {
-  const reduced = useReducedMotion();
-  return (
-    <View style={styles.lines}>
-      {LINES.map((length, i) => (
-        <View
-          key={i}
-          style={[styles.track, { width: `${length * 100}%`, backgroundColor: colors.raised }]}
-        >
-          <Animated.View
-            style={[
-              styles.fill,
-              { width: `${(PLAYHEAD / length) * 100}%`, backgroundColor: `${colors.foreground}40` },
-              !reduced && {
-                animationName: {
-                  from: { transform: [{ scaleX: 0.05 }] },
-                  to: { transform: [{ scaleX: 1 }] },
-                },
-                animationDuration: `${620 + i * 110}ms`,
-                animationDelay: '160ms',
-                animationTimingFunction: EASE,
-                animationFillMode: 'backwards',
-              },
-            ]}
-          />
-        </View>
-      ))}
-      <Animated.View
-        style={[
-          styles.playhead,
-          { left: `${PLAYHEAD * 100}%` },
-          !reduced && {
-            animationName: {
-              from: { opacity: 0, transform: [{ scaleY: 0.6 }] },
-              to: { opacity: 1, transform: [{ scaleY: 1 }] },
-            },
-            animationDuration: '240ms',
-            animationDelay: '800ms',
-            animationTimingFunction: EASE,
-            animationFillMode: 'backwards',
-          },
-        ]}
-      >
-        <View style={[styles.playheadLine, { backgroundColor: colors.primary }]} />
-      </Animated.View>
-    </View>
-  );
-});
-
-/**
- * The room before anyone joins: you, two open seats, and the lines meeting on one playhead.
- * Your own photo is the only person shown.
+ * The room before anyone joins: you and two open seats, each with a line of music, all meeting on
+ * one playhead. Abstract on purpose: your own photo is the only person shown, with no made-up
+ * names or numbers. Transform/opacity CSS animations; static with Reduce Motion.
  */
 const RoomPreview = memo(function RoomPreview({ colors }: { colors: Colors }) {
   const { user } = useUser();
@@ -100,48 +52,82 @@ const RoomPreview = memo(function RoomPreview({ colors }: { colors: Colors }) {
   const initial = (user?.name || '?').trim().charAt(0).toUpperCase();
 
   return (
-    <View
-      style={[styles.preview, { backgroundColor: colors.card, borderColor: colors.border }]}
-      accessibilityElementsHidden
-      importantForAccessibility='no-hide-descendants'
-    >
-      <View style={styles.seats}>
-        <Animated.View
-          style={[
-            styles.seat,
-            { borderColor: colors.card, backgroundColor: colors.raised },
-            enter(reduced, 0, { opacity: 0, transform: [{ translateY: 0 }, { scale: 0.8 }] }),
-          ]}
-        >
-          {pic ? (
-            <Image source={{ uri: pic }} style={styles.seatImage} />
-          ) : (
-            <Text style={[styles.seatInitial, { color: colors.foreground }]}>{initial}</Text>
-          )}
-        </Animated.View>
-        {[1, 2].map((i) => (
-          <Animated.View
-            key={i}
-            style={[
-              styles.seat,
-              { borderColor: colors.card, backgroundColor: colors.raised },
-              enter(reduced, 90 * i, {
-                opacity: 0,
-                transform: [{ translateY: 0 }, { scale: 0.8 }],
-              }),
-            ]}
-          >
-            <View style={[styles.openSeatRing, { borderColor: `${colors.foreground}33` }]}>
-              <Ionicons name='add' size={16} color={colors.mutedForeground} />
+    <Bezel contentStyle={styles.preview}>
+      <View accessibilityElementsHidden importantForAccessibility='no-hide-descendants'>
+        <View style={styles.rows}>
+          {SEATS.map((i) => (
+            <View key={i} style={styles.row}>
+              <Animated.View
+                style={[
+                  styles.seat,
+                  i === 0
+                    ? { backgroundColor: colors.raised }
+                    : [styles.openSeat, { borderColor: `${colors.foreground}40` }],
+                  enter(reduced, 80 * i, {
+                    opacity: 0,
+                    transform: [{ translateY: 0 }, { scale: 0.8 }],
+                  }),
+                ]}
+              >
+                {i > 0 ? (
+                  <Ionicons name='add' size={14} color={colors.mutedForeground} />
+                ) : pic ? (
+                  <Image source={{ uri: pic }} style={styles.seatImage} />
+                ) : (
+                  <Text style={[styles.seatInitial, { color: colors.foreground }]}>{initial}</Text>
+                )}
+              </Animated.View>
+              <View style={[styles.track, { backgroundColor: colors.raised }]}>
+                <Animated.View
+                  style={[
+                    styles.fill,
+                    { backgroundColor: i === 0 ? colors.foreground : `${colors.foreground}73` },
+                    !reduced && {
+                      animationName: {
+                        from: { transform: [{ scaleX: 0.05 }] },
+                        to: { transform: [{ scaleX: 1 }] },
+                      },
+                      animationDuration: `${620 + i * 110}ms`,
+                      animationDelay: '160ms',
+                      animationTimingFunction: EASE,
+                      animationFillMode: 'backwards',
+                    },
+                  ]}
+                />
+              </View>
             </View>
-          </Animated.View>
-        ))}
-        <Text style={[styles.seatsLabel, { color: colors.mutedForeground }]} numberOfLines={1}>
-          You + friends
-        </Text>
+          ))}
+
+          {/* Spans the tracks only, so the playhead's position is a share of their width. */}
+          <View style={styles.playheadLane} pointerEvents='none'>
+            <Animated.View
+              style={[
+                styles.playhead,
+                { backgroundColor: colors.foreground },
+                !reduced && {
+                  animationName: {
+                    from: { opacity: 0, transform: [{ scaleY: 0.6 }] },
+                    to: { opacity: 1, transform: [{ scaleY: 1 }] },
+                  },
+                  animationDuration: '240ms',
+                  animationDelay: '800ms',
+                  animationTimingFunction: EASE,
+                  animationFillMode: 'backwards',
+                },
+              ]}
+            />
+          </View>
+        </View>
+
+        <View style={[styles.caption, { borderTopColor: colors.hairline }]}>
+          <Text style={[styles.captionText, { color: colors.mutedForeground }]}>You + friends</Text>
+          <View style={styles.inSync}>
+            <View style={[styles.inSyncDot, { backgroundColor: colors.live }]} />
+            <Text style={[styles.captionText, { color: colors.foreground }]}>In sync</Text>
+          </View>
+        </View>
       </View>
-      <SyncLines colors={colors} />
-    </View>
+    </Bezel>
   );
 });
 
@@ -180,17 +166,10 @@ export const RoomsWelcome = memo(function RoomsWelcome({
 
         <Animated.View style={[styles.features, enter(reduced, 220, rise)]}>
           {FEATURES.map((f) => (
-            <View key={f.title} style={[styles.feature, { backgroundColor: colors.raised }]}>
-              <Ionicons name={f.icon} size={18} color={colors.primary} />
-              <Text style={[styles.featureTitle, { color: colors.foreground }]} numberOfLines={1}>
-                {f.title}
-              </Text>
-              <Text
-                style={[styles.featureBody, { color: colors.mutedForeground }]}
-                numberOfLines={2}
-              >
-                {f.body}
-              </Text>
+            <View key={f.label} style={[styles.feature, { borderColor: colors.hairline }]}>
+              <Gloss tone='surface' />
+              <Ionicons name={f.icon} size={14} color={colors.foreground} />
+              <Text style={[styles.featureLabel, { color: colors.foreground }]}>{f.label}</Text>
             </View>
           ))}
         </Animated.View>
@@ -203,6 +182,7 @@ export const RoomsWelcome = memo(function RoomsWelcome({
           accessibilityLabel='Start a room'
           style={[styles.cta, { backgroundColor: colors.primary }]}
         >
+          <Gloss />
           <Ionicons name='radio' size={19} color={colors.primaryForeground} />
           <Text style={[styles.ctaText, { color: colors.primaryForeground }]}>Start a room</Text>
         </PressableScale>
@@ -212,8 +192,9 @@ export const RoomsWelcome = memo(function RoomsWelcome({
             onPress={onJoin}
             accessibilityRole='button'
             accessibilityLabel='Join with a code'
-            style={[styles.join, { backgroundColor: colors.raised }]}
+            style={[styles.join, { borderColor: colors.hairline }]}
           >
+            <Gloss tone='surface' />
             <Ionicons name='enter-outline' size={18} color={colors.foreground} />
             <Text style={[styles.joinText, { color: colors.foreground }]}>Join with code</Text>
           </PressableScale>
@@ -222,8 +203,9 @@ export const RoomsWelcome = memo(function RoomsWelcome({
             scaleTo={BUTTON_PRESS_SCALE}
             accessibilityRole='button'
             accessibilityLabel='Scan a room QR code'
-            style={[styles.scan, { backgroundColor: colors.raised }]}
+            style={[styles.join, styles.scan, { borderColor: colors.hairline }]}
           >
+            <Gloss tone='surface' />
             <Ionicons name='qr-code-outline' size={19} color={colors.foreground} />
           </PressableScale>
         </View>
@@ -235,72 +217,90 @@ export const RoomsWelcome = memo(function RoomsWelcome({
 const styles = StyleSheet.create({
   // The hero takes the free space and centres itself; actions stay at thumb height.
   content: { flexGrow: 1, paddingHorizontal: 20 },
-  hero: { flexGrow: 1, justifyContent: 'center', paddingVertical: 24, gap: 24 },
+  hero: { flexGrow: 1, justifyContent: 'center', paddingVertical: 20, gap: 22 },
 
-  preview: {
-    borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 18,
-    gap: 22,
-  },
-  seats: { flexDirection: 'row', alignItems: 'center' },
+  preview: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 14 },
+  rows: { gap: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: SEAT_GAP },
   seat: {
-    width: AVATAR + 4,
-    height: AVATAR + 4,
-    borderRadius: (AVATAR + 4) / 2,
-    borderWidth: 2,
-    marginRight: -10,
+    width: SEAT,
+    height: SEAT,
+    borderRadius: SEAT / 2,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  seatImage: { width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2 },
-  seatInitial: { fontSize: 16, fontWeight: '700' },
-  openSeatRing: {
-    width: AVATAR - 4,
-    height: AVATAR - 4,
-    borderRadius: (AVATAR - 4) / 2,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
+  openSeat: { borderWidth: 1.5, borderStyle: 'dashed' },
+  seatImage: { width: SEAT, height: SEAT },
+  seatInitial: { fontSize: 13, fontWeight: '700' },
+  track: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
+  fill: {
+    width: `${PLAYHEAD * 100}%`,
+    height: '100%',
+    borderRadius: 3,
+    transformOrigin: 'left',
   },
-  seatsLabel: { marginLeft: 22, fontSize: 13, fontWeight: '600', flexShrink: 1 },
-
-  lines: { gap: 12 },
-  track: { height: 4, borderRadius: 2, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 2, transformOrigin: 'left' },
-  playhead: { position: 'absolute', top: -8, bottom: -8, width: 2, marginLeft: -1 },
-  playheadLine: { flex: 1, borderRadius: 1 },
+  playheadLane: { position: 'absolute', left: SEAT + SEAT_GAP, right: 0, top: -6, bottom: -6 },
+  playhead: {
+    position: 'absolute',
+    left: `${PLAYHEAD * 100}%`,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    marginLeft: -1,
+    borderRadius: 1,
+  },
+  caption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  captionText: { fontSize: 12.5, fontWeight: '600' },
+  inSync: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  inSyncDot: { width: 6, height: 6, borderRadius: 3 },
 
   title: { fontFamily: fonts.displayHeavy, fontSize: 38, lineHeight: 40, letterSpacing: -1.3 },
   body: { fontSize: 15, lineHeight: 21, marginTop: 10 },
 
-  features: { flexDirection: 'row', gap: 8 },
-  feature: { flex: 1, borderRadius: 16, padding: 12, gap: 4, minHeight: 92 },
-  featureTitle: { fontSize: 13, fontWeight: '700', marginTop: 4 },
-  featureBody: { fontSize: 12, lineHeight: 16 },
+  features: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  feature: {
+    height: 34,
+    paddingHorizontal: 12,
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    overflow: 'hidden',
+  },
+  featureLabel: { fontSize: 13, fontWeight: '600' },
 
   actions: { gap: 10, paddingTop: 8 },
   cta: {
     height: 54,
-    borderRadius: 16,
+    borderRadius: 17,
     flexDirection: 'row',
     gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   ctaText: { fontSize: 16, fontWeight: '700' },
   joinRow: { flexDirection: 'row', gap: 10 },
   join: {
     flex: 1,
     height: 50,
-    borderRadius: 16,
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   joinText: { fontSize: 15, fontWeight: '600' },
-  scan: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  scan: { flex: 0, width: 50 },
 });

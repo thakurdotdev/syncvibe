@@ -24,6 +24,7 @@ import { toast } from '@/context/ToastContext';
 import { useUser } from '@/context/UserContext';
 import useApi from '@/utils/hooks/useApi';
 import { useGroupMusic } from '@/context/GroupMusicContext';
+import { Gloss } from '@/components/ui/Finish';
 import { useRoomControl } from '@/components/music/room/useRoomControl';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
@@ -121,6 +122,10 @@ const SearchResultRow = React.memo(
     colors: any;
   }) => {
     const artist = song.artist_map?.primary_artists?.[0]?.name || 'Unknown Artist';
+    // Adding a song gives no other sign that it worked, so the button itself shows it.
+    const queued = useGroupSessionStore((state) =>
+      state.queue.some((item) => item.song?.id === song.id)
+    );
 
     return (
       <View style={styles.searchItem}>
@@ -158,12 +163,20 @@ const SearchResultRow = React.memo(
           </PressableScale>
           <PressableScale
             onPress={() => onAddToQueue(song)}
+            disabled={queued}
             scaleTo={BUTTON_PRESS_SCALE}
             accessibilityRole='button'
-            accessibilityLabel={`Add ${song.name} to the queue`}
-            style={styles.actionBtn}
+            accessibilityState={{ disabled: queued }}
+            accessibilityLabel={
+              queued ? `${song.name} is in the queue` : `Add ${song.name} to the queue`
+            }
+            style={[styles.actionBtn, queued && { backgroundColor: colors.raised }]}
           >
-            <Feather name='plus' size={19} color={colors.foreground} />
+            <Feather
+              name={queued ? 'check' : 'plus'}
+              size={queued ? 16 : 19}
+              color={queued ? colors.mutedForeground : colors.foreground}
+            />
           </PressableScale>
         </View>
       </View>
@@ -633,7 +646,8 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
     ),
     [handlePlayQueued, colors]
   );
-  const canReorder = useCallback(() => true, []);
+  // In a host-only room the server would refuse the move, so don't offer the drag.
+  const canReorder = useCallback(() => canControl, [canControl]);
 
   const renderSearchResult = useCallback(
     ({ item }: { item: Song }) => (
@@ -885,12 +899,28 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
                   />
                 ) : (
                   <View style={styles.emptyQueue}>
+                    <View style={[styles.emptyIcon, { backgroundColor: colors.raised }]}>
+                      <Ionicons name='list' size={20} color={colors.foreground} />
+                    </View>
                     <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
                       Nothing up next
                     </Text>
                     <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-                      Search above to add a song.
+                      {autoPlay
+                        ? 'Autoplay will pick similar songs, or add your own.'
+                        : 'Add a song and it plays for everyone.'}
                     </Text>
+                    <PressableScale
+                      onPress={() => inputRef.current?.focus()}
+                      accessibilityRole='button'
+                      style={[styles.emptyButton, { borderColor: colors.hairline }]}
+                    >
+                      <Gloss tone='surface' />
+                      <Feather name='search' size={15} color={colors.foreground} />
+                      <Text style={[styles.emptyButtonText, { color: colors.foreground }]}>
+                        Find a song
+                      </Text>
+                    </PressableScale>
                   </View>
                 )}
               </View>
@@ -1170,14 +1200,23 @@ const styles = StyleSheet.create({
     marginTop: 4,
     lineHeight: 18,
   },
+  emptyIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    gap: 7,
+    height: 40,
+    paddingHorizontal: 18,
     borderRadius: 20,
-    marginTop: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    marginTop: 16,
   },
   emptyButtonText: {
     fontSize: 14,

@@ -39,7 +39,7 @@ export const RoomTabs = memo(function RoomTabs({
 
   return (
     <View
-      style={[styles.track, { backgroundColor: colors.raised }]}
+      style={[styles.track, { backgroundColor: colors.raised, borderColor: colors.hairline }]}
       onLayout={(e) => setWidth(e.nativeEvent.layout.width - 8)}
       accessibilityRole='tablist'
     >
@@ -95,7 +95,13 @@ export const RoomTabs = memo(function RoomTabs({
 });
 
 const styles = StyleSheet.create({
-  track: { flexDirection: 'row', borderRadius: 14, padding: 4, height: 44 },
+  track: {
+    flexDirection: 'row',
+    borderRadius: 14,
+    padding: 4,
+    height: 44,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   pill: {
     position: 'absolute',
     top: 4,
