@@ -1,6 +1,7 @@
 import { API_URL } from '@/constants';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { bindChatSocket, resetChat } from '@/lib/chat';
+import { showMessageBanner } from '@/components/chat/MessageBanner';
 import { clearMessageNotification, showMessageNotification } from '@/lib/messageNotifications';
 import { previewOf, useChatStore, type ChatMessage, type Receipt } from '@/stores/chatStore';
 import {
@@ -33,13 +34,27 @@ export const useChat = (): ChatContextType => {
   return context;
 };
 
-/** Adds the message to its conversation's notification, unless that conversation is on screen. */
+/**
+ * A message from someone else arrived over the socket. With the app open it shows as a banner
+ * inside the app (unless its conversation is on screen); with the app in the background it goes
+ * into that conversation's phone notification.
+ */
 const notify = (message: ChatMessage) => {
   if (Platform.OS === 'web' || message.id == null) return;
   const { activeId, conversations, meId } = useChatStore.getState();
-  if (activeId === message.conversationId && AppState.currentState === 'active') return;
-
   const sender = conversations.find((c) => c.id === message.conversationId)?.peer;
+
+  if (AppState.currentState === 'active') {
+    if (activeId === message.conversationId) return;
+    showMessageBanner({
+      conversationId: message.conversationId,
+      name: sender?.name || 'New message',
+      profilepic: sender?.profilepic ?? null,
+      text: previewOf(message, meId),
+    });
+    return;
+  }
+
   void showMessageNotification({
     conversationId: message.conversationId,
     messageId: message.id,

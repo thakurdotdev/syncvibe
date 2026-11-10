@@ -1,3 +1,4 @@
+import MessageBanner from '@/components/chat/MessageBanner';
 import AppUpdateModal from '@/components/AppUpdateModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Player from '@/components/music/Player';
@@ -44,9 +45,11 @@ configureReanimatedLogger({
 
 Notifications.setNotificationHandler({
   handleNotification: async (notification): Promise<NotificationBehavior> => {
-    const { title, body } = notification.request.content;
+    const { title, body, data } = notification.request.content;
     // A data-only push carries a message for the app to draw itself (lib/messageNotifications).
-    const show = Boolean(title || body);
+    // A message push while the app is open is a duplicate: the socket brings the same message,
+    // which the in-app banner shows.
+    const show = Boolean(title || body) && data?.type !== 'message';
     return {
       shouldShowBanner: show,
       shouldShowAlert: show,
@@ -286,6 +289,7 @@ function RootLayoutNav() {
       </Stack>
       <GlobalBottomDeck />
       <Player />
+      <MessageBanner />
       <AppUpdateModal />
     </>
   );

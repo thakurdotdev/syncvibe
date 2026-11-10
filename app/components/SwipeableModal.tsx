@@ -259,9 +259,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
           'worklet';
           // Downward follows the finger exactly; upward past the resting place resists.
           const next = dragOrigin.get() + e.translationY;
-          gestureY.set(
-            next >= 0 ? next : rubberband(next, sheetHeight.get(), OVERDRAG_RESISTANCE)
-          );
+          gestureY.set(next >= 0 ? next : rubberband(next, sheetHeight.get(), OVERDRAG_RESISTANCE));
         })
         .onEnd((e) => {
           'worklet';
