@@ -7,7 +7,6 @@ import { musicRouter } from '@/features/music/music.routes';
 import { uploadRouter } from '@/features/upload/upload.routes';
 import { paymentRouter, paymentWebhookRouter } from '@/features/payment/payment.routes';
 import { appUpdateRouter, appUpdateWebhookRouter } from '@/features/app-update/app-update.routes';
-import { turnRouter } from '@/features/turn/turn.routes';
 import { gifRouter } from '@/features/gif/gif.routes';
 
 export const webhookRouter: Router = Router();
@@ -22,7 +21,6 @@ export const apiRouters: Router[] = [
   musicRouter,
   uploadRouter,
   paymentRouter,
-  turnRouter,
   appUpdateRouter,
   gifRouter,
 ];
