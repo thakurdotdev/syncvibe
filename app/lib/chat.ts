@@ -242,18 +242,6 @@ const flushOutbox = (): void => {
   }
 };
 
-/**
- * Sends without a socket, for a reply typed into a notification while the app is in the
- * background. The socket event still reaches every open device.
- */
-export const sendOverHttp = async (conversationId: number, body: string): Promise<void> => {
-  const { data } = await api.post<{ message: ChatMessage }>(
-    `/api/chat/conversations/${conversationId}/messages`,
-    { clientId: Crypto.randomUUID(), body }
-  );
-  store().receiveMessage(data.message);
-};
-
 // ── Changing messages ───────────────────────────────────────────────────────
 
 export const editMessage = async (message: ChatMessage, body: string): Promise<void> => {

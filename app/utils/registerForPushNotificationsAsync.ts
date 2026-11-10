@@ -64,10 +64,10 @@ export async function setupNotificationChannelsAndCategories() {
         },
       },
       {
-        identifier: 'OPEN_CHAT_ACTION',
-        buttonTitle: 'Open Chat',
+        identifier: 'MARK_READ_ACTION',
+        buttonTitle: 'Mark as read',
         options: {
-          opensAppToForeground: true,
+          opensAppToForeground: false,
         },
       },
     ]);

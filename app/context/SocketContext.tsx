@@ -47,6 +47,7 @@ const notify = (message: ChatMessage) => {
       data: {
         type: 'message',
         conversationId: message.conversationId,
+        messageId: message.id,
         senderId: message.senderId,
       },
       categoryIdentifier: 'chat_message',

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import * as Notifications from 'expo-notifications';
 import { registerForPushNotificationsAsync } from '@/utils/registerForPushNotificationsAsync';
-import { sendOverHttp } from '@/lib/chat';
+import { handleChatAction, MARK_READ_ACTION, REPLY_ACTION } from '@/lib/notificationActions';
 import { useChatStore } from '@/stores/chatStore';
 import { useUser } from './UserContext';
 import useApi from '@/utils/hooks/useApi';
@@ -30,20 +30,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   // Centralized handler for notification interactions (taps, quick reply, join/decline)
   const handleNotificationResponse = useCallback((response: Notifications.NotificationResponse) => {
-    const { actionIdentifier, userText } = response;
+    const { actionIdentifier } = response;
     const data = response.notification.request.content.data as Record<string, any> | undefined;
 
     const conversationId = Number(data?.conversationId) || null;
     const type = data?.type as string | undefined;
 
-    // 1. Interactive Action: Quick Reply (WhatsApp-style inline response). The app may be in
-    // the background with no socket, so this one goes over HTTP.
-    if (actionIdentifier === 'REPLY_ACTION' && userText?.trim()) {
-      if (conversationId) {
-        sendOverHttp(conversationId, userText.trim()).catch((error) =>
-          console.error('Replying from a notification failed:', error)
-        );
-      }
+    // 1. Reply and Mark as read, without opening a screen. The same code runs in the
+    // background when the app is closed (lib/notificationActions).
+    if (actionIdentifier === REPLY_ACTION || actionIdentifier === MARK_READ_ACTION) {
+      void handleChatAction(response);
       return;
     }
 
