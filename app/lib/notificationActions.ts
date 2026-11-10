@@ -103,12 +103,17 @@ export const handleChatPush = async (payload: Record<string, unknown>): Promise<
   if (payload.type === 'message-read') {
     await clearMessageNotification(conversationId);
   } else if (payload.type === 'message' && Number(payload.messageId)) {
+    const messageId = Number(payload.messageId);
     await showMessageNotification({
       conversationId,
-      messageId: Number(payload.messageId),
+      messageId,
       senderName: typeof payload.senderName === 'string' ? payload.senderName : null,
       preview: typeof payload.preview === 'string' ? payload.preview : null,
     });
+    // It reached this phone: the sender's tick turns into two, as it would over the socket.
+    await api
+      .post(`/api/chat/conversations/${conversationId}/delivered`, { messageId })
+      .catch(() => {});
   }
 };
 

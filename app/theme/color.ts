@@ -30,6 +30,8 @@ export interface ThemeColors {
   /** Live / presence signal (rooms, listeners). Never used for actions. */
   live: string;
   liveForeground: string;
+  /** The "read" tick on a message. Blue on purpose: it has to stand apart from "delivered". */
+  receipt: string;
   /** Surface one step above `card` — inputs, chips, pressed rows. */
   raised: string;
   /** Edge of a finished surface: a faint line of the text colour, so it works on any surface. */
@@ -96,6 +98,7 @@ const emberPalette: ColorPalette = {
     text: '#16161A',
     live: '#B86E00',
     liveForeground: '#FFFFFF',
+    receipt: '#0B7BC2',
     raised: '#EDEDEF',
     hairline: 'rgba(22, 22, 26, 0.09)',
     sheen: 'rgba(255, 255, 255, 0.9)',
@@ -150,6 +153,7 @@ const emberPalette: ColorPalette = {
     text: '#F4F4F5',
     live: '#FFB547',
     liveForeground: '#100C16',
+    receipt: '#53BDEB',
     raised: '#26262A',
     hairline: 'rgba(244, 244, 245, 0.09)',
     sheen: 'rgba(255, 255, 255, 0.07)',
@@ -219,6 +223,7 @@ const rosePalette: ColorPalette = {
     text: '#16161A',
     live: '#B86E00',
     liveForeground: '#FFFFFF',
+    receipt: '#0B7BC2',
     raised: '#EDEDEF',
     hairline: 'rgba(22, 22, 26, 0.09)',
     sheen: 'rgba(255, 255, 255, 0.9)',
@@ -277,6 +282,7 @@ const rosePalette: ColorPalette = {
     text: '#F4F4F5',
     live: '#FFB547',
     liveForeground: '#100C16',
+    receipt: '#53BDEB',
     raised: '#26262A',
     hairline: 'rgba(244, 244, 245, 0.09)',
     sheen: 'rgba(255, 255, 255, 0.07)',
@@ -348,6 +354,7 @@ const auberginePalette: ColorPalette = {
     text: '#1A1423',
     live: '#B86E00',
     liveForeground: '#FFFFFF',
+    receipt: '#0B7BC2',
     raised: '#F1EEF5',
     hairline: 'rgba(26, 20, 35, 0.09)',
     sheen: 'rgba(255, 255, 255, 0.9)',
@@ -402,6 +409,7 @@ const auberginePalette: ColorPalette = {
     text: '#F3F2F6',
     live: '#FFB547',
     liveForeground: '#0B0B0E',
+    receipt: '#53BDEB',
     raised: '#222229',
     hairline: 'rgba(243, 242, 246, 0.09)',
     sheen: 'rgba(255, 255, 255, 0.07)',
@@ -462,6 +470,7 @@ const monoPalette: ColorPalette = {
     text: '#0E0E10',
     live: '#0E0E10',
     liveForeground: '#FFFFFF',
+    receipt: '#0B7BC2',
     raised: '#EEEEF0',
     hairline: 'rgba(14, 14, 16, 0.09)',
     sheen: 'rgba(255, 255, 255, 0.9)',
@@ -513,6 +522,7 @@ const monoPalette: ColorPalette = {
     text: '#F5F5F6',
     live: '#F5F5F6',
     liveForeground: '#0A0A0B',
+    receipt: '#53BDEB',
     raised: '#222225',
     hairline: 'rgba(245, 245, 246, 0.09)',
     sheen: 'rgba(255, 255, 255, 0.07)',

@@ -98,7 +98,13 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     socketRef.current = newSocket;
 
     // Music rooms wait for the answer to this before they join.
-    newSocket.on('connect', () => newSocket.emit('setup', { userid: userId }));
+    // "Online" means the app is open, so the server hears whether it is in front.
+    const reportActive = () =>
+      newSocket.emit('presence:active', { active: AppState.currentState === 'active' });
+    newSocket.on('connect', () => {
+      newSocket.emit('setup', { userid: userId });
+      reportActive();
+    });
 
     const unbindChat = bindChatSocket(newSocket, { userId: Number(userId), onIncoming: notify });
 
@@ -113,6 +119,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
 
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active' && !newSocket.connected) newSocket.connect();
+      else if (newSocket.connected) reportActive();
     });
 
     return () => {

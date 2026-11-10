@@ -217,8 +217,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           {isOwn && status ? (
             <MaterialCommunityIcons
               name={STATUS_ICON[status].name}
-              size={14}
-              color={status === 'read' ? colors.foreground : colors.mutedForeground}
+              size={16}
+              color={status === 'read' ? colors.receipt : colors.mutedForeground}
               accessibilityLabel={STATUS_ICON[status].label}
             />
           ) : null}
