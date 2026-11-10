@@ -4,6 +4,7 @@ import { playStationFrom } from '@/components/music/home/playStation';
 import { VibeDial } from '@/components/music/home/VibeDial';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import { HomeHeader } from '@/components/ui/AppHeader';
+import { Gloss } from '@/components/ui/Finish';
 import PressableScale from '@/components/ui/PressableScale';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { useTheme } from '@/context/ThemeContext';
@@ -21,6 +22,7 @@ import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { usePlaybackState, usePlayerControls } from '@/stores/playerStore';
 import { fonts } from '@/theme/typography';
 import { Song } from '@/types/song';
+import { convertToHttps } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsRestoring, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -39,6 +41,8 @@ import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 type Colors = ReturnType<typeof useTheme>['colors'];
 
 const LIST_SIZE = 8;
+const RECENT_SHOWN = 10;
+const RECENT_TILE = 116;
 const SKELETON_DELAY_MS = 200;
 const SIDE_MARGIN = 16;
 /** The cover never takes more of a short phone's screen than this. */
@@ -79,6 +83,126 @@ const BrowseRow = memo(function BrowseRow({ colors }: { colors: Colors }) {
   );
 });
 
+const songArtist = (song: Song) =>
+  song.artist_map?.primary_artists?.[0]?.name ||
+  song.artist_map?.artists?.[0]?.name ||
+  song.subtitle ||
+  '';
+
+/**
+ * Plays the song in front. Tapping the cover does the same, but a cover doesn't look like a
+ * button, so this is the one that says so. Subscribes to playback on its own, so the stage
+ * around it doesn't re-render when a song starts or stops.
+ */
+const StagePlayButton = memo(function StagePlayButton({
+  song,
+  colors,
+  onPlay,
+}: {
+  song: Song;
+  colors: Colors;
+  onPlay: () => void;
+}) {
+  const { currentSong, isPlaying } = usePlaybackState();
+  const playing = currentSong?.id === song.id && isPlaying;
+
+  return (
+    <PressableScale
+      onPress={onPlay}
+      scaleTo={BUTTON_PRESS_SCALE}
+      hitSlop={6}
+      accessibilityRole='button'
+      accessibilityLabel={`${playing ? 'Pause' : 'Play'} ${song.name}`}
+      style={[styles.stagePlay, { backgroundColor: colors.primary }]}
+    >
+      <Gloss />
+      <Ionicons
+        name={playing ? 'pause' : 'play'}
+        size={22}
+        color={colors.primaryForeground}
+        style={{ marginLeft: playing ? 0 : 2 }}
+      />
+    </PressableScale>
+  );
+});
+
+/** The way into rooms from the page people open first. Hidden once you're in one. */
+const RoomsCard = memo(function RoomsCard({ colors }: { colors: Colors }) {
+  return (
+    <PressableScale
+      onPress={goRooms}
+      scaleTo={ROW_PRESS_SCALE}
+      accessibilityRole='button'
+      accessibilityLabel='Listen together. Open rooms'
+      style={[styles.roomsCard, { borderColor: colors.hairline }]}
+    >
+      <Gloss tone='surface' />
+      <View style={[styles.roomsIcon, { backgroundColor: colors.primary }]}>
+        <Gloss />
+        <Ionicons name='radio' size={20} color={colors.primaryForeground} />
+      </View>
+      <View style={styles.roomText}>
+        <Text style={[styles.roomsTitle, { color: colors.foreground }]}>Listen together</Text>
+        <Text style={[styles.roomSub, { color: colors.mutedForeground }]} numberOfLines={1}>
+          Start a room and hear the same second.
+        </Text>
+      </View>
+      <Ionicons name='chevron-forward' size={17} color={colors.mutedForeground} />
+    </PressableScale>
+  );
+});
+
+/** Songs you played lately, a swipe away. Tapping one plays it and queues the ones after it. */
+const RecentStrip = memo(function RecentStrip({
+  songs,
+  colors,
+}: {
+  songs: Song[];
+  colors: Colors;
+}) {
+  if (songs.length < 3) return null;
+
+  return (
+    <View style={styles.recent}>
+      <Text style={[styles.sectionLabel, styles.sectionInset, { color: colors.foreground }]}>
+        Jump back in
+      </Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.recentRow}
+      >
+        {songs.map((song, i) => {
+          const art = song.image?.[1]?.link || song.image?.[0]?.link;
+          return (
+            <PressableScale
+              key={song.id}
+              onPress={() => playStationFrom(songs, i)}
+              scaleTo={ROW_PRESS_SCALE}
+              accessibilityRole='button'
+              accessibilityLabel={`Play ${song.name} by ${songArtist(song)}`}
+              style={styles.recentTile}
+            >
+              <Image
+                source={{ uri: art ? convertToHttps(art) : undefined, cache: 'force-cache' }}
+                style={[styles.recentArt, { backgroundColor: colors.raised }]}
+                fadeDuration={0}
+                resizeMethod='resize'
+              />
+              <Text style={[styles.recentTitle, { color: colors.foreground }]} numberOfLines={1}>
+                {shortSongName(song.name)}
+              </Text>
+              <Text style={[styles.recentSub, { color: colors.mutedForeground }]} numberOfLines={1}>
+                {songArtist(song)}
+              </Text>
+            </PressableScale>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+});
+
 /** Your live room: what's playing and who's there, with one clear way back in. */
 const LiveRoomCard = memo(function LiveRoomCard({ colors }: { colors: Colors }) {
   const group = useGroupSessionStore((s) => s.currentGroup);
@@ -90,7 +214,7 @@ const LiveRoomCard = memo(function LiveRoomCard({ colors }: { colors: Colors }) 
   if (!group) return null;
 
   return (
-    <View style={[styles.liveCard, { backgroundColor: colors.card }]}>
+    <View style={[styles.liveCard, { backgroundColor: colors.card, borderColor: colors.hairline }]}>
       <View style={styles.liveTop}>
         <View style={[styles.roomThumb, { borderColor: colors.live }]}>
           {art ? (
@@ -118,6 +242,7 @@ const LiveRoomCard = memo(function LiveRoomCard({ colors }: { colors: Colors }) 
         accessibilityLabel={`Continue in ${group.name}`}
         style={[styles.continueBtn, { backgroundColor: colors.primary }]}
       >
+        <Gloss />
         <Text style={[styles.continueText, { color: colors.primaryForeground }]}>Continue</Text>
         <Ionicons name='arrow-forward' size={17} color={colors.primaryForeground} />
       </PressableScale>
@@ -139,7 +264,9 @@ const YourMusicCard = memo(function YourMusicCard({ colors }: { colors: Colors }
   const canPlay = activePlayerMode === 'normal';
 
   return (
-    <View style={[styles.yourMusic, { backgroundColor: colors.card }]}>
+    <View
+      style={[styles.yourMusic, { backgroundColor: colors.card, borderColor: colors.hairline }]}
+    >
       <Image source={{ uri: art }} style={styles.yourArt} fadeDuration={0} />
       <View style={styles.roomText}>
         <Text style={[styles.yourLabel, { color: colors.mutedForeground }]}>Your music</Text>
@@ -294,20 +421,25 @@ const StationStage = memo(function StationStage({
             onIndexChange={changeIndex}
             onPlay={playAt}
           />
-          <Animated.View key={song.id} entering={META_ENTER} style={styles.meta}>
-            <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
-              {shortSongName(song.name)}
-            </Text>
-            <Text style={[styles.sub, { color: colors.mutedForeground }]} numberOfLines={1}>
-              {song.artist_map?.primary_artists?.[0]?.name ||
-                song.artist_map?.artists?.[0]?.name ||
-                song.subtitle ||
-                ''}
-            </Text>
-          </Animated.View>
+          <View style={styles.meta}>
+            <Animated.View key={song.id} entering={META_ENTER} style={styles.metaText}>
+              <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
+                {shortSongName(song.name)}
+              </Text>
+              <Text style={[styles.sub, { color: colors.mutedForeground }]} numberOfLines={1}>
+                {songArtist(song)}
+              </Text>
+            </Animated.View>
+            <StagePlayButton song={song} colors={colors} onPlay={() => playAt(front)} />
+          </View>
         </View>
       ) : null}
       <View style={styles.list}>
+        {songs.length > (showDeck ? front + 1 : 0) && (
+          <Text style={[styles.sectionLabel, { color: colors.foreground }]}>
+            {showDeck ? 'Up next' : station.title}
+          </Text>
+        )}
         {songs
           .slice(showDeck ? front + 1 : 0, (showDeck ? front + 1 : 0) + LIST_SIZE)
           .map((row) => (
@@ -363,6 +495,10 @@ function HomeScreen() {
     [homePageData?.trending, recommendations]
   );
   const stations = useMemo(() => buildStations(homePageData, forYou), [homePageData, forYou]);
+  const recent = useMemo(
+    () => (recommendations?.recentlyPlayed ?? []).filter((s) => s?.id).slice(0, RECENT_SHOWN),
+    [recommendations?.recentlyPlayed]
+  );
   const titles = useMemo(() => stations.map((s) => s.title), [stations]);
 
   // The vibe you're on is remembered by key, so a data refresh or new section can't move you.
@@ -446,6 +582,12 @@ function HomeScreen() {
               onIndexChange={onIndexChange}
               showDeck={!inRoom}
             />
+            {!inRoom && (
+              <>
+                <RoomsCard colors={colors} />
+                <RecentStrip songs={recent} colors={colors} />
+              </>
+            )}
             <BrowseRow colors={colors} />
           </>
         )}
@@ -458,6 +600,42 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingBottom: DECK_CLEARANCE },
   list: { paddingHorizontal: SIDE_MARGIN, paddingTop: 8 },
+  sectionLabel: {
+    fontFamily: fonts.displaySemibold,
+    fontSize: 17,
+    letterSpacing: -0.3,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  sectionInset: { paddingHorizontal: SIDE_MARGIN },
+
+  roomsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: SIDE_MARGIN,
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  roomsIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  roomsTitle: { fontFamily: fonts.displaySemibold, fontSize: 16, letterSpacing: -0.2 },
+
+  recent: { marginTop: 12 },
+  recentRow: { paddingHorizontal: SIDE_MARGIN, gap: 12 },
+  recentTile: { width: RECENT_TILE },
+  recentArt: { width: RECENT_TILE, height: RECENT_TILE, borderRadius: 12 },
+  recentTitle: { fontSize: 13.5, fontWeight: '600', marginTop: 8, letterSpacing: -0.1 },
+  recentSub: { fontSize: 12, marginTop: 1 },
 
   roomStack: { gap: 10, paddingHorizontal: 16 },
   browseRow: {
@@ -469,7 +647,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   browseText: { fontSize: 15, fontWeight: '600', letterSpacing: -0.15 },
-  liveCard: { borderRadius: 22, padding: 14, gap: 14 },
+  liveCard: { borderRadius: 22, padding: 14, gap: 14, borderWidth: StyleSheet.hairlineWidth },
   liveTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   continueBtn: {
     height: 46,
@@ -478,9 +656,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    overflow: 'hidden',
   },
   continueText: { fontSize: 15, fontWeight: '700' },
-  yourMusic: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderRadius: 18 },
+  yourMusic: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 10,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   yourArt: { width: 46, height: 46, borderRadius: 12 },
   yourLabel: { fontSize: 11.5, fontWeight: '600' },
   yourTitle: { fontSize: 14.5, fontWeight: '700' },
@@ -509,8 +695,17 @@ const styles = StyleSheet.create({
   liveText: { fontSize: 12, fontWeight: '700' },
 
   stage: { paddingHorizontal: SIDE_MARGIN, paddingTop: 2 },
-  meta: { paddingTop: 12, paddingBottom: 4 },
-  title: { fontSize: 20, fontWeight: '700', letterSpacing: -0.35 },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 12, paddingBottom: 4 },
+  metaText: { flex: 1, minWidth: 0 },
+  stagePlay: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  title: { fontFamily: fonts.display, fontSize: 22, letterSpacing: -0.4 },
   sub: { fontSize: 13.5, marginTop: 2 },
   skeletonTitle: { marginTop: 14, marginBottom: 8 },
   skeletonRows: { paddingTop: 18 },

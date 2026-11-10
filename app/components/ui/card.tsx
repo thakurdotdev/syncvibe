@@ -89,6 +89,8 @@ export const Card: React.FC<CardProps> = ({
       case 'default':
         return {
           backgroundColor: colors.card,
+          borderColor: colors.hairline,
+          borderWidth: StyleSheet.hairlineWidth,
         };
       case 'secondary':
         return {

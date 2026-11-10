@@ -95,7 +95,8 @@ export const MessageBubble = memo(function MessageBubble({
             style={[
               bare ? styles.bare : styles.bubble,
               !bare && { backgroundColor: bubbleBg },
-              !bare && (own ? styles.bubbleOwn : styles.bubbleOther),
+              !bare &&
+                (own ? styles.bubbleOwn : [styles.bubbleOther, { borderColor: colors.hairline }]),
             ]}
           >
             {m.replyTo?.id ? (
@@ -151,7 +152,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 12, fontWeight: '600', marginBottom: 3, marginLeft: 4 },
   bubble: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 18 },
   bubbleOwn: { borderBottomRightRadius: 6 },
-  bubbleOther: { borderBottomLeftRadius: 6 },
+  bubbleOther: { borderBottomLeftRadius: 6, borderWidth: StyleSheet.hairlineWidth },
   bare: { paddingVertical: 2 },
   text: { fontSize: 15, lineHeight: 20 },
   time: { fontSize: 10.5 },

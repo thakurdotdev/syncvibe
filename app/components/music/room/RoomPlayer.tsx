@@ -1,5 +1,6 @@
 import { blurredArt } from '@/lib/artwork';
 import { CustomSlider } from '@/components/music/MusicCards';
+import { Gloss } from '@/components/ui/Finish';
 import PressableScale from '@/components/ui/PressableScale';
 import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -78,7 +79,7 @@ const Reactions = memo(function Reactions() {
           hitSlop={REACTION_HIT_SLOP}
           accessibilityRole='button'
           accessibilityLabel={`React ${e}`}
-          style={[styles.reaction, { backgroundColor: colors.raised }]}
+          style={[styles.reaction, { backgroundColor: colors.gradients.surface[0] }]}
         >
           <Text style={styles.reactionText}>{e}</Text>
         </PressableScale>
@@ -88,9 +89,9 @@ const Reactions = memo(function Reactions() {
 });
 
 /**
- * Shared player for the room: the artwork fills the left edge, with what's playing, controls,
- * progress and quick reactions beside it. It also tints the card, so every song gives the room
- * its own colour.
+ * Shared player for the room. One row says what's playing and holds the controls, so the title
+ * gets the width; progress and quick reactions run the full card below. The artwork also tints
+ * the card, so every song gives the room its own colour.
  */
 export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseSong: () => void }) {
   const { colors, theme } = useTheme();
@@ -112,20 +113,22 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
       <PressableScale
         onPress={onChooseSong}
         accessibilityRole='button'
-        style={[styles.empty, { backgroundColor: colors.accent }]}
+        style={[styles.empty, { borderColor: colors.hairline }]}
       >
-        <View style={[styles.emptyIcon, { backgroundColor: colors.primary }]}>
-          <Ionicons name='musical-notes' size={22} color={colors.primaryForeground} />
+        <Gloss tone='surface' />
+        <View style={[styles.emptyIcon, { backgroundColor: colors.raised }]}>
+          <Ionicons name='musical-notes' size={20} color={colors.foreground} />
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.emptyTitle, { color: colors.accentForeground }]}>
-            Nothing playing yet
-          </Text>
-          <Text style={[styles.emptyText, { color: colors.accentForeground }]}>
+        <View style={styles.meta}>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Nothing playing yet</Text>
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
             Pick the first song for everyone.
           </Text>
         </View>
-        <Ionicons name='add-circle' size={28} color={colors.primary} />
+        <View style={[styles.emptyAdd, { backgroundColor: colors.primary }]}>
+          <Gloss />
+          <Ionicons name='add' size={20} color={colors.primaryForeground} />
+        </View>
       </PressableScale>
     );
   }
@@ -134,120 +137,144 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
   const artist = song.artist_map?.primary_artists?.[0]?.name || song.subtitle || 'Unknown artist';
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.hairline }]}>
       {art ? <Image {...blurredArt(art, 45)} style={styles.tint} /> : null}
       <View
         style={[
           StyleSheet.absoluteFill,
-          { backgroundColor: isDark ? 'rgba(27,22,36,0.7)' : 'rgba(255,255,255,0.78)' },
+          { backgroundColor: isDark ? 'rgba(10,10,11,0.74)' : 'rgba(255,255,255,0.82)' },
         ]}
       />
 
-      <View style={styles.row}>
-        <Image source={{ uri: art }} style={styles.art} resizeMode='cover' fadeDuration={0} />
-
-        <View style={styles.side}>
-          <View style={styles.top}>
-            <View style={styles.meta}>
-              <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
-                {song.name}
-              </Text>
-              <Text style={[styles.artist, { color: colors.mutedForeground }]} numberOfLines={1}>
-                {artist}
-              </Text>
-              {!canControl ? (
-                <Text style={[styles.addedBy, { color: colors.mutedForeground }]} numberOfLines={1}>
+      <View style={styles.body}>
+        <View style={styles.top}>
+          <Image
+            source={{ uri: art }}
+            style={[styles.art, { backgroundColor: colors.raised }]}
+            resizeMode='cover'
+            fadeDuration={0}
+          />
+          <View style={styles.meta}>
+            <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
+              {song.name}
+            </Text>
+            <Text style={[styles.artist, { color: colors.mutedForeground }]} numberOfLines={1}>
+              {artist}
+            </Text>
+            {!canControl ? (
+              <View style={styles.note}>
+                <Ionicons name='lock-closed' size={10} color={colors.mutedForeground} />
+                <Text style={[styles.noteText, { color: colors.mutedForeground }]}>
                   Host controls playback
                 </Text>
-              ) : addedBy ? (
-                <Text style={[styles.addedBy, { color: colors.primary }]} numberOfLines={1}>
-                  Added by {addedBy}
-                </Text>
-              ) : null}
-            </View>
-            <PressableScale
-              onPress={() => handlePlayPause()}
-              disabled={!canControl}
-              scaleTo={BUTTON_PRESS_SCALE}
-              accessibilityRole='button'
-              accessibilityState={{ disabled: !canControl }}
-              accessibilityLabel={isPlaying ? 'Pause for everyone' : 'Play for everyone'}
-              style={[
-                styles.play,
-                { backgroundColor: colors.foreground },
-                !canControl && styles.locked,
-              ]}
-            >
-              {isLoading ? (
-                <ActivityIndicator size='small' color={colors.background} />
-              ) : (
-                <Ionicons
-                  name={isPlaying ? 'pause' : 'play'}
-                  size={19}
-                  color={colors.background}
-                  style={{ marginLeft: isPlaying ? 0 : 2 }}
-                />
-              )}
-            </PressableScale>
-            <PressableScale
-              onPress={skipSong}
-              disabled={!canControl}
-              scaleTo={BUTTON_PRESS_SCALE}
-              hitSlop={6}
-              accessibilityRole='button'
-              accessibilityState={{ disabled: !canControl }}
-              accessibilityLabel='Skip to next song'
-              style={[styles.skip, !canControl && styles.locked]}
-            >
-              <Ionicons name='play-skip-forward' size={18} color={colors.foreground} />
-            </PressableScale>
+              </View>
+            ) : addedBy ? (
+              <Text style={[styles.noteText, { color: colors.mutedForeground }]} numberOfLines={1}>
+                Added by <Text style={{ color: colors.foreground }}>{addedBy}</Text>
+              </Text>
+            ) : null}
           </View>
-
-          <Progress onSeek={handleSeek} locked={!canControl} />
-          <Reactions />
+          <PressableScale
+            onPress={() => handlePlayPause()}
+            disabled={!canControl}
+            scaleTo={BUTTON_PRESS_SCALE}
+            accessibilityRole='button'
+            accessibilityState={{ disabled: !canControl }}
+            accessibilityLabel={isPlaying ? 'Pause for everyone' : 'Play for everyone'}
+            style={[styles.play, { backgroundColor: colors.primary }, !canControl && styles.locked]}
+          >
+            <Gloss />
+            {isLoading ? (
+              <ActivityIndicator size='small' color={colors.primaryForeground} />
+            ) : (
+              <Ionicons
+                name={isPlaying ? 'pause' : 'play'}
+                size={20}
+                color={colors.primaryForeground}
+                style={{ marginLeft: isPlaying ? 0 : 2 }}
+              />
+            )}
+          </PressableScale>
+          <PressableScale
+            onPress={skipSong}
+            disabled={!canControl}
+            scaleTo={BUTTON_PRESS_SCALE}
+            hitSlop={6}
+            accessibilityRole='button'
+            accessibilityState={{ disabled: !canControl }}
+            accessibilityLabel='Skip to next song'
+            style={[styles.skip, !canControl && styles.locked]}
+          >
+            <Ionicons name='play-skip-forward' size={19} color={colors.foreground} />
+          </PressableScale>
         </View>
+
+        <Progress onSeek={handleSeek} locked={!canControl} />
+        <Reactions />
       </View>
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  card: { borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   tint: { ...StyleSheet.absoluteFill, width: '100%', height: '100%', transform: [{ scale: 1.4 }] },
-  row: { flexDirection: 'row' },
-  // Stretches to the card's height, however tall larger text makes the side column.
-  art: { width: 136, alignSelf: 'stretch' },
-  side: { flex: 1, minWidth: 0, paddingHorizontal: 12, paddingVertical: 10, gap: 6 },
+  body: { padding: 12, gap: 8 },
   // Above the slider, whose touch area reaches up behind this row.
-  top: { flexDirection: 'row', alignItems: 'center', gap: 6, zIndex: 1 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 1 },
+  art: { width: 56, height: 56, borderRadius: 14 },
   meta: { flex: 1, minWidth: 0 },
-  title: { fontFamily: fonts.displaySemibold, fontSize: 16, letterSpacing: -0.3 },
-  artist: { fontSize: 12.5, marginTop: 1 },
-  addedBy: { fontSize: 11, fontWeight: '600', marginTop: 2 },
-  play: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  skip: { width: 28, height: 40, alignItems: 'center', justifyContent: 'center' },
+  title: { fontFamily: fonts.displaySemibold, fontSize: 16.5, letterSpacing: -0.3 },
+  artist: { fontSize: 13, marginTop: 1 },
+  note: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  noteText: { fontSize: 11.5, fontWeight: '500', marginTop: 3 },
+  play: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  skip: { width: 32, height: 44, alignItems: 'center', justifyContent: 'center' },
   locked: { opacity: 0.4 },
-  slider: { marginVertical: -13 },
+  slider: { marginVertical: -11 },
   times: { flexDirection: 'row', justifyContent: 'space-between' },
   time: { fontSize: 10.5, fontVariant: ['tabular-nums'] },
-  reactions: { flexDirection: 'row', gap: 4 },
+  reactions: { flexDirection: 'row', gap: 6 },
   reaction: {
     flex: 1,
-    height: 30,
-    borderRadius: 10,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   reactionText: { fontSize: 15 },
 
-  empty: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 22 },
+  empty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
   emptyIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyTitle: { fontFamily: fonts.displaySemibold, fontSize: 16 },
-  emptyText: { fontSize: 13, marginTop: 2, opacity: 0.85 },
+  emptyText: { fontSize: 13, marginTop: 2 },
+  emptyAdd: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
 });

@@ -32,6 +32,10 @@ export interface ThemeColors {
   liveForeground: string;
   /** Surface one step above `card` — inputs, chips, pressed rows. */
   raised: string;
+  /** Edge of a finished surface: a faint line of the text colour, so it works on any surface. */
+  hairline: string;
+  /** Light catching the top edge of a surface or button. Drawn as a 1px line. */
+  sheen: string;
 
   // Button state variants
   primaryHover: string;
@@ -55,6 +59,10 @@ export interface ThemeColors {
     accent: string[];
     destructive: string[];
     header: string[];
+    /** Filled (primary) buttons, top to bottom: the same finish as the web's `.btn-primary`. */
+    button: string[];
+    /** Quiet buttons and chips, top to bottom: the web's `.btn-surface`. */
+    surface: string[];
   };
 }
 
@@ -89,6 +97,8 @@ const emberPalette: ColorPalette = {
     live: '#B86E00',
     liveForeground: '#FFFFFF',
     raised: '#EDEDEF',
+    hairline: 'rgba(22, 22, 26, 0.09)',
+    sheen: 'rgba(255, 255, 255, 0.9)',
 
     primaryHover: '#B23A0D',
     primaryActive: '#99310A',
@@ -113,6 +123,8 @@ const emberPalette: ColorPalette = {
       accent: ['#FCE8DD', '#FAD9C5'],
       destructive: ['#DB4259', '#C81E3A', '#96162B'],
       header: ['#FDEEE5', '#FBE0D0', '#FDF4EE'],
+      button: ['#E05A28', '#CC4310'],
+      surface: ['rgba(22, 22, 26, 0.05)', 'rgba(22, 22, 26, 0.02)'],
     },
   },
   dark: {
@@ -139,6 +151,8 @@ const emberPalette: ColorPalette = {
     live: '#FFB547',
     liveForeground: '#100C16',
     raised: '#26262A',
+    hairline: 'rgba(244, 244, 245, 0.09)',
+    sheen: 'rgba(255, 255, 255, 0.07)',
 
     primaryHover: '#FF8456',
     primaryActive: '#E85A28',
@@ -163,6 +177,8 @@ const emberPalette: ColorPalette = {
       accent: ['#33201A', '#3D2820'],
       destructive: ['#FF8590', '#FF5468', '#E83B50'],
       header: ['#3D2014', '#27160E', '#0B0B0C'],
+      button: ['#FF9166', '#FF6A35'],
+      surface: ['rgba(244, 244, 245, 0.08)', 'rgba(244, 244, 245, 0.03)'],
     },
   },
 };
@@ -204,6 +220,8 @@ const rosePalette: ColorPalette = {
     live: '#B86E00',
     liveForeground: '#FFFFFF',
     raised: '#EDEDEF',
+    hairline: 'rgba(22, 22, 26, 0.09)',
+    sheen: 'rgba(255, 255, 255, 0.9)',
 
     // Button state variants
     primaryHover: '#B62564',
@@ -231,6 +249,8 @@ const rosePalette: ColorPalette = {
       destructive: ['#DC4A3D', '#CC2819', '#991E12'],
       // Soft warm header backdrop: low saturation wash (#FFF8FA -> #F8F8FF)
       header: ['#FFF7FA', '#FBF7FC', '#F7F7F8'],
+      button: ['#DF4D8A', '#C92D70'],
+      surface: ['rgba(22, 22, 26, 0.05)', 'rgba(22, 22, 26, 0.02)'],
     },
   },
   dark: {
@@ -258,6 +278,8 @@ const rosePalette: ColorPalette = {
     live: '#FFB547',
     liveForeground: '#100C16',
     raised: '#26262A',
+    hairline: 'rgba(244, 244, 245, 0.09)',
+    sheen: 'rgba(255, 255, 255, 0.07)',
 
     // Button state variants
     primaryHover: '#F776AD',
@@ -287,6 +309,8 @@ const rosePalette: ColorPalette = {
       // gives the header real depth without becoming a full-strength
       // saturated banner.
       header: ['#3F1D2D', '#28151F', '#0B0B0C'],
+      button: ['#F982B6', '#F05A9B'],
+      surface: ['rgba(244, 244, 245, 0.08)', 'rgba(244, 244, 245, 0.03)'],
     },
   },
 };
@@ -325,6 +349,8 @@ const auberginePalette: ColorPalette = {
     live: '#B86E00',
     liveForeground: '#FFFFFF',
     raised: '#F1EEF5',
+    hairline: 'rgba(26, 20, 35, 0.09)',
+    sheen: 'rgba(255, 255, 255, 0.9)',
 
     primaryHover: '#BB2969',
     primaryActive: '#A3235B',
@@ -346,6 +372,8 @@ const auberginePalette: ColorPalette = {
       accent: ['#FBE4EF', '#F8D5E6'],
       destructive: ['#DA5450', '#C9302C', '#9C2421'],
       header: ['#F3EAF4', '#F7F5FA', '#F7F5FA'],
+      button: ['#E2558F', '#D12F76'],
+      surface: ['rgba(26, 20, 35, 0.05)', 'rgba(26, 20, 35, 0.02)'],
     },
   },
   // Dark: near-neutral graphite with a faint cool tint (not purple), three clearly
@@ -375,6 +403,8 @@ const auberginePalette: ColorPalette = {
     live: '#FFB547',
     liveForeground: '#0B0B0E',
     raised: '#222229',
+    hairline: 'rgba(243, 242, 246, 0.09)',
+    sheen: 'rgba(255, 255, 255, 0.07)',
 
     primaryHover: '#F466A3',
     primaryActive: '#DA3A7E',
@@ -396,6 +426,8 @@ const auberginePalette: ColorPalette = {
       accent: ['#2B1520', '#36192A'],
       destructive: ['#FB7C78', '#F95F5A', '#E04B46'],
       header: ['#1F1520', '#0B0B0E', '#0B0B0E'],
+      button: ['#F56EA8', '#F0468F'],
+      surface: ['rgba(243, 242, 246, 0.08)', 'rgba(243, 242, 246, 0.03)'],
     },
   },
 };
@@ -431,6 +463,8 @@ const monoPalette: ColorPalette = {
     live: '#0E0E10',
     liveForeground: '#FFFFFF',
     raised: '#EEEEF0',
+    hairline: 'rgba(14, 14, 16, 0.09)',
+    sheen: 'rgba(255, 255, 255, 0.9)',
 
     primaryHover: '#2A2A2E',
     primaryActive: '#3A3A3F',
@@ -452,6 +486,8 @@ const monoPalette: ColorPalette = {
       accent: ['#EEEEF0', '#E6E6E9'],
       destructive: ['#D6524D', '#C4302B', '#982420'],
       header: ['#ECECEE', '#F6F6F7', '#F6F6F7'],
+      button: ['#3B3B40', '#0E0E10'],
+      surface: ['rgba(14, 14, 16, 0.05)', 'rgba(14, 14, 16, 0.02)'],
     },
   },
   dark: {
@@ -478,6 +514,8 @@ const monoPalette: ColorPalette = {
     live: '#F5F5F6',
     liveForeground: '#0A0A0B',
     raised: '#222225',
+    hairline: 'rgba(245, 245, 246, 0.09)',
+    sheen: 'rgba(255, 255, 255, 0.07)',
 
     primaryHover: '#E2E2E4',
     primaryActive: '#CFCFD2',
@@ -499,6 +537,8 @@ const monoPalette: ColorPalette = {
       accent: ['#232326', '#2A2A2E'],
       destructive: ['#F47F7B', '#F2615C', '#DB4B46'],
       header: ['#1B1B1E', '#0A0A0B', '#0A0A0B'],
+      button: ['#FFFFFF', '#D5D5D8'],
+      surface: ['rgba(245, 245, 246, 0.08)', 'rgba(245, 245, 246, 0.03)'],
     },
   },
 };
