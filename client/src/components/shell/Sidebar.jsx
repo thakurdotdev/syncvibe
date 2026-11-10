@@ -199,7 +199,7 @@ const People = ({ people, total }) => {
   const navigate = useNavigate();
   if (!people.length) return null;
 
-  const open = (p) => navigate(paths.messages, { state: { chatData: { chatid: p.chatid } } });
+  const open = (p) => navigate(paths.messages, { state: { conversationId: p.id } });
 
   return (
     <section className='shrink-0 pb-3 [@media(max-height:720px)]:hidden'>
@@ -219,11 +219,11 @@ const People = ({ people, total }) => {
       </SectionLabel>
       <ul className='flex gap-1.5 px-1.5 pt-1'>
         {people.map((p) => {
-          const other = p.otherUser || {};
+          const other = p.peer || {};
           const status = personStatus(p);
           const unread = p.unreadCount > 0;
           return (
-            <li key={p.chatid}>
+            <li key={p.id}>
               <Tip label={status ? `${other.name}, ${status}` : other.name} side='top'>
                 <button
                   type='button'

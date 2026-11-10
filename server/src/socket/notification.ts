@@ -6,7 +6,7 @@ const expo = new Expo();
 export interface MessageNotificationData {
   senderName?: string;
   content?: string | null;
-  chatid?: number | string;
+  conversationId?: number;
   senderid?: number | string;
   from?: string | number;
   name?: string;
@@ -33,9 +33,13 @@ export async function sendPushNotification(
     notification = {
       to: recipientToken,
       sound: 'default',
-      title: message.senderName ? `New message from ${message.senderName}` : 'New message',
-      body: message.content || 'Sent an attachment',
-      data: { chatid: message.chatid, senderId: message.senderid, type: 'message' },
+      title: message.senderName || 'New message',
+      body: message.content || 'Sent a photo',
+      data: {
+        conversationId: message.conversationId,
+        senderId: message.senderid,
+        type: 'message',
+      },
       channelId: 'messages',
       categoryId: 'chat_message',
       priority: 'high',

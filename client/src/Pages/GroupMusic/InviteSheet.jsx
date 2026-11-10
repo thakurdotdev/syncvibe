@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { Check, Loader2, Search, UserPlus, Users, X } from 'lucide-react';
-import { useSocket } from '@/Context/ChatContext';
 import axios from 'axios';
 import _ from 'lodash';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -150,7 +149,6 @@ const NoResultsState = memo(() => (
 ));
 
 const InviteSheet = ({ isOpen, onClose, groupMembers, sendInvite }) => {
-  const { onlineStatuses } = useSocket();
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -212,15 +210,15 @@ const InviteSheet = ({ isOpen, onClose, groupMembers, sendInvite }) => {
 
   const sortedUsers = useMemo(() => {
     return [...users].sort((a, b) => {
-      const aOnline = onlineStatuses?.[a.userid] ? 1 : 0;
-      const bOnline = onlineStatuses?.[b.userid] ? 1 : 0;
+      const aOnline = a.isOnline ? 1 : 0;
+      const bOnline = b.isOnline ? 1 : 0;
       const aFollow = a.isFollowing ? 1 : 0;
       const bFollow = b.isFollowing ? 1 : 0;
       if (aFollow !== bFollow) return bFollow - aFollow;
       if (aOnline !== bOnline) return bOnline - aOnline;
       return 0;
     });
-  }, [users, onlineStatuses]);
+  }, [users]);
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
@@ -277,7 +275,7 @@ const InviteSheet = ({ isOpen, onClose, groupMembers, sendInvite }) => {
                     <UserItem
                       key={user.userid}
                       user={user}
-                      isOnline={!!onlineStatuses?.[user.userid]}
+                      isOnline={Boolean(user.isOnline)}
                       onInvite={handleInvite}
                       isInvited={invitedUsers.has(user.userid)}
                       isInGroup={memberIds.has(user.userid)}

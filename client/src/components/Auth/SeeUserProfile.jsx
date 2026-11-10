@@ -142,9 +142,7 @@ const SeeUserProfile = () => {
               {userData.isFollowing && (
                 <Button
                   variant='outline'
-                  onClick={() =>
-                    navigate(paths.messages, { state: { recieverid: profile.userid } })
-                  }
+                  onClick={() => navigate(paths.messages, { state: { userId: profile.userid } })}
                   className='flex-1 gap-2 rounded-full'
                 >
                   <MessageCircle className='h-4 w-4' />

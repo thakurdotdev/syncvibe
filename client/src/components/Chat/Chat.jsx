@@ -1,94 +1,58 @@
-import { useContext, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChatContext } from '../../Context/ChatContext';
-import { Context } from '../../Context/Context';
-import ChatWithUser from './ChatWithUser';
-import SearchUser from './SearchUser';
+import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { openConversationWith } from '@/lib/chat';
+import { paths } from '@/lib/paths';
+import { useChatStore } from '@/stores/chatStore';
+import ChatThread from './ChatThread';
+import ConversationList from './ConversationList';
 
+/**
+ * Messages: the list of conversations beside the open one, or one at a time on a phone.
+ * Other pages open a conversation by navigating here with `state.conversationId`, or with
+ * `state.userId` to message someone for the first time.
+ */
 const Chat = () => {
-  const { user } = useContext(Context);
-  const {
-    users,
-    setUsers,
-    setLoading,
-    onlineStatuses,
-    loading,
-    currentChat,
-    setCurrentChat,
-    socket,
-    getAllExistingChats,
-  } = useContext(ChatContext);
-
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
+  const activeId = useChatStore((s) => s.activeId);
+  const setActive = useChatStore((s) => s.setActive);
 
-  const notificationChatData = location.state?.chatData;
+  const { conversationId, userId } = location.state || {};
 
   useEffect(() => {
-    if (notificationChatData) {
-      const findChat = users.find((user) => user?.chatid === notificationChatData?.chatid);
-      setCurrentChat(findChat);
-      navigate('/messages', { replace: true });
+    if (!conversationId && !userId) return;
+    navigate(paths.messages, { replace: true });
+
+    if (conversationId) {
+      setActive(conversationId);
+      return;
     }
-  }, [notificationChatData, users, navigate]);
+    openConversationWith(userId)
+      .then((conversation) => setActive(conversation.id))
+      .catch((error) =>
+        toast.error(error?.response?.data?.message || "Couldn't open that conversation")
+      );
+  }, [conversationId, userId, navigate, setActive]);
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const usersWithStatus = users.map((user) => ({
-    ...user,
-    isOnline: onlineStatuses[user?.otherUser?.userid] || false,
-  }));
+  // Leaving the page closes the conversation, so new messages count as unread again.
+  useEffect(() => () => setActive(null), [setActive]);
 
   if (isMobile) {
     return (
-      <div className='relative h-full'>
-        {currentChat ? (
-          <ChatWithUser
-            setCurrentChat={setCurrentChat}
-            currentChat={currentChat}
-            loggedInUserId={user?.userid}
-            socket={socket}
-          />
-        ) : (
-          <SearchUser
-            users={usersWithStatus}
-            setCurrentChat={setCurrentChat}
-            setLoading={setLoading}
-            loading={loading}
-            socket={socket}
-          />
-        )}
-      </div>
+      <div className='relative h-full'>{activeId ? <ChatThread /> : <ConversationList />}</div>
     );
   }
 
   return (
-    <div className='flex mx-auto h-full overflow-hidden'>
-      <div className='w-[30%] min-w-[280px] max-w-[380px] h-full'>
-        <SearchUser
-          setUsers={setUsers}
-          users={usersWithStatus}
-          setLoading={setLoading}
-          loading={loading}
-          setCurrentChat={setCurrentChat}
-          getAllExistingChats={getAllExistingChats}
-          socket={socket}
-        />
+    <div className='mx-auto flex h-full overflow-hidden'>
+      <div className='h-full w-[30%] min-w-[280px] max-w-[380px]'>
+        <ConversationList />
       </div>
-      <div className='flex-1 h-full min-w-0'>
-        <ChatWithUser
-          setCurrentChat={setCurrentChat}
-          currentChat={currentChat}
-          loggedInUserId={user?.userid}
-          socket={socket}
-        />
+      <div className='h-full min-w-0 flex-1'>
+        <ChatThread />
       </div>
     </div>
   );

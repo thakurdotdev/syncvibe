@@ -13,12 +13,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 
-const VideoCallButton = ({ startCall, currentChat, incomingCall }) => {
+const VideoCallButton = ({ startCall, peer, incomingCall }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleStartCall = () => {
     setIsOpen(false);
-    startCall(currentChat?.otherUser?.userid);
+    startCall(peer?.userid);
   };
 
   if (incomingCall) return null;
@@ -39,8 +39,8 @@ const VideoCallButton = ({ startCall, currentChat, incomingCall }) => {
         <AlertDialogHeader>
           <AlertDialogTitle>Start Video Call</AlertDialogTitle>
           <AlertDialogDescription>
-            Would you like to start a video call with {currentChat?.otherUser?.name}? Make sure your
-            camera/microphone permissions are enabled.
+            Would you like to start a video call with {peer?.name}? Make sure your camera/microphone
+            permissions are enabled.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

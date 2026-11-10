@@ -1,57 +1,26 @@
-import { bumpChat } from '@/utils/chatList';
 import { API_URL } from '@/constants';
-import { User } from '@/types/user';
-import useApi from '@/utils/hooks/useApi';
+import { getAuthHeaders } from '@/lib/auth-client';
+import { bindChatSocket, resetChat } from '@/lib/chat';
+import { previewOf, useChatStore, type ChatMessage } from '@/stores/chatStore';
 import * as Notifications from 'expo-notifications';
-import { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { AppState, Platform } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 import { useUser } from './UserContext';
 
-export interface ChatUser {
-  chatid: number;
-  otherUser: User;
-  lastmessage?: string | null;
-  lastMessageType?: string;
-  isTyping?: boolean;
-  createdat: string;
-  participants: number[];
-  isOnline?: boolean;
-}
-
-export interface Message {
-  messageid?: number | string;
-  tempId?: string | number;
-  senderid?: number;
-  senderName?: string;
-  content?: string | null;
-  chatid?: number;
-  timestamp?: string;
-  fileurl?: string | null;
-  createdat: string;
-  participants: number[];
-  isread?: boolean;
-  readat?: string | null;
-  status?: 'pending' | 'sent' | 'failed';
-}
-
 interface ChatContextType {
-  users: ChatUser[];
-  setUsers: React.Dispatch<React.SetStateAction<ChatUser[]>>;
-  loading: boolean;
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  onlineStatuses: Record<string, boolean>;
-  setOnlineStatuses: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  currentChat: ChatUser | null;
-  setCurrentChat: React.Dispatch<React.SetStateAction<ChatUser | null>>;
   socket: Socket | null;
-  /** Refreshes the list and returns it, or nothing if that failed. */
-  getAllExistingChats: () => Promise<ChatUser[] | undefined>;
+  /** On sign-out: drops the connection and everything held for the user who left. */
   cleanUpSocket: () => void;
-}
-
-interface ChatProviderProps {
-  children: ReactNode;
 }
 
 export const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -64,280 +33,95 @@ export const useChat = (): ChatContextType => {
   return context;
 };
 
-export const ChatProvider = ({ children }: ChatProviderProps) => {
-  const api = useApi();
+/** A notification for a message in a conversation that isn't the one on screen. */
+const notify = (message: ChatMessage) => {
+  if (Platform.OS === 'web') return;
+  const { activeId, conversations, meId } = useChatStore.getState();
+  if (activeId === message.conversationId && AppState.currentState === 'active') return;
+
+  const sender = conversations.find((c) => c.id === message.conversationId)?.peer;
+  void Notifications.scheduleNotificationAsync({
+    content: {
+      title: sender?.name || 'New message',
+      body: previewOf(message, meId),
+      data: {
+        type: 'message',
+        conversationId: message.conversationId,
+        senderId: message.senderId,
+      },
+      categoryIdentifier: 'chat_message',
+    },
+    trigger: null,
+  });
+};
+
+/**
+ * Owns the one socket the signed-in app uses: messages and music rooms share it. The server
+ * knows who the socket belongs to from the session cookie, which the app passes when connecting
+ * because it has no cookie jar of its own.
+ */
+export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useUser();
   const userId = user?.userid;
-  const userName = user?.name;
 
-  const [users, setUsers] = useState<ChatUser[]>([]);
-  const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({});
-  const [loading, setLoading] = useState<boolean>(false);
-  const [currentChat, setCurrentChat] = useState<ChatUser | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
-
   const socketRef = useRef<Socket | null>(null);
-  const currentChatRef = useRef<ChatUser | null>(null);
-  const typingTimeouts = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  const getAllExistingChats = async () => {
-    if (!userId) return;
+  const closeSocket = useCallback(() => {
+    const current = socketRef.current;
+    if (!current) return;
+    current.removeAllListeners();
+    current.io.removeAllListeners();
+    current.disconnect();
+    socketRef.current = null;
+    setSocket(null);
+  }, []);
 
-    try {
-      setLoading(true);
-      const response = await api.get(`/api/get/chatlist`);
-
-      if (response.status === 200) {
-        const updatedChatList = (response.data.chatList || []).map((chat: any) => ({
-          ...chat,
-          isTyping: false,
-        }));
-        setUsers(updatedChatList);
-        return updatedChatList;
-      }
-    } catch (error) {
-      console.error('Error fetching chats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const cleanUpSocket = () => {
-    Object.values(typingTimeouts.current).forEach(clearTimeout);
-    typingTimeouts.current = {};
-    setUsers([]);
-    setOnlineStatuses({});
-    setCurrentChat(null);
-    currentChatRef.current = null;
-
-    const s = socketRef.current;
-    if (s) {
-      if (userId) {
-        s.emit('user_offline', userId);
-      }
-      s.removeAllListeners();
-      s.io.removeAllListeners();
-      s.disconnect();
-      socketRef.current = null;
-      setSocket(null);
-    }
-  };
-
-  const handleSetCurrentChat: React.Dispatch<React.SetStateAction<ChatUser | null>> = (action) => {
-    setCurrentChat((prev) => {
-      const next = typeof action === 'function' ? action(prev) : action;
-      currentChatRef.current = next;
-      return next;
-    });
-  };
+  const cleanUpSocket = useCallback(() => {
+    closeSocket();
+    resetChat();
+  }, [closeSocket]);
 
   useEffect(() => {
-    if (!userId) return;
-
-    if (socketRef.current?.connected) return;
+    if (!userId) {
+      cleanUpSocket();
+      return;
+    }
 
     const newSocket = io(API_URL!, {
       transports: ['websocket', 'polling'],
+      // Asked again on every reconnect, so a session that was refreshed meanwhile is the one sent.
+      auth: (send) => {
+        getAuthHeaders()
+          .then((headers) => send({ cookie: headers.Cookie }))
+          .catch(() => send({}));
+      },
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20000,
     });
-
     socketRef.current = newSocket;
+
+    // Music rooms wait for the answer to this before they join.
+    newSocket.on('connect', () => newSocket.emit('setup', { userid: userId }));
+
+    const unbindChat = bindChatSocket(newSocket, { userId: Number(userId), onIncoming: notify });
     setSocket(newSocket);
 
-    const updateCurrentChatStatus = (targetUserId: number, isOnline: boolean) => {
-      setCurrentChat((prevChat) => {
-        if (prevChat?.otherUser?.userid === targetUserId) {
-          const updated = { ...prevChat, isOnline };
-          currentChatRef.current = updated;
-          return updated;
-        }
-        return prevChat;
-      });
-    };
-
-    const showNotification = (message: Message) => {
-      if (currentChatRef.current?.otherUser?.userid !== message.senderid) {
-        if (Platform.OS !== 'web') {
-          Notifications.scheduleNotificationAsync({
-            content: {
-              title: `New message from ${message.senderName}`,
-              body: message?.content ? message.content : 'Sent an attachment',
-            },
-            trigger: null,
-          });
-        }
-      }
-    };
-
-    // Quietly, with no spinner over the list. A message arriving mid-fetch gets one more fetch.
-    let refreshing = false;
-    let refreshAgain = false;
-    const refreshChatList = async () => {
-      if (refreshing) {
-        refreshAgain = true;
-        return;
-      }
-      refreshing = true;
-      try {
-        const response = await api.get(`/api/get/chatlist`);
-        setUsers((response.data.chatList || []).map((chat: any) => ({ ...chat, isTyping: false })));
-      } catch (error) {
-        console.error('Error fetching chats:', error);
-      } finally {
-        refreshing = false;
-        if (refreshAgain) {
-          refreshAgain = false;
-          void refreshChatList();
-        }
-      }
-    };
-
-    const handleMessageReceived = (messageData: Message) => {
-      const lastMsg = messageData.content || (messageData.fileurl ? 'Sent an attachment' : '');
-
-      setUsers((prevUsers) => {
-        const updated = bumpChat(prevUsers, messageData.chatid, lastMsg);
-        if (updated) return updated;
-        // Someone new: fetch the list to learn who they are. React may run this twice, which
-        // the refresh already copes with.
-        void refreshChatList();
-        return prevUsers;
-      });
-
-      showNotification(messageData);
-    };
-
-    const handleConnect = () => {
-      newSocket.emit('setup', { userid: userId, name: userName });
-      newSocket.emit('user_online', userId);
-      newSocket.emit('get_initial_online_users');
-    };
-
-    const handleTypingStatus = ({
-      userId: typingUserId,
-      isTyping,
-    }: {
-      userId: number;
-      isTyping: boolean;
-    }) => {
-      if (typingTimeouts.current[typingUserId]) {
-        clearTimeout(typingTimeouts.current[typingUserId]);
-      }
-
-      const updateTypingStatus = (status: boolean) => {
-        setUsers((prevUsers) =>
-          prevUsers.map((u) =>
-            u.otherUser.userid === typingUserId ? { ...u, isTyping: status } : u
-          )
-        );
-        setCurrentChat((prevChat) => {
-          if (prevChat && prevChat?.otherUser?.userid === typingUserId) {
-            const updated = { ...prevChat, isTyping: status };
-            currentChatRef.current = updated;
-            return updated;
-          }
-          return prevChat;
-        });
-      };
-
-      updateTypingStatus(isTyping);
-
-      if (isTyping) {
-        typingTimeouts.current[typingUserId] = setTimeout(() => updateTypingStatus(false), 3000);
-      }
-    };
-
-    newSocket.on('connect', handleConnect);
-    newSocket.io.on('reconnect', () => {
-      handleConnect();
-      // Messages may have arrived while the connection was down, first ones included.
-      void refreshChatList();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && !newSocket.connected) newSocket.connect();
     });
-    newSocket.on('typing_status', handleTypingStatus);
-    newSocket.on('user_online', (onlineUserId: number) => {
-      setOnlineStatuses((prev) => ({ ...prev, [onlineUserId]: true }));
-      updateCurrentChatStatus(onlineUserId, true);
-    });
-    newSocket.on('user_offline', (offlineUserId: number) => {
-      setOnlineStatuses((prev) => ({ ...prev, [offlineUserId]: false }));
-      updateCurrentChatStatus(offlineUserId, false);
-    });
-    newSocket.on('initial_online_users', (onlineUserIds: number[]) => {
-      setOnlineStatuses(onlineUserIds.reduce((acc, id) => ({ ...acc, [id]: true }), {}));
-    });
-    newSocket.on('message-received', handleMessageReceived);
 
     return () => {
-      Object.values(typingTimeouts.current).forEach(clearTimeout);
-      typingTimeouts.current = {};
-      if (userId) {
-        newSocket.emit('user_offline', userId);
-      }
-      newSocket.removeAllListeners();
-      newSocket.io.removeAllListeners();
-      newSocket.disconnect();
-      socketRef.current = null;
-      setSocket(null);
+      subscription.remove();
+      unbindChat();
+      closeSocket();
     };
-  }, [userId, userName]);
+  }, [userId, cleanUpSocket, closeSocket]);
 
-  useEffect(() => {
-    if (!userId) return;
-    let ignore = false;
+  const value = useMemo(() => ({ socket, cleanUpSocket }), [socket, cleanUpSocket]);
 
-    api
-      .get(`/api/get/chatlist`)
-      .then((response) => {
-        if (!ignore && response.status === 200) {
-          const updatedChatList = (response.data.chatList || []).map((chat: any) => ({
-            ...chat,
-            isTyping: false,
-          }));
-          setUsers(updatedChatList);
-        }
-      })
-      .catch((error) => {
-        if (!ignore) {
-          console.error('Error fetching chats:', error);
-        }
-      });
-
-    return () => {
-      ignore = true;
-    };
-  }, [userId, api]);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (
-        nextAppState === 'active' &&
-        userId &&
-        socketRef.current &&
-        !socketRef.current.connected
-      ) {
-        socketRef.current.connect();
-      }
-    });
-    return () => subscription.remove();
-  }, [userId]);
-
-  const contextValue: ChatContextType = {
-    users,
-    setUsers,
-    loading,
-    setLoading,
-    onlineStatuses,
-    setOnlineStatuses,
-    currentChat,
-    setCurrentChat: handleSetCurrentChat,
-    socket,
-    getAllExistingChats,
-    cleanUpSocket,
-  };
-
-  return <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>;
+  return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };

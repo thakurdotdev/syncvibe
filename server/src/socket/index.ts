@@ -2,14 +2,18 @@ import type { Server, Socket } from 'socket.io';
 import type { AuthenticatedSocket, SocketContext } from './types';
 import { setupGroupMusicHandlers, handleUserDisconnect, releaseSocket } from './group-music';
 import { setSocketIO } from '@/utils/socket-emitter';
+import { userRoom } from '@/features/chat/chat.realtime';
+import { markAllDelivered } from '@/features/chat/services/message.service';
+import { identifySocket, sessionRoom } from './auth';
 import { setupChatHandlers } from './chat';
-import { setupOnlineHandlers } from './online';
+import { presenceConnected, presenceDisconnected } from './presence';
 import { createCallHandlers, handleCallDisconnect } from './call';
-import { getRedis } from '@/utils/redis';
+
+/** Set once no app older than 1.7 is in use: sockets without a valid session are then refused. */
+const REQUIRE_SESSION = process.env.SOCKET_REQUIRE_SESSION === 'true';
 
 export const socketManager = (io: Server): void => {
   const userSockets = new Map<string, Socket>();
-  const onlineUsers = new Set<string>();
   const activeVideoCalls = new Map<string, string | number>();
   const callTimeouts = new Map<string, NodeJS.Timeout>();
   const callStartTimes = new Map<string, number>();
@@ -18,15 +22,60 @@ export const socketManager = (io: Server): void => {
 
   const context: SocketContext = {
     userSockets,
-    onlineUsers,
     activeVideoCalls,
     callTimeouts,
     callStartTimes,
   };
 
+  io.use((socket, next) => {
+    identifySocket(socket)
+      .catch((error) => {
+        console.error('Socket session check failed:', error);
+        return null;
+      })
+      .then((identity) => {
+        if (!identity && REQUIRE_SESSION) {
+          next(new Error('UNAUTHENTICATED'));
+          return;
+        }
+        socket.data.identity = identity ?? undefined;
+        next();
+      });
+  });
+
+  /** Makes the socket this user's: their rooms, and the music handlers that act as them. */
+  const adopt = (socket: AuthenticatedSocket, userId: string) => {
+    socket.userId = userId;
+    socket.join(userId);
+    userSockets.set(userId, socket);
+
+    if (!socket.musicHandlersSetup) {
+      setupGroupMusicHandlers(io, socket, userId, userSockets);
+      socket.musicHandlersSetup = true;
+    }
+  };
+
   io.on('connection', (socket: AuthenticatedSocket) => {
+    const identity = socket.data.identity;
+
+    if (identity) {
+      adopt(socket, String(identity.userId));
+      socket.join([userRoom(identity.userId), sessionRoom(identity.sessionId)]);
+      presenceConnected(identity.userId);
+      // Whatever was sent while this user had no device online has now reached one.
+      markAllDelivered(identity.userId).catch((error) =>
+        console.error('Marking messages delivered failed:', error)
+      );
+    }
+
     socket.on('setup', (userData?: { userid?: string | number }) => {
       try {
+        // A signed-in socket already is who its session says, whatever it sends here.
+        if (identity) {
+          socket.emit('setup-complete');
+          return;
+        }
+
         if (!userData?.userid) {
           socket.emit('socket-error', {
             message: 'Invalid setup data',
@@ -35,16 +84,9 @@ export const socketManager = (io: Server): void => {
           return;
         }
 
-        const userId = String(userData.userid);
-        socket.userId = userId;
-        socket.join(userId);
-        userSockets.set(userId, socket);
-
-        if (!socket.musicHandlersSetup) {
-          setupGroupMusicHandlers(io, socket, userId, userSockets);
-          socket.musicHandlersSetup = true;
-        }
-
+        // Apps up to 1.6.x connect without a session and name their user here. That is enough for
+        // music rooms and calls as it always was, and for nothing else.
+        adopt(socket, String(userData.userid));
         socket.emit('setup-complete');
       } catch (error) {
         console.error('Setup error:', error);
@@ -55,16 +97,17 @@ export const socketManager = (io: Server): void => {
       }
     });
 
-    setupChatHandlers(io, socket, context);
-    setupOnlineHandlers(io, socket, context);
+    setupChatHandlers(socket);
     createCallHandlers(io, socket, context);
 
     socket.on('disconnect', () => {
+      if (identity) presenceDisconnected(io, identity.userId);
+
       const userId = socket.userId;
       if (!userId) return;
 
       // Still on another device, or already back on a new connection: nothing has changed for
-      // anyone else, so no "offline", no ended call and no leaving the room.
+      // anyone else, so no ended call and no leaving the room.
       const stillConnected = releaseSocket(io, userSockets, userId, socket);
       handleUserDisconnect(io, userId);
       if (stillConnected) return;
@@ -76,17 +119,6 @@ export const socketManager = (io: Server): void => {
           reason: 'user_disconnected',
         });
       }
-
-      onlineUsers.delete(String(userId));
-
-      try {
-        const redis = getRedis();
-        if (redis) {
-          redis.srem('online_users', String(userId)).catch(() => {});
-        }
-      } catch {}
-
-      io.emit('user_offline', userId);
     });
   });
 };

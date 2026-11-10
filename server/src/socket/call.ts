@@ -1,33 +1,25 @@
 import type { Server } from 'socket.io';
 import type { AuthenticatedSocket, SocketContext } from './types';
 import { sendPushNotification } from './notification';
-import { saveCallEvent } from '@/services/call-log.service';
+import { recordCall } from '@/features/chat/services/message.service';
+import type { CallDto } from '@/features/chat/chat.types';
+import { hasLiveConnection } from './presence';
 
 const CALL_TIMEOUT = 30000;
 
 interface CallLogParams {
   callerId: string | number;
   receiverId: string | number;
-  messagetype: string;
+  outcome: CallDto['outcome'];
   duration: number | null;
 }
 
-const emitCallLog = (
-  io: Server,
-  { callerId, receiverId, messagetype, duration }: CallLogParams
-): void => {
-  saveCallEvent({
-    callerId: Number(callerId),
-    receiverId: Number(receiverId),
-    messagetype,
-    duration,
-  })
-    .then((result) => {
-      if (!result) return;
-      io.to(String(callerId)).emit('call-log', result);
-      io.to(String(receiverId)).emit('call-log', result);
-    })
-    .catch((err) => console.error('Call log save failed:', err));
+/** The call shows up in the two people's conversation, like any other message. */
+const emitCallLog = ({ callerId, receiverId, outcome, duration }: CallLogParams): void => {
+  recordCall(Number(callerId), Number(receiverId), {
+    outcome,
+    ...(duration ? { durationSec: duration } : {}),
+  }).catch((err) => console.error('Call log save failed:', err));
 };
 
 export const cleanupCall = (
@@ -59,7 +51,7 @@ export const createCallHandlers = (
   socket: AuthenticatedSocket,
   context: SocketContext
 ): void => {
-  const { activeVideoCalls, callTimeouts, callStartTimes, userSockets, onlineUsers } = context;
+  const { activeVideoCalls, callTimeouts, callStartTimes, userSockets } = context;
 
   const emitError = (code: string, message?: string) => {
     socket.emit('call-error', {
@@ -117,10 +109,10 @@ export const createCallHandlers = (
               reason: 'timeout',
             });
 
-            emitCallLog(io, {
+            emitCallLog({
               callerId: socket.userId!,
               receiverId: to,
-              messagetype: 'missed_call',
+              outcome: 'missed',
               duration: null,
             });
           }
@@ -135,7 +127,7 @@ export const createCallHandlers = (
           offer,
         });
 
-        if (!onlineUsers.has(recipientKey) && !onlineUsers.has(String(Number(to)))) {
+        if (!hasLiveConnection(recipientKey)) {
           sendPushNotification(to, { name: data.name, from: socket.userId }, 'call').catch(
             console.error
           );
@@ -201,10 +193,10 @@ export const createCallHandlers = (
           reason: data?.reason,
         });
 
-        emitCallLog(io, {
+        emitCallLog({
           callerId: otherUser,
           receiverId: socket.userId!,
-          messagetype: 'rejected_call',
+          outcome: 'rejected',
           duration: null,
         });
       }
@@ -291,10 +283,10 @@ export const createCallHandlers = (
 
         const duration = startTime ? Math.round((Date.now() - startTime) / 1000) : null;
 
-        emitCallLog(io, {
+        emitCallLog({
           callerId: socket.userId!,
           receiverId: otherUser,
-          messagetype: duration ? 'completed_call' : 'missed_call',
+          outcome: duration ? 'completed' : 'missed',
           duration,
         });
       }
@@ -323,10 +315,10 @@ export const handleCallDisconnect = (
 
   const duration = startTime ? Math.round((Date.now() - startTime) / 1000) : null;
 
-  emitCallLog(io, {
+  emitCallLog({
     callerId: Number(userId),
     receiverId: Number(otherUser),
-    messagetype: duration ? 'completed_call' : 'missed_call',
+    outcome: duration ? 'completed' : 'missed',
     duration,
   });
 

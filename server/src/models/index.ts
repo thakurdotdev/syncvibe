@@ -5,9 +5,6 @@
  * so that associations are guaranteed to be set up before any query runs.
  */
 
-import { DataTypes } from 'sequelize';
-import sequelize from '@/utils/sequelize';
-
 // Auth
 import User from './auth/user.model';
 import Follower from './auth/follower.model';
@@ -15,8 +12,10 @@ import LoginLog from './auth/login-log.model';
 import OTP from './auth/otp.model';
 
 // Chat
-import Chat from './chat/chat.model';
-import ChatMessage from './chat/chat-message.model';
+import Conversation from './chat/conversation.model';
+import ConversationMember from './chat/conversation-member.model';
+import Message from './chat/message.model';
+import MessageReaction from './chat/message-reaction.model';
 
 // Music
 import Song from './music/song.model';
@@ -44,21 +43,15 @@ import StoryMusic from './story/story-music.model';
 // App Update
 import AppUpdate from './app-update.model';
 
-// ─── ChatUser junction table ────────────────────────────────────────────────
-const ChatUser = sequelize.define('ChatUser', {
-  chatid: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-  },
-  userid: {
-    type: DataTypes.INTEGER,
-    references: { model: User, key: 'userid' },
-  },
-});
-
-// ─── User ↔ Chat (many-to-many) ────────────────────────────────────────────
-User.belongsToMany(Chat, { through: ChatUser, foreignKey: 'userid' });
-Chat.belongsToMany(User, { through: ChatUser, foreignKey: 'chatid' });
+// ─── Conversation ↔ members, messages, reactions ───────────────────────────
+Conversation.hasMany(ConversationMember, { foreignKey: 'conversationId', as: 'members' });
+ConversationMember.belongsTo(Conversation, { foreignKey: 'conversationId', as: 'conversation' });
+ConversationMember.belongsTo(User, { foreignKey: 'userId', targetKey: 'userid', as: 'user' });
+Conversation.hasMany(Message, { foreignKey: 'conversationId', as: 'messages' });
+Message.belongsTo(Conversation, { foreignKey: 'conversationId', as: 'conversation' });
+Message.belongsTo(Message, { foreignKey: 'replyToId', as: 'replyTo' });
+Message.hasMany(MessageReaction, { foreignKey: 'messageId', as: 'reactions' });
+MessageReaction.belongsTo(Message, { foreignKey: 'messageId', as: 'message' });
 
 // ─── User ↔ Comment ────────────────────────────────────────────────────────
 User.hasMany(Comment, { foreignKey: 'createdby', as: 'comments' });
@@ -137,9 +130,10 @@ export {
   Follower,
   LoginLog,
   OTP,
-  Chat,
-  ChatMessage,
-  ChatUser,
+  Conversation,
+  ConversationMember,
+  Message,
+  MessageReaction,
   Song,
   HistorySong,
   PlayEvent,

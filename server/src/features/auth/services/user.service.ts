@@ -1,6 +1,8 @@
 import crypto from 'node:crypto';
 import { Op } from 'sequelize';
-import { User, Follower, OTP, Chat } from '@/models/index';
+import { User, Follower, OTP } from '@/models/index';
+import { deleteConversationsOf } from '@/features/chat/services/conversation.service';
+import { isOnline } from '@/socket/presence';
 import { otpForDeleteMailSender, accountDeletedMailSender } from '@/utils/resend';
 import sequelize from '@/utils/sequelize';
 import { authDatabase } from '../database';
@@ -98,14 +100,7 @@ export const deleteUserAccountService = async (
   const userEmail = user.email;
 
   await sequelize.transaction(async (transaction) => {
-    await Chat.destroy({
-      where: {
-        participants: {
-          [Op.contains]: [userid],
-        },
-      },
-      transaction,
-    });
+    await deleteConversationsOf(userid, transaction);
 
     await user.destroy({ transaction });
   });
@@ -193,7 +188,7 @@ export const getInviteListService = async (currentUserId: number, search?: strin
       raw: true,
     });
 
-    return followingUsers.map((u) => ({ ...u, isFollowing: true }));
+    return followingUsers.map((u) => ({ ...u, isFollowing: true, isOnline: isOnline(u.userid) }));
   }
 
   const users = await User.findAll({
@@ -208,7 +203,11 @@ export const getInviteListService = async (currentUserId: number, search?: strin
   });
 
   return users
-    .map((u) => ({ ...u, isFollowing: followingIds.has(u.userid) }))
+    .map((u) => {
+      const isFollowing = followingIds.has(u.userid);
+      // Whether a stranger is online is theirs to keep; only people you follow show it.
+      return { ...u, isFollowing, isOnline: isFollowing && isOnline(u.userid) };
+    })
     .sort((a, b) => (a.isFollowing === b.isFollowing ? 0 : a.isFollowing ? -1 : 1));
 };
 

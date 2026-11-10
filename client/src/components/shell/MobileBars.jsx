@@ -1,11 +1,11 @@
 import { MotionConfig, motion } from 'framer-motion';
 import { Search } from 'lucide-react';
-import { memo, useContext } from 'react';
+import { memo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import ProfileDropdownMenu from '@/components/ProfileDropdownMenu';
-import { ChatContext } from '@/Context/ChatContext';
 import { paths } from '@/lib/paths';
 import { cn } from '@/lib/utils';
+import { useChatStore } from '@/stores/chatStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
 import { useUiStore } from '@/stores/uiStore';
 import { LOGO_URL, NAV_ITEMS } from './nav';
@@ -18,7 +18,7 @@ import { SPRING } from '@/lib/motion';
  */
 export const useTabBarVisible = () => {
   const { pathname } = useLocation();
-  const currentChat = useContext(ChatContext)?.currentChat;
+  const currentChat = useChatStore((s) => s.activeId != null);
   const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
   if (pathname.startsWith(paths.messages) && currentChat) return false;
   if (pathname.startsWith(paths.rooms) && inRoom) return false;

@@ -11,7 +11,7 @@ interface MessageHeaderProps {
   user:
     | {
         name?: string;
-        profilepic?: string;
+        profilepic?: string | null;
         userid?: string | number;
       }
     | undefined;
@@ -34,7 +34,12 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({ onBack, user, isOnline, i
         <Ionicons name='chevron-back' size={24} color={colors.foreground} />
       </PressableScale>
 
-      <Avatar name={user?.name} profilepic={user?.profilepic} size='sm' isOnline={isOnline} />
+      <Avatar
+        name={user?.name}
+        profilepic={user?.profilepic ?? undefined}
+        size='sm'
+        isOnline={isOnline}
+      />
 
       <View style={styles.textContainer}>
         <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={1}>
