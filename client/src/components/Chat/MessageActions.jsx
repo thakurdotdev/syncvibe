@@ -1,12 +1,6 @@
-import React from 'react';
-import { Copy, Info, MoreHorizontal, Trash } from 'lucide-react';
-import { Button } from '../ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
+import { Copy, CornerUpLeft, Info, MoreHorizontal, Pencil, Trash } from 'lucide-react';
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,74 +10,123 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '../ui/alert-dialog';
+import { Button } from '../ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 
-const MessageActions = ({ message, isOwnMessage, handleCopy, deleteMessage, onShowInfo }) => {
-  const isMediaOnly = message.fileurl && !message.content?.trim();
+export const QUICK_REACTIONS = ['❤️', '😂', '🔥', '👍', '😮', '😢'];
+
+/** Reply and the "more" menu beside a message: reactions, copy, edit, info and delete. */
+const MessageActions = ({ message, isOwn, meId, open, shown, onOpenChange, actions }) => {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const myReaction = message.reactions.find((r) => r.userIds.includes(meId))?.emoji;
 
   return (
     <div
-      className={`absolute ${isOwnMessage ? '-left-12' : '-right-12'} ${
-        isMediaOnly ? 'top-2' : 'top-0'
-      } opacity-0 group-hover:opacity-100 transition-opacity`}
+      className={cn(
+        'flex shrink-0 items-center transition-opacity',
+        // A mouse shows them on hover and a keyboard on focus; a tap on the message shows them
+        // on a touch screen, where they would otherwise sit beside every message.
+        open || shown
+          ? 'opacity-100'
+          : 'pointer-events-none opacity-0 focus-within:pointer-events-auto focus-within:opacity-100 [@media(hover:hover)]:group-hover/message:pointer-events-auto [@media(hover:hover)]:group-hover/message:opacity-100'
+      )}
     >
-      <DropdownMenu>
+      <Button
+        variant='ghost'
+        size='icon'
+        className='h-7 w-7 rounded-full text-muted-foreground'
+        onClick={() => actions.reply(message)}
+        aria-label='Reply'
+        title='Reply'
+      >
+        <CornerUpLeft className='h-3.5 w-3.5' />
+      </Button>
+
+      <DropdownMenu open={open} onOpenChange={onOpenChange}>
         <DropdownMenuTrigger asChild>
-          <Button variant='ghost' size='icon' className='h-8 w-8 rounded-full hover:bg-accent'>
+          <Button
+            variant='ghost'
+            size='icon'
+            className='h-7 w-7 rounded-full text-muted-foreground'
+            aria-label='More actions'
+          >
             <MoreHorizontal className='h-4 w-4' />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align={isOwnMessage ? 'start' : 'end'} className='w-[160px]'>
-          {isOwnMessage && (
-            <DropdownMenuItem
-              className='cursor-pointer'
-              onSelect={() => onShowInfo && onShowInfo(message)}
-            >
-              <Info className='mr-2 h-4 w-4' />
-              <span>Message Info</span>
-            </DropdownMenuItem>
-          )}
+        <DropdownMenuContent align={isOwn ? 'end' : 'start'} className='w-[212px]'>
+          <div className='flex justify-between px-1 py-1'>
+            {QUICK_REACTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                type='button'
+                onClick={() => {
+                  actions.react(message, emoji);
+                  onOpenChange(false);
+                }}
+                aria-label={`React ${emoji}`}
+                aria-pressed={myReaction === emoji}
+                className={cn(
+                  'flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-lg transition-transform hover:scale-125',
+                  myReaction === emoji && 'bg-primary/15'
+                )}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+          <DropdownMenuSeparator />
 
-          {message.content && (
-            <DropdownMenuItem
-              className='cursor-pointer'
-              onSelect={() => handleCopy(message.content)}
-            >
+          {message.body && (
+            <DropdownMenuItem className='cursor-pointer' onSelect={() => actions.copy(message)}>
               <Copy className='mr-2 h-4 w-4' />
-              <span>Copy</span>
+              Copy text
             </DropdownMenuItem>
           )}
-
-          {isOwnMessage && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <DropdownMenuItem
-                  className='text-destructive cursor-pointer focus:text-destructive'
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  <Trash className='mr-2 h-4 w-4' />
-                  <span>Delete</span>
-                </DropdownMenuItem>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Message</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. Are you sure you want to delete this message?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => deleteMessage(message.messageid)}>
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+          {isOwn && (
+            <DropdownMenuItem className='cursor-pointer' onSelect={() => actions.edit(message)}>
+              <Pencil className='mr-2 h-4 w-4' />
+              {message.body ? 'Edit' : 'Add a caption'}
+            </DropdownMenuItem>
+          )}
+          {isOwn && (
+            <DropdownMenuItem className='cursor-pointer' onSelect={() => actions.info(message)}>
+              <Info className='mr-2 h-4 w-4' />
+              Message info
+            </DropdownMenuItem>
+          )}
+          {isOwn && (
+            <DropdownMenuItem
+              className='cursor-pointer text-destructive focus:text-destructive'
+              onSelect={() => setConfirmDelete(true)}
+            >
+              <Trash className='mr-2 h-4 w-4' />
+              Delete
+            </DropdownMenuItem>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this message?</AlertDialogTitle>
+            <AlertDialogDescription>
+              It will be removed for both of you. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => actions.remove(message)}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

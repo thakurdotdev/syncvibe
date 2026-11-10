@@ -52,6 +52,8 @@ export const uploadToCloudinary = async (file, intent = 'post', onProgress) => {
   return {
     image: response.data.secure_url,
     id: response.data.public_id,
+    width: response.data.width,
+    height: response.data.height,
     resourceType,
   };
 };

@@ -1,110 +1,225 @@
-import React from 'react';
-import { AlertCircle, Check, Clock } from 'lucide-react';
+import { AlertCircle, Check, CheckCheck, Clock } from 'lucide-react';
+import { memo } from 'react';
 import { getOptimizedImageUrl } from '@/Utils/Cloudinary';
+import { cn } from '@/lib/utils';
 import { formatTime } from './ChatDateUtils';
 import MessageActions from './MessageActions';
 
+const STATUS_LABEL = { sending: 'Sending', sent: 'Sent', delivered: 'Delivered', read: 'Read' };
+
+const StatusIcon = ({ status }) => {
+  if (status === 'sending') return <Clock className='h-3 w-3 animate-pulse' />;
+  if (status === 'sent') return <Check size={14} className='text-muted-foreground/70' />;
+  if (status === 'delivered') return <CheckCheck size={14} className='text-muted-foreground/70' />;
+  if (status === 'read')
+    return <CheckCheck size={14} strokeWidth={2.6} className='text-foreground' />;
+  return null;
+};
+
+/** The message this one answers, quoted above it. Clicking goes to the original. */
+const ReplyQuote = ({ replyTo, isOwn, authorName, onJump }) => (
+  <button
+    type='button'
+    onClick={() => onJump(replyTo.id)}
+    className={cn(
+      'mb-1.5 flex w-full min-w-0 cursor-pointer flex-col items-start rounded-md border-l-2 px-2 py-1 text-left',
+      isOwn
+        ? 'border-primary-foreground/60 bg-primary-foreground/15'
+        : 'border-foreground/40 bg-foreground/[0.06]'
+    )}
+  >
+    <span className='text-[11px] font-semibold opacity-90'>{authorName}</span>
+    <span className={cn('line-clamp-2 text-xs opacity-80', replyTo.deleted && 'italic')}>
+      {replyTo.deleted
+        ? 'Deleted message'
+        : replyTo.body || (replyTo.hasAttachment ? 'Photo' : 'Message')}
+    </span>
+  </button>
+);
+
+const Reactions = ({ reactions, meId, isOwn, onToggle }) => {
+  if (!reactions.length) return null;
+  return (
+    <div className={cn('mt-1 flex flex-wrap gap-1', isOwn && 'justify-end')}>
+      {reactions.map(({ emoji, userIds }) => {
+        const mine = userIds.includes(meId);
+        return (
+          <button
+            key={emoji}
+            type='button'
+            onClick={() => onToggle(emoji)}
+            aria-pressed={mine}
+            aria-label={`${emoji} ${userIds.length}${mine ? ', including you' : ''}`}
+            className={cn(
+              'flex h-6 cursor-pointer items-center gap-1 rounded-full border px-2 text-xs transition-colors',
+              mine
+                ? 'border-primary/40 bg-primary/15 text-foreground'
+                : 'border-border/60 bg-background/60 text-muted-foreground hover:border-border'
+            )}
+          >
+            <span className='text-[13px] leading-none'>{emoji}</span>
+            {userIds.length > 1 && (
+              <span className='font-medium tabular-nums'>{userIds.length}</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 const MessageBubble = ({
   message,
-  isOwnMessage,
-  handleCopy,
-  deleteMessage,
-  onRetry,
-  onShowInfo,
-  chatImages,
-  setSelectedImageIndex,
-  setShowGallery,
+  isOwn,
+  meId,
+  peerName,
+  status,
+  startsRun,
+  endsRun,
+  menuOpen,
+  selected,
+  onSelect,
+  onMenuOpenChange,
+  actions,
+  onJump,
 }) => {
-  const isMediaOnly = message.fileurl && !message.content?.trim();
-
-  const renderStatusIcon = () => {
-    if (!isOwnMessage) return null;
-
-    if (message.status === 'pending') {
-      return <Clock className='w-3 h-3 text-muted-foreground animate-pulse' />;
-    }
-
-    if (message.status === 'failed') {
-      return (
-        <button
-          onClick={() => onRetry && onRetry(message)}
-          title='Failed to send. Click to retry.'
-          className='text-destructive hover:opacity-80 flex items-center gap-0.5 cursor-pointer bg-transparent border-0 p-0'
-        >
-          <AlertCircle className='w-3.5 h-3.5' />
-          <span className='text-[10px] font-medium underline'>Retry</span>
-        </button>
-      );
-    }
-
-    if (message.isread) {
-      return (
-        <div className='flex text-foreground'>
-          <Check size={13} />
-          <Check size={13} className='-ml-2' />
-        </div>
-      );
-    }
-
-    return <Check size={13} className='text-muted-foreground/70' />;
-  };
+  const pending = message.id == null;
+  const failed = status === 'failed';
+  const image = message.attachment;
+  const mediaOnly = image && !message.body && !message.replyTo;
+  const ratio = image?.width && image?.height ? image.width / image.height : null;
 
   return (
-    <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-2 group`}>
+    <div
+      id={pending ? undefined : `message-${message.id}`}
+      className={cn(
+        'group/message flex rounded-lg transition-colors duration-500',
+        isOwn ? 'justify-end' : 'justify-start',
+        startsRun ? 'mt-2.5' : 'mt-0.5'
+      )}
+    >
       <div
-        className={`max-w-[75%] md:max-w-[60%] flex flex-col ${
-          isOwnMessage ? 'items-end' : 'items-start'
-        }`}
+        className={cn(
+          'flex max-w-[78%] flex-col md:max-w-[62%]',
+          isOwn ? 'items-end' : 'items-start'
+        )}
       >
-        <div
-          className={`relative ${
-            isMediaOnly
-              ? ''
-              : `px-3 py-2 rounded-lg ${
-                  isOwnMessage
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted dark:bg-muted/70 text-foreground'
-                }`
-          }`}
-        >
-          <MessageActions
-            message={message}
-            isOwnMessage={isOwnMessage}
-            handleCopy={handleCopy}
-            deleteMessage={deleteMessage}
-            onShowInfo={onShowInfo}
-          />
-
-          {message.fileurl && (
-            <div className={`${isMediaOnly ? '' : 'mb-2'} rounded-lg overflow-hidden`}>
-              <img
-                src={getOptimizedImageUrl(message.fileurl, { thumbnail: true })}
-                alt='Attachment'
-                className='max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity'
-                onClick={() => {
-                  const imageIndex = chatImages.indexOf(message.fileurl);
-                  setSelectedImageIndex(imageIndex);
-                  setShowGallery(true);
-                }}
-                loading='lazy'
+        <div className={cn('relative flex items-center gap-1', isOwn && 'flex-row-reverse')}>
+          <div
+            onPointerUp={(e) => e.pointerType === 'touch' && onSelect()}
+            className={cn(
+              'min-w-0 overflow-hidden rounded-2xl',
+              !mediaOnly && 'px-3 py-2',
+              !mediaOnly &&
+                (isOwn
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-foreground dark:bg-muted/70'),
+              isOwn ? !endsRun && 'rounded-br-md' : !endsRun && 'rounded-bl-md',
+              isOwn ? !startsRun && 'rounded-tr-md' : !startsRun && 'rounded-tl-md',
+              failed && 'opacity-70'
+            )}
+          >
+            {message.replyTo && (
+              <ReplyQuote
+                replyTo={message.replyTo}
+                isOwn={isOwn}
+                authorName={message.replyTo.senderId === meId ? 'You' : peerName}
+                onJump={onJump}
               />
-            </div>
-          )}
+            )}
 
-          {message.content && (
-            <div className='text-sm font-normal whitespace-pre-wrap wrap-break-word'>
-              {message.content}
-            </div>
+            {image && (
+              <button
+                type='button'
+                onClick={() => !pending && actions.openImage(message)}
+                className={cn(
+                  'relative block overflow-hidden rounded-xl',
+                  !mediaOnly && message.body && 'mb-2'
+                )}
+                style={
+                  ratio ? { aspectRatio: ratio, width: Math.min(280, image.width) } : undefined
+                }
+                aria-label='Open photo'
+              >
+                <img
+                  src={message.localUrl || getOptimizedImageUrl(image.url, { thumbnail: true })}
+                  alt=''
+                  loading='lazy'
+                  className={cn(
+                    'max-h-80 max-w-full rounded-xl object-cover',
+                    ratio && 'h-full w-full'
+                  )}
+                />
+                {status === 'sending' && (
+                  <span className='absolute inset-0 animate-pulse bg-background/40' />
+                )}
+              </button>
+            )}
+
+            {message.body && (
+              <div className='whitespace-pre-wrap text-sm wrap-anywhere'>{message.body}</div>
+            )}
+          </div>
+
+          {!pending && (
+            <MessageActions
+              message={message}
+              isOwn={isOwn}
+              meId={meId}
+              open={menuOpen}
+              shown={selected}
+              onOpenChange={onMenuOpenChange}
+              actions={actions}
+            />
           )}
         </div>
 
-        <div className='flex items-center gap-1 text-xs text-muted-foreground mt-1 px-1'>
-          {formatTime(message.createdat)}
-          {isOwnMessage && <div className='flex items-center ml-1'>{renderStatusIcon()}</div>}
-        </div>
+        <Reactions
+          reactions={message.reactions}
+          meId={meId}
+          isOwn={isOwn}
+          onToggle={(emoji) => actions.react(message, emoji)}
+        />
+
+        {failed ? (
+          <div className='mt-1 flex items-center gap-2 px-1 text-xs text-destructive'>
+            <AlertCircle className='h-3.5 w-3.5' />
+            <span>{message.error || 'Not sent'}</span>
+            <button
+              type='button'
+              onClick={() => actions.retry(message)}
+              className='cursor-pointer font-semibold underline'
+            >
+              Retry
+            </button>
+            <button
+              type='button'
+              onClick={() => actions.discard(message)}
+              className='cursor-pointer text-muted-foreground underline'
+            >
+              Delete
+            </button>
+          </div>
+        ) : (
+          (endsRun || message.editedAt || pending) && (
+            <div className='mt-1 flex items-center gap-1 px-1 text-[11px] text-muted-foreground'>
+              {message.editedAt && <span>Edited ·</span>}
+              <span className='tabular-nums'>{formatTime(message.createdAt)}</span>
+              {isOwn && status && (
+                <span
+                  title={STATUS_LABEL[status]}
+                  aria-label={STATUS_LABEL[status]}
+                  className='flex items-center'
+                >
+                  <StatusIcon status={status} />
+                </span>
+              )}
+            </div>
+          )
+        )}
       </div>
     </div>
   );
 };
 
-export default MessageBubble;
+export default memo(MessageBubble);
