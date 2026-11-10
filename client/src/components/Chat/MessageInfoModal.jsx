@@ -57,7 +57,7 @@ const MessageInfoModal = ({ message, conversation, onClose }) => {
             value={delivered ? 'Delivered' : 'Not yet'}
           />
           <Row
-            icon={<CheckCheck size={16} strokeWidth={2.6} className='text-foreground' />}
+            icon={<CheckCheck size={16} strokeWidth={2.4} className='text-receipt' />}
             label='Read'
             value={status === 'read' ? readAt || 'Read' : 'Not yet'}
           />

@@ -1,3 +1,4 @@
+import { selectUnreadTotal, useChatStore } from '@/stores/chatStore';
 import { useTheme } from '@/context/ThemeContext';
 import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE, SPRING_PRESS } from '@/lib/motion';
 import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE, SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
@@ -104,6 +105,10 @@ type TabButtonProps = {
   inactiveColor: string;
   live?: boolean;
   liveColor: string;
+  /** Unread count shown as a pill on the icon. */
+  badge?: number;
+  badgeColor?: string;
+  badgeTextColor?: string;
 };
 
 const TabButton = memo(function TabButton({
@@ -116,6 +121,9 @@ const TabButton = memo(function TabButton({
   inactiveColor,
   live,
   liveColor,
+  badge = 0,
+  badgeColor,
+  badgeTextColor,
 }: TabButtonProps) {
   const color = isFocused ? activeColor : inactiveColor;
   return (
@@ -124,7 +132,7 @@ const TabButton = memo(function TabButton({
       scaleTo={BUTTON_PRESS_SCALE}
       style={styles.tabButton}
       accessibilityRole='tab'
-      accessibilityLabel={label}
+      accessibilityLabel={badge > 0 ? `${label}, ${badge} unread` : label}
       accessibilityState={{ selected: isFocused }}
     >
       <View style={styles.tabInner}>
@@ -132,6 +140,13 @@ const TabButton = memo(function TabButton({
         <View style={styles.tabIconBox}>
           <Ionicons name={isFocused ? activeIcon : inactiveIcon} size={21} color={color} />
           {live && <View style={[styles.liveDot, { backgroundColor: liveColor }]} />}
+          {badge > 0 ? (
+            <View style={[styles.badge, { backgroundColor: badgeColor }]}>
+              <Text style={[styles.badgeText, { color: badgeTextColor }]}>
+                {badge > 99 ? '99+' : badge}
+              </Text>
+            </View>
+          ) : null}
         </View>
         <Text
           style={[styles.tabLabel, { color, fontWeight: isFocused ? '700' : '500' }]}
@@ -345,6 +360,7 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   );
 
   const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
+  const unread = useChatStore(selectUnreadTotal);
 
   // In a room the room owns playback; your own song waits on Home under the room card.
   const showMiniPlayer = !inRoom && activePlayerMode === 'normal' && !!currentSong;
@@ -386,6 +402,9 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
             inactiveColor={colors.mutedForeground}
             live={tab.name === 'group-music' && inRoom}
             liveColor={colors.live}
+            badge={tab.name === 'chat' ? unread : 0}
+            badgeColor={colors.primary}
+            badgeTextColor={colors.primaryForeground}
           />
         ))}
       </View>
@@ -394,6 +413,18 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
 });
 
 const styles = StyleSheet.create({
+  badge: {
+    position: 'absolute',
+    top: -5,
+    left: 26,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { fontSize: 10.5, fontWeight: '700', fontVariant: ['tabular-nums'] },
   dock: {
     position: 'absolute',
     left: 0,

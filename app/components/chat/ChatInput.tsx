@@ -4,24 +4,24 @@ import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { MAX_MESSAGE_LENGTH } from '@/lib/chat';
 import { BUTTON_PRESS_SCALE } from '@/lib/motion';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Image, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ChatInputProps {
-  message: string;
-  onChangeText: (text: string) => void;
-  onSend: () => void;
+  /** Called with what was typed. The box clears itself. */
+  onSend: (text: string) => void;
+  /** Whether there is text in the box, for the "typing…" the other person sees. */
+  onTyping: (hasText: boolean) => void;
   onAttach: () => void;
   filePreview: string | null;
   onRemoveAttachment: () => void;
   /** Who and what is being replied to, shown above the input until sent or cancelled. */
   replyingTo?: { name: string; text: string } | null;
   onCancelReply?: () => void;
-  editMode?: boolean;
-  editText?: string;
-  onEditTextChange?: (text: string) => void;
-  onSaveEdit?: () => void;
+  /** The message being edited. Its text fills the box until saved or cancelled. */
+  editing?: { key: string; body: string; hasPhoto: boolean } | null;
+  onSaveEdit?: (text: string) => void;
   onCancelEdit?: () => void;
 }
 
@@ -30,22 +30,50 @@ const FOCUS_AFTER_SHEET_MS = 240;
 
 /**
  * One input for writing and editing, so the keyboard never drops when switching between them.
+ * It keeps its own text: a key press redraws this bar and nothing else on the screen.
  */
 const ChatInput: React.FC<ChatInputProps> = ({
-  message,
-  onChangeText,
   onSend,
+  onTyping,
   onAttach,
   filePreview,
   onRemoveAttachment,
   replyingTo,
   onCancelReply,
-  editMode,
-  editText,
-  onEditTextChange,
+  editing,
   onSaveEdit,
   onCancelEdit,
 }) => {
+  const [draft, setDraft] = useState('');
+  const [editText, setEditText] = useState('');
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+
+  // Editing borrows the box; what was being written is still there afterwards.
+  if ((editing?.key ?? null) !== editingKey) {
+    setEditingKey(editing?.key ?? null);
+    setEditText(editing?.body ?? '');
+  }
+  const editMode = Boolean(editing);
+  const text = editMode ? editText : draft;
+
+  const handleChange = (value: string) => {
+    if (editMode) {
+      setEditText(value);
+      return;
+    }
+    setDraft(value);
+    onTyping(value.trim().length > 0);
+  };
+
+  const handleSubmit = () => {
+    if (editMode) {
+      onSaveEdit?.(editText);
+      return;
+    }
+    onSend(draft);
+    setDraft('');
+  };
+
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const keyboardVisible = useKeyboardVisible();
@@ -57,7 +85,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
     return () => clearTimeout(timer);
   }, [editMode]);
 
-  const canSubmit = editMode ? Boolean(editText?.trim()) : Boolean(message.trim() || filePreview);
+  const canSubmit = editMode
+    ? Boolean(editText.trim() || editing?.hasPhoto)
+    : Boolean(draft.trim() || filePreview);
   // The keyboard covers the navigation bar, so only clear the bar when it's showing.
   const bottom = keyboardVisible ? 8 : Math.max(insets.bottom, 8);
 
@@ -135,8 +165,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
         <TextInput
           ref={inputRef}
-          value={editMode ? editText : message}
-          onChangeText={editMode ? onEditTextChange : onChangeText}
+          value={text}
+          onChangeText={handleChange}
           placeholder='Message'
           placeholderTextColor={colors.mutedForeground}
           multiline
@@ -146,7 +176,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         />
 
         <PressableScale
-          onPress={editMode ? onSaveEdit : onSend}
+          onPress={handleSubmit}
           disabled={!canSubmit}
           scaleTo={BUTTON_PRESS_SCALE}
           accessibilityRole='button'

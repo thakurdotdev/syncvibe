@@ -6,7 +6,7 @@ import { userRoom } from '@/features/chat/chat.realtime';
 import { markAllDelivered } from '@/features/chat/services/message.service';
 import { identifySocket, sessionRoom } from './auth';
 import { setupChatHandlers } from './chat';
-import { presenceConnected, presenceDisconnected } from './presence';
+import { presenceActive, presenceConnected, presenceDisconnected } from './presence';
 import { createCallHandlers, handleCallDisconnect } from './call';
 
 /** Set once no app older than 1.7 is in use: sockets without a valid session are then refused. */
@@ -100,8 +100,13 @@ export const socketManager = (io: Server): void => {
     setupChatHandlers(socket);
     createCallHandlers(io, socket, context);
 
-    socket.on('disconnect', () => {
-      if (identity) presenceDisconnected(io, identity.userId);
+    // Apps from 1.7.2 say when they go to the background, so "online" means the app is open.
+    socket.on('presence:active', (payload?: { active?: unknown }) => {
+      if (identity) presenceActive(io, socket, identity.userId, payload?.active !== false);
+    });
+
+    socket.on('disconnect', (reason) => {
+      if (identity) presenceDisconnected(io, socket, identity.userId, reason);
 
       const userId = socket.userId;
       if (!userId) return;

@@ -4,7 +4,7 @@ import { Op, QueryTypes, type Transaction } from 'sequelize';
 import sequelize from '@/utils/sequelize';
 import { Conversation, ConversationMember, Message, MessageReaction, User } from '@/models/index';
 import { createRateLimiter } from '@/utils/rate-limiter';
-import { sendPushNotification } from '@/socket/notification';
+import { clearMessageNotification, sendPushNotification } from '@/socket/notification';
 import { ChatError, invalid, notFound } from '../chat.errors';
 import { emitToUsers, emitWithConfirmation } from '../chat.realtime';
 import type { CallDto, MessageDto, ReceiptDto } from '../chat.types';
@@ -55,6 +55,8 @@ const announceMessage = (message: MessageDto, members: number[]): void => {
         senderName: sender?.name,
         content: pushPreview(message),
         conversationId: message.conversationId,
+        messageId: message.id,
+        sentAt: message.createdAt,
         senderid: message.senderId,
       });
     })().catch((error) => console.error('Announcing a chat message failed:', error));
@@ -393,6 +395,9 @@ export const markRead = async (
     { where: { conversationId, userId, lastDeliveredMessageId: { [Op.lt]: target } } }
   );
 
+  // Read here, so the notification on their phone has nothing left to say.
+  clearMessageNotification(userId, conversationId).catch(() => {});
+
   const member = await ConversationMember.findOne({ where: { conversationId, userId } });
   return member ? announceReceipt(toReceipt(member)) : null;
 };
@@ -410,6 +415,26 @@ export const markDelivered = async (
   if (!moved) return;
   const member = await ConversationMember.findOne({ where: { conversationId, userId } });
   if (member) await announceReceipt(toReceipt(member));
+};
+
+/**
+ * A device got a message by push, with no socket to confirm it on: the app's background task
+ * says so here. Never past the conversation's last message from someone else.
+ */
+export const confirmDelivered = async (
+  userId: number,
+  input: Record<string, unknown>
+): Promise<void> => {
+  const conversationId = parseId(input.conversationId, 'conversationId');
+  const messageId = parseId(input.messageId, 'messageId');
+  await requireMembers(conversationId, userId);
+  limit(allowChange(userId));
+
+  const lastFromOthers =
+    Number(await Message.max('id', { where: { conversationId, senderId: { [Op.ne]: userId } } })) ||
+    0;
+  const target = Math.min(messageId, lastFromOthers);
+  if (target > 0) await markDelivered(userId, conversationId, target);
 };
 
 interface DeliveredRow {

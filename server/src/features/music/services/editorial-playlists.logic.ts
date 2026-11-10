@@ -77,6 +77,7 @@ export const contentKey = (songs: PlaylistSong[]): string =>
 export const isSingleArtist = (songs: PlaylistSong[]): boolean => {
   if (songs.length === 0) return false;
   const counts = new Map<string, number>();
-  for (const song of songs) counts.set(song.primaryArtist, (counts.get(song.primaryArtist) ?? 0) + 1);
+  for (const song of songs)
+    counts.set(song.primaryArtist, (counts.get(song.primaryArtist) ?? 0) + 1);
   return Math.max(...counts.values()) / songs.length > SINGLE_ARTIST_SHARE;
 };

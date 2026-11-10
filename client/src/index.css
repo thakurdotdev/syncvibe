@@ -41,6 +41,7 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+  --color-receipt: hsl(var(--receipt));
 
   --color-chart-1: hsl(var(--chart-1));
   --color-chart-2: hsl(var(--chart-2));
@@ -188,6 +189,8 @@
     --ring: 240 7% 6%;
     --live: 240 7% 6%;
     --live-foreground: 0 0% 100%;
+    /* The "read" tick. Blue on purpose: it has to stand apart from "delivered". */
+    --receipt: 203 89% 40%;
     --chart-1: 240 7% 6%;
     --chart-2: 240 3% 30%;
     --chart-3: 240 3% 45%;
@@ -273,6 +276,7 @@
     --ring: 240 5% 96%;
     --live: 240 5% 96%;
     --live-foreground: 240 5% 4.1%;
+    --receipt: 199 80% 62%;
     --chart-1: 240 5% 96%;
     --chart-2: 240 3% 78%;
     --chart-3: 240 3% 62%;

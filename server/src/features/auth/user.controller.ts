@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { setGroupedMessagePushes } from '@/socket/notification';
 import * as Yup from 'yup';
 import { AuthError } from './auth.errors';
 import {
@@ -208,7 +209,11 @@ export const getInviteList = async (req: Request, res: Response): Promise<void> 
 
 export const updatePushToken = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { expoPushToken, token } = req.body as { expoPushToken?: string; token?: string };
+    const { expoPushToken, token, groupedMessages } = req.body as {
+      expoPushToken?: string;
+      token?: string;
+      groupedMessages?: boolean;
+    };
     const pushToken = expoPushToken || token;
     if (!pushToken) {
       res.status(400).json({ success: false, message: 'Push token is required' });
@@ -216,6 +221,7 @@ export const updatePushToken = async (req: Request, res: Response): Promise<void
     }
 
     await updatePushTokenService(req.user!.userid, pushToken);
+    await setGroupedMessagePushes(pushToken, groupedMessages === true);
     res.status(200).json({ success: true, message: 'Push token updated successfully' });
   } catch (error) {
     if (error instanceof AuthError) {

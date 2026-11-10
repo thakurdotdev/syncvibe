@@ -18,6 +18,8 @@ interface ChatListItemProps {
   unreadCount?: number;
   isSearchResult?: boolean;
   onPress: () => void;
+  /** The moment a finger lands, before the tap is over: a head start on loading. */
+  onPressIn?: () => void;
 }
 
 const ChatListItem: React.FC<ChatListItemProps> = ({
@@ -29,11 +31,12 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
   unreadCount = 0,
   isSearchResult,
   onPress,
+  onPressIn,
 }) => {
   const { colors } = useTheme();
 
   return (
-    <PressableScale onPress={onPress} style={styles.container}>
+    <PressableScale onPress={onPress} onPressIn={onPressIn} style={styles.container}>
       <Avatar
         name={user.name}
         profilepic={user.profilepic ?? undefined}

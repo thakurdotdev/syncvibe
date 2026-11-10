@@ -1,3 +1,4 @@
+import MessageBanner from '@/components/chat/MessageBanner';
 import AppUpdateModal from '@/components/AppUpdateModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Player from '@/components/music/Player';
@@ -43,13 +44,20 @@ configureReanimatedLogger({
 });
 
 Notifications.setNotificationHandler({
-  handleNotification: async (): Promise<NotificationBehavior> => ({
-    shouldShowBanner: true,
-    shouldShowAlert: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification): Promise<NotificationBehavior> => {
+    const { title, body, data } = notification.request.content;
+    // A data-only push carries a message for the app to draw itself (lib/messageNotifications).
+    // A message push while the app is open is a duplicate: the socket brings the same message,
+    // which the in-app banner shows.
+    const show = Boolean(title || body) && data?.type !== 'message';
+    return {
+      shouldShowBanner: show,
+      shouldShowAlert: show,
+      shouldShowList: show,
+      shouldPlaySound: show,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 TrackPlayer.registerBackgroundEventHandler(() => async (event) => {
@@ -281,6 +289,7 @@ function RootLayoutNav() {
       </Stack>
       <GlobalBottomDeck />
       <Player />
+      <MessageBanner />
       <AppUpdateModal />
     </>
   );

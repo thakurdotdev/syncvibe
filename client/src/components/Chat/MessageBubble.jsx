@@ -10,9 +10,8 @@ const STATUS_LABEL = { sending: 'Sending', sent: 'Sent', delivered: 'Delivered',
 const StatusIcon = ({ status }) => {
   if (status === 'sending') return <Clock className='h-3 w-3 animate-pulse' />;
   if (status === 'sent') return <Check size={14} className='text-muted-foreground/70' />;
-  if (status === 'delivered') return <CheckCheck size={14} className='text-muted-foreground/70' />;
-  if (status === 'read')
-    return <CheckCheck size={14} strokeWidth={2.6} className='text-foreground' />;
+  if (status === 'delivered') return <CheckCheck size={15} className='text-muted-foreground' />;
+  if (status === 'read') return <CheckCheck size={15} strokeWidth={2.4} className='text-receipt' />;
   return null;
 };
 

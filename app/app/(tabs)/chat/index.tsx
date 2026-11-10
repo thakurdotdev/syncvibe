@@ -19,7 +19,7 @@ import LoginScreen from '@/components/LoginScreen';
 import ChatSearchBar from '@/components/chat/ChatSearchBar';
 import ChatListItem from '@/components/chat/ChatListItem';
 import { TabHeader } from '@/components/ui/AppHeader';
-import { openConversationWith, refreshConversations } from '@/lib/chat';
+import { loadThread, openConversationWith, refreshConversations } from '@/lib/chat';
 import { previewOf, useChatStore, type Conversation } from '@/stores/chatStore';
 
 interface SearchUser {
@@ -108,6 +108,8 @@ const ChatListScreen: React.FC = () => {
         isTyping={Boolean(typing[item.id])}
         unreadCount={item.unreadCount}
         onPress={() => openConversation(item.id)}
+        // Starts loading the messages while the finger is still down.
+        onPressIn={() => void loadThread(item.id)}
       />
     ),
     [meId, presence, typing, openConversation]

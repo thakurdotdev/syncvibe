@@ -1,8 +1,9 @@
 import { API_URL } from '@/constants';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { bindChatSocket, resetChat } from '@/lib/chat';
-import { previewOf, useChatStore, type ChatMessage } from '@/stores/chatStore';
-import * as Notifications from 'expo-notifications';
+import { showMessageBanner } from '@/components/chat/MessageBanner';
+import { clearMessageNotification, showMessageNotification } from '@/lib/messageNotifications';
+import { previewOf, useChatStore, type ChatMessage, type Receipt } from '@/stores/chatStore';
 import {
   createContext,
   ReactNode,
@@ -33,26 +34,33 @@ export const useChat = (): ChatContextType => {
   return context;
 };
 
-/** A notification for a message in a conversation that isn't the one on screen. */
+/**
+ * A message from someone else arrived over the socket. With the app open it shows as a banner
+ * inside the app (unless its conversation is on screen); with the app in the background it goes
+ * into that conversation's phone notification.
+ */
 const notify = (message: ChatMessage) => {
-  if (Platform.OS === 'web') return;
+  if (Platform.OS === 'web' || message.id == null) return;
   const { activeId, conversations, meId } = useChatStore.getState();
-  if (activeId === message.conversationId && AppState.currentState === 'active') return;
-
   const sender = conversations.find((c) => c.id === message.conversationId)?.peer;
-  void Notifications.scheduleNotificationAsync({
-    content: {
-      title: sender?.name || 'New message',
-      body: previewOf(message, meId),
-      data: {
-        type: 'message',
-        conversationId: message.conversationId,
-        senderId: message.senderId,
-      },
-      categoryIdentifier: 'chat_message',
-    },
-    trigger: null,
-  });
+
+  if (AppState.currentState === 'active') {
+    if (activeId === message.conversationId) return;
+    showMessageBanner({
+      conversationId: message.conversationId,
+      name: sender?.name || 'New message',
+      profilepic: sender?.profilepic ?? null,
+      text: previewOf(message, meId),
+    });
+    return;
+  }
+
+  void showMessageNotification({
+    conversationId: message.conversationId,
+    messageId: message.id,
+    senderName: sender?.name,
+    preview: previewOf(message, meId),
+  }).catch(() => {});
 };
 
 /**
@@ -105,13 +113,28 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     socketRef.current = newSocket;
 
     // Music rooms wait for the answer to this before they join.
-    newSocket.on('connect', () => newSocket.emit('setup', { userid: userId }));
+    // "Online" means the app is open, so the server hears whether it is in front.
+    const reportActive = () =>
+      newSocket.emit('presence:active', { active: AppState.currentState === 'active' });
+    newSocket.on('connect', () => {
+      newSocket.emit('setup', { userid: userId });
+      reportActive();
+    });
 
     const unbindChat = bindChatSocket(newSocket, { userId: Number(userId), onIncoming: notify });
+
+    // Read here or on another device: the conversation's notification has nothing left to say.
+    const onReceipt = (receipt?: Receipt) => {
+      if (receipt?.userId === Number(userId) && Platform.OS !== 'web') {
+        void clearMessageNotification(receipt.conversationId);
+      }
+    };
+    newSocket.on('chat:receipt', onReceipt);
     setSocket(newSocket);
 
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active' && !newSocket.connected) newSocket.connect();
+      else if (newSocket.connected) reportActive();
     });
 
     return () => {

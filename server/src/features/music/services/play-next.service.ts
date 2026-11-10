@@ -292,7 +292,11 @@ const computeForSong = async (baseSongId: string): Promise<string[]> => {
     const linked = await getLinkedCandidates(baseSongId, baseSong.language);
     for (const { song, linkStrength } of linked) {
       const existing = candidateMap.get(song.songId);
-      candidateMap.set(song.songId, { songRow: song, coWeight: existing?.coWeight ?? 0, linkStrength });
+      candidateMap.set(song.songId, {
+        songRow: song,
+        coWeight: existing?.coWeight ?? 0,
+        linkStrength,
+      });
     }
   }
 
