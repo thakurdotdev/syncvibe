@@ -43,13 +43,18 @@ configureReanimatedLogger({
 });
 
 Notifications.setNotificationHandler({
-  handleNotification: async (): Promise<NotificationBehavior> => ({
-    shouldShowBanner: true,
-    shouldShowAlert: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification): Promise<NotificationBehavior> => {
+    const { title, body } = notification.request.content;
+    // A data-only push carries a message for the app to draw itself (lib/messageNotifications).
+    const show = Boolean(title || body);
+    return {
+      shouldShowBanner: show,
+      shouldShowAlert: show,
+      shouldShowList: show,
+      shouldPlaySound: show,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 TrackPlayer.registerBackgroundEventHandler(() => async (event) => {

@@ -112,23 +112,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     };
   }, [handleNotificationResponse]);
 
+  // Sent on every start, not only when the token changes: it also tells the server this version
+  // draws its own message notifications, which an install updated from an older one has to say.
+  const userId = user?.userid;
   useEffect(() => {
-    if (expoPushToken) {
-      if (user && (!user?.expoPushToken || user.expoPushToken !== expoPushToken)) setPushToken();
-    }
-  }, [expoPushToken, user]);
-
-  const setPushToken = async () => {
-    if (expoPushToken) {
-      try {
-        await api.post('/api/mobile/pushToken', {
-          expoPushToken,
-        });
-      } catch (error) {
-        console.error('Error saving push token:', error);
-      }
-    }
-  };
+    if (!expoPushToken || !userId) return;
+    api
+      .post('/api/mobile/pushToken', { expoPushToken, groupedMessages: true })
+      .catch((error) => console.error('Error saving push token:', error));
+  }, [expoPushToken, userId, api]);
 
   return (
     <NotificationContext.Provider

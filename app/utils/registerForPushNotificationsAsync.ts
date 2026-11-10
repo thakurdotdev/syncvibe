@@ -17,6 +17,16 @@ export async function setupNotificationChannelsAndCategories() {
       sound: 'default',
     });
 
+    // A reply written into a message notification updates it without another alert.
+    await Notifications.setNotificationChannelAsync('messages-quiet', {
+      name: 'Message updates',
+      description: 'Your replies shown under a message notification',
+      importance: Notifications.AndroidImportance.LOW,
+      enableVibrate: false,
+      sound: null,
+      showBadge: false,
+    });
+
     // 2. Group Invites Channel
     await Notifications.setNotificationChannelAsync('group-invites', {
       name: 'Group Music Invites',

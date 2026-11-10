@@ -2,11 +2,16 @@ import * as Crypto from 'expo-crypto';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { api } from '@/utils/hooks/useApi';
+import {
+  addReplyToNotification,
+  clearMessageNotification,
+  showMessageNotification,
+} from './messageNotifications';
 
 /**
- * The buttons on a message notification. Android runs this file's task in the background when
- * one is pressed with the app closed, so a reply or "mark as read" works without opening the app.
- * With the app open, NotificationContext calls `handleChatAction` itself.
+ * The buttons on a message notification, and the data-only pushes message notifications are drawn
+ * from. Android runs this file's task in the background when either arrives with the app closed,
+ * so nothing needs the app open. With the app open, NotificationContext calls `handleChatAction`.
  *
  * Both can see the same press, so everything here is safe to run twice: a reply's id comes from
  * the notification, which the server stores once, and read positions only move forward.
@@ -56,30 +61,65 @@ export const handleChatAction = async (response: {
   try {
     if (actionIdentifier === REPLY_ACTION) {
       const body = userText?.trim();
-      if (body) {
-        await api.post(`/api/chat/conversations/${conversationId}/messages`, {
-          clientId: replyClientId(identifier),
-          body,
-        });
+      if (!body) return true;
+      await api.post(`/api/chat/conversations/${conversationId}/messages`, {
+        clientId: replyClientId(identifier),
+        body,
+      });
+      // The reply joins the conversation's notification, which also stops Android's spinner.
+      await addReplyToNotification(conversationId, body);
+    } else {
+      if (messageId) {
+        await api.post(`/api/chat/conversations/${conversationId}/read`, { messageId });
       }
-    } else if (messageId) {
-      await api.post(`/api/chat/conversations/${conversationId}/read`, { messageId });
+      await clearMessageNotification(conversationId);
     }
   } catch (error) {
     console.error('Notification action failed:', error);
+    // Android keeps a spinner on the reply box until the notification goes.
+    await Notifications.dismissNotificationAsync(identifier).catch(() => {});
     if (actionIdentifier === REPLY_ACTION) {
       await reportFailedReply(content.title || 'message', conversationId);
     }
-  } finally {
-    // Android keeps a spinner on the reply box until the notification goes.
-    await Notifications.dismissNotificationAsync(identifier).catch(() => {});
   }
   return true;
 };
 
+/** The payload of a data-only push: the server sends these to apps that draw their own. */
+const parsePush = (data: Record<string, unknown>): Record<string, unknown> | null => {
+  const raw = data.dataString ?? data.body;
+  if (typeof raw !== 'string') return null;
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+};
+
+/** A data-only push: draw the message, or clear a conversation read somewhere else. */
+export const handleChatPush = async (payload: Record<string, unknown>): Promise<void> => {
+  const conversationId = Number(payload.conversationId);
+  if (!conversationId) return;
+  if (payload.type === 'message-read') {
+    await clearMessageNotification(conversationId);
+  } else if (payload.type === 'message' && Number(payload.messageId)) {
+    await showMessageNotification({
+      conversationId,
+      messageId: Number(payload.messageId),
+      senderName: typeof payload.senderName === 'string' ? payload.senderName : null,
+      preview: typeof payload.preview === 'string' ? payload.preview : null,
+    });
+  }
+};
+
 TaskManager.defineTask<Notifications.NotificationTaskPayload>(TASK, async ({ data, error }) => {
-  if (error || !data || !('actionIdentifier' in data)) return;
-  await handleChatAction(data);
+  if (error || !data) return;
+  if ('actionIdentifier' in data) {
+    await handleChatAction(data);
+    return;
+  }
+  const payload = parsePush(data.data ?? {});
+  if (payload) await handleChatPush(payload).catch(() => {});
 });
 
 /** Must run when the bundle loads, before anything renders: see index.ts. */

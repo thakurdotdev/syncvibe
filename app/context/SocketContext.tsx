@@ -1,8 +1,8 @@
 import { API_URL } from '@/constants';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { bindChatSocket, resetChat } from '@/lib/chat';
-import { previewOf, useChatStore, type ChatMessage } from '@/stores/chatStore';
-import * as Notifications from 'expo-notifications';
+import { clearMessageNotification, showMessageNotification } from '@/lib/messageNotifications';
+import { previewOf, useChatStore, type ChatMessage, type Receipt } from '@/stores/chatStore';
 import {
   createContext,
   ReactNode,
@@ -33,27 +33,19 @@ export const useChat = (): ChatContextType => {
   return context;
 };
 
-/** A notification for a message in a conversation that isn't the one on screen. */
+/** Adds the message to its conversation's notification, unless that conversation is on screen. */
 const notify = (message: ChatMessage) => {
-  if (Platform.OS === 'web') return;
+  if (Platform.OS === 'web' || message.id == null) return;
   const { activeId, conversations, meId } = useChatStore.getState();
   if (activeId === message.conversationId && AppState.currentState === 'active') return;
 
   const sender = conversations.find((c) => c.id === message.conversationId)?.peer;
-  void Notifications.scheduleNotificationAsync({
-    content: {
-      title: sender?.name || 'New message',
-      body: previewOf(message, meId),
-      data: {
-        type: 'message',
-        conversationId: message.conversationId,
-        messageId: message.id,
-        senderId: message.senderId,
-      },
-      categoryIdentifier: 'chat_message',
-    },
-    trigger: null,
-  });
+  void showMessageNotification({
+    conversationId: message.conversationId,
+    messageId: message.id,
+    senderName: sender?.name,
+    preview: previewOf(message, meId),
+  }).catch(() => {});
 };
 
 /**
@@ -109,6 +101,14 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     newSocket.on('connect', () => newSocket.emit('setup', { userid: userId }));
 
     const unbindChat = bindChatSocket(newSocket, { userId: Number(userId), onIncoming: notify });
+
+    // Read here or on another device: the conversation's notification has nothing left to say.
+    const onReceipt = (receipt?: Receipt) => {
+      if (receipt?.userId === Number(userId) && Platform.OS !== 'web') {
+        void clearMessageNotification(receipt.conversationId);
+      }
+    };
+    newSocket.on('chat:receipt', onReceipt);
     setSocket(newSocket);
 
     const subscription = AppState.addEventListener('change', (state) => {
