@@ -8,10 +8,10 @@ import {
   useState,
 } from 'react';
 import { io } from 'socket.io-client';
+import { bindCallSocket } from '@/lib/call';
 import { bindChatSocket, resetChat } from '@/lib/chat';
 import { paths } from '@/lib/paths';
 import { previewOf, useChatStore } from '@/stores/chatStore';
-import { useVideoCallStore } from '../stores/videoCallStore';
 import { Context } from './Context';
 
 export const ChatContext = createContext();
@@ -50,9 +50,6 @@ export const ChatProvider = ({ children }) => {
   const closeSocket = useCallback(() => {
     const current = socketRef.current;
     if (!current) return;
-    const calls = useVideoCallStore.getState();
-    calls.removeCallSocketListeners(current);
-    calls.cleanupMediaStreams();
     current.removeAllListeners();
     current.io.removeAllListeners();
     current.disconnect();
@@ -85,25 +82,19 @@ export const ChatProvider = ({ children }) => {
 
     // Music rooms wait for the answer to this before they join.
     newSocket.on('connect', () => newSocket.emit('setup', { userid: userId }));
-    newSocket.io.on('reconnect', () => useVideoCallStore.getState().setSocket(newSocket));
 
     const unbindChat = bindChatSocket(newSocket, { userId, onIncoming: notify });
-
-    const calls = useVideoCallStore.getState();
-    calls.setSocket(newSocket);
-    calls.setupCallSocketListeners(newSocket);
+    const unbindCalls = bindCallSocket(newSocket);
 
     setSocket(newSocket);
 
     return () => {
       unbindChat();
+      // Before the socket closes, so a call in progress can still be hung up.
+      unbindCalls();
       closeSocket();
     };
   }, [userId, cleanUpSocket, closeSocket]);
-
-  useEffect(() => {
-    if (user) useVideoCallStore.getState().setUser(user);
-  }, [user]);
 
   const value = useMemo(() => ({ socket, cleanUpSocket }), [socket, cleanUpSocket]);
 

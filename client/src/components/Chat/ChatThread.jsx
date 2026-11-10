@@ -15,7 +15,8 @@ import {
   toggleReaction,
 } from '@/lib/chat';
 import { selectConversation, selectThread, useChatStore } from '@/stores/chatStore';
-import { useVideoCallStore } from '../../stores/videoCallStore';
+import { startCall } from '@/lib/call';
+import { selectBusy, useCallStore } from '@/stores/callStore';
 import ChatHeader from './ChatHeader';
 import ImageGallery from './ImageGallery';
 import MessageInfoModal from './MessageInfoModal';
@@ -67,9 +68,7 @@ const OpenThread = ({ conversation }) => {
   const online = useChatStore((s) => Boolean(s.presence[conversation.peer.userid]));
   const typing = useChatStore((s) => Boolean(s.typing[activeId]));
 
-  const isInCall = useVideoCallStore((s) => s.isInCall);
-  const incomingCall = useVideoCallStore((s) => s.incomingCall);
-  const startCall = useVideoCallStore((s) => s.startCall);
+  const inCall = useCallStore(selectBusy);
 
   const [replyTo, setReplyTo] = useState(null);
   const [editing, setEditing] = useState(null);
@@ -158,7 +157,7 @@ const OpenThread = ({ conversation }) => {
           typing={typing}
           onBack={isMobile ? () => setActive(null) : null}
           onOpenProfile={() => navigate(`/u/${peer.username}`, { state: { user: peer } })}
-          call={{ isInCall, incomingCall, startCall }}
+          onCall={inCall ? null : () => startCall(conversation.peer)}
         />
 
         <MessageList

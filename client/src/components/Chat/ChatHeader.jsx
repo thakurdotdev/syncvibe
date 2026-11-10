@@ -1,11 +1,12 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Video } from 'lucide-react';
 import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import VideoCallButton from './StartVideoCall';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
-const ChatHeader = ({ peer, online, typing, onBack, onOpenProfile, call }) => (
+/** `onCall` is null while a call is already going on. */
+const ChatHeader = ({ peer, online, typing, onBack, onOpenProfile, onCall }) => (
   <Card className='sticky top-0 z-10 flex w-full flex-row items-center gap-3 rounded-none border-b p-3 shadow-xs'>
     {onBack && (
       <Button
@@ -45,9 +46,21 @@ const ChatHeader = ({ peer, online, typing, onBack, onOpenProfile, call }) => (
     </button>
 
     <div className='ml-auto flex items-center gap-2'>
-      {!call.incomingCall && !call.isInCall && (
-        <VideoCallButton startCall={call.startCall} peer={peer} incomingCall={call.incomingCall} />
-      )}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant='ghost'
+            size='icon'
+            className='h-11 w-11 rounded-full'
+            aria-label={`Video call ${peer?.name}`}
+            disabled={!onCall}
+            onClick={onCall}
+          >
+            <Video size={20} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Video call</TooltipContent>
+      </Tooltip>
     </div>
   </Card>
 );
