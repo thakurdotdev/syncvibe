@@ -1,19 +1,42 @@
-import { bumpChat } from '@/utils/chatList';
 import ImageGallery from '@/components/ImageGallery';
 import SwipeableModal from '@/components/SwipeableModal';
-import { Message, useChat } from '@/context/SocketContext';
-import { useUser } from '@/context/UserContext';
+import ChatInput from '@/components/chat/ChatInput';
+import DateBubble from '@/components/chat/DateBubble';
+import MessageBubble from '@/components/chat/MessageBubble';
+import MessageHeader from '@/components/chat/MessageHeader';
+import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
-import { uploadToCloudinary } from '@/utils/Cloudinary';
-import useApi from '@/utils/hooks/useApi';
+import { toast } from '@/context/ToastContext';
+import {
+  deleteMessage,
+  discardMessage,
+  editMessage,
+  loadOlder,
+  loadThread,
+  markRead,
+  retryMessage,
+  sendMessage,
+  setTyping,
+  toggleReaction,
+  type PickedPhoto,
+} from '@/lib/chat';
+import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE } from '@/lib/motion';
+import {
+  messageStatus,
+  selectConversation,
+  selectThread,
+  useChatStore,
+  type ChatMessage,
+} from '@/stores/chatStore';
+import { saveImageToGallery } from '@/utils/saveImage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import * as Clipboard from 'expo-clipboard';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+  AppState,
   FlatList,
   Keyboard,
   Platform,
@@ -25,20 +48,13 @@ import {
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import PressableScale from '@/components/ui/PressableScale';
-import { toast } from '@/context/ToastContext';
-import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE } from '@/lib/motion';
-import { saveImageToGallery } from '@/utils/saveImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MessageHeader from '@/components/chat/MessageHeader';
-import MessageBubble from '@/components/chat/MessageBubble';
-import ChatInput from '@/components/chat/ChatInput';
-import DateBubble from '@/components/chat/DateBubble';
+
+const QUICK_REACTIONS = ['❤️', '😂', '🔥', '👍', '😮', '😢'];
 
 const formatFullDateTime = (dateString?: string | null) => {
   if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, {
+  return new Date(dateString).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -53,17 +69,13 @@ const formatDate = (dateString: string) => {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  if (date.toDateString() === today.toDateString()) {
-    return 'Today';
-  } else if (date.toDateString() === yesterday.toDateString()) {
-    return 'Yesterday';
-  } else {
-    return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
-    });
-  }
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+  });
 };
 
 /** A gap this long starts a new run of messages, even from the same person. */
@@ -76,573 +88,236 @@ const SHEET_SWAP_MS = 200;
 const JUMP_ENTER = FadeIn.duration(140).easing(EASE_OUT);
 const JUMP_EXIT = FadeOut.duration(100).easing(EASE_OUT);
 
-const ChatWithUser = () => {
-  const api = useApi();
-  const { user } = useUser();
-  const { colors } = useTheme();
-  const loggedInUserId = user?.userid;
-  const { currentChat, setCurrentChat, setUsers, socket, onlineStatuses } = useChat();
+type Row =
+  | { type: 'date'; id: string; date: string }
+  | { type: 'message'; message: ChatMessage; startsGroup: boolean; endsGroup: boolean };
 
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [file, setFile] = useState<ImagePicker.ImagePickerSuccessResult | null>(null);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
-  const [showGallery, setShowGallery] = useState(false);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [showMessageOptions, setShowMessageOptions] = useState(false);
-  const [showMessageInfo, setShowMessageInfo] = useState(false);
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [editMode, setEditMode] = useState(false);
+const ChatWithUser = () => {
+  const { colors } = useTheme();
+
+  const activeId = useChatStore((s) => s.activeId);
+  const meId = useChatStore((s) => s.meId);
+  const conversation = useChatStore(selectConversation(activeId));
+  const thread = useChatStore(selectThread(activeId));
+  const isOnline = useChatStore((s) =>
+    Boolean(conversation && s.presence[conversation.peer.userid])
+  );
+  const isTyping = useChatStore((s) => Boolean(activeId && s.typing[activeId]));
+
+  const [text, setText] = useState('');
+  const [photo, setPhoto] = useState<PickedPhoto | null>(null);
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [editing, setEditing] = useState<ChatMessage | null>(null);
   const [editText, setEditText] = useState('');
+  const [selected, setSelected] = useState<ChatMessage | null>(null);
+  const [sheet, setSheet] = useState<'options' | 'confirm-delete' | 'info' | null>(null);
+  const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
-  const listRef = useRef<FlatList>(null);
-  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const fetchMessages = useCallback(async () => {
-    if (!currentChat?.chatid) return;
-
-    try {
-      setLoading(true);
-      const response = await api.get(`/api/get/messages/${currentChat.chatid}`);
-      if (response.status === 200) {
-        setMessages(response.data.chats);
-      }
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentChat?.chatid, api]);
-
-  const markAsRead = useCallback(
-    (messageIds: number[]) => {
-      if (!currentChat?.chatid || !currentChat?.otherUser?.userid || !messageIds.length) return;
-      if (!socket?.connected) return;
-
-      socket.emit('messages-read', {
-        messageIds,
-        chatid: currentChat.chatid,
-        readerId: loggedInUserId,
-        senderId: currentChat.otherUser.userid,
-      });
-
-      // Optimistic local update
-      const now = new Date().toISOString();
-      const idSet = new Set(messageIds);
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.messageid && idSet.has(Number(msg.messageid))
-            ? { ...msg, isread: true, readat: now }
-            : msg
-        )
-      );
-    },
-    [currentChat?.chatid, currentChat?.otherUser?.userid, socket, loggedInUserId]
-  );
+  const listRef = useRef<FlatList<Row>>(null);
+  const { messages } = thread;
+  const peerName = conversation?.peer.name ?? '';
 
   useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
+    if (activeId) void loadThread(activeId);
+  }, [activeId]);
 
-  const outboxQueueRef = useRef<Map<number, { tempId: number; payload: any }>>(new Map());
-  const ackTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  // Leaving the screen closes the conversation, so new messages count as unread again.
+  useEffect(
+    () => () => {
+      const { activeId: current, setActive } = useChatStore.getState();
+      if (current) setTyping(current, false);
+      setActive(null);
+    },
+    []
+  );
 
-  const clearAckTimer = useCallback((tempId: number) => {
-    const timer = ackTimersRef.current.get(tempId);
-    if (timer) {
-      clearTimeout(timer);
-      ackTimersRef.current.delete(tempId);
+  // Read receipts go out only while the conversation is on screen with the app in front.
+  const lastId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].id != null) return messages[i].id;
     }
-    outboxQueueRef.current.delete(tempId);
-  }, []);
+    return null;
+  }, [messages]);
 
-  const sendQueuedMessage = useCallback(
-    (payload: any) => {
-      const { tempId } = payload;
-      outboxQueueRef.current.set(tempId, { tempId, payload });
-
-      // 10s ACK timeout
-      const timer = setTimeout(() => {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.messageid === tempId || msg.tempId === tempId ? { ...msg, status: 'failed' } : msg
-          )
-        );
-        ackTimersRef.current.delete(tempId);
-      }, 10000);
-
-      ackTimersRef.current.set(tempId, timer);
-
-      if (socket?.connected) {
-        socket.emit('send-message', payload);
-      }
-    },
-    [socket]
-  );
-
-  const handleRetryMessage = useCallback(
-    (failedMsg: Message) => {
-      const tempId = typeof failedMsg.messageid === 'number' ? failedMsg.messageid : Date.now();
-
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.messageid === failedMsg.messageid ? { ...msg, status: 'pending' } : msg
-        )
-      );
-
-      const queuedItem = outboxQueueRef.current.get(tempId);
-      if (queuedItem) {
-        sendQueuedMessage(queuedItem.payload);
-      } else if (currentChat?.chatid && currentChat?.otherUser?.userid) {
-        sendQueuedMessage({
-          tempId,
-          chatid: currentChat.chatid,
-          content: failedMsg.content || null,
-          fileurl: failedMsg.fileurl || null,
-          recipientId: currentChat.otherUser.userid,
-          senderName: user?.name,
-          participants: currentChat.participants,
-        });
-      }
-    },
-    [currentChat, user?.name, sendQueuedMessage]
-  );
-
-  // Socket event listeners
   useEffect(() => {
-    if (!socket || !currentChat?.chatid) return;
-
-    const handleConnect = () => {
-      // Re-sync messages and drain outbox queue
-      fetchMessages();
-
-      outboxQueueRef.current.forEach(({ payload }) => {
-        socket.emit('send-message', payload);
-      });
-    };
-
-    const handleNewMessage = (newMessageReceived: Message) => {
-      if (newMessageReceived.chatid === currentChat.chatid) {
-        setMessages((prev) =>
-          prev.some((m) => m.messageid === newMessageReceived.messageid)
-            ? prev
-            : [...prev, newMessageReceived]
-        );
-      }
-    };
-
-    const handleMessageDeleted = (data: {
-      chatid?: number;
-      messageid?: number;
-      messageId?: number;
-    }) => {
-      if (data?.chatid !== currentChat.chatid) return;
-      const id = data.messageid ?? data.messageId;
-      setMessages((prev) => prev.filter((m) => m.messageid !== id));
-    };
-
-    const handleMessageEdited = (data: {
-      chatid?: number;
-      messageid?: number;
-      content?: string;
-    }) => {
-      if (data?.chatid !== currentChat.chatid) return;
-      setMessages((prev) =>
-        prev.map((m) => (m.messageid === data.messageid ? { ...m, content: data.content } : m))
-      );
-    };
-
-    const handleMessageAck = (data: { tempId: number; message: Message }) => {
-      clearAckTimer(data.tempId);
-
-      if (data?.message?.chatid === currentChat.chatid) {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.messageid === data.tempId || msg.tempId === data.tempId
-              ? {
-                  ...data.message,
-                  participants: currentChat.participants,
-                  senderName: user?.name,
-                  isread: false,
-                  status: 'sent',
-                  // Keeps the same list key, so an image doesn't reload when it finishes sending.
-                  tempId: data.tempId,
-                }
-              : msg
-          )
-        );
-      }
-    };
-
-    const handleMessageError = (data: { tempId: number; error: string }) => {
-      clearAckTimer(data.tempId);
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.messageid === data.tempId || msg.tempId === data.tempId
-            ? { ...msg, status: 'failed' }
-            : msg
-        )
-      );
-      console.error('Message send failed:', data.error);
-    };
-
-    const handleReadStatus = (data: {
-      messageIds?: number[];
-      chatid?: number;
-      readat?: string;
-    }) => {
-      if (data?.chatid === currentChat.chatid && Array.isArray(data.messageIds)) {
-        const idSet = new Set(data.messageIds.map(Number));
-        const readTime = data.readat || new Date().toISOString();
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.messageid && idSet.has(Number(msg.messageid))
-              ? { ...msg, isread: true, readat: readTime, status: 'sent' }
-              : msg
-          )
-        );
-      }
-    };
-
-    socket.on('connect', handleConnect);
-    socket.on('message-received', handleNewMessage);
-    socket.on('message-deleted', handleMessageDeleted);
-    socket.on('message-edited', handleMessageEdited);
-    socket.on('message-ack', handleMessageAck);
-    socket.on('message-error', handleMessageError);
-    socket.on('messages-read-status', handleReadStatus);
-
-    return () => {
-      socket.off('connect', handleConnect);
-      socket.off('message-received', handleNewMessage);
-      socket.off('message-deleted', handleMessageDeleted);
-      socket.off('message-edited', handleMessageEdited);
-      socket.off('message-ack', handleMessageAck);
-      socket.off('message-error', handleMessageError);
-      socket.off('messages-read-status', handleReadStatus);
-    };
-  }, [
-    socket,
-    currentChat?.chatid,
-    currentChat?.participants,
-    user?.name,
-    fetchMessages,
-    clearAckTimer,
-  ]);
-
-  // Mark incoming unread messages as read
-  useEffect(() => {
-    if (
-      !socket?.connected ||
-      !currentChat?.chatid ||
-      !loggedInUserId ||
-      !currentChat?.otherUser?.userid
-    )
-      return;
-
-    const otherUserId = currentChat.otherUser.userid;
-    const unreadIncomingMessages = messages.filter(
-      (msg) =>
-        msg.chatid === currentChat.chatid &&
-        String(msg.senderid) === String(otherUserId) &&
-        !msg.isread
-    );
-
-    if (unreadIncomingMessages.length > 0) {
-      const messageIds = unreadIncomingMessages
-        .map((msg) => Number(msg.messageid))
-        .filter((id): id is number => !isNaN(id) && id > 0);
-
-      if (messageIds.length > 0) {
-        markAsRead(messageIds);
-      }
-    }
-  }, [
-    currentChat?.chatid,
-    currentChat?.otherUser?.userid,
-    loggedInUserId,
-    messages,
-    socket?.connected,
-    markAsRead,
-  ]);
-
-  const handleTyping = useCallback(
-    (text: string) => {
-      setMessage(text);
-
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-
-      if (socket && currentChat?.otherUser?.userid) {
-        socket.emit('typing', {
-          userId: loggedInUserId,
-          recipientId: currentChat.otherUser.userid,
-          isTyping: true,
-        });
-
-        typingTimeoutRef.current = setTimeout(() => {
-          if (socket && currentChat?.otherUser?.userid) {
-            socket.emit('typing', {
-              userId: loggedInUserId,
-              recipientId: currentChat.otherUser.userid,
-              isTyping: false,
-            });
-          }
-        }, 1500);
-      }
-    },
-    [socket, loggedInUserId, currentChat?.otherUser?.userid]
-  );
-
-  const handleSendMessage = async () => {
-    if (!message.trim() && !file) return;
-    if (!currentChat?.chatid || !loggedInUserId) return;
-
-    const currentMsgText = message.trim();
-    const currentFile = file;
-    const tempId = Date.now();
-
-    const optimisticMessage: Message = {
-      senderid: loggedInUserId,
-      content: currentMsgText,
-      createdat: new Date().toISOString(),
-      messageid: tempId,
-      tempId,
-      participants: currentChat.participants || [],
-      chatid: currentChat.chatid,
-      fileurl: filePreview || undefined,
-      senderName: user?.name,
-      isread: false,
-      status: 'pending',
-    };
-
-    setMessages((prev) => [...prev, optimisticMessage]);
-    setUsers(
-      (prev) => bumpChat(prev, currentChat.chatid, currentMsgText || 'Sent an attachment') ?? prev
-    );
-    setMessage('');
-    setFile(null);
-    setFilePreview(null);
-
-    if (socket?.connected && currentChat?.otherUser?.userid) {
-      socket.emit('typing', {
-        userId: loggedInUserId,
-        recipientId: currentChat.otherUser.userid,
-        isTyping: false,
-      });
-    }
-
-    // Upload file first if present, then send via socket
-    let uploadedUrl: string | undefined = undefined;
-    if (currentFile && currentFile.assets?.[0]) {
-      try {
-        const fileAsset = currentFile.assets[0];
-        uploadedUrl = await uploadToCloudinary(
-          api,
-          fileAsset.uri,
-          fileAsset.fileName || 'image.jpg',
-          fileAsset.mimeType || 'image/jpeg',
-          'chat'
-        );
-      } catch (error) {
-        console.error('Error uploading file:', error);
-        setMessages((prev) =>
-          prev.map((msg) => (msg.messageid === tempId ? { ...msg, status: 'failed' } : msg))
-        );
-        return;
-      }
-    }
-
-    // Queue and send message
-    sendQueuedMessage({
-      tempId,
-      chatid: currentChat.chatid,
-      content: currentMsgText || null,
-      fileurl: uploadedUrl || null,
-      // The server works out the recipient itself, so a missing one must not stop the send.
-      recipientId: currentChat.otherUser?.userid,
-      senderName: user?.name,
-      participants: currentChat.participants,
+    if (!activeId || thread.status !== 'ready') return;
+    if (AppState.currentState === 'active') markRead(activeId);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') markRead(activeId);
     });
-  };
+    return () => subscription.remove();
+  }, [activeId, thread.status, lastId]);
 
-  const handleAttachment = async () => {
+  const handleChangeText = useCallback(
+    (value: string) => {
+      setText(value);
+      if (activeId) setTyping(activeId, value.trim().length > 0);
+    },
+    [activeId]
+  );
+
+  const handleSend = useCallback(() => {
+    if (!activeId || (!text.trim() && !photo)) return;
+    sendMessage(activeId, { body: text, photo, replyTo });
+    setText('');
+    setPhoto(null);
+    setReplyTo(null);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, [activeId, text, photo, replyTo]);
+
+  const handleAttachment = useCallback(async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (status === 'granted') {
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          quality: 0.7,
-          allowsMultipleSelection: false,
+      if (status !== 'granted') {
+        toast('Allow SyncVibe to see your photos in your phone settings', { type: 'error' });
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.7,
+        allowsMultipleSelection: false,
+      });
+      const asset = result.canceled ? null : result.assets?.[0];
+      if (asset) {
+        setPhoto({
+          uri: asset.uri,
+          fileName: asset.fileName,
+          mimeType: asset.mimeType,
+          width: asset.width,
+          height: asset.height,
         });
-
-        if (!result.canceled && result.assets?.[0]) {
-          setFile(result);
-          setFilePreview(result.assets[0].uri);
-        }
       }
     } catch (error) {
       console.error('Error picking image:', error);
     }
-  };
-
-  const isOwnMessage = useCallback(
-    (msg: Message) => Boolean(loggedInUserId && String(msg.senderid) === String(loggedInUserId)),
-    [loggedInUserId]
-  );
+  }, []);
 
   // Newest first, for the inverted list. Items keep the same message objects between renders, so
   // only rows whose message changed draw again.
-  const listItems = useMemo(() => {
-    const sameRun = (a?: Message, b?: Message) =>
+  const rows = useMemo(() => {
+    const sameRun = (a?: ChatMessage, b?: ChatMessage) =>
       Boolean(
         a &&
         b &&
-        a.senderid === b.senderid &&
-        formatDate(a.createdat) === formatDate(b.createdat) &&
-        Math.abs(new Date(a.createdat).getTime() - new Date(b.createdat).getTime()) < GROUP_GAP_MS
+        a.type !== 'call' &&
+        b.type !== 'call' &&
+        a.senderId === b.senderId &&
+        formatDate(a.createdAt) === formatDate(b.createdAt) &&
+        Math.abs(Date.parse(a.createdAt) - Date.parse(b.createdAt)) < GROUP_GAP_MS
       );
 
-    const result: any[] = [];
-    messages.forEach((msg, i) => {
+    const result: Row[] = [];
+    messages.forEach((message, i) => {
       const before = messages[i - 1];
-      const date = formatDate(msg.createdat);
-      if (!before || formatDate(before.createdat) !== date) {
-        result.push({ type: 'date', id: `date-${msg.createdat}`, date });
+      const date = formatDate(message.createdAt);
+      if (!before || formatDate(before.createdAt) !== date) {
+        result.push({ type: 'date', id: `date-${message.clientId}`, date });
       }
       result.push({
         type: 'message',
-        message: msg,
-        startsGroup: !sameRun(before, msg),
-        endsGroup: !sameRun(msg, messages[i + 1]),
+        message,
+        startsGroup: !sameRun(before, message),
+        endsGroup: !sameRun(message, messages[i + 1]),
       });
     });
     return result.reverse();
   }, [messages]);
 
-  const chatImages = useMemo(
-    () => messages.filter((msg) => msg.fileurl).map((msg) => msg.fileurl || ''),
+  const images = useMemo(
+    () =>
+      messages
+        .filter((m) => m.attachment?.url && m.id != null)
+        .map((m) => ({ id: m.id, url: m.attachment!.url })),
     [messages]
   );
 
-  const findImageIndex = useCallback(
-    (url: string) => chatImages.findIndex((imgUrl) => imgUrl === url),
-    [chatImages]
-  );
-
   const handleImagePress = useCallback(
-    (imageUrl: string) => {
-      const index = findImageIndex(imageUrl);
-      if (index !== -1) {
-        setSelectedImageIndex(index);
-        setShowGallery(true);
-      }
+    (message: ChatMessage) => {
+      const index = images.findIndex((image) => image.id === message.id);
+      if (index !== -1) setGalleryIndex(index);
     },
-    [findImageIndex]
+    [images]
   );
 
-  const handleMessageLongPress = useCallback((msg: Message) => {
+  const handleLongPress = useCallback((message: ChatMessage) => {
     Keyboard.dismiss();
-    setSelectedMessage(msg);
-    setShowMessageOptions(true);
+    setSelected(message);
+    setSheet('options');
   }, []);
 
-  const handleEditMessage = useCallback(() => {
-    if (selectedMessage) {
-      setEditText(selectedMessage.content || '');
-      setEditMode(true);
-      setShowMessageOptions(false);
-    }
-  }, [selectedMessage]);
+  const handleReact = useCallback((message: ChatMessage, emoji: string) => {
+    if (message.id == null) return;
+    toggleReaction(message, emoji).catch(() =>
+      toast("Couldn't add your reaction. Try again.", { type: 'error' })
+    );
+  }, []);
 
-  const deleteMessage = useCallback(
-    async (target: Message) => {
-      const before = messages;
-      setMessages((prev) => prev.filter((msg) => msg.messageid !== target.messageid));
-      try {
-        await api.delete(`/api/message/${target.messageid}`);
-        socket?.emit('delete-message', {
-          // Web reads messageId; both spellings keep it updating live.
-          messageid: target.messageid,
-          messageId: target.messageid,
-          chatid: currentChat?.chatid,
-          recipientId: currentChat?.otherUser?.userid,
-        });
-      } catch (error) {
-        console.error('Error deleting message:', error);
-        setMessages(before);
-        toast("Couldn't delete the message. Try again.", { type: 'error' });
-      }
-    },
-    [api, currentChat?.chatid, currentChat?.otherUser?.userid, messages, socket]
-  );
+  const closeSheet = useCallback(() => setSheet(null), []);
 
-  const handleDeleteMessage = useCallback(() => {
-    const target = selectedMessage;
-    setShowMessageOptions(false);
-    if (!target) return;
-    // Never reached the server, so there's nothing to delete there.
-    if (target.status === 'failed') {
-      setMessages((prev) => prev.filter((msg) => msg.messageid !== target.messageid));
-      return;
-    }
-    Alert.alert('Delete this message?', 'It will be removed for both of you.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteMessage(target) },
-    ]);
-  }, [deleteMessage, selectedMessage]);
+  const handleReply = useCallback(() => {
+    setSheet(null);
+    setEditing(null);
+    setReplyTo(selected);
+  }, [selected]);
+
+  const handleStartEdit = useCallback(() => {
+    if (!selected) return;
+    setSheet(null);
+    setReplyTo(null);
+    setEditText(selected.body || '');
+    setEditing(selected);
+  }, [selected]);
 
   const handleSaveEdit = useCallback(async () => {
-    const target = selectedMessage;
-    const content = editText.trim();
-    setEditMode(false);
+    const target = editing;
+    const body = editText.trim();
+    setEditing(null);
     setEditText('');
-    if (!target?.messageid || !content || content === target.content) return;
-
-    setMessages((prev) =>
-      prev.map((msg) => (msg.messageid === target.messageid ? { ...msg, content } : msg))
-    );
+    if (!target || body === (target.body || '')) return;
     try {
-      await api.put(`/api/message/${target.messageid}`, { content });
-      socket?.emit('edit-message', {
-        messageid: target.messageid,
-        chatid: currentChat?.chatid,
-        recipientId: currentChat?.otherUser?.userid,
-        content,
-      });
-    } catch (error) {
-      console.error('Error updating message:', error);
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.messageid === target.messageid ? { ...msg, content: target.content } : msg
-        )
-      );
+      await editMessage(target, body);
+    } catch {
       toast("Couldn't save your edit. Try again.", { type: 'error' });
     }
-  }, [selectedMessage, editText, api, socket, currentChat?.chatid, currentChat?.otherUser?.userid]);
+  }, [editing, editText]);
 
-  const handleCancelEdit = useCallback(() => {
-    setEditMode(false);
-    setEditText('');
-  }, []);
+  const handleDelete = useCallback(() => {
+    const target = selected;
+    if (!target) return;
+    // Never reached the server, so there's nothing to delete there.
+    if (target.id == null) {
+      setSheet(null);
+      discardMessage(target);
+      return;
+    }
+    setSheet('confirm-delete');
+  }, [selected]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    const target = selected;
+    setSheet(null);
+    if (!target) return;
+    try {
+      await deleteMessage(target);
+    } catch {
+      toast("Couldn't delete the message. Try again.", { type: 'error' });
+    }
+  }, [selected]);
 
   const handleCopyText = useCallback(async () => {
-    setShowMessageOptions(false);
-    if (!selectedMessage?.content) return;
-    await Clipboard.setStringAsync(selectedMessage.content);
+    setSheet(null);
+    if (!selected?.body) return;
+    await Clipboard.setStringAsync(selected.body);
     toast('Copied');
-  }, [selectedMessage]);
+  }, [selected]);
 
   const handleSavePhoto = useCallback(async () => {
-    setShowMessageOptions(false);
-    if (!selectedMessage?.fileurl) return;
+    setSheet(null);
+    if (!selected?.attachment) return;
     try {
-      await saveImageToGallery(selectedMessage.fileurl);
+      await saveImageToGallery(selected.attachment.url);
       toast('Saved to gallery', { type: 'success' });
     } catch (error) {
       toast(
@@ -652,53 +327,52 @@ const ChatWithUser = () => {
         { type: 'error' }
       );
     }
-  }, [selectedMessage]);
+  }, [selected]);
 
   const handleShowInfo = useCallback(() => {
-    setShowMessageOptions(false);
-    setTimeout(() => setShowMessageInfo(true), SHEET_SWAP_MS);
+    setSheet(null);
+    setTimeout(() => setSheet('info'), SHEET_SWAP_MS);
   }, []);
 
   const handleListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     setShowJumpToLatest(e.nativeEvent.contentOffset.y > JUMP_BUTTON_AFTER);
   }, []);
 
-  const jumpToLatest = useCallback(() => {
-    listRef.current?.scrollToOffset({ offset: 0, animated: true });
-  }, []);
-
   const renderItem = useCallback(
-    ({ item }: any) => {
-      if (item.type === 'date') {
-        return <DateBubble date={item.date} />;
-      }
-
+    ({ item }: { item: Row }) => {
+      if (item.type === 'date') return <DateBubble date={item.date} />;
+      const isOwn = item.message.senderId === meId;
       return (
         <MessageBubble
           message={item.message}
-          isOwn={isOwnMessage(item.message)}
+          isOwn={isOwn}
+          meId={meId}
+          peerName={peerName}
+          status={isOwn ? messageStatus(item.message, conversation) : null}
           startsGroup={item.startsGroup}
           endsGroup={item.endsGroup}
           onImagePress={handleImagePress}
-          onMessageLongPress={handleMessageLongPress}
-          onRetry={handleRetryMessage}
+          onLongPress={handleLongPress}
+          onReact={handleReact}
+          onRetry={retryMessage}
         />
       );
     },
-    [isOwnMessage, handleImagePress, handleMessageLongPress, handleRetryMessage]
+    [meId, peerName, conversation, handleImagePress, handleLongPress, handleReact]
   );
 
   const keyExtractor = useCallback(
-    (item: any) =>
-      item.type === 'date' ? item.id : `msg-${item.message.tempId ?? item.message.messageid}`,
+    (item: Row) => (item.type === 'date' ? item.id : `msg-${item.message.clientId}`),
     []
   );
 
-  const isOnline = onlineStatuses[currentChat?.otherUser?.userid || ''];
-
-  const selectedIsOwn = selectedMessage ? isOwnMessage(selectedMessage) : false;
-  const selectedOnServer =
-    selectedMessage?.status !== 'pending' && selectedMessage?.status !== 'failed';
+  const selectedIsOwn = selected?.senderId === meId;
+  const selectedOnServer = selected?.id != null;
+  const selectedStatus = selected ? messageStatus(selected, conversation) : null;
+  const myReaction = selected?.reactions.find(
+    (r) => meId != null && r.userIds.includes(meId)
+  )?.emoji;
+  const loading = thread.status === 'loading' || thread.status === 'idle';
 
   return (
     <SafeAreaView
@@ -707,25 +381,35 @@ const ChatWithUser = () => {
     >
       <KeyboardAvoidingView behavior='padding' style={styles.container}>
         <MessageHeader
-          onBack={() => {
-            setCurrentChat(null);
-            router.back();
-          }}
-          user={currentChat?.otherUser}
+          onBack={() => router.back()}
+          user={conversation?.peer}
           isOnline={isOnline}
-          isTyping={currentChat?.isTyping}
+          isTyping={isTyping}
         />
 
         <View style={styles.container}>
-          {/* Refetching after a reconnect keeps what's on screen: only a first load shows this. */}
-          {loading && messages.length === 0 ? (
+          {loading ? (
             <View style={styles.centered}>
               <ActivityIndicator size='large' color={colors.primary} />
+            </View>
+          ) : thread.status === 'error' ? (
+            <View style={styles.centered}>
+              <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                Couldn't load messages
+              </Text>
+              <PressableScale
+                onPress={() => activeId && loadThread(activeId)}
+                scaleTo={BUTTON_PRESS_SCALE}
+                accessibilityRole='button'
+                style={[styles.retry, { borderColor: colors.border }]}
+              >
+                <Text style={[styles.retryText, { color: colors.foreground }]}>Try again</Text>
+              </PressableScale>
             </View>
           ) : messages.length === 0 ? (
             <View style={styles.centered}>
               <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-                Say hello to {currentChat?.otherUser?.name?.split(' ')[0] || 'them'}
+                Say hello to {peerName.split(' ')[0] || 'them'}
               </Text>
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
                 Your messages will appear here.
@@ -735,7 +419,7 @@ const ChatWithUser = () => {
             <FlatList
               ref={listRef}
               inverted
-              data={listItems}
+              data={rows}
               renderItem={renderItem}
               keyExtractor={keyExtractor}
               contentContainerStyle={styles.messageList}
@@ -748,13 +432,21 @@ const ChatWithUser = () => {
               keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
               onScroll={handleListScroll}
               scrollEventThrottle={100}
+              // The list is upside down, so its end is the oldest message.
+              onEndReached={() => activeId && loadOlder(activeId)}
+              onEndReachedThreshold={0.4}
+              ListFooterComponent={
+                thread.loadingOlder ? (
+                  <ActivityIndicator style={styles.older} color={colors.mutedForeground} />
+                ) : null
+              }
             />
           )}
 
           {showJumpToLatest ? (
             <Animated.View entering={JUMP_ENTER} exiting={JUMP_EXIT} style={styles.jump}>
               <PressableScale
-                onPress={jumpToLatest}
+                onPress={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })}
                 scaleTo={BUTTON_PRESS_SCALE}
                 accessibilityRole='button'
                 accessibilityLabel='Go to latest message'
@@ -770,44 +462,79 @@ const ChatWithUser = () => {
         </View>
 
         <ChatInput
-          message={message}
-          onChangeText={handleTyping}
-          onSend={handleSendMessage}
+          message={text}
+          onChangeText={handleChangeText}
+          onSend={handleSend}
           onAttach={handleAttachment}
-          filePreview={filePreview}
-          onRemoveAttachment={() => {
-            setFile(null);
-            setFilePreview(null);
-          }}
-          editMode={editMode}
+          filePreview={photo?.uri ?? null}
+          onRemoveAttachment={() => setPhoto(null)}
+          replyingTo={
+            replyTo
+              ? {
+                  name: replyTo.senderId === meId ? 'yourself' : peerName,
+                  text: replyTo.body || 'Photo',
+                }
+              : null
+          }
+          onCancelReply={() => setReplyTo(null)}
+          editMode={Boolean(editing)}
           editText={editText}
           onEditTextChange={setEditText}
           onSaveEdit={handleSaveEdit}
-          onCancelEdit={handleCancelEdit}
+          onCancelEdit={() => {
+            setEditing(null);
+            setEditText('');
+          }}
         />
 
-        {showGallery && chatImages.length > 0 && (
+        {galleryIndex != null && images.length > 0 ? (
           <ImageGallery
-            images={chatImages}
-            initialIndex={selectedImageIndex}
-            onClose={() => setShowGallery(false)}
+            images={images.map((image) => image.url)}
+            initialIndex={Math.min(galleryIndex, images.length - 1)}
+            onClose={() => setGalleryIndex(null)}
           />
-        )}
+        ) : null}
 
-        <SwipeableModal
-          isVisible={showMessageOptions}
-          onClose={() => setShowMessageOptions(false)}
-          dragAnywhere
-        >
+        <SwipeableModal isVisible={sheet === 'options'} onClose={closeSheet} dragAnywhere>
           <View style={styles.sheet}>
-            {selectedMessage?.content ? (
+            {selectedOnServer ? (
+              <View style={styles.reactionRow}>
+                {QUICK_REACTIONS.map((emoji) => (
+                  <PressableScale
+                    key={emoji}
+                    onPress={() => {
+                      setSheet(null);
+                      if (selected) handleReact(selected, emoji);
+                    }}
+                    scaleTo={BUTTON_PRESS_SCALE}
+                    accessibilityRole='button'
+                    accessibilityLabel={`React ${emoji}`}
+                    accessibilityState={{ selected: myReaction === emoji }}
+                    style={[
+                      styles.reactionButton,
+                      myReaction === emoji ? { backgroundColor: colors.raised } : null,
+                    ]}
+                  >
+                    <Text style={styles.reactionEmoji}>{emoji}</Text>
+                  </PressableScale>
+                ))}
+              </View>
+            ) : null}
+            {selectedOnServer ? (
+              <OptionItem icon='arrow-undo-outline' text='Reply' onPress={handleReply} />
+            ) : null}
+            {selected?.body ? (
               <OptionItem icon='copy-outline' text='Copy text' onPress={handleCopyText} />
             ) : null}
-            {selectedMessage?.fileurl && selectedOnServer ? (
+            {selected?.attachment && selectedOnServer ? (
               <OptionItem icon='download-outline' text='Save photo' onPress={handleSavePhoto} />
             ) : null}
-            {selectedIsOwn && selectedOnServer && selectedMessage?.content ? (
-              <OptionItem icon='pencil-outline' text='Edit' onPress={handleEditMessage} />
+            {selectedIsOwn && selectedOnServer ? (
+              <OptionItem
+                icon='pencil-outline'
+                text={selected?.body ? 'Edit' : 'Add a caption'}
+                onPress={handleStartEdit}
+              />
             ) : null}
             {selectedIsOwn && selectedOnServer ? (
               <OptionItem
@@ -816,37 +543,66 @@ const ChatWithUser = () => {
                 onPress={handleShowInfo}
               />
             ) : null}
-            {selectedIsOwn && selectedMessage?.status !== 'pending' ? (
+            {selectedIsOwn ? (
               <OptionItem
                 icon='trash-outline'
                 text='Delete'
-                onPress={handleDeleteMessage}
+                onPress={handleDelete}
                 color={colors.destructive}
               />
             ) : null}
           </View>
         </SwipeableModal>
 
-        <SwipeableModal
-          isVisible={showMessageInfo}
-          onClose={() => setShowMessageInfo(false)}
-          dragAnywhere
-        >
+        <SwipeableModal isVisible={sheet === 'confirm-delete'} onClose={closeSheet} dragAnywhere>
           <View style={styles.sheet}>
+            <Text style={[styles.confirmTitle, { color: colors.foreground }]}>
+              Delete this message?
+            </Text>
+            <Text style={[styles.confirmText, { color: colors.mutedForeground }]}>
+              It will be removed for both of you. This can't be undone.
+            </Text>
+            <OptionItem
+              icon='trash-outline'
+              text='Delete for everyone'
+              onPress={handleConfirmDelete}
+              color={colors.destructive}
+            />
+            <OptionItem icon='close-outline' text='Cancel' onPress={closeSheet} />
+          </View>
+        </SwipeableModal>
+
+        <SwipeableModal isVisible={sheet === 'info'} onClose={closeSheet} dragAnywhere>
+          <View style={styles.sheet}>
+            <InfoRow icon='check' label='Sent' value={formatFullDateTime(selected?.createdAt)} />
             <InfoRow
-              icon='check'
-              label='Sent'
-              value={formatFullDateTime(selectedMessage?.createdat)}
+              icon='check-all'
+              label='Delivered'
+              value={
+                selectedStatus === 'delivered' || selectedStatus === 'read'
+                  ? 'Delivered'
+                  : 'Not yet'
+              }
             />
             <InfoRow
               icon='check-all'
               label='Read'
               value={
-                selectedMessage?.isread
-                  ? formatFullDateTime(selectedMessage.readat) || 'Read'
-                  : 'Not read yet'
+                selectedStatus !== 'read'
+                  ? 'Not yet'
+                  : // The time is known only for the latest message the other person has read.
+                    (selected?.id === conversation?.peerLastReadMessageId &&
+                      formatFullDateTime(conversation?.peerLastReadAt)) ||
+                    'Read'
               }
             />
+            {selected?.editedAt ? (
+              <InfoRow
+                icon='pencil-outline'
+                label='Edited'
+                value={formatFullDateTime(selected.editedAt)}
+              />
+            ) : null}
           </View>
         </SwipeableModal>
       </KeyboardAvoidingView>
@@ -901,7 +657,18 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   emptyTitle: { fontSize: 17, fontWeight: '600', letterSpacing: -0.2 },
   emptyText: { fontSize: 14, marginTop: 4 },
+  retry: {
+    marginTop: 14,
+    height: 40,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  retryText: { fontSize: 14, fontWeight: '600' },
   messageList: { paddingHorizontal: 12, paddingVertical: 12 },
+  older: { paddingVertical: 16 },
   jump: { position: 'absolute', right: 12, bottom: 10 },
   jumpButton: {
     width: 40,
@@ -912,6 +679,22 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   sheet: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8 },
+  reactionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+  },
+  reactionButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reactionEmoji: { fontSize: 26 },
+  confirmTitle: { fontSize: 17, fontWeight: '600', paddingHorizontal: 12, paddingTop: 4 },
+  confirmText: { fontSize: 14, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8 },
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',

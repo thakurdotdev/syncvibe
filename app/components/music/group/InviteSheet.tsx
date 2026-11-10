@@ -18,7 +18,6 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import SwipeableModal from '@/components/SwipeableModal';
 import { Input } from '@/components/ui/input';
 import { useTheme } from '@/context/ThemeContext';
-import { useChat } from '@/context/SocketContext';
 import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
@@ -31,6 +30,8 @@ interface InviteUser {
   username: string;
   profilepic: string;
   isFollowing?: boolean;
+  /** Sent only for people you follow. */
+  isOnline?: boolean;
 }
 
 const UserRow = React.memo(
@@ -120,7 +121,6 @@ interface InviteSheetProps {
 
 export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => {
   const { colors } = useTheme();
-  const { onlineStatuses } = useChat();
   const { sendInvite } = useGroupMusic();
   const api = useApi();
   const inputRef = useRef<TextInput>(null);
@@ -195,28 +195,28 @@ export const InviteSheet: React.FC<InviteSheetProps> = ({ isOpen, onClose }) => 
 
   const sortedUsers = useMemo(() => {
     return [...users].sort((a, b) => {
-      const aOnline = onlineStatuses?.[a.userid] ? 1 : 0;
-      const bOnline = onlineStatuses?.[b.userid] ? 1 : 0;
+      const aOnline = a.isOnline ? 1 : 0;
+      const bOnline = b.isOnline ? 1 : 0;
       const aFollow = a.isFollowing ? 1 : 0;
       const bFollow = b.isFollowing ? 1 : 0;
       if (aFollow !== bFollow) return bFollow - aFollow;
       if (aOnline !== bOnline) return bOnline - aOnline;
       return 0;
     });
-  }, [users, onlineStatuses]);
+  }, [users]);
 
   const renderItem = useCallback(
     ({ item }: { item: InviteUser }) => (
       <UserRow
         user={item}
-        isOnline={!!onlineStatuses?.[item.userid]}
+        isOnline={Boolean(item.isOnline)}
         isInvited={invitedUsers.has(item.userid)}
         isInGroup={memberIds.has(item.userid)}
         onInvite={handleInvite}
         colors={colors}
       />
     ),
-    [onlineStatuses, invitedUsers, memberIds, handleInvite, colors]
+    [invitedUsers, memberIds, handleInvite, colors]
   );
 
   const keyExtractor = useCallback((item: InviteUser) => String(item.userid), []);

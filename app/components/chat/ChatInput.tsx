@@ -1,6 +1,7 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
+import { MAX_MESSAGE_LENGTH } from '@/lib/chat';
 import { BUTTON_PRESS_SCALE } from '@/lib/motion';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
@@ -14,6 +15,9 @@ interface ChatInputProps {
   onAttach: () => void;
   filePreview: string | null;
   onRemoveAttachment: () => void;
+  /** Who and what is being replied to, shown above the input until sent or cancelled. */
+  replyingTo?: { name: string; text: string } | null;
+  onCancelReply?: () => void;
   editMode?: boolean;
   editText?: string;
   onEditTextChange?: (text: string) => void;
@@ -34,6 +38,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onAttach,
   filePreview,
   onRemoveAttachment,
+  replyingTo,
+  onCancelReply,
   editMode,
   editText,
   onEditTextChange,
@@ -69,6 +75,29 @@ const ChatInput: React.FC<ChatInputProps> = ({
             hitSlop={12}
             accessibilityRole='button'
             accessibilityLabel='Cancel editing'
+          >
+            <Ionicons name='close' size={18} color={colors.foreground} />
+          </PressableScale>
+        </View>
+      ) : null}
+
+      {replyingTo && !editMode ? (
+        <View style={styles.banner}>
+          <Ionicons name='arrow-undo' size={14} color={colors.mutedForeground} />
+          <View style={styles.bannerBody}>
+            <Text style={[styles.replyTitle, { color: colors.mutedForeground }]} numberOfLines={1}>
+              Replying to {replyingTo.name}
+            </Text>
+            <Text style={[styles.bannerQuote, { color: colors.foreground }]} numberOfLines={1}>
+              {replyingTo.text}
+            </Text>
+          </View>
+          <PressableScale
+            onPress={onCancelReply}
+            scaleTo={BUTTON_PRESS_SCALE}
+            hitSlop={12}
+            accessibilityRole='button'
+            accessibilityLabel='Cancel reply'
           >
             <Ionicons name='close' size={18} color={colors.foreground} />
           </PressableScale>
@@ -111,7 +140,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           placeholder='Message'
           placeholderTextColor={colors.mutedForeground}
           multiline
-          maxLength={500}
+          maxLength={MAX_MESSAGE_LENGTH}
           textAlignVertical='center'
           style={[styles.input, { color: colors.foreground, backgroundColor: colors.raised }]}
         />
@@ -172,6 +201,9 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   bannerText: { flex: 1, fontSize: 13, fontWeight: '600' },
+  bannerBody: { flex: 1 },
+  replyTitle: { fontSize: 13, fontWeight: '600' },
+  bannerQuote: { fontSize: 13, marginTop: 1 },
   preview: { alignSelf: 'flex-start', marginLeft: 48, marginBottom: 8 },
   previewImage: { width: 72, height: 72, borderRadius: 12 },
   removePhoto: {

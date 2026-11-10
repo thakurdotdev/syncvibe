@@ -53,7 +53,16 @@ export const uploadToCloudinary = async (
   fileName: string = 'image.jpg',
   mimeType: string = 'image/jpeg',
   intent: string = 'profile'
-): Promise<string> => {
+): Promise<string> => (await uploadImageToCloudinary(api, fileUri, fileName, mimeType, intent)).url;
+
+/** The same upload, also returning the picture's size so it can be laid out before it loads. */
+export const uploadImageToCloudinary = async (
+  api: AxiosInstance,
+  fileUri: string,
+  fileName: string = 'image.jpg',
+  mimeType: string = 'image/jpeg',
+  intent: string = 'profile'
+): Promise<{ url: string; width?: number; height?: number }> => {
   const sigResponse = await api.get('/api/upload/signature', {
     params: { intent, resourceType: 'image' },
   });
@@ -80,5 +89,9 @@ export const uploadToCloudinary = async (
     },
   });
 
-  return response.data.secure_url;
+  return {
+    url: response.data.secure_url,
+    width: response.data.width,
+    height: response.data.height,
+  };
 };

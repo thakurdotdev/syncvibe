@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import * as Notifications from 'expo-notifications';
 import { registerForPushNotificationsAsync } from '@/utils/registerForPushNotificationsAsync';
-import { useChat } from './SocketContext';
+import { sendOverHttp } from '@/lib/chat';
+import { useChatStore } from '@/stores/chatStore';
 import { useUser } from './UserContext';
 import useApi from '@/utils/hooks/useApi';
 import { router } from 'expo-router';
@@ -20,77 +21,56 @@ const NotificationContext = createContext<NotificationContextType>({
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const api = useApi();
   const { user } = useUser();
-  const { users, setCurrentChat, socket } = useChat();
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [notification, setNotification] = useState<Notifications.Notification | null>(null);
-
-  const [pendingChatId, setPendingChatId] = useState<string | null>(null);
 
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
   const appInitialized = useRef(false);
 
   // Centralized handler for notification interactions (taps, quick reply, join/decline)
-  const handleNotificationResponse = useCallback(
-    (response: Notifications.NotificationResponse) => {
-      const { actionIdentifier, userText } = response;
-      const data = response.notification.request.content.data as Record<string, any> | undefined;
+  const handleNotificationResponse = useCallback((response: Notifications.NotificationResponse) => {
+    const { actionIdentifier, userText } = response;
+    const data = response.notification.request.content.data as Record<string, any> | undefined;
 
-      const chatid = data?.chatid ? String(data.chatid) : undefined;
-      const type = data?.type as string | undefined;
+    const conversationId = Number(data?.conversationId) || null;
+    const type = data?.type as string | undefined;
 
-      // 1. Interactive Action: Quick Reply (WhatsApp-style inline response)
-      if (actionIdentifier === 'REPLY_ACTION' && userText?.trim()) {
-        const text = userText.trim();
-        if (chatid && user?.userid) {
-          const targetChat = users.find((u) => String(u.chatid) === chatid);
-          const participants = targetChat?.participants || [
-            Number(user.userid),
-            Number(data?.senderId),
-          ];
-          const newMsg = {
-            senderid: user.userid,
-            content: text,
-            createdat: new Date().toISOString(),
-            messageid: Date.now(),
-            participants,
-            chatid: Number(chatid),
-            senderName: user.name,
-          };
-          if (socket?.connected) {
-            socket.emit('new-message', newMsg);
-          }
-        }
-        return;
+    // 1. Interactive Action: Quick Reply (WhatsApp-style inline response). The app may be in
+    // the background with no socket, so this one goes over HTTP.
+    if (actionIdentifier === 'REPLY_ACTION' && userText?.trim()) {
+      if (conversationId) {
+        sendOverHttp(conversationId, userText.trim()).catch((error) =>
+          console.error('Replying from a notification failed:', error)
+        );
       }
+      return;
+    }
 
-      // 2. Interactive Action: Group Invite Join or Default Tap on Group Invite
-      if (
-        actionIdentifier === 'JOIN_GROUP_ACTION' ||
-        type === 'group-invite' ||
-        type === 'group_invite'
-      ) {
-        setTimeout(() => {
-          router.push('/(tabs)/group-music');
-        }, 150);
-        return;
-      }
+    // 2. Interactive Action: Group Invite Join or Default Tap on Group Invite
+    if (
+      actionIdentifier === 'JOIN_GROUP_ACTION' ||
+      type === 'group-invite' ||
+      type === 'group_invite'
+    ) {
+      setTimeout(() => {
+        router.push('/(tabs)/group-music');
+      }, 150);
+      return;
+    }
 
-      // 3. Interactive Action: Decline (no navigation needed)
-      if (
-        actionIdentifier === 'DECLINE_GROUP_ACTION' ||
-        actionIdentifier === 'DECLINE_CALL_ACTION'
-      ) {
-        return;
-      }
+    // 3. Interactive Action: Decline (no navigation needed)
+    if (actionIdentifier === 'DECLINE_GROUP_ACTION' || actionIdentifier === 'DECLINE_CALL_ACTION') {
+      return;
+    }
 
-      // 4. Default / Open Chat Action: Route to specific conversation
-      if (chatid) {
-        setPendingChatId(chatid);
-      }
-    },
-    [user, users, socket]
-  );
+    // 4. Default / Open Chat Action: Route to specific conversation. The screen loads the
+    // conversation itself, so this works on a cold start before the list has arrived.
+    if (conversationId) {
+      useChatStore.getState().setActive(conversationId);
+      setTimeout(() => router.push('/message'), 150);
+    }
+  }, []);
 
   // Handle initial notification on cold start (using non-deprecated getLastNotificationResponse)
   useEffect(() => {
@@ -135,23 +115,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       }
     };
   }, [handleNotificationResponse]);
-
-  // Process pending notifications when users and user are available
-  useEffect(() => {
-    if (pendingChatId && users.length > 0 && user?.userid) {
-      const chat = users.find((u) => String(u.chatid) === pendingChatId);
-      if (chat) {
-        setCurrentChat(chat);
-        setPendingChatId(null);
-
-        setTimeout(() => {
-          router.push('/message');
-        }, 100);
-      } else {
-        console.log('No matching chat found for ID:', pendingChatId);
-      }
-    }
-  }, [pendingChatId, users, user, setCurrentChat]);
 
   useEffect(() => {
     if (expoPushToken) {

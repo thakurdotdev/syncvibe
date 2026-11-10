@@ -3,7 +3,8 @@ import { ROW_PRESS_SCALE } from '@/lib/motion';
 import { SongCard } from '@/components/music/MusicCards';
 import SearchHistory from '@/components/music/SearchHistory';
 import PressableScale from '@/components/ui/PressableScale';
-import { useChat } from '@/context/SocketContext';
+import { openConversationWith } from '@/lib/chat';
+import { useChatStore } from '@/stores/chatStore';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import { useUser } from '@/context/UserContext';
@@ -20,7 +21,6 @@ import {
 import { Song } from '@/types/song';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import { convertToHttps } from '@/utils/getHttpsUrls';
-import useApi from '@/utils/hooks/useApi';
 import { SearchHistoryItem, searchHistoryManager } from '@/utils/searchHistory';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -404,8 +404,6 @@ export const PlaylistsPanel = memo(function PlaylistsPanel({ query }: { query: s
 export const PeoplePanel = memo(function PeoplePanel({ query }: { query: string }) {
   const { colors } = useTheme();
   const { user } = useUser();
-  const api = useApi();
-  const { setCurrentChat, socket, getAllExistingChats } = useChat();
   const { data = [], isPending, isFetching, isError, refetch } = usePeopleSearch(query);
   const [openingId, setOpeningId] = useState<PersonResult['userid'] | null>(null);
 
@@ -414,27 +412,18 @@ export const PeoplePanel = memo(function PeoplePanel({ query }: { query: string 
     [data, user?.userid]
   );
 
-  const openChat = useCallback(
-    async (person: PersonResult) => {
-      setOpeningId(person.userid);
-      try {
-        const response = await api.post('/api/create/chat', { receiverid: person.userid });
-        const { chat } = response.data;
-        socket?.emit('join-room', chat.chatid);
-        // The response is only the bare chat; the screen also needs who it's with.
-        const list = await getAllExistingChats();
-        setCurrentChat(
-          list?.find((c) => c.chatid === chat.chatid) ?? ({ ...chat, otherUser: person } as any)
-        );
-        router.push('/message');
-      } catch {
-        toast(`Couldn't open a chat with ${person.name}`);
-      } finally {
-        setOpeningId(null);
-      }
-    },
-    [api, getAllExistingChats, setCurrentChat, socket]
-  );
+  const openChat = useCallback(async (person: PersonResult) => {
+    setOpeningId(person.userid);
+    try {
+      const conversation = await openConversationWith(person.userid);
+      useChatStore.getState().setActive(conversation.id);
+      router.push('/message');
+    } catch {
+      toast(`Couldn't open a chat with ${person.name}`);
+    } finally {
+      setOpeningId(null);
+    }
+  }, []);
 
   const renderPerson = useCallback(
     ({ item }: { item: PersonResult }) => (

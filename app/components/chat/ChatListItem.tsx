@@ -9,12 +9,13 @@ interface ChatListItemProps {
   user: {
     userid: string | number;
     name: string;
-    profilepic?: string;
+    profilepic?: string | null;
   };
   lastMessage?: string;
   updatedAt?: string;
   isOnline?: boolean;
   isTyping?: boolean;
+  unreadCount?: number;
   isSearchResult?: boolean;
   onPress: () => void;
 }
@@ -25,6 +26,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
   updatedAt,
   isOnline,
   isTyping,
+  unreadCount = 0,
   isSearchResult,
   onPress,
 }) => {
@@ -32,7 +34,12 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
 
   return (
     <PressableScale onPress={onPress} style={styles.container}>
-      <Avatar name={user.name} profilepic={user.profilepic} size='md' isOnline={isOnline} />
+      <Avatar
+        name={user.name}
+        profilepic={user.profilepic ?? undefined}
+        size='md'
+        isOnline={isOnline}
+      />
 
       <View style={styles.content}>
         <View style={styles.topRow}>
@@ -56,10 +63,27 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
               typing...
             </Text>
           ) : (
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]} numberOfLines={1}>
+            <Text
+              style={[
+                styles.subtitle,
+                { color: unreadCount > 0 ? colors.foreground : colors.mutedForeground },
+                unreadCount > 0 ? styles.unreadText : null,
+              ]}
+              numberOfLines={1}
+            >
               {lastMessage || (isSearchResult ? 'Tap to start conversation' : 'No messages yet')}
             </Text>
           )}
+          {unreadCount > 0 ? (
+            <View
+              style={[styles.badge, { backgroundColor: colors.primary }]}
+              accessibilityLabel={`${unreadCount} unread`}
+            >
+              <Text style={[styles.badgeText, { color: colors.primaryForeground }]}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
     </PressableScale>
@@ -103,6 +127,17 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     flex: 1,
   },
+  unreadText: { fontWeight: '600' },
+  badge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { fontSize: 11, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });
 
 export default React.memo(ChatListItem);

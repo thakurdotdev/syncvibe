@@ -11,181 +11,131 @@ import {
   View,
 } from 'react-native';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
-import { useChat } from '@/context/SocketContext';
 import useApi from '@/utils/hooks/useApi';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
+import { toast } from '@/context/ToastContext';
 import LoginScreen from '@/components/LoginScreen';
 import ChatSearchBar from '@/components/chat/ChatSearchBar';
 import ChatListItem from '@/components/chat/ChatListItem';
 import { TabHeader } from '@/components/ui/AppHeader';
+import { openConversationWith, refreshConversations } from '@/lib/chat';
+import { previewOf, useChatStore, type Conversation } from '@/stores/chatStore';
 
 interface SearchUser {
-  userid: string;
+  userid: number;
   name: string;
   profilepic?: string;
 }
+
+const SEARCH_DELAY_MS = 400;
 
 const ChatListScreen: React.FC = () => {
   const { user } = useUser();
   const api = useApi();
   const { colors } = useTheme();
-  const {
-    users,
-    loading,
-    setLoading,
-    setCurrentChat,
-    getAllExistingChats,
-    socket,
-    onlineStatuses,
-  } = useChat();
+
+  const meId = useChatStore((s) => s.meId);
+  const conversations = useChatStore((s) => s.conversations);
+  const loaded = useChatStore((s) => s.conversationsLoaded);
+  const presence = useChatStore((s) => s.presence);
+  const typing = useChatStore((s) => s.typing);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+  const [searching, setSearching] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const inputRef = useRef<TextInput>(null);
-  const flatListRef = useRef<FlatList>(null);
+  const term = searchQuery.trim();
 
-  const searchUsers = useCallback(
-    async (query: string) => {
-      if (!query.trim()) {
-        setSearchResults([]);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const response = await api.get(`/api/user/search?name=${query}`);
-        setSearchResults(response.data.users || []);
-      } catch (error: any) {
-        setSearchResults([]);
-        console.error('Search error:', error);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [api, setLoading]
-  );
-
-  const createChat = useCallback(
-    async (person: any) => {
-      try {
-        setLoading(true);
-        const response = await api.post(`/api/create/chat`, {
-          receiverid: person.userid,
-        });
-
-        if (response.status === 200) {
-          const { chat } = response.data;
-          socket?.emit('join-room', chat.chatid);
-          // The response is only the bare chat; the screen also needs who it's with.
-          const list = await getAllExistingChats();
-          setCurrentChat(
-            list?.find((c) => c.chatid === chat.chatid) ?? { ...chat, otherUser: person }
-          );
-          setSearchResults([]);
-          setSearchQuery('');
-          Keyboard.dismiss();
-          router.push('/message');
-        }
-      } catch (error) {
-        console.error('Create chat error:', error);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [api, setLoading, setCurrentChat, socket, getAllExistingChats]
-  );
-
-  const handleUserSelect = useCallback(
-    (item: any, isSearchResult = false) => {
-      if (isSearchResult) {
-        createChat(item);
-      } else {
-        setCurrentChat(item);
-        router.push('/message');
-      }
-    },
-    [createChat, setCurrentChat]
-  );
-
-  const clearSearch = useCallback(() => {
-    setSearchQuery('');
-    setSearchResults([]);
-    Keyboard.dismiss();
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  const changeQuery = useCallback((value: string) => {
+    setSearchQuery(value);
+    setSearching(Boolean(value.trim()));
   }, []);
+
+  useEffect(() => {
+    if (!term) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await api.get('/api/user/search', { params: { name: term } });
+        if (!cancelled) setSearchResults(response.data.users || []);
+      } catch {
+        if (!cancelled) setSearchResults([]);
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, SEARCH_DELAY_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [term, api]);
+
+  const openConversation = useCallback((conversationId: number) => {
+    useChatStore.getState().setActive(conversationId);
+    router.push('/message');
+  }, []);
+
+  const startWith = useCallback(
+    async (person: SearchUser) => {
+      try {
+        const conversation = await openConversationWith(person.userid);
+        changeQuery('');
+        Keyboard.dismiss();
+        openConversation(conversation.id);
+      } catch {
+        toast(`Couldn't open a chat with ${person.name}`, { type: 'error' });
+      }
+    },
+    [openConversation, changeQuery]
+  );
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await getAllExistingChats();
+    await refreshConversations();
     setRefreshing(false);
-  }, [getAllExistingChats]);
+  }, []);
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      if (searchQuery.trim()) {
-        searchUsers(searchQuery);
-      } else {
-        setSearchResults([]);
-      }
-    }, 400);
-
-    return () => clearTimeout(handler);
-  }, [searchQuery, searchUsers]);
-
-  const isSearching = searchResults.length > 0;
-
-  const renderItem = useCallback(
-    ({ item }: { item: any }) => {
-      if (isSearching) {
-        return (
-          <ChatListItem user={item} isSearchResult onPress={() => handleUserSelect(item, true)} />
-        );
-      }
-
-      const otherUser = item.otherUser;
-      return (
-        <ChatListItem
-          user={otherUser}
-          lastMessage={item.lastmessage}
-          updatedAt={item.updatedat}
-          isOnline={onlineStatuses[otherUser?.userid]}
-          isTyping={item.isTyping}
-          onPress={() => handleUserSelect(item)}
-        />
-      );
-    },
-    [isSearching, handleUserSelect, onlineStatuses]
+  const renderConversation = useCallback(
+    ({ item }: { item: Conversation }) => (
+      <ChatListItem
+        user={item.peer}
+        lastMessage={previewOf(item.lastMessage, meId)}
+        updatedAt={item.lastMessageAt ?? undefined}
+        isOnline={Boolean(presence[item.peer.userid])}
+        isTyping={Boolean(typing[item.id])}
+        unreadCount={item.unreadCount}
+        onPress={() => openConversation(item.id)}
+      />
+    ),
+    [meId, presence, typing, openConversation]
   );
 
-  const renderEmpty = useCallback(
-    () => (
-      <View style={styles.emptyContainer}>
-        <Ionicons name='chatbubble-ellipses-outline' size={48} color={colors.mutedForeground} />
-        <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
-          {searchQuery.length > 0 ? 'No users found' : 'No conversations yet'}
-        </Text>
-        <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-          {searchQuery.length > 0
-            ? 'Try a different search term'
-            : 'Search for users to start messaging'}
-        </Text>
-      </View>
+  const renderPerson = useCallback(
+    ({ item }: { item: SearchUser }) => (
+      <ChatListItem user={item} isSearchResult onPress={() => startWith(item)} />
     ),
-    [colors, searchQuery]
+    [startWith]
   );
 
-  const renderHeader = useCallback(
-    () => (
-      <View style={styles.listHeader}>
-        <Text style={[styles.listHeaderText, { color: colors.mutedForeground }]}>
-          {isSearching ? `Search Results (${searchResults.length})` : 'Recent Conversations'}
-        </Text>
-      </View>
-    ),
-    [colors, isSearching, searchResults.length]
+  const empty = (
+    <View style={styles.emptyContainer}>
+      {(term ? searching : !loaded) ? (
+        <ActivityIndicator size='small' color={colors.primary} />
+      ) : (
+        <>
+          <Ionicons name='chatbubble-ellipses-outline' size={48} color={colors.mutedForeground} />
+          <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
+            {term ? 'No one found' : 'No conversations yet'}
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
+            {term ? 'Try a different name' : 'Search for someone to start messaging'}
+          </Text>
+        </>
+      )}
+    </View>
   );
 
   if (!user) {
@@ -201,80 +151,48 @@ const ChatListScreen: React.FC = () => {
 
       <ChatSearchBar
         value={searchQuery}
-        onChangeText={setSearchQuery}
-        onClear={clearSearch}
+        onChangeText={changeQuery}
+        onClear={() => {
+          changeQuery('');
+          Keyboard.dismiss();
+        }}
         inputRef={inputRef}
       />
 
-      {loading && (
-        <View pointerEvents='none' style={styles.loadingOverlay}>
-          <ActivityIndicator size='small' color={colors.primary} />
-        </View>
+      {term ? (
+        <FlatList
+          data={searching ? [] : searchResults}
+          keyExtractor={(item) => `person-${item.userid}`}
+          renderItem={renderPerson}
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps='handled'
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={empty}
+        />
+      ) : (
+        <FlatList
+          data={conversations}
+          keyExtractor={(item) => `conversation-${item.id}`}
+          renderItem={renderConversation}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          ListEmptyComponent={empty}
+          initialNumToRender={12}
+          windowSize={10}
+        />
       )}
-
-      <FlatList
-        ref={flatListRef}
-        data={isSearching ? searchResults : users}
-        keyExtractor={(item, index) =>
-          isSearching ? `search-${item.userid}-${index}` : `chat-${item?.chatid}`
-        }
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        refreshing={refreshing}
-        onRefresh={handleRefresh}
-        ListEmptyComponent={renderEmpty}
-        ListHeaderComponent={renderHeader}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={10}
-      />
     </TabSafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 42,
-    zIndex: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listContent: {
-    paddingBottom: 120,
-  },
-  listHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginBottom: 4,
-  },
-  listHeaderText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 16,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    marginTop: 8,
-    textAlign: 'center',
-    maxWidth: '80%',
-  },
+  container: { flex: 1 },
+  listContent: { paddingBottom: 120, paddingTop: 4 },
+  emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
+  emptyTitle: { fontSize: 16, fontWeight: '600', marginTop: 16 },
+  emptySubtitle: { fontSize: 13, marginTop: 8, textAlign: 'center', maxWidth: '80%' },
 });
 
 export default ChatListScreen;
