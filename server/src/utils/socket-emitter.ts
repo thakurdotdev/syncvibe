@@ -17,3 +17,8 @@ export const emitToUser = (userid: string | number, event: string, data: unknown
 
 export const getIO = (): Server | null => ioInstance;
 export const getUserSockets = (): Map<string, unknown> | null => userSocketsMap;
+
+/** Cuts the live connections of a sign-in that has just been revoked. */
+export const disconnectSession = (sessionId: string): void => {
+  ioInstance?.in(`session:${sessionId}`).disconnectSockets(true);
+};

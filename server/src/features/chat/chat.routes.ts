@@ -1,30 +1,14 @@
 import { Router } from 'express';
 import { authMiddleware } from '@/middleware/auth.middleware';
-import {
-  createChat,
-  getChatList,
-  deleteMessage,
-  getAllMessages,
-  updateMessage,
-} from './chat.controller';
+import { getConversations, getMessages, openConversation, postMessage } from './chat.controller';
 
+/**
+ * Reading over HTTP; sending, editing, deleting, reacting and read receipts go over the socket
+ * (see socket/chat), which also carries everything that happens to other devices.
+ */
 export const chatRouter: Router = Router();
 
-// Chat Management
-chatRouter.post('/create/chat', authMiddleware, createChat);
-chatRouter.post('/chat/create', authMiddleware, createChat);
-chatRouter.post('/chats', authMiddleware, createChat);
-
-// Chat List
-chatRouter.get('/get/chatlist', authMiddleware, getChatList);
-chatRouter.get('/chat/list', authMiddleware, getChatList);
-chatRouter.get('/chats', authMiddleware, getChatList);
-
-// Message Delete
-chatRouter.delete('/delete/message/:messageid', authMiddleware, deleteMessage);
-chatRouter.delete('/message/:messageid', authMiddleware, deleteMessage);
-chatRouter.put('/message/:messageid', authMiddleware, updateMessage);
-
-// Messages by Chat ID
-chatRouter.get('/get/messages/:chatid', authMiddleware, getAllMessages);
-chatRouter.get('/messages/:chatid', authMiddleware, getAllMessages);
+chatRouter.get('/chat/conversations', authMiddleware, getConversations);
+chatRouter.post('/chat/conversations', authMiddleware, openConversation);
+chatRouter.get('/chat/conversations/:conversationId/messages', authMiddleware, getMessages);
+chatRouter.post('/chat/conversations/:conversationId/messages', authMiddleware, postMessage);

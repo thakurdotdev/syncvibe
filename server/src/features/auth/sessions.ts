@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { UAParser } from 'ua-parser-js';
+import { disconnectSession } from '@/utils/socket-emitter';
 import { auth } from './auth';
 
 /**
@@ -111,6 +112,7 @@ export const revokeDeviceSession = async (req: Request, res: Response): Promise<
 
     const ctx = await auth.$context;
     await ctx.internalAdapter.deleteSession(session.token);
+    disconnectSession(String(session.id));
     res.status(200).json({ success: true });
   } catch (error) {
     console.error('Error revoking session:', error);
@@ -124,6 +126,7 @@ export const revokeOtherDeviceSessions = async (req: Request, res: Response): Pr
     const ctx = await auth.$context;
     const others = (await userSessions(req)).filter((s) => String(s.id) !== req.sessionId);
     await Promise.all(others.map((s) => ctx.internalAdapter.deleteSession(s.token)));
+    others.forEach((s) => disconnectSession(String(s.id)));
     res.status(200).json({ success: true, revoked: others.length });
   } catch (error) {
     console.error('Error revoking other sessions:', error);
