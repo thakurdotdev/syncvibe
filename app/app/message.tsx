@@ -1,4 +1,4 @@
-import ImageGallery from '@/components/ImageGallery';
+import ImageGallery, { type GalleryPhoto } from '@/components/ImageGallery';
 import SwipeableModal from '@/components/SwipeableModal';
 import ChatInput from '@/components/chat/ChatInput';
 import DateBubble from '@/components/chat/DateBubble';
@@ -28,6 +28,7 @@ import {
   useChatStore,
   type ChatMessage,
 } from '@/stores/chatStore';
+import { getOptimizedImageUrl } from '@/utils/Cloudinary';
 import { saveImageToGallery } from '@/utils/saveImage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -82,8 +83,6 @@ const formatDate = (dateString: string) => {
 const GROUP_GAP_MS = 5 * 60 * 1000;
 /** Scrolled this far back, a button appears to return to the latest message. */
 const JUMP_BUTTON_AFTER = 400;
-/** Time for one sheet to get out of the way before another opens. */
-const SHEET_SWAP_MS = 200;
 
 const JUMP_ENTER = FadeIn.duration(140).easing(EASE_OUT);
 const JUMP_EXIT = FadeOut.duration(100).easing(EASE_OUT);
@@ -104,13 +103,14 @@ const ChatWithUser = () => {
   );
   const isTyping = useChatStore((s) => Boolean(activeId && s.typing[activeId]));
 
-  const [text, setText] = useState('');
   const [photo, setPhoto] = useState<PickedPhoto | null>(null);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [editing, setEditing] = useState<ChatMessage | null>(null);
-  const [editText, setEditText] = useState('');
   const [selected, setSelected] = useState<ChatMessage | null>(null);
-  const [sheet, setSheet] = useState<'options' | 'confirm-delete' | 'info' | null>(null);
+  // One sheet whose contents change. Opening a second sheet while the first closes doesn't work:
+  // the first one reports "closed" when its animation ends, which shut the one that replaced it.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetView, setSheetView] = useState<'options' | 'confirm-delete' | 'info'>('options');
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
@@ -149,22 +149,23 @@ const ChatWithUser = () => {
     return () => subscription.remove();
   }, [activeId, thread.status, lastId]);
 
-  const handleChangeText = useCallback(
-    (value: string) => {
-      setText(value);
-      if (activeId) setTyping(activeId, value.trim().length > 0);
+  const handleTyping = useCallback(
+    (hasText: boolean) => {
+      if (activeId) setTyping(activeId, hasText);
     },
     [activeId]
   );
 
-  const handleSend = useCallback(() => {
-    if (!activeId || (!text.trim() && !photo)) return;
-    sendMessage(activeId, { body: text, photo, replyTo });
-    setText('');
-    setPhoto(null);
-    setReplyTo(null);
-    listRef.current?.scrollToOffset({ offset: 0, animated: true });
-  }, [activeId, text, photo, replyTo]);
+  const handleSend = useCallback(
+    (text: string) => {
+      if (!activeId || (!text.trim() && !photo)) return;
+      sendMessage(activeId, { body: text, photo, replyTo });
+      setPhoto(null);
+      setReplyTo(null);
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    },
+    [activeId, photo, replyTo]
+  );
 
   const handleAttachment = useCallback(async () => {
     try {
@@ -225,96 +226,138 @@ const ChatWithUser = () => {
     return result.reverse();
   }, [messages]);
 
-  const images = useMemo(
+  const photos = useMemo(
     () =>
       messages
         .filter((m) => m.attachment?.url && m.id != null)
-        .map((m) => ({ id: m.id, url: m.attachment!.url })),
-    [messages]
+        .map((m): GalleryPhoto & { id: number | null } => ({
+          id: m.id,
+          url: m.attachment!.url,
+          // The size the bubble already downloaded, shown until the full photo arrives.
+          preview: m.localUrl || getOptimizedImageUrl(m.attachment!.url, { thumbnail: true }),
+          title: m.senderId === meId ? 'You' : peerName,
+          subtitle: formatFullDateTime(m.createdAt),
+          caption: m.body,
+        })),
+    [messages, meId, peerName]
   );
 
   const handleImagePress = useCallback(
     (message: ChatMessage) => {
-      const index = images.findIndex((image) => image.id === message.id);
+      const index = photos.findIndex((item) => item.id === message.id);
       if (index !== -1) setGalleryIndex(index);
     },
-    [images]
+    [photos]
   );
 
   const handleLongPress = useCallback((message: ChatMessage) => {
     Keyboard.dismiss();
     setSelected(message);
-    setSheet('options');
+    setSheetView('options');
+    setSheetOpen(true);
   }, []);
 
+  const closeSheet = useCallback(() => setSheetOpen(false), []);
+
+  // Reactions, edits and deletes show at once and are put back if the server says no.
   const handleReact = useCallback((message: ChatMessage, emoji: string) => {
-    if (message.id == null) return;
-    toggleReaction(message, emoji).catch(() =>
-      toast("Couldn't add your reaction. Try again.", { type: 'error' })
-    );
-  }, []);
+    const { meId: me, updateMessage } = useChatStore.getState();
+    if (message.id == null || me == null) return;
+    const had = message.reactions.find((r) => r.userIds.includes(me))?.emoji;
+    const without = message.reactions
+      .map((r) => ({ ...r, userIds: r.userIds.filter((id) => id !== me) }))
+      .filter((r) => r.userIds.length > 0);
+    const reactions =
+      had === emoji
+        ? without
+        : without.some((r) => r.emoji === emoji)
+          ? without.map((r) => (r.emoji === emoji ? { ...r, userIds: [...r.userIds, me] } : r))
+          : [...without, { emoji, userIds: [me] }];
+    updateMessage({ ...message, reactions });
 
-  const closeSheet = useCallback(() => setSheet(null), []);
+    toggleReaction(message, emoji).catch(() => {
+      updateMessage(message);
+      toast("Couldn't add your reaction. Try again.", { type: 'error' });
+    });
+  }, []);
 
   const handleReply = useCallback(() => {
-    setSheet(null);
+    setSheetOpen(false);
     setEditing(null);
     setReplyTo(selected);
   }, [selected]);
 
   const handleStartEdit = useCallback(() => {
     if (!selected) return;
-    setSheet(null);
+    setSheetOpen(false);
     setReplyTo(null);
-    setEditText(selected.body || '');
     setEditing(selected);
   }, [selected]);
 
-  const handleSaveEdit = useCallback(async () => {
-    const target = editing;
-    const body = editText.trim();
-    setEditing(null);
-    setEditText('');
-    if (!target || body === (target.body || '')) return;
-    try {
-      await editMessage(target, body);
-    } catch {
-      toast("Couldn't save your edit. Try again.", { type: 'error' });
-    }
-  }, [editing, editText]);
+  const handleSaveEdit = useCallback(
+    (text: string) => {
+      const target = editing;
+      const body = text.trim();
+      setEditing(null);
+      if (!target || body === (target.body || '')) return;
+
+      const { updateMessage } = useChatStore.getState();
+      updateMessage({ ...target, body: body || null, editedAt: new Date().toISOString() });
+      editMessage(target, body).catch(() => {
+        updateMessage(target);
+        toast("Couldn't save your edit. Try again.", { type: 'error' });
+      });
+    },
+    [editing]
+  );
 
   const handleDelete = useCallback(() => {
     const target = selected;
     if (!target) return;
     // Never reached the server, so there's nothing to delete there.
     if (target.id == null) {
-      setSheet(null);
+      setSheetOpen(false);
       discardMessage(target);
       return;
     }
-    setSheet('confirm-delete');
+    setSheetView('confirm-delete');
   }, [selected]);
 
-  const handleConfirmDelete = useCallback(async () => {
+  const handleConfirmDelete = useCallback(() => {
     const target = selected;
-    setSheet(null);
-    if (!target) return;
-    try {
-      await deleteMessage(target);
-    } catch {
+    setSheetOpen(false);
+    if (!target || target.id == null) return;
+
+    const state = useChatStore.getState();
+    const current = state.conversations.find((c) => c.id === target.conversationId);
+    const remaining = (state.threads[target.conversationId]?.messages ?? []).filter(
+      (m) => m.id !== target.id
+    );
+    state.removeMessage({
+      conversationId: target.conversationId,
+      messageId: target.id,
+      lastMessage:
+        current?.lastMessage?.id === target.id
+          ? (remaining[remaining.length - 1] ?? null)
+          : current?.lastMessage,
+    });
+
+    deleteMessage(target).catch(() => {
+      // Puts back whatever the server still has.
+      void loadThread(target.conversationId);
       toast("Couldn't delete the message. Try again.", { type: 'error' });
-    }
+    });
   }, [selected]);
 
   const handleCopyText = useCallback(async () => {
-    setSheet(null);
+    setSheetOpen(false);
     if (!selected?.body) return;
     await Clipboard.setStringAsync(selected.body);
     toast('Copied');
   }, [selected]);
 
   const handleSavePhoto = useCallback(async () => {
-    setSheet(null);
+    setSheetOpen(false);
     if (!selected?.attachment) return;
     try {
       await saveImageToGallery(selected.attachment.url);
@@ -329,14 +372,27 @@ const ChatWithUser = () => {
     }
   }, [selected]);
 
-  const handleShowInfo = useCallback(() => {
-    setSheet(null);
-    setTimeout(() => setSheet('info'), SHEET_SWAP_MS);
-  }, []);
+  const handleShowInfo = useCallback(() => setSheetView('info'), []);
 
   const handleListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     setShowJumpToLatest(e.nativeEvent.contentOffset.y > JUMP_BUTTON_AFTER);
   }, []);
+
+  // Only the two positions decide a tick, so a new message or a badge change elsewhere in the
+  // conversation doesn't redraw the rows.
+  const peerRead = conversation?.peerLastReadMessageId ?? 0;
+  const peerDelivered = conversation?.peerLastDeliveredMessageId ?? 0;
+  const statusOf = useCallback(
+    (message: ChatMessage) =>
+      message.id == null
+        ? (message.status ?? 'sending')
+        : message.id <= peerRead
+          ? 'read'
+          : message.id <= peerDelivered
+            ? 'delivered'
+            : 'sent',
+    [peerRead, peerDelivered]
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: Row }) => {
@@ -348,7 +404,7 @@ const ChatWithUser = () => {
           isOwn={isOwn}
           meId={meId}
           peerName={peerName}
-          status={isOwn ? messageStatus(item.message, conversation) : null}
+          status={isOwn ? statusOf(item.message) : null}
           startsGroup={item.startsGroup}
           endsGroup={item.endsGroup}
           onImagePress={handleImagePress}
@@ -358,7 +414,24 @@ const ChatWithUser = () => {
         />
       );
     },
-    [meId, peerName, conversation, handleImagePress, handleLongPress, handleReact]
+    [meId, peerName, statusOf, handleImagePress, handleLongPress, handleReact]
+  );
+
+  const handleEndReached = useCallback(() => {
+    const { activeId: current } = useChatStore.getState();
+    if (current) void loadOlder(current);
+  }, []);
+
+  const jumpToLatest = useCallback(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, []);
+
+  const olderSpinner = useMemo(
+    () =>
+      thread.loadingOlder ? (
+        <ActivityIndicator style={styles.older} color={colors.mutedForeground} />
+      ) : null,
+    [thread.loadingOlder, colors.mutedForeground]
   );
 
   const keyExtractor = useCallback(
@@ -433,20 +506,16 @@ const ChatWithUser = () => {
               onScroll={handleListScroll}
               scrollEventThrottle={100}
               // The list is upside down, so its end is the oldest message.
-              onEndReached={() => activeId && loadOlder(activeId)}
+              onEndReached={handleEndReached}
               onEndReachedThreshold={0.4}
-              ListFooterComponent={
-                thread.loadingOlder ? (
-                  <ActivityIndicator style={styles.older} color={colors.mutedForeground} />
-                ) : null
-              }
+              ListFooterComponent={olderSpinner}
             />
           )}
 
           {showJumpToLatest ? (
             <Animated.View entering={JUMP_ENTER} exiting={JUMP_EXIT} style={styles.jump}>
               <PressableScale
-                onPress={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })}
+                onPress={jumpToLatest}
                 scaleTo={BUTTON_PRESS_SCALE}
                 accessibilityRole='button'
                 accessibilityLabel='Go to latest message'
@@ -462,9 +531,8 @@ const ChatWithUser = () => {
         </View>
 
         <ChatInput
-          message={text}
-          onChangeText={handleChangeText}
           onSend={handleSend}
+          onTyping={handleTyping}
           onAttach={handleAttachment}
           filePreview={photo?.uri ?? null}
           onRemoveAttachment={() => setPhoto(null)}
@@ -477,133 +545,134 @@ const ChatWithUser = () => {
               : null
           }
           onCancelReply={() => setReplyTo(null)}
-          editMode={Boolean(editing)}
-          editText={editText}
-          onEditTextChange={setEditText}
+          editing={
+            editing
+              ? {
+                  key: editing.clientId,
+                  body: editing.body || '',
+                  hasPhoto: Boolean(editing.attachment),
+                }
+              : null
+          }
           onSaveEdit={handleSaveEdit}
-          onCancelEdit={() => {
-            setEditing(null);
-            setEditText('');
-          }}
+          onCancelEdit={() => setEditing(null)}
         />
 
-        {galleryIndex != null && images.length > 0 ? (
+        {galleryIndex != null && photos.length > 0 ? (
           <ImageGallery
-            images={images.map((image) => image.url)}
-            initialIndex={Math.min(galleryIndex, images.length - 1)}
+            photos={photos}
+            initialIndex={Math.min(galleryIndex, photos.length - 1)}
             onClose={() => setGalleryIndex(null)}
           />
         ) : null}
 
-        <SwipeableModal isVisible={sheet === 'options'} onClose={closeSheet} dragAnywhere>
-          <View style={styles.sheet}>
-            {selectedOnServer ? (
-              <View style={styles.reactionRow}>
-                {QUICK_REACTIONS.map((emoji) => (
-                  <PressableScale
-                    key={emoji}
-                    onPress={() => {
-                      setSheet(null);
-                      if (selected) handleReact(selected, emoji);
-                    }}
-                    scaleTo={BUTTON_PRESS_SCALE}
-                    accessibilityRole='button'
-                    accessibilityLabel={`React ${emoji}`}
-                    accessibilityState={{ selected: myReaction === emoji }}
-                    style={[
-                      styles.reactionButton,
-                      myReaction === emoji ? { backgroundColor: colors.raised } : null,
-                    ]}
-                  >
-                    <Text style={styles.reactionEmoji}>{emoji}</Text>
-                  </PressableScale>
-                ))}
-              </View>
-            ) : null}
-            {selectedOnServer ? (
-              <OptionItem icon='arrow-undo-outline' text='Reply' onPress={handleReply} />
-            ) : null}
-            {selected?.body ? (
-              <OptionItem icon='copy-outline' text='Copy text' onPress={handleCopyText} />
-            ) : null}
-            {selected?.attachment && selectedOnServer ? (
-              <OptionItem icon='download-outline' text='Save photo' onPress={handleSavePhoto} />
-            ) : null}
-            {selectedIsOwn && selectedOnServer ? (
-              <OptionItem
-                icon='pencil-outline'
-                text={selected?.body ? 'Edit' : 'Add a caption'}
-                onPress={handleStartEdit}
-              />
-            ) : null}
-            {selectedIsOwn && selectedOnServer ? (
-              <OptionItem
-                icon='information-circle-outline'
-                text='Message info'
-                onPress={handleShowInfo}
-              />
-            ) : null}
-            {selectedIsOwn ? (
+        <SwipeableModal isVisible={sheetOpen} onClose={closeSheet} dragAnywhere>
+          {sheetView === 'options' ? (
+            <View style={styles.sheet}>
+              {selectedOnServer ? (
+                <View style={styles.reactionRow}>
+                  {QUICK_REACTIONS.map((emoji) => (
+                    <PressableScale
+                      key={emoji}
+                      onPress={() => {
+                        setSheetOpen(false);
+                        if (selected) handleReact(selected, emoji);
+                      }}
+                      scaleTo={BUTTON_PRESS_SCALE}
+                      accessibilityRole='button'
+                      accessibilityLabel={`React ${emoji}`}
+                      accessibilityState={{ selected: myReaction === emoji }}
+                      style={[
+                        styles.reactionButton,
+                        myReaction === emoji ? { backgroundColor: colors.raised } : null,
+                      ]}
+                    >
+                      <Text style={styles.reactionEmoji}>{emoji}</Text>
+                    </PressableScale>
+                  ))}
+                </View>
+              ) : null}
+              {selectedOnServer ? (
+                <OptionItem icon='arrow-undo-outline' text='Reply' onPress={handleReply} />
+              ) : null}
+              {selected?.body ? (
+                <OptionItem icon='copy-outline' text='Copy text' onPress={handleCopyText} />
+              ) : null}
+              {selected?.attachment && selectedOnServer ? (
+                <OptionItem icon='download-outline' text='Save photo' onPress={handleSavePhoto} />
+              ) : null}
+              {selectedIsOwn && selectedOnServer ? (
+                <OptionItem
+                  icon='pencil-outline'
+                  text={selected?.body ? 'Edit' : 'Add a caption'}
+                  onPress={handleStartEdit}
+                />
+              ) : null}
+              {selectedIsOwn && selectedOnServer ? (
+                <OptionItem
+                  icon='information-circle-outline'
+                  text='Message info'
+                  onPress={handleShowInfo}
+                />
+              ) : null}
+              {selectedIsOwn ? (
+                <OptionItem
+                  icon='trash-outline'
+                  text='Delete'
+                  onPress={handleDelete}
+                  color={colors.destructive}
+                />
+              ) : null}
+            </View>
+          ) : sheetView === 'confirm-delete' ? (
+            <View style={styles.sheet}>
+              <Text style={[styles.confirmTitle, { color: colors.foreground }]}>
+                Delete this message?
+              </Text>
+              <Text style={[styles.confirmText, { color: colors.mutedForeground }]}>
+                It will be removed for both of you. This can't be undone.
+              </Text>
               <OptionItem
                 icon='trash-outline'
-                text='Delete'
-                onPress={handleDelete}
+                text='Delete for everyone'
+                onPress={handleConfirmDelete}
                 color={colors.destructive}
               />
-            ) : null}
-          </View>
-        </SwipeableModal>
-
-        <SwipeableModal isVisible={sheet === 'confirm-delete'} onClose={closeSheet} dragAnywhere>
-          <View style={styles.sheet}>
-            <Text style={[styles.confirmTitle, { color: colors.foreground }]}>
-              Delete this message?
-            </Text>
-            <Text style={[styles.confirmText, { color: colors.mutedForeground }]}>
-              It will be removed for both of you. This can't be undone.
-            </Text>
-            <OptionItem
-              icon='trash-outline'
-              text='Delete for everyone'
-              onPress={handleConfirmDelete}
-              color={colors.destructive}
-            />
-            <OptionItem icon='close-outline' text='Cancel' onPress={closeSheet} />
-          </View>
-        </SwipeableModal>
-
-        <SwipeableModal isVisible={sheet === 'info'} onClose={closeSheet} dragAnywhere>
-          <View style={styles.sheet}>
-            <InfoRow icon='check' label='Sent' value={formatFullDateTime(selected?.createdAt)} />
-            <InfoRow
-              icon='check-all'
-              label='Delivered'
-              value={
-                selectedStatus === 'delivered' || selectedStatus === 'read'
-                  ? 'Delivered'
-                  : 'Not yet'
-              }
-            />
-            <InfoRow
-              icon='check-all'
-              label='Read'
-              value={
-                selectedStatus !== 'read'
-                  ? 'Not yet'
-                  : // The time is known only for the latest message the other person has read.
-                    (selected?.id === conversation?.peerLastReadMessageId &&
-                      formatFullDateTime(conversation?.peerLastReadAt)) ||
-                    'Read'
-              }
-            />
-            {selected?.editedAt ? (
+              <OptionItem icon='close-outline' text='Cancel' onPress={closeSheet} />
+            </View>
+          ) : (
+            <View style={styles.sheet}>
+              <InfoRow icon='check' label='Sent' value={formatFullDateTime(selected?.createdAt)} />
               <InfoRow
-                icon='pencil-outline'
-                label='Edited'
-                value={formatFullDateTime(selected.editedAt)}
+                icon='check-all'
+                label='Delivered'
+                value={
+                  selectedStatus === 'delivered' || selectedStatus === 'read'
+                    ? 'Delivered'
+                    : 'Not yet'
+                }
               />
-            ) : null}
-          </View>
+              <InfoRow
+                icon='check-all'
+                label='Read'
+                value={
+                  selectedStatus !== 'read'
+                    ? 'Not yet'
+                    : // The time is known only for the latest message the other person has read.
+                      (selected?.id === conversation?.peerLastReadMessageId &&
+                        formatFullDateTime(conversation?.peerLastReadAt)) ||
+                      'Read'
+                }
+              />
+              {selected?.editedAt ? (
+                <InfoRow
+                  icon='pencil-outline'
+                  label='Edited'
+                  value={formatFullDateTime(selected.editedAt)}
+                />
+              ) : null}
+            </View>
+          )}
         </SwipeableModal>
       </KeyboardAvoidingView>
     </SafeAreaView>
