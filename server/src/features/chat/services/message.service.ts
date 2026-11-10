@@ -55,6 +55,7 @@ const announceMessage = (message: MessageDto, members: number[]): void => {
         senderName: sender?.name,
         content: pushPreview(message),
         conversationId: message.conversationId,
+        messageId: message.id,
         senderid: message.senderId,
       });
     })().catch((error) => console.error('Announcing a chat message failed:', error));

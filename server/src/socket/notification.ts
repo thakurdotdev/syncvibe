@@ -7,6 +7,8 @@ export interface MessageNotificationData {
   senderName?: string;
   content?: string | null;
   conversationId?: number;
+  /** The message the notification is about, for "Mark as read". */
+  messageId?: number;
   senderid?: number | string;
   from?: string | number;
   name?: string;
@@ -37,6 +39,7 @@ export async function sendPushNotification(
       body: message.content || 'Sent a photo',
       data: {
         conversationId: message.conversationId,
+        messageId: message.messageId,
         senderId: message.senderid,
         type: 'message',
       },

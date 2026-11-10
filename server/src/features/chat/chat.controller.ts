@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { ChatError } from './chat.errors';
 import { asObject, parseId } from './chat.validation';
 import { listConversations, openDirectConversation } from './services/conversation.service';
-import { listMessages, sendMessage } from './services/message.service';
+import { listMessages, markRead, sendMessage } from './services/message.service';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 
@@ -43,6 +43,14 @@ export const getMessages = respond((req) =>
  */
 export const postMessage = respond(async (req) => ({
   message: await sendMessage(req.user!.userid, {
+    ...asObject(req.body),
+    conversationId: req.params.conversationId,
+  }),
+}));
+
+/** Like `postMessage`, for "Mark as read" on a notification while the app is closed. */
+export const postRead = respond(async (req) => ({
+  receipt: await markRead(req.user!.userid, {
     ...asObject(req.body),
     conversationId: req.params.conversationId,
   }),
