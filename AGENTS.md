@@ -181,7 +181,29 @@ The server owns what a room is playing; devices only ask for changes and follow.
   end rooms. Memory stays the source of truth; without `REDIS_URL` rooms just don't survive a restart.
   New fields on a room **MUST** be added to `serializeCore` / `deserializeRoom` with a default. It is
   not multi-instance: Socket.IO still runs in one process.
-- Room chat and invites still use their original events. Direct messages are separate: see below.
+- Room chat and invites still use their original events. Direct messages and calls are separate: see below.
+
+## Calls (video, web only)
+
+The server owns the call; the video goes browser to browser (WebRTC), through Cloudflare TURN only
+when the two can't reach each other directly.
+
+- **Server:** rules in `features/call/call.service.ts` (in memory, tested without a database through
+  `call.effects`), socket commands and events listed at the top of `socket/call.ts`. Every command
+  is answered; who is asking comes from the socket's session.
+- **One connection per side.** A call rings on all of the callee's devices; once answered it belongs
+  to one socket on each side and signals go only there. No offer travels with the ring: the two
+  browsers negotiate after the answer, so nothing is sent before the other side can receive it.
+- **Dropped connections:** a call outlives its socket for 30 s (`call:rejoin`), and both browsers
+  hold a signed token that puts an answered call back after a server restart, so a deploy doesn't
+  end calls.
+- **TURN credentials** (`features/call/ice-servers.ts`) come with the answer to `call:start` /
+  `call:accept`. Don't cache them in the browser.
+- **Client:** `lib/call.js` (server), `lib/callPeer.js` (WebRTC, perfect negotiation: the callee is
+  the polite side), `lib/callMedia.js` (camera, ringing), state in `stores/callStore`, screens in
+  `components/Call/`. Leave bitrate adaptation to the browser; only the cap is set.
+- The phone app doesn't take calls. It is in the same socket room and ignores `call:incoming`; the
+  callee gets a push when no device confirms ringing.
 
 ## Messages (direct chat)
 
