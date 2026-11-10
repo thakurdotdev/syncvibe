@@ -1,326 +1,98 @@
-import type { Server } from 'socket.io';
-import type { AuthenticatedSocket, SocketContext } from './types';
-import { sendPushNotification } from './notification';
-import { recordCall } from '@/features/chat/services/message.service';
-import type { CallDto } from '@/features/chat/chat.types';
-import { hasLiveConnection } from './presence';
+import type { AuthenticatedSocket } from './types';
+import type { SocketIdentity } from './auth';
+import { asObject } from '@/features/chat/chat.validation';
+import '@/features/call/call.effects.live';
+import {
+  CallError,
+  acceptCall,
+  endCall,
+  rejoinCall,
+  relaySignal,
+  socketGone,
+  startCall,
+  type Caller,
+} from '@/features/call/call.service';
 
-const CALL_TIMEOUT = 30000;
+/**
+ * Video calls between two people (web only; the phone app doesn't take calls yet).
+ *
+ * What a device asks for. Every command is answered through its acknowledgement with
+ * `{ ok: true, ... }` or `{ ok: false, code, message }`, and who is asking always comes from the
+ * socket's session.
+ *
+ *   call:start   { to }                → { call: { id, peer }, iceServers }
+ *   call:accept  { callId }            → { token, iceServers }
+ *   call:end     { callId }            → {}          hang up, decline, or cancel while ringing
+ *   call:rejoin  { callId, token? }    → { state, token, peerConnected }   after reconnecting
+ *   call:signal  { callId, data }      (no answer)   passed as it is to the other browser
+ *
+ * What the server sends:
+ *
+ *   call:incoming  { call: { id, peer } }    to all of the callee's devices; one that rings confirms
+ *   call:ringing   { callId }                to the caller: a device of the callee is ringing
+ *   call:accepted  { callId, token }         to the caller: start connecting
+ *   call:signal    { callId, data }          from the other browser
+ *   call:peer      { callId, connected }     the other side lost or regained its connection
+ *   call:ended     { callId, reason, by }    ended | declined | cancelled | missed | disconnected |
+ *                                            answered_elsewhere (only to the callee's other devices)
+ *
+ * Once answered, a call belongs to one connection on each side: signals go there and nowhere
+ * else. The rules are in features/call/call.service.
+ */
 
-interface CallLogParams {
-  callerId: string | number;
-  receiverId: string | number;
-  outcome: CallDto['outcome'];
-  duration: number | null;
-}
+type Command = (who: Caller, payload: Record<string, unknown>) => Promise<object>;
 
-/** The call shows up in the two people's conversation, like any other message. */
-const emitCallLog = ({ callerId, receiverId, outcome, duration }: CallLogParams): void => {
-  recordCall(Number(callerId), Number(receiverId), {
-    outcome,
-    ...(duration ? { durationSec: duration } : {}),
-  }).catch((err) => console.error('Call log save failed:', err));
+const COMMANDS: Record<string, Command> = {
+  'call:start': startCall,
+  'call:accept': acceptCall,
+  'call:end': endCall,
+  'call:rejoin': rejoinCall,
 };
 
-export const cleanupCall = (
-  userId: string | number,
-  context: SocketContext
-): string | number | null => {
-  const { activeVideoCalls, callTimeouts } = context;
-  const userKey = String(userId);
-  if (!activeVideoCalls.has(userKey)) return null;
+export const setupCallHandlers = (socket: AuthenticatedSocket): void => {
+  const who = (): Caller | null => {
+    const identity: SocketIdentity | undefined = socket.data.identity;
+    return identity ? { userId: identity.userId, socketId: socket.id } : null;
+  };
 
-  const otherUser = activeVideoCalls.get(userKey)!;
-  const otherKey = String(otherUser);
-  activeVideoCalls.delete(userKey);
-  activeVideoCalls.delete(otherKey);
+  for (const [event, command] of Object.entries(COMMANDS)) {
+    socket.on(event, async (payload: unknown, acknowledge: unknown) => {
+      const reply = typeof acknowledge === 'function' ? acknowledge : () => {};
+      const caller = who();
+      if (!caller) {
+        reply({ ok: false, code: 'UNAUTHENTICATED', message: 'Sign in again to make calls' });
+        return;
+      }
 
-  [userKey, otherKey].forEach((id) => {
-    const timeout = callTimeouts.get(id);
-    if (timeout) {
-      clearTimeout(timeout);
-      callTimeouts.delete(id);
-    }
-  });
-
-  return otherUser;
-};
-
-export const createCallHandlers = (
-  io: Server,
-  socket: AuthenticatedSocket,
-  context: SocketContext
-): void => {
-  const { activeVideoCalls, callTimeouts, callStartTimes, userSockets } = context;
-
-  const emitError = (code: string, message?: string) => {
-    socket.emit('call-error', {
-      message: message || 'An error occurred during the call',
-      code,
+      try {
+        reply({ ok: true, ...(await command(caller, asObject(payload))) });
+      } catch (error) {
+        if (error instanceof CallError) {
+          reply({ ok: false, code: error.code, message: error.message });
+          return;
+        }
+        console.error(`${event} failed:`, error);
+        reply({ ok: false, code: 'INTERNAL', message: 'Something went wrong. Try again.' });
+      }
     });
-  };
+  }
 
-  const requireSetup = (): boolean => {
-    if (!socket.userId) {
-      emitError('NOT_AUTHENTICATED', 'Socket not authenticated');
-      return false;
-    }
-    return true;
-  };
-
-  socket.on(
-    'call-user',
-    async (data: { to?: string | number; offer?: unknown; name?: string; profilepic?: string }) => {
-      if (!requireSetup()) return;
-
-      try {
-        const { to, offer } = data;
-
-        if (!to || !offer) {
-          return emitError('INVALID_DATA', 'Missing required call data');
-        }
-
-        const senderKey = String(socket.userId);
-        const recipientKey = String(to);
-
-        if (activeVideoCalls.has(senderKey)) {
-          return emitError('ALREADY_IN_CALL', 'You are already in a call');
-        }
-
-        const recipientSocket =
-          userSockets.get(recipientKey) || userSockets.get(String(Number(to)));
-        if (!recipientSocket) {
-          return emitError('USER_OFFLINE', 'User is offline');
-        }
-
-        if (activeVideoCalls.has(recipientKey)) {
-          return emitError('USER_BUSY', 'User is busy on another call');
-        }
-
-        activeVideoCalls.set(senderKey, to);
-        activeVideoCalls.set(recipientKey, socket.userId!);
-
-        const timeoutId = setTimeout(() => {
-          if (activeVideoCalls.has(senderKey)) {
-            cleanupCall(senderKey, context);
-            emitError('CALL_TIMEOUT', 'Call not answered');
-            io.to(recipientKey).emit('call-ended', {
-              from: socket.userId,
-              reason: 'timeout',
-            });
-
-            emitCallLog({
-              callerId: socket.userId!,
-              receiverId: to,
-              outcome: 'missed',
-              duration: null,
-            });
-          }
-        }, CALL_TIMEOUT);
-
-        callTimeouts.set(senderKey, timeoutId);
-
-        socket.to(recipientKey).emit('incoming-call', {
-          from: socket.userId,
-          name: data.name,
-          profilepic: data.profilepic,
-          offer,
-        });
-
-        if (!hasLiveConnection(recipientKey)) {
-          sendPushNotification(to, { name: data.name, from: socket.userId }, 'call').catch(
-            console.error
-          );
-        }
-      } catch (error) {
-        console.error('call-user error:', error);
-        emitError('CALL_INITIATION_FAILED', (error as Error).message);
-      }
-    }
-  );
-
-  socket.on(
-    'call-accepted',
-    (data: { to?: string | number; answer?: unknown; name?: string; profilepic?: string }) => {
-      if (!requireSetup()) return;
-
-      try {
-        const { to, answer } = data;
-
-        if (!to || !answer) {
-          return emitError('INVALID_DATA', 'Missing required answer data');
-        }
-
-        const senderKey = String(socket.userId);
-        const recipientKey = String(to);
-
-        if (
-          !activeVideoCalls.has(senderKey) ||
-          String(activeVideoCalls.get(senderKey)) !== recipientKey
-        ) {
-          return emitError('NO_ACTIVE_CALL', 'No active call to accept');
-        }
-
-        if (callTimeouts.has(recipientKey)) {
-          clearTimeout(callTimeouts.get(recipientKey)!);
-          callTimeouts.delete(recipientKey);
-        }
-
-        const callKey = [senderKey, recipientKey].sort().join('-');
-        callStartTimes.set(callKey, Date.now());
-
-        socket.to(recipientKey).emit('call-accepted', {
-          from: socket.userId,
-          name: data.name,
-          profilepic: data.profilepic,
-          answer,
-        });
-      } catch (error) {
-        console.error('call-accepted error:', error);
-        emitError('CALL_ACCEPT_FAILED', (error as Error).message);
-      }
-    }
-  );
-
-  socket.on('call-rejected', (data?: { reason?: string }) => {
-    if (!requireSetup()) return;
-
-    try {
-      const otherUser = cleanupCall(socket.userId!, context);
-      if (otherUser) {
-        socket.to(String(otherUser)).emit('call-rejected', {
-          from: socket.userId,
-          reason: data?.reason,
-        });
-
-        emitCallLog({
-          callerId: otherUser,
-          receiverId: socket.userId!,
-          outcome: 'rejected',
-          duration: null,
-        });
-      }
-    } catch (error) {
-      console.error('call-rejected error:', error);
-      emitError('CALL_REJECT_FAILED', (error as Error).message);
-    }
+  socket.on('call:signal', (payload: unknown) => {
+    const caller = who();
+    if (caller) relaySignal(caller, asObject(payload));
   });
 
-  socket.on('ice-candidate', (data: { candidate?: unknown }) => {
-    if (!requireSetup()) return;
-
-    try {
-      const { candidate } = data;
-      if (!candidate) return;
-
-      const targetUser = activeVideoCalls.get(String(socket.userId));
-      if (targetUser) {
-        socket.to(String(targetUser)).emit('ice-candidate', {
-          from: socket.userId,
-          candidate,
-        });
-      }
-    } catch (error) {
-      console.error('ice-candidate error:', error);
-    }
+  socket.on('disconnect', () => {
+    const caller = who();
+    if (caller) socketGone(caller);
   });
 
-  socket.on('ice-restart', (data: { offer?: unknown }) => {
-    if (!requireSetup()) return;
-
-    try {
-      const { offer } = data;
-      if (!offer) return;
-
-      const targetUser = activeVideoCalls.get(String(socket.userId));
-      if (!targetUser) return;
-
-      socket.to(String(targetUser)).emit('ice-restart', {
-        from: socket.userId,
-        offer,
-      });
-    } catch (error) {
-      console.error('ice-restart error:', error);
-      emitError('ICE_RESTART_FAILED', (error as Error).message);
-    }
+  // A tab that was open before calls changed still speaks the old way. It can't be connected,
+  // so it is told at once instead of ringing nobody until it gives up.
+  socket.on('call-user', () => {
+    socket.emit('call-error', {
+      code: 'USER_OFFLINE',
+      message: 'Refresh the page to make calls',
+    });
   });
-
-  socket.on('ice-restart-accept', (data: { answer?: unknown }) => {
-    if (!requireSetup()) return;
-
-    try {
-      const { answer } = data;
-      if (!answer) return;
-
-      const targetUser = activeVideoCalls.get(String(socket.userId));
-      if (!targetUser) return;
-
-      socket.to(String(targetUser)).emit('ice-restart-accept', {
-        from: socket.userId,
-        answer,
-      });
-    } catch (error) {
-      console.error('ice-restart-accept error:', error);
-    }
-  });
-
-  socket.on('end-call', () => {
-    if (!requireSetup()) return;
-
-    try {
-      const otherUser = activeVideoCalls.get(String(socket.userId));
-      cleanupCall(socket.userId!, context);
-
-      if (otherUser) {
-        socket.to(String(otherUser)).emit('call-ended', {
-          from: socket.userId,
-          reason: 'ended',
-        });
-
-        const callKey = [String(socket.userId), String(otherUser)].sort().join('-');
-        const startTime = callStartTimes.get(callKey);
-        callStartTimes.delete(callKey);
-
-        const duration = startTime ? Math.round((Date.now() - startTime) / 1000) : null;
-
-        emitCallLog({
-          callerId: socket.userId!,
-          receiverId: otherUser,
-          outcome: duration ? 'completed' : 'missed',
-          duration,
-        });
-      }
-    } catch (error) {
-      console.error('end-call error:', error);
-      emitError('END_CALL_FAILED', (error as Error).message);
-    }
-  });
-};
-
-export const handleCallDisconnect = (
-  io: Server,
-  userId: string | number,
-  context: SocketContext
-): string | number | null => {
-  const { activeVideoCalls, callStartTimes } = context;
-  const userKey = String(userId);
-  const otherUser = activeVideoCalls.get(userKey);
-  if (!otherUser) return null;
-
-  cleanupCall(userId, context);
-
-  const callKey = [userKey, String(otherUser)].sort().join('-');
-  const startTime = callStartTimes.get(callKey);
-  callStartTimes.delete(callKey);
-
-  const duration = startTime ? Math.round((Date.now() - startTime) / 1000) : null;
-
-  emitCallLog({
-    callerId: Number(userId),
-    receiverId: Number(otherUser),
-    outcome: duration ? 'completed' : 'missed',
-    duration,
-  });
-
-  return otherUser;
 };

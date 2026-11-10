@@ -1,5 +1,5 @@
 import type { Server, Socket } from 'socket.io';
-import type { AuthenticatedSocket, SocketContext } from './types';
+import type { AuthenticatedSocket } from './types';
 import { setupGroupMusicHandlers, handleUserDisconnect, releaseSocket } from './group-music';
 import { setSocketIO } from '@/utils/socket-emitter';
 import { userRoom } from '@/features/chat/chat.realtime';
@@ -7,25 +7,15 @@ import { markAllDelivered } from '@/features/chat/services/message.service';
 import { identifySocket, sessionRoom } from './auth';
 import { setupChatHandlers } from './chat';
 import { presenceActive, presenceConnected, presenceDisconnected } from './presence';
-import { createCallHandlers, handleCallDisconnect } from './call';
+import { setupCallHandlers } from './call';
 
 /** Set once no app older than 1.7 is in use: sockets without a valid session are then refused. */
 const REQUIRE_SESSION = process.env.SOCKET_REQUIRE_SESSION === 'true';
 
 export const socketManager = (io: Server): void => {
   const userSockets = new Map<string, Socket>();
-  const activeVideoCalls = new Map<string, string | number>();
-  const callTimeouts = new Map<string, NodeJS.Timeout>();
-  const callStartTimes = new Map<string, number>();
 
   setSocketIO(io, userSockets);
-
-  const context: SocketContext = {
-    userSockets,
-    activeVideoCalls,
-    callTimeouts,
-    callStartTimes,
-  };
 
   io.use((socket, next) => {
     identifySocket(socket)
@@ -85,7 +75,7 @@ export const socketManager = (io: Server): void => {
         }
 
         // Apps up to 1.6.x connect without a session and name their user here. That is enough for
-        // music rooms and calls as it always was, and for nothing else.
+        // music rooms as it always was, and for nothing else.
         adopt(socket, String(userData.userid));
         socket.emit('setup-complete');
       } catch (error) {
@@ -98,7 +88,7 @@ export const socketManager = (io: Server): void => {
     });
 
     setupChatHandlers(socket);
-    createCallHandlers(io, socket, context);
+    setupCallHandlers(socket);
 
     // Apps from 1.7.2 say when they go to the background, so "online" means the app is open.
     socket.on('presence:active', (payload?: { active?: unknown }) => {
@@ -111,19 +101,8 @@ export const socketManager = (io: Server): void => {
       const userId = socket.userId;
       if (!userId) return;
 
-      // Still on another device, or already back on a new connection: nothing has changed for
-      // anyone else, so no ended call and no leaving the room.
-      const stillConnected = releaseSocket(io, userSockets, userId, socket);
+      releaseSocket(io, userSockets, userId, socket);
       handleUserDisconnect(io, userId);
-      if (stillConnected) return;
-
-      const otherUser = handleCallDisconnect(io, userId, context);
-      if (otherUser) {
-        io.to(String(otherUser)).emit('call-ended', {
-          from: userId,
-          reason: 'user_disconnected',
-        });
-      }
     });
   });
 };

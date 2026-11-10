@@ -2,14 +2,12 @@ import { Loader2 } from 'lucide-react';
 import { Suspense, useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import ActiveGroupBar from '@/components/ActiveGroupBar';
-import IncomingCallNotification from '@/components/Chat/IncomingCall';
-import VideoCallUI from '@/components/Chat/VideoCall';
+import CallLayer from '@/components/Call/CallLayer';
 import { useProfileSuspenseQuery } from '@/hooks/queries/useProfileQuery';
 import { paths } from '@/lib/paths';
 import { cn } from '@/lib/utils';
 import BottomPlayer from '@/Pages/Music/BottomPlayer';
 import MusicCommand from '@/Pages/Music/MusicCommand';
-import { useVideoCallStore } from '@/stores/videoCallStore';
 import { MobileTabBar, MobileTopBar, useTabBarVisible } from './MobileBars';
 import Sidebar from './Sidebar';
 import { useShellLayout } from './useShellLayout';
@@ -37,7 +35,6 @@ const AppShell = () => {
   const { hasSidebar, canExpand, isExpanded, isMobile } = useShellLayout();
   const tabBarVisible = useTabBarVisible();
   const scrollRef = useRef(null);
-  const { incomingCall, isInCall, answerCall, rejectCall } = useVideoCallStore();
 
   const fullHeight = FULL_HEIGHT_PREFIXES.some((p) => pathname.startsWith(p));
 
@@ -81,12 +78,7 @@ const AppShell = () => {
       <BottomPlayer />
       <ActiveGroupBar />
       <MusicCommand />
-      <IncomingCallNotification
-        incomingCall={incomingCall}
-        answerCall={answerCall}
-        endCall={rejectCall}
-      />
-      {isInCall && <VideoCallUI />}
+      <CallLayer />
     </div>
   );
 };
