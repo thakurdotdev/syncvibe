@@ -30,6 +30,7 @@ import {
   usePlayerStore,
 } from '@/stores/playerStore';
 import { useProgress } from '@rntp/player';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -402,7 +403,23 @@ const Orb = memo(function Orb({
     >
       <GlassSurface radius={PILL_HEIGHT / 2} style={styles.orb} contentStyle={styles.orbInner}>
         {kind === 'idle' ? (
-          <SearchMusicIcon color={colors.foreground} />
+          // Nothing playing: an ember orb that invites you to find something, the bar's one
+          // spot of colour. A soft highlight on the upper left gives it some depth.
+          <View style={styles.orbIdle}>
+            <LinearGradient
+              colors={colors.gradients.primary as [string, string, ...string[]]}
+              start={{ x: 0.15, y: 0 }}
+              end={{ x: 0.85, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.38)', 'rgba(255, 255, 255, 0)']}
+              start={{ x: 0.2, y: 0 }}
+              end={{ x: 0.6, y: 0.6 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <SearchMusicIcon size={24} color={colors.primaryForeground} />
+          </View>
         ) : (
           <>
             {kind === 'song' && <OrbRing color={colors.primary} trackColor={colors.hairline} />}
@@ -420,11 +437,6 @@ const Orb = memo(function Orb({
                 fadeDuration={0}
               />
             </Animated.View>
-            {kind === 'room' && (
-              <View
-                style={[styles.orbLive, { backgroundColor: colors.live, borderColor: colors.card }]}
-              />
-            )}
           </>
         )}
       </GlassSurface>
@@ -761,14 +773,13 @@ const styles = StyleSheet.create({
   ring: { position: 'absolute', top: -0.5, left: -0.5 },
   orbArtBox: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },
   orbArt: { width: 44, height: 44 },
-  orbLive: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
+  orbIdle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   card: { height: 58 },
