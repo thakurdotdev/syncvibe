@@ -34,6 +34,8 @@ export default function ProfileScreen() {
   const isUpdateAvailable = useAppUpdateStore((s) => s.isUpdateAvailable);
   const glass = useDeckStore((s) => s.glass);
   const setGlass = useDeckStore((s) => s.setGlass);
+  const showCard = useDeckStore((s) => s.showCard);
+  const setShowCard = useDeckStore((s) => s.setShowCard);
   const [showDeveloper, setShowDeveloper] = useState(false);
 
   useEffect(() => {
@@ -119,6 +121,21 @@ export default function ProfileScreen() {
               }
             />
           )}
+          <SettingsRow
+            icon='music'
+            label='Player card'
+            detail='Song and room above the tabs'
+            onPress={() => setShowCard(!showCard)}
+            trailing={
+              <Switch
+                value={showCard}
+                onValueChange={setShowCard}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.card}
+                accessibilityLabel='Player card'
+              />
+            }
+          />
           <SettingsRow
             icon='shield'
             label='Security'
