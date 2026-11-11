@@ -11,12 +11,13 @@ import {
   useQueueCount,
   useQueueNeighbors,
 } from '@/stores/playerStore';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BackHandler, Image, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, BackHandler, Image, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   clamp,
   interpolate,
+  useAnimatedReaction,
   FadeIn,
   FadeOut,
   ReduceMotion,
@@ -120,6 +121,19 @@ export default function Player() {
   const coverScale = useSharedValue(1);
   /** Mounted and drawn from the first frame of opening until the last of closing. */
   const shown = useSharedValue(false);
+  /**
+   * Bumped when the player finishes closing, so its styles are applied again even if nothing
+   * else changed. If the view and the values ever disagree (the player showing while the values
+   * say it's closed), closing then puts the view right instead of being a no-op.
+   */
+  const redraw = useSharedValue(0);
+  /** The player's own record of being open: what back and ✕ go by, never the animation. */
+  const openRef = useRef(false);
+  /** Each open or close gets a number, so a late timer from an earlier one does nothing. */
+  const moveToken = useRef(0);
+  const closeGuard = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Counts swipes that closed the player, so the JS side can guard those closes too. */
+  const swipeClosed = useSharedValue(0);
   const queueShown = useSharedValue(0);
   const queueOpen = useSharedValue(false);
   const startQueueShown = useSharedValue(0);
@@ -138,6 +152,9 @@ export default function Player() {
   }, [coverScale, isPlaying]);
 
   const openPlayer = useCallback(() => {
+    moveToken.current += 1;
+    if (closeGuard.current) clearTimeout(closeGuard.current);
+    openRef.current = true;
     setIsOpen(true);
     origin.set(openOrigin.get() ?? orbOrigin.get());
     dragY.set(0);
@@ -150,16 +167,24 @@ export default function Player() {
     return () => setOnOpenFullPlayer(null);
   }, [openPlayer]);
 
-  useEffect(() => setFullPlayerOpen(isOpen), [isOpen]);
+  useEffect(() => {
+    setFullPlayerOpen(isOpen);
+    if (isOpen) return;
+    // Closed: back goes to the app again, and no close guard is left waiting.
+    openRef.current = false;
+    if (closeGuard.current) clearTimeout(closeGuard.current);
+    closeGuard.current = null;
+  }, [isOpen]);
 
   const handleClosed = useCallback(() => {
     shown.set(false);
     dragY.set(0);
+    redraw.set(redraw.get() + 1);
     setIsOpen(false);
     setActiveTab('player');
     queueShown.set(0);
     queueOpen.set(false);
-  }, [dragY, queueOpen, queueShown, shown]);
+  }, [dragY, queueOpen, queueShown, redraw, shown]);
 
   const animateClosed = useCallback(
     (velocity = 0) => {
@@ -186,10 +211,54 @@ export default function Player() {
   );
   const openQueue = useCallback(() => showTab('queue'), [showTab]);
 
+  /**
+   * Closes the player from the JS side (✕, back, the queue's way out). The close normally
+   * finishes when its animation does; if that animation is interrupted or was already at its
+   * end (nothing to animate), it finishes anyway a moment later, so the player can't be left
+   * on screen with nothing able to close it.
+   */
+  const guardClose = useCallback(() => {
+    const token = ++moveToken.current;
+    if (closeGuard.current) clearTimeout(closeGuard.current);
+    closeGuard.current = setTimeout(() => {
+      closeGuard.current = null;
+      if (moveToken.current === token && openRef.current) handleClosed();
+    }, CLOSE.duration + 600);
+  }, [handleClosed]);
+
+  useAnimatedReaction(
+    () => swipeClosed.get(),
+    (now, previous) => {
+      if (previous !== null && now !== previous) scheduleOnRN(guardClose);
+    },
+    [guardClose]
+  );
+
+  const closePlayer = useCallback(() => {
+    if (progress.get() <= 0.001) {
+      moveToken.current += 1;
+      handleClosed();
+      return;
+    }
+    animateClosed();
+    guardClose();
+  }, [animateClosed, guardClose, handleClosed, progress]);
+
+  useEffect(() => {
+    // Coming back to the app, put the player's view in line with its values again.
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') redraw.set(redraw.get() + 1);
+    });
+    return () => {
+      sub.remove();
+      if (closeGuard.current) clearTimeout(closeGuard.current);
+    };
+  }, [redraw]);
+
   const handleBack = useCallback(() => {
     if (activeTab === 'queue') showTab('player');
-    else animateClosed();
-  }, [activeTab, animateClosed, showTab]);
+    else closePlayer();
+  }, [activeTab, closePlayer, showTab]);
 
   const artistName = useMemo(
     () =>
@@ -258,12 +327,14 @@ export default function Player() {
             (e.translationY > DISMISS_DISTANCE || e.velocityY > DISMISS_VELOCITY)
           ) {
             animateClosed(e.velocityY);
+            swipeClosed.set(swipeClosed.get() + 1);
           } else {
             dragY.set(withSpring(0, { ...SNAP_BACK, velocity: e.velocityY }));
           }
         }),
     [
       animateClosed,
+      swipeClosed,
       directionPending,
       dragY,
       draggingQueue,
@@ -329,6 +400,7 @@ export default function Player() {
   // with it). Only it changes size: the content inside keeps the screen's size and position,
   // so nothing in the player is laid out again while it moves.
   const sheetStyle = useAnimatedStyle(() => {
+    redraw.get();
     const p = progress.get();
     const { box } = origin.get() ?? fallback;
     const drag = dragY.get();
@@ -354,6 +426,7 @@ export default function Player() {
   });
   // The cover flies between the deck's artwork and its place in the player.
   const flyingCoverStyle = useAnimatedStyle(() => {
+    redraw.get();
     const p = progress.get();
     const { art } = origin.get() ?? fallback;
     const size = artworkSize * coverScale.get();
@@ -385,13 +458,23 @@ export default function Player() {
   }));
 
   useEffect(() => {
+    // While the player is open, back always closes it (never the app behind it).
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (!shown.get() || progress.get() <= 0) return false;
+      if (!openRef.current) return false;
       handleBack();
       return true;
     });
     return () => backHandler.remove();
-  }, [handleBack, progress, shown]);
+  }, [handleBack]);
+
+  // Stable objects, so a re-render of the player doesn't send these views new style props:
+  // fewer commits racing the styles the animation sets.
+  const sheetColors = useMemo(() => ({ backgroundColor: colors.background }), [colors.background]);
+  const sheetFrame = useMemo(
+    () => ({ width: screenWidth, height: screenHeight, paddingTop: insets.top }),
+    [insets.top, screenHeight, screenWidth]
+  );
+  const coverColors = useMemo(() => ({ backgroundColor: colors.raised }), [colors.raised]);
 
   if (!currentSong) return null;
 
@@ -401,14 +484,8 @@ export default function Player() {
 
   return (
     <>
-      <Animated.View style={[styles.sheet, sheetStyle, { backgroundColor: colors.background }]}>
-        <Animated.View
-          style={[
-            styles.sheetContent,
-            { width: screenWidth, height: screenHeight, paddingTop: insets.top },
-            sheetContentStyle,
-          ]}
-        >
+      <Animated.View style={[styles.sheet, sheetColors, sheetStyle]}>
+        <Animated.View style={[styles.sheetContent, sheetFrame, sheetContentStyle]}>
           <Backdrop uri={backdropUri} />
 
           <GestureDetector gesture={headerGesture}>
@@ -467,7 +544,7 @@ export default function Player() {
       {/* Above the sheet: the cover on its way between the deck and the player. */}
       <Animated.View
         pointerEvents='none'
-        style={[styles.flyingCover, { backgroundColor: colors.raised }, flyingCoverStyle]}
+        style={[styles.flyingCover, coverColors, flyingCoverStyle]}
       >
         {coverUri ? (
           <Image source={{ uri: coverUri }} fadeDuration={0} style={StyleSheet.absoluteFill} />
