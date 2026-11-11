@@ -10,6 +10,7 @@ import {
 import { io } from 'socket.io-client';
 import { bindCallSocket } from '@/lib/call';
 import { bindChatSocket, resetChat } from '@/lib/chat';
+import { bindPlayerSocket } from '@/lib/player';
 import { paths } from '@/lib/paths';
 import { previewOf, useChatStore } from '@/stores/chatStore';
 import { Context } from './Context';
@@ -85,11 +86,13 @@ export const ChatProvider = ({ children }) => {
 
     const unbindChat = bindChatSocket(newSocket, { userId, onIncoming: notify });
     const unbindCalls = bindCallSocket(newSocket);
+    const unbindPlayer = bindPlayerSocket(newSocket);
 
     setSocket(newSocket);
 
     return () => {
       unbindChat();
+      unbindPlayer();
       // Before the socket closes, so a call in progress can still be hung up.
       unbindCalls();
       closeSocket();

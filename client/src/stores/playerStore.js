@@ -3,12 +3,7 @@ import { persist } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
 import { ensureHttpsForDownloadUrls, addToHistory } from '@/Pages/Music/Common';
 import axios from 'axios';
-import {
-  recordPlayEnd,
-  recordPlayProgress,
-  recordPlayStart,
-  setPlayEndReason,
-} from './playEvents';
+import { recordPlayEnd, recordPlayProgress, recordPlayStart, setPlayEndReason } from './playEvents';
 
 let audioElement = null;
 let nextAudioElement = null;
@@ -17,6 +12,19 @@ const TIME_STORAGE_KEY = 'player-time';
 const getAudioUrl = (song) => {
   return song?.download_url?.[4]?.link || song?.download_url?.[3]?.link || '';
 };
+
+export const getAudioElement = () => audioElement;
+
+/**
+ * While your devices share one player (lib/player.js), it takes the actions below that change
+ * what plays and sends them to the server instead. It returns true when it did; otherwise the
+ * action runs here as it always has.
+ */
+let router = null;
+export const setPlayerRouter = (next) => {
+  router = next;
+};
+const routed = (action, ...args) => Boolean(router?.(action, ...args));
 
 export const usePlayerStore = create(
   persist(
@@ -57,6 +65,10 @@ export const usePlayerStore = create(
       isClosed: false,
 
       closePlayer: () => {
+        if (routed('stop')) {
+          set({ isClosed: true });
+          return;
+        }
         if (audioElement) {
           audioElement.pause();
         }
@@ -71,6 +83,7 @@ export const usePlayerStore = create(
 
       playSong: (song) => {
         if (!song?.id) return;
+        if (routed('playSong', ensureHttpsForDownloadUrls(song))) return;
         set({ isLoading: true, isClosed: false });
         const secureAudio = ensureHttpsForDownloadUrls(song);
         const { playlist, currentSong } = get();
@@ -83,6 +96,7 @@ export const usePlayerStore = create(
       },
 
       stopSong: () => {
+        if (routed('stop')) return;
         recordPlayEnd('closed');
         if (audioElement) {
           audioElement.pause();
@@ -99,6 +113,7 @@ export const usePlayerStore = create(
         if (isClosed) {
           set({ isClosed: false });
         }
+        if (routed('playPause')) return;
         if (isPlaying) {
           audioElement.pause();
           set({ isPlaying: false });
@@ -123,6 +138,7 @@ export const usePlayerStore = create(
       setDuration: (duration) => set({ duration }),
 
       handleTimeSeek: (time) => {
+        if (routed('seek', time)) return;
         if (audioElement) {
           audioElement.currentTime = time;
           set({ currentTime: time });
@@ -138,10 +154,13 @@ export const usePlayerStore = create(
       },
 
       setVolume: (volume) => set({ volume: Math.min(Math.max(volume, 0), 1) }),
-      setPlaylist: (playlist) =>
-        set({ playlist, originalPlaylist: playlist, autoFetchRecommendations: true }),
+      setPlaylist: (playlist) => {
+        if (routed('setPlaylist', playlist.map(ensureHttpsForDownloadUrls))) return;
+        set({ playlist, originalPlaylist: playlist, autoFetchRecommendations: true });
+      },
 
       addToQueue: (songs) => {
+        if (routed('addToQueue', songs)) return;
         const { playlist, originalPlaylist } = get();
         const newSongs = Array.isArray(songs) ? songs : [songs];
         const existingIds = new Set(playlist.map((song) => song.id));
@@ -153,7 +172,14 @@ export const usePlayerStore = create(
         }
       },
 
+      /** Autoplay's picks for a song. Shared, only the device playing adds them. */
+      addRecommendations: (songs, forSongId) => {
+        if (routed('addRecommendations', songs, forSongId)) return;
+        get().addToQueue(songs);
+      },
+
       clearQueue: () => {
+        if (routed('clearQueue')) return;
         const { currentSong } = get();
         if (currentSong) {
           set({
@@ -170,6 +196,7 @@ export const usePlayerStore = create(
         const { currentSong } = get();
         const newSongs = Array.isArray(songs) ? songs : [songs];
         const secureSongs = newSongs.map(ensureHttpsForDownloadUrls);
+        if (routed('replaceQueue', secureSongs, keepCurrentSong)) return;
         if (keepCurrentSong && currentSong) {
           const filtered = secureSongs.filter((s) => s.id !== currentSong.id);
           const newQueue = [currentSong, ...filtered];
@@ -183,9 +210,13 @@ export const usePlayerStore = create(
         }
       },
 
-      setAutoFetchRecommendations: (value) => set({ autoFetchRecommendations: value }),
+      setAutoFetchRecommendations: (value) => {
+        if (routed('setAutoplay', value)) return;
+        set({ autoFetchRecommendations: value });
+      },
 
       toggleShuffle: () => {
+        if (routed('toggleShuffle')) return;
         const { shuffleMode, playlist, originalPlaylist, currentSong } = get();
         if (!shuffleMode) {
           const currentIndex = playlist.findIndex((s) => s.id === currentSong?.id);
@@ -203,6 +234,7 @@ export const usePlayerStore = create(
       },
 
       toggleRepeat: () => {
+        if (routed('toggleRepeat')) return;
         const { repeatMode } = get();
         const modes = ['off', 'all', 'one'];
         const nextIndex = (modes.indexOf(repeatMode) + 1) % modes.length;
@@ -212,6 +244,7 @@ export const usePlayerStore = create(
       handleNextSong: (isAutoPlay = false) => {
         const { currentSong, playlist, playSong, repeatMode } = get();
         if (!currentSong) return;
+        if (routed('next', isAutoPlay)) return;
         if (!playlist.length) {
           set({ playlist: [currentSong] });
           return;
@@ -246,6 +279,7 @@ export const usePlayerStore = create(
       handlePrevSong: () => {
         const { currentSong, playlist, playSong, currentTime } = get();
         if (!playlist.length || !currentSong) return;
+        if (routed('previous')) return;
         if (currentTime > 3 && audioElement) {
           audioElement.currentTime = 0;
           set({ currentTime: 0 });
@@ -374,42 +408,59 @@ export const usePlayerStore = create(
         document.title = `${song.name} - SyncVibe`;
       },
 
+      /**
+       * Loads a song into the audio element and, unless told not to, plays it from a position.
+       * `newPlay` counts it in history; a song picked up partway (moved from another device)
+       * isn't a new listen. Rejects with the browser's error if it won't play.
+       */
+      startAudio: async (song, { positionSec = 0, play = true, newPlay = true } = {}) => {
+        if (!audioElement || !song) return;
+        const { updateMediaSession, preloadNextTrack } = get();
+        set({ isLoading: true });
+        const url = getAudioUrl(song);
+        // Already loaded (preloaded while nobody played): keep it, so starting is instant.
+        if (audioElement.src !== url) audioElement.src = url;
+        if (Math.abs(audioElement.currentTime - positionSec) > 1) {
+          audioElement.currentTime = positionSec;
+        }
+        set({ currentTime: positionSec });
+        updateMediaSession(song);
+        preloadNextTrack();
+        if (!play) {
+          if (!audioElement.paused) audioElement.pause();
+          set({ isLoading: false, isPlaying: false });
+          return;
+        }
+        try {
+          await audioElement.play();
+          set({ isPlaying: true, isLoading: false });
+          recordPlayStart(song);
+          if (newPlay) addToHistory(song, 0, 'autoplay');
+        } catch (err) {
+          if (err.name === 'AbortError') return;
+          set({ isPlaying: false, isLoading: false });
+          throw err;
+        }
+      },
+
       loadAndPlayCurrentSong: async (prevSongId) => {
-        const {
-          currentSong,
-          currentTime,
-          updateMediaSession,
-          preloadNextTrack,
-          _hasRestoredTime,
-          isClosed,
-        } = get();
+        const { currentSong, currentTime, startAudio, _hasRestoredTime, isClosed } = get();
         if (!audioElement || !currentSong || currentSong.id === prevSongId || isClosed) {
           return prevSongId;
         }
+        // Shared between devices: the audio follows the server instead.
+        if (routed('loadCurrent')) return currentSong.id;
         try {
-          set({ isLoading: true });
-          audioElement.src = getAudioUrl(currentSong);
-
           if (!_hasRestoredTime && currentTime > 0) {
-            audioElement.currentTime = currentTime;
-            set({ _hasRestoredTime: true, isLoading: false });
+            await startAudio(currentSong, { positionSec: currentTime, play: false });
+            set({ _hasRestoredTime: true });
           } else {
-            set({ currentTime: 0 });
-            await audioElement.play();
-            set({ isPlaying: true, _hasRestoredTime: true, isLoading: false });
-            recordPlayStart(currentSong);
-            addToHistory(currentSong, 0, 'autoplay');
+            set({ _hasRestoredTime: true });
+            await startAudio(currentSong);
           }
-
-          updateMediaSession(currentSong);
-          preloadNextTrack();
           return currentSong.id;
         } catch (err) {
-          if (err.name === 'AbortError') {
-            return prevSongId;
-          }
           console.error('Playback error:', err);
-          set({ isPlaying: false, isLoading: false });
           return prevSongId;
         }
       },
