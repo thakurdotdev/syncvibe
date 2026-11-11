@@ -1,4 +1,5 @@
 import {
+  Clock,
   Disc3,
   ListMusic,
   Loader2,
@@ -27,7 +28,15 @@ import { usePlayerStore } from '@/stores/playerStore';
 import QueueTab from './QueueTab';
 
 const DesktopQueuePanel = memo(
-  ({ ready, currentSong, onOpenModal, handleGoToAlbum, handleGoToArtist }) => {
+  ({
+    ready,
+    currentSong,
+    onOpenModal,
+    onOpenSleepTimer,
+    sleepLeft,
+    handleGoToAlbum,
+    handleGoToArtist,
+  }) => {
     const playlistLength = usePlayerStore((s) => s.playlist.length);
     const clearQueue = usePlayerStore((s) => s.clearQueue);
     const replaceQueue = usePlayerStore((s) => s.replaceQueue);
@@ -180,10 +189,13 @@ const DesktopQueuePanel = memo(
                   <Button
                     variant='ghost'
                     size='icon'
-                    className='h-7.5 w-7.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors cursor-pointer'
+                    className='relative h-7.5 w-7.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors cursor-pointer'
                     aria-label='More options'
                   >
                     <MoreHorizontal className='h-3.5 w-3.5' />
+                    {sleepLeft && (
+                      <span className='absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary' />
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
@@ -196,6 +208,18 @@ const DesktopQueuePanel = memo(
                   >
                     <ListMusic className='mr-2 h-4 w-4 text-muted-foreground' />
                     Add to Playlist
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={onOpenSleepTimer}
+                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
+                  >
+                    <Clock className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                    Sleep timer
+                    {sleepLeft && (
+                      <span className='ml-auto text-xs tabular-nums text-muted-foreground'>
+                        {sleepLeft}
+                      </span>
+                    )}
                   </DropdownMenuItem>
 
                   {currentSong?.album_id && (

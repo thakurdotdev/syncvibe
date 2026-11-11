@@ -8,6 +8,7 @@ import { identifySocket, sessionRoom } from './auth';
 import { setupChatHandlers } from './chat';
 import { presenceActive, presenceConnected, presenceDisconnected } from './presence';
 import { setupCallHandlers } from './call';
+import { setupPlayerHandlers } from './player/handlers';
 
 /** Set once no app older than 1.7 is in use: sockets without a valid session are then refused. */
 const REQUIRE_SESSION = process.env.SOCKET_REQUIRE_SESSION === 'true';
@@ -89,6 +90,7 @@ export const socketManager = (io: Server): void => {
 
     setupChatHandlers(socket);
     setupCallHandlers(socket);
+    setupPlayerHandlers(io, socket);
 
     // Apps from 1.7.2 say when they go to the background, so "online" means the app is open.
     socket.on('presence:active', (payload?: { active?: unknown }) => {

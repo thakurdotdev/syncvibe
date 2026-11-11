@@ -3,6 +3,7 @@ import { Context } from './Context';
 import { usePlayerStore } from '@/stores/playerStore';
 import { recordPageClosing, recordPlayEnd, setPlayEventsEnabled } from '@/stores/playEvents';
 import { useUserPlaylistsQuery } from '@/hooks/queries/usePlaylistQueries';
+import { ownsAudio, reportPosition } from '@/lib/player';
 
 export function PlayerProvider({ children }) {
   const { user, loading } = useContext(Context);
@@ -65,6 +66,7 @@ export function PlayerProvider({ children }) {
     if (!audio) return;
 
     const handleTimeUpdate = () => {
+      if (!ownsAudio()) return;
       const now = Date.now();
       if (now - lastUpdateTime.current > 500) {
         updateTime(audio.currentTime);
@@ -78,11 +80,12 @@ export function PlayerProvider({ children }) {
     };
 
     const handleEnded = () => {
+      if (!ownsAudio()) return;
       handleNextSong(true);
     };
 
     const handleError = () => {
-      if (!audio.src || audio.src === window.location.href) return;
+      if (!audio.src || audio.src === window.location.href || !ownsAudio()) return;
 
       if (retryCountRef.current < MAX_RETRIES) {
         retryCountRef.current += 1;
@@ -120,24 +123,31 @@ export function PlayerProvider({ children }) {
       }
     };
 
+    // While another of your devices plays, this one's audio is silent and the store shows that
+    // device's progress, so the audio element's own events must not overwrite it.
     const handlePause = () => {
+      if (!ownsAudio()) return;
       if (!audio.ended) {
         setPlaying(false);
+        // Also catches a pause from the keyboard or the system's media controls.
+        reportPosition();
       }
     };
 
     const handlePlaying = () => {
+      if (!ownsAudio()) return;
       retryCountRef.current = 0;
       setPlaying(true);
       setLoading(false);
+      reportPosition();
     };
 
     const handleWaiting = () => {
-      setLoading(true);
+      if (ownsAudio()) setLoading(true);
     };
 
     const handleCanPlay = () => {
-      setLoading(false);
+      if (ownsAudio()) setLoading(false);
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);

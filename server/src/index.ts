@@ -4,6 +4,7 @@ import app from '@/app';
 import sequelize from '@/utils/sequelize';
 import { socketManager } from '@/socket/index';
 import { flushRooms, restoreRooms } from '@/socket/group-music';
+import { sessionStore } from '@/socket/player/store';
 import { startBackgroundRecalc } from '@/features/music/services/recommendation.service';
 import { resumePendingUpdates } from '@/features/app-update/eas-webhook.controller';
 
@@ -51,7 +52,10 @@ process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully...');
   // Rooms are saved a moment after each change; don't lose the last one.
   void flushRooms();
+  // Players too; Postgres is written only every little while, so this one is waited for.
+  const playersSaved = sessionStore.flush();
   server.close(async () => {
+    await playersSaved;
     await sequelize.close();
     process.exit(0);
   });

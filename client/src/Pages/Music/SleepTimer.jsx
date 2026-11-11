@@ -8,14 +8,28 @@ import {
   ResponsiveDialogContent,
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
-  ResponsiveDialogTrigger,
 } from '@/components/ui/revola';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
 import { usePlayerStore } from '@/stores/playerStore';
 
-const SleepTimerModal = () => {
+const formatTime = (totalSeconds) => {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${seconds}s`;
+};
+
+/** What the timer has left, for the menu item that opens it: "12m", "3 songs", or null. */
+export const useSleepTimerLeft = () =>
+  usePlayerStore(({ sleepTimer: { isActive, timeRemaining, songsRemaining } }) => {
+    if (!isActive) return null;
+    if (timeRemaining > 0) return `${Math.ceil(timeRemaining / 60)}m`;
+    return `${songsRemaining} song${songsRemaining === 1 ? '' : 's'}`;
+  });
+
+/** Opened from the player's menu. */
+const SleepTimerDialog = ({ open, onOpenChange }) => {
   const sleepTimer = usePlayerStore((s) => s.sleepTimer);
   const setSleepTimer = usePlayerStore((s) => s.setSleepTimer);
   const clearSleepTimer = usePlayerStore((s) => s.clearSleepTimer);
@@ -33,29 +47,8 @@ const SleepTimerModal = () => {
     }
   };
 
-  const formatTime = (totalSeconds) => {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}m ${seconds}s`;
-  };
-
   return (
-    <ResponsiveDialog>
-      <ResponsiveDialogTrigger asChild>
-        <Button
-          variant='ghost'
-          size='icon'
-          className='h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors cursor-pointer relative'
-          type='button'
-          onClick={(e) => e.stopPropagation()}
-          aria-label='Sleep timer'
-        >
-          <Clock size={18} />
-          {isActive && (
-            <span className='absolute -top-0.5 -right-0.5 h-2 w-2 bg-destructive rounded-full animate-pulse' />
-          )}
-        </Button>
-      </ResponsiveDialogTrigger>
+    <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
       <ResponsiveDialogContent className='sm:max-w-[500px] p-0'>
         <ResponsiveDialogHeader className='px-4 pt-4 sm:px-6 sm:pt-6'>
           <ResponsiveDialogTitle className='flex items-center gap-2'>
@@ -137,7 +130,8 @@ const SleepTimerModal = () => {
               <div className='flex items-center justify-between bg-secondary/30 p-3 rounded-lg'>
                 <div className='flex items-center gap-2'>
                   <Badge variant='secondary'>
-                    {timerType === 'time'
+                    {/* By what is running, not the tab picked: the dialog reopens on "Time". */}
+                    {timeRemaining > 0
                       ? `Remaining: ${formatTime(timeRemaining)}`
                       : `Songs Left: ${songsRemaining}`}
                   </Badge>
@@ -164,4 +158,4 @@ const SleepTimerModal = () => {
   );
 };
 
-export default SleepTimerModal;
+export default SleepTimerDialog;

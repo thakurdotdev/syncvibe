@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/playbackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
 import { usePlayerStore } from '@/stores/playerStore';
+import { useRemoteDevice } from '@/stores/playerSessionStore';
 import { useUiStore } from '@/stores/uiStore';
 import AddToPlaylist from '../AddToPlaylist';
 import PlayerControls from './PlayerControls';
@@ -17,7 +18,9 @@ import SongInfo from './SongInfo';
 const BottomPlayer = () => {
   const currentSong = usePlayerStore((s) => s.currentSong);
   const playlist = usePlayerStore((s) => s.playlist);
-  const addToQueue = usePlayerStore((s) => s.addToQueue);
+  const addRecommendations = usePlayerStore((s) => s.addRecommendations);
+  // Another of your devices is playing: it picks the next songs, not this one.
+  const remoteDevice = useRemoteDevice();
   const autoFetchRecommendations = usePlayerStore((s) => s.autoFetchRecommendations);
   const isSoloPlaying = usePlayerStore((s) => s.isPlaying);
   const handlePlayPause = usePlayerStore((s) => s.handlePlayPause);
@@ -50,6 +53,7 @@ const BottomPlayer = () => {
   const currentIndex = playlist.findIndex((song) => song.id === currentSong?.id);
   const needsRecommendations = currentIndex === -1 || currentIndex >= playlist.length - 2;
   const shouldFetch =
+    !remoteDevice &&
     autoFetchRecommendations &&
     !!currentSong?.id &&
     needsRecommendations &&
@@ -63,9 +67,9 @@ const BottomPlayer = () => {
   useEffect(() => {
     if (recommendations.length > 0 && shouldFetch) {
       lastFetchedForId.current = currentSong?.id;
-      addToQueue(recommendations);
+      addRecommendations(recommendations, currentSong?.id);
     }
-  }, [recommendations, shouldFetch, currentSong?.id, addToQueue]);
+  }, [recommendations, shouldFetch, currentSong?.id, addRecommendations]);
 
   if (!currentSong || isClosed || isHiddenByGroupRoom) return null;
 

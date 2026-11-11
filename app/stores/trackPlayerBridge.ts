@@ -73,6 +73,25 @@ const trackCache = new Map<string, MediaItem>();
 
 const store = () => usePlayerStore.getState();
 
+/**
+ * Your devices share one player (lib/player.ts). It registers here to hear what the native
+ * player does by itself, which can happen with the app in the background: moving on a song,
+ * running out of queue, pausing from the notification.
+ */
+interface BridgeSync {
+  /** False while another device plays: this phone's player is then silent and not its own. */
+  ownsAudio: () => boolean;
+  moved: (songId: string) => void;
+  /** Returns true when it told the server, which then picks the next song. */
+  ended: () => boolean;
+  changed: () => void;
+  progress: () => void;
+}
+let sync: BridgeSync | null = null;
+export const setBridgeSync = (next: BridgeSync | null) => {
+  sync = next;
+};
+
 const toNativeRepeatMode = (mode: StoreRepeatMode): RepeatMode => {
   if (mode === 'one') return RepeatMode.One;
   // Repeat-all stays off natively: the native queue is only a small window, so it would loop
@@ -290,7 +309,7 @@ const scheduleQueueSync = () => {
  * If the song has a saved resume point (restored on launch, or interrupted by a room)
  * it continues from there. Returns true when it resumed rather than started over.
  */
-const loadPlaylist = (playlist: Song[], startIndex: number): boolean => {
+const loadPlaylist = (playlist: Song[], startIndex: number, play = true): boolean => {
   if (!initialized || !playlist.length) return false;
 
   const s = store();
@@ -306,12 +325,13 @@ const loadPlaylist = (playlist: Song[], startIndex: number): boolean => {
   TrackPlayer.setMediaItems(tracks, 0);
   if (resumeAt > 0 && song) enforceResume(song.id, resumeAt);
   else cancelResumeGuard();
-  TrackPlayer.play();
+  if (play) TrackPlayer.play();
+  else TrackPlayer.pause();
 
   if (song && song.id !== s.currentSong?.id) {
     s.setCurrentSong(song);
   }
-  s.setPlaying(true);
+  s.setPlaying(play);
   return resumeAt > 0;
 };
 
@@ -612,6 +632,91 @@ export const bridgeHandlePrevSong = (uid?: number, force = false) => {
   bridgePlaySong(prevSong, uid);
 };
 
+// ─── Shared player ───────────────────────────────────
+
+/** What the native player holds now, for telling the server where this phone is. */
+export const bridgeNativeState = () => {
+  if (!initialized) return { songId: null, positionSec: 0, playing: false };
+  try {
+    return {
+      songId: TrackPlayer.getActiveMediaItem()?.mediaId ?? null,
+      positionSec: TrackPlayer.getProgress().position,
+      playing: TrackPlayer.isPlaying(),
+    };
+  } catch {
+    return { songId: null, positionSec: 0, playing: false };
+  }
+};
+
+/**
+ * Makes this phone play what the server says: `song` from `positionSec`. The store's playlist
+ * is already the shared queue. `jumped` means someone seeked or moved playback here, so a
+ * position that differs is followed; otherwise this phone's own position stands.
+ */
+export const bridgeFollow = (
+  song: Song,
+  positionSec: number,
+  playing: boolean,
+  jumped: boolean
+) => {
+  if (!initialized) {
+    if (playing) pendingPlay = { song, uid: userId };
+    return;
+  }
+  stopGroupPlayback();
+  resetErrors();
+  restoreAttempt += 1;
+  restorePending = false;
+  const s = store();
+
+  if (TrackPlayer.getActiveMediaItem()?.mediaId === song.id) {
+    const { position } = TrackPlayer.getProgress();
+    if (jumped && Math.abs(position - positionSec) > 1) {
+      cancelResumeGuard();
+      TrackPlayer.seekTo(positionSec);
+    }
+    if (playing && !TrackPlayer.isPlaying()) TrackPlayer.play();
+    if (!playing && TrackPlayer.isPlaying()) TrackPlayer.pause();
+    s.setPlaying(playing);
+    syncNativeQueue();
+    return;
+  }
+
+  lastSongChangeAt = Date.now();
+  const index = Math.max(
+    0,
+    s.playlist.findIndex((entry) => entry.id === song.id)
+  );
+  const playlist = s.playlist.length ? s.playlist : [song];
+  if (positionSec > 1) setResumePoint(song.id, positionSec);
+  const resumed = loadPlaylist(playlist, index, playing);
+  if (playing) recordSongStart(song, resumed);
+  syncNativeQueue();
+};
+
+export const bridgeSeek = (seconds: number) => {
+  if (!initialized) return;
+  cancelResumeGuard();
+  TrackPlayer.seekTo(seconds);
+};
+
+/** Another device plays now: this phone stops, and its notification goes. */
+export const bridgeSilence = () => {
+  if (!initialized || store().activePlayerMode === 'group') return;
+  try {
+    cancelResumeGuard();
+    restoreAttempt += 1;
+    restorePending = false;
+    saveNativeProgress(false);
+    recordPlayEnd('closed');
+    TrackPlayer.stop();
+    TrackPlayer.clear();
+  } catch (error) {
+    console.error('Error silencing player:', error);
+  }
+  store().setPlaying(false);
+};
+
 export const bridgeSetRepeatMode = (mode: StoreRepeatMode) => {
   if (!initialized) return;
   TrackPlayer.setRepeatMode(toNativeRepeatMode(mode));
@@ -626,6 +731,8 @@ export const bridgeSetRepeatMode = (mode: StoreRepeatMode) => {
 const syncStoreFromNative = () => {
   const s = store();
   if (s.activePlayerMode === 'group') return;
+  // A remote shows the other device's state; its own silent player says nothing about that.
+  if (sync && !sync.ownsAudio()) return;
   const activeItem = TrackPlayer.getActiveMediaItem();
 
   if (activeItem?.mediaId) {
@@ -817,6 +924,8 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
     return;
   }
 
+  if (sync && !sync.ownsAudio()) return;
+
   try {
     switch (event.type) {
       case Event.PlaybackStateChanged: {
@@ -848,6 +957,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
             Date.now() - lastSongChangeAt < ENDED_IGNORE_AFTER_CHANGE_MS ||
             TrackPlayer.getActiveMediaItem()?.mediaId !== s.currentSong?.id;
           if (stale) break;
+          if (sync?.ended()) break;
           bridgeHandleNextSong(true, userId);
         }
         break;
@@ -863,6 +973,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
           !playing && TrackPlayer.getPlaybackState() === 'ready' && !TrackPlayer.isPlaying();
         if (playing || reallyPaused) s.setPlaying(playing);
         if (!restorePending) saveNativeProgress(playing);
+        if (playing || reallyPaused) sync?.changed();
         break;
       }
 
@@ -891,6 +1002,8 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
               if (!isRestoredTransition) {
                 recordSongStart(song);
               }
+              // Moved on by itself (a song ended, or a notification button): tell the others.
+              sync?.moved(song.id);
             }
           }
         }
@@ -964,6 +1077,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
         // final tick on pause. Save it so a killed app comes back to this spot.
         if (restorePending || !s.currentSong || mediaId !== s.currentSong.id) break;
         if (position >= 1) {
+          sync?.progress();
           recordPlayProgress(s.currentSong, position, duration);
           playbackHistory
             .updatePlaybackProgress(

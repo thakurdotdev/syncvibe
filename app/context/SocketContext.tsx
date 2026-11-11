@@ -1,6 +1,7 @@
 import { API_URL } from '@/constants';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { bindChatSocket, resetChat } from '@/lib/chat';
+import { bindPlayerSocket } from '@/lib/player';
 import { showMessageBanner } from '@/components/chat/MessageBanner';
 import { clearMessageNotification, showMessageNotification } from '@/lib/messageNotifications';
 import { previewOf, useChatStore, type ChatMessage, type Receipt } from '@/stores/chatStore';
@@ -122,6 +123,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     });
 
     const unbindChat = bindChatSocket(newSocket, { userId: Number(userId), onIncoming: notify });
+    const unbindPlayer = bindPlayerSocket(newSocket);
 
     // Read here or on another device: the conversation's notification has nothing left to say.
     const onReceipt = (receipt?: Receipt) => {
@@ -140,6 +142,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       subscription.remove();
       unbindChat();
+      unbindPlayer();
       closeSocket();
     };
   }, [userId, cleanUpSocket, closeSocket]);

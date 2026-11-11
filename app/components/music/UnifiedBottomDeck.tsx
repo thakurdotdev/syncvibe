@@ -31,7 +31,7 @@ import {
   usePlayerControls,
   usePlayerStore,
 } from '@/stores/playerStore';
-import { useProgress } from '@rntp/player';
+import { usePlayerProgress } from '@/hooks/usePlayerProgress';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -92,7 +92,7 @@ const MiniProgressBar = memo(function MiniProgressBar({
   color: string;
   trackColor: string;
 }) {
-  const { position, duration } = useProgress();
+  const { position, duration } = usePlayerProgress();
   const fraction = duration > 0 ? Math.min(1, Math.max(0, position / duration)) : 0;
   const shown = useSharedValue(fraction);
   // Under the full player nobody sees it, and its glide would update a view on every frame.
@@ -366,7 +366,7 @@ const OrbRing = memo(function OrbRing({
   color: string;
   trackColor: string;
 }) {
-  const { position, duration } = useProgress();
+  const { position, duration } = usePlayerProgress();
   const fraction = duration > 0 ? Math.min(1, Math.max(0, position / duration)) : 0;
   const shown = useSharedValue(fraction);
   const covered = useFullPlayerOpen((s) => s.open);

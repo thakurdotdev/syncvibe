@@ -1,9 +1,10 @@
 import he from 'he';
-import { Music } from 'lucide-react';
+import { MonitorSpeaker, Music } from 'lucide-react';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Slider } from '@/components/ui/slider';
 import { usePlayerStore } from '@/stores/playerStore';
+import { useRemoteDevice } from '@/stores/playerSessionStore';
 import { formatTime } from '../Common';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +12,7 @@ const SongInfo = memo(({ currentSong, onOpenSheet }) => {
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
   const handleTimeSeek = usePlayerStore((s) => s.handleTimeSeek);
+  const remote = useRemoteDevice();
 
   const [hoverTime, setHoverTime] = useState(null);
   const [hoverX, setHoverX] = useState(0);
@@ -85,9 +87,16 @@ const SongInfo = memo(({ currentSong, onOpenSheet }) => {
             {decodedName}
           </p>
           <div className='flex items-center justify-between gap-2 mt-0.5'>
-            <p className='text-[10.5px] sm:text-[11.5px] text-muted-foreground truncate font-normal'>
-              {decodedArtist || 'Unknown Artist'}
-            </p>
+            {remote ? (
+              <p className='flex min-w-0 items-center gap-1 text-[10.5px] sm:text-[11.5px] text-foreground/80 font-medium'>
+                <MonitorSpeaker className='h-3 w-3 shrink-0' />
+                <span className='truncate'>{remote.name}</span>
+              </p>
+            ) : (
+              <p className='text-[10.5px] sm:text-[11.5px] text-muted-foreground truncate font-normal'>
+                {decodedArtist || 'Unknown Artist'}
+              </p>
+            )}
             <span className='text-[10px] text-muted-foreground/80 font-mono tabular-nums select-none shrink-0'>
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>

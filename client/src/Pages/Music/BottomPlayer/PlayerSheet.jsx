@@ -1,6 +1,6 @@
 /** biome-ignore-all lint/a11y/useButtonType: <explanation> */
 
-import { ChevronDownIcon, Disc3, ListMusic, MoreHorizontal, User, X } from 'lucide-react';
+import { ChevronDownIcon, Clock, Disc3, ListMusic, MoreHorizontal, User, X } from 'lucide-react';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { usePlayerStore } from '@/stores/playerStore';
+import SleepTimerDialog, { useSleepTimerLeft } from '../SleepTimer';
 import DesktopQueuePanel from './DesktopQueuePanel';
 import NowPlayingTab from './NowPlayingTab';
 import QueueTab from './QueueTab';
@@ -19,6 +20,9 @@ import QueueTab from './QueueTab';
 const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
   const [mobileQueueOpen, setMobileQueueOpen] = useState(false);
   const [queueReady, setQueueReady] = useState(false);
+  const [sleepTimerOpen, setSleepTimerOpen] = useState(false);
+  const sleepLeft = useSleepTimerLeft();
+  const onOpenSleepTimer = useCallback(() => setSleepTimerOpen(true), []);
   const playlistLength = usePlayerStore((s) => s.playlist.length);
   const navigate = useNavigate();
 
@@ -61,7 +65,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
         className='h-full w-full p-0 overflow-hidden border-0 bg-background text-foreground'
       >
         <div className='h-full w-full relative'>
-          <NowPlayingTab currentSong={currentSong} onOpenModal={onOpenModal} isDesktop />
+          <NowPlayingTab currentSong={currentSong} />
 
           {/* Top Bar Navigation */}
           <div className='absolute top-4 left-4 right-4 flex items-center justify-between z-30 pointer-events-none'>
@@ -95,10 +99,13 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                   <Button
                     variant='ghost'
                     size='icon'
-                    className='h-9 w-9 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors duration-200 cursor-pointer backdrop-blur-md border border-border/40'
+                    className='relative h-9 w-9 bg-muted/70 hover:bg-muted text-foreground rounded-full transition-colors duration-200 cursor-pointer backdrop-blur-md border border-border/40'
                     aria-label='More options'
                   >
                     <MoreHorizontal className='h-4.5 w-4.5' />
+                    {sleepLeft && (
+                      <span className='absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary' />
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
@@ -111,6 +118,18 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                   >
                     <ListMusic className='mr-2 h-4 w-4 text-muted-foreground' />
                     Add to Playlist
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={onOpenSleepTimer}
+                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
+                  >
+                    <Clock className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                    Sleep timer
+                    {sleepLeft && (
+                      <span className='ml-auto text-xs tabular-nums text-muted-foreground'>
+                        {sleepLeft}
+                      </span>
+                    )}
                   </DropdownMenuItem>
 
                   {currentSong?.album_id && (
@@ -142,6 +161,8 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
               ready={queueReady}
               currentSong={currentSong}
               onOpenModal={onOpenModal}
+              onOpenSleepTimer={onOpenSleepTimer}
+              sleepLeft={sleepLeft}
               handleGoToAlbum={handleGoToAlbum}
               handleGoToArtist={handleGoToArtist}
             />
@@ -189,6 +210,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
           </div>
         </div>
       </SheetContent>
+      <SleepTimerDialog open={sleepTimerOpen} onOpenChange={setSleepTimerOpen} />
     </Sheet>
   );
 });

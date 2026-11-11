@@ -16,6 +16,7 @@ import Animated, {
   ReduceMotion,
 } from 'react-native-reanimated';
 import { ArtworkCarousel } from './ArtworkCarousel';
+import { PlayingOnRow } from './DeviceSheet';
 import { Scrubber, secondary, Transport } from './PlayerControls';
 
 // The title moves with the artwork: the old one leaves the way the cover went and the new one
@@ -108,6 +109,7 @@ export const PlayerTab = memo(function PlayerTab({
 
         <Scrubber active={isOpen} fallbackDuration={Number(currentSong.duration) || 0} />
         <Transport />
+        <PlayingOnRow />
 
         <PressableScale
           onPress={onOpenQueue}

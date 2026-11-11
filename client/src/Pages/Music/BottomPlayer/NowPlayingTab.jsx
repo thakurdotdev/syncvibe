@@ -1,15 +1,12 @@
 import he from 'he';
-import { ChevronRight, ListPlus, Music, Share2 } from 'lucide-react';
+import { ChevronRight, Music } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ShareDrawer from '@/components/Posts/ShareDrawer';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { SheetTitle } from '@/components/ui/sheet';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePlayerStore } from '@/stores/playerStore';
 import { MusicControls, ProgressBarMusic, VolumeControl } from '../Common';
-import SleepTimerModal from '../SleepTimer';
+import { DevicePicker, PlayingOnNotice } from './DevicePicker';
 
 const useCrossfadeImage = (src) => {
   const [images, setImages] = useState({ current: src, previous: null, transitioning: false });
@@ -103,8 +100,7 @@ const CrossfadeAvatar = memo(({ images, size, name }) => (
 ));
 CrossfadeAvatar.displayName = 'CrossfadeAvatar';
 
-const NowPlayingTab = memo(({ currentSong, onOpenModal }) => {
-  const [isShareDrawerOpen, setIsShareDrawerOpen] = useState(false);
+const NowPlayingTab = memo(({ currentSong }) => {
   const songImage = useMemo(
     () => currentSong?.image?.[2]?.link || currentSong?.image?.[1]?.link,
     [currentSong]
@@ -232,53 +228,12 @@ const NowPlayingTab = memo(({ currentSong, onOpenModal }) => {
             <ProgressBarMusic isTimeVisible={true} />
             <MusicControls size='large' />
 
-            {/* Quick Actions Toolbar */}
+            {/* Volume and where it plays; the rest is in the ⋯ menu */}
             <div className='flex items-center justify-between pt-1 px-1 border-t border-border/40'>
               <VolumeControl showVolume={true} alwaysShowSlider={true} />
-
-              <div className='flex items-center gap-1.5'>
-                <SleepTimerModal />
-
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenModal?.();
-                        }}
-                        className='h-8.5 w-8.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full cursor-pointer transition-colors'
-                        aria-label='Add to Playlist'
-                      >
-                        <ListPlus size={18} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side='top' className='text-xs'>
-                      Add to Playlist
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        onClick={() => setIsShareDrawerOpen(true)}
-                        className='h-8.5 w-8.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full cursor-pointer transition-colors'
-                        aria-label='Share Song'
-                      >
-                        <Share2 size={17} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side='top' className='text-xs'>
-                      Share
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+              <DevicePicker />
             </div>
+            <PlayingOnNotice />
           </div>
 
           {/* Up Next Card */}
@@ -357,32 +312,9 @@ const NowPlayingTab = memo(({ currentSong, onOpenModal }) => {
             {/* Mobile Actions Toolbar */}
             <div className='flex items-center justify-between px-1 pt-1'>
               <VolumeControl showVolume={true} alwaysShowSlider={true} />
-
-              <div className='flex items-center gap-1.5'>
-                <SleepTimerModal />
-                <Button
-                  variant='ghost'
-                  size='icon'
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenModal?.();
-                  }}
-                  className='h-8.5 w-8.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full cursor-pointer'
-                  aria-label='Add to Playlist'
-                >
-                  <ListPlus size={18} />
-                </Button>
-                <Button
-                  variant='ghost'
-                  size='icon'
-                  onClick={() => setIsShareDrawerOpen(true)}
-                  className='h-8.5 w-8.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full cursor-pointer'
-                  aria-label='Share Song'
-                >
-                  <Share2 size={17} />
-                </Button>
-              </div>
+              <DevicePicker />
             </div>
+            <PlayingOnNotice />
           </div>
         </div>
 
@@ -399,12 +331,6 @@ const NowPlayingTab = memo(({ currentSong, onOpenModal }) => {
           </div>
         )}
       </div>
-
-      <ShareDrawer
-        isOpen={isShareDrawerOpen}
-        onClose={() => setIsShareDrawerOpen(false)}
-        shareLink={window.location.href}
-      />
     </div>
   );
 });

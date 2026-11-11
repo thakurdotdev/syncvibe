@@ -25,6 +25,7 @@ import PlaylistSong from './music/playlist-song.model';
 import Playlist from './music/playlist.model';
 import GroupInvite from './music/group-invite.model';
 import GroupSessionHistory from './music/group-session-history.model';
+import PlayerSessionRow from './music/player-session.model';
 
 // Post
 import Post from './post/post.model';
@@ -141,6 +142,7 @@ export {
   Playlist,
   GroupInvite,
   GroupSessionHistory,
+  PlayerSessionRow,
   Post,
   Comment,
   LikeDislike,
