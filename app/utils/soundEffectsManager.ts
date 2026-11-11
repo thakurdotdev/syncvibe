@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createAudioPlayer, AudioPlayer } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import type { AudioStatus } from 'expo-audio/build/Audio.types';
 
 const SFX_AUTOPLAY_KEY = '@syncvibe_sfx_autoplay';
@@ -16,8 +16,29 @@ type AudioPlayerWithEvents = AudioPlayer & {
   ): EventSubscription;
 };
 
+/**
+ * Sound effects must play over the room's music, not stop it. The music player gives up Android
+ * audio focus to anyone who asks, and until an audio mode is set expo-audio's native side asks for
+ * it on every play, despite documenting `mixWithOthers` as the default. Setting it explicitly
+ * makes effects take no focus at all.
+ */
+let mixing: Promise<void> | null = null;
+const ensureMixing = (): Promise<void> => {
+  mixing ??= setAudioModeAsync({
+    interruptionMode: 'mixWithOthers',
+    playsInSilentMode: true,
+    shouldPlayInBackground: false,
+  }).catch((err) => {
+    mixing = null;
+    console.warn('Failed to set sound effect audio mode:', err);
+  });
+  return mixing;
+};
+
 class SoundEffectsManager {
   private isAutoPlayEnabled: boolean = true;
+  /** Bumped by every preview start and stop, so a preview that was replaced while waiting doesn't play. */
+  private previewToken = 0;
   private previewPlayer: AudioPlayerWithEvents | null = null;
   private previewUrl: string | null = null;
   private currentOnEnd: (() => void) | null = null;
@@ -60,30 +81,35 @@ class SoundEffectsManager {
 
     this.previewUrl = url;
     this.currentOnEnd = onEnd || null;
+    const token = this.previewToken;
 
-    try {
-      const player = createAudioPlayer({ uri: url }) as AudioPlayerWithEvents;
-      player.volume = SFX_VOLUME;
-      this.previewPlayer = player;
+    void ensureMixing().then(() => {
+      if (token !== this.previewToken) return;
+      try {
+        const player = createAudioPlayer({ uri: url }) as AudioPlayerWithEvents;
+        player.volume = SFX_VOLUME;
+        this.previewPlayer = player;
 
-      player.addListener('playbackStatusUpdate', (status) => {
-        if (status.didJustFinish) {
-          this.stopPreview();
-        }
-      });
+        player.addListener('playbackStatusUpdate', (status) => {
+          if (status.didJustFinish) {
+            this.stopPreview();
+          }
+        });
 
-      player.play();
-    } catch (err) {
-      console.error('Sound preview playback error:', err);
-      this.stopPreview();
-      onError?.(err);
-    }
+        player.play();
+      } catch (err) {
+        console.error('Sound preview playback error:', err);
+        this.stopPreview();
+        onError?.(err);
+      }
+    });
   }
 
   /**
    * Stop active preview playback and cleanup resources
    */
   public stopPreview(): void {
+    this.previewToken++;
     if (this.previewPlayer) {
       try {
         this.previewPlayer.pause();
@@ -116,22 +142,24 @@ class SoundEffectsManager {
   public playRoomEffect(url: string): void {
     if (!url || !this.isAutoPlayEnabled) return;
 
-    try {
-      const player = createAudioPlayer({ uri: url }) as AudioPlayerWithEvents;
-      player.volume = SFX_VOLUME;
+    void ensureMixing().then(() => {
+      try {
+        const player = createAudioPlayer({ uri: url }) as AudioPlayerWithEvents;
+        player.volume = SFX_VOLUME;
 
-      player.addListener('playbackStatusUpdate', (status) => {
-        if (status.didJustFinish) {
-          try {
-            player.remove();
-          } catch {}
-        }
-      });
+        player.addListener('playbackStatusUpdate', (status) => {
+          if (status.didJustFinish) {
+            try {
+              player.remove();
+            } catch {}
+          }
+        });
 
-      player.play();
-    } catch (err) {
-      console.error('Room sound effect playback error:', err);
-    }
+        player.play();
+      } catch (err) {
+        console.error('Room sound effect playback error:', err);
+      }
+    });
   }
 }
 
