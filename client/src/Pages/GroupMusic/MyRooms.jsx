@@ -6,7 +6,7 @@ import { TimeAgo } from '@/Utils/TimeAgo';
 import { getArtistName, getSongImage } from './utils/song';
 
 /** Long enough for a slow join; after it the buttons work again if nothing came of it. */
-const JOIN_TIMEOUT_MS = 8000;
+const BUSY_TIMEOUT_MS = 8000;
 
 const DeviceLine = ({ device, playing }) => {
   if (!device) {
@@ -82,8 +82,8 @@ const PlayingCard = ({ room, switching, disabled, onJoin }) => {
   );
 };
 
-/** A room you left lately. */
-const LeftRoomRow = ({ room, switching, disabled, onJoin, onDismiss }) => (
+/** A room you left or were removed from lately: what happened, and the one thing to do next. */
+const FormerRoomRow = ({ room, detail, action, onDismiss }) => (
   <div className='surface-card flex items-center gap-3 rounded-2xl bg-card/60 p-3 pl-3.5'>
     <span className='flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground'>
       <Radio className='h-[18px] w-[18px]' />
@@ -92,21 +92,29 @@ const LeftRoomRow = ({ room, switching, disabled, onJoin, onDismiss }) => (
       <p className='truncate text-sm font-semibold' title={room.name}>
         {room.name}
       </p>
-      <p className='truncate text-xs text-muted-foreground'>
-        {room.full ? 'Room is full' : `Left ${TimeAgo(room.leftAt).toLowerCase()}`}
-      </p>
+      <p className='truncate text-xs text-muted-foreground'>{detail}</p>
     </div>
-    <Button
-      variant='outline'
-      size='sm'
-      onClick={() => onJoin(room.groupId)}
-      disabled={disabled || room.full}
-      className='shrink-0 rounded-full'
-      aria-label={`Rejoin ${room.name}`}
-    >
-      {switching && <Loader2 className='animate-spin' />}
-      {switching ? 'Joining…' : 'Rejoin'}
-    </Button>
+    {action && (
+      <Button
+        variant='outline'
+        size='sm'
+        onClick={action.onClick}
+        disabled={action.disabled}
+        className='shrink-0 rounded-full'
+        aria-label={action.ariaLabel}
+      >
+        {action.busy && <Loader2 className='animate-spin' />}
+        {action.busy ? (
+          action.busyLabel
+        ) : (
+          <>
+            {/* Phones get the short label, so the room's name keeps its room. */}
+            <span className='sm:hidden'>{action.shortLabel ?? action.label}</span>
+            <span className='hidden sm:inline'>{action.label}</span>
+          </>
+        )}
+      </Button>
+    )}
     <Button
       variant='ghost'
       size='icon'
@@ -119,41 +127,94 @@ const LeftRoomRow = ({ room, switching, disabled, onJoin, onDismiss }) => (
   </div>
 );
 
+const leftRoomRow = (room, { busy, disabled, onJoin }) => ({
+  detail: room.full ? 'Room is full' : `Left ${TimeAgo(room.leftAt).toLowerCase()}`,
+  action: {
+    label: 'Rejoin',
+    ariaLabel: `Rejoin ${room.name}`,
+    busyLabel: 'Joining…',
+    busy,
+    disabled: disabled || room.full,
+    onClick: () => onJoin(room.groupId),
+  },
+});
+
+const REMOVED_TEXT = {
+  none: 'A host removed you',
+  pending: 'Waiting for a host to answer',
+  declined: 'A host said no',
+  blocked: 'A host said no twice',
+};
+
+const ASK_LABELS = {
+  none: { label: 'Ask to rejoin', shortLabel: 'Ask' },
+  pending: { label: 'Asked' },
+  declined: { label: 'Ask again' },
+};
+
+const removedRoomRow = (room, { busy, disabled, onAsk }) => ({
+  detail: REMOVED_TEXT[room.request] ?? REMOVED_TEXT.none,
+  action:
+    room.request === 'blocked'
+      ? null
+      : {
+          ...(ASK_LABELS[room.request] ?? ASK_LABELS.none),
+          ariaLabel: `Ask the hosts to let you back into ${room.name}`,
+          busyLabel: 'Asking…',
+          busy,
+          disabled: disabled || room.request === 'pending',
+          onClick: () => onAsk(room.groupId),
+        },
+});
+
 /**
- * Ways back into your rooms: one playing on another device can be moved here, and one you left
- * lately rejoined. Both are an ordinary join; for a room you're in, the server hands it to this
- * device and tells the other one to stop.
+ * Ways back into your rooms: one playing on another device can be moved here, one you left
+ * lately rejoined, and one a host removed you from asked about. Moving and rejoining are an
+ * ordinary join; for a room you're in, the server hands it to this device and tells the other one
+ * to stop.
  */
-const MyRooms = ({ rooms, onJoin, onDismiss }) => {
-  const [joiningId, setJoiningId] = useState(null);
+const MyRooms = ({ rooms, onJoin, onAsk, onDismiss }) => {
+  const [busyId, setBusyId] = useState(null);
 
   useEffect(() => {
-    if (!joiningId) return;
-    const timer = setTimeout(() => setJoiningId(null), JOIN_TIMEOUT_MS);
+    if (!busyId) return;
+    const timer = setTimeout(() => setBusyId(null), BUSY_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [joiningId]);
+  }, [busyId]);
 
   if (rooms.length === 0) return null;
 
-  const join = (groupId) => {
-    setJoiningId(groupId);
-    onJoin(groupId);
+  // A join ends by leaving this screen; asking ends with the answer from the server.
+  const handlers = {
+    onJoin: (groupId) => {
+      setBusyId(groupId);
+      onJoin(groupId);
+    },
+    onAsk: async (groupId) => {
+      setBusyId(groupId);
+      await onAsk(groupId);
+      setBusyId(null);
+    },
   };
 
   return (
     <section aria-label='Your rooms' className='mb-10 w-full space-y-3'>
       {rooms.map((room) => {
-        const props = {
-          room,
-          switching: joiningId === room.groupId,
-          disabled: Boolean(joiningId),
-          onJoin: join,
-        };
-        return room.status === 'member' ? (
-          <PlayingCard key={room.groupId} {...props} />
-        ) : (
-          <LeftRoomRow key={room.groupId} {...props} onDismiss={onDismiss} />
-        );
+        const state = { busy: busyId === room.groupId, disabled: Boolean(busyId), ...handlers };
+        if (room.status === 'member') {
+          return (
+            <PlayingCard
+              key={room.groupId}
+              room={room}
+              switching={state.busy}
+              disabled={state.disabled}
+              onJoin={handlers.onJoin}
+            />
+          );
+        }
+        const row =
+          room.status === 'removed' ? removedRoomRow(room, state) : leftRoomRow(room, state);
+        return <FormerRoomRow key={room.groupId} room={room} {...row} onDismiss={onDismiss} />;
       })}
     </section>
   );

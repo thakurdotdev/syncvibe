@@ -75,6 +75,7 @@ const GroupMusic = () => {
                   onOpenModal={openGroupModal}
                   myRooms={myRooms.rooms}
                   onJoinRoom={joinGroup}
+                  onAskRoom={myRooms.ask}
                   onDismissRoom={myRooms.dismiss}
                 />
               </div>

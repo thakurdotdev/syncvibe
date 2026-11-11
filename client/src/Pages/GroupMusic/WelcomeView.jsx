@@ -11,7 +11,7 @@ const FEATURE_CARDS = [
   { icon: MessageCircle, title: 'Group', subtitle: 'Chat' },
 ];
 
-const WelcomeView = ({ onOpenModal, myRooms = [], onJoinRoom, onDismissRoom }) => {
+const WelcomeView = ({ onOpenModal, myRooms = [], onJoinRoom, onAskRoom, onDismissRoom }) => {
   return (
     <motion.div
       key='welcome'
@@ -22,7 +22,7 @@ const WelcomeView = ({ onOpenModal, myRooms = [], onJoinRoom, onDismissRoom }) =
       className='flex flex-col items-center justify-center min-h-full py-8 px-4'
     >
       <div className='max-w-lg w-full flex flex-col items-center text-center'>
-        <MyRooms rooms={myRooms} onJoin={onJoinRoom} onDismiss={onDismissRoom} />
+        <MyRooms rooms={myRooms} onJoin={onJoinRoom} onAsk={onAskRoom} onDismiss={onDismissRoom} />
 
         <div className='relative mb-8'>
           <div className='h-24 w-24 sm:h-28 sm:w-28 rounded-full bg-primary/10 flex items-center justify-center'>
