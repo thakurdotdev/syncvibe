@@ -850,6 +850,7 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   const roomSong = useGroupSessionStore((s) => s.currentItem?.song);
   const unread = useChatStore(selectUnreadTotal);
   const showCard = useDeckStore((s) => s.showCard);
+  const songPopup = useDeckStore((s) => s.songPopup);
 
   // In a room the room owns playback; your own song waits on Home under the room card.
   const showSong = !inRoom && activePlayerMode === 'normal' && !!currentSong;
@@ -891,7 +892,7 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     if (shown.id !== songId) {
       setDirection(queueIndex === shown.index - 1 ? 'prev' : 'next');
       // A new song (not the first one this deck sees): show it, with one sweep of light.
-      if (showSong && shown.id !== undefined && !fullPlayerOpen && !showCard) {
+      if (showSong && shown.id !== undefined && !fullPlayerOpen && !showCard && songPopup) {
         setCapsule((c) => ({ on: true, ms: SHOW_SONG_MS, key: c.key + 1 }));
         setGlowPlay((n) => n + 1);
       }

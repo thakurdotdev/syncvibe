@@ -564,3 +564,9 @@ export const colorPalettes: Record<ColorPaletteName, ColorPalette> = {
 };
 
 export type ColorTheme = 'light' | 'dark';
+
+/** Themes offered in Settings → Appearance, in order. Mono is the default. */
+export const THEME_CHOICES = ['mono', 'ember', 'aubergine'] as const;
+export type ThemeChoice = (typeof THEME_CHOICES)[number];
+export const isThemeChoice = (value: unknown): value is ThemeChoice =>
+  (THEME_CHOICES as readonly unknown[]).includes(value);
