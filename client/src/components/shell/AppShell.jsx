@@ -8,7 +8,8 @@ import { paths } from '@/lib/paths';
 import { cn } from '@/lib/utils';
 import BottomPlayer from '@/Pages/Music/BottomPlayer';
 import MusicCommand from '@/Pages/Music/MusicCommand';
-import { MobileTabBar, MobileTopBar, useTabBarVisible } from './MobileBars';
+import { MobileTopBar, useTabBarVisible } from './MobileBars';
+import MobileDeck from './MobileDeck';
 import Sidebar from './Sidebar';
 import { useShellLayout } from './useShellLayout';
 
@@ -62,7 +63,8 @@ const AppShell = () => {
             className={cn(
               'min-h-0 flex-1',
               !fullHeight && 'overflow-y-auto overscroll-contain',
-              isMobile && tabBarVisible && (fullHeight ? 'pb-16' : 'pb-20')
+              // Room for the deck: 58px plus its gap, above the safe area.
+              isMobile && tabBarVisible && (fullHeight ? 'pb-20' : 'pb-24')
             )}
           >
             <Suspense fallback={<PanelFallback />}>
@@ -74,7 +76,7 @@ const AppShell = () => {
         </div>
       </main>
 
-      {isMobile && tabBarVisible && <MobileTabBar />}
+      {isMobile && tabBarVisible && <MobileDeck />}
       <BottomPlayer />
       <ActiveGroupBar />
       <MusicCommand />

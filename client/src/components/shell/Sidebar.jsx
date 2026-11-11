@@ -1,5 +1,5 @@
 import { MotionConfig, motion } from 'framer-motion';
-import { PanelLeftClose, PanelLeftOpen, Plus, Search } from 'lucide-react';
+import { ChevronRight, PanelLeftClose, PanelLeftOpen, Plus, Search } from 'lucide-react';
 import { memo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ProfileDropdownMenu from '@/components/ProfileDropdownMenu';
@@ -18,6 +18,15 @@ import { useChatSummary } from './useShellData';
 import { SPRING } from '@/lib/motion';
 
 const isMac = typeof navigator !== 'undefined' && navigator.userAgent.includes('Mac');
+/** The playlist shelf shows this many (newest first); the rest are a click away in Library. */
+const SHELF_SIZE = 6;
+/** The collapsed rail shows fewer, as covers. */
+const RAIL_SIZE = 5;
+/** What a click on the collapsed rail leaves alone: it expands on anything else. */
+const INTERACTIVE = 'a, button, input, [role="button"], [role="menuitem"], [role="menu"]';
+
+const coverOf = (pl) =>
+  getPlaylistImageUrl(pl.previewSongs?.[0]?.image) || getPlaylistImageUrl(pl.image);
 
 /**
  * The active destination is drawn as a piece of the content panel's surface, lifted onto the
@@ -139,49 +148,94 @@ const Playlists = () => {
           Save songs into playlists and they’ll live here.
         </p>
       ) : (
-        <ul className='sidebar-scroll -mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-2'>
-          {playlists.map((pl) => {
-            const to = paths.myPlaylist(pl.id);
-            const active = pathname === to;
-            const img =
-              getPlaylistImageUrl(pl.previewSongs?.[0]?.image) || getPlaylistImageUrl(pl.image);
-            return (
-              <li key={pl.id}>
-                <Link
-                  to={to}
-                  aria-current={active ? 'page' : undefined}
-                  className={cn(
-                    'flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors',
-                    active ? 'bg-foreground/[0.07]' : 'hover:bg-foreground/[0.045]'
-                  )}
-                >
-                  {img ? (
-                    <img src={img} alt='' className='h-8 w-8 shrink-0 rounded-lg object-cover' />
-                  ) : (
-                    <span className='grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/15 font-display text-xs font-bold text-primary'>
-                      {pl.name?.[0]?.toUpperCase()}
-                    </span>
-                  )}
-                  <span className='min-w-0 flex-1'>
+        <>
+          <ul className='sidebar-scroll -mx-1 min-h-0 overflow-y-auto px-1'>
+            {playlists.slice(0, SHELF_SIZE).map((pl) => {
+              const to = paths.myPlaylist(pl.id);
+              const active = pathname === to;
+              const img = coverOf(pl);
+              return (
+                <li key={pl.id}>
+                  <Link
+                    to={to}
+                    aria-current={active ? 'page' : undefined}
+                    title={`${pl.name} · ${Number(pl.songCount) || 0} songs`}
+                    className={cn(
+                      'flex h-9 items-center gap-2.5 rounded-xl px-2 transition-colors',
+                      active ? 'bg-foreground/[0.07]' : 'hover:bg-foreground/[0.045]'
+                    )}
+                  >
+                    {img ? (
+                      <img src={img} alt='' className='h-6 w-6 shrink-0 rounded-md object-cover' />
+                    ) : (
+                      <span className='grid h-6 w-6 shrink-0 place-items-center rounded-md bg-primary/15 font-display text-[11px] font-bold text-primary'>
+                        {pl.name?.[0]?.toUpperCase()}
+                      </span>
+                    )}
                     <span
                       className={cn(
-                        'block truncate text-[13px]',
+                        'min-w-0 flex-1 truncate text-[13px]',
                         active ? 'font-semibold' : 'font-medium text-foreground/85'
                       )}
                     >
                       {pl.name}
                     </span>
-                    <span className='block text-[11px] tabular-nums text-muted-foreground'>
-                      {Number(pl.songCount) || 0} songs
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          {playlists.length > SHELF_SIZE && (
+            <Link
+              to={paths.library}
+              className='mt-0.5 flex h-8 shrink-0 items-center gap-1 rounded-xl px-2 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.045] hover:text-foreground'
+            >
+              <span className='flex-1'>All playlists</span>
+              <span className='tabular-nums'>{playlists.length}</span>
+              <ChevronRight className='h-3.5 w-3.5' />
+            </Link>
+          )}
+        </>
       )}
     </section>
+  );
+};
+
+/** Collapsed: the newest playlists as covers, so the rail isn't empty. */
+const RailPlaylists = () => {
+  const { pathname } = useLocation();
+  const { data: playlists = [] } = useUserPlaylistsQuery();
+  if (!playlists.length) return null;
+  return (
+    <ul className='flex flex-col items-center gap-1.5 border-t border-sidebar-border pt-3'>
+      {playlists.slice(0, RAIL_SIZE).map((pl) => {
+        const to = paths.myPlaylist(pl.id);
+        const img = coverOf(pl);
+        return (
+          <li key={pl.id}>
+            <Tip label={pl.name}>
+              <Link
+                to={to}
+                aria-label={pl.name}
+                aria-current={pathname === to ? 'page' : undefined}
+                className={cn(
+                  'block rounded-lg transition-transform hover:scale-105 active:scale-95',
+                  pathname === to && 'ring-2 ring-foreground/70 ring-offset-2 ring-offset-sidebar'
+                )}
+              >
+                {img ? (
+                  <img src={img} alt='' className='h-9 w-9 rounded-lg object-cover' />
+                ) : (
+                  <span className='grid h-9 w-9 place-items-center rounded-lg bg-primary/15 font-display text-xs font-bold text-primary'>
+                    {pl.name?.[0]?.toUpperCase()}
+                  </span>
+                )}
+              </Link>
+            </Tip>
+          </li>
+        );
+      })}
+    </ul>
   );
 };
 
@@ -274,14 +328,25 @@ const Sidebar = ({ collapsed, canExpand }) => {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const setSearchOpen = useUiStore((s) => s.setSearchOpen);
   const { unread, people, total } = useChatSummary(6);
+  const railExpands = collapsed && canExpand;
+
+  // Collapsed, the whole rail is the way to open it: a click anywhere but a link or button.
+  const onRailClick = (e) => {
+    if (!railExpands || e.target.closest(INTERACTIVE)) return;
+    toggleSidebar();
+  };
 
   return (
     <MotionConfig reducedMotion='user'>
       <TooltipProvider delayDuration={150}>
+        {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- a pointer shortcut; the Expand button below is the keyboard way */}
         <aside
+          onClick={onRailClick}
           className={cn(
             'flex h-full shrink-0 flex-col bg-sidebar transition-[width] duration-300 ease-premium',
-            collapsed ? 'w-[72px]' : 'w-[264px]'
+            collapsed ? 'w-[72px]' : 'w-[264px]',
+            // The expand arrow over empty rail; links and buttons keep their own pointer.
+            railExpands && 'cursor-e-resize [&_a]:cursor-pointer [&_button]:cursor-pointer'
           )}
         >
           {/* Top band */}
@@ -343,7 +408,9 @@ const Sidebar = ({ collapsed, canExpand }) => {
 
           {/* Middle band: the only part that scrolls */}
           {collapsed ? (
-            <div className='flex-1' />
+            <div className='flex min-h-0 flex-1 flex-col overflow-hidden px-2'>
+              <RailPlaylists />
+            </div>
           ) : (
             <div className='flex min-h-0 flex-1 flex-col border-t border-sidebar-border px-3 pt-3'>
               <People people={people} total={total} />
