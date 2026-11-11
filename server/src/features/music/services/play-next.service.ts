@@ -433,6 +433,16 @@ const getUserHistory = async (userId: number): Promise<UserHistoryResult> => {
   return { recentSongIds, historyMap };
 };
 
+/** Songs that fit after this one, best first, the same for every listener. */
+export const getRelatedSongIds = async (baseSongId: string): Promise<string[]> => {
+  const cached = await cache.get<string[]>(cacheKey(baseSongId));
+  if (cached) return cached;
+
+  const computed = await computeForSong(baseSongId);
+  if (computed.length > 0) await cache.set(cacheKey(baseSongId), computed, cacheTtl());
+  return computed;
+};
+
 interface PlayNextParams {
   baseSongId: string;
   userId?: number | null;
@@ -446,16 +456,8 @@ export const getPlayNextSongs = async ({
   limit = 20,
   excludeSongIds = [],
 }: PlayNextParams): Promise<Array<Record<string, unknown>>> => {
-  let cachedIds = await cache.get<string[]>(cacheKey(baseSongId));
-
-  if (!cachedIds) {
-    cachedIds = await computeForSong(baseSongId);
-    if (cachedIds.length > 0) {
-      await cache.set(cacheKey(baseSongId), cachedIds, cacheTtl());
-    }
-  }
-
-  if (!cachedIds || cachedIds.length === 0) return [];
+  const cachedIds = await getRelatedSongIds(baseSongId);
+  if (cachedIds.length === 0) return [];
 
   let resultIds = cachedIds.filter((id) => !excludeSongIds.includes(id));
 

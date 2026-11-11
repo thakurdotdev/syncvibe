@@ -1,152 +1,176 @@
-import { QueryTypes } from 'sequelize';
-import sequelize from '@/utils/sequelize';
+import { Op } from 'sequelize';
+import { HistorySong, Song } from '@/models/index';
 import { cache } from '@/utils/redis';
+import sequelize from '@/utils/sequelize';
+import { getRelatedSongIds } from './play-next.service';
+import {
+  dropKnownTitles,
+  fuseRelated,
+  pickFavourites,
+  pickForDay,
+  pickSeeds,
+  toUnitScores,
+  type Listen,
+  type Pick,
+} from './recommendation.scoring';
 
-const CACHE_TTL_SECONDS = 3600;
-const POOL_SIZE = 50;
+type SongData = Record<string, unknown>;
+
+const CACHE_TTL_SECONDS = 6 * 60 * 60;
+/** Fetched before other versions of heard songs are dropped, so it is larger than the pool. */
+const NEW_SONGS_FETCHED = 150;
+const NEW_SONGS_IN_POOL = 60;
+const FAVOURITES_IN_POOL = 20;
 const pendingUsers = new Set<number>();
+const building = new Map<number, Promise<Pick<SongData>[]>>();
 
-/** History stores the hour a song was played ("0"-"23"), so a time of day is a set of hours. */
-const hoursInSameTimeOfDay = (hour: number): string[] => {
-  const hours = (from: number, to: number) =>
-    Array.from({ length: to - from }, (_, i) => String(from + i));
-  if (hour >= 5 && hour < 12) return hours(5, 12);
-  if (hour >= 12 && hour < 17) return hours(12, 17);
-  if (hour >= 17 && hour < 21) return hours(17, 21);
-  return [...hours(21, 24), ...hours(0, 5)];
+const poolKey = (userId: number): string => `recs:${userId}:mix`;
+
+/**
+ * `artistNames` often starts with a composer or an actor, so the singer is read from the song
+ * itself. Selected as a column because a long history shouldn't load every song's full data.
+ */
+const SINGER = [
+  sequelize.literal(`"songData"#>>'{artist_map,primary_artists,0,name}'`),
+  'singer',
+] as const;
+
+type WithSinger<T> = T & { singer: string | null };
+
+const artistOf = (song: { singer: string | null; artistNames: string | null }): string =>
+  song.singer || (song.artistNames || '').split(',')[0]!.trim();
+
+const loadListens = async (userId: number): Promise<Listen[]> => {
+  const rows = await HistorySong.findAll({
+    where: { userId },
+    attributes: ['songRefId', 'playedCount', 'completionRate', 'skipCount', 'lastPlayedAt'],
+    raw: true,
+  });
+  if (rows.length === 0) return [];
+
+  const songs = (await Song.findAll({
+    where: { id: { [Op.in]: rows.map((row) => row.songRefId) } },
+    attributes: ['id', 'songId', 'name', 'artistNames', [...SINGER]],
+    raw: true,
+  })) as unknown as Array<WithSinger<Song>>;
+  const songsByRef = new Map(songs.map((song) => [song.id, song]));
+
+  return rows.flatMap((row) => {
+    const song = songsByRef.get(row.songRefId);
+    if (!song) return [];
+    return {
+      songId: song.songId,
+      name: song.name || '',
+      artist: artistOf(song),
+      playedCount: row.playedCount || 1,
+      completionRate: row.completionRate || 0,
+      skipCount: row.skipCount || 0,
+      lastPlayedAt: row.lastPlayedAt,
+    };
+  });
 };
 
-const shuffleArray = <T>(array: T[]): T[] => {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j]!, arr[i]!];
+const loadPicks = async (
+  ranked: Array<{ songId: string; score: number }>,
+  kind: Pick['kind']
+): Promise<Pick<SongData>[]> => {
+  if (ranked.length === 0) return [];
+  const songs = (await Song.findAll({
+    where: { songId: { [Op.in]: ranked.map((item) => item.songId) } },
+    attributes: ['songId', 'name', 'artistNames', 'songData', [...SINGER]],
+    raw: true,
+  })) as unknown as Array<WithSinger<Song>>;
+  const songsById = new Map(songs.map((song) => [song.songId, song]));
+
+  return ranked.flatMap(({ songId, score }) => {
+    const song = songsById.get(songId);
+    if (!song) return [];
+    return {
+      songId,
+      name: song.name || '',
+      artist: artistOf(song),
+      score,
+      kind,
+      song: song.songData as SongData,
+    };
+  });
+};
+
+/**
+ * Everything worth showing this listener: new songs related to what they play most now, and
+ * favourites they haven't played for a while. Each day's list is drawn from it.
+ */
+const computePool = async (userId: number): Promise<Pick<SongData>[]> => {
+  const listens = await loadListens(userId);
+  if (listens.length === 0) return [];
+
+  const now = new Date();
+  const seeds = pickSeeds(listens, now);
+  const relatedBySeed = new Map<string, string[]>();
+  // One at a time: a seed that isn't cached yet costs several catalog searches.
+  for (const seed of seeds) {
+    relatedBySeed.set(seed.songId, await getRelatedSongIds(seed.songId));
   }
-  return arr;
+
+  const heard = new Set(listens.map((listen) => listen.songId));
+  const fused = fuseRelated(seeds, relatedBySeed, heard).slice(0, NEW_SONGS_FETCHED);
+  const fresh = dropKnownTitles(
+    await loadPicks(fused, 'new'),
+    listens.map((listen) => listen.name)
+  ).slice(0, NEW_SONGS_IN_POOL);
+
+  const favourites = await loadPicks(
+    pickFavourites(listens, now).slice(0, FAVOURITES_IN_POOL),
+    'favourite'
+  );
+
+  return [...toUnitScores(fresh), ...toUnitScores(favourites)];
+};
+
+const buildPool = (userId: number): Promise<Pick<SongData>[]> => {
+  const running = building.get(userId);
+  if (running) return running;
+
+  const build = computePool(userId)
+    .then(async (pool) => {
+      await cache.set(poolKey(userId), pool, CACHE_TTL_SECONDS);
+      return pool;
+    })
+    .finally(() => building.delete(userId));
+  building.set(userId, build);
+  return build;
 };
 
 export const getRecommendationsForUser = async (
   userId: number,
   limit = 12
-): Promise<Record<string, unknown>[]> => {
-  const cacheKey = `recs:${userId}:pool`;
-  let pool = await cache.get<Record<string, unknown>[]>(cacheKey);
+): Promise<SongData[]> => {
+  const cached = await cache.get<Pick<SongData>[]>(poolKey(userId));
+  const pool = cached && cached.length > 0 ? cached : await buildPool(userId);
 
-  if (!pool || pool.length === 0) {
-    pool = await computeRecommendations(userId, POOL_SIZE);
-    await cache.set(cacheKey, pool, CACHE_TTL_SECONDS);
-  }
-
-  const shuffled = shuffleArray(pool);
-  return shuffled.slice(0, limit);
+  const day = new Date().toISOString().slice(0, 10);
+  return pickForDay(pool, limit, `${userId}:${day}`).map((pick) => pick.song);
 };
 
-const computeRecommendations = async (
-  userId: number,
-  limit: number
-): Promise<Record<string, unknown>[]> => {
-  const profileQuery = `
-    WITH user_stats AS (
-      SELECT 
-        s."artistNames",
-        s.language,
-        hs.mood,
-        hs."timeOfDay",
-        hs."playedCount",
-        hs."completionRate",
-        hs."likeStatus",
-        hs."lastPlayedAt"
-      FROM history_songs hs
-      INNER JOIN songs s ON s.id = hs."songRefId"
-      WHERE hs."userId" = :userId AND hs."songRefId" IS NOT NULL
-    ),
-    top_artists AS (
-      SELECT unnest(string_to_array("artistNames", ',')) as artist, SUM("playedCount") as plays
-      FROM user_stats
-      GROUP BY 1
-      ORDER BY plays DESC
-      LIMIT 10
-    ),
-    top_languages AS (
-      SELECT language, SUM("playedCount") as plays
-      FROM user_stats WHERE language IS NOT NULL
-      GROUP BY 1 ORDER BY plays DESC LIMIT 3
-    ),
-    current_hour_pref AS (
-      SELECT EXTRACT(HOUR FROM NOW())::int as current_hour
-    )
-    SELECT 
-      ARRAY(SELECT TRIM(artist) FROM top_artists) as top_artists,
-      ARRAY(SELECT language FROM top_languages) as top_languages,
-      (SELECT current_hour FROM current_hour_pref) as current_hour,
-      (SELECT AVG("completionRate") FROM user_stats WHERE "completionRate" > 50) as avg_completion
-  `;
+export const getRecentlyPlayed = async (userId: number, limit = 15): Promise<SongData[]> => {
+  const recent = await HistorySong.findAll({
+    where: { userId },
+    attributes: ['songRefId'],
+    order: [['lastPlayedAt', 'DESC']],
+    limit,
+    raw: true,
+  });
+  if (recent.length === 0) return [];
 
-  const profileResults = (await sequelize.query(profileQuery, {
-    replacements: { userId },
-    type: QueryTypes.SELECT,
-  })) as Array<{ top_artists?: string[]; top_languages?: string[]; current_hour?: number }>;
-
-  const profile = profileResults[0];
-  const topArtists = profile?.top_artists?.filter(Boolean) ?? [];
-  const topLanguages = profile?.top_languages?.filter(Boolean) ?? [];
-  const currentHour = profile?.current_hour ?? new Date().getHours();
-
-  const artistPatterns = topArtists.length > 0 ? topArtists.map((a) => `%${a.trim()}%`) : null;
-  const hasArtists = artistPatterns && artistPatterns.length > 0;
-  const hasLanguages = topLanguages.length > 0;
-
-  const timeOfDayHours = hoursInSameTimeOfDay(currentHour);
-
-  const query = `
-    SELECT "songData" FROM (
-      SELECT DISTINCT ON (s.id) s."songData",
-        (
-          CASE WHEN hs."likeStatus" = true THEN 0.20 ELSE 0 END +
-          ${hasArtists ? `CASE WHEN s."artistNames" ILIKE ANY(ARRAY[${artistPatterns.map((p) => sequelize.escape(p)).join(',')}]) THEN 0.20 ELSE 0 END` : '0'} +
-          ${hasLanguages ? `CASE WHEN s.language = ANY(ARRAY[${topLanguages.map((l) => sequelize.escape(l)).join(',')}]) THEN 0.15 ELSE 0 END` : '0'} +
-          (COALESCE(hs."completionRate", 0) / 100) * 0.15 +
-          (LN(COALESCE(hs."playedCount", 1) + 1) / 5) * 0.15 +
-          CASE WHEN hs."timeOfDay" IN (:timeOfDayHours) THEN 0.10 ELSE 0 END +
-          EXP(-EXTRACT(DAY FROM NOW() - hs."lastPlayedAt") / 30) * 0.05
-        ) as score,
-        hs."playedCount"
-      FROM history_songs hs
-      INNER JOIN songs s ON s.id = hs."songRefId"
-      WHERE hs."userId" = :userId AND hs."songRefId" IS NOT NULL
-      ORDER BY s.id, score DESC
-    ) ranked
-    ORDER BY score DESC, "playedCount" DESC
-    LIMIT :limit
-  `;
-
-  const results = (await sequelize.query(query, {
-    replacements: { userId, limit, timeOfDayHours },
-    type: QueryTypes.SELECT,
-  })) as Array<{ songData: Record<string, unknown> }>;
-
-  return results.map((r) => r.songData);
-};
-
-export const getRecentlyPlayed = async (
-  userId: number,
-  limit = 15
-): Promise<Record<string, unknown>[]> => {
-  const query = `
-    SELECT s."songData"
-    FROM history_songs hs
-    INNER JOIN songs s ON s.id = hs."songRefId"
-    WHERE hs."userId" = :userId AND hs."songRefId" IS NOT NULL
-    ORDER BY hs."lastPlayedAt" DESC
-    LIMIT :limit
-  `;
-
-  const results = (await sequelize.query(query, {
-    replacements: { userId, limit },
-    type: QueryTypes.SELECT,
-  })) as Array<{ songData: Record<string, unknown> }>;
-
-  return results.map((r) => r.songData);
+  const songs = await Song.findAll({
+    where: { id: { [Op.in]: recent.map((row) => row.songRefId) } },
+    attributes: ['id', 'songData'],
+    raw: true,
+  });
+  const dataByRef = new Map(songs.map((song) => [song.id, song.songData as SongData]));
+  return recent
+    .map((row) => dataByRef.get(row.songRefId))
+    .filter((data): data is SongData => !!data);
 };
 
 export const queueUserForRecalc = (userId: number): void => {
@@ -161,14 +185,11 @@ const processPendingRecalculations = async (): Promise<void> => {
 
   for (const userId of usersToProcess) {
     try {
-      const pool = await computeRecommendations(userId, POOL_SIZE);
-      await cache.set(`recs:${userId}:pool`, pool, CACHE_TTL_SECONDS);
+      await buildPool(userId);
     } catch (err) {
       console.error(`Failed to recalc recommendations for user ${userId}:`, (err as Error).message);
     }
   }
-
-  console.log(`Recalculated recommendations for ${usersToProcess.length} users`);
 };
 
 let recalcInterval: ReturnType<typeof setInterval> | null = null;
@@ -192,6 +213,5 @@ export const stopBackgroundRecalc = (): void => {
 };
 
 export const invalidateCache = async (userId: number): Promise<void> => {
-  await cache.delPattern(`recs:${userId}:*`);
-  await cache.delPattern(`recent:${userId}:*`);
+  await cache.del(poolKey(userId));
 };
