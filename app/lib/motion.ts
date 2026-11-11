@@ -14,6 +14,11 @@ import { Easing, ReduceMotion } from 'react-native-reanimated';
 export const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 export const EASE_IN_OUT = Easing.bezier(0.77, 0, 0.175, 1);
 export const EASE_SHEET = Easing.bezier(0.32, 0.72, 0, 1);
+/**
+ * Leaving like a magnet pulls it: a gentle start that gathers speed and ends on a snap, so
+ * whatever is going gets out of the way decisively instead of drifting to a stop.
+ */
+export const EASE_MAGNET = Easing.bezier(0.6, 0, 0.9, 0.4);
 
 const system = ReduceMotion.System;
 
@@ -38,8 +43,11 @@ export const EXIT = { duration: 140, easing: EASE_OUT, reduceMotion: system } as
 
 /** Sheet opening from a tap: starts fast so the first frame already moves, then settles. */
 export const SHEET_OPEN = { duration: 280, easing: EASE_SHEET, reduceMotion: system } as const;
-/** Sheet leaving on its own; quicker than it arrived. */
-export const SHEET_CLOSE = { duration: 180, easing: EASE_OUT, reduceMotion: system } as const;
+/**
+ * Sheet leaving on its own (backdrop, back, a choice made); quicker than it arrived, and pulled
+ * away like the song capsule into its orb. A swipe down springs instead, at the finger's speed.
+ */
+export const SHEET_CLOSE = { duration: 180, easing: EASE_MAGNET, reduceMotion: system } as const;
 
 /** Press-down scale: cards and buttons, full-width rows (less, they're wide), small icon buttons. */
 export const PRESS_SCALE = 0.97;

@@ -15,6 +15,7 @@ import { useTheme } from '@/context/ThemeContext';
 import {
   BUTTON_PRESS_SCALE,
   EASE_IN_OUT,
+  EASE_MAGNET,
   EASE_OUT,
   PRESS_IN,
   ROW_PRESS_SCALE,
@@ -336,7 +337,7 @@ const CAPSULE_OPEN = {
  */
 const CAPSULE_CLOSE = {
   duration: 170,
-  easing: Easing.bezier(0.6, 0, 0.9, 0.4),
+  easing: EASE_MAGNET,
   reduceMotion: ReduceMotion.System,
 } as const;
 const CAPSULE_SHOW = {
