@@ -385,8 +385,26 @@ const OrbRing = memo(function OrbRing({
 
 type OrbKind = 'song' | 'room' | 'idle';
 
-/** Sideways travel the orb treats as "all the way" when judging a skip (see isSkipSwipe). */
-const ORB_SWIPE_SPAN = 160;
+/**
+ * When a swipe on the orb skips. The orb sits about 40dp from the left edge, so a leftward swipe has
+ * little room: a short drag, or a shorter flick, is enough. Travel is measured from where the finger
+ * landed, because Android zeroes the pan's translation when it activates.
+ */
+const ORB_SKIP_DISTANCE = 24;
+const ORB_FLICK_DISTANCE = 10;
+const ORB_FLICK_VELOCITY = 450;
+/** Moving back this fast at release means you changed your mind. */
+const ORB_REVERSE_VELOCITY = 300;
+const isOrbSkip = (dx: number, vx: number) => {
+  'worklet';
+  const speedOut = dx < 0 ? -vx : vx;
+  if (speedOut < -ORB_REVERSE_VELOCITY) return false;
+  const distance = Math.abs(dx);
+  return (
+    distance >= ORB_SKIP_DISTANCE ||
+    (distance >= ORB_FLICK_DISTANCE && speedOut >= ORB_FLICK_VELOCITY)
+  );
+};
 /** Hold this long to show the song and its controls. */
 const ORB_HOLD_MS = 420;
 
@@ -422,6 +440,7 @@ const Orb = memo(function Orb({
   const scale = useSharedValue(1);
   const x = useSharedValue(0);
   const skipped = useSharedValue(false);
+  const startX = useSharedValue(0);
 
   // A new song starts centred; whatever the old one was doing is over.
   useLayoutEffect(() => {
@@ -433,17 +452,19 @@ const Orb = memo(function Orb({
     .enabled(canSwipe)
     // The first few points of the screen edge belong to Android's back gesture.
     .hitSlop({ left: -(EDGE_GUARD - DECK_SIDE) })
-    .activeOffsetX([-10, 10])
+    .activeOffsetX([-8, 8])
     .failOffsetY([-14, 14])
-    .onBegin(() => {
+    .onBegin((e) => {
       skipped.set(false);
+      startX.set(e.absoluteX);
     })
     .onUpdate((e) => {
-      x.set(e.translationX * 0.5);
+      x.set((e.absoluteX - startX.get()) * 0.5);
     })
     .onEnd((e, success) => {
-      if (!success || !isSkipSwipe(e.translationX, e.velocityX, ORB_SWIPE_SPAN)) return;
-      const forward = e.translationX < 0;
+      const dx = e.absoluteX - startX.get();
+      if (!success || !isOrbSkip(dx, e.velocityX)) return;
+      const forward = dx < 0;
       skipped.set(true);
       x.set(
         withSequence(
