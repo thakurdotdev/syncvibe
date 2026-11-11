@@ -3,13 +3,14 @@ import { SettingsGroup, SettingsRow } from '@/components/profile/SettingsGroup';
 import { GLASS_SUPPORTED } from '@/components/shell/GlassSurface';
 import { StackHeader } from '@/components/ui/AppHeader';
 import PressableScale from '@/components/ui/PressableScale';
+import Toggle from '@/components/ui/Toggle';
 import { useTheme } from '@/context/ThemeContext';
 import { PRESS_SCALE } from '@/lib/motion';
 import { useDeckStore } from '@/stores/deckStore';
 import { colorPalettes, THEME_CHOICES, type ThemeChoice, type ThemeColors } from '@/theme/color';
 import { LinearGradient } from 'expo-linear-gradient';
 import { memo } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type Scheme = 'system' | 'light' | 'dark';
 
@@ -176,8 +177,6 @@ export default function AppearanceScreen() {
   const showCard = useDeckStore((s) => s.showCard);
   const setShowCard = useDeckStore((s) => s.setShowCard);
 
-  const switchColors = { false: colors.border, true: colors.primary };
-
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <StackHeader title='Appearance' />
@@ -223,13 +222,7 @@ export default function AppearanceScreen() {
               detail='Blur what scrolls behind the bar'
               onPress={() => setGlass(!glass)}
               trailing={
-                <Switch
-                  value={glass}
-                  onValueChange={setGlass}
-                  trackColor={switchColors}
-                  thumbColor={colors.card}
-                  accessibilityLabel='Glass'
-                />
+                <Toggle value={glass} onValueChange={setGlass} accessibilityLabel='Glass' />
               }
             />
           )}
@@ -239,11 +232,9 @@ export default function AppearanceScreen() {
             detail='Show the new song for a moment when it changes'
             onPress={() => setSongPopup(!songPopup)}
             trailing={
-              <Switch
+              <Toggle
                 value={songPopup}
                 onValueChange={setSongPopup}
-                trackColor={switchColors}
-                thumbColor={colors.card}
                 accessibilityLabel='Song pop-up'
               />
             }
@@ -254,11 +245,9 @@ export default function AppearanceScreen() {
             detail='Keep the song and room above the tabs'
             onPress={() => setShowCard(!showCard)}
             trailing={
-              <Switch
+              <Toggle
                 value={showCard}
                 onValueChange={setShowCard}
-                trackColor={switchColors}
-                thumbColor={colors.card}
                 accessibilityLabel='Player card'
               />
             }
