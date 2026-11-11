@@ -1,7 +1,7 @@
 import he from 'he';
-import { Pause, Play, Search, SkipForward } from 'lucide-react';
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { NextIcon, PauseIcon, PlayIcon, SearchMusicIcon } from '@/components/icons/NavIcons';
 import { paths } from '@/lib/paths';
 import { cn } from '@/lib/utils';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/playbackStore';
@@ -152,7 +152,7 @@ const Orb = memo(({ kind, art, title, onTap, onHold, onSkip, ripple }) => {
       <span className={cn('absolute inset-0 grid place-items-center rounded-full', glass)}>
         {kind === 'idle' ? (
           <span className='grid h-full w-full place-items-center rounded-full bg-primary text-primary-foreground'>
-            <Search className='h-6 w-6' />
+            <SearchMusicIcon size={25} />
           </span>
         ) : (
           <>
@@ -198,13 +198,17 @@ const Tabs = memo(({ hidden }) => {
         glass,
         hidden && 'pointer-events-none opacity-0'
       )}
-      style={{ height: PILL }}
+      // The selected tab's pill, solid so the filled icon's cut-outs can match it exactly.
+      style={{
+        height: PILL,
+        '--deck-tab': 'color-mix(in oklab, hsl(var(--card)) 82%, hsl(var(--primary)))',
+      }}
     >
       {activeIndex !== -1 && (
         // The selected tab's pill: tinted with the accent, sliding between tabs.
         <span
           aria-hidden='true'
-          className='absolute bottom-[5px] left-[5px] top-[5px] rounded-full bg-primary/15 transition-transform duration-[220ms] ease-in-out motion-reduce:transition-none'
+          className='absolute bottom-[5px] left-[5px] top-[5px] rounded-full bg-(--deck-tab) transition-transform duration-[220ms] ease-in-out motion-reduce:transition-none'
           style={{
             width: `calc((100% - 10px) / ${NAV_ITEMS.length})`,
             transform: `translateX(${activeIndex * 100}%)`,
@@ -224,11 +228,13 @@ const Tabs = memo(({ hidden }) => {
           >
             <span className='relative'>
               <Icon
+                size={23}
+                filled={active}
+                knock='var(--deck-tab)'
                 className={cn(
-                  'h-[22px] w-[22px] transition-colors duration-200',
+                  'transition-colors duration-200',
                   active ? 'text-primary' : 'text-muted-foreground'
                 )}
-                strokeWidth={active ? 2.3 : 1.9}
               />
               {key === 'rooms' && inRoom && (
                 <span className='live-dot absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-live' />
@@ -282,11 +288,7 @@ const Capsule = memo(({ expanded, song, isPlaying, onOpen, onPlayPause, onNext }
         aria-label={isPlaying ? 'Pause' : 'Play'}
         className='grid h-11 w-11 shrink-0 place-items-center rounded-full text-foreground active:scale-90 transition-transform'
       >
-        {isPlaying ? (
-          <Pause className='h-6 w-6 fill-current' />
-        ) : (
-          <Play className='h-6 w-6 fill-current' />
-        )}
+        {isPlaying ? <PauseIcon size={24} /> : <PlayIcon size={24} />}
       </button>
       <button
         type='button'
@@ -295,7 +297,7 @@ const Capsule = memo(({ expanded, song, isPlaying, onOpen, onPlayPause, onNext }
         aria-label='Next song'
         className='grid h-11 w-11 shrink-0 place-items-center rounded-full text-foreground active:scale-90 transition-transform'
       >
-        <SkipForward className='h-[22px] w-[22px] fill-current' />
+        <NextIcon size={22} />
       </button>
     </div>
   </div>
