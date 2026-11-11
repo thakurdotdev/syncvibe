@@ -1,9 +1,11 @@
 import type { Server, Socket } from 'socket.io';
-import { tellMyRooms } from './devices';
+import { tellFormerMembers, tellMyRooms } from './devices';
+import { noteDeparture } from './former';
 import { handleMemberGone } from './host';
 import { touchRoom } from './room-store';
 import {
   allRoomsOf,
+  findMember,
   getUserGroups,
   legacyRoomOf,
   musicGroups,
@@ -116,11 +118,12 @@ export const cancelRemoval = (groupId: string, userId: string | number) => {
   removalTimers.delete(key);
 };
 
-const expireIfEmpty = (groupId: string) => {
+const expireIfEmpty = (io: Server, groupId: string) => {
   const group = musicGroups.get(groupId);
   setTimeout(() => {
     if (group && musicGroups.get(groupId) === group && group.members.length === 0) {
       removeGroup(groupId);
+      tellFormerMembers(io, group);
     }
   }, EMPTY_ROOM_TTL);
 };
@@ -136,6 +139,8 @@ export const dropMember = (
   options: { removed?: boolean } = {}
 ) => {
   const groupId = group.id;
+  const member = findMember(group, userId);
+  if (member) noteDeparture(group, member);
   group.members = group.members.filter((m) => String(m.userId) !== String(userId));
   untrackUserGroup(userId, groupId);
   cancelRemoval(groupId, userId);
@@ -147,7 +152,7 @@ export const dropMember = (
   tellMyRooms(io, userId);
   handleMemberGone(io, group, userId);
   touchRoom(group, 'core');
-  if (group.members.length === 0) expireIfEmpty(groupId);
+  if (group.members.length === 0) expireIfEmpty(io, groupId);
 };
 
 const removeMember = (io: Server, groupId: string, userId: string | number) => {

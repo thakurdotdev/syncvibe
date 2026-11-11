@@ -42,6 +42,8 @@ const setup = (members: string[]) => {
     id: GROUP,
     members: members.map((userId) => ({ userId, userName: userId })),
     coHosts: [],
+    removedIds: [],
+    formerMembers: {},
     skipVotes: null,
   } as any);
   members.forEach((userId) => trackUserGroup(userId, GROUP));

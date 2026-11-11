@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { afterEach, test } from 'node:test';
+import { afterEach, mock, test } from 'node:test';
 import type { Server } from 'socket.io';
 import { myRoomsOf, tellMembersRooms } from './devices';
+import { FORMER_TTL_MS, forgetFormer, noteDeparture } from './former';
 import { claimRoomDevice } from './presence';
 import { createGroupState, musicGroups, trackUserGroup, userGroups } from './state';
 import { playFrom } from './timeline';
@@ -47,6 +48,7 @@ const setup = () => {
 };
 
 afterEach(() => {
+  mock.timers.reset();
   musicGroups.clear();
   userGroups.clear();
 });
@@ -66,6 +68,7 @@ test('your other device sees which device the room is playing on', () => {
 
   assert.deepEqual(myRoomsOf(io, 'a'), [
     {
+      status: 'member',
       groupId: GROUP,
       name: 'Friday',
       song: { id: 's1', name: 'Song' },
@@ -113,4 +116,56 @@ test('every member is told, each on their own devices', () => {
       ['b', 'room:mine'],
     ]
   );
+});
+
+/** Someone who was in the room and has left it. */
+const leave = (group: ReturnType<typeof setup>['group'], userId: string) => {
+  const member = group.members.find((m) => m.userId === userId)!;
+  noteDeparture(group, member);
+  group.members = group.members.filter((m) => m !== member);
+  userGroups.get(userId)?.delete(group.id);
+};
+
+test('a room you left is offered to rejoin', () => {
+  mock.timers.enable({ apis: ['Date'], now: 5_000 });
+  const { io, group } = setup();
+  group.members.push({ userId: 'b', userName: 'B' });
+  leave(group, 'a');
+  assert.deepEqual(myRoomsOf(io, 'a'), [
+    { status: 'left', groupId: GROUP, name: 'Friday', leftAt: 5_000, full: false },
+  ]);
+});
+
+test('a full room says so, so the device need not try', () => {
+  const { io, group } = setup();
+  group.members.push({ userId: 'b', userName: 'B' });
+  leave(group, 'a');
+  group.members.push({ userId: 'c', userName: 'C' });
+  const [room] = myRoomsOf(io, 'a');
+  assert.equal(room?.status === 'left' && room.full, true);
+});
+
+test('the offer lapses after a while, or when you dismiss it', () => {
+  mock.timers.enable({ apis: ['Date'], now: 0 });
+  const { io, group } = setup();
+  group.members.push({ userId: 'b', userName: 'B' });
+  leave(group, 'a');
+  mock.timers.tick(FORMER_TTL_MS - 1);
+  assert.equal(myRoomsOf(io, 'a').length, 1);
+  mock.timers.tick(1);
+  assert.equal(myRoomsOf(io, 'a').length, 0);
+
+  leave(group, 'b');
+  assert.equal(myRoomsOf(io, 'b').length, 1);
+  forgetFormer(group, 'b');
+  assert.equal(myRoomsOf(io, 'b').length, 0);
+});
+
+test('someone a host removed is not offered a plain rejoin', () => {
+  const { io, group } = setup();
+  group.members.push({ userId: 'b', userName: 'B' });
+  trackUserGroup('b', GROUP);
+  leave(group, 'b');
+  group.removedIds.push('b');
+  assert.deepEqual(myRoomsOf(io, 'b'), []);
 });

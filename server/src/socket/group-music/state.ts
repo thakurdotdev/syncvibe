@@ -13,6 +13,14 @@ export interface GroupMember {
   connected?: boolean;
 }
 
+/** Someone who was in the room lately, so their devices can offer the way back for a while. */
+export interface FormerMember {
+  userId: string;
+  userName: string;
+  profilePic?: string;
+  leftAt: number;
+}
+
 export interface QueueItem {
   id: string;
   song: Record<string, unknown>;
@@ -53,6 +61,8 @@ export interface MusicGroup {
   mutedIds: string[];
   /** Taken out of the room; they can't join again unless the host or a co-host invites them. */
   removedIds: string[];
+  /** Who left, dropped out or was removed lately, by user id. Cleared when they're back. */
+  formerMembers: Record<string, FormerMember>;
   skipVotes: SkipVotes | null;
   createdAt: number;
   members: GroupMember[];
@@ -275,6 +285,7 @@ export const createGroupState = (data: CreateGroupData): MusicGroup => ({
   coHosts: [],
   mutedIds: [],
   removedIds: [],
+  formerMembers: {},
   skipVotes: null,
   current: null,
   upcoming: [],

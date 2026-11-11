@@ -7,6 +7,7 @@ import { GroupInvite } from '@/models/index';
 import {
   allRoomsOf,
   canManage,
+  findMember,
   musicGroups,
   generateGroupId,
   createGroupState,
@@ -16,8 +17,9 @@ import {
   removeGroup,
 } from './state';
 import { joinPayloadOf, publicGroupOf } from './broadcast';
-import { tellMyRooms } from './devices';
-import { handleMemberGone } from './host';
+import { tellFormerMembers, tellMyRooms } from './devices';
+import { forgetFormer, noteDeparture } from './former';
+import { handleMemberGone, transferHost } from './host';
 import { touchRoom } from './room-store';
 import { sendPushNotification } from '../notification';
 
@@ -139,6 +141,9 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
         userName: data.userName,
         profilePic: data.profilePic,
       });
+      forgetFormer(group, data.userId);
+      // Rejoining a room everyone had left: its host is gone, so the first one back takes it.
+      if (!findMember(group, group.createdBy)) transferHost(io, group, data.userId);
     }
 
     trackUserGroup(data.userId, data.groupId);
@@ -194,6 +199,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
           userName: data.userName,
           profilePic: data.profilePic,
         });
+        forgetFormer(group, data.userId);
 
         socket.to(roomOf(data.groupId)).emit('member-joined', {
           userId: data.userId,
@@ -234,6 +240,8 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
     const group = musicGroups.get(data.groupId);
 
     if (group) {
+      const leaving = findMember(group, data.userId);
+      if (leaving) noteDeparture(group, leaving);
       group.members = group.members.filter(
         (member) => String(member.userId) !== String(data.userId)
       );
@@ -256,6 +264,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       if (group.members.length === 0) {
         removeGroup(data.groupId);
         io.to(roomOf(data.groupId)).emit('group-disbanded');
+        tellFormerMembers(io, group);
       }
     }
   });
