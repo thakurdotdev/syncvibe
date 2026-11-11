@@ -15,6 +15,7 @@ import { usePlayerStore } from '@/stores/playerStore';
 import SleepTimerDialog, { useSleepTimerLeft } from '../SleepTimer';
 import DesktopQueuePanel from './DesktopQueuePanel';
 import NowPlayingTab from './NowPlayingTab';
+import QueueActions from './QueueActions';
 import QueueTab from './QueueTab';
 
 const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
@@ -193,18 +194,21 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                     {playlistLength}
                   </span>
                 </div>
-                <Button
-                  variant='ghost'
-                  size='icon'
-                  onClick={() => setMobileQueueOpen(false)}
-                  className='h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors cursor-pointer'
-                  aria-label='Close queue'
-                >
-                  <X className='h-4 w-4' />
-                </Button>
+                <div className='flex items-center gap-1'>
+                  <QueueActions />
+                  <Button
+                    variant='ghost'
+                    size='icon'
+                    onClick={() => setMobileQueueOpen(false)}
+                    className='h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors cursor-pointer'
+                    aria-label='Close queue'
+                  >
+                    <X className='h-4 w-4' />
+                  </Button>
+                </div>
               </div>
               <div className='flex-1 overflow-y-auto px-0 py-1'>
-                <QueueTab showHeader={false} />
+                <QueueTab />
               </div>
             </div>
           </div>

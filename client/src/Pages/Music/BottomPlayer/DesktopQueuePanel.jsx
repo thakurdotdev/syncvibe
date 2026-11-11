@@ -1,30 +1,16 @@
-import {
-  Clock,
-  Disc3,
-  ListMusic,
-  Loader2,
-  MoreHorizontal,
-  RefreshCw,
-  Sparkles,
-  ToggleLeft,
-  ToggleRight,
-  Trash2,
-  User,
-} from 'lucide-react';
-import { memo, useCallback, useState } from 'react';
-import { toast } from 'sonner';
+import { Clock, Disc3, ListMusic, MoreHorizontal, User } from 'lucide-react';
+import { memo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useSongRecommendationsQuery } from '@/hooks/queries/useSongQueries';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { usePlayerStore } from '@/stores/playerStore';
+import QueueActions from './QueueActions';
 import QueueTab from './QueueTab';
 
 const DesktopQueuePanel = memo(
@@ -38,61 +24,6 @@ const DesktopQueuePanel = memo(
     handleGoToArtist,
   }) => {
     const playlistLength = usePlayerStore((s) => s.playlist.length);
-    const clearQueue = usePlayerStore((s) => s.clearQueue);
-    const replaceQueue = usePlayerStore((s) => s.replaceQueue);
-    const addToQueue = usePlayerStore((s) => s.addToQueue);
-    const autoFetchRecommendations = usePlayerStore((s) => s.autoFetchRecommendations);
-    const setAutoFetchRecommendations = usePlayerStore((s) => s.setAutoFetchRecommendations);
-
-    const [fetchingRecs, setFetchingRecs] = useState(false);
-
-    const { refetch: fetchRecommendations } = useSongRecommendationsQuery(currentSong?.id, {
-      enabled: false,
-    });
-
-    const handleClearQueue = useCallback(() => {
-      clearQueue();
-      toast.success('Queue cleared');
-    }, [clearQueue]);
-
-    const handleFetchAndReplace = useCallback(async () => {
-      if (!currentSong?.id) return;
-      setFetchingRecs(true);
-      try {
-        const { data } = await fetchRecommendations();
-        if (data?.length > 0) {
-          replaceQueue(data, true);
-          toast.success(`Added ${data.length} recommendations`);
-        } else {
-          toast.info('No recommendations found');
-        }
-      } catch {
-        toast.error('Failed to fetch recommendations');
-      }
-      setFetchingRecs(false);
-    }, [currentSong?.id, fetchRecommendations, replaceQueue]);
-
-    const handleFetchAndAdd = useCallback(async () => {
-      if (!currentSong?.id) return;
-      setFetchingRecs(true);
-      try {
-        const { data } = await fetchRecommendations();
-        if (data?.length > 0) {
-          addToQueue(data);
-          toast.success(`Added ${data.length} songs to queue`);
-        } else {
-          toast.info('No recommendations found');
-        }
-      } catch {
-        toast.error('Failed to fetch recommendations');
-      }
-      setFetchingRecs(false);
-    }, [currentSong?.id, fetchRecommendations, addToQueue]);
-
-    const handleToggleAutoFetch = useCallback(() => {
-      setAutoFetchRecommendations(!autoFetchRecommendations);
-      toast.success(autoFetchRecommendations ? 'Auto-fetch disabled' : 'Auto-fetch enabled');
-    }, [autoFetchRecommendations, setAutoFetchRecommendations]);
 
     return (
       <TooltipProvider delayDuration={300}>
@@ -110,79 +41,7 @@ const DesktopQueuePanel = memo(
             </div>
 
             <div className='flex items-center gap-1'>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant='ghost'
-                    size='icon'
-                    className='h-7.5 w-7.5 text-muted-foreground hover:text-destructive hover:bg-muted rounded-md transition-colors cursor-pointer'
-                    onClick={handleClearQueue}
-                    disabled={playlistLength <= 1}
-                    aria-label='Clear queue'
-                  >
-                    <Trash2 className='h-3.5 w-3.5' />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side='bottom' className='text-xs'>
-                  Clear queue
-                </TooltipContent>
-              </Tooltip>
-
-              <DropdownMenu>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        className='h-7.5 w-7.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors cursor-pointer'
-                        disabled={fetchingRecs}
-                        aria-label='Recommendations'
-                      >
-                        {fetchingRecs ? (
-                          <Loader2 className='h-3.5 w-3.5 animate-spin' />
-                        ) : (
-                          <Sparkles className='h-3.5 w-3.5' />
-                        )}
-                      </Button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent side='bottom' className='text-xs'>
-                    Recommendations
-                  </TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent
-                  align='end'
-                  className='w-52 bg-popover text-popover-foreground border-border shadow-xl rounded-lg p-1.5 z-50'
-                >
-                  <DropdownMenuItem
-                    onClick={handleFetchAndAdd}
-                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
-                  >
-                    <RefreshCw className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
-                    Add to queue
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleFetchAndReplace}
-                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
-                  >
-                    <Sparkles className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
-                    Replace queue
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className='bg-border my-1' />
-                  <DropdownMenuItem
-                    onClick={handleToggleAutoFetch}
-                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
-                  >
-                    {autoFetchRecommendations ? (
-                      <ToggleRight className='w-3.5 h-3.5 mr-2 text-primary' />
-                    ) : (
-                      <ToggleLeft className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
-                    )}
-                    Auto-fetch: {autoFetchRecommendations ? 'On' : 'Off'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <QueueActions />
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

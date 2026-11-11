@@ -172,6 +172,20 @@ export const usePlayerStore = create(
         }
       },
 
+      /** Keeps the queue up to and including this song. */
+      removeFromQueueBelow: (songId) => {
+        if (routed('removeFromQueueBelow', songId)) return;
+        const { playlist, originalPlaylist } = get();
+        const index = playlist.findIndex((song) => song.id === songId);
+        if (index === -1) return;
+        const kept = playlist.slice(0, index + 1);
+        const keptIds = new Set(kept.map((song) => song.id));
+        set({
+          playlist: kept,
+          originalPlaylist: originalPlaylist.filter((s) => keptIds.has(s.id)),
+        });
+      },
+
       /** Autoplay's picks for a song. Shared, only the device playing adds them. */
       addRecommendations: (songs, forSongId) => {
         if (routed('addRecommendations', songs, forSongId)) return;

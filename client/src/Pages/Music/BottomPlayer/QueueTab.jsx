@@ -18,9 +18,11 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import he from 'he';
 import {
+  ArrowDownToLine,
+  Trash2,
   Disc3,
   GripVertical,
   ListMusic,
@@ -29,15 +31,11 @@ import {
   Music,
   Pause,
   Play,
-  RefreshCw,
   Sparkles,
-  ToggleLeft,
-  ToggleRight,
-  Trash2,
   User,
   X,
 } from 'lucide-react';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -49,20 +47,96 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useSongRecommendationsQuery } from '@/hooks/queries/useSongQueries';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { usePlayerStore } from '@/stores/playerStore';
-
-const buttonVariants = {
-  hover: { scale: 1.05 },
-  tap: { scale: 0.95 },
-};
+import { usePlayerSessionStore } from '@/stores/playerSessionStore';
 
 const itemVariants = {
   initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0, x: -20, transition: { duration: 0.15 } },
+};
+
+/** How far a row must travel, at most, before letting go removes it. */
+const SWIPE_REMOVE_PX = 120;
+/** Movement before deciding whether a touch is a swipe or a scroll. */
+const SWIPE_DECIDE_PX = 10;
+
+/**
+ * Swipe a row left to remove it, on touch screens, like the app's queue. Only sideways moves
+ * count: the row allows vertical panning, so scrolling the list stays the browser's own.
+ */
+const useSwipeToRemove = (onSwipe, enabled) => {
+  const [offset, setOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const gesture = useRef(null);
+  const swiped = useRef(false);
+
+  const end = (commit) => {
+    const current = gesture.current;
+    gesture.current = null;
+    setDragging(false);
+    if (
+      commit &&
+      current?.swiping &&
+      current.dx <= -Math.min(SWIPE_REMOVE_PX, current.width * 0.35)
+    ) {
+      setOffset(-current.width);
+      setTimeout(onSwipe, 160);
+      // Shared queues remove it when the server answers; if it never goes, bring it back.
+      setTimeout(() => setOffset(0), 2000);
+      return;
+    }
+    setOffset(0);
+  };
+
+  return {
+    offset,
+    dragging,
+    handlers: enabled
+      ? {
+          onPointerDown: (e) => {
+            if (e.pointerType !== 'touch') return;
+            swiped.current = false;
+            gesture.current = {
+              x: e.clientX,
+              y: e.clientY,
+              dx: 0,
+              width: e.currentTarget.offsetWidth,
+              swiping: false,
+            };
+          },
+          onPointerMove: (e) => {
+            const current = gesture.current;
+            if (!current) return;
+            const dx = e.clientX - current.x;
+            const dy = e.clientY - current.y;
+            if (!current.swiping) {
+              if (Math.abs(dy) > SWIPE_DECIDE_PX && Math.abs(dy) > Math.abs(dx)) {
+                gesture.current = null;
+                return;
+              }
+              if (Math.abs(dx) < SWIPE_DECIDE_PX || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+              current.swiping = true;
+              swiped.current = true;
+              setDragging(true);
+            }
+            current.dx = Math.min(0, dx);
+            setOffset(current.dx);
+          },
+          onPointerUp: () => end(true),
+          onPointerCancel: () => end(false),
+          // A swipe that ends over the row mustn't also count as a tap that plays the song.
+          onClickCapture: (e) => {
+            if (!swiped.current) return;
+            swiped.current = false;
+            e.stopPropagation();
+            e.preventDefault();
+          },
+        }
+      : {},
+  };
 };
 
 // Minimal queue song item - matching SearchUser.jsx styling & instant smooth hover
@@ -76,6 +150,8 @@ const QueueSongItem = memo(
     isOverlay,
     onPlay,
     onRemove,
+    onRemoveBelow,
+    isLast,
     onFetchRecommendations,
     isLoadingRecs,
     variant,
@@ -144,156 +220,192 @@ const QueueSongItem = memo(
       [onFetchRecommendations, song.id, song.name, song.title]
     );
 
-    return (
-      <div
-        role='button'
-        tabIndex={0}
-        onClick={handlePlay}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handlePlay(e);
-          }
-        }}
-        className={cn(
-          'group flex items-center px-3 py-2 rounded-md cursor-pointer select-none outline-none focus-visible:ring-1 focus-visible:ring-ring w-full',
-          isCurrentSong
-            ? 'bg-accent/80 dark:bg-accent/60 text-accent-foreground font-medium'
-            : 'hover:bg-muted/70 dark:hover:bg-muted/50 text-foreground',
-          isDragging && 'opacity-30',
-          isOverlay && 'bg-popover text-popover-foreground shadow-2xl border border-border'
-        )}
-      >
-        <div
-          {...dragHandleProps}
-          className='cursor-grab active:cursor-grabbing p-0.5 text-muted-foreground/40 hover:text-foreground touch-none shrink-0 mr-1.5'
-          onClick={(e) => e.stopPropagation()}
-        >
-          <GripVertical className='w-3.5 h-3.5' />
-        </div>
+    const swipe = useSwipeToRemove(
+      () => onRemove(song.id, name, false),
+      !isCurrentSong && !isOverlay
+    );
 
-        <Avatar className='relative shrink-0 w-10 h-10 rounded-md ring-1 ring-border/40 group-hover:ring-border/80 overflow-hidden'>
-          <AvatarImage src={songImage} alt={name} className='w-10 h-10 object-cover rounded-md' />
-          <AvatarFallback className='w-10 h-10 rounded-md text-xs bg-muted'>
-            <Music className='w-4 h-4 text-muted-foreground' />
-          </AvatarFallback>
-          {isCurrentSong && (
-            <div className='absolute inset-0 bg-background/60 flex items-center justify-center'>
-              {isPlaying ? (
-                <Pause className='w-3.5 h-3.5 text-foreground fill-current' />
-              ) : (
-                <Play className='w-3.5 h-3.5 text-foreground fill-current ml-0.5' />
-              )}
+    return (
+      <div className='relative overflow-hidden rounded-md'>
+        {swipe.offset < 0 && (
+          <div
+            aria-hidden='true'
+            className='absolute inset-0 flex items-center justify-end gap-1.5 bg-destructive pr-4 text-sm font-medium text-destructive-foreground'
+          >
+            <Trash2 className='h-4 w-4' />
+            Remove
+          </div>
+        )}
+        <div
+          role='button'
+          tabIndex={0}
+          onClick={handlePlay}
+          {...swipe.handlers}
+          style={{
+            transform: swipe.offset ? `translateX(${swipe.offset}px)` : undefined,
+            transition: swipe.dragging ? 'none' : 'transform 160ms ease-out',
+            touchAction: 'pan-y',
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handlePlay(e);
+            }
+          }}
+          className={cn(
+            'relative group flex items-center px-3 py-2 rounded-md cursor-pointer select-none outline-none focus-visible:ring-1 focus-visible:ring-ring w-full',
+            // Opaque while it moves, so the red underneath shows only where the row has left.
+            swipe.offset < 0 && 'bg-background',
+            isCurrentSong
+              ? 'bg-accent/80 dark:bg-accent/60 text-accent-foreground font-medium'
+              : 'hover:bg-muted/70 dark:hover:bg-muted/50 text-foreground',
+            isDragging && 'opacity-30',
+            isOverlay && 'bg-popover text-popover-foreground shadow-2xl border border-border'
+          )}
+        >
+          <div
+            {...dragHandleProps}
+            className='cursor-grab active:cursor-grabbing p-0.5 text-muted-foreground/40 hover:text-foreground touch-none shrink-0 mr-1.5'
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className='w-3.5 h-3.5' />
+          </div>
+
+          <Avatar className='relative shrink-0 w-10 h-10 rounded-md ring-1 ring-border/40 group-hover:ring-border/80 overflow-hidden'>
+            <AvatarImage src={songImage} alt={name} className='w-10 h-10 object-cover rounded-md' />
+            <AvatarFallback className='w-10 h-10 rounded-md text-xs bg-muted'>
+              <Music className='w-4 h-4 text-muted-foreground' />
+            </AvatarFallback>
+            {isCurrentSong && (
+              <div className='absolute inset-0 bg-background/60 flex items-center justify-center'>
+                {isPlaying ? (
+                  <Pause className='w-3.5 h-3.5 text-foreground fill-current' />
+                ) : (
+                  <Play className='w-3.5 h-3.5 text-foreground fill-current ml-0.5' />
+                )}
+              </div>
+            )}
+          </Avatar>
+
+          <div className='flex flex-col ml-3 flex-1 min-w-0'>
+            <div className='flex items-center justify-between gap-1.5'>
+              <span
+                className={cn(
+                  'text-sm truncate',
+                  isCurrentSong
+                    ? 'font-semibold text-foreground'
+                    : 'font-medium text-foreground/90 group-hover:text-foreground'
+                )}
+              >
+                {name}
+              </span>
+            </div>
+
+            <p className='text-xs text-muted-foreground group-hover:text-foreground/75 truncate mt-0.5'>
+              {artistName || 'Unknown Artist'}
+            </p>
+          </div>
+
+          {isCurrentSong && isPlaying && (
+            <div className='flex items-center gap-[2px] px-1.5 py-1 rounded-sm bg-primary/15 shrink-0 mx-1'>
+              <span className='w-[2px] h-2.5 rounded-full bg-primary animate-pulse' />
+              <span
+                className='w-[2px] h-3.5 rounded-full bg-primary animate-pulse'
+                style={{ animationDelay: '150ms' }}
+              />
+              <span
+                className='w-[2px] h-2 rounded-full bg-primary animate-pulse'
+                style={{ animationDelay: '300ms' }}
+              />
             </div>
           )}
-        </Avatar>
 
-        <div className='flex flex-col ml-3 flex-1 min-w-0'>
-          <div className='flex items-center justify-between gap-1.5'>
-            <span
-              className={cn(
-                'text-sm truncate',
-                isCurrentSong
-                  ? 'font-semibold text-foreground'
-                  : 'font-medium text-foreground/90 group-hover:text-foreground'
-              )}
-            >
-              {name}
-            </span>
-          </div>
-
-          <p className='text-xs text-muted-foreground group-hover:text-foreground/75 truncate mt-0.5'>
-            {artistName || 'Unknown Artist'}
-          </p>
-        </div>
-
-        {isCurrentSong && isPlaying && (
-          <div className='flex items-center gap-[2px] px-1.5 py-1 rounded-sm bg-primary/15 shrink-0 mx-1'>
-            <span className='w-[2px] h-2.5 rounded-full bg-primary animate-pulse' />
-            <span
-              className='w-[2px] h-3.5 rounded-full bg-primary animate-pulse'
-              style={{ animationDelay: '150ms' }}
-            />
-            <span
-              className='w-[2px] h-2 rounded-full bg-primary animate-pulse'
-              style={{ animationDelay: '300ms' }}
-            />
-          </div>
-        )}
-
-        {!isCurrentSong && (
-          <Button
-            variant='ghost'
-            size='icon'
-            className='h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-muted rounded-md cursor-pointer shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 ml-1'
-            onClick={handleRemove}
-            aria-label='Remove song'
-          >
-            <X className='w-3.5 h-3.5' />
-          </Button>
-        )}
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          {!isCurrentSong && (
             <Button
               variant='ghost'
               size='icon'
-              className='h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md cursor-pointer shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100'
-              onClick={(e) => e.stopPropagation()}
-              aria-label='More options'
+              className='h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-muted rounded-md cursor-pointer shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 ml-1'
+              onClick={handleRemove}
+              aria-label='Remove song'
             >
-              <MoreHorizontal className='w-3.5 h-3.5' />
+              <X className='w-3.5 h-3.5' />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align='end'
-            className='w-52 bg-popover text-popover-foreground border-border shadow-xl rounded-lg p-1.5 z-50'
-          >
-            <DropdownMenuItem
-              onClick={handleFetchRecs}
-              disabled={isLoadingRecs}
-              className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
+          )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant='ghost'
+                size='icon'
+                className='h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md cursor-pointer shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100'
+                onClick={(e) => e.stopPropagation()}
+                aria-label='More options'
+              >
+                <MoreHorizontal className='w-3.5 h-3.5' />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align='end'
+              className='w-52 bg-popover text-popover-foreground border-border shadow-xl rounded-lg p-1.5 z-50'
             >
-              {isLoadingRecs ? (
-                <Loader2 className='w-3.5 h-3.5 mr-2 animate-spin' />
-              ) : (
-                <Sparkles className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
-              )}
-              Get similar songs
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className='bg-border my-1' />
-            {song?.album_id && (
               <DropdownMenuItem
-                onClick={handleGoToAlbum}
+                onClick={handleFetchRecs}
+                disabled={isLoadingRecs}
                 className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
               >
-                <Disc3 className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
-                Go to Album
+                {isLoadingRecs ? (
+                  <Loader2 className='w-3.5 h-3.5 mr-2 animate-spin' />
+                ) : (
+                  <Sparkles className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                )}
+                Get similar songs
               </DropdownMenuItem>
-            )}
-            {song?.artist_map?.primary_artists?.[0] && (
-              <DropdownMenuItem
-                onClick={handleGoToArtist}
-                className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
-              >
-                <User className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
-                Go to Artist
-              </DropdownMenuItem>
-            )}
-            {!isCurrentSong && (
-              <>
-                <DropdownMenuSeparator className='bg-border my-1' />
+              <DropdownMenuSeparator className='bg-border my-1' />
+              {song?.album_id && (
                 <DropdownMenuItem
-                  onClick={handleRemove}
-                  className='cursor-pointer text-sm text-destructive hover:bg-destructive/10 focus:bg-destructive/10 focus:text-destructive rounded-md'
+                  onClick={handleGoToAlbum}
+                  className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
                 >
-                  <X className='w-3.5 h-3.5 mr-2' />
-                  Remove
+                  <Disc3 className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                  Go to Album
                 </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              )}
+              {song?.artist_map?.primary_artists?.[0] && (
+                <DropdownMenuItem
+                  onClick={handleGoToArtist}
+                  className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
+                >
+                  <User className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                  Go to Artist
+                </DropdownMenuItem>
+              )}
+              {(!isCurrentSong || !isLast) && <DropdownMenuSeparator className='bg-border my-1' />}
+              {!isLast && onRemoveBelow && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveBelow(song.id);
+                  }}
+                  className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
+                >
+                  <ArrowDownToLine className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                  Remove songs below
+                </DropdownMenuItem>
+              )}
+              {!isCurrentSong && (
+                <>
+                  <DropdownMenuItem
+                    onClick={handleRemove}
+                    className='cursor-pointer text-sm text-destructive hover:bg-destructive/10 focus:bg-destructive/10 focus:text-destructive rounded-md'
+                  >
+                    <X className='w-3.5 h-3.5 mr-2' />
+                    Remove
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     );
   }
@@ -309,6 +421,8 @@ const SortableSongItem = memo(
     isPlaying,
     onPlay,
     onRemove,
+    onRemoveBelow,
+    isLast,
     onFetchRecommendations,
     isLoadingRecs,
     variant,
@@ -334,6 +448,8 @@ const SortableSongItem = memo(
           dragHandleProps={{ ...attributes, ...listeners }}
           onPlay={onPlay}
           onRemove={onRemove}
+          onRemoveBelow={onRemoveBelow}
+          isLast={isLast}
           onFetchRecommendations={onFetchRecommendations}
           isLoadingRecs={isLoadingRecs}
           variant={variant}
@@ -346,24 +462,15 @@ const SortableSongItem = memo(
 SortableSongItem.displayName = 'SortableSongItem';
 
 // Main QueueTab
-const QueueTab = memo(({ variant, showHeader = false } = {}) => {
+const QueueTab = memo(({ variant } = {}) => {
   const playlist = usePlayerStore((s) => s.playlist);
   const currentSong = usePlayerStore((s) => s.currentSong);
   const currentSongId = currentSong?.id;
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const setPlaylist = usePlayerStore((s) => s.setPlaylist);
-  const clearQueue = usePlayerStore((s) => s.clearQueue);
-  const replaceQueue = usePlayerStore((s) => s.replaceQueue);
-  const autoFetchRecommendations = usePlayerStore((s) => s.autoFetchRecommendations);
-  const setAutoFetchRecommendations = usePlayerStore((s) => s.setAutoFetchRecommendations);
 
   const [activeId, setActiveId] = useState(null);
-  const [fetchingRecs, setFetchingRecs] = useState(false);
   const [loadingSongId, setLoadingSongId] = useState(null);
-
-  const { refetch: fetchRecommendations } = useSongRecommendationsQuery(currentSongId, {
-    enabled: false,
-  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -385,53 +492,19 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
     }
     const currentList = usePlayerStore.getState().playlist;
     usePlayerStore.getState().setPlaylist(currentList.filter((item) => item.id !== songId));
-    toast.success(`Removed "${name}"`);
+    // Undo only on this device's own queue: a shared one may have changed elsewhere since.
+    const shared = usePlayerSessionStore.getState().live;
+    toast.success(`Removed "${name}"`, {
+      action: shared
+        ? undefined
+        : { label: 'Undo', onClick: () => usePlayerStore.getState().setPlaylist(currentList) },
+    });
   }, []);
 
-  const handleClearQueue = useCallback(() => {
-    clearQueue();
-    toast.success('Queue cleared');
-  }, [clearQueue]);
-
-  const handleFetchAndReplace = useCallback(async () => {
-    if (!currentSongId) return;
-    setFetchingRecs(true);
-    try {
-      const { data } = await fetchRecommendations();
-      if (data?.length > 0) {
-        replaceQueue(data, true);
-        toast.success(`Added ${data.length} recommendations`);
-      } else {
-        toast.info('No recommendations found');
-      }
-    } catch {
-      toast.error('Failed to fetch recommendations');
-    }
-    setFetchingRecs(false);
-  }, [currentSongId, fetchRecommendations, replaceQueue]);
-
-  const handleFetchAndAdd = useCallback(async () => {
-    if (!currentSongId) return;
-    setFetchingRecs(true);
-    try {
-      const { data } = await fetchRecommendations();
-      if (data?.length > 0) {
-        const addToQueue = usePlayerStore.getState().addToQueue;
-        addToQueue(data);
-        toast.success(`Added ${data.length} songs to queue`);
-      } else {
-        toast.info('No recommendations found');
-      }
-    } catch {
-      toast.error('Failed to fetch recommendations');
-    }
-    setFetchingRecs(false);
-  }, [currentSongId, fetchRecommendations]);
-
-  const handleToggleAutoFetch = useCallback(() => {
-    setAutoFetchRecommendations(!autoFetchRecommendations);
-    toast.success(autoFetchRecommendations ? 'Auto-fetch disabled' : 'Auto-fetch enabled');
-  }, [autoFetchRecommendations, setAutoFetchRecommendations]);
+  const handleRemoveBelow = useCallback((songId) => {
+    usePlayerStore.getState().removeFromQueueBelow(songId);
+    toast.success('Removed the songs below');
+  }, []);
 
   const handleSongFetchRecs = useCallback(async (songId) => {
     if (!songId) return;
@@ -490,91 +563,6 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
   return (
     <TooltipProvider delayDuration={300}>
       <div className='h-full'>
-        {showHeader && (
-          <div className='flex items-center justify-between mb-2 px-3 pt-1'>
-            <p className='text-xs text-muted-foreground font-medium'>
-              {playlist.length} song{playlist.length !== 1 ? 's' : ''}
-            </p>
-            <div className='flex items-center gap-1'>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <motion.div variants={buttonVariants} whileHover='hover' whileTap='tap'>
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      className='h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-muted rounded-md cursor-pointer'
-                      onClick={handleClearQueue}
-                      disabled={playlist.length <= 1}
-                      aria-label='Clear queue'
-                    >
-                      <Trash2 className='h-3.5 w-3.5' />
-                    </Button>
-                  </motion.div>
-                </TooltipTrigger>
-                <TooltipContent side='bottom' className='text-xs'>
-                  Clear queue
-                </TooltipContent>
-              </Tooltip>
-
-              <DropdownMenu>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        className='h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md cursor-pointer'
-                        disabled={fetchingRecs}
-                        aria-label='Recommendations'
-                      >
-                        {fetchingRecs ? (
-                          <Loader2 className='h-3.5 w-3.5 animate-spin' />
-                        ) : (
-                          <Sparkles className='h-3.5 w-3.5' />
-                        )}
-                      </Button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent side='bottom' className='text-xs'>
-                    Recommendations
-                  </TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent
-                  align='end'
-                  className='w-52 bg-popover text-popover-foreground border-border shadow-xl rounded-lg p-1.5'
-                >
-                  <DropdownMenuItem
-                    onClick={handleFetchAndAdd}
-                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
-                  >
-                    <RefreshCw className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
-                    Add to queue
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={handleFetchAndReplace}
-                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
-                  >
-                    <Sparkles className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
-                    Replace queue
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className='bg-border my-1' />
-                  <DropdownMenuItem
-                    onClick={handleToggleAutoFetch}
-                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
-                  >
-                    {autoFetchRecommendations ? (
-                      <ToggleRight className='w-3.5 h-3.5 mr-2 text-primary' />
-                    ) : (
-                      <ToggleLeft className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
-                    )}
-                    Auto-fetch: {autoFetchRecommendations ? 'On' : 'Off'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        )}
-
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -584,9 +572,11 @@ const QueueTab = memo(({ variant, showHeader = false } = {}) => {
         >
           <SortableContext items={playlistIds} strategy={verticalListSortingStrategy}>
             <div className='space-y-0.5 p-1.5'>
-              {playlist.map((song) => (
+              {playlist.map((song, index) => (
                 <SortableSongItem
                   key={song.id}
+                  isLast={index === playlist.length - 1}
+                  onRemoveBelow={handleRemoveBelow}
                   song={song}
                   isCurrentSong={currentSongId === song.id}
                   isPlaying={isPlaying}
