@@ -58,10 +58,17 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
     outputOffsetMs,
     setOutputOffset,
     isHost,
+    canManage,
+    isMuted,
     canControl,
     controlMode,
+    skipVote,
+    voteSkip,
     setControlMode,
     transferHost,
+    setCoHost,
+    muteMember,
+    removeMember,
     messages,
     sendMessage,
     sendMessageReaction,
@@ -94,6 +101,7 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
       isSyncing,
       isBusy: isLoading || isSyncing,
       isLocked: !canControl,
+      skipVote,
       syncCountdown,
       currentTime,
       duration,
@@ -106,6 +114,7 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
       isSyncing,
       isLoading,
       canControl,
+      skipVote,
       syncCountdown,
       currentTime,
       duration,
@@ -120,11 +129,12 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
     () => ({
       onPlayPause: () => handlePlayPause(),
       onSkip: () => skipSong(),
+      onVoteSkip: () => voteSkip(),
       onRestart: () => handleSeek([0]),
       onSeek: handleSeek,
       onVolumeChange: handleVolumeChange,
     }),
-    [handlePlayPause, skipSong, handleSeek, handleVolumeChange]
+    [handlePlayPause, skipSong, voteSkip, handleSeek, handleVolumeChange]
   );
 
   const togglePlayFromKeyboard = useCallback(() => {
@@ -141,6 +151,7 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
       onSendMessage={sendMessage}
       onReactToMessage={sendMessageReaction}
       locked={!isChatAllowed}
+      muted={isMuted}
       typingUsers={typingUsers}
       onTypingStart={onTypingStart}
       onTypingStop={onTypingStop}
@@ -152,9 +163,14 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
       members={groupMembers}
       currentUserId={userId}
       hostId={currentGroup?.createdBy}
+      coHosts={currentGroup?.coHosts}
+      mutedIds={currentGroup?.mutedIds}
       maxMembers={maxMembers}
       onInvite={onInvite}
       onMakeHost={isHost ? transferHost : undefined}
+      onSetCoHost={isHost ? setCoHost : undefined}
+      onMute={canManage ? muteMember : undefined}
+      onRemove={canManage ? removeMember : undefined}
     />
   );
 

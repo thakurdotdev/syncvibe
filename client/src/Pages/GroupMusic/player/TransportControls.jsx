@@ -34,12 +34,22 @@ const TransportControls = ({
   onRestart,
   onPlayPause,
   onSkip,
+  skipVote,
+  onVoteSkip,
   showRestart = true,
   size = 'md',
 }) => {
   const s = SIZES[size];
   const disabled = isBusy || isLocked;
-  const lockedHint = isLocked ? 'Only the host can control playback' : null;
+  const lockedHint = isLocked ? 'Only the hosts can control playback' : null;
+  // Without control, skipping becomes a vote the room settles.
+  const voting = isLocked && Boolean(onVoteSkip);
+  const votes = skipVote?.count ?? 0;
+  const voteLabel = skipVote?.voted
+    ? 'Take back your vote to skip'
+    : votes > 0 && skipVote?.needed
+      ? `Vote to skip (${votes} of ${skipVote.needed})`
+      : 'Vote to skip';
 
   return (
     <div className='flex items-center gap-1.5'>
@@ -73,16 +83,23 @@ const TransportControls = ({
         )}
       </ControlButton>
       <ControlButton
-        label='Skip song'
-        onClick={onSkip}
-        title={lockedHint}
-        disabled={disabled}
+        label={voting ? voteLabel : 'Skip song'}
+        onClick={voting ? onVoteSkip : onSkip}
+        title={voting ? voteLabel : lockedHint}
+        disabled={voting ? isBusy : disabled}
         className={cn(
           s.secondary,
-          'text-muted-foreground hover:bg-foreground/5 hover:text-foreground'
+          'relative text-muted-foreground hover:bg-foreground/5 hover:text-foreground',
+          voting && skipVote?.voted && 'bg-foreground/10 text-foreground'
         )}
       >
         <SkipForward className={s.icon} />
+        {voting && votes > 0 && (
+          <span className='absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold tabular-nums text-background'>
+            {votes}
+            {skipVote?.needed ? `/${skipVote.needed}` : ''}
+          </span>
+        )}
       </ControlButton>
     </div>
   );

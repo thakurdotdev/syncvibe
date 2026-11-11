@@ -1,5 +1,16 @@
 import { cn } from '@/lib/utils';
-import { Info, ListPlus, Music2, Play, SkipForward, UserMinus, UserPlus } from 'lucide-react';
+import {
+  Crown,
+  Info,
+  ListPlus,
+  MessageSquareOff,
+  Music2,
+  Play,
+  Shield,
+  SkipForward,
+  UserMinus,
+  UserPlus,
+} from 'lucide-react';
 import { memo } from 'react';
 import { formatMessageTime } from './chatUtils';
 
@@ -10,6 +21,13 @@ const ACTIVITY_META = {
   'queue-ended': { Icon: Music2, tone: 'text-foreground' },
   'user-joined': { Icon: UserPlus, tone: 'text-foreground' },
   'user-left': { Icon: UserMinus, tone: 'text-destructive' },
+  'host-changed': { Icon: Crown, tone: 'text-foreground' },
+  'cohost-added': { Icon: Shield, tone: 'text-foreground' },
+  'cohost-removed': { Icon: Shield, tone: 'text-muted-foreground' },
+  'member-muted': { Icon: MessageSquareOff, tone: 'text-muted-foreground' },
+  'member-removed': { Icon: UserMinus, tone: 'text-destructive' },
+  'skip-vote': { Icon: SkipForward, tone: 'text-muted-foreground' },
+  'skipped-by-vote': { Icon: SkipForward, tone: 'text-foreground' },
 };
 
 const DEFAULT_META = { Icon: Info, tone: 'text-muted-foreground' };

@@ -245,6 +245,9 @@ export const useGroupSessionStore = create((set, get) => ({
       currentGroup: {
         ...currentGroup,
         createdBy: part.hostId ?? currentGroup.createdBy,
+        coHosts: part.coHosts ?? currentGroup.coHosts ?? [],
+        mutedIds: part.mutedIds ?? currentGroup.mutedIds ?? [],
+        skipVotes: part.skipVotes ?? null,
         settings: { ...currentGroup.settings, ...part.settings },
         maxMembers: part.maxMembers ?? currentGroup.maxMembers,
         features: { ...currentGroup.features, ...part.features },
@@ -372,7 +375,7 @@ export const useGroupSessionStore = create((set, get) => ({
     command(socket, currentGroup.id, 'set-autoplay', { enabled });
   },
 
-  /** Who may control playback: 'everyone' or 'host'. Only the host can change it. */
+  /** Who may control playback: 'everyone' or 'host' (the host and co-hosts). Only the host can change it. */
   setControlMode: (socket, mode) => {
     const { currentGroup } = get();
     if (!currentGroup?.id) return;
@@ -383,6 +386,34 @@ export const useGroupSessionStore = create((set, get) => ({
     const { currentGroup } = get();
     if (!currentGroup?.id || userId == null) return;
     command(socket, currentGroup.id, 'transfer-host', { userId });
+  },
+
+  /** Only the host makes co-hosts. */
+  setCoHost: (socket, userId, enabled) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || userId == null) return;
+    command(socket, currentGroup.id, 'set-cohost', { userId, enabled });
+  },
+
+  /** A muted person still listens but can't chat or react. */
+  muteMember: (socket, userId, enabled) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || userId == null) return;
+    command(socket, currentGroup.id, 'mute', { userId, enabled });
+  },
+
+  /** Takes someone out of the room; an invite from a host lets them back. */
+  removeMember: (socket, userId) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || userId == null) return;
+    command(socket, currentGroup.id, 'remove-member', { userId });
+  },
+
+  /** Votes to skip the song playing, or takes the vote back. */
+  voteSkip: (socket) => {
+    const { currentGroup, currentItem } = get();
+    if (!currentGroup?.id || !currentItem) return;
+    command(socket, currentGroup.id, 'vote-skip', { itemId: currentItem.id });
   },
 
   /** Positions are those of `queue`, as the list shows them. */

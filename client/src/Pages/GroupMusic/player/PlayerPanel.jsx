@@ -49,6 +49,8 @@ const FullPlayer = ({ playback, controls, queueItem, onReact }) => (
           onRestart={controls.onRestart}
           onPlayPause={controls.onPlayPause}
           onSkip={controls.onSkip}
+          skipVote={playback.skipVote}
+          onVoteSkip={controls.onVoteSkip}
         />
         <ReactionBar onReact={onReact} className='hidden @2xl:flex' />
         <div className='flex items-center gap-1'>
@@ -81,6 +83,8 @@ const CompactPlayer = ({ playback, controls, onReact }) => (
         isLocked={playback.isLocked}
         onPlayPause={controls.onPlayPause}
         onSkip={controls.onSkip}
+        skipVote={playback.skipVote}
+        onVoteSkip={controls.onVoteSkip}
       />
     </div>
     <PlaybackProgress
@@ -97,7 +101,7 @@ const CompactPlayer = ({ playback, controls, onReact }) => (
 /**
  * Now-playing surface. `variant="full"` for tablet/desktop, `"compact"` for phones.
  *
- * playback: { song, isPlaying, isBusy, isLocked, isSyncing, syncCountdown, currentTime, duration, volume, formatTime }
+ * playback: { song, isPlaying, isBusy, isLocked, skipVote, isSyncing, syncCountdown, currentTime, duration, volume, formatTime }
  * controls: { onPlayPause, onSeek, onSkip, onRestart, onVolumeChange }
  */
 const PlayerPanel = ({
