@@ -44,6 +44,11 @@ interface PlayerSessionState {
   items: QueueItem[];
   queueRev: number;
   devices: PlayerDevice[];
+  /**
+   * Catching up with your other devices, for the pill shown while the app opens: `syncing`
+   * from connecting until the session arrives, then `synced`. `at` is when that attempt began.
+   */
+  sync: { state: 'idle' | 'syncing' | 'synced'; at: number };
 }
 
 export const usePlayerSessionStore = create<PlayerSessionState>(() => ({
@@ -53,6 +58,7 @@ export const usePlayerSessionStore = create<PlayerSessionState>(() => ({
   items: [],
   queueRev: 0,
   devices: [],
+  sync: { state: 'idle', at: 0 },
 }));
 
 export const sessionState = () => usePlayerSessionStore.getState();

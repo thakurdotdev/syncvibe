@@ -6,6 +6,7 @@ import GlobalBottomDeck from '@/components/shell/GlobalBottomDeck';
 import { deckBlurTarget } from '@/components/shell/GlassSurface';
 import { BlurTargetView } from 'expo-blur';
 import PlayerInitializer from '@/components/music/PlayerInitializer';
+import SyncPill from '@/components/music/SyncPill';
 import { GroupMusicProvider } from '@/context/GroupMusicContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { ChatProvider } from '@/context/SocketContext';
@@ -102,6 +103,8 @@ function RootLayout() {
                         <GroupMusicProvider>
                           <PlayerInitializer />
                           <RootLayoutNav />
+                          {/* After the screens, so it sits above them. */}
+                          <SyncPill />
                         </GroupMusicProvider>
                       </NotificationProvider>
                     </ChatProvider>
