@@ -80,35 +80,40 @@ const BottomPlayer = () => {
 
   return (
     <>
-      {/* Floating Modern Pill Player */}
-      <div
-        className={cn(
-          'fixed -translate-x-1/2 z-50 transition-all duration-300 ease-out',
-          isMobile ? 'left-1/2' : 'left-[calc(50%+36px)]',
-          'w-[calc(100%-1.25rem)] sm:w-auto sm:min-w-[520px] md:min-w-[580px] max-w-xl md:max-w-2xl',
-          hasMobileNav ? 'bottom-[76px]' : 'bottom-4 sm:bottom-6',
-          isMinimized || isDocked
-            ? 'translate-y-28 opacity-0 pointer-events-none'
-            : 'translate-y-0 opacity-100'
-        )}
-      >
-        {/* Soft subtle ambient artwork backglow */}
-        <div className='absolute inset-0 -z-10 rounded-2xl sm:rounded-full opacity-20 blur-2xl overflow-hidden pointer-events-none transition-opacity duration-500'>
-          <img src={songImage} alt='' className='w-full h-full object-cover scale-125' />
-        </div>
-
-        {/* Clean Glass Capsule */}
-        <div className='relative w-full rounded-2xl sm:rounded-full bg-card/90 backdrop-blur-xl border border-border text-card-foreground shadow-2xl px-3 sm:px-4 py-2 sm:py-2.5'>
-          {/* Main Layout: Left Track Block | Right Controls */}
-          <div className='flex items-center justify-between gap-2.5 sm:gap-5'>
-            {/* Skip the per-tick track info while the sidebar dock is showing it instead. */}
-            {!isDocked && (
-              <SongInfo currentSong={currentSong} onOpenSheet={() => setIsSheetOpen(true)} />
+      {/* On phones the deck's orb and capsule hold the song (components/shell/MobileDeck). */}
+      {!hasMobileNav && (
+        <>
+          {/* Floating Modern Pill Player */}
+          <div
+            className={cn(
+              'fixed -translate-x-1/2 z-50 transition-all duration-300 ease-out',
+              isMobile ? 'left-1/2' : 'left-[calc(50%+36px)]',
+              'w-[calc(100%-1.25rem)] sm:w-auto sm:min-w-[520px] md:min-w-[580px] max-w-xl md:max-w-2xl',
+              hasMobileNav ? 'bottom-[76px]' : 'bottom-4 sm:bottom-6',
+              isMinimized || isDocked
+                ? 'translate-y-28 opacity-0 pointer-events-none'
+                : 'translate-y-0 opacity-100'
             )}
-            <PlayerControls />
+          >
+            {/* Soft subtle ambient artwork backglow */}
+            <div className='absolute inset-0 -z-10 rounded-2xl sm:rounded-full opacity-20 blur-2xl overflow-hidden pointer-events-none transition-opacity duration-500'>
+              <img src={songImage} alt='' className='w-full h-full object-cover scale-125' />
+            </div>
+
+            {/* Clean Glass Capsule */}
+            <div className='relative w-full rounded-2xl sm:rounded-full bg-card/90 backdrop-blur-xl border border-border text-card-foreground shadow-2xl px-3 sm:px-4 py-2 sm:py-2.5'>
+              {/* Main Layout: Left Track Block | Right Controls */}
+              <div className='flex items-center justify-between gap-2.5 sm:gap-5'>
+                {/* Skip the per-tick track info while the sidebar dock is showing it instead. */}
+                {!isDocked && (
+                  <SongInfo currentSong={currentSong} onOpenSheet={() => setIsSheetOpen(true)} />
+                )}
+                <PlayerControls />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {/* Full-Screen Player Sheet */}
       <PlayerSheet
