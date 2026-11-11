@@ -13,6 +13,7 @@ import { Song } from '@/types/song';
 import type { Message, MessageReactions } from '@/stores/groupMusic/types';
 import { useChat } from './SocketContext';
 import { useUser } from './UserContext';
+import { toast } from './ToastContext';
 import {
   isNaturalGroupSongEnd,
   useGroupPlaybackStore,
@@ -54,6 +55,10 @@ interface GroupMusicContextType {
   /** Who may control playback: everyone, or only the host. Only the host can change it. */
   setControlMode: (mode: 'everyone' | 'host') => void;
   transferHost: (userId: number | string) => void;
+  setCoHost: (userId: number | string, enabled: boolean) => void;
+  muteMember: (userId: number | string, enabled: boolean) => void;
+  removeMember: (userId: number | string) => void;
+  voteSkip: () => void;
   removeFromQueue: (queueItemId: string) => void;
   reorderQueue: (fromIndex: number, toIndex: number) => void;
   addPlaylistToQueue: (songs: Song[]) => void;
@@ -367,9 +372,24 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    // Left on another device.
-    socket.on('left-group', (data: { groupId: string }) => {
-      if (data.groupId === ss.getState().currentGroup?.id) endRoomHere();
+    // Left on another device, or a host removed you.
+    socket.on('left-group', (data: { groupId: string; removed?: boolean }) => {
+      if (data.groupId !== ss.getState().currentGroup?.id) return;
+      endRoomHere();
+      if (data.removed) toast('A host removed you from the room', { type: 'info' });
+    });
+
+    socket.on('join-refused', (data: { message?: string }) => {
+      ss.setState({ isRejoining: false });
+      ss.getState().clearSession();
+      if (ss.getState().currentGroup) endRoomHere();
+      toast(data?.message || 'You can’t join this room', { type: 'error' });
+    });
+
+    socket.on('chat-blocked', (data: { groupId?: string; message?: string }) => {
+      if (data?.groupId === ss.getState().currentGroup?.id && data.message) {
+        toast(data.message, { type: 'error' });
+      }
     });
 
     socket.on('member-presence', (data: { userId: number | string; connected: boolean }) => {
@@ -521,6 +541,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         'message-reaction',
         'song-reaction',
         'left-group',
+        'join-refused',
+        'chat-blocked',
         'device-replaced',
         'member-presence',
         'user-typing',
@@ -601,6 +623,24 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     (userId: number | string) => ss.getState().transferHost(socket, userId),
     [socket]
   );
+
+  const setCoHost = useCallback(
+    (userId: number | string, enabled: boolean) => ss.getState().setCoHost(socket, userId, enabled),
+    [socket]
+  );
+
+  const muteMember = useCallback(
+    (userId: number | string, enabled: boolean) =>
+      ss.getState().muteMember(socket, userId, enabled),
+    [socket]
+  );
+
+  const removeMember = useCallback(
+    (userId: number | string) => ss.getState().removeMember(socket, userId),
+    [socket]
+  );
+
+  const voteSkip = useCallback(() => ss.getState().voteSkip(socket), [socket]);
 
   const removeFromQueue = useCallback(
     (queueItemId: string) => ss.getState().removeFromQueue(socket, user, queueItemId),
@@ -707,6 +747,10 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       shuffleQueue,
       setControlMode,
       transferHost,
+      setCoHost,
+      muteMember,
+      removeMember,
+      voteSkip,
       removeFromQueue,
       reorderQueue,
       addPlaylistToQueue,
@@ -737,6 +781,10 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       shuffleQueue,
       setControlMode,
       transferHost,
+      setCoHost,
+      muteMember,
+      removeMember,
+      voteSkip,
       removeFromQueue,
       reorderQueue,
       addPlaylistToQueue,

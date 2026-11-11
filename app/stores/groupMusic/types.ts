@@ -13,6 +13,11 @@ export interface Group {
   id: string;
   name: string;
   createdBy: number | string;
+  /** Ids (as strings) of people with the host's control, short of the host's own settings. */
+  coHosts?: string[];
+  /** Ids (as strings) of people a host muted: they listen but don't chat or react. */
+  mutedIds?: string[];
+  skipVotes?: SkipVotes | null;
   qrCode?: string;
   members?: GroupMember[];
   queue?: QueueItem[];
@@ -29,6 +34,13 @@ export interface Group {
     /** Who may play, pause, seek, skip and rearrange. Anyone can still add songs. */
     controlMode?: 'everyone' | 'host';
   };
+}
+
+/** Votes to skip the song playing. */
+export interface SkipVotes {
+  itemId: string;
+  userIds: string[];
+  needed: number;
 }
 
 export interface QueueItem {

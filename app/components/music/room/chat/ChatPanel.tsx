@@ -24,6 +24,7 @@ import { Composer } from './Composer';
 import { MessageActions, type AnchorRect } from './MessageActions';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
+import { useRoomControl } from '../useRoomControl';
 
 const AT_BOTTOM_PX = 120;
 const HIGHLIGHT_MS = 1400;
@@ -35,6 +36,7 @@ const HIGHLIGHT_MS = 1400;
  */
 export const ChatPanel = memo(function ChatPanel({ bottomInset = 0 }: { bottomInset?: number }) {
   const { colors } = useTheme();
+  const { isMuted } = useRoomControl();
   const { sendMessage, reactToMessage, startTyping, stopTyping, user } = useGroupMusic();
   const messages = useGroupSessionStore((s) => s.messages);
 
@@ -210,16 +212,25 @@ export const ChatPanel = memo(function ChatPanel({ bottomInset = 0 }: { bottomIn
 
       <TypingIndicator />
 
-      <Composer
-        ref={inputRef}
-        replyTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
-        onSend={send}
-        onOpenGifs={() => setPicker('gif')}
-        onOpenSounds={() => setPicker('sound')}
-        onTypingStart={startTyping}
-        onTypingStop={stopTyping}
-      />
+      {isMuted ? (
+        <View style={[styles.muted, { borderTopColor: colors.hairline }]}>
+          <Feather name='slash' size={14} color={colors.mutedForeground} />
+          <Text style={[styles.mutedText, { color: colors.mutedForeground }]}>
+            A host muted you. You can still listen.
+          </Text>
+        </View>
+      ) : (
+        <Composer
+          ref={inputRef}
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+          onSend={send}
+          onOpenGifs={() => setPicker('gif')}
+          onOpenSounds={() => setPicker('sound')}
+          onTypingStart={startTyping}
+          onTypingStop={stopTyping}
+        />
+      )}
 
       <MessageActions
         target={menuFor}
@@ -241,6 +252,16 @@ export const ChatPanel = memo(function ChatPanel({ bottomInset = 0 }: { bottomIn
 
 const styles = StyleSheet.create({
   root: { flex: 1, minHeight: 0 },
+  muted: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+  },
+  mutedText: { fontSize: 13, fontWeight: '500' },
   listWrap: { flex: 1, minHeight: 0 },
   listContent: { paddingVertical: 8 },
   empty: {
