@@ -330,10 +330,13 @@ const CAPSULE_OPEN = {
   easing: EASE_OUT,
   reduceMotion: ReduceMotion.System,
 } as const;
-// Closing is quicker than opening: the capsule is drawn back into the orb.
+/**
+ * Closing is a magnet: the capsule starts back gently and gathers speed into the orb, so it ends
+ * on a snap rather than drifting to a stop. Quicker than opening.
+ */
 const CAPSULE_CLOSE = {
-  duration: 160,
-  easing: EASE_OUT,
+  duration: 170,
+  easing: Easing.bezier(0.6, 0, 0.9, 0.4),
   reduceMotion: ReduceMotion.System,
 } as const;
 const CAPSULE_SHOW = {
@@ -347,21 +350,18 @@ const CAPSULE_CONTENT_IN = {
   reduceMotion: ReduceMotion.System,
 } as const;
 const CAPSULE_CONTENT_OUT = {
-  duration: 80,
+  duration: 60,
   easing: EASE_OUT,
   reduceMotion: ReduceMotion.System,
 } as const;
-/** The orb takes the capsule back in: a small swell as it arrives. */
-const ORB_ABSORB_UP = {
-  duration: 110,
-  easing: EASE_OUT,
-  reduceMotion: ReduceMotion.System,
-} as const;
-const ORB_ABSORB_DOWN = {
-  duration: 170,
-  easing: EASE_OUT,
-  reduceMotion: ReduceMotion.System,
-} as const;
+/**
+ * A ring that leaves the orb and fades as it spreads: when the capsule lands back in it, and when
+ * the song changes. Fast out, slow fade, so it reads as one snappy pulse.
+ */
+const RIPPLE = { duration: 420, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
+const RIPPLE_SCALE = 1.55;
+const RIPPLE_OPACITY = 0.55;
+const INSTANT = { duration: 0 } as const;
 const TABS_HIDE = { duration: 150, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
 /**
  * Switching tabs: Emil Kowalski's segmented-indicator recipe. Every tab is the same width; only the
@@ -478,19 +478,39 @@ const Orb = memo(function Orb({
   const skipped = useSharedValue(false);
   const startX = useSharedValue(0);
 
-  // When the capsule closes, it lands back in the orb, which swells a touch to take it in.
+  const rippleScale = useSharedValue(1);
+  const rippleOpacity = useSharedValue(0);
+  const ripple = useCallback(
+    (delay: number) => {
+      rippleScale.set(
+        withDelay(delay, withSequence(withTiming(1, INSTANT), withTiming(RIPPLE_SCALE, RIPPLE)))
+      );
+      rippleOpacity.set(
+        withDelay(delay, withSequence(withTiming(RIPPLE_OPACITY, INSTANT), withTiming(0, RIPPLE)))
+      );
+    },
+    [rippleOpacity, rippleScale]
+  );
+  const rippleStyle = useAnimatedStyle(() => ({
+    opacity: rippleOpacity.get(),
+    transform: [{ scale: rippleScale.get() }],
+  }));
+
+  // The capsule lands back in the orb: a ripple as it arrives.
   const wasExpanded = useRef(expanded);
   useEffect(() => {
-    if (wasExpanded.current && !expanded) {
-      scale.set(
-        withDelay(
-          CAPSULE_CLOSE.duration - 50,
-          withSequence(withTiming(1.07, ORB_ABSORB_UP), withTiming(1, ORB_ABSORB_DOWN))
-        )
-      );
-    }
+    if (wasExpanded.current && !expanded) ripple(CAPSULE_CLOSE.duration - 20);
     wasExpanded.current = expanded;
-  }, [expanded, scale]);
+  }, [expanded, ripple]);
+
+  // A new song: the same ripple, from the orb now holding it. Not for the first song shown, and
+  // not while the capsule is out: its light sweep says it, and the ripple follows when it closes.
+  const rippledFor = useRef(songId);
+  useEffect(() => {
+    if (kind !== 'song' || songId === rippledFor.current) return;
+    if (rippledFor.current !== undefined && !expanded) ripple(0);
+    rippledFor.current = songId;
+  }, [expanded, kind, ripple, songId]);
 
   // A new song starts centred; whatever the old one was doing is over.
   useLayoutEffect(() => {
@@ -586,6 +606,15 @@ const Orb = memo(function Orb({
           else if (a === 'previous') onSkip('prev');
         }}
       >
+        {/* Behind the orb, so it only shows as it spreads past the edge. */}
+        <Animated.View
+          pointerEvents='none'
+          style={[
+            styles.ripple,
+            { borderColor: colors.primary, backgroundColor: `${colors.primary}1F` },
+            rippleStyle,
+          ]}
+        />
         <GlassSurface radius={PILL_HEIGHT / 2} style={styles.orb} contentStyle={styles.orbInner}>
           {kind === 'idle' ? (
             // Nothing playing: an ember orb that invites you to find something, the bar's one
@@ -848,7 +877,8 @@ const Capsule = memo(function Capsule({
     } else {
       content.set(withTiming(0, CAPSULE_CONTENT_OUT));
       maskW.set(withTiming(PILL_HEIGHT, CAPSULE_CLOSE));
-      maskOpacity.set(withDelay(CAPSULE_CLOSE.duration - 60, withTiming(0, CAPSULE_SHOW)));
+      // Gone the moment it's back in the orb, where the ripple takes over.
+      maskOpacity.set(withDelay(CAPSULE_CLOSE.duration - 30, withTiming(0, CAPSULE_SHOW)));
     }
   }, [expanded, width, maskW, maskOpacity, content]);
 
@@ -1313,6 +1343,15 @@ const styles = StyleSheet.create({
   liveDot: { position: 'absolute', top: -1, right: -2, width: 7, height: 7, borderRadius: 4 },
 
   orb: { width: PILL_HEIGHT, height: PILL_HEIGHT },
+  ripple: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: PILL_HEIGHT,
+    height: PILL_HEIGHT,
+    borderRadius: PILL_HEIGHT / 2,
+    borderWidth: 2,
+  },
   orbInner: { alignItems: 'center', justifyContent: 'center' },
   ring: { position: 'absolute', top: -0.5, left: -0.5 },
   orbArtBox: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },
