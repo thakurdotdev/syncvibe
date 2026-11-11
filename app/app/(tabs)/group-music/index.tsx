@@ -114,6 +114,7 @@ export default function RoomsTab() {
         <RoomsWelcome
           myRooms={myRooms.rooms}
           onJoinRoom={joinGroup}
+          onAskRoom={myRooms.ask}
           onDismissRoom={myRooms.dismiss}
           onStart={() => openModal('create')}
           onJoin={() => openModal('join')}

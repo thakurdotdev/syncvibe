@@ -18,6 +18,8 @@ export interface Group {
   /** Ids (as strings) of people a host muted: they listen but don't chat or react. */
   mutedIds?: string[];
   skipVotes?: SkipVotes | null;
+  /** Waiting for a host or co-host to answer. */
+  rejoinRequests?: RejoinRequest[];
   qrCode?: string;
   members?: GroupMember[];
   queue?: QueueItem[];
@@ -34,6 +36,16 @@ export interface Group {
     /** Who may play, pause, seek, skip and rearrange. Anyone can still add songs. */
     controlMode?: 'everyone' | 'host';
   };
+}
+
+/** Someone a host removed, asking to be let back in. */
+export interface RejoinRequest {
+  userId: string;
+  userName: string;
+  profilePic?: string;
+  askedAt: number;
+  /** Removed while a co-host: only the host can answer. */
+  hostOnly: boolean;
 }
 
 /** Votes to skip the song playing. */

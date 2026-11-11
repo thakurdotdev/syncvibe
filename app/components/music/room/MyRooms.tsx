@@ -1,7 +1,14 @@
 import { Bezel, Gloss } from '@/components/ui/Finish';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
-import type { FormerRoom, JoinedRoom, MyRoom } from '@/stores/groupMusic/roomProtocol';
+import type {
+  FormerRoom,
+  JoinedRoom,
+  LeftRoom,
+  MyRoom,
+  RemovedRoom,
+  RequestState,
+} from '@/stores/groupMusic/roomProtocol';
 import type { Song } from '@/types/song';
 import { TimeAgo } from '@/utils/TimeAgo';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,11 +18,11 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'rea
 type Colors = ReturnType<typeof useTheme>['colors'];
 
 /** Long enough for a slow join; after it the buttons work again if nothing came of it. */
-const JOIN_TIMEOUT_MS = 8000;
+const BUSY_TIMEOUT_MS = 8000;
 const ART = 56;
 
-interface CardProps<Room> {
-  room: Room;
+interface PlayingCardProps {
+  room: JoinedRoom;
   joining: boolean;
   disabled: boolean;
   onJoin: (groupId: string) => void;
@@ -67,7 +74,7 @@ const PlayingCard = memo(function PlayingCard({
   joining,
   disabled,
   onJoin,
-}: CardProps<JoinedRoom>) {
+}: PlayingCardProps) {
   const { colors } = useTheme();
   const { song } = room;
   const art = artworkOf(song);
@@ -120,16 +127,36 @@ const PlayingCard = memo(function PlayingCard({
   );
 });
 
-/** A room you left lately. */
-const LeftRoomRow = memo(function LeftRoomRow({
+interface RowAction {
+  label: string;
+  accessibilityLabel: string;
+  busyLabel: string;
+  busy: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}
+
+interface RowState {
+  busy: boolean;
+  disabled: boolean;
+  onJoin: (groupId: string) => void;
+  onAsk: (groupId: string) => void;
+}
+
+/** A room you left or were removed from lately: what happened, and the one thing to do next. */
+const FormerRoomRow = memo(function FormerRoomRow({
   room,
-  joining,
-  disabled,
-  onJoin,
+  detail,
+  action,
   onDismiss,
-}: CardProps<FormerRoom> & { onDismiss: (groupId: string) => void }) {
+}: {
+  room: FormerRoom;
+  detail: string;
+  action: RowAction | null;
+  onDismiss: (groupId: string) => void;
+}) {
   const { colors } = useTheme();
-  const blocked = disabled || room.full;
+  const dimmed = action && action.disabled && !action.busy;
 
   return (
     <View style={[styles.row, { backgroundColor: colors.card, borderColor: colors.hairline }]}>
@@ -141,26 +168,25 @@ const LeftRoomRow = memo(function LeftRoomRow({
           {room.name}
         </Text>
         <Text style={[styles.detail, { color: colors.mutedForeground }]} numberOfLines={1}>
-          {room.full ? 'Room is full' : `Left ${TimeAgo(room.leftAt).toLowerCase()}`}
+          {detail}
         </Text>
       </View>
-      <PressableScale
-        onPress={() => onJoin(room.groupId)}
-        disabled={blocked}
-        accessibilityRole='button'
-        accessibilityLabel={`Rejoin ${room.name}`}
-        accessibilityState={{ disabled: blocked, busy: joining }}
-        style={[
-          styles.rowButton,
-          { borderColor: colors.hairline, opacity: blocked && !joining ? 0.5 : 1 },
-        ]}
-      >
-        <Gloss tone='surface' />
-        {joining && <ActivityIndicator size='small' color={colors.foreground} />}
-        <Text style={[styles.rowButtonText, { color: colors.foreground }]}>
-          {joining ? 'Joining…' : 'Rejoin'}
-        </Text>
-      </PressableScale>
+      {action && (
+        <PressableScale
+          onPress={action.onPress}
+          disabled={action.disabled}
+          accessibilityRole='button'
+          accessibilityLabel={action.accessibilityLabel}
+          accessibilityState={{ disabled: action.disabled, busy: action.busy }}
+          style={[styles.rowButton, { borderColor: colors.hairline, opacity: dimmed ? 0.5 : 1 }]}
+        >
+          <Gloss tone='surface' />
+          {action.busy && <ActivityIndicator size='small' color={colors.foreground} />}
+          <Text style={[styles.rowButtonText, { color: colors.foreground }]}>
+            {action.busy ? action.busyLabel : action.label}
+          </Text>
+        </PressableScale>
+      )}
       <Pressable
         onPress={() => onDismiss(room.groupId)}
         hitSlop={8}
@@ -174,48 +200,108 @@ const LeftRoomRow = memo(function LeftRoomRow({
   );
 });
 
+const leftRoomRow = (room: LeftRoom, { busy, disabled, onJoin }: RowState) => ({
+  detail: room.full ? 'Room is full' : `Left ${TimeAgo(room.leftAt).toLowerCase()}`,
+  action: {
+    label: 'Rejoin',
+    accessibilityLabel: `Rejoin ${room.name}`,
+    busyLabel: 'Joining…',
+    busy,
+    disabled: disabled || room.full,
+    onPress: () => onJoin(room.groupId),
+  },
+});
+
+const REMOVED_TEXT: Record<RequestState, string> = {
+  none: 'A host removed you',
+  pending: 'Waiting for a host to answer',
+  declined: 'A host said no',
+  blocked: 'A host said no twice',
+};
+
+// Short, so the room's name keeps its room on a phone; the row already says why.
+const ASK_LABEL: Record<Exclude<RequestState, 'blocked'>, string> = {
+  none: 'Ask',
+  pending: 'Asked',
+  declined: 'Ask again',
+};
+
+const removedRoomRow = (room: RemovedRoom, { busy, disabled, onAsk }: RowState) => ({
+  detail: REMOVED_TEXT[room.request],
+  action:
+    room.request === 'blocked'
+      ? null
+      : {
+          label: ASK_LABEL[room.request],
+          accessibilityLabel: `Ask the hosts to let you back into ${room.name}`,
+          busyLabel: 'Asking…',
+          busy,
+          disabled: disabled || room.request === 'pending',
+          onPress: () => onAsk(room.groupId),
+        },
+});
+
 /**
- * Ways back into your rooms: one playing on another device can be moved here, and one you left
- * lately rejoined. Both are an ordinary join; for a room you're in, the server hands it to this
- * phone and tells the other device to stop.
+ * Ways back into your rooms: one playing on another device can be moved here, one you left
+ * lately rejoined, and one a host removed you from asked about. Moving and rejoining are an
+ * ordinary join; for a room you're in, the server hands it to this phone and tells the other
+ * device to stop.
  */
 export const MyRooms = memo(function MyRooms({
   rooms,
   onJoin,
+  onAsk,
   onDismiss,
 }: {
   rooms: MyRoom[];
   onJoin: (groupId: string) => void;
+  onAsk: (groupId: string) => Promise<void>;
   onDismiss: (groupId: string) => void;
 }) {
-  const [joiningId, setJoiningId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!joiningId) return;
-    const timer = setTimeout(() => setJoiningId(null), JOIN_TIMEOUT_MS);
+    if (!busyId) return;
+    const timer = setTimeout(() => setBusyId(null), BUSY_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [joiningId]);
+  }, [busyId]);
 
   if (rooms.length === 0) return null;
 
+  // A join ends by leaving this screen; asking ends with the answer from the server.
   const join = (groupId: string) => {
-    setJoiningId(groupId);
+    setBusyId(groupId);
     onJoin(groupId);
+  };
+  const ask = async (groupId: string) => {
+    setBusyId(groupId);
+    await onAsk(groupId);
+    setBusyId(null);
   };
 
   return (
     <View style={styles.list}>
       {rooms.map((room) => {
-        const props = {
-          joining: joiningId === room.groupId,
-          disabled: joiningId != null,
+        const state: RowState = {
+          busy: busyId === room.groupId,
+          disabled: busyId != null,
           onJoin: join,
+          onAsk: ask,
         };
-        return room.status === 'member' ? (
-          <PlayingCard key={room.groupId} room={room} {...props} />
-        ) : (
-          <LeftRoomRow key={room.groupId} room={room} {...props} onDismiss={onDismiss} />
-        );
+        if (room.status === 'member') {
+          return (
+            <PlayingCard
+              key={room.groupId}
+              room={room}
+              joining={state.busy}
+              disabled={state.disabled}
+              onJoin={join}
+            />
+          );
+        }
+        const row =
+          room.status === 'removed' ? removedRoomRow(room, state) : leftRoomRow(room, state);
+        return <FormerRoomRow key={room.groupId} room={room} {...row} onDismiss={onDismiss} />;
       })}
     </View>
   );

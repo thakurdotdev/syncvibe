@@ -371,6 +371,13 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // The answer to asking to be let back into a room a host removed you from.
+    socket.on('room:rejoin-answer', (data: { name: string; accepted: boolean }) => {
+      if (data.accepted) {
+        toast(`A host let you back into ${data.name}. You can rejoin it now.`, { type: 'success' });
+      } else toast(`A host declined your request to rejoin ${data.name}`, { type: 'info' });
+    });
+
     // Left on another device, or a host removed you.
     socket.on('left-group', (data: { groupId: string; removed?: boolean }) => {
       if (data.groupId !== ss.getState().currentGroup?.id) return;
@@ -543,6 +550,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         'join-refused',
         'chat-blocked',
         'device-replaced',
+        'room:rejoin-answer',
         'member-presence',
         'user-typing',
         'group-invite-received',

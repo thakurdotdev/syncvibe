@@ -132,6 +132,7 @@ const RoomPreview = memo(function RoomPreview({ colors }: { colors: Colors }) {
 export const RoomsWelcome = memo(function RoomsWelcome({
   myRooms,
   onJoinRoom,
+  onAskRoom,
   onDismissRoom,
   onStart,
   onJoin,
@@ -139,6 +140,7 @@ export const RoomsWelcome = memo(function RoomsWelcome({
 }: {
   myRooms: MyRoom[];
   onJoinRoom: (groupId: string) => void;
+  onAskRoom: (groupId: string) => Promise<void>;
   onDismissRoom: (groupId: string) => void;
   onStart: () => void;
   onJoin: () => void;
@@ -153,7 +155,7 @@ export const RoomsWelcome = memo(function RoomsWelcome({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[styles.content, { paddingBottom: DECK_CLEARANCE }]}
     >
-      <MyRooms rooms={myRooms} onJoin={onJoinRoom} onDismiss={onDismissRoom} />
+      <MyRooms rooms={myRooms} onJoin={onJoinRoom} onAsk={onAskRoom} onDismiss={onDismissRoom} />
 
       <View style={styles.hero}>
         <RoomPreview colors={colors} />

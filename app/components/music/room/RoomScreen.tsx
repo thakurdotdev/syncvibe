@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChatPanel } from './chat/ChatPanel';
 import { isActivity, sameUser } from './chat/chatUtils';
 import { PeoplePanel } from './PeoplePanel';
+import { RejoinRequestsBanner } from './RejoinRequestsBanner';
 import { RoomHeader } from './RoomHeader';
 import { RoomPlayer } from './RoomPlayer';
 import { RoomTabs, type RoomTab } from './RoomTabs';
@@ -96,6 +97,8 @@ export const RoomScreen = memo(function RoomScreen({
         onLeave={onLeave}
         onShowPeople={showPeople}
       />
+
+      <RejoinRequestsBanner />
 
       {/* While typing, give the conversation the space; the player returns with the keyboard. */}
       {!keyboardVisible && (
