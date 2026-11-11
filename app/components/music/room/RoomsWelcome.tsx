@@ -20,14 +20,6 @@ const SEAT_GAP = 12;
 /** You, then two open seats. */
 const SEATS = [0, 1, 2];
 
-/** What a room actually has (see components/music/room and the server's room commands). */
-const FEATURES = [
-  { icon: 'list', label: 'Shared queue' },
-  { icon: 'chatbubbles', label: 'Live chat' },
-  { icon: 'sparkles', label: 'Reactions' },
-  { icon: 'star', label: 'Host controls' },
-] as const;
-
 /** Plays once as the screen appears, then holds still: nothing loops while you read. */
 const enter = (reduced: boolean, delayMs: number, from: Record<string, unknown>) =>
   reduced
@@ -163,16 +155,6 @@ export const RoomsWelcome = memo(function RoomsWelcome({
             Start a room and everyone hears the same moment, wherever they are.
           </Text>
         </Animated.View>
-
-        <Animated.View style={[styles.features, enter(reduced, 220, rise)]}>
-          {FEATURES.map((f) => (
-            <View key={f.label} style={[styles.feature, { borderColor: colors.hairline }]}>
-              <Gloss tone='surface' />
-              <Ionicons name={f.icon} size={14} color={colors.foreground} />
-              <Text style={[styles.featureLabel, { color: colors.foreground }]}>{f.label}</Text>
-            </View>
-          ))}
-        </Animated.View>
       </View>
 
       <Animated.View style={[styles.actions, enter(reduced, 300, rise)]}>
@@ -264,19 +246,6 @@ const styles = StyleSheet.create({
 
   title: { fontFamily: fonts.displayHeavy, fontSize: 38, lineHeight: 40, letterSpacing: -1.3 },
   body: { fontSize: 15, lineHeight: 21, marginTop: 10 },
-
-  features: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  feature: {
-    height: 34,
-    paddingHorizontal: 12,
-    borderRadius: 17,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    overflow: 'hidden',
-  },
-  featureLabel: { fontSize: 13, fontWeight: '600' },
 
   actions: { gap: 10, paddingTop: 8 },
   cta: {
