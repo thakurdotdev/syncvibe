@@ -1,4 +1,5 @@
 import type { Server } from 'socket.io';
+import { tellMembersRooms } from './devices';
 import { touchRoom } from './room-store';
 import {
   legacyRoomOf,
@@ -136,6 +137,7 @@ export const broadcastPlayback = (
     ...(by ? { by } : {}),
     ...playbackPart(group),
   });
+  if (kind !== 'seek') tellMembersRooms(io, group);
 
   const legacy = io.to(legacyRoomOf(group.id));
   const { timeline, current } = group;

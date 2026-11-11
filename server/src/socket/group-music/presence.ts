@@ -1,4 +1,5 @@
 import type { Server, Socket } from 'socket.io';
+import { tellMyRooms } from './devices';
 import { handleMemberGone } from './host';
 import { touchRoom } from './room-store';
 import {
@@ -99,6 +100,7 @@ const setConnected = (io: Server, groupId: string, userId: string | number, conn
   if (!member || (member.connected !== false) === connected) return;
   member.connected = connected;
   io.to(roomOf(groupId)).emit('member-presence', { userId, connected });
+  tellMyRooms(io, userId);
 };
 
 /** Call whenever a socket joins a room: it cancels any removal in progress for that user. */
@@ -142,6 +144,7 @@ export const dropMember = (
     io.in(String(userId)).socketsLeave(allRoomsOf(groupId));
   }
   io.to(roomOf(groupId)).emit('member-left', { userId });
+  tellMyRooms(io, userId);
   handleMemberGone(io, group, userId);
   touchRoom(group, 'core');
   if (group.members.length === 0) expireIfEmpty(groupId);

@@ -16,6 +16,7 @@ import {
   removeGroup,
 } from './state';
 import { joinPayloadOf, publicGroupOf } from './broadcast';
+import { tellMyRooms } from './devices';
 import { handleMemberGone } from './host';
 import { touchRoom } from './room-store';
 import { sendPushNotification } from '../notification';
@@ -102,6 +103,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
 
       socket.data.deviceId = data.deviceId;
       socket.emit('group-created', { ...publicGroupOf(group), sync: joinPayloadOf(group).sync });
+      tellMyRooms(io, data.createdBy);
     } catch (err) {
       console.error('QR Code Generation Failed:', err);
       socket.emit('error', { message: 'QR Code generation failed' });
@@ -146,6 +148,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
     // Only to this device: sent to all of a user's devices, it pulled the others' screens and
     // audio into a room their connections weren't in.
     socket.emit('group-joined', joinPayloadOf(group));
+    tellMyRooms(io, data.userId);
 
     if (!existingMember) {
       socket.to(roomOf(data.groupId)).emit('member-joined', {
@@ -220,6 +223,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       touchRoom(group, 'core');
 
       socket.emit('group-rejoined', joinPayloadOf(group));
+      tellMyRooms(io, data.userId);
     } else {
       socket.emit('group-not-found');
     }
@@ -245,6 +249,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       io.to(roomOf(data.groupId)).emit('member-left', {
         userId: data.userId,
       });
+      tellMyRooms(io, data.userId);
       handleMemberGone(io, group, data.userId);
       touchRoom(group, 'core');
 
