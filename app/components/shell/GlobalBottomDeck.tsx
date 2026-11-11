@@ -14,6 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  */
 const DECK_PAGES = new Set([
   'albums',
+  // So bar settings (glass, player card) show their effect while you change them.
+  'appearance',
   'artist',
   'browse',
   'playlists',

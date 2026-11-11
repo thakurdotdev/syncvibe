@@ -1,4 +1,4 @@
-import { colorPalettes, ColorTheme, ThemeColors } from '@/theme/color';
+import { colorPalettes, ColorTheme, isThemeChoice, ThemeChoice, ThemeColors } from '@/theme/color';
 import { storageCache } from '@/utils/storageCache';
 import React, {
   createContext,
@@ -13,6 +13,7 @@ import React, {
 import { Appearance, AppState, useColorScheme } from 'react-native';
 
 const THEME_PREFERENCE_KEY = '@theme_preference';
+const THEME_PALETTE_KEY = '@theme_palette';
 
 type ThemePreference = ColorTheme | 'system';
 
@@ -30,6 +31,9 @@ interface ThemeContextType {
   setTheme: (theme: ThemePreference) => void;
   setSystemTheme: () => void;
   themePreference: ThemePreference;
+  /** Which theme's colours (Settings → Appearance). */
+  palette: ThemeChoice;
+  setPalette: (palette: ThemeChoice) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -44,6 +48,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     isColorTheme(deviceColorScheme) ? deviceColorScheme : 'light'
   );
   const [themePreference, setThemePreference] = useState<ThemePreference>('system');
+  const [palette, setPaletteState] = useState<ThemeChoice>('mono');
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const prevThemeRef = useRef<ThemePreference>(themePreference);
@@ -84,9 +89,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
     const loadPreferences = async () => {
       try {
-        const savedTheme = await storageCache.getItem(THEME_PREFERENCE_KEY);
+        const [savedTheme, savedPalette] = await Promise.all([
+          storageCache.getItem(THEME_PREFERENCE_KEY),
+          storageCache.getItem(THEME_PALETTE_KEY),
+        ]);
 
         if (!isMounted) return;
+        if (isThemeChoice(savedPalette)) setPaletteState(savedPalette);
 
         const preference = parseThemePreference(savedTheme);
         const systemTheme = Appearance.getColorScheme();
@@ -153,7 +162,14 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   const setSystemTheme = useCallback(() => updateTheme('system'), [updateTheme]);
 
-  const themeColors = useMemo(() => colorPalettes.default[theme], [theme]);
+  const setPalette = useCallback((next: ThemeChoice) => {
+    setPaletteState(next);
+    storageCache.setItem(THEME_PALETTE_KEY, next).catch((error) => {
+      console.log('Error saving theme palette:', error);
+    });
+  }, []);
+
+  const themeColors = useMemo(() => colorPalettes[palette][theme], [palette, theme]);
 
   const contextValue = useMemo(
     () => ({
@@ -164,8 +180,20 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       setTheme,
       setSystemTheme,
       themePreference,
+      palette,
+      setPalette,
     }),
-    [theme, themeColors, isLoading, toggleTheme, setTheme, setSystemTheme, themePreference]
+    [
+      theme,
+      themeColors,
+      isLoading,
+      toggleTheme,
+      setTheme,
+      setSystemTheme,
+      themePreference,
+      palette,
+      setPalette,
+    ]
   );
 
   return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>;

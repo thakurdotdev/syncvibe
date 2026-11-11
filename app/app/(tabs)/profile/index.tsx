@@ -5,24 +5,21 @@ import { ProfileIdentity } from '@/components/profile/ProfileIdentity';
 import { SettingsGroup, SettingsRow } from '@/components/profile/SettingsGroup';
 import { UpdateCard } from '@/components/profile/UpdateCard';
 import { StackHeader } from '@/components/ui/AppHeader';
-import { Segmented, type SegmentOption } from '@/components/ui/Segmented';
 import { CURRENT_APP_VERSION, useAppUpdateStore } from '@/stores/appUpdateStore';
-import { GLASS_SUPPORTED } from '@/components/shell/GlassSurface';
-import { useDeckStore } from '@/stores/deckStore';
 import { useTheme } from '@/context/ThemeContext';
+import type { ThemeChoice } from '@/theme/color';
 import { useUser } from '@/context/UserContext';
 import { hasStoredSession } from '@/lib/auth-client';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-type ThemeChoice = 'light' | 'system' | 'dark';
-
-const THEME_OPTIONS: SegmentOption<ThemeChoice>[] = [
-  { value: 'light', label: 'Light', icon: 'sunny-outline' },
-  { value: 'system', label: 'Auto', icon: 'phone-portrait-outline' },
-  { value: 'dark', label: 'Dark', icon: 'moon-outline' },
-];
+const THEME_NAMES: Record<ThemeChoice, string> = {
+  mono: 'Mono',
+  ember: 'Ember',
+  aubergine: 'Aubergine',
+};
+const SCHEME_NAMES: Record<string, string> = { system: 'System', light: 'Light', dark: 'Dark' };
 
 /**
  * Profile and settings. Reached from the avatar in every tab header (it's no longer a tab),
@@ -30,10 +27,8 @@ const THEME_OPTIONS: SegmentOption<ThemeChoice>[] = [
  */
 export default function ProfileScreen() {
   const { user, logout, getProfile, loading } = useUser();
-  const { colors, setTheme, themePreference } = useTheme();
+  const { colors, themePreference, palette } = useTheme();
   const isUpdateAvailable = useAppUpdateStore((s) => s.isUpdateAvailable);
-  const glass = useDeckStore((s) => s.glass);
-  const setGlass = useDeckStore((s) => s.setGlass);
   const [showDeveloper, setShowDeveloper] = useState(false);
 
   useEffect(() => {
@@ -90,35 +85,9 @@ export default function ProfileScreen() {
           <SettingsRow
             icon='sun'
             label='Appearance'
-            trailing={
-              <View style={styles.theme}>
-                <Segmented
-                  iconOnly
-                  options={THEME_OPTIONS}
-                  value={themePreference as ThemeChoice}
-                  onChange={setTheme}
-                  accessibilityLabel='Theme'
-                />
-              </View>
-            }
+            detail={`${THEME_NAMES[palette]} · ${SCHEME_NAMES[themePreference] ?? 'System'}`}
+            onPress={() => router.push('/appearance')}
           />
-          {GLASS_SUPPORTED && (
-            <SettingsRow
-              icon='layers'
-              label='Glass bar'
-              detail='Blur behind the bottom bar'
-              onPress={() => setGlass(!glass)}
-              trailing={
-                <Switch
-                  value={glass}
-                  onValueChange={setGlass}
-                  trackColor={{ false: colors.border, true: colors.primary }}
-                  thumbColor={colors.card}
-                  accessibilityLabel='Glass bar'
-                />
-              }
-            />
-          )}
           <SettingsRow
             icon='shield'
             label='Security'
@@ -163,6 +132,5 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { paddingTop: 8, gap: 28 },
   update: { paddingHorizontal: 16 },
-  theme: { width: 132 },
   version: { fontSize: 12.5, fontVariant: ['tabular-nums'], paddingHorizontal: 20, marginTop: 8 },
 });

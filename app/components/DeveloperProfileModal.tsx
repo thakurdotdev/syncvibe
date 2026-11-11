@@ -1,275 +1,236 @@
 import PressableScale from '@/components/ui/PressableScale';
-import React, { useState } from 'react';
-import { Dimensions, Image, Linking, StyleSheet, Text, View } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/context/ThemeContext';
+import { BUTTON_PRESS_SCALE, ENTER, EXIT, POP_FROM_SCALE, ROW_PRESS_SCALE } from '@/lib/motion';
+import { CURRENT_APP_VERSION } from '@/stores/appUpdateStore';
+import { fonts } from '@/theme/typography';
+import { Feather } from '@expo/vector-icons';
+import React, { useEffect, useRef, useState } from 'react';
+import { Image, Linking, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeOut, Keyframe } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 import SwipeableModal from './SwipeableModal';
 
-const { width } = Dimensions.get('window');
+const AVATAR =
+  'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1745152151/lmdhpag0p6ubockyjs1q.jpg';
+
+type Link = {
+  name: string;
+  handle: string;
+  url: string;
+  icon: keyof typeof Feather.glyphMap | 'x';
+};
+
+const LINKS: Link[] = [
+  {
+    name: 'GitHub',
+    handle: '@thakurdotdev',
+    url: 'https://github.com/thakurdotdev',
+    icon: 'github',
+  },
+  {
+    name: 'LinkedIn',
+    handle: 'in/thakurdotdev',
+    url: 'https://linkedin.com/in/thakurdotdev',
+    icon: 'linkedin',
+  },
+  { name: 'X', handle: '@thakurdotdev', url: 'https://x.com/thakurdotdev', icon: 'x' },
+  {
+    name: 'Instagram',
+    handle: '@thakurdotdev',
+    url: 'https://instagram.com/thakurdotdev',
+    icon: 'instagram',
+  },
+];
+
+// The easter egg pops from just under full size, never from nothing.
+const EGG_IN = new Keyframe({
+  0: { opacity: 0, transform: [{ translateY: 6 }, { scale: POP_FROM_SCALE }] },
+  100: { opacity: 1, transform: [{ translateY: 0 }, { scale: 1 }] },
+}).duration(ENTER.duration);
+const EGG_OUT = FadeOut.duration(EXIT.duration);
+
+/** X's mark; Feather only has the old bird. */
+function XMark({ color }: { color: string }) {
+  return (
+    <Svg width={17} height={17} viewBox='0 0 24 24' fill='none'>
+      <Path d='M4 4l16 16M20 4 4 20' stroke={color} strokeWidth={1.9} strokeLinecap='round' />
+    </Svg>
+  );
+}
 
 interface DeveloperProfileModalProps {
   isVisible: boolean;
   onClose: () => void;
 }
 
+/** Profile → Meet the developer: who builds SyncVibe and where to find him. */
 const DeveloperProfileModal: React.FC<DeveloperProfileModalProps> = ({ isVisible, onClose }) => {
-  const { colors } = useTheme();
-  const [showEasterEgg, setShowEasterEgg] = useState(false);
+  const { colors, theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const [showEgg, setShowEgg] = useState(false);
+  const eggTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleSocialLink = (url: string) => {
-    Linking.openURL(url);
+  useEffect(
+    () => () => {
+      if (eggTimer.current) clearTimeout(eggTimer.current);
+    },
+    []
+  );
+
+  const revealEgg = () => {
+    setShowEgg(true);
+    if (eggTimer.current) clearTimeout(eggTimer.current);
+    eggTimer.current = setTimeout(() => setShowEgg(false), 2000);
   };
 
-  const handleLongPress = () => {
-    setShowEasterEgg(true);
-    setTimeout(() => setShowEasterEgg(false), 2000);
+  const open = (url: string) => {
+    Linking.openURL(url).catch(() => {});
   };
 
-  const socialLinks = [
-    {
-      name: 'GitHub',
-      icon: 'github' as const,
-      url: 'https://github.com/thakurdotdev',
-    },
-    {
-      name: 'LinkedIn',
-      icon: 'linkedin' as const,
-      url: 'https://linkedin.com/in/thakurdotdev',
-    },
-    {
-      name: 'Twitter',
-      icon: 'twitter' as const,
-      url: 'https://twitter.com/thakurdotdev',
-    },
-    {
-      name: 'Instagram',
-      icon: 'instagram' as const,
-      url: 'https://instagram.com/thakurdotdev',
-    },
-  ];
+  // On a dark sheet the list sits one step up; on a light one it's a white card on white.
+  const listBg = theme === 'dark' ? colors.raised : colors.card;
+  const tileBg = theme === 'dark' ? colors.card : colors.raised;
 
   return (
-    <SwipeableModal isVisible={isVisible} onClose={onClose} hideHandle>
-      <View style={styles.container}>
-        <View style={styles.bannerContainer}>
-          <LinearGradient
-            colors={colors.gradients.primary}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.banner}
-          />
+    <SwipeableModal isVisible={isVisible} onClose={onClose}>
+      <View style={[styles.root, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
+        <View style={styles.who}>
+          {showEgg && (
+            <Animated.View
+              entering={EGG_IN}
+              exiting={EGG_OUT}
+              style={[styles.egg, { backgroundColor: colors.foreground }]}
+            >
+              <Text style={[styles.eggText, { color: colors.background }]}>
+                🚀 Keep building amazing things!
+              </Text>
+            </Animated.View>
+          )}
           <PressableScale
-            style={[styles.closeButton, { backgroundColor: 'rgba(0, 0, 0, 0.3)' }]}
-            onPress={onClose}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          >
-            <Feather name='x' size={18} color='#FFFFFF' />
-          </PressableScale>
-        </View>
-
-        <View style={styles.content}>
-          <PressableScale
-            onLongPress={handleLongPress}
-            delayLongPress={800}
-            style={styles.avatarContainer}
+            onLongPress={revealEgg}
+            delayLongPress={600}
+            scaleTo={BUTTON_PRESS_SCALE}
+            accessibilityRole='image'
+            accessibilityLabel='Pankaj Thakur'
+            style={[styles.avatarRing, { borderColor: colors.hairline }]}
           >
             <Image
-              source={{
-                uri: 'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/r_max/f_auto/v1745152151/lmdhpag0p6ubockyjs1q.jpg',
-              }}
-              style={[styles.avatar, { borderColor: colors.card }]}
+              source={{ uri: AVATAR }}
+              style={[styles.avatar, { backgroundColor: colors.raised }]}
               fadeDuration={0}
             />
-            {showEasterEgg && (
-              <View
-                style={[
-                  styles.easterEgg,
-                  { backgroundColor: colors.card, borderColor: colors.primary },
-                ]}
-              >
-                <Text style={[styles.easterEggText, { color: colors.foreground }]}>
-                  🚀 Keep building amazing things!
-                </Text>
-              </View>
-            )}
           </PressableScale>
-
-          <Text style={[styles.name, { color: colors.foreground }]}>Pankaj Thakur</Text>
-
-          <View style={[styles.badge, { backgroundColor: colors.primary + '15' }]}>
-            <Text style={[styles.badgeText, { color: colors.primary }]}>SOFTWARE ENGINEER</Text>
-          </View>
-
-          <Text style={[styles.bio, { color: colors.foreground }]}>
-            A passionate builder crafting digital experiences that vibe. Focused on clean code,
-            meaningful UX, and scalable tech.
-          </Text>
-
-          <View style={styles.socialLinks}>
-            {socialLinks.map((link) => (
-              <PressableScale
-                key={link.name}
-                style={[styles.socialButton, { backgroundColor: colors.secondary }]}
-                onPress={() => handleSocialLink(link.url)}
-              >
-                <Feather name={link.icon} size={20} color={colors.foreground} />
-              </PressableScale>
-            ))}
-          </View>
-
-          <PressableScale
-            style={[styles.portfolioLink, { backgroundColor: colors.primary }]}
-            onPress={() => handleSocialLink('https://thakur.dev')}
-          >
-            <Text style={[styles.portfolioText, { color: colors.primaryForeground }]}>
-              Visit my portfolio
+          <View style={styles.whoText}>
+            <Text style={[styles.name, { color: colors.foreground }]} accessibilityRole='header'>
+              Pankaj Thakur
             </Text>
-            <Feather
-              name='external-link'
-              size={16}
-              color={colors.primaryForeground}
-              style={styles.linkIcon}
-            />
-          </PressableScale>
-
-          <View style={styles.footer}>
-            <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
-              Built with ❤️ by Pankaj Thakur
+            <Text style={[styles.role, { color: colors.mutedForeground }]}>
+              Software engineer · builds SyncVibe
             </Text>
           </View>
         </View>
+
+        <Text style={[styles.bio, { color: colors.foreground }]}>
+          I build SyncVibe so friends can press play together and hear the same moment, wherever
+          they are. I care about apps that feel fast, simple and personal.
+        </Text>
+
+        <Text style={[styles.label, { color: colors.mutedForeground }]}>Find me on</Text>
+        <View style={[styles.links, { backgroundColor: listBg, borderColor: colors.hairline }]}>
+          {LINKS.map((link, i) => (
+            <PressableScale
+              key={link.name}
+              onPress={() => open(link.url)}
+              scaleTo={ROW_PRESS_SCALE}
+              accessibilityRole='link'
+              accessibilityLabel={`${link.name}, ${link.handle}`}
+              style={[
+                styles.link,
+                i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+              ]}
+            >
+              <View style={[styles.tile, { backgroundColor: tileBg }]}>
+                {link.icon === 'x' ? (
+                  <XMark color={colors.foreground} />
+                ) : (
+                  <Feather name={link.icon} size={18} color={colors.foreground} />
+                )}
+              </View>
+              <View style={styles.linkText}>
+                <Text style={[styles.linkName, { color: colors.foreground }]}>{link.name}</Text>
+                <Text style={[styles.handle, { color: colors.mutedForeground }]}>
+                  {link.handle}
+                </Text>
+              </View>
+              <Feather name='arrow-up-right' size={18} color={colors.mutedForeground} />
+            </PressableScale>
+          ))}
+        </View>
+
+        <PressableScale
+          onPress={() => open('https://thakur.dev')}
+          accessibilityRole='link'
+          accessibilityLabel='Visit thakur.dev'
+          style={[styles.cta, { backgroundColor: colors.primary }]}
+        >
+          <Feather name='globe' size={18} color={colors.primaryForeground} />
+          <Text style={[styles.ctaText, { color: colors.primaryForeground }]}>
+            Visit thakur.dev
+          </Text>
+        </PressableScale>
+
+        <Text style={[styles.footer, { color: colors.mutedForeground }]}>
+          SyncVibe {CURRENT_APP_VERSION}
+        </Text>
       </View>
     </SwipeableModal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
-  bannerContainer: {
-    position: 'relative',
-    height: 120,
-    width: '100%',
-  },
-  banner: {
-    ...StyleSheet.absoluteFillObject,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  closeButton: {
+  root: { paddingHorizontal: 20, paddingTop: 4 },
+  who: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  avatarRing: { borderRadius: 40, borderWidth: 1.5, padding: 3 },
+  avatar: { width: 66, height: 66, borderRadius: 33 },
+  whoText: { flex: 1, minWidth: 0 },
+  name: { fontFamily: fonts.displayHeavy, fontSize: 25, letterSpacing: -0.6 },
+  role: { fontSize: 13.5, marginTop: 3 },
+  egg: {
     position: 'absolute',
-    top: 16,
-    right: 16,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 20,
-  },
-  content: {
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 32,
-  },
-  avatarContainer: {
-    marginTop: -50,
-    marginBottom: 16,
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 4,
-  },
-  easterEgg: {
-    position: 'absolute',
-    top: -45,
-    alignSelf: 'center',
-    paddingVertical: 6,
+    left: 0,
+    top: -44,
     paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    width: 220,
-    alignItems: 'center',
+    paddingVertical: 7,
+    borderRadius: 999,
+    zIndex: 2,
   },
-  easterEggText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: 8,
-    letterSpacing: -0.5,
-  },
-  badge: {
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-  },
-  bio: {
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
-    maxWidth: width - 80,
-  },
-  socialLinks: {
+  eggText: { fontSize: 12, fontWeight: '700' },
+  bio: { fontSize: 15, lineHeight: 22, opacity: 0.86, marginTop: 16, marginBottom: 20 },
+  label: { fontSize: 13, fontWeight: '600', marginBottom: 8, marginLeft: 2 },
+  links: { borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  link: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-    marginBottom: 28,
-  },
-  socialButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    justifyContent: 'center',
     alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 12,
+    minHeight: 60,
   },
-  portfolioLink: {
+  tile: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  linkText: { flex: 1, minWidth: 0 },
+  linkName: { fontSize: 15, fontWeight: '600' },
+  handle: { fontSize: 12.5, marginTop: 1 },
+  cta: {
+    marginTop: 16,
+    height: 52,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 14,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    gap: 8,
   },
-  portfolioText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  linkIcon: {
-    marginLeft: 8,
-  },
-  footer: {
-    marginTop: 24,
-  },
-  footerText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
+  ctaText: { fontSize: 15.5, fontWeight: '700' },
+  footer: { fontSize: 12, textAlign: 'center', marginTop: 14 },
 });
 
 export default DeveloperProfileModal;

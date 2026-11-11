@@ -278,6 +278,13 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen
+            name='appearance'
+            options={{
+              headerShown: false,
+              title: 'Appearance',
+            }}
+          />
+          <Stack.Screen
             name='security'
             options={{
               headerShown: false,
