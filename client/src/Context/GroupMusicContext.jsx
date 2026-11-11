@@ -304,7 +304,7 @@ export function GroupMusicProvider({ children }) {
       ss.getState().clearSession();
       if (currentGroup) ss.getState().resetSession(() => pb.getState().reset());
       if (currentGroup || isRejoining) {
-        toast.info('This room moved to your other device. Join it again here to bring it back.');
+        toast.info('Playing on your other device now. Choose Play here to bring it back.');
       }
     });
 

@@ -1,3 +1,4 @@
+import { useSocket } from '@/Context/ChatContext';
 import { useProfile } from '@/Context/Context';
 import { useGroupMusic } from '@/Context/GroupMusicContext';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -5,6 +6,7 @@ import { memo, useCallback, useState } from 'react';
 import '../Music/music.css';
 import GlobalSoundAnimation from './GlobalSoundAnimation';
 import GroupModal from './GroupModal';
+import { useRoomsElsewhere } from './hooks/useRoomsElsewhere';
 import InviteSheet from './InviteSheet';
 import ArtworkBackdrop from './player/ArtworkBackdrop';
 import QRCodeDialog from './QRCodeDialog';
@@ -36,6 +38,9 @@ const GroupMusic = () => {
     sendInvite,
   } = useGroupMusic();
 
+  const { socket } = useSocket();
+  const roomsElsewhere = useRoomsElsewhere(socket, currentGroup?.id);
+
   const [isQrCodeOpen, setIsQrCodeOpen] = useState(false);
   const [modalDefaultTab, setModalDefaultTab] = useState('join');
 
@@ -66,7 +71,11 @@ const GroupMusic = () => {
             {view === 'reconnecting' && <ReconnectingView />}
             {view === 'welcome' && (
               <div className='h-full overflow-y-auto overscroll-contain'>
-                <WelcomeView onOpenModal={openGroupModal} />
+                <WelcomeView
+                  onOpenModal={openGroupModal}
+                  roomsElsewhere={roomsElsewhere}
+                  onPlayHere={joinGroup}
+                />
               </div>
             )}
           </motion.div>
