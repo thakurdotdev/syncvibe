@@ -298,16 +298,20 @@ const DECK_SIDE = 12;
 /** A skipped song's artwork leaves the orb this far, faded out by then. */
 const SKIP_OUT_ORB = 40;
 const PRESS_OUT = { duration: 150, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
-/** How long the capsule stays out on its own: after a song change, and after a hold. */
-const SHOW_SONG_MS = 3000;
-const HOLD_SONG_MS = 4000;
+/**
+ * How long the capsule stays out on its own: after a song change, and after a hold. Long enough to
+ * read a title; a swipe or play/pause restarts it, so it never closes under your finger.
+ */
+const SHOW_SONG_MS = 2500;
+const HOLD_SONG_MS = 3000;
 const CAPSULE_OPEN = {
   duration: 250,
   easing: EASE_OUT,
   reduceMotion: ReduceMotion.System,
 } as const;
+// Closing is quicker than opening: the capsule is drawn back into the orb.
 const CAPSULE_CLOSE = {
-  duration: 180,
+  duration: 160,
   easing: EASE_OUT,
   reduceMotion: ReduceMotion.System,
 } as const;
@@ -322,7 +326,18 @@ const CAPSULE_CONTENT_IN = {
   reduceMotion: ReduceMotion.System,
 } as const;
 const CAPSULE_CONTENT_OUT = {
-  duration: 100,
+  duration: 80,
+  easing: EASE_OUT,
+  reduceMotion: ReduceMotion.System,
+} as const;
+/** The orb takes the capsule back in: a small swell as it arrives. */
+const ORB_ABSORB_UP = {
+  duration: 110,
+  easing: EASE_OUT,
+  reduceMotion: ReduceMotion.System,
+} as const;
+const ORB_ABSORB_DOWN = {
+  duration: 170,
   easing: EASE_OUT,
   reduceMotion: ReduceMotion.System,
 } as const;
@@ -441,6 +456,20 @@ const Orb = memo(function Orb({
   const x = useSharedValue(0);
   const skipped = useSharedValue(false);
   const startX = useSharedValue(0);
+
+  // When the capsule closes, it lands back in the orb, which swells a touch to take it in.
+  const wasExpanded = useRef(expanded);
+  useEffect(() => {
+    if (wasExpanded.current && !expanded) {
+      scale.set(
+        withDelay(
+          CAPSULE_CLOSE.duration - 50,
+          withSequence(withTiming(1.07, ORB_ABSORB_UP), withTiming(1, ORB_ABSORB_DOWN))
+        )
+      );
+    }
+    wasExpanded.current = expanded;
+  }, [expanded, scale]);
 
   // A new song starts centred; whatever the old one was doing is over.
   useLayoutEffect(() => {
@@ -802,7 +831,8 @@ const Capsule = memo(function Capsule({
   const maskStyle = useAnimatedStyle(() => ({ width: maskW.get(), opacity: maskOpacity.get() }));
   const contentStyle = useAnimatedStyle(() => ({
     opacity: content.get(),
-    transform: [{ translateX: (1 - content.get()) * -8 }],
+    // Out of the orb on the way in, back toward it on the way out.
+    transform: [{ translateX: (1 - content.get()) * -14 }],
   }));
 
   const artist =
