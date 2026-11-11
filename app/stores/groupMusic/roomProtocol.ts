@@ -1,6 +1,7 @@
 import type { Socket } from 'socket.io-client';
 import { addClockSample, clockRtt } from './roomClock';
 import type { RoomPlayback } from './roomSync';
+import type { Song } from '@/types/song';
 import type { GroupMember, QueueItem, SkipVotes } from './types';
 
 /** Sent when joining, so the server speaks the current sync protocol to this device. */
@@ -124,3 +125,27 @@ export const queueViewOf = (currentItem: QueueItem | null, upcoming: QueueItem[]
   queue: currentItem ? [currentItem, ...upcoming] : upcoming,
   currentQueueIndex: currentItem ? 0 : -1,
 });
+
+/** One of your rooms as your other devices see it (server `socket/group-music/devices.ts`). */
+export interface MyRoom {
+  groupId: string;
+  name: string;
+  song: Song | null;
+  playing: boolean;
+  /** Null while no device of yours is connected to the room. */
+  device: { name: string; mobile: boolean } | null;
+}
+
+/**
+ * Your rooms and the device each is playing on, so this one can offer to take one over.
+ * Resolves to null if there was no answer.
+ */
+export const fetchMyRooms = (socket: RoomSocket): Promise<MyRoom[] | null> =>
+  new Promise((resolve) => {
+    if (!socket?.connected) return resolve(null);
+    socket
+      .timeout(COMMAND_TIMEOUT_MS)
+      .emit('room:mine', {}, (err: unknown, reply?: { rooms?: MyRoom[] }) => {
+        resolve(err || !Array.isArray(reply?.rooms) ? null : reply.rooms);
+      });
+  });

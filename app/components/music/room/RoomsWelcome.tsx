@@ -4,11 +4,13 @@ import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
 import { BUTTON_PRESS_SCALE } from '@/lib/motion';
+import type { MyRoom } from '@/stores/groupMusic/roomProtocol';
 import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
 import { memo } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { cubicBezier, useReducedMotion } from 'react-native-reanimated';
+import { PlayingElsewhere } from './PlayingElsewhere';
 
 type Colors = ReturnType<typeof useTheme>['colors'];
 
@@ -124,13 +126,18 @@ const RoomPreview = memo(function RoomPreview({ colors }: { colors: Colors }) {
 });
 
 /**
- * Rooms tab when you're not in a room: a preview of the room, what it has, and the ways in.
+ * Rooms tab when you're not in a room: your rooms playing on another device, a preview of the
+ * room, what it has, and the ways in.
  */
 export const RoomsWelcome = memo(function RoomsWelcome({
+  roomsElsewhere,
+  onPlayHere,
   onStart,
   onJoin,
   onScan,
 }: {
+  roomsElsewhere: MyRoom[];
+  onPlayHere: (groupId: string) => void;
   onStart: () => void;
   onJoin: () => void;
   onScan: () => void;
@@ -144,6 +151,8 @@ export const RoomsWelcome = memo(function RoomsWelcome({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[styles.content, { paddingBottom: DECK_CLEARANCE }]}
     >
+      <PlayingElsewhere rooms={roomsElsewhere} onPlayHere={onPlayHere} />
+
       <View style={styles.hero}>
         <RoomPreview colors={colors} />
 

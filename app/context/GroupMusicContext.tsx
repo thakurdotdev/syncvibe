@@ -365,10 +365,9 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       ss.getState().clearSession();
       if (currentGroup) endRoomHere();
       if (currentGroup || isRejoining) {
-        Alert.alert(
-          'Playing on your other device',
-          'This room moved to your other device. Join it again here to bring it back.'
-        );
+        toast('Playing on your other device now. Tap Play here to bring it back.', {
+          type: 'info',
+        });
       }
     });
 
