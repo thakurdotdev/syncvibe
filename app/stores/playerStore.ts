@@ -12,12 +12,18 @@ import { createDeferredStorage } from '@/utils/deferredStorage';
 export type RepeatMode = 'off' | 'all' | 'one';
 
 let lastFetchedRecSongId: string | null = null;
+let isRemote: (() => boolean) | null = null;
+export const setIsRemote = (check: (() => boolean) | null) => {
+  isRemote = check;
+};
 let isFetchingRecs = false;
 
 export const checkAndFetchRecommendations = async (targetSong?: Song | null, force = false) => {
   const store = usePlayerStore.getState();
   if (!store.autoFetchRecommendations && !force) return;
   if (store.activePlayerMode === 'group') return;
+  // Another of your devices is playing: it picks the next songs, not this one.
+  if (isRemote?.()) return;
 
   const song = targetSong ?? store.currentSong;
   if (!song?.id) return;
@@ -46,7 +52,7 @@ export const checkAndFetchRecommendations = async (targetSong?: Song | null, for
     if (response.data?.data?.length) {
       const newRecommendations: Song[] = response.data.data.map(ensureHttpsForSongUrls);
       markRecommendations(song.id, newRecommendations);
-      store.addToQueue(newRecommendations);
+      store.addRecommendations(newRecommendations, song.id);
     }
   } catch (err) {
     console.error('Auto recommendation fetch error:', err);
@@ -54,6 +60,18 @@ export const checkAndFetchRecommendations = async (targetSong?: Song | null, for
     isFetchingRecs = false;
   }
 };
+
+/**
+ * While your devices share one player (lib/player.ts), it takes the actions below that change
+ * what plays and sends them to the server instead. It returns true when it did; otherwise the
+ * action runs here as it always has.
+ */
+type PlayerRouter = (action: string, ...args: any[]) => boolean;
+let router: PlayerRouter | null = null;
+export const setPlayerRouter = (next: PlayerRouter | null) => {
+  router = next;
+};
+const routed = (action: string, ...args: any[]) => Boolean(router?.(action, ...args));
 
 export let onPlaySong: ((song: Song) => void) | null = null;
 export const setOnPlaySong = (cb: (song: Song) => void) => {
@@ -129,6 +147,8 @@ interface PlayerActions {
 
   setPlaylist: (playlist: Song[]) => void;
   addToQueue: (songs: Song | Song[]) => void;
+  /** Autoplay's picks for a song. Shared, only the device playing adds them. */
+  addRecommendations: (songs: Song[], forSongId: string) => void;
   /** Returns a function that undoes the removal, or nothing if no song was removed. */
   removeFromQueue: (songId: string) => (() => void) | undefined;
   removeFromQueueBelow: (songId: string) => void;
@@ -174,6 +194,7 @@ export const usePlayerStore = create<PlayerStore>()(
         if (!song?.id) return;
         if (get().activePlayerMode === 'group') return;
         const secureAudio = ensureHttpsForSongUrls(song);
+        if (routed('playSong', secureAudio)) return;
         const { playlist } = get();
         const isInQueue = playlist.some((item) => item.id === song.id);
 
@@ -190,6 +211,7 @@ export const usePlayerStore = create<PlayerStore>()(
 
       stopSong: () => {
         if (get().activePlayerMode === 'group') return;
+        if (routed('stop')) return;
 
         // Let the native bridge capture the current position before the store
         // clears the song. The bridge callback reads the current song
@@ -205,6 +227,7 @@ export const usePlayerStore = create<PlayerStore>()(
       handlePlayPause: () => {
         const { activePlayerMode } = get();
         if (activePlayerMode !== 'normal') return;
+        if (routed('playPause')) return;
         onPlayPause?.();
       },
 
@@ -215,6 +238,7 @@ export const usePlayerStore = create<PlayerStore>()(
       handleNextSong: (isAutoPlay = false) => {
         const { activePlayerMode } = get();
         if (activePlayerMode !== 'normal') return;
+        if (routed('next', isAutoPlay)) return;
         // The bridge works out the next song from the current one and sets it in this same
         // tick. Moving currentSong here first made it skip one song further.
         onHandleNextSong?.(isAutoPlay);
@@ -224,12 +248,14 @@ export const usePlayerStore = create<PlayerStore>()(
       handlePrevSong: (force?: boolean) => {
         const { activePlayerMode } = get();
         if (activePlayerMode !== 'normal') return;
+        if (routed('previous')) return;
         // Strict check: this is also wired straight to onPress, which passes an event.
         onHandlePrevSong?.(force === true);
       },
 
       setPlaylist: (songs: Song[]) => {
         const secureSongs = songs.map(ensureHttpsForSongUrls);
+        if (routed('setPlaylist', secureSongs)) return;
         set({
           playlist: secureSongs,
           originalPlaylist: secureSongs,
@@ -239,6 +265,13 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       addToQueue: (songs: Song | Song[]) => {
+        if (
+          routed(
+            'addToQueue',
+            Array.isArray(songs) ? songs.map(ensureHttpsForSongUrls) : ensureHttpsForSongUrls(songs)
+          )
+        )
+          return;
         const { playlist, originalPlaylist } = get();
         const newSongs = Array.isArray(songs) ? songs : [songs];
         const existingIds = new Set(playlist.map((s) => s.id));
@@ -254,9 +287,16 @@ export const usePlayerStore = create<PlayerStore>()(
         }
       },
 
+      addRecommendations: (songs: Song[], forSongId: string) => {
+        if (routed('addRecommendations', songs, forSongId)) return;
+        get().addToQueue(songs);
+      },
+
       removeFromQueue: (songId: string) => {
         const { playlist, originalPlaylist, currentSong } = get();
         if (currentSong?.id === songId) return;
+        // Shared: no undo, since the queue may have changed on another device meanwhile.
+        if (routed('removeFromQueue', songId)) return;
         const index = playlist.findIndex((s) => s.id === songId);
         if (index === -1) return;
         const song = playlist[index];
@@ -283,6 +323,7 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       removeFromQueueBelow: (songId: string) => {
+        if (routed('removeFromQueueBelow', songId)) return;
         const { playlist, originalPlaylist } = get();
         const index = playlist.findIndex((s) => s.id === songId);
         if (index === -1) return;
@@ -295,6 +336,7 @@ export const usePlayerStore = create<PlayerStore>()(
 
       clearQueue: () => {
         lastFetchedRecSongId = null;
+        if (routed('clearQueue')) return;
         const { currentSong } = get();
         if (currentSong) {
           set({
@@ -315,6 +357,7 @@ export const usePlayerStore = create<PlayerStore>()(
         lastFetchedRecSongId = null;
         const { currentSong } = get();
         const secureSongs = songs.map(ensureHttpsForSongUrls);
+        if (routed('replaceQueue', secureSongs, keepCurrentSong)) return;
 
         if (keepCurrentSong && currentSong) {
           const filtered = secureSongs.filter((s) => s.id !== currentSong.id);
@@ -334,10 +377,12 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       reorderPlaylist: (newOrder: Song[]) => {
+        if (routed('reorder', newOrder)) return;
         set({ playlist: newOrder });
       },
 
       toggleShuffle: () => {
+        if (routed('toggleShuffle')) return;
         const { shuffleMode, playlist, originalPlaylist, currentSong } = get();
 
         if (!shuffleMode) {
@@ -359,6 +404,7 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       toggleRepeat: () => {
+        if (routed('toggleRepeat')) return;
         const { repeatMode } = get();
         const modes: RepeatMode[] = ['off', 'all', 'one'];
         const nextIndex = (modes.indexOf(repeatMode) + 1) % modes.length;
@@ -368,6 +414,7 @@ export const usePlayerStore = create<PlayerStore>()(
       },
 
       setAutoFetchRecommendations: (value: boolean) => {
+        if (routed('setAutoplay', value)) return;
         set({ autoFetchRecommendations: value });
         if (value) {
           lastFetchedRecSongId = null;
@@ -378,6 +425,8 @@ export const usePlayerStore = create<PlayerStore>()(
       setUserPlaylist: (playlists: any[]) => set({ userPlaylist: playlists }),
 
       setActivePlayerMode: (mode: 'normal' | 'group') => {
+        // A room takes this phone's player: if it was playing your music, it stops being the one.
+        if (mode === 'group' && get().activePlayerMode !== 'group') routed('stop');
         if (mode === 'group') recordPlayEnd('closed');
         set({ activePlayerMode: mode });
       },

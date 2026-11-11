@@ -1,6 +1,7 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { BUTTON_PRESS_SCALE, PRESS_IN, SPRING_PRESS } from '@/lib/motion';
+import { remoteProgress, seekPlayer } from '@/lib/player';
 import {
   useIsPlaying,
   usePlayerControls,
@@ -61,7 +62,7 @@ export const Scrubber = memo(function Scrubber({
     if (!active) return;
     const read = () => {
       if (Date.now() < holdUntil.current || scrubbing.get()) return;
-      const { position, duration: native } = TrackPlayer.getProgress();
+      const { position, duration: native } = remoteProgress() ?? TrackPlayer.getProgress();
       const length = native > 0 ? native : fallbackDuration;
       setElapsed(Math.floor(position));
       setTotal(length);
@@ -80,7 +81,7 @@ export const Scrubber = memo(function Scrubber({
     holdUntil.current = Date.now() + SEEK_HOLD_MS;
     setElapsed(Math.floor(seconds));
     setScrubTime(null);
-    TrackPlayer.seekTo(seconds);
+    seekPlayer(seconds);
   }, []);
 
   const scrubTo = (x: number) => {

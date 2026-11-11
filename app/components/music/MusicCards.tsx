@@ -13,6 +13,7 @@ import { Song } from '@/types/song';
 import { convertToHttps, ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
 import { useProgress } from '@rntp/player';
+import { usePlayerProgress } from '@/hooks/usePlayerProgress';
 import { router } from 'expo-router';
 import { memo, default as React, useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
@@ -523,7 +524,7 @@ const cardStyles = StyleSheet.create({
 
 export const ProgressBar = memo(() => {
   const { colors } = useTheme();
-  const { position, duration } = useProgress();
+  const { position, duration } = usePlayerProgress();
 
   const progressPercent = duration > 0 ? (position / duration) * 100 : 0;
 
