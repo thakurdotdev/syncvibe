@@ -703,6 +703,10 @@ const Capsule = memo(function Capsule({
   onPlayPause,
   onNext,
   onOpen,
+  onSkip,
+  onKeepOpen,
+  songId,
+  direction,
   glowPlay,
   colors,
 }: {
@@ -713,9 +717,71 @@ const Capsule = memo(function Capsule({
   onPlayPause: () => void;
   onNext: () => void;
   onOpen: () => void;
+  onSkip: (dir: 'next' | 'prev') => void;
+  /** A swipe started: hold the capsule open while the finger is on it. */
+  onKeepOpen: () => void;
+  songId?: string;
+  direction: 'next' | 'prev';
   glowPlay: number;
   colors: Colors;
 }) {
+  // Swipe anywhere on the open capsule, like the old card: sideways skips (the song follows your
+  // finger and the next one comes in from that side), up opens the full player.
+  const x = useSharedValue(0);
+  const axis = useSharedValue(0); // 0 undecided, 1 sideways, 2 up
+  const startX = useSharedValue(0);
+  const skipped = useSharedValue(false);
+  useLayoutEffect(() => {
+    x.set(0);
+  }, [songId, x]);
+  const swipe = Gesture.Pan()
+    .enabled(expanded)
+    .hitSlop({ left: -(EDGE_GUARD - DECK_SIDE), right: -(EDGE_GUARD - DECK_SIDE) })
+    .activeOffsetX([-10, 10])
+    .activeOffsetY([-14, 1000])
+    .onBegin((e) => {
+      axis.set(0);
+      skipped.set(false);
+      startX.set(e.absoluteX);
+    })
+    .onStart(() => {
+      scheduleOnRN(onKeepOpen);
+    })
+    .onUpdate((e) => {
+      const dx = e.absoluteX - startX.get();
+      if (axis.get() === 0 && Math.max(Math.abs(dx), Math.abs(e.translationY)) >= 6) {
+        axis.set(Math.abs(dx) > Math.abs(e.translationY) ? 1 : 2);
+      }
+      if (axis.get() === 1) x.set(dx * 0.6);
+    })
+    .onEnd((e, success) => {
+      if (!success) return;
+      const dx = e.absoluteX - startX.get();
+      const sideways =
+        axis.get() === 1 || (axis.get() === 0 && Math.abs(e.velocityX) > Math.abs(e.velocityY));
+      if (sideways) {
+        if (!isSkipSwipe(dx, e.velocityX, width)) return;
+        const forward = dx < 0;
+        skipped.set(true);
+        x.set(
+          withSequence(
+            withTiming(forward ? -SKIP_OUT : SKIP_OUT, SKIP_OUT_TIMING),
+            withDelay(SKIP_RETURN_DELAY_MS, withSpring(0, SPRING_PRESS))
+          )
+        );
+        scheduleOnRN(onSkip, forward ? 'next' : 'prev');
+      } else if (e.translationY < -SWIPE_OPEN_DISTANCE || e.velocityY < -SWIPE_OPEN_VELOCITY) {
+        scheduleOnRN(onOpen);
+      }
+    })
+    .onFinalize(() => {
+      if (!skipped.get()) x.set(withSpring(0, SPRING_PRESS));
+    });
+  const songStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(Math.abs(x.get()), [0, 90, SKIP_OUT], [1, 0.35, 0], 'clamp'),
+    transform: [{ translateX: x.get() }],
+  }));
+
   const maskW = useSharedValue(PILL_HEIGHT);
   const maskOpacity = useSharedValue(0);
   const content = useSharedValue(0);
@@ -754,61 +820,70 @@ const Capsule = memo(function Capsule({
       importantForAccessibility={expanded ? 'auto' : 'no-hide-descendants'}
       style={[styles.capsuleMask, maskStyle]}
     >
-      <View style={{ width, height: PILL_HEIGHT }}>
-        <GlassSurface radius={PILL_HEIGHT / 2} style={styles.fill}>
-          <Animated.View style={[styles.capsuleContent, contentStyle]}>
-            <PressableScale
-              onPress={onOpen}
-              scaleTo={ROW_PRESS_SCALE}
-              style={styles.capsuleMeta}
-              accessibilityRole='button'
-              accessibilityLabel={`Open player: ${currentSong?.name ?? ''}`}
-            >
-              <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>
-                {currentSong?.name}
-              </Text>
-              <Text
-                style={[styles.artistName, { color: colors.mutedForeground }]}
-                numberOfLines={1}
+      <GestureDetector gesture={swipe}>
+        <View style={{ width, height: PILL_HEIGHT }}>
+          <GlassSurface radius={PILL_HEIGHT / 2} style={styles.fill}>
+            <Animated.View style={[styles.capsuleContent, contentStyle]}>
+              <PressableScale
+                onPress={onOpen}
+                scaleTo={ROW_PRESS_SCALE}
+                style={styles.capsuleMeta}
+                accessibilityRole='button'
+                accessibilityLabel={`Open player: ${currentSong?.name ?? ''}`}
               >
-                {artist}
-              </Text>
-            </PressableScale>
-            <PressableScale
-              onPress={onPlayPause}
-              scaleTo={BUTTON_PRESS_SCALE}
-              hitSlop={6}
-              accessibilityRole='button'
-              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-              style={styles.miniControl}
-            >
-              {isPlaying ? (
-                <PauseIcon size={24} color={colors.foreground} />
-              ) : (
-                <PlayIcon size={24} color={colors.foreground} />
-              )}
-            </PressableScale>
-            <PressableScale
-              onPress={onNext}
-              scaleTo={BUTTON_PRESS_SCALE}
-              hitSlop={6}
-              accessibilityRole='button'
-              accessibilityLabel='Next song'
-              style={styles.miniControl}
-            >
-              <NextIcon size={22} color={colors.foreground} />
-            </PressableScale>
-          </Animated.View>
-        </GlassSurface>
-        <GlowSweep
-          width={width}
-          height={PILL_HEIGHT}
-          radius={PILL_HEIGHT / 2}
-          colors={colors.gradients.primary}
-          play={glowPlay}
-          delay={120}
-        />
-      </View>
+                <Animated.View key={songId} entering={SONG_ENTER[direction]}>
+                  <Animated.View style={songStyle}>
+                    <Text
+                      style={[styles.songTitle, { color: colors.foreground }]}
+                      numberOfLines={1}
+                    >
+                      {currentSong?.name}
+                    </Text>
+                    <Text
+                      style={[styles.artistName, { color: colors.mutedForeground }]}
+                      numberOfLines={1}
+                    >
+                      {artist}
+                    </Text>
+                  </Animated.View>
+                </Animated.View>
+              </PressableScale>
+              <PressableScale
+                onPress={onPlayPause}
+                scaleTo={BUTTON_PRESS_SCALE}
+                hitSlop={6}
+                accessibilityRole='button'
+                accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+                style={styles.miniControl}
+              >
+                {isPlaying ? (
+                  <PauseIcon size={24} color={colors.foreground} />
+                ) : (
+                  <PlayIcon size={24} color={colors.foreground} />
+                )}
+              </PressableScale>
+              <PressableScale
+                onPress={onNext}
+                scaleTo={BUTTON_PRESS_SCALE}
+                hitSlop={6}
+                accessibilityRole='button'
+                accessibilityLabel='Next song'
+                style={styles.miniControl}
+              >
+                <NextIcon size={22} color={colors.foreground} />
+              </PressableScale>
+            </Animated.View>
+          </GlassSurface>
+          <GlowSweep
+            width={width}
+            height={PILL_HEIGHT}
+            radius={PILL_HEIGHT / 2}
+            colors={colors.gradients.primary}
+            play={glowPlay}
+            delay={120}
+          />
+        </View>
+      </GestureDetector>
     </Animated.View>
   );
 });
@@ -929,6 +1004,15 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     expand(SHOW_SONG_MS);
   }, [handlePlayPause, expand]);
   const onCapsuleNext = useCallback(() => handleNextSong(), [handleNextSong]);
+  const onCapsuleSkip = useCallback(
+    (dir: 'next' | 'prev') => {
+      expand(SHOW_SONG_MS);
+      if (dir === 'next') handleNextSong();
+      else handlePrevSong(true);
+    },
+    [expand, handleNextSong, handlePrevSong]
+  );
+  const onCapsuleKeepOpen = useCallback(() => expand(SHOW_SONG_MS), [expand]);
   const onCapsuleOpen = useCallback(() => {
     collapse();
     openFullPlayer();
@@ -1062,6 +1146,10 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
             onPlayPause={onCapsulePlayPause}
             onNext={onCapsuleNext}
             onOpen={onCapsuleOpen}
+            onSkip={onCapsuleSkip}
+            onKeepOpen={onCapsuleKeepOpen}
+            songId={songId}
+            direction={direction}
             glowPlay={orbKind === 'song' ? glowPlay : 0}
             colors={colors}
           />
