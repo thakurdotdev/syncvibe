@@ -1,5 +1,6 @@
 import type { Server, Socket } from 'socket.io';
 import { forgetFormer, formerOf } from './former';
+import { MAX_DECLINES } from './rejoin-requests';
 import { touchRoom } from './room-store';
 import {
   findMember,
@@ -14,7 +15,8 @@ import {
  * Your rooms as your other devices see them, so the Rooms screen can offer the way back in:
  *  - rooms you're in: what's playing and on which device ("Playing on Chrome on Windows"), to move
  *    it here. Moving it is an ordinary join, which takes the room over (`claimRoomDevice`).
- *  - rooms you left lately (see `former.ts`), to rejoin.
+ *  - rooms you left lately (see `former.ts`), to rejoin; or, if a host removed you, to ask to be
+ *    let back in (see `rejoin-requests.ts`).
  *
  *   room:mine    (command, acknowledged)  → { rooms: MyRoom[] }
  *   room:mine    (event, to all of a user's sockets)  { rooms: MyRoom[] }, whenever one of their
@@ -40,7 +42,7 @@ export interface JoinedRoom {
 }
 
 /** A room you were in lately and can go back to. */
-export interface FormerRoom {
+export interface LeftRoom {
   status: 'left';
   groupId: string;
   name: string;
@@ -49,6 +51,22 @@ export interface FormerRoom {
   full: boolean;
 }
 
+/**
+ * Where asking a host to let you back in stands: not asked yet, waiting, declined (you can ask
+ * again after a while; asking too soon is refused), or declined too often to ask again.
+ */
+export type RequestState = 'none' | 'pending' | 'declined' | 'blocked';
+
+/** A room a host removed you from lately. You can ask to be let back in. */
+export interface RemovedRoom {
+  status: 'removed';
+  groupId: string;
+  name: string;
+  leftAt: number;
+  request: RequestState;
+}
+
+export type FormerRoom = LeftRoom | RemovedRoom;
 export type MyRoom = JoinedRoom | FormerRoom;
 
 const UNKNOWN_DEVICE: PlayingDevice = { name: 'Another device', mobile: false };
@@ -79,9 +97,22 @@ const joinedRoomOf = (io: Server, userId: string, group: MusicGroup): JoinedRoom
   device: deviceOf(playingSocket(io, userId, group.id)),
 });
 
-const formerRoomOf = (group: MusicGroup, record: FormerMember): FormerRoom | null => {
-  // Removed by a host: rejoining is refused, so there's nothing to offer.
-  if (group.removedIds.includes(record.userId)) return null;
+const requestStateOf = ({ request }: FormerMember): RequestState => {
+  if (!request) return 'none';
+  if (request.pending) return 'pending';
+  return request.declines >= MAX_DECLINES ? 'blocked' : 'declined';
+};
+
+const removedRoomOf = (group: MusicGroup, record: FormerMember): RemovedRoom => ({
+  status: 'removed',
+  groupId: group.id,
+  name: group.name,
+  leftAt: record.leftAt,
+  request: requestStateOf(record),
+});
+
+const formerRoomOf = (group: MusicGroup, record: FormerMember): FormerRoom => {
+  if (group.removedIds.includes(record.userId)) return removedRoomOf(group, record);
   return {
     status: 'left',
     groupId: group.id,
@@ -104,8 +135,7 @@ const formerRooms = (userId: string): FormerRoom[] => {
   for (const group of musicGroups.values()) {
     const record = formerOf(group, userId, now);
     if (!record || findMember(group, userId)) continue;
-    const room = formerRoomOf(group, record);
-    if (room) rooms.push(room);
+    rooms.push(formerRoomOf(group, record));
   }
   return rooms.sort((a, b) => b.leftAt - a.leftAt);
 };

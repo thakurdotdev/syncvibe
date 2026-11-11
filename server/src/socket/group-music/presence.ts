@@ -140,7 +140,8 @@ export const dropMember = (
 ) => {
   const groupId = group.id;
   const member = findMember(group, userId);
-  if (member) noteDeparture(group, member);
+  const wasCoHost = group.coHosts.includes(String(userId));
+  if (member) noteDeparture(group, member, { wasCoHost: options.removed && wasCoHost });
   group.members = group.members.filter((m) => String(m.userId) !== String(userId));
   untrackUserGroup(userId, groupId);
   cancelRemoval(groupId, userId);

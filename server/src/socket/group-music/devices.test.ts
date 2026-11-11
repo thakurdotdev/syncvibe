@@ -161,11 +161,20 @@ test('the offer lapses after a while, or when you dismiss it', () => {
   assert.equal(myRoomsOf(io, 'b').length, 0);
 });
 
-test('someone a host removed is not offered a plain rejoin', () => {
+test('someone a host removed is offered asking, not a plain rejoin', () => {
+  mock.timers.enable({ apis: ['Date'], now: 7_000 });
   const { io, group } = setup();
   group.members.push({ userId: 'b', userName: 'B' });
   trackUserGroup('b', GROUP);
   leave(group, 'b');
   group.removedIds.push('b');
-  assert.deepEqual(myRoomsOf(io, 'b'), []);
+  assert.deepEqual(myRoomsOf(io, 'b'), [
+    {
+      status: 'removed',
+      groupId: GROUP,
+      name: 'Friday',
+      leftAt: 7_000,
+      request: 'none',
+    },
+  ]);
 });

@@ -7,6 +7,7 @@ import { setupLegacyHandlers } from './group-music/legacy-handlers';
 import { setupInviteHandlers } from './group-music/invite-handlers';
 import { setupChatHandlers } from './group-music/chat-handlers';
 import { setupDeviceHandlers } from './group-music/devices';
+import { setupRejoinHandlers } from './group-music/rejoin-requests';
 
 export const setupGroupMusicHandlers = (
   io: Server,
@@ -19,6 +20,7 @@ export const setupGroupMusicHandlers = (
   setupInviteHandlers(io, socket, userId);
   setupChatHandlers(io, socket, userId);
   setupDeviceHandlers(io, socket, userId);
+  setupRejoinHandlers(io, socket, userId);
 };
 
 export { handleUserDisconnect, releaseSocket } from './group-music/presence';

@@ -17,6 +17,7 @@ import {
   shuffle,
 } from './engine';
 import { transferHost } from './host';
+import { answerRejoin } from './rejoin-requests';
 import { removeFromRoom, setCoHost, setMuted, voteSkip, type ModerationError } from './moderation';
 import { QUEUE_ERROR_TEXT, type QueueError } from './queue';
 import {
@@ -213,6 +214,11 @@ export const runCommand = async (
     case 'remove-member':
       if (!manager) return fail('host-only');
       return done(removeFromRoom(io, group, member, command.userId));
+
+    // `enabled`: let them back in, or say no.
+    case 'answer-rejoin':
+      if (!manager) return fail('host-only');
+      return done(answerRejoin(io, group, member, command.userId, command.enabled !== false));
 
     // Open to everyone: it's how people without control still get a say.
     case 'vote-skip':

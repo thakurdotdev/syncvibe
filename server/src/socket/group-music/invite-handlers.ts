@@ -8,6 +8,7 @@ import {
   allRoomsOf,
   canManage,
   findMember,
+  isHost,
   musicGroups,
   generateGroupId,
   createGroupState,
@@ -18,8 +19,8 @@ import {
 } from './state';
 import { joinPayloadOf, publicGroupOf } from './broadcast';
 import { tellFormerMembers, tellMyRooms } from './devices';
-import { forgetFormer, noteDeparture } from './former';
-import { handleMemberGone, transferHost } from './host';
+import { forgetFormer, formerOf, noteDeparture, settleRequest } from './former';
+import { handleMemberGone, metaChanged, transferHost } from './host';
 import { touchRoom } from './room-store';
 import { sendPushNotification } from '../notification';
 
@@ -295,12 +296,17 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       return;
     }
 
-    // A host inviting someone they removed lets them back in.
-    if (canManage(group, userId)) {
+    // A host inviting someone they removed lets them back in; only the host, for a former co-host.
+    if (group.removedIds.includes(String(inviteeUserId))) {
+      const mayLetIn = formerOf(group, inviteeUserId)?.wasCoHost
+        ? isHost(group, userId)
+        : canManage(group, userId);
+      if (!mayLetIn) {
+        socket.emit('invite-error', { error: 'Only a host can invite them back' });
+        return;
+      }
       group.removedIds = group.removedIds.filter((id) => id !== String(inviteeUserId));
-    } else if (group.removedIds.includes(String(inviteeUserId))) {
-      socket.emit('invite-error', { error: 'Only a host can invite them back' });
-      return;
+      if (settleRequest(group, inviteeUserId)) metaChanged(io, group);
     }
 
     const invitePayload = {

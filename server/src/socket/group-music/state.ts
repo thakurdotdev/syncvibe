@@ -13,12 +13,23 @@ export interface GroupMember {
   connected?: boolean;
 }
 
+/** Someone a host removed, asking to be let back in. */
+export interface RejoinRequest {
+  /** Waiting for a host or co-host to answer. */
+  pending: boolean;
+  askedAt: number;
+  declines: number;
+}
+
 /** Someone who was in the room lately, so their devices can offer the way back for a while. */
 export interface FormerMember {
   userId: string;
   userName: string;
   profilePic?: string;
   leftAt: number;
+  /** Removed while a co-host, so only the host may let them back in. */
+  wasCoHost?: boolean;
+  request?: RejoinRequest;
 }
 
 export interface QueueItem {
@@ -136,6 +147,7 @@ export type ActivityType =
   | 'member-muted'
   | 'member-unmuted'
   | 'member-removed'
+  | 'member-let-in'
   | 'skip-vote'
   | 'skipped-by-vote';
 
@@ -171,6 +183,7 @@ export const emitActivityMessage = (
     'member-muted': `${data.userName} was muted`,
     'member-unmuted': `${data.userName} can chat again`,
     'member-removed': `${data.userName} was removed from the room`,
+    'member-let-in': `${data.userName} was let back in`,
     'skip-vote': `${data.userName} voted to skip (${data.votes}/${data.needed})`,
     'skipped-by-vote': `Skipped "${data.songName}" by vote`,
   };
