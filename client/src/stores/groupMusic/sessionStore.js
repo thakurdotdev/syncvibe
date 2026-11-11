@@ -248,6 +248,7 @@ export const useGroupSessionStore = create((set, get) => ({
         coHosts: part.coHosts ?? currentGroup.coHosts ?? [],
         mutedIds: part.mutedIds ?? currentGroup.mutedIds ?? [],
         skipVotes: part.skipVotes ?? null,
+        rejoinRequests: part.rejoinRequests ?? [],
         settings: { ...currentGroup.settings, ...part.settings },
         maxMembers: part.maxMembers ?? currentGroup.maxMembers,
         features: { ...currentGroup.features, ...part.features },
@@ -407,6 +408,13 @@ export const useGroupSessionStore = create((set, get) => ({
     const { currentGroup } = get();
     if (!currentGroup?.id || userId == null) return;
     command(socket, currentGroup.id, 'remove-member', { userId });
+  },
+
+  /** Lets someone a host removed back in, or says no to them. */
+  answerRejoin: (socket, userId, accept) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || userId == null) return;
+    command(socket, currentGroup.id, 'answer-rejoin', { userId, enabled: accept });
   },
 
   /** Votes to skip the song playing, or takes the vote back. */

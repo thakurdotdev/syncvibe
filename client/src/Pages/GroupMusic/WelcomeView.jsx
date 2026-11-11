@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Users, Radio, MessageCircle, Plus, LogIn } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { EASE_OUT } from '@/lib/motion';
+import MyRooms from './MyRooms';
 
 const FEATURE_CARDS = [
   { icon: Users, title: 'Listen', subtitle: 'Together' },
@@ -10,7 +11,7 @@ const FEATURE_CARDS = [
   { icon: MessageCircle, title: 'Group', subtitle: 'Chat' },
 ];
 
-const WelcomeView = ({ onOpenModal }) => {
+const WelcomeView = ({ onOpenModal, myRooms = [], onJoinRoom, onAskRoom, onDismissRoom }) => {
   return (
     <motion.div
       key='welcome'
@@ -21,6 +22,8 @@ const WelcomeView = ({ onOpenModal }) => {
       className='flex flex-col items-center justify-center min-h-full py-8 px-4'
     >
       <div className='max-w-lg w-full flex flex-col items-center text-center'>
+        <MyRooms rooms={myRooms} onJoin={onJoinRoom} onAsk={onAskRoom} onDismiss={onDismissRoom} />
+
         <div className='relative mb-8'>
           <div className='h-24 w-24 sm:h-28 sm:w-28 rounded-full bg-primary/10 flex items-center justify-center'>
             <Users className='h-10 w-10 sm:h-12 sm:w-12 text-primary animate-rainbow' />

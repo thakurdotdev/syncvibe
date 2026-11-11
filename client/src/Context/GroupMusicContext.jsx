@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useSocket } from '@/Context/ChatContext';
 import { useProfile } from '@/Context/Context';
 import InviteNotification from '@/components/InviteNotification';
+import RejoinRequests from '@/Pages/GroupMusic/people/RejoinRequests';
 import UpgradeDialog from '@/components/UpgradeDialog';
 import { useGroupInviteStore } from '@/stores/groupMusic/inviteStore';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/playbackStore';
@@ -304,8 +305,14 @@ export function GroupMusicProvider({ children }) {
       ss.getState().clearSession();
       if (currentGroup) ss.getState().resetSession(() => pb.getState().reset());
       if (currentGroup || isRejoining) {
-        toast.info('This room moved to your other device. Join it again here to bring it back.');
+        toast.info('Playing on your other device now. Choose Play here to bring it back.');
       }
+    });
+
+    // The answer to asking to be let back into a room a host removed you from.
+    socket.on('room:rejoin-answer', ({ name, accepted }) => {
+      if (accepted) toast.success(`A host let you back into ${name}. You can rejoin it now.`);
+      else toast.info(`A host declined your request to rejoin ${name}`);
     });
 
     // Left on another device, or a host removed you.
@@ -536,6 +543,7 @@ export function GroupMusicProvider({ children }) {
         'join-refused',
         'chat-blocked',
         'device-replaced',
+        'room:rejoin-answer',
         'member-presence',
         'member-joined',
         'member-left',
@@ -888,6 +896,7 @@ export function GroupMusicProvider({ children }) {
         feature={session?.upgradeDialog?.feature}
         customMessage={session?.upgradeDialog?.message}
       />
+      <RejoinRequests />
       <InviteNotification
         invite={invite.pendingInvite}
         onAccept={wrappedAcceptInvite}

@@ -1,10 +1,13 @@
 import type { Socket } from 'socket.io';
 import { auth } from '@/features/auth/auth';
 import { clientUrl } from '@/features/auth/auth.config';
+import { describeDevice } from '@/features/auth/sessions';
 
 export interface SocketIdentity {
   userId: number;
   sessionId: string;
+  /** How this device is named to your other devices, the same as on the Security page. */
+  device: { name: string; mobile: boolean };
 }
 
 /** Every socket of one sign-in, so signing a device out can also cut its live connection. */
@@ -39,5 +42,7 @@ export const identifySocket = async (socket: Socket): Promise<SocketIdentity | n
 
   const userId = Number(session.user.id);
   if (!Number.isSafeInteger(userId)) return null;
-  return { userId, sessionId: String(session.session.id) };
+  // The app names itself in its session's User-Agent; its socket's is the HTTP library's.
+  const { name, mobile } = describeDevice(session.session.userAgent ?? headers['user-agent']);
+  return { userId, sessionId: String(session.session.id), device: { name, mobile } };
 };

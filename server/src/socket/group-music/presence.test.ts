@@ -16,10 +16,15 @@ const ROOM = `music-group-${GROUP}`;
 
 const setup = (members: string[]) => {
   const rooms = new Map<string, Set<string>>();
+  /** What the room is told. A user's own devices are told about their rooms separately. */
   const events: { event: string; payload: any }[] = [];
   const io = {
-    sockets: { adapter: { rooms } },
-    to: () => ({ emit: (event: string, payload: any) => events.push({ event, payload }) }),
+    sockets: { adapter: { rooms }, sockets: new Map() },
+    to: (room: string) => ({
+      emit: (event: string, payload: any) => {
+        if (room === ROOM) events.push({ event, payload });
+      },
+    }),
   } as unknown as Server;
   const connect = (socketId: string, userId: string) => {
     for (const name of [userId, ROOM]) {
@@ -37,6 +42,8 @@ const setup = (members: string[]) => {
     id: GROUP,
     members: members.map((userId) => ({ userId, userName: userId })),
     coHosts: [],
+    removedIds: [],
+    formerMembers: {},
     skipVotes: null,
   } as any);
   members.forEach((userId) => trackUserGroup(userId, GROUP));

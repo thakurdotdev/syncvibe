@@ -4,11 +4,13 @@ import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
 import { BUTTON_PRESS_SCALE } from '@/lib/motion';
+import type { MyRoom } from '@/stores/groupMusic/roomProtocol';
 import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
 import { memo } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { cubicBezier, useReducedMotion } from 'react-native-reanimated';
+import { MyRooms } from './MyRooms';
 
 type Colors = ReturnType<typeof useTheme>['colors'];
 
@@ -124,13 +126,22 @@ const RoomPreview = memo(function RoomPreview({ colors }: { colors: Colors }) {
 });
 
 /**
- * Rooms tab when you're not in a room: a preview of the room, what it has, and the ways in.
+ * Rooms tab when you're not in a room: ways back into your rooms (playing on another device, or
+ * left lately), a preview of the room, what it has, and the ways in.
  */
 export const RoomsWelcome = memo(function RoomsWelcome({
+  myRooms,
+  onJoinRoom,
+  onAskRoom,
+  onDismissRoom,
   onStart,
   onJoin,
   onScan,
 }: {
+  myRooms: MyRoom[];
+  onJoinRoom: (groupId: string) => void;
+  onAskRoom: (groupId: string) => Promise<void>;
+  onDismissRoom: (groupId: string) => void;
   onStart: () => void;
   onJoin: () => void;
   onScan: () => void;
@@ -144,6 +155,8 @@ export const RoomsWelcome = memo(function RoomsWelcome({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[styles.content, { paddingBottom: DECK_CLEARANCE }]}
     >
+      <MyRooms rooms={myRooms} onJoin={onJoinRoom} onAsk={onAskRoom} onDismiss={onDismissRoom} />
+
       <View style={styles.hero}>
         <RoomPreview colors={colors} />
 

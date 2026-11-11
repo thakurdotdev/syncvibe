@@ -1,8 +1,11 @@
 import type { Server, Socket } from 'socket.io';
+import { tellFormerMembers, tellMyRooms } from './devices';
+import { noteDeparture } from './former';
 import { handleMemberGone } from './host';
 import { touchRoom } from './room-store';
 import {
   allRoomsOf,
+  findMember,
   getUserGroups,
   legacyRoomOf,
   musicGroups,
@@ -99,6 +102,7 @@ const setConnected = (io: Server, groupId: string, userId: string | number, conn
   if (!member || (member.connected !== false) === connected) return;
   member.connected = connected;
   io.to(roomOf(groupId)).emit('member-presence', { userId, connected });
+  tellMyRooms(io, userId);
 };
 
 /** Call whenever a socket joins a room: it cancels any removal in progress for that user. */
@@ -114,11 +118,12 @@ export const cancelRemoval = (groupId: string, userId: string | number) => {
   removalTimers.delete(key);
 };
 
-const expireIfEmpty = (groupId: string) => {
+const expireIfEmpty = (io: Server, groupId: string) => {
   const group = musicGroups.get(groupId);
   setTimeout(() => {
     if (group && musicGroups.get(groupId) === group && group.members.length === 0) {
       removeGroup(groupId);
+      tellFormerMembers(io, group);
     }
   }, EMPTY_ROOM_TTL);
 };
@@ -134,6 +139,9 @@ export const dropMember = (
   options: { removed?: boolean } = {}
 ) => {
   const groupId = group.id;
+  const member = findMember(group, userId);
+  const wasCoHost = group.coHosts.includes(String(userId));
+  if (member) noteDeparture(group, member, { wasCoHost: options.removed && wasCoHost });
   group.members = group.members.filter((m) => String(m.userId) !== String(userId));
   untrackUserGroup(userId, groupId);
   cancelRemoval(groupId, userId);
@@ -142,9 +150,10 @@ export const dropMember = (
     io.in(String(userId)).socketsLeave(allRoomsOf(groupId));
   }
   io.to(roomOf(groupId)).emit('member-left', { userId });
+  tellMyRooms(io, userId);
   handleMemberGone(io, group, userId);
   touchRoom(group, 'core');
-  if (group.members.length === 0) expireIfEmpty(groupId);
+  if (group.members.length === 0) expireIfEmpty(io, groupId);
 };
 
 const removeMember = (io: Server, groupId: string, userId: string | number) => {

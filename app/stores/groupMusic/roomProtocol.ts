@@ -1,7 +1,8 @@
 import type { Socket } from 'socket.io-client';
 import { addClockSample, clockRtt } from './roomClock';
 import type { RoomPlayback } from './roomSync';
-import type { GroupMember, QueueItem, SkipVotes } from './types';
+import type { Song } from '@/types/song';
+import type { GroupMember, QueueItem, RejoinRequest, SkipVotes } from './types';
 
 /** Sent when joining, so the server speaks the current sync protocol to this device. */
 export const ROOM_PROTOCOL = 2;
@@ -30,6 +31,7 @@ export interface RoomMetaPart {
   coHosts?: string[];
   mutedIds?: string[];
   skipVotes?: SkipVotes | null;
+  rejoinRequests?: RejoinRequest[];
   settings: {
     maxQueueSize: number;
     allowAnyoneToAdd: boolean;
@@ -124,3 +126,78 @@ export const queueViewOf = (currentItem: QueueItem | null, upcoming: QueueItem[]
   queue: currentItem ? [currentItem, ...upcoming] : upcoming,
   currentQueueIndex: currentItem ? 0 : -1,
 });
+
+/** A room you're in, as your other devices see it (server `socket/group-music/devices.ts`). */
+export interface JoinedRoom {
+  status: 'member';
+  groupId: string;
+  name: string;
+  song: Song | null;
+  playing: boolean;
+  /** Null while no device of yours is connected to the room. */
+  device: { name: string; mobile: boolean } | null;
+}
+
+/** A room you were in lately and can go back to. */
+export interface LeftRoom {
+  status: 'left';
+  groupId: string;
+  name: string;
+  leftAt: number;
+  full: boolean;
+}
+
+/** Not asked yet, waiting, declined (you can ask again later), or declined too often to ask. */
+export type RequestState = 'none' | 'pending' | 'declined' | 'blocked';
+
+/** A room a host removed you from lately. You can ask to be let back in. */
+export interface RemovedRoom {
+  status: 'removed';
+  groupId: string;
+  name: string;
+  leftAt: number;
+  request: RequestState;
+}
+
+export type FormerRoom = LeftRoom | RemovedRoom;
+export type MyRoom = JoinedRoom | FormerRoom;
+
+/**
+ * Your rooms and the device each is playing on, so this one can offer to take one over.
+ * Resolves to null if there was no answer.
+ */
+export const fetchMyRooms = (socket: RoomSocket): Promise<MyRoom[] | null> =>
+  new Promise((resolve) => {
+    if (!socket?.connected) return resolve(null);
+    socket
+      .timeout(COMMAND_TIMEOUT_MS)
+      .emit('room:mine', {}, (err: unknown, reply?: { rooms?: MyRoom[] }) => {
+        resolve(err || !Array.isArray(reply?.rooms) ? null : reply.rooms);
+      });
+  });
+
+/** Stops offering a room you left, on all your devices. */
+export const forgetMyRoom = (socket: RoomSocket, groupId: string): void => {
+  if (socket?.connected && groupId) socket.emit('room:forget', { groupId });
+};
+
+/** Asks the hosts of a room that removed you to let you back in. */
+export const askToRejoin = (
+  socket: RoomSocket,
+  groupId: string
+): Promise<{ ok: boolean; error?: string }> =>
+  new Promise((resolve) => {
+    if (!socket?.connected || !groupId) {
+      resolve({ ok: false, error: 'You are offline. Reconnecting…' });
+      return;
+    }
+    socket
+      .timeout(COMMAND_TIMEOUT_MS)
+      .emit(
+        'room:ask-rejoin',
+        { groupId },
+        (err: unknown, result?: { ok: boolean; error?: string }) => {
+          resolve(err || !result ? { ok: false, error: 'No answer. Try again.' } : result);
+        }
+      );
+  });

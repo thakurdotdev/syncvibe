@@ -13,6 +13,25 @@ export interface GroupMember {
   connected?: boolean;
 }
 
+/** Someone a host removed, asking to be let back in. */
+export interface RejoinRequest {
+  /** Waiting for a host or co-host to answer. */
+  pending: boolean;
+  askedAt: number;
+  declines: number;
+}
+
+/** Someone who was in the room lately, so their devices can offer the way back for a while. */
+export interface FormerMember {
+  userId: string;
+  userName: string;
+  profilePic?: string;
+  leftAt: number;
+  /** Removed while a co-host, so only the host may let them back in. */
+  wasCoHost?: boolean;
+  request?: RejoinRequest;
+}
+
 export interface QueueItem {
   id: string;
   song: Record<string, unknown>;
@@ -53,6 +72,8 @@ export interface MusicGroup {
   mutedIds: string[];
   /** Taken out of the room; they can't join again unless the host or a co-host invites them. */
   removedIds: string[];
+  /** Who left, dropped out or was removed lately, by user id. Cleared when they're back. */
+  formerMembers: Record<string, FormerMember>;
   skipVotes: SkipVotes | null;
   createdAt: number;
   members: GroupMember[];
@@ -126,6 +147,7 @@ export type ActivityType =
   | 'member-muted'
   | 'member-unmuted'
   | 'member-removed'
+  | 'member-let-in'
   | 'skip-vote'
   | 'skipped-by-vote';
 
@@ -161,6 +183,7 @@ export const emitActivityMessage = (
     'member-muted': `${data.userName} was muted`,
     'member-unmuted': `${data.userName} can chat again`,
     'member-removed': `${data.userName} was removed from the room`,
+    'member-let-in': `${data.userName} was let back in`,
     'skip-vote': `${data.userName} voted to skip (${data.votes}/${data.needed})`,
     'skipped-by-vote': `Skipped "${data.songName}" by vote`,
   };
@@ -275,6 +298,7 @@ export const createGroupState = (data: CreateGroupData): MusicGroup => ({
   coHosts: [],
   mutedIds: [],
   removedIds: [],
+  formerMembers: {},
   skipVotes: null,
   current: null,
   upcoming: [],

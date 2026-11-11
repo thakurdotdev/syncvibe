@@ -99,6 +99,8 @@ interface GroupSessionActions {
   muteMember: (socket: any, userId: number | string, enabled: boolean) => void;
   /** Takes someone out of the room; an invite from a host lets them back. */
   removeMember: (socket: any, userId: number | string) => void;
+  /** Lets someone a host removed back in, or says no to them. */
+  answerRejoin: (socket: any, userId: string, accept: boolean) => void;
   /** Votes to skip the song playing, or takes the vote back. */
   voteSkip: (socket: any) => void;
 
@@ -329,6 +331,7 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
         coHosts: part.coHosts ?? currentGroup.coHosts ?? [],
         mutedIds: part.mutedIds ?? currentGroup.mutedIds ?? [],
         skipVotes: part.skipVotes ?? null,
+        rejoinRequests: part.rejoinRequests ?? [],
         settings: { ...currentGroup.settings, ...part.settings },
         maxMembers: part.maxMembers ?? currentGroup.maxMembers,
         features: { ...currentGroup.features, ...part.features },
@@ -466,6 +469,12 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     const { currentGroup } = get();
     if (!currentGroup?.id || userId == null) return;
     void command(socket, currentGroup.id, 'remove-member', { userId });
+  },
+
+  answerRejoin: (socket, userId, accept) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id) return;
+    void command(socket, currentGroup.id, 'answer-rejoin', { userId, enabled: accept });
   },
 
   voteSkip: (socket) => {

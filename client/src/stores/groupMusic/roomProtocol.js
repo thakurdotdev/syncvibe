@@ -58,3 +58,32 @@ export const queueViewOf = (currentItem, upcoming) => ({
   queue: currentItem ? [currentItem, ...upcoming] : upcoming,
   currentQueueIndex: currentItem ? 0 : -1,
 });
+
+/**
+ * Your rooms and the device each is playing on, so this one can offer to take one over.
+ * Resolves to null if there was no answer.
+ */
+export const fetchMyRooms = (socket) =>
+  new Promise((resolve) => {
+    if (!socket?.connected) return resolve(null);
+    socket.timeout(COMMAND_TIMEOUT_MS).emit('room:mine', {}, (err, reply) => {
+      resolve(err || !Array.isArray(reply?.rooms) ? null : reply.rooms);
+    });
+  });
+
+/** Stops offering a room you left, on all your devices. */
+export const forgetMyRoom = (socket, groupId) => {
+  if (socket?.connected && groupId) socket.emit('room:forget', { groupId });
+};
+
+/** Asks the hosts of a room that removed you to let you back in. Resolves to `{ ok, error }`. */
+export const askToRejoin = (socket, groupId) =>
+  new Promise((resolve) => {
+    if (!socket?.connected || !groupId) {
+      resolve({ ok: false, error: 'You are offline. Reconnecting…' });
+      return;
+    }
+    socket.timeout(COMMAND_TIMEOUT_MS).emit('room:ask-rejoin', { groupId }, (err, result) => {
+      resolve(err || !result ? { ok: false, error: 'No answer. Try again.' } : result);
+    });
+  });

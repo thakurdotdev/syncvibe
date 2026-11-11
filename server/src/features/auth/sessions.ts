@@ -36,7 +36,7 @@ const APP_AGENT = /^SyncVibe\/(\S+) \(([^;)]+);\s*([^)]+)\)/;
 // App sessions from before the app sent its own User-Agent carry the HTTP library's.
 const OLD_APP_AGENT = /okhttp|Dalvik|CFNetwork|Expo/i;
 
-const describe = (userAgent: string | null | undefined) => {
+export const describeDevice = (userAgent: string | null | undefined) => {
   if (!userAgent)
     return { kind: 'unknown' as const, name: 'Unknown device', detail: null, mobile: false };
 
@@ -76,7 +76,7 @@ export const listDeviceSessions = async (req: Request, res: Response): Promise<v
   try {
     const sessions: DeviceSession[] = (await userSessions(req)).map((session) => ({
       id: String(session.id),
-      ...describe(session.userAgent),
+      ...describeDevice(session.userAgent),
       ipAddress: firstIp(session.ipAddress),
       location: (session as { location?: string | null }).location ?? null,
       loginMethod: (session as { loginMethod?: string | null }).loginMethod ?? null,

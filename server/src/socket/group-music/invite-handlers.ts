@@ -7,6 +7,8 @@ import { GroupInvite } from '@/models/index';
 import {
   allRoomsOf,
   canManage,
+  findMember,
+  isHost,
   musicGroups,
   generateGroupId,
   createGroupState,
@@ -16,7 +18,9 @@ import {
   removeGroup,
 } from './state';
 import { joinPayloadOf, publicGroupOf } from './broadcast';
-import { handleMemberGone } from './host';
+import { tellFormerMembers, tellMyRooms } from './devices';
+import { forgetFormer, formerOf, noteDeparture, settleRequest } from './former';
+import { handleMemberGone, metaChanged, transferHost } from './host';
 import { touchRoom } from './room-store';
 import { sendPushNotification } from '../notification';
 
@@ -102,6 +106,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
 
       socket.data.deviceId = data.deviceId;
       socket.emit('group-created', { ...publicGroupOf(group), sync: joinPayloadOf(group).sync });
+      tellMyRooms(io, data.createdBy);
     } catch (err) {
       console.error('QR Code Generation Failed:', err);
       socket.emit('error', { message: 'QR Code generation failed' });
@@ -137,6 +142,9 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
         userName: data.userName,
         profilePic: data.profilePic,
       });
+      forgetFormer(group, data.userId);
+      // Rejoining a room everyone had left: its host is gone, so the first one back takes it.
+      if (!findMember(group, group.createdBy)) transferHost(io, group, data.userId);
     }
 
     trackUserGroup(data.userId, data.groupId);
@@ -146,6 +154,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
     // Only to this device: sent to all of a user's devices, it pulled the others' screens and
     // audio into a room their connections weren't in.
     socket.emit('group-joined', joinPayloadOf(group));
+    tellMyRooms(io, data.userId);
 
     if (!existingMember) {
       socket.to(roomOf(data.groupId)).emit('member-joined', {
@@ -191,6 +200,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
           userName: data.userName,
           profilePic: data.profilePic,
         });
+        forgetFormer(group, data.userId);
 
         socket.to(roomOf(data.groupId)).emit('member-joined', {
           userId: data.userId,
@@ -220,6 +230,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       touchRoom(group, 'core');
 
       socket.emit('group-rejoined', joinPayloadOf(group));
+      tellMyRooms(io, data.userId);
     } else {
       socket.emit('group-not-found');
     }
@@ -230,6 +241,8 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
     const group = musicGroups.get(data.groupId);
 
     if (group) {
+      const leaving = findMember(group, data.userId);
+      if (leaving) noteDeparture(group, leaving);
       group.members = group.members.filter(
         (member) => String(member.userId) !== String(data.userId)
       );
@@ -245,12 +258,14 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       io.to(roomOf(data.groupId)).emit('member-left', {
         userId: data.userId,
       });
+      tellMyRooms(io, data.userId);
       handleMemberGone(io, group, data.userId);
       touchRoom(group, 'core');
 
       if (group.members.length === 0) {
         removeGroup(data.groupId);
         io.to(roomOf(data.groupId)).emit('group-disbanded');
+        tellFormerMembers(io, group);
       }
     }
   });
@@ -281,12 +296,17 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       return;
     }
 
-    // A host inviting someone they removed lets them back in.
-    if (canManage(group, userId)) {
+    // A host inviting someone they removed lets them back in; only the host, for a former co-host.
+    if (group.removedIds.includes(String(inviteeUserId))) {
+      const mayLetIn = formerOf(group, inviteeUserId)?.wasCoHost
+        ? isHost(group, userId)
+        : canManage(group, userId);
+      if (!mayLetIn) {
+        socket.emit('invite-error', { error: 'Only a host can invite them back' });
+        return;
+      }
       group.removedIds = group.removedIds.filter((id) => id !== String(inviteeUserId));
-    } else if (group.removedIds.includes(String(inviteeUserId))) {
-      socket.emit('invite-error', { error: 'Only a host can invite them back' });
-      return;
+      if (settleRequest(group, inviteeUserId)) metaChanged(io, group);
     }
 
     const invitePayload = {

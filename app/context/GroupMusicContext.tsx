@@ -365,11 +365,17 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       ss.getState().clearSession();
       if (currentGroup) endRoomHere();
       if (currentGroup || isRejoining) {
-        Alert.alert(
-          'Playing on your other device',
-          'This room moved to your other device. Join it again here to bring it back.'
-        );
+        toast('Playing on your other device now. Tap Play here to bring it back.', {
+          type: 'info',
+        });
       }
+    });
+
+    // The answer to asking to be let back into a room a host removed you from.
+    socket.on('room:rejoin-answer', (data: { name: string; accepted: boolean }) => {
+      if (data.accepted) {
+        toast(`A host let you back into ${data.name}. You can rejoin it now.`, { type: 'success' });
+      } else toast(`A host declined your request to rejoin ${data.name}`, { type: 'info' });
     });
 
     // Left on another device, or a host removed you.
@@ -544,6 +550,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         'join-refused',
         'chat-blocked',
         'device-replaced',
+        'room:rejoin-answer',
         'member-presence',
         'user-typing',
         'group-invite-received',
