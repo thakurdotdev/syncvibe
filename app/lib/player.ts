@@ -463,19 +463,25 @@ const seedFromLocal = () => {
 
 const hello = async () => {
   if (!socket?.connected) return;
+  setSession({ sync: { state: 'syncing', at: Date.now() } });
   const deviceId = await getDeviceId();
   try {
     const snapshot = await socket
       .timeout(COMMAND_TIMEOUT_MS)
       .emitWithAck('player:hello', { deviceId, resume: resumeOf() });
-    if (!snapshot || snapshot.error) return;
+    if (!snapshot || snapshot.error) {
+      setSession({ sync: { state: 'idle', at: session().sync.at } });
+      return;
+    }
     setSession({ deviceId, live: true });
     const empty = snapshot.queue?.items?.length === 0;
     applySnapshot(snapshot);
     if (empty) seedFromLocal();
+    setSession({ sync: { state: 'synced', at: session().sync.at } });
     void ping();
   } catch {
     // Reconnecting will try again; the player works on its own meanwhile.
+    setSession({ sync: { state: 'idle', at: session().sync.at } });
   }
 };
 
@@ -517,6 +523,13 @@ export const bindPlayerSocket = (newSocket: Socket) => {
     socket = null;
     pending = null;
     followed = { songId: null, jumps: null, active: false };
-    setSession({ live: false, playback: null, items: [], queueRev: 0, devices: [] });
+    setSession({
+      live: false,
+      playback: null,
+      items: [],
+      queueRev: 0,
+      devices: [],
+      sync: { state: 'idle', at: 0 },
+    });
   };
 };

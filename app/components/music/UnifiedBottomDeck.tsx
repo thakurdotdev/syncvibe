@@ -15,11 +15,13 @@ import { useTheme } from '@/context/ThemeContext';
 import {
   BUTTON_PRESS_SCALE,
   EASE_IN_OUT,
+  EASE_MAGNET,
   EASE_OUT,
   PRESS_IN,
   ROW_PRESS_SCALE,
   SPRING_PRESS,
 } from '@/lib/motion';
+import { artAt, measureRect, openOrigin, orbOrigin } from '@/lib/playerMorph';
 import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE, SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { selectUnreadTotal, useChatStore } from '@/stores/chatStore';
 import { useDeckStore } from '@/stores/deckStore';
@@ -70,6 +72,12 @@ export const DECK_CLEARANCE = 172;
 export const DECK_NAV_HEIGHT = 70;
 
 const PILL_HEIGHT = 58;
+/** The orb's artwork, and the card's: matched by the full player's cover as it flies. */
+const ORB_ART = 44;
+const CARD_ART = 40;
+const CARD_ART_RADIUS = 11;
+const CARD_ART_INSET = 8;
+const CARD_RADIUS = 20;
 /** Space between the pill and the bottom inset. */
 const DECK_BOTTOM_GAP = 4;
 
@@ -83,6 +91,17 @@ const TAB_ITEMS: { name: string; label: string; Icon: TabIcon }[] = [
 ];
 
 type Colors = ReturnType<typeof useTheme>['colors'];
+
+/** Blends two `#RRGGBB` colours: `amount` 0 is `from`, 1 is `to`. */
+const mixHex = (from: string, to: string, amount: number) => {
+  const a = parseInt(from.slice(1, 7), 16);
+  const b = parseInt(to.slice(1, 7), 16);
+  const channel = (shift: number) =>
+    Math.round(((a >> shift) & 255) * (1 - amount) + ((b >> shift) & 255) * amount);
+  return `#${((channel(16) << 16) | (channel(8) << 8) | channel(0)).toString(16).padStart(6, '0')}`;
+};
+/** How much of the accent tints the selected tab: a touch more on dark, where it reads softer. */
+const TAB_TINT = { light: 0.14, dark: 0.22 };
 
 /** Thin line along the card's bottom edge. Glides between the 1s ticks (transform only). */
 const MiniProgressBar = memo(function MiniProgressBar({
@@ -120,6 +139,8 @@ type MiniPlayerRowProps = {
   handleNextSong: () => void;
   handlePrevSong: (force?: boolean) => void;
   colors: ReturnType<typeof useTheme>['colors'];
+  /** Opens the full player; the deck passes one that grows it out of this card. */
+  onOpen?: () => void;
 };
 
 const SWIPE_OPEN_DISTANCE = 24;
@@ -146,6 +167,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
   handleNextSong,
   handlePrevSong,
   colors,
+  onOpen = openFullPlayer,
 }: MiniPlayerRowProps) {
   const artistName = useMemo(
     () =>
@@ -221,7 +243,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
           scheduleOnRN(forward ? skipNext : skipPrev);
         }
       } else if (e.translationY < -SWIPE_OPEN_DISTANCE || e.velocityY < -SWIPE_OPEN_VELOCITY) {
-        scheduleOnRN(openFullPlayer);
+        scheduleOnRN(onOpen);
       }
     })
     .onFinalize(() => {
@@ -237,7 +259,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
     <GestureDetector gesture={swipe}>
       <View style={styles.miniRow}>
         <PressableScale
-          onPress={openFullPlayer}
+          onPress={onOpen}
           scaleTo={ROW_PRESS_SCALE}
           style={styles.miniSong}
           accessibilityRole='button'
@@ -309,10 +331,13 @@ const CAPSULE_OPEN = {
   easing: EASE_OUT,
   reduceMotion: ReduceMotion.System,
 } as const;
-// Closing is quicker than opening: the capsule is drawn back into the orb.
+/**
+ * Closing is a magnet: the capsule starts back gently and gathers speed into the orb, so it ends
+ * on a snap rather than drifting to a stop. Quicker than opening.
+ */
 const CAPSULE_CLOSE = {
-  duration: 160,
-  easing: EASE_OUT,
+  duration: 170,
+  easing: EASE_MAGNET,
   reduceMotion: ReduceMotion.System,
 } as const;
 const CAPSULE_SHOW = {
@@ -326,21 +351,18 @@ const CAPSULE_CONTENT_IN = {
   reduceMotion: ReduceMotion.System,
 } as const;
 const CAPSULE_CONTENT_OUT = {
-  duration: 80,
+  duration: 60,
   easing: EASE_OUT,
   reduceMotion: ReduceMotion.System,
 } as const;
-/** The orb takes the capsule back in: a small swell as it arrives. */
-const ORB_ABSORB_UP = {
-  duration: 110,
-  easing: EASE_OUT,
-  reduceMotion: ReduceMotion.System,
-} as const;
-const ORB_ABSORB_DOWN = {
-  duration: 170,
-  easing: EASE_OUT,
-  reduceMotion: ReduceMotion.System,
-} as const;
+/**
+ * A ring that leaves the orb and fades as it spreads: when the capsule lands back in it, and when
+ * the song changes. Fast out, slow fade, so it reads as one snappy pulse.
+ */
+const RIPPLE = { duration: 420, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
+const RIPPLE_SCALE = 1.55;
+const RIPPLE_OPACITY = 0.55;
+const INSTANT = { duration: 0 } as const;
 const TABS_HIDE = { duration: 150, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
 /**
  * Switching tabs: Emil Kowalski's segmented-indicator recipe. Every tab is the same width; only the
@@ -457,19 +479,39 @@ const Orb = memo(function Orb({
   const skipped = useSharedValue(false);
   const startX = useSharedValue(0);
 
-  // When the capsule closes, it lands back in the orb, which swells a touch to take it in.
+  const rippleScale = useSharedValue(1);
+  const rippleOpacity = useSharedValue(0);
+  const ripple = useCallback(
+    (delay: number) => {
+      rippleScale.set(
+        withDelay(delay, withSequence(withTiming(1, INSTANT), withTiming(RIPPLE_SCALE, RIPPLE)))
+      );
+      rippleOpacity.set(
+        withDelay(delay, withSequence(withTiming(RIPPLE_OPACITY, INSTANT), withTiming(0, RIPPLE)))
+      );
+    },
+    [rippleOpacity, rippleScale]
+  );
+  const rippleStyle = useAnimatedStyle(() => ({
+    opacity: rippleOpacity.get(),
+    transform: [{ scale: rippleScale.get() }],
+  }));
+
+  // The capsule lands back in the orb: a ripple as it arrives.
   const wasExpanded = useRef(expanded);
   useEffect(() => {
-    if (wasExpanded.current && !expanded) {
-      scale.set(
-        withDelay(
-          CAPSULE_CLOSE.duration - 50,
-          withSequence(withTiming(1.07, ORB_ABSORB_UP), withTiming(1, ORB_ABSORB_DOWN))
-        )
-      );
-    }
+    if (wasExpanded.current && !expanded) ripple(CAPSULE_CLOSE.duration - 20);
     wasExpanded.current = expanded;
-  }, [expanded, scale]);
+  }, [expanded, ripple]);
+
+  // A new song: the same ripple, from the orb now holding it. Not for the first song shown, and
+  // not while the capsule is out: its light sweep says it, and the ripple follows when it closes.
+  const rippledFor = useRef(songId);
+  useEffect(() => {
+    if (kind !== 'song' || songId === rippledFor.current) return;
+    if (rippledFor.current !== undefined && !expanded) ripple(0);
+    rippledFor.current = songId;
+  }, [expanded, kind, ripple, songId]);
 
   // A new song starts centred; whatever the old one was doing is over.
   useLayoutEffect(() => {
@@ -565,6 +607,15 @@ const Orb = memo(function Orb({
           else if (a === 'previous') onSkip('prev');
         }}
       >
+        {/* Behind the orb, so it only shows as it spreads past the edge. */}
+        <Animated.View
+          pointerEvents='none'
+          style={[
+            styles.ripple,
+            { borderColor: colors.primary, backgroundColor: `${colors.primary}1F` },
+            rippleStyle,
+          ]}
+        />
         <GlassSurface radius={PILL_HEIGHT / 2} style={styles.orb} contentStyle={styles.orbInner}>
           {kind === 'idle' ? (
             // Nothing playing: an ember orb that invites you to find something, the bar's one
@@ -620,6 +671,8 @@ type TabButtonProps = {
   label: string;
   Icon: TabIcon;
   colors: Colors;
+  /** The selected tab's pill: the bar's colour tinted with the accent. */
+  pillColor: string;
   live?: boolean;
   /** Unread count shown as a pill on the icon. */
   badge?: number;
@@ -633,6 +686,7 @@ const TabButton = memo(function TabButton({
   label,
   Icon,
   colors,
+  pillColor,
   live,
   badge = 0,
   onTabLayout,
@@ -658,7 +712,7 @@ const TabButton = memo(function TabButton({
             <Icon color={colors.mutedForeground} />
           </Animated.View>
           <Animated.View style={[styles.tabIconOn, TAB_ICON_FADE, { opacity: isFocused ? 1 : 0 }]}>
-            <Icon color={colors.background} filled knock={colors.foreground} />
+            <Icon color={colors.primary} filled knock={pillColor} />
           </Animated.View>
           {live && <View style={[styles.liveDot, { backgroundColor: colors.live }]} />}
           {badge > 0 ? (
@@ -824,7 +878,8 @@ const Capsule = memo(function Capsule({
     } else {
       content.set(withTiming(0, CAPSULE_CONTENT_OUT));
       maskW.set(withTiming(PILL_HEIGHT, CAPSULE_CLOSE));
-      maskOpacity.set(withDelay(CAPSULE_CLOSE.duration - 60, withTiming(0, CAPSULE_SHOW)));
+      // Gone the moment it's back in the orb, where the ripple takes over.
+      maskOpacity.set(withDelay(CAPSULE_CLOSE.duration - 30, withTiming(0, CAPSULE_SHOW)));
     }
   }, [expanded, width, maskW, maskOpacity, content]);
 
@@ -941,6 +996,11 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   const { currentSong, isPlaying, activePlayerMode } = usePlaybackState();
   const { handlePlayPause, handleNextSong, handlePrevSong } = usePlayerControls();
   const fullPlayerOpen = useFullPlayerOpen((s) => s.open);
+  const { theme } = useTheme();
+  const tabPillColor = useMemo(
+    () => mixHex(colors.card, colors.primary, TAB_TINT[theme === 'dark' ? 'dark' : 'light']),
+    [colors.card, colors.primary, theme]
+  );
 
   const goHome = useCallback(() => router.navigate('/(tabs)/home'), []);
   const goGroup = useCallback(() => router.navigate('/(tabs)/group-music'), []);
@@ -1015,13 +1075,41 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     if (orbKind === 'idle' && !lastContext.includes('|idle|')) setGlowPlay((n) => n + 1);
   }
 
+  // Where the full player grows from and shrinks back into (lib/playerMorph).
+  const orbRef = useRef<View>(null);
+  const navRef = useRef<View>(null);
+  const cardRef = useRef<View>(null);
+  const measureOrb = useCallback(async () => {
+    const box = await measureRect(orbRef.current, PILL_HEIGHT / 2);
+    const origin = box ? { box, art: artAt(box, ORB_ART, ORB_ART / 2) } : null;
+    if (origin) orbOrigin.set(origin);
+    return origin;
+  }, []);
+  const openFrom = useCallback(
+    async (from: 'orb' | 'capsule' | 'card') => {
+      const orb = await measureOrb();
+      let origin = orb;
+      if (from === 'capsule') {
+        const box = await measureRect(navRef.current, PILL_HEIGHT / 2);
+        if (box && orb) origin = { box: { ...box, height: PILL_HEIGHT }, art: orb.art };
+      } else if (from === 'card') {
+        const box = await measureRect(cardRef.current, CARD_RADIUS);
+        if (box) origin = { box, art: artAt(box, CARD_ART, CARD_ART_RADIUS, CARD_ART_INSET) };
+      }
+      openOrigin.set(origin);
+      openFullPlayer();
+    },
+    [measureOrb]
+  );
+  const openFromCard = useCallback(() => void openFrom('card'), [openFrom]);
+
   const onOrbTap = useCallback(() => {
     if (expanded) collapse();
-    else if (orbKind === 'song') openFullPlayer();
+    else if (orbKind === 'song') void openFrom('orb');
     else if (orbKind === 'room') {
       if (!onRoomTab) router.navigate('/(tabs)/group-music');
     } else router.push('/search');
-  }, [expanded, collapse, orbKind, onRoomTab]);
+  }, [expanded, collapse, orbKind, onRoomTab, openFrom]);
   const onOrbHold = useCallback(() => {
     if (orbKind === 'song') expand(HOLD_SONG_MS);
   }, [orbKind, expand]);
@@ -1045,13 +1133,17 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   const onCapsuleKeepOpen = useCallback(() => expand(SHOW_SONG_MS), [expand]);
   const onCapsuleOpen = useCallback(() => {
     collapse();
-    openFullPlayer();
-  }, [collapse]);
+    void openFrom('capsule');
+  }, [collapse, openFrom]);
 
   const [navWidth, setNavWidth] = useState(0);
   const onNavLayout = useCallback(
-    (e: LayoutChangeEvent) => setNavWidth(e.nativeEvent.layout.width),
-    []
+    (e: LayoutChangeEvent) => {
+      setNavWidth(e.nativeEvent.layout.width);
+      // Kept current, so the player knows where to close into even if it opened another way.
+      void measureOrb();
+    },
+    [measureOrb]
   );
 
   // The selected-tab pill: measured from each tab's onLayout (once, not per frame), then slid with
@@ -1107,27 +1199,30 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
       style={[styles.deck, { bottom: Math.max(6, insets.bottom) + DECK_BOTTOM_GAP }]}
     >
       {cardKind && (
-        <DeckCard>
-          {cardKind === 'song' ? (
-            <>
-              <MiniPlayerRow
-                currentSong={currentSong}
-                isPlaying={isPlaying}
-                handlePlayPause={handlePlayPause}
-                handleNextSong={handleNextSong}
-                handlePrevSong={handlePrevSong}
-                colors={colors}
-              />
-              <MiniProgressBar color={colors.primary} trackColor={colors.hairline} />
-            </>
-          ) : (
-            <RoomCardRow colors={colors} />
-          )}
-        </DeckCard>
+        <View ref={cardRef} collapsable={false}>
+          <DeckCard>
+            {cardKind === 'song' ? (
+              <>
+                <MiniPlayerRow
+                  currentSong={currentSong}
+                  isPlaying={isPlaying}
+                  handlePlayPause={handlePlayPause}
+                  handleNextSong={handleNextSong}
+                  handlePrevSong={handlePrevSong}
+                  colors={colors}
+                  onOpen={openFromCard}
+                />
+                <MiniProgressBar color={colors.primary} trackColor={colors.hairline} />
+              </>
+            ) : (
+              <RoomCardRow colors={colors} />
+            )}
+          </DeckCard>
+        </View>
       )}
 
-      <View style={styles.navLine} onLayout={onNavLayout} pointerEvents='box-none'>
-        <View style={styles.orbSlot}>
+      <View ref={navRef} style={styles.navLine} onLayout={onNavLayout} pointerEvents='box-none'>
+        <View ref={orbRef} collapsable={false} style={styles.orbSlot}>
           <Orb
             kind={orbKind}
             artworkUri={artworkUri}
@@ -1149,7 +1244,7 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
           >
             <Animated.View
               pointerEvents='none'
-              style={[styles.tabPill, { backgroundColor: colors.foreground }, pillStyle]}
+              style={[styles.tabPill, { backgroundColor: tabPillColor }, pillStyle]}
             />
             {TAB_ITEMS.map((tab, index) => (
               <TabButton
@@ -1161,6 +1256,7 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
                 Icon={tab.Icon}
                 isFocused={activeSegment === tab.name}
                 colors={colors}
+                pillColor={tabPillColor}
                 live={tab.name === 'group-music' && inRoom}
                 badge={tab.name === 'chat' ? unread : 0}
               />
@@ -1248,6 +1344,15 @@ const styles = StyleSheet.create({
   liveDot: { position: 'absolute', top: -1, right: -2, width: 7, height: 7, borderRadius: 4 },
 
   orb: { width: PILL_HEIGHT, height: PILL_HEIGHT },
+  ripple: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: PILL_HEIGHT,
+    height: PILL_HEIGHT,
+    borderRadius: PILL_HEIGHT / 2,
+    borderWidth: 2,
+  },
   orbInner: { alignItems: 'center', justifyContent: 'center' },
   ring: { position: 'absolute', top: -0.5, left: -0.5 },
   orbArtBox: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },

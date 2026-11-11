@@ -366,6 +366,12 @@ const routes = {
     if (!isActive() || !itemId || itemId !== session().playback?.itemId) return;
     void send({ type: 'add', autoplay: true, basedOn: itemId, songs });
   },
+  removeFromQueueBelow: (songId) => {
+    const items = session().items;
+    const index = items.findIndex((item) => item.song.id === songId);
+    const itemIds = index === -1 ? [] : items.slice(index + 1).map((item) => item.id);
+    if (itemIds.length) void send({ type: 'remove', itemIds });
+  },
   clearQueue: () => void send({ type: 'clear' }),
   replaceQueue: (songs, keepCurrentSong) => {
     const list = Array.isArray(songs) ? songs : [songs];

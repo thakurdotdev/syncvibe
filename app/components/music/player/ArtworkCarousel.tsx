@@ -15,7 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-const PAUSED_SCALE = 0.97;
+export const PAUSED_SCALE = 0.97;
 const PAUSE_SETTLE_DELAY_MS = 150;
 const RUBBER_BAND = 0.2;
 const SLIDE = { duration: 240, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;

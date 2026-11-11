@@ -68,6 +68,9 @@ interface SwipeableModalProps {
  * or gestures. It opens each time `isVisible` turns true and stays closed until then, even if the
  * user dismissed it and the caller is still deciding what to do about that.
  */
+/** Longer than any close animation; see `armCloseGuard`. */
+const CLOSE_GUARD_MS = 900;
+
 const SwipeableModal: React.FC<SwipeableModalProps> = (props) => {
   const { isVisible } = props;
   const [mounted, setMounted] = useState(isVisible);
@@ -127,6 +130,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
   const activeScrollOffset = scrollOffset ?? internalScrollOffset;
   const closingRef = useRef(false);
   const onCloseRef = useRef(onClose);
+  const closeGuard = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -163,12 +167,30 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
 
   const hasExplicitHeight = fullScreen || StyleSheet.flatten(style)?.height != null;
   const finishClose = useCallback(() => {
+    if (closeGuard.current) clearTimeout(closeGuard.current);
+    closeGuard.current = null;
     closingRef.current = false;
     onClosed();
     onCloseRef.current();
   }, [onClosed]);
 
+  /**
+   * A close only finishes when its animation reports it finished. If anything interrupts that
+   * animation, the sheet would stay mounted: invisible, but a full-screen Modal taking every
+   * touch (and the back button). So a close that's still under way a moment later finishes
+   * anyway, unless the sheet was opened again meanwhile.
+   */
+  const armCloseGuard = useCallback(() => {
+    if (closeGuard.current) clearTimeout(closeGuard.current);
+    closeGuard.current = setTimeout(() => {
+      closeGuard.current = null;
+      if (closing.get() === 1) finishClose();
+    }, CLOSE_GUARD_MS);
+  }, [closing, finishClose]);
+
   const animateOpen = useCallback(() => {
+    if (closeGuard.current) clearTimeout(closeGuard.current);
+    closeGuard.current = null;
     cancelAnimation(gestureY);
     closing.set(0);
     closingRef.current = false;
@@ -191,7 +213,15 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
       })
     );
     gestureY.set(withTiming(0, SHEET_CLOSE));
-  }, [progress, gestureY, closing, finishClose]);
+    armCloseGuard();
+  }, [progress, gestureY, closing, finishClose, armCloseGuard]);
+
+  useEffect(
+    () => () => {
+      if (closeGuard.current) clearTimeout(closeGuard.current);
+    },
+    []
+  );
 
   useEffect(() => {
     if (isVisible) {
@@ -271,6 +301,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
           if (gestureY.get() + project(e.velocityY) > dismissAt) {
             // Spring out carrying the flick's velocity (in progress units).
             closing.set(1);
+            scheduleOnRN(armCloseGuard);
             progress.set(
               withSpring(
                 0,
@@ -294,6 +325,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
         }),
     [
       activeScrollOffset,
+      armCloseGuard,
       closing,
       dismissible,
       dragAnywhere,

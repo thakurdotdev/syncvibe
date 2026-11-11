@@ -1,4 +1,5 @@
 import PressableScale from '@/components/ui/PressableScale';
+import { Gloss } from '@/components/ui/Finish';
 import { useTheme } from '@/context/ThemeContext';
 import { BUTTON_PRESS_SCALE, PRESS_IN, SPRING_PRESS } from '@/lib/motion';
 import { remoteProgress, seekPlayer } from '@/lib/player';
@@ -147,7 +148,7 @@ export const Scrubber = memo(function Scrubber({
             style={[styles.track, { backgroundColor: `${colors.foreground}26` }, trackStyle]}
           >
             <Animated.View
-              style={[styles.trackFill, { backgroundColor: colors.foreground }, fillStyle]}
+              style={[styles.trackFill, { backgroundColor: colors.primary }, fillStyle]}
             />
           </Animated.View>
         </View>
@@ -233,12 +234,14 @@ export const Transport = memo(function Transport() {
         scaleTo={BUTTON_PRESS_SCALE}
         accessibilityRole='button'
         accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-        style={[styles.play, { backgroundColor: colors.foreground }]}
+        style={[styles.play, { backgroundColor: colors.primary }]}
       >
+        {/* The screen's one filled action, finished like the room player's. */}
+        <Gloss />
         <Ionicons
           name={isPlaying ? 'pause' : 'play'}
           size={32}
-          color={colors.background}
+          color={colors.primaryForeground}
           style={isPlaying ? undefined : styles.playNudge}
         />
       </PressableScale>
@@ -282,6 +285,13 @@ const styles = StyleSheet.create({
   mode: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   modeDot: { position: 'absolute', bottom: 3, width: 4, height: 4, borderRadius: 2 },
   skip: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
-  play: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
+  play: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
   playNudge: { marginLeft: 3 },
 });

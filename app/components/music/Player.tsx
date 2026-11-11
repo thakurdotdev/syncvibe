@@ -1,19 +1,23 @@
 import { blurredArt } from '@/lib/artwork';
 import { EASE_OUT, project } from '@/lib/motion';
+import { openOrigin, orbOrigin, type MorphOrigin } from '@/lib/playerMorph';
 import { SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { useTheme } from '@/context/ThemeContext';
 import {
   setFullPlayerOpen,
   setOnOpenFullPlayer,
   useCurrentSong,
+  useIsPlaying,
   useQueueCount,
   useQueueNeighbors,
 } from '@/stores/playerStore';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BackHandler, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, BackHandler, Image, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   clamp,
+  interpolate,
+  useAnimatedReaction,
   FadeIn,
   FadeOut,
   ReduceMotion,
@@ -24,6 +28,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import NewPlayerDrawer from './NewPlayerDrawer';
+import { PAUSED_SCALE } from './player/ArtworkCarousel';
 import { PLAYER_HEADER_HEIGHT, PlayerHeader, TabType } from './player/PlayerHeader';
 import { PlayerTab } from './player/PlayerTab';
 import { QueueTab } from './player/QueueTab';
@@ -45,12 +50,24 @@ const CHROME_HEIGHT = 350;
 const ARTWORK_MARGIN = 16;
 const MIN_ARTWORK = 180;
 
+/** The cover's corners, as in ArtworkCarousel. */
+const COVER_RADIUS = 18;
+/** Corners the sheet takes on while you pull it down, so it already looks like it's leaving. */
+const DRAG_RADIUS = 28;
+/** The player's own content fades in over this part of the open, once there's room for it. */
+const CONTENT_IN: [number, number] = [0.45, 0.92];
+
+const lerp = (from: number, to: number, t: number) => {
+  'worklet';
+  return from + (to - from) * t;
+};
+
 const system = ReduceMotion.System;
 // No overshoot: the sheet must never lift past the top and show the app behind it.
 const BACKDROP_ENTER = FadeIn.duration(260).easing(EASE_OUT);
 const BACKDROP_EXIT = FadeOut.duration(200).easing(EASE_OUT);
-const OPEN = { duration: 320, dampingRatio: 1, reduceMotion: system } as const;
-const CLOSE = { duration: 260, dampingRatio: 1, reduceMotion: system } as const;
+const OPEN = { duration: 440, dampingRatio: 1, reduceMotion: system } as const;
+const CLOSE = { duration: 380, dampingRatio: 1, reduceMotion: system } as const;
 const SNAP_BACK = { duration: 260, dampingRatio: 1, reduceMotion: system } as const;
 const QUEUE_SETTLE = { duration: 300, dampingRatio: 1, reduceMotion: system } as const;
 
@@ -89,8 +106,34 @@ export default function Player() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [playerDrawerOpen, setPlayerDrawerOpen] = useState(false);
 
-  const translateY = useSharedValue(screenHeight);
+  const isPlaying = useIsPlaying();
+  /**
+   * The player grows out of the deck and shrinks back into it: 0 is the shape it came from
+   * (lib/playerMorph), 1 full screen. `dragY` is how far you've pulled it down while open.
+   */
+  const progress = useSharedValue(0);
+  const dragY = useSharedValue(0);
   const startY = useSharedValue(0);
+  /** The shape it's growing from or shrinking into this time. */
+  const origin = useSharedValue<MorphOrigin | null>(null);
+  /** Where the cover sits in the full player, measured from its layout (not the screen). */
+  const coverTop = useSharedValue(-1);
+  const coverScale = useSharedValue(1);
+  /** Mounted and drawn from the first frame of opening until the last of closing. */
+  const shown = useSharedValue(false);
+  /**
+   * Bumped when the player finishes closing, so its styles are applied again even if nothing
+   * else changed. If the view and the values ever disagree (the player showing while the values
+   * say it's closed), closing then puts the view right instead of being a no-op.
+   */
+  const redraw = useSharedValue(0);
+  /** The player's own record of being open: what back and ✕ go by, never the animation. */
+  const openRef = useRef(false);
+  /** Each open or close gets a number, so a late timer from an earlier one does nothing. */
+  const moveToken = useRef(0);
+  const closeGuard = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Counts swipes that closed the player, so the JS side can guard those closes too. */
+  const swipeClosed = useSharedValue(0);
   const queueShown = useSharedValue(0);
   const queueOpen = useSharedValue(false);
   const startQueueShown = useSharedValue(0);
@@ -104,35 +147,58 @@ export default function Player() {
   /** How far the queue slides: from just below the screen up to under the header. */
   const queueTravel = screenHeight - insets.top - PLAYER_HEADER_HEIGHT;
 
+  useEffect(() => {
+    coverScale.set(isPlaying ? 1 : PAUSED_SCALE);
+  }, [coverScale, isPlaying]);
+
   const openPlayer = useCallback(() => {
+    moveToken.current += 1;
+    if (closeGuard.current) clearTimeout(closeGuard.current);
+    openRef.current = true;
     setIsOpen(true);
-    translateY.set(withSpring(0, OPEN));
-  }, [translateY]);
+    origin.set(openOrigin.get() ?? orbOrigin.get());
+    dragY.set(0);
+    shown.set(true);
+    progress.set(withSpring(1, OPEN));
+  }, [dragY, origin, progress, shown]);
 
   useEffect(() => {
     setOnOpenFullPlayer(openPlayer);
     return () => setOnOpenFullPlayer(null);
   }, [openPlayer]);
 
-  useEffect(() => setFullPlayerOpen(isOpen), [isOpen]);
+  useEffect(() => {
+    setFullPlayerOpen(isOpen);
+    if (isOpen) return;
+    // Closed: back goes to the app again, and no close guard is left waiting.
+    openRef.current = false;
+    if (closeGuard.current) clearTimeout(closeGuard.current);
+    closeGuard.current = null;
+  }, [isOpen]);
 
   const handleClosed = useCallback(() => {
+    shown.set(false);
+    dragY.set(0);
+    redraw.set(redraw.get() + 1);
     setIsOpen(false);
     setActiveTab('player');
     queueShown.set(0);
     queueOpen.set(false);
-  }, [queueOpen, queueShown]);
+  }, [dragY, queueOpen, queueShown, redraw, shown]);
 
   const animateClosed = useCallback(
     (velocity = 0) => {
       'worklet';
-      translateY.set(
-        withSpring(screenHeight, { ...CLOSE, velocity }, (finished) => {
+      // Into the orb wherever it opened from: that's where the song lives while it's closed.
+      origin.set(orbOrigin.get() ?? origin.get());
+      // A flick down carries into the shrink: speed in points becomes speed in progress.
+      progress.set(
+        withSpring(0, { ...CLOSE, velocity: -velocity / screenHeight }, (finished) => {
           if (finished) scheduleOnRN(handleClosed);
         })
       );
     },
-    [handleClosed, screenHeight, translateY]
+    [handleClosed, origin, progress, screenHeight]
   );
 
   const showTab = useCallback(
@@ -145,10 +211,54 @@ export default function Player() {
   );
   const openQueue = useCallback(() => showTab('queue'), [showTab]);
 
+  /**
+   * Closes the player from the JS side (✕, back, the queue's way out). The close normally
+   * finishes when its animation does; if that animation is interrupted or was already at its
+   * end (nothing to animate), it finishes anyway a moment later, so the player can't be left
+   * on screen with nothing able to close it.
+   */
+  const guardClose = useCallback(() => {
+    const token = ++moveToken.current;
+    if (closeGuard.current) clearTimeout(closeGuard.current);
+    closeGuard.current = setTimeout(() => {
+      closeGuard.current = null;
+      if (moveToken.current === token && openRef.current) handleClosed();
+    }, CLOSE.duration + 600);
+  }, [handleClosed]);
+
+  useAnimatedReaction(
+    () => swipeClosed.get(),
+    (now, previous) => {
+      if (previous !== null && now !== previous) scheduleOnRN(guardClose);
+    },
+    [guardClose]
+  );
+
+  const closePlayer = useCallback(() => {
+    if (progress.get() <= 0.001) {
+      moveToken.current += 1;
+      handleClosed();
+      return;
+    }
+    animateClosed();
+    guardClose();
+  }, [animateClosed, guardClose, handleClosed, progress]);
+
+  useEffect(() => {
+    // Coming back to the app, put the player's view in line with its values again.
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') redraw.set(redraw.get() + 1);
+    });
+    return () => {
+      sub.remove();
+      if (closeGuard.current) clearTimeout(closeGuard.current);
+    };
+  }, [redraw]);
+
   const handleBack = useCallback(() => {
     if (activeTab === 'queue') showTab('player');
-    else animateClosed();
-  }, [activeTab, animateClosed, showTab]);
+    else closePlayer();
+  }, [activeTab, closePlayer, showTab]);
 
   const artistName = useMemo(
     () =>
@@ -174,7 +284,7 @@ export default function Player() {
         .activeOffsetY([-10, 10])
         .failOffsetX([-20, 20])
         .onStart((e) => {
-          startY.set(translateY.get());
+          startY.set(dragY.get());
           startQueueShown.set(queueShown.get());
           draggingQueue.set(queueOpen.get());
           directionPending.set(!queueOpen.get());
@@ -187,8 +297,8 @@ export default function Player() {
           }
           if (draggingQueue.get()) {
             queueShown.set(clamp(startQueueShown.get() - e.translationY / queueTravel, 0, 1));
-          } else if (e.translationY > 0) {
-            translateY.set(startY.get() + e.translationY);
+          } else if (e.translationY > 0 && progress.get() >= 1) {
+            dragY.set(startY.get() + e.translationY);
           }
         })
         .onEnd((e, success) => {
@@ -217,20 +327,23 @@ export default function Player() {
             (e.translationY > DISMISS_DISTANCE || e.velocityY > DISMISS_VELOCITY)
           ) {
             animateClosed(e.velocityY);
+            swipeClosed.set(swipeClosed.get() + 1);
           } else {
-            translateY.set(withSpring(0, { ...SNAP_BACK, velocity: e.velocityY }));
+            dragY.set(withSpring(0, { ...SNAP_BACK, velocity: e.velocityY }));
           }
         }),
     [
       animateClosed,
+      swipeClosed,
       directionPending,
+      dragY,
       draggingQueue,
+      progress,
       queueOpen,
       queueShown,
       queueTravel,
       startQueueShown,
       startY,
-      translateY,
     ]
   );
 
@@ -270,10 +383,68 @@ export default function Player() {
     [listTouchX, listTouchY, makeVerticalGesture, queueScrollY]
   );
 
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.get() }],
-    display: translateY.get() >= screenHeight ? 'none' : 'flex',
-  }));
+  /** Where the morph starts and ends when nothing was measured: a dot just above the tabs. */
+  const fallback: MorphOrigin = useMemo(() => {
+    const size = 44;
+    const box = {
+      x: (screenWidth - size) / 2,
+      y: screenHeight - insets.bottom - 90,
+      width: size,
+      height: size,
+      radius: size / 2,
+    };
+    return { box, art: box };
+  }, [insets.bottom, screenHeight, screenWidth]);
+
+  // The sheet is a window that grows from the deck's shape to the whole screen (its corners
+  // with it). Only it changes size: the content inside keeps the screen's size and position,
+  // so nothing in the player is laid out again while it moves.
+  const sheetStyle = useAnimatedStyle(() => {
+    redraw.get();
+    const p = progress.get();
+    const { box } = origin.get() ?? fallback;
+    const drag = dragY.get();
+    return {
+      left: lerp(box.x, 0, p),
+      top: lerp(box.y, drag, p),
+      width: lerp(box.width, screenWidth, p),
+      height: lerp(box.height, screenHeight, p),
+      borderRadius: lerp(box.radius, interpolate(drag, [0, 120], [0, DRAG_RADIUS], 'clamp'), p),
+      display: shown.get() ? 'flex' : 'none',
+    };
+  });
+  const sheetContentStyle = useAnimatedStyle(() => {
+    const p = progress.get();
+    const { box } = origin.get() ?? fallback;
+    return {
+      opacity: interpolate(p, CONTENT_IN, [0, 1], 'clamp'),
+      transform: [
+        { translateX: -lerp(box.x, 0, p) },
+        { translateY: -lerp(box.y, dragY.get(), p) + dragY.get() * p },
+      ],
+    };
+  });
+  // The cover flies between the deck's artwork and its place in the player.
+  const flyingCoverStyle = useAnimatedStyle(() => {
+    redraw.get();
+    const p = progress.get();
+    const { art } = origin.get() ?? fallback;
+    const size = artworkSize * coverScale.get();
+    const top = insets.top + PLAYER_HEADER_HEIGHT + (coverTop.get() >= 0 ? coverTop.get() : 24);
+    const target = {
+      x: (screenWidth - size) / 2,
+      y: top + (artworkSize - size) / 2 + dragY.get(),
+    };
+    return {
+      opacity: shown.get() && p < 1 ? 1 : 0,
+      left: lerp(art.x, target.x, p),
+      top: lerp(art.y, target.y, p),
+      width: lerp(art.width, size, p),
+      height: lerp(art.height, size, p),
+      borderRadius: lerp(art.radius, COVER_RADIUS, p),
+    };
+  });
+  const onArtLayout = useCallback((top: number) => coverTop.set(top), [coverTop]);
   // The song is gone early in the move, so it never shows through the rising queue.
   const playerLayerStyle = useAnimatedStyle(() => {
     const shown = clamp(queueShown.get(), 0, 1);
@@ -287,77 +458,97 @@ export default function Player() {
   }));
 
   useEffect(() => {
+    // While the player is open, back always closes it (never the app behind it).
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (translateY.get() >= screenHeight - 10) return false;
+      if (!openRef.current) return false;
       handleBack();
       return true;
     });
     return () => backHandler.remove();
-  }, [handleBack, screenHeight, translateY]);
+  }, [handleBack]);
+
+  // Stable objects, so a re-render of the player doesn't send these views new style props:
+  // fewer commits racing the styles the animation sets.
+  const sheetColors = useMemo(() => ({ backgroundColor: colors.background }), [colors.background]);
+  const sheetFrame = useMemo(
+    () => ({ width: screenWidth, height: screenHeight, paddingTop: insets.top }),
+    [insets.top, screenHeight, screenWidth]
+  );
+  const coverColors = useMemo(() => ({ backgroundColor: colors.raised }), [colors.raised]);
 
   if (!currentSong) return null;
 
   const backdropUri = currentSong.image?.[0]?.link || currentSong.image?.[1]?.link;
+  const coverUri =
+    currentSong.image?.[2]?.link || currentSong.image?.[1]?.link || currentSong.image?.[0]?.link;
 
   return (
     <>
-      <Animated.View
-        style={[
-          styles.sheet,
-          sheetStyle,
-          { paddingTop: insets.top, backgroundColor: colors.background },
-        ]}
-      >
-        <Backdrop uri={backdropUri} />
+      <Animated.View style={[styles.sheet, sheetColors, sheetStyle]}>
+        <Animated.View style={[styles.sheetContent, sheetFrame, sheetContentStyle]}>
+          <Backdrop uri={backdropUri} />
 
-        <GestureDetector gesture={headerGesture}>
-          <View>
-            <PlayerHeader
-              activeTab={activeTab}
-              queueShown={queueShown}
-              onBack={handleBack}
-              onOptionsPress={() => setPlayerDrawerOpen(true)}
-            />
+          <GestureDetector gesture={headerGesture}>
+            <View>
+              <PlayerHeader
+                activeTab={activeTab}
+                queueShown={queueShown}
+                onBack={handleBack}
+                onOptionsPress={() => setPlayerDrawerOpen(true)}
+              />
+            </View>
+          </GestureDetector>
+
+          <View style={styles.content}>
+            <Animated.View
+              pointerEvents={activeTab === 'player' ? 'auto' : 'none'}
+              style={[styles.layer, playerLayerStyle]}
+            >
+              <GestureDetector gesture={songGesture}>
+                <View style={styles.content}>
+                  <PlayerTab
+                    currentSong={currentSong}
+                    artistName={artistName}
+                    artworkSize={artworkSize}
+                    screenWidth={screenWidth}
+                    queueIndex={queueIndex}
+                    prevSong={prevSong}
+                    nextSong={nextSong}
+                    queueCount={queueCount}
+                    bottomInset={insets.bottom}
+                    isOpen={isOpen && activeTab === 'player'}
+                    onOpenQueue={openQueue}
+                    morph={progress}
+                    onArtLayout={onArtLayout}
+                  />
+                </View>
+              </GestureDetector>
+            </Animated.View>
+
+            <Animated.View
+              pointerEvents={activeTab === 'queue' ? 'auto' : 'none'}
+              style={[styles.layer, queueLayerStyle]}
+            >
+              <QueueTab
+                playerOpen={isOpen}
+                visible={activeTab === 'queue'}
+                dragGesture={queueGesture}
+                listGesture={queueListGesture}
+                scrollOffset={queueScrollY}
+              />
+            </Animated.View>
           </View>
-        </GestureDetector>
+        </Animated.View>
+      </Animated.View>
 
-        <View style={styles.content}>
-          <Animated.View
-            pointerEvents={activeTab === 'player' ? 'auto' : 'none'}
-            style={[styles.layer, playerLayerStyle]}
-          >
-            <GestureDetector gesture={songGesture}>
-              <View style={styles.content}>
-                <PlayerTab
-                  currentSong={currentSong}
-                  artistName={artistName}
-                  artworkSize={artworkSize}
-                  screenWidth={screenWidth}
-                  queueIndex={queueIndex}
-                  prevSong={prevSong}
-                  nextSong={nextSong}
-                  queueCount={queueCount}
-                  bottomInset={insets.bottom}
-                  isOpen={isOpen && activeTab === 'player'}
-                  onOpenQueue={openQueue}
-                />
-              </View>
-            </GestureDetector>
-          </Animated.View>
-
-          <Animated.View
-            pointerEvents={activeTab === 'queue' ? 'auto' : 'none'}
-            style={[styles.layer, queueLayerStyle]}
-          >
-            <QueueTab
-              playerOpen={isOpen}
-              visible={activeTab === 'queue'}
-              dragGesture={queueGesture}
-              listGesture={queueListGesture}
-              scrollOffset={queueScrollY}
-            />
-          </Animated.View>
-        </View>
+      {/* Above the sheet: the cover on its way between the deck and the player. */}
+      <Animated.View
+        pointerEvents='none'
+        style={[styles.flyingCover, coverColors, flyingCoverStyle]}
+      >
+        {coverUri ? (
+          <Image source={{ uri: coverUri }} fadeDuration={0} style={StyleSheet.absoluteFill} />
+        ) : null}
       </Animated.View>
 
       {playerDrawerOpen && (
@@ -372,17 +563,16 @@ export default function Player() {
 }
 
 const styles = StyleSheet.create({
+  // Its position, size and corners are animated (sheetStyle); the content keeps the screen's.
   sheet: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
     zIndex: 999,
     // Android draws by elevation too; keep the player above the app-wide bottom deck.
     elevation: 40,
     overflow: 'hidden',
   },
+  sheetContent: { position: 'absolute', left: 0, top: 0 },
+  flyingCover: { position: 'absolute', zIndex: 1000, elevation: 41, overflow: 'hidden' },
   content: { flex: 1 },
   layer: { ...StyleSheet.absoluteFill },
 });
