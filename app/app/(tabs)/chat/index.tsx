@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -191,7 +192,7 @@ const ChatListScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  listContent: { paddingBottom: 120, paddingTop: 4 },
+  listContent: { paddingBottom: DECK_CLEARANCE, paddingTop: 4 },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   emptyTitle: { fontSize: 16, fontWeight: '600', marginTop: 16 },
   emptySubtitle: { fontSize: 13, marginTop: 8, textAlign: 'center', maxWidth: '80%' },

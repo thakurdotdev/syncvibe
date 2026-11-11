@@ -3,6 +3,8 @@ import AppUpdateModal from '@/components/AppUpdateModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Player from '@/components/music/Player';
 import GlobalBottomDeck from '@/components/shell/GlobalBottomDeck';
+import { deckBlurTarget } from '@/components/shell/GlassSurface';
+import { BlurTargetView } from 'expo-blur';
 import PlayerInitializer from '@/components/music/PlayerInitializer';
 import { GroupMusicProvider } from '@/context/GroupMusicContext';
 import { NotificationProvider } from '@/context/NotificationContext';
@@ -29,7 +31,7 @@ import { Stack } from 'expo-router';
 import { ObserveRoot, useObserve } from 'expo-observe';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { StatusBar } from 'react-native';
+import { StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
@@ -146,147 +148,150 @@ function RootLayoutNav() {
         translucent
         animated
       />
-      <Stack
-        screenOptions={{
-          animation: 'default',
-          gestureEnabled: false,
-          headerStyle: {
-            backgroundColor: colors.background,
-          },
-          headerTintColor: colors.foreground,
-          headerTitleStyle: {
-            ...typography.headingMd,
-          },
-          contentStyle: { backgroundColor: colors.background },
-        }}
-      >
-        <Stack.Screen
-          name='index'
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name='onboarding'
-          options={{
-            headerShown: false,
+      {/* The floating bottom bar blurs these screens (and only these) on Android. */}
+      <BlurTargetView ref={deckBlurTarget} style={styles.blurTarget}>
+        <Stack
+          screenOptions={{
+            animation: 'default',
             gestureEnabled: false,
-            animation: 'fade',
+            headerStyle: {
+              backgroundColor: colors.background,
+            },
+            headerTintColor: colors.foreground,
+            headerTitleStyle: {
+              ...typography.headingMd,
+            },
+            contentStyle: { backgroundColor: colors.background },
           }}
-        />
-        <Stack.Screen
-          name='login'
-          options={{
-            title: 'Login',
-            presentation: 'modal',
-            headerShown: false,
-            gestureEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name='(tabs)'
-          options={{
-            headerShown: false,
-            gestureEnabled: false,
-            animation: 'none',
-          }}
-        />
-        <Stack.Screen
-          name='playlists'
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name='search'
-          options={{
-            headerShown: false,
-            animation: 'fade',
-          }}
-        />
-        <Stack.Screen
-          name='browse'
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name='albums'
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name='artist'
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name='user-playlist'
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name='message'
-          options={{
-            headerShown: false,
-            title: 'Message',
-          }}
-        />
-        <Stack.Screen
-          name='music-language'
-          options={{
-            title: 'Update Language Preferences',
-          }}
-        />
-        <Stack.Screen
-          name='song-history'
-          options={{
-            headerShown: false,
-            title: 'Your Listening History',
-          }}
-        />
-        <Stack.Screen
-          name='qr-scanner'
-          options={{
-            headerShown: false,
-            title: 'QR Scanner',
-          }}
-        />
-        <Stack.Screen
-          name='oauthredirect'
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name='[...unmatched]'
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name='edit-profile'
-          options={{
-            title: 'Edit Profile',
-          }}
-        />
-        <Stack.Screen
-          name='security'
-          options={{
-            headerShown: false,
-            title: 'Security',
-          }}
-        />
-        <Stack.Screen
-          name='update-profile-picture'
-          options={{
-            title: 'Profile Picture',
-          }}
-        />
-      </Stack>
+        >
+          <Stack.Screen
+            name='index'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name='onboarding'
+            options={{
+              headerShown: false,
+              gestureEnabled: false,
+              animation: 'fade',
+            }}
+          />
+          <Stack.Screen
+            name='login'
+            options={{
+              title: 'Login',
+              presentation: 'modal',
+              headerShown: false,
+              gestureEnabled: false,
+            }}
+          />
+          <Stack.Screen
+            name='(tabs)'
+            options={{
+              headerShown: false,
+              gestureEnabled: false,
+              animation: 'none',
+            }}
+          />
+          <Stack.Screen
+            name='playlists'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name='search'
+            options={{
+              headerShown: false,
+              animation: 'fade',
+            }}
+          />
+          <Stack.Screen
+            name='browse'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name='albums'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name='artist'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name='user-playlist'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name='message'
+            options={{
+              headerShown: false,
+              title: 'Message',
+            }}
+          />
+          <Stack.Screen
+            name='music-language'
+            options={{
+              title: 'Update Language Preferences',
+            }}
+          />
+          <Stack.Screen
+            name='song-history'
+            options={{
+              headerShown: false,
+              title: 'Your Listening History',
+            }}
+          />
+          <Stack.Screen
+            name='qr-scanner'
+            options={{
+              headerShown: false,
+              title: 'QR Scanner',
+            }}
+          />
+          <Stack.Screen
+            name='oauthredirect'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name='[...unmatched]'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name='edit-profile'
+            options={{
+              title: 'Edit Profile',
+            }}
+          />
+          <Stack.Screen
+            name='security'
+            options={{
+              headerShown: false,
+              title: 'Security',
+            }}
+          />
+          <Stack.Screen
+            name='update-profile-picture'
+            options={{
+              title: 'Profile Picture',
+            }}
+          />
+        </Stack>
+      </BlurTargetView>
       <GlobalBottomDeck />
       <Player />
       <MessageBanner />
@@ -296,3 +301,7 @@ function RootLayoutNav() {
 }
 
 export default ObserveRoot.wrap(RootLayout);
+
+const styles = StyleSheet.create({
+  blurTarget: { flex: 1 },
+});
