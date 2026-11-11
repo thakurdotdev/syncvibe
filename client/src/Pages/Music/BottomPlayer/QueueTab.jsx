@@ -39,6 +39,13 @@ import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -139,6 +146,70 @@ const useSwipeToRemove = (onSwipe, enabled) => {
   };
 };
 
+/**
+ * A queue song's actions, shown by the ⋯ button (mouse) and by right-click or long-press. Takes
+ * the menu's own Item and Separator so both menus list the same things.
+ */
+const SongMenuItems = ({
+  Item,
+  Separator,
+  song,
+  isCurrentSong,
+  isLast,
+  isLoadingRecs,
+  onFetchRecs,
+  onGoToAlbum,
+  onGoToArtist,
+  onRemoveBelow,
+  onRemove,
+}) => (
+  <>
+    <Item onClick={onFetchRecs} disabled={isLoadingRecs} className='cursor-pointer'>
+      {isLoadingRecs ? (
+        <Loader2 className='h-3.5 w-3.5 animate-spin' />
+      ) : (
+        <Sparkles className='h-3.5 w-3.5 text-muted-foreground' />
+      )}
+      Get similar songs
+    </Item>
+    {(song?.album_id || song?.artist_map?.primary_artists?.[0]) && <Separator className='my-1' />}
+    {song?.album_id && (
+      <Item onClick={onGoToAlbum} className='cursor-pointer'>
+        <Disc3 className='h-3.5 w-3.5 text-muted-foreground' />
+        Go to Album
+      </Item>
+    )}
+    {song?.artist_map?.primary_artists?.[0] && (
+      <Item onClick={onGoToArtist} className='cursor-pointer'>
+        <User className='h-3.5 w-3.5 text-muted-foreground' />
+        Go to Artist
+      </Item>
+    )}
+    {(!isCurrentSong || !isLast) && <Separator className='my-1' />}
+    {!isLast && onRemoveBelow && (
+      <Item
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemoveBelow(song.id);
+        }}
+        className='cursor-pointer'
+      >
+        <ArrowDownToLine className='h-3.5 w-3.5 text-muted-foreground' />
+        Remove songs below
+      </Item>
+    )}
+    {!isCurrentSong && (
+      <Item
+        onClick={onRemove}
+        className='cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive'
+      >
+        <X className='h-3.5 w-3.5' />
+        Remove
+      </Item>
+    )}
+  </>
+);
+
 // Minimal queue song item - matching SearchUser.jsx styling & instant smooth hover
 const QueueSongItem = memo(
   ({
@@ -220,193 +291,180 @@ const QueueSongItem = memo(
       [onFetchRecommendations, song.id, song.name, song.title]
     );
 
+    // Letting go after a long-press can also count as a tap; it opened the menu, it doesn't play.
+    const menuOpenedAt = useRef(0);
+    const handleRowClick = useCallback(
+      (e) => {
+        if (Date.now() - menuOpenedAt.current < 700) return;
+        handlePlay(e);
+      },
+      [handlePlay]
+    );
+
     const swipe = useSwipeToRemove(
       () => onRemove(song.id, name, false),
       !isCurrentSong && !isOverlay
     );
 
     return (
-      <div className='relative overflow-hidden rounded-md'>
-        {swipe.offset < 0 && (
+      <ContextMenu
+        onOpenChange={(open) => {
+          if (open) menuOpenedAt.current = Date.now();
+        }}
+      >
+        <ContextMenuTrigger asChild disabled={isOverlay}>
           <div
-            aria-hidden='true'
-            className='absolute inset-0 flex items-center justify-end gap-1.5 bg-destructive pr-4 text-sm font-medium text-destructive-foreground'
+            className='relative overflow-hidden rounded-md'
+            style={{ WebkitTouchCallout: 'none' }}
           >
-            <Trash2 className='h-4 w-4' />
-            Remove
-          </div>
-        )}
-        <div
-          role='button'
-          tabIndex={0}
-          onClick={handlePlay}
-          {...swipe.handlers}
-          style={{
-            transform: swipe.offset ? `translateX(${swipe.offset}px)` : undefined,
-            transition: swipe.dragging ? 'none' : 'transform 160ms ease-out',
-            touchAction: 'pan-y',
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handlePlay(e);
-            }
-          }}
-          className={cn(
-            'relative group flex items-center px-3 py-2 rounded-md cursor-pointer select-none outline-none focus-visible:ring-1 focus-visible:ring-ring w-full',
-            // Opaque while it moves, so the red underneath shows only where the row has left.
-            swipe.offset < 0 && 'bg-background',
-            isCurrentSong
-              ? 'bg-accent/80 dark:bg-accent/60 text-accent-foreground font-medium'
-              : 'hover:bg-muted/70 dark:hover:bg-muted/50 text-foreground',
-            isDragging && 'opacity-30',
-            isOverlay && 'bg-popover text-popover-foreground shadow-2xl border border-border'
-          )}
-        >
-          <div
-            {...dragHandleProps}
-            className='cursor-grab active:cursor-grabbing p-0.5 text-muted-foreground/40 hover:text-foreground touch-none shrink-0 mr-1.5'
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical className='w-3.5 h-3.5' />
-          </div>
-
-          <Avatar className='relative shrink-0 w-10 h-10 rounded-md ring-1 ring-border/40 group-hover:ring-border/80 overflow-hidden'>
-            <AvatarImage src={songImage} alt={name} className='w-10 h-10 object-cover rounded-md' />
-            <AvatarFallback className='w-10 h-10 rounded-md text-xs bg-muted'>
-              <Music className='w-4 h-4 text-muted-foreground' />
-            </AvatarFallback>
-            {isCurrentSong && (
-              <div className='absolute inset-0 bg-background/60 flex items-center justify-center'>
-                {isPlaying ? (
-                  <Pause className='w-3.5 h-3.5 text-foreground fill-current' />
-                ) : (
-                  <Play className='w-3.5 h-3.5 text-foreground fill-current ml-0.5' />
-                )}
+            {swipe.offset < 0 && (
+              <div
+                aria-hidden='true'
+                className='absolute inset-0 flex items-center justify-end gap-1.5 bg-destructive pr-4 text-sm font-medium text-destructive-foreground'
+              >
+                <Trash2 className='h-4 w-4' />
+                Remove
               </div>
             )}
-          </Avatar>
-
-          <div className='flex flex-col ml-3 flex-1 min-w-0'>
-            <div className='flex items-center justify-between gap-1.5'>
-              <span
-                className={cn(
-                  'text-sm truncate',
-                  isCurrentSong
-                    ? 'font-semibold text-foreground'
-                    : 'font-medium text-foreground/90 group-hover:text-foreground'
-                )}
-              >
-                {name}
-              </span>
-            </div>
-
-            <p className='text-xs text-muted-foreground group-hover:text-foreground/75 truncate mt-0.5'>
-              {artistName || 'Unknown Artist'}
-            </p>
-          </div>
-
-          {isCurrentSong && isPlaying && (
-            <div className='flex items-center gap-[2px] px-1.5 py-1 rounded-sm bg-primary/15 shrink-0 mx-1'>
-              <span className='w-[2px] h-2.5 rounded-full bg-primary animate-pulse' />
-              <span
-                className='w-[2px] h-3.5 rounded-full bg-primary animate-pulse'
-                style={{ animationDelay: '150ms' }}
-              />
-              <span
-                className='w-[2px] h-2 rounded-full bg-primary animate-pulse'
-                style={{ animationDelay: '300ms' }}
-              />
-            </div>
-          )}
-
-          {!isCurrentSong && (
-            <Button
-              variant='ghost'
-              size='icon'
-              className='h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-muted rounded-md cursor-pointer shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 ml-1'
-              onClick={handleRemove}
-              aria-label='Remove song'
+            <div
+              role='button'
+              tabIndex={0}
+              onClick={handleRowClick}
+              {...swipe.handlers}
+              style={{
+                transform: swipe.offset ? `translateX(${swipe.offset}px)` : undefined,
+                transition: swipe.dragging ? 'none' : 'transform 160ms ease-out',
+                touchAction: 'pan-y',
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handlePlay(e);
+                }
+              }}
+              className={cn(
+                'relative group flex items-center px-3 py-2 rounded-md cursor-pointer select-none outline-none focus-visible:ring-1 focus-visible:ring-ring w-full',
+                // Opaque while it moves, so the red underneath shows only where the row has left.
+                swipe.offset < 0 && 'bg-background',
+                isCurrentSong
+                  ? 'bg-accent/80 dark:bg-accent/60 text-accent-foreground font-medium'
+                  : 'hover:bg-muted/70 dark:hover:bg-muted/50 text-foreground',
+                isDragging && 'opacity-30',
+                isOverlay && 'bg-popover text-popover-foreground shadow-2xl border border-border'
+              )}
             >
-              <X className='w-3.5 h-3.5' />
-            </Button>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant='ghost'
-                size='icon'
-                className='h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md cursor-pointer shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100'
+              <div
+                {...dragHandleProps}
+                className='cursor-grab active:cursor-grabbing p-0.5 text-muted-foreground/40 hover:text-foreground touch-none shrink-0 mr-1.5'
                 onClick={(e) => e.stopPropagation()}
-                aria-label='More options'
               >
-                <MoreHorizontal className='w-3.5 h-3.5' />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align='end'
-              className='w-52 bg-popover text-popover-foreground border-border shadow-xl rounded-lg p-1.5 z-50'
-            >
-              <DropdownMenuItem
-                onClick={handleFetchRecs}
-                disabled={isLoadingRecs}
-                className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
-              >
-                {isLoadingRecs ? (
-                  <Loader2 className='w-3.5 h-3.5 mr-2 animate-spin' />
-                ) : (
-                  <Sparkles className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                <GripVertical className='w-3.5 h-3.5' />
+              </div>
+
+              <Avatar className='relative shrink-0 w-10 h-10 rounded-md ring-1 ring-border/40 group-hover:ring-border/80 overflow-hidden'>
+                <AvatarImage
+                  src={songImage}
+                  alt={name}
+                  className='w-10 h-10 object-cover rounded-md'
+                />
+                <AvatarFallback className='w-10 h-10 rounded-md text-xs bg-muted'>
+                  <Music className='w-4 h-4 text-muted-foreground' />
+                </AvatarFallback>
+                {isCurrentSong && (
+                  <div className='absolute inset-0 bg-background/60 flex items-center justify-center'>
+                    {isPlaying ? (
+                      <Pause className='w-3.5 h-3.5 text-foreground fill-current' />
+                    ) : (
+                      <Play className='w-3.5 h-3.5 text-foreground fill-current ml-0.5' />
+                    )}
+                  </div>
                 )}
-                Get similar songs
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className='bg-border my-1' />
-              {song?.album_id && (
-                <DropdownMenuItem
-                  onClick={handleGoToAlbum}
-                  className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
-                >
-                  <Disc3 className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
-                  Go to Album
-                </DropdownMenuItem>
-              )}
-              {song?.artist_map?.primary_artists?.[0] && (
-                <DropdownMenuItem
-                  onClick={handleGoToArtist}
-                  className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
-                >
-                  <User className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
-                  Go to Artist
-                </DropdownMenuItem>
-              )}
-              {(!isCurrentSong || !isLast) && <DropdownMenuSeparator className='bg-border my-1' />}
-              {!isLast && onRemoveBelow && (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveBelow(song.id);
-                  }}
-                  className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md'
-                >
-                  <ArrowDownToLine className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
-                  Remove songs below
-                </DropdownMenuItem>
-              )}
-              {!isCurrentSong && (
-                <>
-                  <DropdownMenuItem
-                    onClick={handleRemove}
-                    className='cursor-pointer text-sm text-destructive hover:bg-destructive/10 focus:bg-destructive/10 focus:text-destructive rounded-md'
+              </Avatar>
+
+              <div className='flex flex-col ml-3 flex-1 min-w-0'>
+                <div className='flex items-center justify-between gap-1.5'>
+                  <span
+                    className={cn(
+                      'text-sm truncate',
+                      isCurrentSong
+                        ? 'font-semibold text-foreground'
+                        : 'font-medium text-foreground/90 group-hover:text-foreground'
+                    )}
                   >
-                    <X className='w-3.5 h-3.5 mr-2' />
-                    Remove
-                  </DropdownMenuItem>
-                </>
+                    {name}
+                  </span>
+                </div>
+
+                <p className='text-xs text-muted-foreground group-hover:text-foreground/75 truncate mt-0.5'>
+                  {artistName || 'Unknown Artist'}
+                </p>
+              </div>
+
+              {isCurrentSong && isPlaying && (
+                <div className='flex items-center gap-[2px] px-1.5 py-1 rounded-sm bg-primary/15 shrink-0 mx-1'>
+                  <span className='w-[2px] h-2.5 rounded-full bg-primary animate-pulse' />
+                  <span
+                    className='w-[2px] h-3.5 rounded-full bg-primary animate-pulse'
+                    style={{ animationDelay: '150ms' }}
+                  />
+                  <span
+                    className='w-[2px] h-2 rounded-full bg-primary animate-pulse'
+                    style={{ animationDelay: '300ms' }}
+                  />
+                </div>
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant='ghost'
+                    size='icon'
+                    // Touch screens long-press the row instead; with a mouse it shows on hover.
+                    className='h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md cursor-pointer shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 pointer-coarse:hidden'
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label='More options'
+                  >
+                    <MoreHorizontal className='w-3.5 h-3.5' />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align='end'
+                  className='w-52 bg-popover text-popover-foreground border-border shadow-xl rounded-lg p-1.5 z-50'
+                >
+                  <SongMenuItems
+                    Item={DropdownMenuItem}
+                    Separator={DropdownMenuSeparator}
+                    song={song}
+                    isCurrentSong={isCurrentSong}
+                    isLast={isLast}
+                    isLoadingRecs={isLoadingRecs}
+                    onFetchRecs={handleFetchRecs}
+                    onGoToAlbum={handleGoToAlbum}
+                    onGoToArtist={handleGoToArtist}
+                    onRemoveBelow={onRemoveBelow}
+                    onRemove={handleRemove}
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className='w-52 rounded-lg p-1.5'>
+          <SongMenuItems
+            Item={ContextMenuItem}
+            Separator={ContextMenuSeparator}
+            song={song}
+            isCurrentSong={isCurrentSong}
+            isLast={isLast}
+            isLoadingRecs={isLoadingRecs}
+            onFetchRecs={handleFetchRecs}
+            onGoToAlbum={handleGoToAlbum}
+            onGoToArtist={handleGoToArtist}
+            onRemoveBelow={onRemoveBelow}
+            onRemove={handleRemove}
+          />
+        </ContextMenuContent>
+      </ContextMenu>
     );
   }
 );
