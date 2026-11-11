@@ -430,32 +430,49 @@ const TabButton = memo(function TabButton({
   // Selected: the pill inverts (foreground on background), so it reads on any glass.
   const color = isFocused ? colors.background : colors.mutedForeground;
   return (
-    <PressableScale
-      onPress={onPress}
-      scaleTo={BUTTON_PRESS_SCALE}
-      style={[styles.tab, isFocused && [styles.tabOn, { backgroundColor: colors.foreground }]]}
-      accessibilityRole='tab'
-      accessibilityLabel={badge > 0 ? `${label}, ${badge} unread` : label}
-      accessibilityState={{ selected: isFocused }}
+    // Size and pill colour live on a plain View, every key set in both states. On the animated
+    // pressable, keys dropped when a tab lost focus (flex, padding) stuck, so visited tabs kept
+    // the selected width and squeezed the others.
+    <View
+      style={[
+        styles.tab,
+        isFocused
+          ? {
+              flexGrow: 0,
+              flexShrink: 1,
+              paddingHorizontal: 12,
+              backgroundColor: colors.foreground,
+            }
+          : { flexGrow: 1, flexShrink: 0, paddingHorizontal: 0, backgroundColor: 'transparent' },
+      ]}
     >
-      {/* Tab switches happen 100+ times a day, so nothing animates: the pill just moves. */}
-      <View>
-        <Icon color={color} filled={isFocused} knock={colors.foreground} />
-        {live && <View style={[styles.liveDot, { backgroundColor: colors.live }]} />}
-        {badge > 0 ? (
-          <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.badgeText, { color: colors.primaryForeground }]}>
-              {badge > 99 ? '99+' : badge}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-      {isFocused && (
-        <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>
-          {label}
-        </Text>
-      )}
-    </PressableScale>
+      <PressableScale
+        onPress={onPress}
+        scaleTo={BUTTON_PRESS_SCALE}
+        style={styles.tabPress}
+        accessibilityRole='tab'
+        accessibilityLabel={badge > 0 ? `${label}, ${badge} unread` : label}
+        accessibilityState={{ selected: isFocused }}
+      >
+        {/* Tab switches happen 100+ times a day, so nothing animates: the pill just moves. */}
+        <View>
+          <Icon color={color} filled={isFocused} knock={colors.foreground} />
+          {live && <View style={[styles.liveDot, { backgroundColor: colors.live }]} />}
+          {badge > 0 ? (
+            <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.badgeText, { color: colors.primaryForeground }]}>
+                {badge > 99 ? '99+' : badge}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        {isFocused && (
+          <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>
+            {label}
+          </Text>
+        )}
+      </PressableScale>
+    </View>
   );
 });
 
@@ -651,16 +668,14 @@ const styles = StyleSheet.create({
 
   pill: { flex: 1, height: PILL_HEIGHT },
   pillInner: { flexDirection: 'row', alignItems: 'center', padding: 5, gap: 2 },
-  tab: {
+  tab: { height: '100%', flexBasis: 'auto', minWidth: 40, borderRadius: 999 },
+  tabPress: {
     flex: 1,
-    height: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    borderRadius: 999,
   },
-  tabOn: { flex: 0, flexGrow: 0, paddingLeft: 12, paddingRight: 15 },
   tabLabel: { fontSize: 13.5, fontWeight: '700', letterSpacing: -0.1 },
   badge: {
     position: 'absolute',
