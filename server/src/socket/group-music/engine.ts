@@ -103,6 +103,7 @@ const startItem = (io: Server, group: MusicGroup, item: QueueItem, action: strin
   const now = Date.now();
   item.status = 'playing';
   group.current = item;
+  group.skipVotes = null;
   group.trackStartedAt = now;
   group.timeline = playFrom(0, now, leadFor('track', slowestRtt(group)));
   group.revs.playback++;
@@ -122,6 +123,7 @@ const startItem = (io: Server, group: MusicGroup, item: QueueItem, action: strin
 const stop = (io: Server, group: MusicGroup, action: string): void => {
   retireCurrent(group);
   group.current = null;
+  group.skipVotes = null;
   group.timeline = { ...STOPPED, anchorAt: Date.now() };
   group.revs.playback++;
   group.revs.queue++;
@@ -195,7 +197,7 @@ export const ensureRecommendations = async (
 export const advance = async (
   io: Server,
   group: MusicGroup,
-  options: { reason: 'ended' | 'skip'; expectedItemId?: string; by?: GroupMember }
+  options: { reason: 'ended' | 'skip' | 'vote'; expectedItemId?: string; by?: GroupMember }
 ): Promise<boolean> => {
   const finished = group.current;
   if (options.expectedItemId && finished?.id !== options.expectedItemId) return false;
@@ -214,9 +216,11 @@ export const advance = async (
 
   if (options.reason === 'skip' && finished) {
     emitActivityMessage(io, group.id, 'song-skipped', { userName: options.by?.userName });
+  } else if (options.reason === 'vote' && finished) {
+    emitActivityMessage(io, group.id, 'skipped-by-vote', { songName: songNameOf(finished) });
   }
 
-  const action = options.reason === 'skip' ? 'skip' : 'song-ended';
+  const action = options.reason === 'ended' ? 'song-ended' : 'skip';
   const next = group.upcoming.shift();
   if (next) startItem(io, group, next, action);
   else stop(io, group, action);

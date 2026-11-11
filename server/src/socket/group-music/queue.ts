@@ -1,6 +1,6 @@
 import {
+  canManage,
   generateQueueItemId,
-  isHost,
   type GroupMember,
   type MusicGroup,
   type QueueItem,
@@ -92,7 +92,7 @@ export const addSongs = (
   return added.length > 0 ? { added } : { added, error: error ?? 'invalid' };
 };
 
-/** People can take out what they added; the host can take out anything. */
+/** People can take out what they added; the host and co-hosts can take out anything. */
 export const removeUpcoming = (
   group: MusicGroup,
   itemId: string,
@@ -101,7 +101,8 @@ export const removeUpcoming = (
   const index = group.upcoming.findIndex((item) => item.id === itemId);
   if (index === -1) return 'not-found';
   const item = group.upcoming[index]!;
-  if (String(item.addedBy.userId) !== String(userId) && !isHost(group, userId)) return 'forbidden';
+  if (String(item.addedBy.userId) !== String(userId) && !canManage(group, userId))
+    return 'forbidden';
   group.upcoming.splice(index, 1);
   return null;
 };

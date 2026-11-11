@@ -1,6 +1,6 @@
 import type { Server, Socket } from 'socket.io';
 import { appendMessage, getHistory, toggleReaction } from './chat-history';
-import { generateMessageId, musicGroups, type MusicGroup } from './state';
+import { generateMessageId, isMuted, musicGroups, type MusicGroup } from './state';
 
 /**
  * Real-time room chat: messages, replies, message reactions, song reactions and typing.
@@ -91,10 +91,19 @@ const getChatGroup = (socket: Socket, groupId: string): MusicGroup | null => {
 };
 
 export const setupChatHandlers = (io: Server, socket: Socket, userId?: UserId): void => {
+  /** A host muted this person: they still listen, but don't chat or react. */
+  const mutedIn = (groupId: string | undefined) => {
+    const group = groupId ? musicGroups.get(groupId) : undefined;
+    if (!group || !isMuted(group, userId)) return false;
+    socket.emit('chat-blocked', { groupId, message: 'A host has muted you in this room' });
+    return true;
+  };
+
   socket.on('chat-message', (data: ChatMessageSocketData) => {
     const { groupId, messageType, gifUrl } = data;
     // Unknown groups keep the previous behaviour (message still relayed to the room).
     if (musicGroups.has(groupId) && !getChatGroup(socket, groupId)) return;
+    if (mutedIn(groupId)) return;
 
     const replyTo = sanitizeReply(data.replyTo);
 
@@ -132,6 +141,7 @@ export const setupChatHandlers = (io: Server, socket: Socket, userId?: UserId): 
   socket.on('message-reaction', async (data: MessageReactionSocketData) => {
     const { groupId, messageId, emoji } = data || ({} as MessageReactionSocketData);
     if (!groupId || typeof messageId !== 'string' || !isValidEmoji(emoji)) return;
+    if (mutedIn(groupId)) return;
 
     const group = getChatGroup(socket, groupId);
     const reactorId = userId ?? data.userId;
@@ -160,6 +170,7 @@ export const setupChatHandlers = (io: Server, socket: Socket, userId?: UserId): 
   // was registered twice, which delivered every reaction twice.
   socket.on('song-reaction', (data: Record<string, unknown> & { groupId: string }) => {
     if (!data?.groupId || !musicGroups.has(data.groupId) || !isValidEmoji(data.emoji)) return;
+    if (mutedIn(data.groupId)) return;
     socket.to(roomOf(data.groupId)).emit('song-reaction', {
       ...data,
       id: generateMessageId(),

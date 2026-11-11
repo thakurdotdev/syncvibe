@@ -17,8 +17,10 @@ import {
   shuffle,
 } from './engine';
 import { transferHost } from './host';
+import { removeFromRoom, setCoHost, setMuted, voteSkip, type ModerationError } from './moderation';
 import { QUEUE_ERROR_TEXT, type QueueError } from './queue';
 import {
+  canManage,
   findMember,
   isHost,
   musicGroups,
@@ -34,6 +36,7 @@ import {
 
 export type CommandError =
   | QueueError
+  | ModerationError
   | 'gone'
   | 'not-in-room'
   | 'host-only'
@@ -48,7 +51,8 @@ const ERROR_TEXT: Record<CommandError, string> = {
   ...QUEUE_ERROR_TEXT,
   gone: 'This room is no longer active',
   'not-in-room': 'You are not in this room',
-  'host-only': 'Only the host can do that',
+  'host-only': 'Only the hosts can do that',
+  'not-allowed': "You can't do that to this person",
   'rate-limited': 'Too many requests. Give it a moment.',
   'unknown-command': 'Unknown request',
 };
@@ -59,7 +63,8 @@ export const fail = (code: CommandError): CommandResult => ({
   code,
   error: ERROR_TEXT[code],
 });
-const done = (error: QueueError | null): CommandResult => (error ? fail(error) : OK);
+const done = (error: QueueError | ModerationError | null): CommandResult =>
+  error ? fail(error) : OK;
 
 export interface RoomCommand {
   groupId: string;
@@ -88,7 +93,7 @@ export const resolveMember = (
 };
 
 const mayControl = (group: MusicGroup, member: GroupMember) =>
-  group.settings.controlMode !== 'host' || isHost(group, member.userId);
+  group.settings.controlMode !== 'host' || canManage(group, member.userId);
 
 const isSong = (song: unknown): song is Record<string, unknown> =>
   typeof song === 'object' && song !== null && !Array.isArray(song);
@@ -101,6 +106,7 @@ export const runCommand = async (
   command: RoomCommand
 ): Promise<CommandResult> => {
   const host = isHost(group, member.userId);
+  const manager = canManage(group, member.userId);
   const control = mayControl(group, member);
 
   switch (command.type) {
@@ -138,7 +144,7 @@ export const runCommand = async (
     case 'add':
     case 'add-next':
     case 'add-many': {
-      if (!group.settings.allowAnyoneToAdd && !host) return fail('host-only');
+      if (!group.settings.allowAnyoneToAdd && !manager) return fail('host-only');
       const songs = command.type === 'add-many' ? command.songs : [command.song];
       if (!Array.isArray(songs) || !songs.every(isSong)) return fail('invalid');
       const { addedCount, error } = enqueue(
@@ -191,9 +197,26 @@ export const runCommand = async (
 
     case 'transfer-host':
       if (!host) return fail('host-only');
-      return command.userId != null && transferHost(io, group, command.userId)
+      return command.userId != null &&
+        transferHost(io, group, command.userId, { keepOldAsCoHost: true })
         ? OK
         : fail('not-found');
+
+    case 'set-cohost':
+      if (!host) return fail('host-only');
+      return done(setCoHost(io, group, member, command.userId, command.enabled !== false));
+
+    case 'mute':
+      if (!manager) return fail('host-only');
+      return done(setMuted(io, group, member, command.userId, command.enabled !== false));
+
+    case 'remove-member':
+      if (!manager) return fail('host-only');
+      return done(removeFromRoom(io, group, member, command.userId));
+
+    // Open to everyone: it's how people without control still get a say.
+    case 'vote-skip':
+      return done(await voteSkip(io, group, member, String(command.itemId ?? '')));
 
     default:
       return fail('unknown-command');

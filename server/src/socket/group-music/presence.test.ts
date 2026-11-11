@@ -36,6 +36,8 @@ const setup = (members: string[]) => {
   musicGroups.set(GROUP, {
     id: GROUP,
     members: members.map((userId) => ({ userId, userName: userId })),
+    coHosts: [],
+    skipVotes: null,
   } as any);
   members.forEach((userId) => trackUserGroup(userId, GROUP));
   const memberIds = () => musicGroups.get(GROUP)?.members.map((m) => String(m.userId));

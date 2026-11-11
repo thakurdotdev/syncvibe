@@ -1,6 +1,14 @@
 import type { Server } from 'socket.io';
 import { touchRoom } from './room-store';
-import { legacyRoomOf, musicGroups, syncRoomOf, type GroupMember, type MusicGroup } from './state';
+import {
+  legacyRoomOf,
+  liveSkipVotes,
+  musicGroups,
+  skipVotesNeeded,
+  syncRoomOf,
+  type GroupMember,
+  type MusicGroup,
+} from './state';
 
 /*
  * What devices are told. The room is sent as three parts, each whole and with its own revision:
@@ -30,9 +38,19 @@ const queuePart = (group: MusicGroup) => ({
   upcoming: group.upcoming,
 });
 
+const skipVotesPart = (group: MusicGroup) => {
+  const userIds = liveSkipVotes(group);
+  return userIds.length > 0 && group.current
+    ? { itemId: group.current.id, userIds, needed: skipVotesNeeded(group) }
+    : null;
+};
+
 const metaPart = (group: MusicGroup) => ({
   rev: group.revs.meta,
   hostId: group.createdBy,
+  coHosts: group.coHosts,
+  mutedIds: group.mutedIds,
+  skipVotes: skipVotesPart(group),
   settings: group.settings,
   maxMembers: group.maxMembers,
   features: group.features,
