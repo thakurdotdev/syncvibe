@@ -181,7 +181,7 @@ export const RoomHeader = memo(function RoomHeader({
       ? [
           {
             key: 'control',
-            label: hostOnly ? 'Let everyone control playback' : 'Only I control playback',
+            label: hostOnly ? 'Let everyone control playback' : 'Only hosts control playback',
             icon: hostOnly ? ('unlock' as const) : ('lock' as const),
             onPress: () => setControlMode(hostOnly ? 'everyone' : 'host'),
           },

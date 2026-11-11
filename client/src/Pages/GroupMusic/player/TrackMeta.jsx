@@ -50,7 +50,7 @@ const TrackMeta = ({
           {isLocked && !isSyncing && (
             <span className='inline-flex items-center gap-1 rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[11px] font-medium text-muted-foreground'>
               <Lock className='h-3 w-3' />
-              Host controls
+              Hosts control
             </span>
           )}
         </div>

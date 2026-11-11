@@ -19,6 +19,7 @@ const ChatPanel = ({
   onSendMessage,
   onReactToMessage,
   locked = false,
+  muted = false,
   typingUsers = {},
   onTypingStart,
   onTypingStop,
@@ -73,7 +74,8 @@ const ChatPanel = ({
       />
       <TypingIndicator names={typingNames} />
       <ChatComposer
-        disabled={locked}
+        disabled={locked || muted}
+        disabledLabel={muted && !locked ? 'A host muted you' : undefined}
         focusRequest={focusRequest}
         replyTarget={replyTarget}
         onCancelReply={cancelReply}

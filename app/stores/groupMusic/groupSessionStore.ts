@@ -93,6 +93,14 @@ interface GroupSessionActions {
   /** Who may control playback. Only the host can change it. */
   setControlMode: (socket: any, mode: 'everyone' | 'host') => void;
   transferHost: (socket: any, userId: number | string) => void;
+  /** Only the host makes co-hosts. */
+  setCoHost: (socket: any, userId: number | string, enabled: boolean) => void;
+  /** A muted person still listens but can't chat or react. */
+  muteMember: (socket: any, userId: number | string, enabled: boolean) => void;
+  /** Takes someone out of the room; an invite from a host lets them back. */
+  removeMember: (socket: any, userId: number | string) => void;
+  /** Votes to skip the song playing, or takes the vote back. */
+  voteSkip: (socket: any) => void;
 
   performSearch: (query: string) => Promise<void>;
   clearSearch: () => void;
@@ -318,6 +326,9 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
       currentGroup: {
         ...currentGroup,
         createdBy: part.hostId ?? currentGroup.createdBy,
+        coHosts: part.coHosts ?? currentGroup.coHosts ?? [],
+        mutedIds: part.mutedIds ?? currentGroup.mutedIds ?? [],
+        skipVotes: part.skipVotes ?? null,
         settings: { ...currentGroup.settings, ...part.settings },
         maxMembers: part.maxMembers ?? currentGroup.maxMembers,
         features: { ...currentGroup.features, ...part.features },
@@ -437,6 +448,30 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     const { currentGroup } = get();
     if (!currentGroup?.id || userId == null) return;
     void command(socket, currentGroup.id, 'transfer-host', { userId });
+  },
+
+  setCoHost: (socket, userId, enabled) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || userId == null) return;
+    void command(socket, currentGroup.id, 'set-cohost', { userId, enabled });
+  },
+
+  muteMember: (socket, userId, enabled) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || userId == null) return;
+    void command(socket, currentGroup.id, 'mute', { userId, enabled });
+  },
+
+  removeMember: (socket, userId) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || userId == null) return;
+    void command(socket, currentGroup.id, 'remove-member', { userId });
+  },
+
+  voteSkip: (socket) => {
+    const { currentGroup, currentItem } = get();
+    if (!currentGroup?.id || !currentItem) return;
+    void command(socket, currentGroup.id, 'vote-skip', { itemId: currentItem.id });
   },
 
   performSearch: async (query: string) => {

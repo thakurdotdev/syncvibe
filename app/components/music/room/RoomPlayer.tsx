@@ -95,8 +95,8 @@ const Reactions = memo(function Reactions() {
  */
 export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseSong: () => void }) {
   const { colors, theme } = useTheme();
-  const { handlePlayPause, handleSeek, skipSong } = useGroupMusic();
-  const { canControl } = useRoomControl();
+  const { handlePlayPause, handleSeek, skipSong, voteSkip } = useGroupMusic();
+  const { canControl, skipVote } = useRoomControl();
 
   const song = useGroupPlaybackStore((s) => s.currentSong);
   const isPlaying = useGroupPlaybackStore((s) => s.isPlaying);
@@ -165,7 +165,7 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
               <View style={styles.note}>
                 <Ionicons name='lock-closed' size={10} color={colors.mutedForeground} />
                 <Text style={[styles.noteText, { color: colors.mutedForeground }]}>
-                  Host controls playback
+                  Hosts control playback
                 </Text>
               </View>
             ) : addedBy ? (
@@ -195,17 +195,40 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
               />
             )}
           </PressableScale>
+          {/* Without control, skipping becomes a vote the room settles. */}
           <PressableScale
-            onPress={skipSong}
-            disabled={!canControl}
+            onPress={canControl ? skipSong : voteSkip}
             scaleTo={BUTTON_PRESS_SCALE}
             hitSlop={6}
             accessibilityRole='button'
-            accessibilityState={{ disabled: !canControl }}
-            accessibilityLabel='Skip to next song'
-            style={[styles.skip, !canControl && styles.locked]}
+            accessibilityState={{ selected: !canControl && skipVote.voted }}
+            accessibilityLabel={
+              canControl
+                ? 'Skip to next song'
+                : skipVote.voted
+                  ? 'Take back your vote to skip'
+                  : skipVote.count > 0 && skipVote.needed
+                    ? `Vote to skip, ${skipVote.count} of ${skipVote.needed}`
+                    : 'Vote to skip'
+            }
+            style={[
+              styles.skip,
+              !canControl && skipVote.voted && { backgroundColor: colors.raised },
+            ]}
           >
-            <Ionicons name='play-skip-forward' size={19} color={colors.foreground} />
+            <Ionicons
+              name='play-skip-forward'
+              size={19}
+              color={!canControl && !skipVote.voted ? colors.mutedForeground : colors.foreground}
+            />
+            {!canControl && skipVote.count > 0 ? (
+              <View style={[styles.voteBadge, { backgroundColor: colors.foreground }]}>
+                <Text style={[styles.voteText, { color: colors.background }]}>
+                  {skipVote.count}
+                  {skipVote.needed ? `/${skipVote.needed}` : ''}
+                </Text>
+              </View>
+            ) : null}
           </PressableScale>
         </View>
 
@@ -236,7 +259,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  skip: { width: 32, height: 44, alignItems: 'center', justifyContent: 'center' },
+  skip: {
+    width: 36,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voteBadge: {
+    position: 'absolute',
+    top: 2,
+    right: -4,
+    minWidth: 18,
+    height: 16,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voteText: { fontSize: 9.5, fontWeight: '700', fontVariant: ['tabular-nums'] },
   locked: { opacity: 0.4 },
   slider: { marginVertical: -11 },
   times: { flexDirection: 'row', justifyContent: 'space-between' },

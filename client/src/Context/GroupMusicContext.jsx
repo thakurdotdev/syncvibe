@@ -308,9 +308,22 @@ export function GroupMusicProvider({ children }) {
       }
     });
 
-    // Left on another device.
-    socket.on('left-group', ({ groupId }) => {
-      if (groupId === getGroupId()) ss.getState().resetSession(() => pb.getState().reset());
+    // Left on another device, or a host removed you.
+    socket.on('left-group', ({ groupId, removed }) => {
+      if (groupId !== getGroupId()) return;
+      ss.getState().resetSession(() => pb.getState().reset());
+      if (removed) toast.info('A host removed you from the room');
+    });
+
+    socket.on('join-refused', ({ message }) => {
+      ss.setState({ isRejoining: false });
+      ss.getState().clearSession();
+      if (ss.getState().currentGroup) ss.getState().resetSession(() => pb.getState().reset());
+      toast.error(message || 'You can’t join this room');
+    });
+
+    socket.on('chat-blocked', ({ groupId, message }) => {
+      if (groupId === getGroupId()) toast.error(message);
     });
 
     socket.on('member-presence', ({ userId, connected }) => {
@@ -520,6 +533,8 @@ export function GroupMusicProvider({ children }) {
         'group-rejoined',
         'group-not-found',
         'left-group',
+        'join-refused',
+        'chat-blocked',
         'device-replaced',
         'member-presence',
         'member-joined',
@@ -635,11 +650,48 @@ export function GroupMusicProvider({ children }) {
     [socket]
   );
 
-  const isHost =
-    user?.userid != null && String(session.currentGroup?.createdBy) === String(user.userid);
+  const wrappedSetCoHost = useCallback(
+    (userId, enabled) => useGroupSessionStore.getState().setCoHost(socket, userId, enabled),
+    [socket]
+  );
+
+  const wrappedMuteMember = useCallback(
+    (userId, enabled) => useGroupSessionStore.getState().muteMember(socket, userId, enabled),
+    [socket]
+  );
+
+  const wrappedRemoveMember = useCallback(
+    (userId) => useGroupSessionStore.getState().removeMember(socket, userId),
+    [socket]
+  );
+
+  const wrappedVoteSkip = useCallback(
+    () => useGroupSessionStore.getState().voteSkip(socket),
+    [socket]
+  );
+
+  const myId = user?.userid != null ? String(user.userid) : null;
+  /** The owner: changes the room's settings and makes co-hosts. */
+  const isHost = myId != null && String(session.currentGroup?.createdBy) === myId;
+  const coHosts = session.currentGroup?.coHosts;
+  const isCoHost = myId != null && Boolean(coHosts?.includes(myId));
+  /** The host or a co-host. */
+  const canManage = isHost || isCoHost;
+  const isMuted = myId != null && Boolean(session.currentGroup?.mutedIds?.includes(myId));
   const controlMode = session.currentGroup?.settings?.controlMode || 'everyone';
   /** Whether this person may play, pause, seek, skip and rearrange. Anyone can add songs. */
-  const canControl = controlMode !== 'host' || isHost;
+  const canControl = controlMode !== 'host' || canManage;
+  const rawSkipVotes = session.currentGroup?.skipVotes;
+  const currentItemId = session.currentItem?.id;
+  /** Votes to skip the song playing, for people who can't skip it themselves. */
+  const skipVote = useMemo(() => {
+    const live = rawSkipVotes?.itemId === currentItemId ? rawSkipVotes : null;
+    return {
+      count: live?.userIds?.length ?? 0,
+      needed: live?.needed ?? null,
+      voted: Boolean(myId && live?.userIds?.includes(myId)),
+    };
+  }, [rawSkipVotes, currentItemId, myId]);
 
   const wrappedReorderQueue = useCallback(
     (from, to) => session.reorderQueue(socket, from, to),
@@ -673,6 +725,10 @@ export function GroupMusicProvider({ children }) {
   const wrappedSendReaction = useCallback(
     (emoji) => {
       if (!socket || !session.currentGroup?.id || !user) return;
+      if (isMuted) {
+        toast.error('A host has muted you in this room');
+        return;
+      }
       const reactionData = {
         groupId: session.currentGroup.id,
         emoji,
@@ -689,7 +745,7 @@ export function GroupMusicProvider({ children }) {
         ],
       }));
     },
-    [socket, session.currentGroup?.id, user]
+    [socket, session.currentGroup?.id, user, isMuted]
   );
 
   const latestActionsRef = useRef(null);
@@ -752,10 +808,18 @@ export function GroupMusicProvider({ children }) {
     outputOffsetMs: playback.outputOffsetMs,
     setOutputOffset: playback.setOutputOffset,
     isHost,
+    isCoHost,
+    canManage,
+    isMuted,
     canControl,
     controlMode,
+    skipVote,
+    voteSkip: wrappedVoteSkip,
     setControlMode: wrappedSetControlMode,
     transferHost: wrappedTransferHost,
+    setCoHost: wrappedSetCoHost,
+    muteMember: wrappedMuteMember,
+    removeMember: wrappedRemoveMember,
 
     isGroupModalOpen: session.isGroupModalOpen,
     setIsGroupModalOpen: (v) => useGroupSessionStore.setState({ isGroupModalOpen: v }),

@@ -40,6 +40,7 @@ const ToolButton = ({ label, active, disabled, onClick, buttonRef, children }) =
  */
 const ChatComposer = ({
   disabled,
+  disabledLabel,
   focusRequest,
   onSendText,
   onSendMedia,
@@ -166,7 +167,11 @@ const ChatComposer = ({
           maxLength={MAX_LENGTH}
           disabled={disabled}
           placeholder={
-            disabled ? 'Chat is locked' : replyTarget ? 'Write a reply…' : 'Message the group…'
+            disabled
+              ? disabledLabel || 'Chat is locked'
+              : replyTarget
+                ? 'Write a reply…'
+                : 'Message the group…'
           }
           onChange={handleChange}
           onKeyDown={handleKeyDown}

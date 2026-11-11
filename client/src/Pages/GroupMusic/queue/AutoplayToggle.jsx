@@ -12,7 +12,7 @@ const AutoplayToggle = ({ enabled, onToggle, disabled = false, className }) => (
     aria-label='Autoplay'
     title={
       disabled
-        ? 'Only the host can change autoplay'
+        ? 'Only the hosts can change autoplay'
         : enabled
           ? 'Autoplay on: similar songs play when the queue ends'
           : 'Autoplay off'

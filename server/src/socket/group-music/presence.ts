@@ -11,6 +11,7 @@ import {
   syncRoomOf,
   TIME_TO_REJOIN,
   untrackUserGroup,
+  type MusicGroup,
 } from './state';
 
 /** How long a room outlives its last member, so one person's dropped signal doesn't end it. */
@@ -122,15 +123,33 @@ const expireIfEmpty = (groupId: string) => {
   }, EMPTY_ROOM_TTL);
 };
 
-const removeMember = (io: Server, groupId: string, userId: string | number) => {
-  const group = musicGroups.get(groupId);
-  if (!group) return;
+/**
+ * Takes someone out of a room for good. Being removed by a host also takes every device of theirs
+ * out of it and tells them; `left-group` is what older versions already act on.
+ */
+export const dropMember = (
+  io: Server,
+  group: MusicGroup,
+  userId: string | number,
+  options: { removed?: boolean } = {}
+) => {
+  const groupId = group.id;
   group.members = group.members.filter((m) => String(m.userId) !== String(userId));
   untrackUserGroup(userId, groupId);
+  cancelRemoval(groupId, userId);
+  if (options.removed) {
+    io.to(String(userId)).emit('left-group', { groupId, removed: true });
+    io.in(String(userId)).socketsLeave(allRoomsOf(groupId));
+  }
   io.to(roomOf(groupId)).emit('member-left', { userId });
   handleMemberGone(io, group, userId);
   touchRoom(group, 'core');
   if (group.members.length === 0) expireIfEmpty(groupId);
+};
+
+const removeMember = (io: Server, groupId: string, userId: string | number) => {
+  const group = musicGroups.get(groupId);
+  if (group) dropMember(io, group, userId);
 };
 
 /**

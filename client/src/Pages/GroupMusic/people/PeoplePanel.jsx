@@ -1,14 +1,102 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Crown, UserPlus } from 'lucide-react';
-import { memo, useMemo } from 'react';
+import {
+  Crown,
+  MessageSquare,
+  MessageSquareOff,
+  MoreHorizontal,
+  Shield,
+  ShieldOff,
+  UserMinus,
+  UserPlus,
+} from 'lucide-react';
+import { memo, useMemo, useState } from 'react';
 import { PanelBody } from '../components/Panel';
 import { getInitial } from '../utils/song';
 
 const isSameUser = (a, b) => a != null && b != null && String(a) === String(b);
+const inList = (list, id) => id != null && Boolean(list?.includes(String(id)));
 
-const MemberRow = memo(({ member, isHost, isYou, onMakeHost }) => (
+const statusOf = (member, role, muted) => {
+  if (member.connected === false) return 'Reconnecting…';
+  const label = role === 'host' ? 'Host' : role === 'cohost' ? 'Co-host' : 'Listening';
+  return muted ? `${label} · Muted` : label;
+};
+
+const MemberActions = ({ member, role, muted, actions, onConfirmRemove }) => {
+  const { canPromote, canModerate, onMakeHost, onSetCoHost, onMute } = actions;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type='button'
+          aria-label={`Options for ${member.userName}`}
+          className='flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground'
+        >
+          <MoreHorizontal className='h-4 w-4' />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align='end' className='w-52'>
+        {canPromote && (
+          <>
+            <DropdownMenuItem onSelect={() => onSetCoHost(member.userId, role !== 'cohost')}>
+              {role === 'cohost' ? (
+                <ShieldOff className='mr-2 h-4 w-4' />
+              ) : (
+                <Shield className='mr-2 h-4 w-4' />
+              )}
+              {role === 'cohost' ? 'Remove as co-host' : 'Make co-host'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onMakeHost(member.userId)}>
+              <Crown className='mr-2 h-4 w-4' />
+              Make host
+            </DropdownMenuItem>
+          </>
+        )}
+        {canPromote && canModerate && <DropdownMenuSeparator />}
+        {canModerate && (
+          <>
+            <DropdownMenuItem onSelect={() => onMute(member.userId, !muted)}>
+              {muted ? (
+                <MessageSquare className='mr-2 h-4 w-4' />
+              ) : (
+                <MessageSquareOff className='mr-2 h-4 w-4' />
+              )}
+              {muted ? 'Let them chat' : 'Mute in chat'}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => onConfirmRemove(member)}
+              className='text-destructive focus:bg-destructive/10 focus:text-destructive'
+            >
+              <UserMinus className='mr-2 h-4 w-4' />
+              Remove from room
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+const MemberRow = memo(({ member, role, muted, isYou, actions, onConfirmRemove }) => (
   <motion.li
     layout
     initial={{ opacity: 0 }}
@@ -40,34 +128,72 @@ const MemberRow = memo(({ member, isHost, isYou, onMakeHost }) => (
       <p
         className={cn(
           'flex items-center gap-1 text-[11px]',
-          isHost ? 'text-foreground' : 'text-muted-foreground'
+          role === 'listener' ? 'text-muted-foreground' : 'text-foreground'
         )}
       >
-        {isHost && <Crown className='h-3 w-3' aria-hidden='true' />}
-        {member.connected === false ? 'Reconnecting…' : isHost ? 'Host' : 'Listening'}
+        {role === 'host' && <Crown className='h-3 w-3' aria-hidden='true' />}
+        {role === 'cohost' && <Shield className='h-3 w-3' aria-hidden='true' />}
+        {statusOf(member, role, muted)}
       </p>
     </div>
-    {onMakeHost && !isHost && !isYou && (
-      <button
-        type='button'
-        onClick={() => onMakeHost(member.userId)}
-        title={`Hand the room over to ${member.userName}`}
-        className='flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-full bg-foreground/[0.06] px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground'
-      >
-        <Crown className='h-3 w-3' aria-hidden='true' />
-        Make host
-      </button>
+    {actions && (
+      <MemberActions
+        member={member}
+        role={role}
+        muted={muted}
+        actions={actions}
+        onConfirmRemove={onConfirmRemove}
+      />
     )}
   </motion.li>
 ));
 
-const PeoplePanel = ({ members, currentUserId, hostId, maxMembers, onInvite, onMakeHost }) => {
-  // Host first, then you, then everyone else in join order.
+/**
+ * Everyone in the room. The host can make co-hosts or hand the room over; the host and co-hosts
+ * can mute or remove listeners. The server checks all of it; this only decides what's offered.
+ */
+const PeoplePanel = ({
+  members,
+  currentUserId,
+  hostId,
+  coHosts,
+  mutedIds,
+  maxMembers,
+  onInvite,
+  onMakeHost,
+  onSetCoHost,
+  onMute,
+  onRemove,
+}) => {
+  const [removing, setRemoving] = useState(null);
+  const youAreHost = isSameUser(currentUserId, hostId);
+  const youAreCoHost = inList(coHosts, currentUserId);
+
+  const roleOf = (id) =>
+    isSameUser(id, hostId) ? 'host' : inList(coHosts, id) ? 'cohost' : 'listener';
+
+  // Host first, then co-hosts, then you, then everyone else in join order.
   const sortedMembers = useMemo(() => {
     const rank = (m) =>
-      isSameUser(m.userId, hostId) ? 0 : isSameUser(m.userId, currentUserId) ? 1 : 2;
+      isSameUser(m.userId, hostId)
+        ? 0
+        : inList(coHosts, m.userId)
+          ? 1
+          : isSameUser(m.userId, currentUserId)
+            ? 2
+            : 3;
     return [...members].sort((a, b) => rank(a) - rank(b));
-  }, [members, hostId, currentUserId]);
+  }, [members, hostId, coHosts, currentUserId]);
+
+  /** What you may do to this person, or null for nothing. */
+  const actionsFor = (member) => {
+    if (isSameUser(member.userId, currentUserId) || isSameUser(member.userId, hostId)) return null;
+    const role = roleOf(member.userId);
+    const canPromote = youAreHost && Boolean(onSetCoHost && onMakeHost);
+    const canModerate = youAreHost || (youAreCoHost && role === 'listener');
+    if (!canPromote && !canModerate) return null;
+    return { canPromote, canModerate, onMakeHost, onSetCoHost, onMute };
+  };
 
   const isFull = maxMembers > 0 && members.length >= maxMembers;
 
@@ -96,14 +222,37 @@ const PeoplePanel = ({ members, currentUserId, hostId, maxMembers, onInvite, onM
               <MemberRow
                 key={member.userId}
                 member={member}
-                isHost={isSameUser(member.userId, hostId)}
+                role={roleOf(member.userId)}
+                muted={inList(mutedIds, member.userId)}
                 isYou={isSameUser(member.userId, currentUserId)}
-                onMakeHost={onMakeHost}
+                actions={actionsFor(member)}
+                onConfirmRemove={setRemoving}
               />
             ))}
           </AnimatePresence>
         </ul>
       </PanelBody>
+
+      <AlertDialog open={Boolean(removing)} onOpenChange={(open) => !open && setRemoving(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {removing?.userName}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              They’ll leave the room on all their devices and can’t rejoin with the code. Invite
+              them to let them back in.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className='cursor-pointer'>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => removing && onRemove?.(removing.userId)}
+              className='cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

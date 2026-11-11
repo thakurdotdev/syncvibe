@@ -6,6 +6,7 @@ import { getUserPlanLimits } from '@/services/entitlement.service';
 import { GroupInvite } from '@/models/index';
 import {
   allRoomsOf,
+  canManage,
   musicGroups,
   generateGroupId,
   createGroupState,
@@ -54,6 +55,17 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
   /** Who is asking comes from the connection. A request naming someone else is ignored. */
   const isSelf = (claimed: string | number | undefined) =>
     userId != null && claimed != null && String(claimed) === String(userId);
+
+  /** Someone a host took out of the room stays out until a host invites them back. */
+  const wasRemoved = (removedIds: string[], groupId: string) => {
+    if (!removedIds.includes(String(userId))) return false;
+    socket.emit('join-refused', {
+      groupId,
+      reason: 'removed',
+      message: 'You were removed from this room. Ask a host to invite you back.',
+    });
+    return true;
+  };
 
   socket.on('create-music-group', async (data: CreateGroupSocketData) => {
     if (!isSelf(data?.createdBy)) return;
@@ -105,6 +117,8 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       return false;
     }
 
+    if (wasRemoved(group.removedIds, data.groupId)) return false;
+
     const existingMember = group.members.find((m) => String(m.userId) === String(data.userId));
     if (!existingMember && group.members.length >= group.maxMembers) {
       socket.emit('group-full', {
@@ -152,6 +166,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
     const group = musicGroups.get(data.groupId);
 
     if (group) {
+      if (wasRemoved(group.removedIds, data.groupId)) return;
       if (!claimRoomDevice(io, socket, data.groupId, data.userId, data.deviceId, false)) {
         socket.emit('device-replaced', { groupId: data.groupId });
         return;
@@ -263,6 +278,14 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
 
     if (group.members.length >= group.maxMembers) {
       socket.emit('invite-error', { error: 'Group is full' });
+      return;
+    }
+
+    // A host inviting someone they removed lets them back in.
+    if (canManage(group, userId)) {
+      group.removedIds = group.removedIds.filter((id) => id !== String(inviteeUserId));
+    } else if (group.removedIds.includes(String(inviteeUserId))) {
+      socket.emit('invite-error', { error: 'Only a host can invite them back' });
       return;
     }
 

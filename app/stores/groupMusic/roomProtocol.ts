@@ -1,7 +1,7 @@
 import type { Socket } from 'socket.io-client';
 import { addClockSample, clockRtt } from './roomClock';
 import type { RoomPlayback } from './roomSync';
-import type { GroupMember, QueueItem } from './types';
+import type { GroupMember, QueueItem, SkipVotes } from './types';
 
 /** Sent when joining, so the server speaks the current sync protocol to this device. */
 export const ROOM_PROTOCOL = 2;
@@ -27,6 +27,9 @@ export interface RoomQueuePart {
 export interface RoomMetaPart {
   rev: number;
   hostId: number | string;
+  coHosts?: string[];
+  mutedIds?: string[];
+  skipVotes?: SkipVotes | null;
   settings: {
     maxQueueSize: number;
     allowAnyoneToAdd: boolean;

@@ -173,6 +173,12 @@ The server owns what a room is playing; devices only ask for changes and follow.
   small gaps, a seek for large ones. `roomClock` and `roomSync` exist in both `client/` and `app/`
   with the same logic. **MUST** change them together.
 - **Identity and permissions** come from the socket (`commands.ts`), never from the payload.
+- **Roles:** one host (`createdBy`, the owner) and any number of co-hosts (`coHosts`). Both control
+  playback in host-only mode; only the host changes settings, makes co-hosts and hands the room over.
+  The host and co-hosts can mute (`mutedIds`, chat and reactions only) or remove listeners
+  (`removedIds`, lifted by a host's invite); only the host can do that to a co-host. Anyone may
+  `vote-skip`; votes lapse with the song. Rules are in `state.ts` (`canManage`, `outranks`) and
+  `moderation.ts`.
 - **Older installs:** `legacy-handlers.ts` and the legacy half of `broadcast.ts` keep app versions up
   to 1.6.x (and stale browser tabs) working in the same rooms. Don't remove them while such versions
   are in use, and keep the fields they read in `joinPayloadOf`.

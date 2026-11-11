@@ -108,7 +108,7 @@ const RoomMenu = ({
               onCheckedChange={(checked) => onSetControlMode?.(checked ? 'host' : 'everyone')}
               onSelect={(event) => event.preventDefault()}
             >
-              Only I control playback
+              Only hosts control playback
             </DropdownMenuCheckboxItem>
           )}
           {onSetOutputOffset && (

@@ -6,11 +6,16 @@ import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import type { GroupMember } from '@/stores/groupMusic/types';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import { Ionicons } from '@expo/vector-icons';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { FlatList, Image, StyleSheet, Text, View } from 'react-native';
 import { sameUser } from './chat/chatUtils';
+import MemberActionsSheet, { type MemberRole } from './MemberActionsSheet';
+import { useRoomControl } from './useRoomControl';
 
-/** Everyone in the room, host first, with a clear way to bring more people in. */
+/**
+ * Everyone in the room, host and co-hosts first, with a clear way to bring more people in. Tapping
+ * someone you can act on (as the host, anyone; as a co-host, listeners) opens their actions.
+ */
 export const PeoplePanel = memo(function PeoplePanel({
   onInvite,
   bottomInset = 0,
@@ -21,23 +26,59 @@ export const PeoplePanel = memo(function PeoplePanel({
   const { colors } = useTheme();
   const { user } = useUser();
   const members = useGroupSessionStore((s) => s.groupMembers);
-  const hostId = useGroupSessionStore((s) => s.currentGroup?.createdBy);
   const typing = useGroupSessionStore((s) => s.typingUsers);
-  const { transferHost } = useGroupMusic();
-  const youAreHost = sameUser(hostId, user?.userid);
+  const { transferHost, setCoHost, muteMember, removeMember } = useGroupMusic();
+  const {
+    hostId,
+    coHosts,
+    mutedIds,
+    isHost: youAreHost,
+    isCoHost: youAreCoHost,
+  } = useRoomControl();
+  const [selected, setSelected] = useState<GroupMember | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  // A fresh sheet per opening, so it starts on the actions rather than a confirmation left open.
+  const [opening, setOpening] = useState(0);
 
-  const sorted = [...members].sort(
-    (a, b) => Number(sameUser(b.userId, hostId)) - Number(sameUser(a.userId, hostId))
+  const roleOf = useCallback(
+    (id: number | string): MemberRole =>
+      sameUser(id, hostId) ? 'host' : coHosts.includes(String(id)) ? 'cohost' : 'listener',
+    [hostId, coHosts]
   );
+  const rank = (role: MemberRole) => (role === 'host' ? 0 : role === 'cohost' ? 1 : 2);
+  const sorted = [...members].sort((a, b) => rank(roleOf(a.userId)) - rank(roleOf(b.userId)));
+
+  const canModerate = useCallback(
+    (member: GroupMember) =>
+      !sameUser(member.userId, user?.userid) &&
+      roleOf(member.userId) !== 'host' &&
+      (youAreHost || (youAreCoHost && roleOf(member.userId) === 'listener')),
+    [user?.userid, roleOf, youAreHost, youAreCoHost]
+  );
+
+  const open = useCallback((member: GroupMember) => {
+    setSelected(member);
+    setOpening((n) => n + 1);
+    setSheetOpen(true);
+  }, []);
 
   const renderItem = useCallback(
     ({ item }: { item: GroupMember }) => {
-      const host = sameUser(item.userId, hostId);
+      const role = roleOf(item.userId);
+      const host = role === 'host';
       const you = sameUser(item.userId, user?.userid);
       const isTyping = Boolean(typing[String(item.userId)]);
       const away = item.connected === false;
+      const muted = mutedIds.includes(String(item.userId));
+      const actionable = canModerate(item);
       return (
-        <View style={[styles.row, away && styles.away]}>
+        <PressableScale
+          onPress={actionable ? () => open(item) : undefined}
+          disabled={!actionable}
+          accessibilityRole={actionable ? 'button' : undefined}
+          accessibilityHint={actionable ? 'Shows what you can do' : undefined}
+          style={[styles.row, away && styles.away]}
+        >
           <Image
             source={{ uri: getProfileCloudinaryUrl(item.profilePic) }}
             style={[styles.avatar, { backgroundColor: colors.muted }]}
@@ -57,7 +98,10 @@ export const PeoplePanel = memo(function PeoplePanel({
                   ? 'typing…'
                   : host
                     ? 'Hosting this room'
-                    : 'Listening'}
+                    : role === 'cohost'
+                      ? 'Co-hosting'
+                      : 'Listening'}
+              {muted ? ' · muted' : ''}
             </Text>
           </View>
           {host && (
@@ -66,50 +110,67 @@ export const PeoplePanel = memo(function PeoplePanel({
               <Text style={[styles.hostText, { color: colors.live }]}>Host</Text>
             </View>
           )}
-          {youAreHost && !host && !away && (
-            <PressableScale
-              onPress={() => transferHost(item.userId)}
-              accessibilityRole='button'
-              accessibilityLabel={`Make ${item.userName} the host`}
-              hitSlop={8}
-              style={[styles.hostChip, { backgroundColor: colors.raised }]}
-            >
-              <Text style={[styles.hostText, { color: colors.foreground }]}>Make host</Text>
-            </PressableScale>
+          {role === 'cohost' && (
+            <View style={[styles.hostChip, { backgroundColor: colors.raised }]}>
+              <Ionicons name='shield-half' size={11} color={colors.foreground} />
+              <Text style={[styles.hostText, { color: colors.foreground }]}>Co-host</Text>
+            </View>
           )}
-        </View>
+          {actionable && (
+            <Ionicons name='ellipsis-horizontal' size={18} color={colors.mutedForeground} />
+          )}
+        </PressableScale>
       );
     },
-    [colors, hostId, user?.userid, typing, youAreHost, transferHost]
+    [colors, user?.userid, typing, roleOf, mutedIds, canModerate, open]
   );
 
+  const selectedRole = selected ? roleOf(selected.userId) : 'listener';
+  const selectedId = selected?.userId;
+
   return (
-    <FlatList
-      data={sorted}
-      keyExtractor={(m) => String(m.userId)}
-      renderItem={renderItem}
-      contentContainerStyle={[styles.list, { paddingBottom: bottomInset + 16 }]}
-      ListHeaderComponent={
-        <PressableScale
-          onPress={onInvite}
-          accessibilityRole='button'
-          style={[styles.invite, { backgroundColor: colors.accent }]}
-        >
-          <View style={[styles.inviteIcon, { backgroundColor: colors.primary }]}>
-            <Ionicons name='person-add' size={18} color={colors.primaryForeground} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.inviteTitle, { color: colors.accentForeground }]}>
-              Invite friends
-            </Text>
-            <Text style={[styles.inviteText, { color: colors.accentForeground }]}>
-              Send an invite, share the code or show the QR.
-            </Text>
-          </View>
-          <Ionicons name='chevron-forward' size={18} color={colors.accentForeground} />
-        </PressableScale>
-      }
-    />
+    <>
+      <FlatList
+        data={sorted}
+        keyExtractor={(m) => String(m.userId)}
+        renderItem={renderItem}
+        contentContainerStyle={[styles.list, { paddingBottom: bottomInset + 16 }]}
+        ListHeaderComponent={
+          <PressableScale
+            onPress={onInvite}
+            accessibilityRole='button'
+            style={[styles.invite, { backgroundColor: colors.accent }]}
+          >
+            <View style={[styles.inviteIcon, { backgroundColor: colors.primary }]}>
+              <Ionicons name='person-add' size={18} color={colors.primaryForeground} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.inviteTitle, { color: colors.accentForeground }]}>
+                Invite friends
+              </Text>
+              <Text style={[styles.inviteText, { color: colors.accentForeground }]}>
+                Send an invite, share the code or show the QR.
+              </Text>
+            </View>
+            <Ionicons name='chevron-forward' size={18} color={colors.accentForeground} />
+          </PressableScale>
+        }
+      />
+      <MemberActionsSheet
+        key={opening}
+        isVisible={sheetOpen}
+        member={selected}
+        role={selectedRole}
+        muted={selectedId != null && mutedIds.includes(String(selectedId))}
+        canPromote={youAreHost}
+        canModerate={selected ? canModerate(selected) : false}
+        onClose={() => setSheetOpen(false)}
+        onSetCoHost={(enabled) => selectedId != null && setCoHost(selectedId, enabled)}
+        onMakeHost={() => selectedId != null && transferHost(selectedId)}
+        onMute={(enabled) => selectedId != null && muteMember(selectedId, enabled)}
+        onRemove={() => selectedId != null && removeMember(selectedId)}
+      />
+    </>
   );
 });
 
