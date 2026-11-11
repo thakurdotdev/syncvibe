@@ -20,6 +20,7 @@ import {
   ROW_PRESS_SCALE,
   SPRING_PRESS,
 } from '@/lib/motion';
+import { artAt, measureRect, openOrigin, orbOrigin } from '@/lib/playerMorph';
 import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE, SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { selectUnreadTotal, useChatStore } from '@/stores/chatStore';
 import { useDeckStore } from '@/stores/deckStore';
@@ -70,6 +71,12 @@ export const DECK_CLEARANCE = 172;
 export const DECK_NAV_HEIGHT = 70;
 
 const PILL_HEIGHT = 58;
+/** The orb's artwork, and the card's: matched by the full player's cover as it flies. */
+const ORB_ART = 44;
+const CARD_ART = 40;
+const CARD_ART_RADIUS = 11;
+const CARD_ART_INSET = 8;
+const CARD_RADIUS = 20;
 /** Space between the pill and the bottom inset. */
 const DECK_BOTTOM_GAP = 4;
 
@@ -120,6 +127,8 @@ type MiniPlayerRowProps = {
   handleNextSong: () => void;
   handlePrevSong: (force?: boolean) => void;
   colors: ReturnType<typeof useTheme>['colors'];
+  /** Opens the full player; the deck passes one that grows it out of this card. */
+  onOpen?: () => void;
 };
 
 const SWIPE_OPEN_DISTANCE = 24;
@@ -146,6 +155,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
   handleNextSong,
   handlePrevSong,
   colors,
+  onOpen = openFullPlayer,
 }: MiniPlayerRowProps) {
   const artistName = useMemo(
     () =>
@@ -221,7 +231,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
           scheduleOnRN(forward ? skipNext : skipPrev);
         }
       } else if (e.translationY < -SWIPE_OPEN_DISTANCE || e.velocityY < -SWIPE_OPEN_VELOCITY) {
-        scheduleOnRN(openFullPlayer);
+        scheduleOnRN(onOpen);
       }
     })
     .onFinalize(() => {
@@ -237,7 +247,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
     <GestureDetector gesture={swipe}>
       <View style={styles.miniRow}>
         <PressableScale
-          onPress={openFullPlayer}
+          onPress={onOpen}
           scaleTo={ROW_PRESS_SCALE}
           style={styles.miniSong}
           accessibilityRole='button'
@@ -1015,13 +1025,41 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     if (orbKind === 'idle' && !lastContext.includes('|idle|')) setGlowPlay((n) => n + 1);
   }
 
+  // Where the full player grows from and shrinks back into (lib/playerMorph).
+  const orbRef = useRef<View>(null);
+  const navRef = useRef<View>(null);
+  const cardRef = useRef<View>(null);
+  const measureOrb = useCallback(async () => {
+    const box = await measureRect(orbRef.current, PILL_HEIGHT / 2);
+    const origin = box ? { box, art: artAt(box, ORB_ART, ORB_ART / 2) } : null;
+    if (origin) orbOrigin.set(origin);
+    return origin;
+  }, []);
+  const openFrom = useCallback(
+    async (from: 'orb' | 'capsule' | 'card') => {
+      const orb = await measureOrb();
+      let origin = orb;
+      if (from === 'capsule') {
+        const box = await measureRect(navRef.current, PILL_HEIGHT / 2);
+        if (box && orb) origin = { box: { ...box, height: PILL_HEIGHT }, art: orb.art };
+      } else if (from === 'card') {
+        const box = await measureRect(cardRef.current, CARD_RADIUS);
+        if (box) origin = { box, art: artAt(box, CARD_ART, CARD_ART_RADIUS, CARD_ART_INSET) };
+      }
+      openOrigin.set(origin);
+      openFullPlayer();
+    },
+    [measureOrb]
+  );
+  const openFromCard = useCallback(() => void openFrom('card'), [openFrom]);
+
   const onOrbTap = useCallback(() => {
     if (expanded) collapse();
-    else if (orbKind === 'song') openFullPlayer();
+    else if (orbKind === 'song') void openFrom('orb');
     else if (orbKind === 'room') {
       if (!onRoomTab) router.navigate('/(tabs)/group-music');
     } else router.push('/search');
-  }, [expanded, collapse, orbKind, onRoomTab]);
+  }, [expanded, collapse, orbKind, onRoomTab, openFrom]);
   const onOrbHold = useCallback(() => {
     if (orbKind === 'song') expand(HOLD_SONG_MS);
   }, [orbKind, expand]);
@@ -1045,13 +1083,17 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   const onCapsuleKeepOpen = useCallback(() => expand(SHOW_SONG_MS), [expand]);
   const onCapsuleOpen = useCallback(() => {
     collapse();
-    openFullPlayer();
-  }, [collapse]);
+    void openFrom('capsule');
+  }, [collapse, openFrom]);
 
   const [navWidth, setNavWidth] = useState(0);
   const onNavLayout = useCallback(
-    (e: LayoutChangeEvent) => setNavWidth(e.nativeEvent.layout.width),
-    []
+    (e: LayoutChangeEvent) => {
+      setNavWidth(e.nativeEvent.layout.width);
+      // Kept current, so the player knows where to close into even if it opened another way.
+      void measureOrb();
+    },
+    [measureOrb]
   );
 
   // The selected-tab pill: measured from each tab's onLayout (once, not per frame), then slid with
@@ -1107,27 +1149,30 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
       style={[styles.deck, { bottom: Math.max(6, insets.bottom) + DECK_BOTTOM_GAP }]}
     >
       {cardKind && (
-        <DeckCard>
-          {cardKind === 'song' ? (
-            <>
-              <MiniPlayerRow
-                currentSong={currentSong}
-                isPlaying={isPlaying}
-                handlePlayPause={handlePlayPause}
-                handleNextSong={handleNextSong}
-                handlePrevSong={handlePrevSong}
-                colors={colors}
-              />
-              <MiniProgressBar color={colors.primary} trackColor={colors.hairline} />
-            </>
-          ) : (
-            <RoomCardRow colors={colors} />
-          )}
-        </DeckCard>
+        <View ref={cardRef} collapsable={false}>
+          <DeckCard>
+            {cardKind === 'song' ? (
+              <>
+                <MiniPlayerRow
+                  currentSong={currentSong}
+                  isPlaying={isPlaying}
+                  handlePlayPause={handlePlayPause}
+                  handleNextSong={handleNextSong}
+                  handlePrevSong={handlePrevSong}
+                  colors={colors}
+                  onOpen={openFromCard}
+                />
+                <MiniProgressBar color={colors.primary} trackColor={colors.hairline} />
+              </>
+            ) : (
+              <RoomCardRow colors={colors} />
+            )}
+          </DeckCard>
+        </View>
       )}
 
-      <View style={styles.navLine} onLayout={onNavLayout} pointerEvents='box-none'>
-        <View style={styles.orbSlot}>
+      <View ref={navRef} style={styles.navLine} onLayout={onNavLayout} pointerEvents='box-none'>
+        <View ref={orbRef} collapsable={false} style={styles.orbSlot}>
           <Orb
             kind={orbKind}
             artworkUri={artworkUri}

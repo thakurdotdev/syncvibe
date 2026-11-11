@@ -5,8 +5,10 @@ import { fonts } from '@/theme/typography';
 import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Animated, {
+  useAnimatedStyle,
+  type SharedValue,
   FadeIn,
   FadeInLeft,
   FadeInRight,
@@ -49,6 +51,10 @@ interface PlayerTabProps {
   bottomInset: number;
   isOpen: boolean;
   onOpenQueue: () => void;
+  /** 0 in the deck, 1 full screen. The cover hides until it's full: a copy flies in instead. */
+  morph: SharedValue<number>;
+  /** Where the cover sits, from the top of this tab: the flying copy lands there. */
+  onArtLayout: (top: number) => void;
 }
 
 /** Now playing: artwork, song, position, transport, and the way into the queue. */
@@ -64,6 +70,8 @@ export const PlayerTab = memo(function PlayerTab({
   bottomInset,
   isOpen,
   onOpenQueue,
+  morph,
+  onArtLayout,
 }: PlayerTabProps) {
   const { colors } = useTheme();
   const quiet = secondary(colors.foreground);
@@ -80,9 +88,16 @@ export const PlayerTab = memo(function PlayerTab({
   }
   const textMotion = TEXT_MOTION[direction];
 
+  const coverStyle = useAnimatedStyle(() => ({ opacity: morph.get() >= 1 ? 1 : 0 }));
+  // The art area centres the cover: it starts half the leftover height down.
+  const onArtAreaLayout = (e: LayoutChangeEvent) => {
+    const { y, height } = e.nativeEvent.layout;
+    onArtLayout(y + (height - artworkSize) / 2);
+  };
+
   return (
     <View style={[styles.root, { paddingBottom: Math.max(14, bottomInset + 6) }]}>
-      <View style={styles.artArea}>
+      <Animated.View style={[styles.artArea, coverStyle]} onLayout={onArtAreaLayout}>
         <ArtworkCarousel
           song={currentSong}
           prev={prevSong}
@@ -91,7 +106,7 @@ export const PlayerTab = memo(function PlayerTab({
           size={artworkSize}
           width={screenWidth}
         />
-      </View>
+      </Animated.View>
 
       <View style={styles.panel}>
         <Animated.View

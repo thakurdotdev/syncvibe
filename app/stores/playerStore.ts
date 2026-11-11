@@ -116,6 +116,7 @@ export let onOpenFullPlayer: (() => void) | null = null;
 export const setOnOpenFullPlayer = (cb: (() => void) | null) => {
   onOpenFullPlayer = cb;
 };
+/** Opens the full player. Where it grows from is set beforehand (lib/playerMorph). */
 export const openFullPlayer = () => {
   onOpenFullPlayer?.();
 };
