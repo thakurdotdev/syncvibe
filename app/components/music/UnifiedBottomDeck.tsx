@@ -91,6 +91,17 @@ const TAB_ITEMS: { name: string; label: string; Icon: TabIcon }[] = [
 
 type Colors = ReturnType<typeof useTheme>['colors'];
 
+/** Blends two `#RRGGBB` colours: `amount` 0 is `from`, 1 is `to`. */
+const mixHex = (from: string, to: string, amount: number) => {
+  const a = parseInt(from.slice(1, 7), 16);
+  const b = parseInt(to.slice(1, 7), 16);
+  const channel = (shift: number) =>
+    Math.round(((a >> shift) & 255) * (1 - amount) + ((b >> shift) & 255) * amount);
+  return `#${((channel(16) << 16) | (channel(8) << 8) | channel(0)).toString(16).padStart(6, '0')}`;
+};
+/** How much of the accent tints the selected tab: a touch more on dark, where it reads softer. */
+const TAB_TINT = { light: 0.14, dark: 0.22 };
+
 /** Thin line along the card's bottom edge. Glides between the 1s ticks (transform only). */
 const MiniProgressBar = memo(function MiniProgressBar({
   color,
@@ -630,6 +641,8 @@ type TabButtonProps = {
   label: string;
   Icon: TabIcon;
   colors: Colors;
+  /** The selected tab's pill: the bar's colour tinted with the accent. */
+  pillColor: string;
   live?: boolean;
   /** Unread count shown as a pill on the icon. */
   badge?: number;
@@ -643,6 +656,7 @@ const TabButton = memo(function TabButton({
   label,
   Icon,
   colors,
+  pillColor,
   live,
   badge = 0,
   onTabLayout,
@@ -668,7 +682,7 @@ const TabButton = memo(function TabButton({
             <Icon color={colors.mutedForeground} />
           </Animated.View>
           <Animated.View style={[styles.tabIconOn, TAB_ICON_FADE, { opacity: isFocused ? 1 : 0 }]}>
-            <Icon color={colors.background} filled knock={colors.foreground} />
+            <Icon color={colors.primary} filled knock={pillColor} />
           </Animated.View>
           {live && <View style={[styles.liveDot, { backgroundColor: colors.live }]} />}
           {badge > 0 ? (
@@ -951,6 +965,11 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   const { currentSong, isPlaying, activePlayerMode } = usePlaybackState();
   const { handlePlayPause, handleNextSong, handlePrevSong } = usePlayerControls();
   const fullPlayerOpen = useFullPlayerOpen((s) => s.open);
+  const { theme } = useTheme();
+  const tabPillColor = useMemo(
+    () => mixHex(colors.card, colors.primary, TAB_TINT[theme === 'dark' ? 'dark' : 'light']),
+    [colors.card, colors.primary, theme]
+  );
 
   const goHome = useCallback(() => router.navigate('/(tabs)/home'), []);
   const goGroup = useCallback(() => router.navigate('/(tabs)/group-music'), []);
@@ -1194,7 +1213,7 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
           >
             <Animated.View
               pointerEvents='none'
-              style={[styles.tabPill, { backgroundColor: colors.foreground }, pillStyle]}
+              style={[styles.tabPill, { backgroundColor: tabPillColor }, pillStyle]}
             />
             {TAB_ITEMS.map((tab, index) => (
               <TabButton
@@ -1206,6 +1225,7 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
                 Icon={tab.Icon}
                 isFocused={activeSegment === tab.name}
                 colors={colors}
+                pillColor={tabPillColor}
                 live={tab.name === 'group-music' && inRoom}
                 badge={tab.name === 'chat' ? unread : 0}
               />
