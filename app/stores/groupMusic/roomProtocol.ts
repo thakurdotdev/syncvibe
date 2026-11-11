@@ -126,8 +126,9 @@ export const queueViewOf = (currentItem: QueueItem | null, upcoming: QueueItem[]
   currentQueueIndex: currentItem ? 0 : -1,
 });
 
-/** One of your rooms as your other devices see it (server `socket/group-music/devices.ts`). */
-export interface MyRoom {
+/** A room you're in, as your other devices see it (server `socket/group-music/devices.ts`). */
+export interface JoinedRoom {
+  status: 'member';
   groupId: string;
   name: string;
   song: Song | null;
@@ -135,6 +136,17 @@ export interface MyRoom {
   /** Null while no device of yours is connected to the room. */
   device: { name: string; mobile: boolean } | null;
 }
+
+/** A room you were in lately and can go back to. */
+export interface FormerRoom {
+  status: 'left';
+  groupId: string;
+  name: string;
+  leftAt: number;
+  full: boolean;
+}
+
+export type MyRoom = JoinedRoom | FormerRoom;
 
 /**
  * Your rooms and the device each is playing on, so this one can offer to take one over.
@@ -149,3 +161,8 @@ export const fetchMyRooms = (socket: RoomSocket): Promise<MyRoom[] | null> =>
         resolve(err || !Array.isArray(reply?.rooms) ? null : reply.rooms);
       });
   });
+
+/** Stops offering a room you left, on all your devices. */
+export const forgetMyRoom = (socket: RoomSocket, groupId: string): void => {
+  if (socket?.connected && groupId) socket.emit('room:forget', { groupId });
+};

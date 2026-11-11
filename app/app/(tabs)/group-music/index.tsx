@@ -8,7 +8,7 @@ import { QRCodeModal } from '@/components/music/group/QRCodeModal';
 import { QueueSheet } from '@/components/music/group/QueueSheet';
 import { RoomScreen } from '@/components/music/room/RoomScreen';
 import { RoomsWelcome } from '@/components/music/room/RoomsWelcome';
-import { useRoomsElsewhere } from '@/components/music/room/useRoomsElsewhere';
+import { useMyRooms } from '@/components/music/room/useMyRooms';
 import { TabHeader } from '@/components/ui/AppHeader';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { useGroupMusic } from '@/context/GroupMusicContext';
@@ -44,7 +44,7 @@ export default function RoomsTab() {
   const isQueueOpen = useGroupSessionStore((s) => s.isQueueOpen);
   const isInviteSheetOpen = useGroupInviteStore((s) => s.isInviteSheetOpen);
   const { socket } = useChat();
-  const roomsElsewhere = useRoomsElsewhere(socket, currentGroup?.id);
+  const myRooms = useMyRooms(socket, currentGroup?.id);
 
   const [showQr, setShowQr] = useState(false);
   const [modalTab, setModalTab] = useState<'create' | 'join'>('create');
@@ -112,8 +112,9 @@ export default function RoomsTab() {
         <Reconnecting />
       ) : (
         <RoomsWelcome
-          roomsElsewhere={roomsElsewhere}
-          onPlayHere={joinGroup}
+          myRooms={myRooms.rooms}
+          onJoinRoom={joinGroup}
+          onDismissRoom={myRooms.dismiss}
           onStart={() => openModal('create')}
           onJoin={() => openModal('join')}
           onScan={() => setScanning(true)}

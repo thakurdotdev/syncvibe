@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { memo } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { cubicBezier, useReducedMotion } from 'react-native-reanimated';
-import { PlayingElsewhere } from './PlayingElsewhere';
+import { MyRooms } from './MyRooms';
 
 type Colors = ReturnType<typeof useTheme>['colors'];
 
@@ -126,18 +126,20 @@ const RoomPreview = memo(function RoomPreview({ colors }: { colors: Colors }) {
 });
 
 /**
- * Rooms tab when you're not in a room: your rooms playing on another device, a preview of the
- * room, what it has, and the ways in.
+ * Rooms tab when you're not in a room: ways back into your rooms (playing on another device, or
+ * left lately), a preview of the room, what it has, and the ways in.
  */
 export const RoomsWelcome = memo(function RoomsWelcome({
-  roomsElsewhere,
-  onPlayHere,
+  myRooms,
+  onJoinRoom,
+  onDismissRoom,
   onStart,
   onJoin,
   onScan,
 }: {
-  roomsElsewhere: MyRoom[];
-  onPlayHere: (groupId: string) => void;
+  myRooms: MyRoom[];
+  onJoinRoom: (groupId: string) => void;
+  onDismissRoom: (groupId: string) => void;
   onStart: () => void;
   onJoin: () => void;
   onScan: () => void;
@@ -151,7 +153,7 @@ export const RoomsWelcome = memo(function RoomsWelcome({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[styles.content, { paddingBottom: DECK_CLEARANCE }]}
     >
-      <PlayingElsewhere rooms={roomsElsewhere} onPlayHere={onPlayHere} />
+      <MyRooms rooms={myRooms} onJoin={onJoinRoom} onDismiss={onDismissRoom} />
 
       <View style={styles.hero}>
         <RoomPreview colors={colors} />
