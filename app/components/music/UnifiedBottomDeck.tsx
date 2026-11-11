@@ -11,7 +11,13 @@ import {
 import GlassSurface from '@/components/shell/GlassSurface';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
-import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE, SPRING_PRESS } from '@/lib/motion';
+import {
+  BUTTON_PRESS_SCALE,
+  EASE_IN_OUT,
+  EASE_OUT,
+  ROW_PRESS_SCALE,
+  SPRING_PRESS,
+} from '@/lib/motion';
 import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE, SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { selectUnreadTotal, useChatStore } from '@/stores/chatStore';
 import { useDeckStore, type DeckCardKind } from '@/stores/deckStore';
@@ -25,8 +31,15 @@ import {
 } from '@/stores/playerStore';
 import { useProgress } from '@rntp/player';
 import { router } from 'expo-router';
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  Image,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cubicBezier,
@@ -291,6 +304,18 @@ const CARD_TRANSITION = {
   transitionProperty: ['opacity', 'transform'],
   transitionTimingFunction: EASE,
 } as const;
+/**
+ * Switching tabs: Emil Kowalski's segmented-indicator recipe. Every tab is the same width; only the
+ * pill moves (translateX, 220ms ease-in-out, because it travels across the bar), and each icon
+ * cross-fades between its outline and filled form on the same clock, so it's never dark on glass
+ * mid-way. A fast second tap retargets from where the pill is. Reduce Motion makes it a jump.
+ */
+const TAB_MOVE = { duration: 220, easing: EASE_IN_OUT, reduceMotion: ReduceMotion.System } as const;
+const TAB_ICON_FADE = {
+  transitionProperty: 'opacity',
+  transitionDuration: 220,
+  transitionTimingFunction: cubicBezier(0.77, 0, 0.175, 1),
+} as const;
 const RING_R = 26.5;
 const RING_C = 2 * Math.PI * RING_R;
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -408,6 +433,7 @@ const Orb = memo(function Orb({
 });
 
 type TabButtonProps = {
+  name: string;
   isFocused: boolean;
   onPress: () => void;
   label: string;
@@ -416,9 +442,11 @@ type TabButtonProps = {
   live?: boolean;
   /** Unread count shown as a pill on the icon. */
   badge?: number;
+  onTabLayout: (name: string, x: number, width: number) => void;
 };
 
 const TabButton = memo(function TabButton({
+  name,
   isFocused,
   onPress,
   label,
@@ -426,25 +454,15 @@ const TabButton = memo(function TabButton({
   colors,
   live,
   badge = 0,
+  onTabLayout,
 }: TabButtonProps) {
-  // Selected: the pill inverts (foreground on background), so it reads on any glass.
-  const color = isFocused ? colors.background : colors.mutedForeground;
   return (
-    // Size and pill colour live on a plain View, every key set in both states. On the animated
-    // pressable, keys dropped when a tab lost focus (flex, padding) stuck, so visited tabs kept
-    // the selected width and squeezed the others.
+    // Same width selected or not, so nothing re-lays-out when you switch: the bar's pill moves.
     <View
-      style={[
-        styles.tab,
-        isFocused
-          ? {
-              flexGrow: 0,
-              flexShrink: 1,
-              paddingHorizontal: 12,
-              backgroundColor: colors.foreground,
-            }
-          : { flexGrow: 1, flexShrink: 0, paddingHorizontal: 0, backgroundColor: 'transparent' },
-      ]}
+      style={styles.tab}
+      onLayout={(e: LayoutChangeEvent) =>
+        onTabLayout(name, e.nativeEvent.layout.x, e.nativeEvent.layout.width)
+      }
     >
       <PressableScale
         onPress={onPress}
@@ -454,9 +472,13 @@ const TabButton = memo(function TabButton({
         accessibilityLabel={badge > 0 ? `${label}, ${badge} unread` : label}
         accessibilityState={{ selected: isFocused }}
       >
-        {/* Tab switches happen 100+ times a day, so nothing animates: the pill just moves. */}
-        <View>
-          <Icon color={color} filled={isFocused} knock={colors.foreground} />
+        <View style={styles.tabIcon}>
+          <Animated.View style={[TAB_ICON_FADE, { opacity: isFocused ? 0 : 1 }]}>
+            <Icon color={colors.mutedForeground} />
+          </Animated.View>
+          <Animated.View style={[styles.tabIconOn, TAB_ICON_FADE, { opacity: isFocused ? 1 : 0 }]}>
+            <Icon color={colors.background} filled knock={colors.foreground} />
+          </Animated.View>
           {live && <View style={[styles.liveDot, { backgroundColor: colors.live }]} />}
           {badge > 0 ? (
             <View style={[styles.badge, { backgroundColor: colors.primary }]}>
@@ -466,11 +488,6 @@ const TabButton = memo(function TabButton({
             </View>
           ) : null}
         </View>
-        {isFocused && (
-          <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>
-            {label}
-          </Text>
-        )}
       </PressableScale>
     </View>
   );
@@ -598,6 +615,46 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     ? currentSong?.image?.[1]?.link || currentSong?.image?.[2]?.link
     : roomSong?.image?.[1]?.link || roomSong?.image?.[2]?.link;
 
+  // The selected-tab pill: measured from each tab's onLayout (once, not per frame), then slid with
+  // translateX. Width follows too (absolute, no children, so it's safe) for a resize or rotation.
+  const tabLayouts = useRef<Record<string, { x: number; width: number }>>({});
+  const pillX = useSharedValue(0);
+  const pillW = useSharedValue(0);
+  const placed = useRef(false);
+  const movePill = useCallback(
+    (x: number, width: number) => {
+      if (!placed.current) {
+        pillX.set(x);
+        pillW.set(width);
+        placed.current = true;
+        return;
+      }
+      pillX.set(withTiming(x, TAB_MOVE));
+      pillW.set(withTiming(width, TAB_MOVE));
+    },
+    [pillX, pillW]
+  );
+  const activeRef = useRef(activeSegment);
+  useLayoutEffect(() => {
+    activeRef.current = activeSegment;
+  }, [activeSegment]);
+  const onTabLayout = useCallback(
+    (name: string, x: number, width: number) => {
+      tabLayouts.current[name] = { x, width };
+      if (name === activeRef.current) movePill(x, width);
+    },
+    [movePill]
+  );
+  useEffect(() => {
+    const l = tabLayouts.current[activeSegment];
+    if (l) movePill(l.x, l.width);
+  }, [activeSegment, movePill]);
+  const pillStyle = useAnimatedStyle(() => ({
+    opacity: pillW.get() > 0 ? 1 : 0,
+    transform: [{ translateX: pillX.get() }],
+    width: pillW.get(),
+  }));
+
   const onOrb = useCallback(() => {
     if (orbKind === 'idle') router.push('/search');
     else toggle(orbKind);
@@ -638,9 +695,15 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
           colors={colors}
         />
         <GlassSurface radius={PILL_HEIGHT / 2} style={styles.pill} contentStyle={styles.pillInner}>
+          <Animated.View
+            pointerEvents='none'
+            style={[styles.tabPill, { backgroundColor: colors.foreground }, pillStyle]}
+          />
           {TAB_ITEMS.map((tab, index) => (
             <TabButton
               key={tab.name}
+              name={tab.name}
+              onTabLayout={onTabLayout}
               onPress={handlers[index]}
               label={tab.label}
               Icon={tab.Icon}
@@ -668,7 +731,10 @@ const styles = StyleSheet.create({
 
   pill: { flex: 1, height: PILL_HEIGHT },
   pillInner: { flexDirection: 'row', alignItems: 'center', padding: 5, gap: 2 },
-  tab: { height: '100%', flexBasis: 'auto', minWidth: 40, borderRadius: 999 },
+  tab: { flex: 1, height: '100%' },
+  tabIcon: { width: 26, height: 26, alignItems: 'center', justifyContent: 'center' },
+  tabIconOn: { position: 'absolute' },
+  tabPill: { position: 'absolute', left: 0, top: 5, bottom: 5, borderRadius: 999 },
   tabPress: {
     flex: 1,
     flexDirection: 'row',
@@ -676,7 +742,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  tabLabel: { fontSize: 13.5, fontWeight: '700', letterSpacing: -0.1 },
   badge: {
     position: 'absolute',
     top: -6,

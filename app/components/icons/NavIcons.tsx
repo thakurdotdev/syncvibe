@@ -37,83 +37,78 @@ export const HomeIcon = memo(function HomeIcon({ size = 23, color, filled, knock
   );
 });
 
-/** One record playing out to both sides: listening together. */
-export const RoomsIcon = memo(function RoomsIcon({ size = 23, color, filled, knock }: IconProps) {
+/** Headphones: listening, together in a room. */
+export const RoomsIcon = memo(function RoomsIcon({ size = 23, color, filled }: IconProps) {
+  const fill = filled ? color : 'none';
   return (
     <Svg width={size} height={size} viewBox='0 0 24 24' fill='none'>
-      {filled ? (
-        <>
-          <Circle cx={12} cy={12} r={5.4} fill={color} />
-          <Circle cx={12} cy={12} r={1.3} fill={knock} />
-        </>
-      ) : (
-        <>
-          <Circle cx={12} cy={12} r={4.6} stroke={color} strokeWidth={STROKE} />
-          <Circle cx={12} cy={12} r={1} fill={color} />
-        </>
-      )}
       <Path
-        d='M5.4 7.6a8 8 0 0 0 0 8.8M18.6 7.6a8 8 0 0 1 0 8.8M2.9 5.4a12 12 0 0 0 0 13.2M21.1 5.4a12 12 0 0 1 0 13.2'
+        d='M4.5 14.5V12a7.5 7.5 0 0 1 15 0v2.5'
         stroke={color}
         strokeWidth={STROKE}
         strokeLinecap='round'
       />
+      <Rect
+        x={3.2}
+        y={13.2}
+        width={4.6}
+        height={7.3}
+        rx={2}
+        stroke={color}
+        strokeWidth={STROKE}
+        fill={fill}
+      />
+      <Rect
+        x={16.2}
+        y={13.2}
+        width={4.6}
+        height={7.3}
+        rx={2}
+        stroke={color}
+        strokeWidth={STROKE}
+        fill={fill}
+      />
     </Svg>
   );
 });
 
-/** Two spines and a record leaning on them. */
-export const LibraryIcon = memo(function LibraryIcon({
-  size = 23,
-  color,
-  filled,
-  knock,
-}: IconProps) {
-  const fill = filled ? color : 'none';
+/** A playlist: lines of songs and a note. */
+export const LibraryIcon = memo(function LibraryIcon({ size = 23, color, filled }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox='0 0 24 24' fill='none'>
-      <Rect
-        x={3.5}
-        y={4}
-        width={3.6}
-        height={16}
-        rx={1.2}
+      <Path
+        d='M3.5 6h11M3.5 11h11M3.5 16h6.5'
+        stroke={color}
+        strokeWidth={filled ? 2.3 : STROKE}
+        strokeLinecap='round'
+      />
+      <Path
+        d='M19 17.5V6.2l2.6 1.1'
         stroke={color}
         strokeWidth={STROKE}
-        fill={fill}
+        strokeLinecap='round'
+        strokeLinejoin='round'
       />
-      <Rect
-        x={9}
-        y={6.5}
-        width={3.6}
-        height={13.5}
-        rx={1.2}
+      <Circle
+        cx={16.5}
+        cy={17.5}
+        r={2.5}
         stroke={color}
         strokeWidth={STROKE}
-        fill={fill}
+        fill={filled ? color : 'none'}
       />
-      {filled ? (
-        <>
-          <Circle cx={17.2} cy={15.2} r={5.3} fill={color} />
-          <Circle cx={17.2} cy={15.2} r={1.2} fill={knock} />
-        </>
-      ) : (
-        <>
-          <Circle cx={17.2} cy={15.2} r={4.4} stroke={color} strokeWidth={STROKE} />
-          <Circle cx={17.2} cy={15.2} r={0.9} fill={color} />
-        </>
-      )}
     </Svg>
   );
 });
 
-/** A speech bubble holding a voice wave instead of three dots. */
+/** A speech bubble with typing dots. */
 export const MessagesIcon = memo(function MessagesIcon({
   size = 23,
   color,
   filled,
   knock,
 }: IconProps) {
+  const dot = filled ? knock : color;
   return (
     <Svg width={size} height={size} viewBox='0 0 24 24' fill='none'>
       <Path
@@ -123,12 +118,9 @@ export const MessagesIcon = memo(function MessagesIcon({
         strokeLinejoin='round'
         fill={filled ? color : 'none'}
       />
-      <Path
-        d='M8.6 11.4v.4M10.9 9.6v4M13.2 10.4v2.4M15.5 11.2v.8'
-        stroke={filled ? knock : color}
-        strokeWidth={filled ? 2 : STROKE}
-        strokeLinecap='round'
-      />
+      <Circle cx={8.4} cy={11.4} r={1.15} fill={dot} />
+      <Circle cx={12} cy={11.4} r={1.15} fill={dot} />
+      <Circle cx={15.6} cy={11.4} r={1.15} fill={dot} />
     </Svg>
   );
 });
