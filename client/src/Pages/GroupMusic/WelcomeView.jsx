@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Users, Radio, MessageCircle, Plus, LogIn } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { EASE_OUT } from '@/lib/motion';
-import PlayingElsewhere from './PlayingElsewhere';
+import MyRooms from './MyRooms';
 
 const FEATURE_CARDS = [
   { icon: Users, title: 'Listen', subtitle: 'Together' },
@@ -11,7 +11,7 @@ const FEATURE_CARDS = [
   { icon: MessageCircle, title: 'Group', subtitle: 'Chat' },
 ];
 
-const WelcomeView = ({ onOpenModal, roomsElsewhere = [], onPlayHere }) => {
+const WelcomeView = ({ onOpenModal, myRooms = [], onJoinRoom, onDismissRoom }) => {
   return (
     <motion.div
       key='welcome'
@@ -22,7 +22,7 @@ const WelcomeView = ({ onOpenModal, roomsElsewhere = [], onPlayHere }) => {
       className='flex flex-col items-center justify-center min-h-full py-8 px-4'
     >
       <div className='max-w-lg w-full flex flex-col items-center text-center'>
-        <PlayingElsewhere rooms={roomsElsewhere} onPlayHere={onPlayHere} />
+        <MyRooms rooms={myRooms} onJoin={onJoinRoom} onDismiss={onDismissRoom} />
 
         <div className='relative mb-8'>
           <div className='h-24 w-24 sm:h-28 sm:w-28 rounded-full bg-primary/10 flex items-center justify-center'>

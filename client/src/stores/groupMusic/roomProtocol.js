@@ -70,3 +70,8 @@ export const fetchMyRooms = (socket) =>
       resolve(err || !Array.isArray(reply?.rooms) ? null : reply.rooms);
     });
   });
+
+/** Stops offering a room you left, on all your devices. */
+export const forgetMyRoom = (socket, groupId) => {
+  if (socket?.connected && groupId) socket.emit('room:forget', { groupId });
+};

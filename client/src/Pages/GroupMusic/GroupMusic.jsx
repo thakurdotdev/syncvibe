@@ -6,7 +6,7 @@ import { memo, useCallback, useState } from 'react';
 import '../Music/music.css';
 import GlobalSoundAnimation from './GlobalSoundAnimation';
 import GroupModal from './GroupModal';
-import { useRoomsElsewhere } from './hooks/useRoomsElsewhere';
+import { useMyRooms } from './hooks/useMyRooms';
 import InviteSheet from './InviteSheet';
 import ArtworkBackdrop from './player/ArtworkBackdrop';
 import QRCodeDialog from './QRCodeDialog';
@@ -39,7 +39,7 @@ const GroupMusic = () => {
   } = useGroupMusic();
 
   const { socket } = useSocket();
-  const roomsElsewhere = useRoomsElsewhere(socket, currentGroup?.id);
+  const myRooms = useMyRooms(socket, currentGroup?.id);
 
   const [isQrCodeOpen, setIsQrCodeOpen] = useState(false);
   const [modalDefaultTab, setModalDefaultTab] = useState('join');
@@ -73,8 +73,9 @@ const GroupMusic = () => {
               <div className='h-full overflow-y-auto overscroll-contain'>
                 <WelcomeView
                   onOpenModal={openGroupModal}
-                  roomsElsewhere={roomsElsewhere}
-                  onPlayHere={joinGroup}
+                  myRooms={myRooms.rooms}
+                  onJoinRoom={joinGroup}
+                  onDismissRoom={myRooms.dismiss}
                 />
               </div>
             )}
