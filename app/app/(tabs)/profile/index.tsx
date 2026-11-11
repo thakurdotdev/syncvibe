@@ -7,12 +7,14 @@ import { UpdateCard } from '@/components/profile/UpdateCard';
 import { StackHeader } from '@/components/ui/AppHeader';
 import { Segmented, type SegmentOption } from '@/components/ui/Segmented';
 import { CURRENT_APP_VERSION, useAppUpdateStore } from '@/stores/appUpdateStore';
+import { GLASS_SUPPORTED } from '@/components/shell/GlassSurface';
+import { useDeckStore } from '@/stores/deckStore';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
 import { hasStoredSession } from '@/lib/auth-client';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 type ThemeChoice = 'light' | 'system' | 'dark';
 
@@ -30,6 +32,8 @@ export default function ProfileScreen() {
   const { user, logout, getProfile, loading } = useUser();
   const { colors, setTheme, themePreference } = useTheme();
   const isUpdateAvailable = useAppUpdateStore((s) => s.isUpdateAvailable);
+  const glass = useDeckStore((s) => s.glass);
+  const setGlass = useDeckStore((s) => s.setGlass);
   const [showDeveloper, setShowDeveloper] = useState(false);
 
   useEffect(() => {
@@ -98,6 +102,23 @@ export default function ProfileScreen() {
               </View>
             }
           />
+          {GLASS_SUPPORTED && (
+            <SettingsRow
+              icon='layers'
+              label='Glass bar'
+              detail='Blur behind the bottom bar'
+              onPress={() => setGlass(!glass)}
+              trailing={
+                <Switch
+                  value={glass}
+                  onValueChange={setGlass}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={colors.card}
+                  accessibilityLabel='Glass bar'
+                />
+              }
+            />
+          )}
           <SettingsRow
             icon='shield'
             label='Security'
