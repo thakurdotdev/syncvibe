@@ -260,7 +260,7 @@ const StartRoom = ({ collapsed }) => {
  */
 export const NowSlot = memo(({ collapsed }) => {
   const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
-  const hasSong = usePlayerStore((s) => Boolean(s.currentSong) && !s.isClosed);
+  const hasSong = usePlayerStore((s) => Boolean(s.currentSong));
 
   if (inRoom) return <RoomCard collapsed={collapsed} />;
   if (hasSong) return <PlayerCard collapsed={collapsed} />;

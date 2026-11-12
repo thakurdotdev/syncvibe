@@ -14,7 +14,6 @@ import {
 import { cn } from '@/lib/utils';
 import { AlbumCard, ArtistCard, NewSongCard, PlaylistCard } from '@/Pages/Music/Cards';
 import { QuickPicks, QuickPicksSkeleton, TrendingChart } from './HomeSections';
-import { ResumeSession } from './History';
 
 const Section = ({ title, children, className, link, linkText }) => (
   <section className={cn('space-y-3', className)}>
@@ -178,7 +177,6 @@ const HomePage = () => {
     <div className='pb-32'>
       <div className='mx-auto max-w-[1400px] space-y-8 px-4 py-5 md:space-y-10 md:px-8 md:py-8'>
         <Hero />
-        <ResumeSession />
         {reccLoading ? (
           <QuickPicksSkeleton />
         ) : (

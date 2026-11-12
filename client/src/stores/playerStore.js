@@ -48,34 +48,6 @@ export const usePlayerStore = create(
       },
       sleepTimerInterval: null,
       _hasRestoredTime: false,
-      isMinimized: (() => {
-        try {
-          const saved = localStorage.getItem('bottom-player-minimized');
-          return saved ? JSON.parse(saved) : false;
-        } catch {
-          return false;
-        }
-      })(),
-
-      setIsMinimized: (isMinimized) => {
-        localStorage.setItem('bottom-player-minimized', JSON.stringify(isMinimized));
-        set({ isMinimized });
-      },
-
-      isClosed: false,
-
-      closePlayer: () => {
-        if (routed('stop')) {
-          set({ isClosed: true });
-          return;
-        }
-        if (audioElement) {
-          audioElement.pause();
-        }
-        set({ isPlaying: false, isClosed: true });
-        recordPlayEnd('closed');
-      },
-
       setAudioRefs: (audio, nextAudio) => {
         audioElement = audio;
         nextAudioElement = nextAudio;
@@ -84,7 +56,7 @@ export const usePlayerStore = create(
       playSong: (song) => {
         if (!song?.id) return;
         if (routed('playSong', ensureHttpsForDownloadUrls(song))) return;
-        set({ isLoading: true, isClosed: false });
+        set({ isLoading: true });
         const secureAudio = ensureHttpsForDownloadUrls(song);
         const { playlist, currentSong } = get();
         if (currentSong?.id !== song.id) setPlayEndReason('selected', true);
@@ -108,11 +80,8 @@ export const usePlayerStore = create(
       },
 
       handlePlayPause: () => {
-        const { isPlaying, isClosed } = get();
+        const { isPlaying } = get();
         if (!audioElement) return;
-        if (isClosed) {
-          set({ isClosed: false });
-        }
         if (routed('playPause')) return;
         if (isPlaying) {
           audioElement.pause();
@@ -458,8 +427,8 @@ export const usePlayerStore = create(
       },
 
       loadAndPlayCurrentSong: async (prevSongId) => {
-        const { currentSong, currentTime, startAudio, _hasRestoredTime, isClosed } = get();
-        if (!audioElement || !currentSong || currentSong.id === prevSongId || isClosed) {
+        const { currentSong, currentTime, startAudio, _hasRestoredTime } = get();
+        if (!audioElement || !currentSong || currentSong.id === prevSongId) {
           return prevSongId;
         }
         // Shared between devices: the audio follows the server instead.
@@ -488,8 +457,6 @@ export const usePlayerStore = create(
         volume: state.volume,
         shuffleMode: state.shuffleMode,
         repeatMode: state.repeatMode,
-        isMinimized: state.isMinimized,
-        isClosed: state.isClosed,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
