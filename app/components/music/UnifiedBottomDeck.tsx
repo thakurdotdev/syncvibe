@@ -69,6 +69,7 @@ import Animated, {
   ZoomOut,
   useAnimatedReaction,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withDelay,
   withRepeat,
@@ -428,6 +429,17 @@ const SPIN_OUT = { duration: 160, easing: EASE_OUT, reduceMotion: ReduceMotion.S
 const BADGE_IN = ZoomIn.springify().damping(12).stiffness(260).reduceMotion(ReduceMotion.System);
 const BADGE_OUT = ZoomOut.duration(160).reduceMotion(ReduceMotion.System);
 
+/**
+ * Playing, the cover turns slowly like a record; paused, it eases to a stop, a touch smaller and
+ * dimmer. The stop carries on about as far as the record would coast.
+ */
+const RECORD_TURN_MS = 8000;
+const RECORD_COAST = { duration: 600, easing: EASE_OUT } as const;
+const RECORD_COAST_DEG = (360 / RECORD_TURN_MS) * (RECORD_COAST.duration / 2);
+const PAUSED_ART_SCALE = 0.9;
+const PAUSED_ART_OPACITY = 0.6;
+const PLAY_STATE = { duration: 280, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
+
 /** Progress around the orb, same glide as the card's line. While syncing, a spinner instead. */
 const OrbRing = memo(function OrbRing({
   color,
@@ -577,7 +589,9 @@ const Orb = memo(function Orb({
   colors,
   syncing,
   syncBadge,
+  playing,
 }: {
+  playing: boolean;
   syncing: boolean;
   syncBadge: SyncBadge | null;
   kind: OrbKind;
@@ -679,6 +693,35 @@ const Orb = memo(function Orb({
   const pressStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.get() * landScale.get() }],
   }));
+  // The record: turns while your song plays and the orb is in view, coasts to a stop on pause.
+  const reduceMotion = useReducedMotion();
+  const covered = useFullPlayerOpen((st) => st.open);
+  const spinning = kind === 'song' && playing && !covered && !reduceMotion;
+  const angle = useSharedValue(0);
+  const pausedLook = useSharedValue(kind === 'song' && !playing ? 1 : 0);
+  useEffect(() => {
+    const from = angle.get() % 360;
+    cancelAnimation(angle);
+    angle.set(from);
+    if (spinning) {
+      // Repeats from where it is, so a turn ends where the next begins.
+      angle.set(
+        withRepeat(withTiming(from + 360, { duration: RECORD_TURN_MS, easing: Easing.linear }), -1)
+      );
+    } else if (!reduceMotion) {
+      angle.set(withTiming(from + RECORD_COAST_DEG, RECORD_COAST));
+    }
+  }, [spinning, reduceMotion, angle]);
+  useEffect(() => {
+    pausedLook.set(withTiming(kind === 'song' && !playing ? 1 : 0, PLAY_STATE));
+  }, [kind, playing, pausedLook]);
+  const pausedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pausedLook.get(), [0, 1], [1, PAUSED_ART_OPACITY]),
+    transform: [{ scale: interpolate(pausedLook.get(), [0, 1], [1, PAUSED_ART_SCALE]) }],
+  }));
+  // Innermost, so a swipe still slides the cover straight sideways whatever its angle.
+  const turnStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${angle.get()}deg` }] }));
+
   const artStyle = useAnimatedStyle(() => ({
     opacity: interpolate(Math.abs(x.get()), [0, 30, SKIP_OUT_ORB], [1, 0.5, 0], 'clamp'),
     transform: [{ translateX: x.get() }],
@@ -743,17 +786,19 @@ const Orb = memo(function Orb({
               {kind === 'song' && (
                 <OrbRing color={colors.primary} trackColor={colors.hairline} syncing={syncing} />
               )}
-              <View style={styles.orbArtBox}>
+              <Animated.View style={[styles.orbArtBox, pausedStyle]}>
                 <Animated.View key={songId} entering={ORB_TURN_IN[direction]} style={styles.orbArt}>
                   <Animated.View style={[styles.orbArt, artStyle]}>
-                    <Image
-                      source={{ uri: artworkUri }}
-                      style={[styles.orbArt, { backgroundColor: colors.raised }]}
-                      fadeDuration={0}
-                    />
+                    <Animated.View style={[styles.orbArt, turnStyle]}>
+                      <Image
+                        source={{ uri: artworkUri }}
+                        style={[styles.orbArt, { backgroundColor: colors.raised }]}
+                        fadeDuration={0}
+                      />
+                    </Animated.View>
                   </Animated.View>
                 </Animated.View>
-              </View>
+              </Animated.View>
             </>
           )}
         </GlassSurface>
@@ -1365,6 +1410,7 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
             colors={colors}
             syncing={syncStatus === 'syncing'}
             syncBadge={syncBadge}
+            playing={isPlaying}
           />
         </View>
         <Animated.View style={[styles.pill, tabsStyle]} pointerEvents={expanded ? 'none' : 'auto'}>
