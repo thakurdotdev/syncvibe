@@ -69,6 +69,7 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
     setCoHost,
     muteMember,
     removeMember,
+    sendInvite,
     messages,
     sendMessage,
     sendMessageReaction,
@@ -166,7 +167,8 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
       coHosts={currentGroup?.coHosts}
       mutedIds={currentGroup?.mutedIds}
       maxMembers={maxMembers}
-      onInvite={onInvite}
+      pendingInvites={currentGroup?.pendingInvites}
+      onSendInvite={sendInvite}
       onMakeHost={isHost ? transferHost : undefined}
       onSetCoHost={isHost ? setCoHost : undefined}
       onMute={canManage ? muteMember : undefined}

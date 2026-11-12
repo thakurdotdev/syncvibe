@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { previewOf, useChatStore } from '@/stores/chatStore';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
+import PresenceDot from '../ui/presence-dot';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { ScrollArea, ScrollBar } from '../ui/scroll-area';
@@ -44,25 +45,19 @@ const Row = ({ person, selected, online, onSelect, title, subtitle, time, unread
         : 'text-foreground hover:bg-muted/70 dark:hover:bg-muted/50'
     )}
   >
-    <Avatar className='relative h-11 w-11 shrink-0 ring-1 ring-border/40 group-hover:ring-border/80'>
-      <AvatarImage
-        src={getProfileCloudinaryUrl(person?.profilepic)}
-        alt=''
-        className='h-11 w-11 rounded-full object-cover'
-      />
-      <AvatarFallback className='h-11 w-11 rounded-full bg-muted text-xs font-semibold'>
-        {person?.name?.[0] || 'U'}
-      </AvatarFallback>
-      {online != null && (
-        <span
-          title={online ? 'Online' : 'Offline'}
-          className={cn(
-            'absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background',
-            online ? 'bg-foreground' : 'bg-muted-foreground/30'
-          )}
+    <span className='relative shrink-0'>
+      <Avatar className='h-11 w-11 ring-1 ring-border/40 group-hover:ring-border/80'>
+        <AvatarImage
+          src={getProfileCloudinaryUrl(person?.profilepic)}
+          alt=''
+          className='h-11 w-11 rounded-full object-cover'
         />
-      )}
-    </Avatar>
+        <AvatarFallback className='h-11 w-11 rounded-full bg-muted text-xs font-semibold'>
+          {person?.name?.[0] || 'U'}
+        </AvatarFallback>
+      </Avatar>
+      <PresenceDot online={online} />
+    </span>
 
     <div className='ml-3 flex min-w-0 flex-1 flex-col'>
       <div className='flex items-center justify-between gap-1.5'>

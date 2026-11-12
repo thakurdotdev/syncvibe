@@ -1,6 +1,7 @@
 import type { Server } from 'socket.io';
 import { tellMembersRooms } from './devices';
 import { pendingRequestsOf } from './former';
+import { pendingInvitesOf } from './invites';
 import { touchRoom } from './room-store';
 import {
   legacyRoomOf,
@@ -54,6 +55,7 @@ const metaPart = (group: MusicGroup) => ({
   mutedIds: group.mutedIds,
   skipVotes: skipVotesPart(group),
   rejoinRequests: pendingRequestsOf(group),
+  pendingInvites: pendingInvitesOf(group),
   settings: group.settings,
   maxMembers: group.maxMembers,
   features: group.features,

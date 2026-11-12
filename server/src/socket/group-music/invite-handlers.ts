@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import { Op } from 'sequelize';
 import type { Server, Socket } from 'socket.io';
 import { getUserPlanLimits } from '@/services/entitlement.service';
-import { GroupInvite } from '@/models/index';
+import { GroupInvite, User } from '@/models/index';
 import {
   allRoomsOf,
   canManage,
@@ -21,6 +21,7 @@ import { joinPayloadOf, publicGroupOf } from './broadcast';
 import { tellFormerMembers, tellMyRooms } from './devices';
 import { forgetFormer, formerOf, noteDeparture, settleRequest } from './former';
 import { handleMemberGone, metaChanged, transferHost } from './host';
+import { INVITE_TTL_MS, noteInvite, settleInvite } from './invites';
 import { touchRoom } from './room-store';
 import { sendPushNotification } from '../notification';
 
@@ -69,6 +70,12 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       message: 'You were removed from this room. Ask a host to invite you back.',
     });
     return true;
+  };
+
+  /** Tells the room an invite was answered or taken up, if one was waiting. */
+  const endInvite = (groupId: string, inviteeId: string | number | undefined) => {
+    const group = musicGroups.get(groupId);
+    if (group && inviteeId != null && settleInvite(group, inviteeId)) metaChanged(io, group);
   };
 
   socket.on('create-music-group', async (data: CreateGroupSocketData) => {
@@ -150,6 +157,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
     trackUserGroup(data.userId, data.groupId);
     markMemberPresent(io, data.groupId, data.userId);
     if (!existingMember) touchRoom(group, 'core');
+    endInvite(data.groupId, data.userId);
 
     // Only to this device: sent to all of a user's devices, it pulled the others' screens and
     // audio into a room their connections weren't in.
@@ -228,6 +236,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       trackUserGroup(data.userId, data.groupId);
       markMemberPresent(io, data.groupId, data.userId);
       touchRoom(group, 'core');
+      endInvite(data.groupId, data.userId);
 
       socket.emit('group-rejoined', joinPayloadOf(group));
       tellMyRooms(io, data.userId);
@@ -296,6 +305,15 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       return;
     }
 
+    // Name and picture come from the account, not from whoever sent the invite.
+    const invitee = await User.findByPk(Number(inviteeUserId), {
+      attributes: ['userid', 'name', 'profilepic'],
+    }).catch(() => null);
+    if (!invitee) {
+      socket.emit('invite-error', { error: 'User not found' });
+      return;
+    }
+
     // A host inviting someone they removed lets them back in; only the host, for a former co-host.
     if (group.removedIds.includes(String(inviteeUserId))) {
       const mayLetIn = formerOf(group, inviteeUserId)?.wasCoHost
@@ -306,8 +324,22 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
         return;
       }
       group.removedIds = group.removedIds.filter((id) => id !== String(inviteeUserId));
-      if (settleRequest(group, inviteeUserId)) metaChanged(io, group);
+      settleRequest(group, inviteeUserId);
     }
+
+    const inviter = findMember(group, userId);
+    const invite = noteInvite(
+      group,
+      { userId: invitee.userid, userName: invitee.name, profilePic: invitee.profilepic },
+      { userId: userId!, userName: inviter?.userName ?? inviterName }
+    );
+    metaChanged(io, group);
+    setTimeout(() => {
+      const live = musicGroups.get(groupId);
+      // Only this invite: a newer one to the same person has its own timer.
+      if (live?.invites[invite.userId]?.invitedAt !== invite.invitedAt) return;
+      if (settleInvite(live, invite.userId)) metaChanged(io, live);
+    }, INVITE_TTL_MS + 1000).unref();
 
     const invitePayload = {
       groupId,
@@ -334,7 +366,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       inviterPic: inviterPic || null,
       inviteeId: Number(inviteeUserId),
       status: 'pending',
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      expiresAt: new Date(invite.expiresAt),
     }).catch((err: Error) => console.error('Failed to persist invite:', err));
   });
 
@@ -353,6 +385,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
 
   socket.on('decline-group-invite', (data: { groupId: string; inviterId?: string | number }) => {
     const { groupId, inviterId } = data;
+    endInvite(groupId, userId);
 
     if (inviterId) {
       io.to(String(inviterId)).emit('group-invite-declined', {

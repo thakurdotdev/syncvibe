@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import PresenceDot from '@/components/ui/presence-dot';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -46,12 +47,7 @@ const UserItem = memo(({ user, isOnline, onInvite, isInvited, isInGroup }) => {
             {user.name?.charAt(0)?.toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <span
-          className={cn(
-            'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card shadow-sm',
-            isOnline ? 'bg-foreground' : 'bg-muted-foreground/30'
-          )}
-        />
+        <PresenceDot online={isOnline} className='ring-card' />
       </div>
 
       {/* Info with better typography */}

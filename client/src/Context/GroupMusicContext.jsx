@@ -13,6 +13,7 @@ import { useSocket } from '@/Context/ChatContext';
 import { useProfile } from '@/Context/Context';
 import InviteNotification from '@/components/InviteNotification';
 import RejoinRequests from '@/Pages/GroupMusic/people/RejoinRequests';
+import { useRoomUi } from '@/Pages/GroupMusic/hooks/useRoomUi';
 import UpgradeDialog from '@/components/UpgradeDialog';
 import { useGroupInviteStore } from '@/stores/groupMusic/inviteStore';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/playbackStore';
@@ -272,7 +273,12 @@ export function GroupMusicProvider({ children }) {
     };
 
     socket.on('group-created', (group) => {
-      ss.getState().handleGroupCreated(group, user, (v) => inv.setState({ isInviteSheetOpen: v }));
+      // A new room starts on People with the invite search ready.
+      ss.getState().handleGroupCreated(
+        group,
+        user,
+        (open) => open && useRoomUi.getState().requestInviteFocus()
+      );
       enterRoom(group?.sync);
     });
 
@@ -488,7 +494,6 @@ export function GroupMusicProvider({ children }) {
       }
     });
 
-    socket.on('invite-sent', () => toast.success('Invite sent!'));
     socket.on('invite-error', ({ error }) => toast.error(error));
     socket.on('invite-accepted', ({ userName }) =>
       toast.success(`${userName} accepted the invite!`)
@@ -554,7 +559,6 @@ export function GroupMusicProvider({ children }) {
         'group-full',
         'feature-locked',
         'group-invite-received',
-        'invite-sent',
         'invite-error',
         'invite-accepted',
         'group-invite-declined',

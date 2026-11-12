@@ -1,10 +1,4 @@
-import {
-  canManage,
-  generateQueueItemId,
-  type GroupMember,
-  type MusicGroup,
-  type QueueItem,
-} from './state';
+import { generateQueueItemId, type GroupMember, type MusicGroup, type QueueItem } from './state';
 
 /*
  * The queue is the song that's on plus what comes after it. These only change the room's record;
@@ -96,13 +90,14 @@ export const addSongs = (
 export const removeUpcoming = (
   group: MusicGroup,
   itemId: string,
-  userId: string | number
+  userId: string | number,
+  /** Whoever may rearrange or clear the queue may also take any one song out of it. */
+  anyItem: boolean
 ): QueueError | null => {
   const index = group.upcoming.findIndex((item) => item.id === itemId);
   if (index === -1) return 'not-found';
   const item = group.upcoming[index]!;
-  if (String(item.addedBy.userId) !== String(userId) && !canManage(group, userId))
-    return 'forbidden';
+  if (!anyItem && String(item.addedBy.userId) !== String(userId)) return 'forbidden';
   group.upcoming.splice(index, 1);
   return null;
 };

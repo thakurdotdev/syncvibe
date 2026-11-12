@@ -7,7 +7,7 @@ import '../Music/music.css';
 import GlobalSoundAnimation from './GlobalSoundAnimation';
 import GroupModal from './GroupModal';
 import { useMyRooms } from './hooks/useMyRooms';
-import InviteSheet from './InviteSheet';
+import { useRoomUi } from './hooks/useRoomUi';
 import ArtworkBackdrop from './player/ArtworkBackdrop';
 import QRCodeDialog from './QRCodeDialog';
 import ReconnectingView from './room/ReconnectingView';
@@ -28,14 +28,10 @@ const GroupMusic = () => {
     currentGroup,
     currentSong,
     isRejoining,
-    groupMembers,
     isGroupModalOpen,
     setIsGroupModalOpen,
     createGroup,
     joinGroup,
-    isInviteSheetOpen,
-    setIsInviteSheetOpen,
-    sendInvite,
   } = useGroupMusic();
 
   const { socket } = useSocket();
@@ -52,7 +48,7 @@ const GroupMusic = () => {
     [setIsGroupModalOpen]
   );
   const closeGroupModal = useCallback(() => setIsGroupModalOpen(false), [setIsGroupModalOpen]);
-  const openInvite = useCallback(() => setIsInviteSheetOpen(true), [setIsInviteSheetOpen]);
+  const openInvite = useRoomUi((s) => s.requestInviteFocus);
   const openQrCode = useCallback(() => setIsQrCodeOpen(true), []);
   const closeQrCode = useCallback(() => setIsQrCodeOpen(false), []);
 
@@ -97,13 +93,6 @@ const GroupMusic = () => {
       {isQrCodeOpen && (
         <QRCodeDialog isOpen={isQrCodeOpen} onClose={closeQrCode} group={currentGroup} />
       )}
-
-      <InviteSheet
-        isOpen={isInviteSheetOpen}
-        onClose={setIsInviteSheetOpen}
-        groupMembers={groupMembers}
-        sendInvite={sendInvite}
-      />
 
       <GlobalSoundAnimation currentUserId={user?.userid} />
     </div>

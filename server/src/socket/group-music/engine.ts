@@ -354,10 +354,11 @@ export const removeItem = (
   io: Server,
   group: MusicGroup,
   itemId: string,
-  by: GroupMember
+  by: GroupMember,
+  anyItem: boolean
 ): QueueError | null => {
   const item = group.upcoming.find((entry) => entry.id === itemId);
-  const error = removeUpcoming(group, itemId, by.userId);
+  const error = removeUpcoming(group, itemId, by.userId, anyItem);
   if (error) return error;
   queueChanged(io, group, 'remove', by, { removedId: itemId });
   if (item) {
