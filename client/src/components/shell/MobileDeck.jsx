@@ -307,7 +307,6 @@ Capsule.displayName = 'Capsule';
 export const MobileDeck = memo(() => {
   const navigate = useNavigate();
   const currentSong = usePlayerStore((s) => s.currentSong);
-  const isClosed = usePlayerStore((s) => s.isClosed);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
   const roomSong = useGroupPlaybackStore((s) => s.currentSong);
@@ -315,7 +314,7 @@ export const MobileDeck = memo(() => {
   const setSheetOpen = useUiStore((s) => s.setPlayerSheetOpen);
   const setSearchOpen = useUiStore((s) => s.setSearchOpen);
 
-  const showSong = !inRoom && !!currentSong && !isClosed;
+  const showSong = !inRoom && !!currentSong;
   const kind = showSong ? 'song' : inRoom ? 'room' : 'idle';
   const song = showSong ? currentSong : inRoom ? roomSong : null;
 
@@ -389,7 +388,7 @@ export const MobileDeck = memo(() => {
       className='fixed inset-x-3 z-40 flex items-center gap-2 md:hidden'
       style={{ bottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}
     >
-      <div className='relative z-[2]'>
+      <div className='relative z-[2] flex'>
         <Orb
           kind={kind}
           art={artOf(song)}

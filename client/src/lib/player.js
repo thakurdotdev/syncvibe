@@ -135,8 +135,6 @@ const follow = () => {
     shuffleMode: playback.shuffle,
     repeatMode: playback.repeat,
     autoFetchRecommendations: playback.autoplay,
-    // Something new started: show the player again if it was closed.
-    ...(song && (song.id !== current?.id || playback.timeline.playing) ? { isClosed: false } : {}),
   });
 
   const active = isActive();
@@ -300,7 +298,7 @@ const playSong = (song) => {
   const list = pending;
   pending = null;
   // Shown at once; the server's answer follows within a moment.
-  usePlayerStore.setState({ currentSong: song, isClosed: false });
+  usePlayerStore.setState({ currentSong: song });
   if (list) {
     void loadSongs(
       list,
