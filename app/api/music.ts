@@ -46,6 +46,15 @@ export const getRecentMusic = async (api: any): Promise<RecentMusicResponse> => 
   return response.data.data;
 };
 
+/** Never recommend this song (or other versions of it) to me again. */
+export const dislikeSong = async (api: any, song: Song): Promise<void> => {
+  await api.post('/api/music/dislikes', { songData: song });
+};
+
+export const undoDislikeSong = async (api: any, songId: string): Promise<void> => {
+  await api.delete(`/api/music/dislikes/${encodeURIComponent(songId)}`);
+};
+
 export const getMusicHistory = async (
   api: any,
   params: MusicHistoryParams

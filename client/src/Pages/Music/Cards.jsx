@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { useDislikeSong } from '@/hooks/useDislikeSong';
 import { usePlayerStore } from '@/stores/playerStore';
 import AddToPlaylist from './AddToPlaylist';
 import { ensureHttpsForDownloadUrls } from './Common';
@@ -129,6 +130,7 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
   const [loading, setLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const dislike = useDislikeSong();
 
   if (!song?.id || !song?.image?.[2]) return null;
 
@@ -317,6 +319,17 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
                 >
                   Add to playlist
                 </DropdownMenuItem>
+                {(!song.type || song.type === 'song') && (
+                  <DropdownMenuItem
+                    className='rounded-lg cursor-pointer'
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dislike(song);
+                    }}
+                  >
+                    Don&apos;t recommend
+                  </DropdownMenuItem>
+                )}
                 {onRemoveFromPlaylist && (
                   <DropdownMenuItem
                     className='rounded-lg cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10'
@@ -362,6 +375,7 @@ export const NewSongCard = memo(({ song }) => {
   const [loading, setLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const dislike = useDislikeSong();
 
   if (!song?.id || !song?.image?.[2]) return null;
 
@@ -542,6 +556,16 @@ export const NewSongCard = memo(({ song }) => {
                   >
                     Add to playlist
                   </DropdownMenuItem>
+                  {(!song.type || song.type === 'song') && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        dislike(song);
+                      }}
+                    >
+                      Don&apos;t recommend
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { fn, col, QueryTypes } from 'sequelize';
+import { fn, col, Op, QueryTypes } from 'sequelize';
 import { Playlist, PlaylistSong, Song } from '@/models/index';
 import sequelize from '@/utils/sequelize';
 
@@ -93,7 +93,19 @@ export const addSongToPlaylist = async (req: Request, res: Response): Promise<vo
 
 export const removeSongFromPlaylist = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { playlistId, songId } = req.body as { playlistId: number; songId: string };
+    const { playlistId, songId, songIds } = req.body as {
+      playlistId: number;
+      songId?: string;
+      songIds?: string[];
+    };
+    // One song, or several picked together and confirmed once.
+    const ids = (Array.isArray(songIds) ? songIds : [songId])
+      .filter((id): id is string => typeof id === 'string' && id.length > 0)
+      .slice(0, 500);
+    if (ids.length === 0) {
+      res.status(400).json({ error: 'songId or songIds is required' });
+      return;
+    }
     const userId = req.user!.userid;
     const playlist = await Playlist.findOne({ where: { id: playlistId, userId } });
     if (!playlist) {
@@ -101,8 +113,15 @@ export const removeSongFromPlaylist = async (req: Request, res: Response): Promi
       return;
     }
 
-    await PlaylistSong.destroy({ where: { playlistId, songId } });
-    res.status(200).json({ message: 'Song removed from playlist' });
+    // Older rows may only point at the song by its catalog row.
+    const songs = await Song.findAll({ where: { songId: ids }, attributes: ['id'], raw: true });
+    const removed = await PlaylistSong.destroy({
+      where: {
+        playlistId,
+        [Op.or]: [{ songId: ids }, { songRefId: songs.map((song) => song.id) }],
+      },
+    });
+    res.status(200).json({ message: 'Removed from playlist', removed });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

@@ -1,6 +1,15 @@
 /** biome-ignore-all lint/a11y/useButtonType: <explanation> */
 
-import { ChevronDownIcon, Clock, Disc3, ListMusic, MoreHorizontal, User, X } from 'lucide-react';
+import {
+  ChevronDownIcon,
+  Clock,
+  Disc3,
+  ListMusic,
+  MoreHorizontal,
+  ThumbsDown,
+  User,
+  X,
+} from 'lucide-react';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -11,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { useDislikeSong } from '@/hooks/useDislikeSong';
 import { usePlayerStore } from '@/stores/playerStore';
 import SleepTimerDialog, { useSleepTimerLeft } from '../SleepTimer';
 import DesktopQueuePanel from './DesktopQueuePanel';
@@ -26,6 +36,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
   const onOpenSleepTimer = useCallback(() => setSleepTimerOpen(true), []);
   const playlistLength = usePlayerStore((s) => s.playlist.length);
   const navigate = useNavigate();
+  const dislike = useDislikeSong();
 
   useEffect(() => {
     if (isOpen) {
@@ -151,6 +162,13 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                       Go to Artist
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem
+                    onClick={() => dislike(currentSong)}
+                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
+                  >
+                    <ThumbsDown className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                    Don&apos;t recommend
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

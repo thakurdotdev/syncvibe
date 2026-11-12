@@ -1,4 +1,4 @@
-import { Clock, Disc3, ListMusic, MoreHorizontal, User } from 'lucide-react';
+import { Clock, Disc3, ListMusic, MoreHorizontal, ThumbsDown, User } from 'lucide-react';
 import { memo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useDislikeSong } from '@/hooks/useDislikeSong';
 import { usePlayerStore } from '@/stores/playerStore';
 import QueueActions from './QueueActions';
 import QueueTab from './QueueTab';
@@ -24,6 +25,7 @@ const DesktopQueuePanel = memo(
     handleGoToArtist,
   }) => {
     const playlistLength = usePlayerStore((s) => s.playlist.length);
+    const dislike = useDislikeSong();
 
     return (
       <TooltipProvider delayDuration={300}>
@@ -99,6 +101,13 @@ const DesktopQueuePanel = memo(
                       Go to Artist
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem
+                    onClick={() => dislike(currentSong)}
+                    className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
+                  >
+                    <ThumbsDown className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                    Don&apos;t recommend
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

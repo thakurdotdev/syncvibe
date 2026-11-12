@@ -2,6 +2,7 @@
 
 import {
   addToHistory,
+  dislikeSong,
   fetchSongRecommendations,
   getAlbumDetails,
   getArtistDetails,
@@ -11,9 +12,12 @@ import {
   getRecentMusic,
   getRelatedSongs,
   searchMusic,
+  undoDislikeSong,
 } from '@/api/music';
+import { toast } from '@/context/ToastContext';
 import { useUser } from '@/context/UserContext';
 import { Station, StationSource, uniqueSongs } from '@/lib/stations';
+import { usePlayerStore } from '@/stores/playerStore';
 import { MusicHistoryParams } from '@/types/music';
 import { Song } from '@/types/song';
 import useApi from '@/utils/hooks/useApi';
@@ -42,6 +46,36 @@ export const useRecentMusic = () => {
     enabled: !!user?.userid, // Only fetch if user is logged in
     staleTime: 90 * 1000,
     refetchOnMount: true,
+  });
+};
+
+/**
+ * "Don't recommend this song": saved on the server, so autoplay and Made for you leave it out on
+ * every device. It also leaves the queue now, and skips ahead if it is playing.
+ */
+export const useDislikeSong = () => {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (song: Song) => dislikeSong(api, song),
+    onSuccess: (_data, song) => {
+      const { currentSong, playlist, handleNextSong, removeFromQueue } = usePlayerStore.getState();
+      if (currentSong?.id === song.id && playlist.length > 1) handleNextSong();
+      removeFromQueue(song.id);
+      queryClient.invalidateQueries({ queryKey: ['recentMusic'] });
+      toast("We won't recommend this song again", {
+        action: {
+          label: 'Undo',
+          onPress: () => {
+            undoDislikeSong(api, song.id)
+              .then(() => queryClient.invalidateQueries({ queryKey: ['recentMusic'] }))
+              .catch(() => toast("Couldn't undo. Try again.", { type: 'error' }));
+          },
+        },
+      });
+    },
+    onError: () => toast("Couldn't save that. Try again.", { type: 'error' }),
   });
 };
 
