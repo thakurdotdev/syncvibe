@@ -32,6 +32,17 @@ export interface FormerMember {
   request?: RejoinRequest;
 }
 
+/** Someone invited to the room who hasn't joined or said no yet. */
+export interface PendingInvite {
+  userId: string;
+  userName: string;
+  profilePic?: string;
+  invitedById: string;
+  invitedByName?: string;
+  invitedAt: number;
+  expiresAt: number;
+}
+
 export interface QueueItem {
   id: string;
   song: Record<string, unknown>;
@@ -74,6 +85,8 @@ export interface MusicGroup {
   removedIds: string[];
   /** Who left, dropped out or was removed lately, by user id. Cleared when they're back. */
   formerMembers: Record<string, FormerMember>;
+  /** Invites still waiting, by the invitee's user id. */
+  invites: Record<string, PendingInvite>;
   skipVotes: SkipVotes | null;
   createdAt: number;
   members: GroupMember[];
@@ -304,6 +317,7 @@ export const createGroupState = (data: CreateGroupData): MusicGroup => ({
   mutedIds: [],
   removedIds: [],
   formerMembers: {},
+  invites: {},
   skipVotes: null,
   current: null,
   upcoming: [],
