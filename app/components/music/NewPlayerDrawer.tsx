@@ -1,6 +1,7 @@
 import { usePlayerControls, usePlaybackState, usePlaylistState } from '@/stores/playerStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupMusic } from '@/context/GroupMusicContext';
+import { useDislikeSong } from '@/queries/useMusic';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import { Song } from '@/types/song';
@@ -52,6 +53,7 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
   const { playlist } = usePlaylistState();
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const { addToQueue: addToGroupQueue, playNext: playNextInGroup } = useGroupMusic();
+  const { mutate: dislike } = useDislikeSong();
 
   const artistName = song.artist_map?.artists || [{ name: 'Unknown Artist', id: null }];
   const albumArt = song.image?.[2]?.link || song.image?.[1]?.link;
@@ -173,6 +175,16 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
                 onPress={() => handlePress(song.album_id, paths.albums)}
               />
             )}
+
+            <OptionRow
+              icon={<Feather name='thumbs-down' size={20} color={colors.foreground} />}
+              label="Don't Recommend"
+              color={colors.foreground}
+              onPress={() => {
+                dislike(song);
+                close();
+              }}
+            />
           </View>
         </View>
       </SwipeableModal>
