@@ -34,7 +34,6 @@ const QueuePanel = ({ className, bare = false }) => {
     shuffleQueue,
     playQueueItem,
     canControl,
-    canManage,
     playNow,
     playNext,
     addToQueue,
@@ -74,11 +73,11 @@ const QueuePanel = ({ className, bare = false }) => {
     [setQueueTab, clearSearch]
   );
 
-  // Same rule as the server: your own songs, or any song if you're the host or a co-host.
+  // Same rule as the server: your own songs, or any song if you can rearrange and clear the queue.
   const myId = user?.userid != null ? String(user.userid) : null;
   const canRemoveItem = useCallback(
-    (item) => canManage || (myId != null && String(item.addedBy?.userId) === myId),
-    [canManage, myId]
+    (item) => canControl || (myId != null && String(item.addedBy?.userId) === myId),
+    [canControl, myId]
   );
 
   const { dismiss: dismissRec, pinToSong } = recs;
