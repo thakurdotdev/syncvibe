@@ -1,6 +1,7 @@
 import { ArrowLeft, Video } from 'lucide-react';
 import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import PresenceDot from '../ui/presence-dot';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
@@ -25,13 +26,13 @@ const ChatHeader = ({ peer, online, typing, onBack, onOpenProfile, onCall }) => 
       className='flex min-w-0 cursor-pointer items-center gap-3 text-left'
       onClick={onOpenProfile}
     >
-      <Avatar className='relative h-11 w-11'>
-        <AvatarImage alt='' src={getProfileCloudinaryUrl(peer?.profilepic)} />
-        <AvatarFallback>{peer?.name?.[0] || 'U'}</AvatarFallback>
-        {online && (
-          <span className='absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2 border-card bg-foreground' />
-        )}
-      </Avatar>
+      <span className='relative shrink-0'>
+        <Avatar className='h-11 w-11'>
+          <AvatarImage alt='' src={getProfileCloudinaryUrl(peer?.profilepic)} />
+          <AvatarFallback>{peer?.name?.[0] || 'U'}</AvatarFallback>
+        </Avatar>
+        <PresenceDot online={online} className='ring-card' />
+      </span>
 
       <div className='flex min-w-0 flex-col justify-center'>
         <div className='truncate text-base font-medium text-foreground'>{peer?.name}</div>

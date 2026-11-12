@@ -4,6 +4,7 @@ import { memo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ProfileDropdownMenu from '@/components/ProfileDropdownMenu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import PresenceDot from '@/components/ui/presence-dot';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useUserPlaylistsQuery } from '@/hooks/queries/usePlaylistQueries';
 import { paths } from '@/lib/paths';
@@ -305,9 +306,7 @@ const People = ({ people, total }) => {
                       ))}
                     </span>
                   ) : (
-                    p.isOnline && (
-                      <span className='absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-foreground' />
-                    )
+                    <PresenceDot online={p.isOnline} className='h-2.5 w-2.5 ring-sidebar' />
                   )}
                 </button>
               </Tip>
