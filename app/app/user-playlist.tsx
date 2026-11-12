@@ -2,7 +2,10 @@ import PressableScale from '@/components/ui/PressableScale';
 import { Song } from '@/types/song';
 import { blurredArt } from '@/lib/artwork';
 import { SONG_LIST_WINDOW } from '@/lib/lists';
-import { SongCard } from '@/components/music/MusicCards';
+import SwipeableModal from '@/components/SwipeableModal';
+import { PlaylistSongRow } from '@/components/music/playlist/PlaylistSongRow';
+import { SheetLayout } from '@/components/security/SheetLayout';
+import { Button } from '@/components/ui/button';
 import { usePlayerControls } from '@/stores/playerStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupMusic } from '@/context/GroupMusicContext';
@@ -13,7 +16,7 @@ import useApi from '@/utils/hooks/useApi';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -29,8 +32,9 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import { StackHeader } from '@/components/ui/AppHeader';
+import { HEADER_HEIGHT, HeaderIconButton, StackHeader } from '@/components/ui/AppHeader';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type PlaylistSong = {
   id: string;
@@ -47,10 +51,6 @@ type PlaylistData = {
   songs: PlaylistSong[];
 };
 
-const renderPlaylistSong = ({ item }: { item: { songData: Song } }) => (
-  <SongCard song={item.songData} />
-);
-
 export default function UserPlaylistDetails() {
   const api = useApi();
   const { colors, theme } = useTheme();
@@ -63,6 +63,15 @@ export default function UserPlaylistDetails() {
 
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const { addPlaylistToQueue } = useGroupMusic();
+  const insets = useSafeAreaInsets();
+
+  // Picking several songs, then removing them with one confirmation.
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  // Songs waiting for "Remove?" to be answered.
+  const [pendingRemoval, setPendingRemoval] = useState<Song[] | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const cancelSwipe = useRef<(() => void) | undefined>(undefined);
 
   const fetchPlaylistData = useCallback(async () => {
     try {
@@ -83,6 +92,70 @@ export default function UserPlaylistDetails() {
       fetchPlaylistData();
     }
   }, [id, fetchPlaylistData]);
+
+  const toggleSelected = useCallback((songId: string) => {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(songId)) next.delete(songId);
+      else next.add(songId);
+      return next;
+    });
+  }, []);
+
+  const stopSelecting = useCallback(() => {
+    setSelecting(false);
+    setSelected(new Set());
+  }, []);
+
+  const askToRemove = useCallback((song: Song, cancel?: () => void) => {
+    cancelSwipe.current = cancel;
+    setPendingRemoval([song]);
+  }, []);
+
+  const closeConfirm = useCallback(() => {
+    if (removing) return;
+    cancelSwipe.current?.();
+    cancelSwipe.current = undefined;
+    setPendingRemoval(null);
+  }, [removing]);
+
+  const confirmRemoval = useCallback(async () => {
+    if (!pendingRemoval?.length) return;
+    const songIds = pendingRemoval.map((song) => song.id);
+    setRemoving(true);
+    try {
+      await api.post('/api/playlist/remove-song', { playlistId: Number(id), songIds });
+      const gone = new Set(songIds);
+      setPlaylistData((current) =>
+        current
+          ? { ...current, songs: current.songs.filter((s) => !gone.has(s.songData?.id)) }
+          : current
+      );
+      toast(songIds.length === 1 ? 'Removed from playlist' : `Removed ${songIds.length} songs`, {
+        type: 'success',
+      });
+      cancelSwipe.current = undefined;
+      setPendingRemoval(null);
+      stopSelecting();
+    } catch {
+      toast("Couldn't remove. Try again.", { type: 'error' });
+    } finally {
+      setRemoving(false);
+    }
+  }, [api, id, pendingRemoval, stopSelecting]);
+
+  const renderSong = useCallback(
+    ({ item }: { item: PlaylistSong }) => (
+      <PlaylistSongRow
+        song={item.songData}
+        selecting={selecting}
+        selected={selected.has(item.songData?.id)}
+        onToggle={toggleSelected}
+        onRemove={askToRemove}
+      />
+    ),
+    [selecting, selected, toggleSelected, askToRemove]
+  );
 
   const handlePlayAll = useCallback(() => {
     if (playlistData?.songs?.length) {
@@ -155,6 +228,8 @@ export default function UserPlaylistDetails() {
   }
 
   const songCount = playlistData?.songs?.length || 0;
+  const allSelected = songCount > 0 && selected.size === songCount;
+  const removalCount = pendingRemoval?.length ?? 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -172,15 +247,26 @@ export default function UserPlaylistDetails() {
       {/* Shared header: same back button and title reveal as every pushed page */}
       <StackHeader
         overlay
-        title={playlistData?.name || 'User Playlist'}
-        titleStyle={topTitleAnimatedStyle}
+        title={selecting ? `${selected.size} selected` : playlistData?.name || 'User Playlist'}
+        titleStyle={selecting ? undefined : topTitleAnimatedStyle}
+        right={
+          songCount ? (
+            <HeaderIconButton
+              icon={selecting ? 'close' : 'checkmark-done'}
+              label={selecting ? 'Stop selecting' : 'Select songs'}
+              tone='overlay'
+              onPress={selecting ? stopSelecting : () => setSelecting(true)}
+            />
+          ) : undefined
+        }
       />
 
       <Animated.FlatList
         data={playlistData?.songs}
-        renderItem={renderPlaylistSong}
+        renderItem={renderSong}
+        extraData={selected}
         {...SONG_LIST_WINDOW}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         style={{ paddingHorizontal: 16 }}
@@ -287,6 +373,66 @@ export default function UserPlaylistDetails() {
           </View>
         }
       />
+
+      {selecting && (
+        <View
+          style={[
+            styles.selectionBar,
+            {
+              // Under the header: the mini player and tabs cover the bottom of this page.
+              top: insets.top + HEADER_HEIGHT + 4,
+              backgroundColor: colors.raised,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Button
+            variant='ghost'
+            onPress={() =>
+              setSelected(
+                allSelected
+                  ? new Set()
+                  : new Set((playlistData?.songs ?? []).map((s) => s.songData?.id).filter(Boolean))
+              )
+            }
+          >
+            {allSelected ? 'Clear' : 'Select all'}
+          </Button>
+          <Button
+            variant='destructive'
+            disabled={selected.size === 0}
+            onPress={() =>
+              setPendingRemoval(
+                (playlistData?.songs ?? [])
+                  .map((s) => s.songData)
+                  .filter((song) => song && selected.has(song.id))
+              )
+            }
+          >
+            {selected.size ? `Remove (${selected.size})` : 'Remove'}
+          </Button>
+        </View>
+      )}
+
+      <SwipeableModal isVisible={removalCount > 0} onClose={closeConfirm} dragAnywhere>
+        <SheetLayout
+          icon='trash-2'
+          tone='destructive'
+          title={removalCount === 1 ? 'Remove this song?' : `Remove ${removalCount} songs?`}
+          description={
+            removalCount === 1
+              ? `“${pendingRemoval?.[0]?.name}” will be taken off “${playlistData?.name}”.`
+              : `They will be taken off “${playlistData?.name}”.`
+          }
+        >
+          <Button size='lg' variant='destructive' isLoading={removing} onPress={confirmRemoval}>
+            {removalCount === 1 ? 'Remove song' : `Remove ${removalCount} songs`}
+          </Button>
+          <Button size='lg' variant='ghost' disabled={removing} onPress={closeConfirm}>
+            Keep {removalCount === 1 ? 'it' : 'them'}
+          </Button>
+        </SheetLayout>
+      </SwipeableModal>
     </View>
   );
 }
@@ -410,6 +556,24 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: DECK_CLEARANCE,
+  },
+  selectionBar: {
+    position: 'absolute',
+    zIndex: 10,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
   },
   emptySongsContainer: {
     alignItems: 'center',

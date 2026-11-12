@@ -214,7 +214,8 @@ export const SongCard = memo(
     song,
     disableOnLongPress = false,
     onPress: onPressCallback,
-  }: SongCardProps & { disableOnLongPress?: boolean }) => {
+    onRemoveFromPlaylist,
+  }: SongCardProps & { disableOnLongPress?: boolean; onRemoveFromPlaylist?: () => void }) => {
     const { isCurrentSong, isPlaying } = useSongPlaybackState(song.id);
     const { colors, theme } = useTheme();
     const isDark = theme === 'dark';
@@ -317,6 +318,7 @@ export const SongCard = memo(
             isVisible={true}
             onClose={() => setPlayerDrawerOpen(false)}
             song={ensureHttpsForSongUrls(song)}
+            onRemoveFromPlaylist={onRemoveFromPlaylist}
           />
         )}
       </View>

@@ -18,6 +18,8 @@ interface PlayerDrawerProps {
   isVisible: boolean;
   onClose: () => void;
   song: Song;
+  /** Shown on your own playlist's page; the page asks before removing. */
+  onRemoveFromPlaylist?: () => void;
 }
 
 const OptionRow = ({
@@ -41,7 +43,12 @@ const OptionRow = ({
   </PressableScale>
 );
 
-const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song }) => {
+const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
+  isVisible,
+  onClose,
+  song,
+  onRemoveFromPlaylist,
+}) => {
   const { colors } = useTheme();
   // Callers unmount this drawer from onClose, so options close it here and let it slide away.
   const [open, setOpen] = useState(isVisible);
@@ -173,6 +180,18 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({ isVisible, onClose, song
                 label='View Album'
                 color={colors.foreground}
                 onPress={() => handlePress(song.album_id, paths.albums)}
+              />
+            )}
+
+            {onRemoveFromPlaylist && (
+              <OptionRow
+                icon={<Feather name='trash-2' size={20} color={colors.destructive} />}
+                label='Remove from this Playlist'
+                color={colors.destructive}
+                onPress={() => {
+                  close();
+                  onRemoveFromPlaylist();
+                }}
               />
             )}
 
