@@ -388,7 +388,7 @@ export const MobileDeck = memo(() => {
       className='fixed inset-x-3 z-40 flex items-center gap-2 md:hidden'
       style={{ bottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}
     >
-      <div className='relative z-[2]'>
+      <div className='relative z-[2] flex'>
         <Orb
           kind={kind}
           art={artOf(song)}
