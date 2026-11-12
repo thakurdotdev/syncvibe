@@ -80,8 +80,9 @@ test('co-hosts control playback in host-only mode; only the host makes them', as
   assert.equal((await cmd(CO, { type: 'play' })).ok, false);
 });
 
-test('co-hosts can remove anyone’s song from the queue', async () => {
+test('in host-only mode, co-hosts can remove anyone’s song from the queue', async () => {
   const { group, cmd } = setup();
+  await cmd(HOST, { type: 'set-control-mode', mode: 'host' });
   await cmd(GUEST, { type: 'add', song: song('a') });
   await cmd(GUEST, { type: 'add', song: song('b') });
   const item = group.upcoming[0]!;

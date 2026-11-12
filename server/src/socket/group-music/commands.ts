@@ -167,7 +167,7 @@ export const runCommand = async (
     }
 
     case 'remove':
-      return done(removeItem(io, group, String(command.itemId ?? ''), member));
+      return done(removeItem(io, group, String(command.itemId ?? ''), member, control));
 
     case 'move':
       if (!control) return fail('host-only');

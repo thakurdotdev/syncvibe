@@ -194,7 +194,7 @@ test('recommendations that arrive after the room ran out start it again', async 
   assert.equal(group.timeline.playing, true);
 });
 
-test('queue: play next, jump to a song, move by id, remove own only', async () => {
+test('queue: play next, jump to a song, move by id, remove', async () => {
   const { group, cmd } = setup();
   await cmd(1, { type: 'add-many', songs: [song('a'), song('b'), song('c')] });
   await cmd(2, { type: 'add-next', song: song('d') });
@@ -208,9 +208,13 @@ test('queue: play next, jump to a song, move by id, remove own only', async () =
   assert.deepEqual(ids(), ['c', 'd', 'b']);
 
   const b = group.upcoming.find((i) => i.song.id === 'b')!;
+  // Host-only: a guest may take out only their own songs.
+  await cmd(1, { type: 'set-control-mode', mode: 'host' });
   const denied = await cmd(2, { type: 'remove', itemId: b.id });
-  assert.equal(denied.ok, false, "a guest can't remove the host's song");
-  assert.equal((await cmd(1, { type: 'remove', itemId: b.id })).ok, true);
+  assert.equal(denied.ok, false, "a guest can't remove the host's song in host-only mode");
+  // Everyone in control: whoever can clear the queue can take out any one song.
+  await cmd(1, { type: 'set-control-mode', mode: 'everyone' });
+  assert.equal((await cmd(2, { type: 'remove', itemId: b.id })).ok, true);
 
   const d = group.upcoming.find((i) => i.song.id === 'd')!;
   await cmd(2, { type: 'play-item', itemId: d.id });
