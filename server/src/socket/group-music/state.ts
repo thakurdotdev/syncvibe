@@ -135,6 +135,8 @@ export const generateMessageId = (): string => uuidv4();
 
 export type ActivityType =
   | 'song-added'
+  | 'song-removed'
+  | 'song-moved'
   | 'song-playing'
   | 'song-skipped'
   | 'queue-ended'
@@ -162,6 +164,7 @@ export const emitActivityMessage = (
     hostOnly?: boolean;
     votes?: number;
     needed?: number;
+    position?: number;
   }
 ): void => {
   const group = musicGroups.get(groupId);
@@ -169,6 +172,8 @@ export const emitActivityMessage = (
 
   const activityMessages: Record<ActivityType, string> = {
     'song-added': `${data.userName} added "${data.songName}" to the queue`,
+    'song-removed': `${data.userName} removed "${data.songName}" from the queue`,
+    'song-moved': `${data.userName} moved "${data.songName}" to #${data.position} in Up next`,
     'song-playing': `Now playing "${data.songName}"${data.addedBy ? ` (added by ${data.addedBy})` : ''}`,
     'song-skipped': `${data.userName || 'Someone'} skipped to the next song`,
     'queue-ended': `Queue ended — add more songs!`,
