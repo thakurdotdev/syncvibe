@@ -41,6 +41,8 @@ import {
   usePlayerStore,
 } from '@/stores/playerStore';
 import { usePlayerProgress } from '@/hooks/usePlayerProgress';
+import { useAnnounceSync, useSyncStatus } from '@/hooks/useSyncStatus';
+import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -54,6 +56,7 @@ import {
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  cancelAnimation,
   cubicBezier,
   Easing,
   FadeInLeft,
@@ -62,10 +65,13 @@ import Animated, {
   Keyframe,
   ReduceMotion,
   useAnimatedProps,
+  ZoomIn,
+  ZoomOut,
   useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
+  withRepeat,
   withSequence,
   withSpring,
   withTiming,
@@ -410,13 +416,27 @@ const RING_TRACK_IN = {
   reduceMotion: ReduceMotion.System,
 } as const;
 
-/** Progress around the orb, same glide as the card's line. */
+/** Syncing with your other devices: a short arc circling the orb, about a turn a second. */
+const SPIN_ARC = 0.22;
+const SPIN_TURN = {
+  duration: 900,
+  easing: Easing.linear,
+  reduceMotion: ReduceMotion.System,
+} as const;
+const SPIN_OUT = { duration: 160, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
+/** Synced: a badge pops on the orb for a moment, a check or the device it's playing on. */
+const BADGE_IN = ZoomIn.springify().damping(12).stiffness(260).reduceMotion(ReduceMotion.System);
+const BADGE_OUT = ZoomOut.duration(160).reduceMotion(ReduceMotion.System);
+
+/** Progress around the orb, same glide as the card's line. While syncing, a spinner instead. */
 const OrbRing = memo(function OrbRing({
   color,
   trackColor,
+  syncing,
 }: {
   color: string;
   trackColor: string;
+  syncing: boolean;
 }) {
   const { position, duration } = usePlayerProgress();
   const fraction = duration > 0 ? Math.min(1, Math.max(0, position / duration)) : 0;
@@ -446,6 +466,28 @@ const OrbRing = memo(function OrbRing({
     }
   );
 
+  // Syncing: the progress arc gives way to a circling one. Done: the progress draws back in.
+  const spin = useSharedValue(0);
+  const spinIn = useSharedValue(0);
+  const wasSyncing = useRef(false);
+  useEffect(() => {
+    if (syncing === wasSyncing.current) return;
+    wasSyncing.current = syncing;
+    if (syncing) {
+      spin.set(0);
+      spin.set(withRepeat(withTiming(360, SPIN_TURN), -1, false));
+      spinIn.set(withTiming(1, RING_TRACK_IN));
+      drawn.set(0);
+    } else {
+      spinIn.set(withTiming(0, SPIN_OUT, (finished) => finished && cancelAnimation(spin)));
+      drawn.set(withTiming(1, RING_DRAW));
+    }
+  }, [syncing, spin, spinIn, drawn]);
+  const spinStyle = useAnimatedStyle(() => ({
+    opacity: spinIn.get(),
+    transform: [{ rotate: `${spin.get()}deg` }],
+  }));
+
   const ringProps = useAnimatedProps(() => ({
     strokeDashoffset: RING_C * (1 - shown.get() * drawn.get()),
     // A round cap draws a dot even at zero length.
@@ -471,11 +513,27 @@ const OrbRing = memo(function OrbRing({
           transform='rotate(-90 29 29)'
         />
       </Svg>
+      <Animated.View style={[StyleSheet.absoluteFill, spinStyle]}>
+        <Svg width={58} height={58} viewBox='0 0 58 58'>
+          <Circle
+            cx={29}
+            cy={29}
+            r={RING_R}
+            stroke={color}
+            strokeWidth={2.5}
+            strokeLinecap='round'
+            fill='none'
+            strokeDasharray={[RING_C * SPIN_ARC, RING_C]}
+            transform='rotate(-90 29 29)'
+          />
+        </Svg>
+      </Animated.View>
     </Animated.View>
   );
 });
 
 type OrbKind = 'song' | 'room' | 'idle';
+type SyncBadge = 'check' | 'monitor' | 'smartphone';
 
 /**
  * When a swipe on the orb skips. The orb sits about 40dp from the left edge, so a leftward swipe has
@@ -517,7 +575,11 @@ const Orb = memo(function Orb({
   onSkip,
   glowPlay,
   colors,
+  syncing,
+  syncBadge,
 }: {
+  syncing: boolean;
+  syncBadge: SyncBadge | null;
   kind: OrbKind;
   artworkUri?: string;
   songId?: string;
@@ -678,7 +740,9 @@ const Orb = memo(function Orb({
             </View>
           ) : (
             <>
-              {kind === 'song' && <OrbRing color={colors.primary} trackColor={colors.hairline} />}
+              {kind === 'song' && (
+                <OrbRing color={colors.primary} trackColor={colors.hairline} syncing={syncing} />
+              )}
               <View style={styles.orbArtBox}>
                 <Animated.View key={songId} entering={ORB_TURN_IN[direction]} style={styles.orbArt}>
                   <Animated.View style={[styles.orbArt, artStyle]}>
@@ -693,6 +757,24 @@ const Orb = memo(function Orb({
             </>
           )}
         </GlassSurface>
+        {kind === 'song' && syncBadge && (
+          <Animated.View
+            key={syncBadge}
+            entering={BADGE_IN}
+            exiting={BADGE_OUT}
+            pointerEvents='none'
+            style={[
+              styles.syncBadge,
+              { backgroundColor: colors.foreground, borderColor: colors.background },
+            ]}
+          >
+            <Feather
+              name={syncBadge}
+              size={syncBadge === 'check' ? 11 : 10}
+              color={colors.background}
+            />
+          </Animated.View>
+        )}
         <GlowSweep
           width={PILL_HEIGHT}
           height={PILL_HEIGHT}
@@ -1052,6 +1134,12 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     [goHome, goGroup, goPlaylist, goChat]
   );
 
+  // Catching up with your other devices shows on the orb: its ring circles, then a badge.
+  const { status: syncStatus, remote } = useSyncStatus();
+  useAnnounceSync(syncStatus, remote?.name);
+  const syncBadge: SyncBadge | null =
+    syncStatus !== 'synced' ? null : !remote ? 'check' : remote.mobile ? 'smartphone' : 'monitor';
+
   const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
   const roomSong = useGroupSessionStore((s) => s.currentItem?.song);
   const unread = useChatStore(selectUnreadTotal);
@@ -1275,6 +1363,8 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
             onSkip={onSkip}
             glowPlay={orbKind === 'idle' ? glowPlay : 0}
             colors={colors}
+            syncing={syncStatus === 'syncing'}
+            syncBadge={syncBadge}
           />
         </View>
         <Animated.View style={[styles.pill, tabsStyle]} pointerEvents={expanded ? 'none' : 'auto'}>
@@ -1386,6 +1476,17 @@ const styles = StyleSheet.create({
 
   orb: { width: PILL_HEIGHT, height: PILL_HEIGHT },
   orbInner: { alignItems: 'center', justifyContent: 'center' },
+  syncBadge: {
+    position: 'absolute',
+    right: -3,
+    bottom: -3,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   ring: { position: 'absolute', top: -0.5, left: -0.5 },
   orbArtBox: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },
   orbArt: { width: 44, height: 44 },
