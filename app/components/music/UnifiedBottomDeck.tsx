@@ -59,6 +59,7 @@ import Animated, {
   FadeInLeft,
   FadeInRight,
   interpolate,
+  Keyframe,
   ReduceMotion,
   useAnimatedProps,
   useAnimatedReaction,
@@ -364,13 +365,26 @@ const CAPSULE_CONTENT_OUT = {
   reduceMotion: ReduceMotion.System,
 } as const;
 /**
- * A ring that leaves the orb and fades as it spreads: when the capsule lands back in it, and when
- * the song changes. Fast out, slow fade, so it reads as one snappy pulse.
+ * A song lands in the orb: the orb dips a little and springs back, and a new cover turns in
+ * like a record, a quarter turn the way it was sent. Nothing leaves the orb, so it never
+ * reads as a tap on something else.
  */
-const RIPPLE = { duration: 420, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
-const RIPPLE_SCALE = 1.55;
-const RIPPLE_OPACITY = 0.55;
-const INSTANT = { duration: 0 } as const;
+const ORB_DIP = 0.96;
+const ORB_DIP_IN = { duration: 60, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
+const ORB_DIP_OUT = {
+  duration: 300,
+  dampingRatio: 0.55,
+  reduceMotion: ReduceMotion.System,
+} as const;
+const turnIn = (from: string) =>
+  new Keyframe({
+    0: { opacity: 0, transform: [{ rotate: from }] },
+    50: { opacity: 1, easing: Easing.out(Easing.cubic) },
+    100: { transform: [{ rotate: '0deg' }], easing: Easing.out(Easing.cubic) },
+  })
+    .duration(360)
+    .reduceMotion(ReduceMotion.System);
+const ORB_TURN_IN = { next: turnIn('-90deg'), prev: turnIn('90deg') } as const;
 const TABS_HIDE = { duration: 150, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
 /**
  * Switching tabs: Emil Kowalski's segmented-indicator recipe. Every tab is the same width; only the
@@ -520,39 +534,32 @@ const Orb = memo(function Orb({
   const skipped = useSharedValue(false);
   const startX = useSharedValue(0);
 
-  const rippleScale = useSharedValue(1);
-  const rippleOpacity = useSharedValue(0);
-  const ripple = useCallback(
+  // Its own value, so a landing never fights the press scale.
+  const landScale = useSharedValue(1);
+  const dip = useCallback(
     (delay: number) => {
-      rippleScale.set(
-        withDelay(delay, withSequence(withTiming(1, INSTANT), withTiming(RIPPLE_SCALE, RIPPLE)))
-      );
-      rippleOpacity.set(
-        withDelay(delay, withSequence(withTiming(RIPPLE_OPACITY, INSTANT), withTiming(0, RIPPLE)))
+      landScale.set(
+        withDelay(delay, withSequence(withTiming(ORB_DIP, ORB_DIP_IN), withSpring(1, ORB_DIP_OUT)))
       );
     },
-    [rippleOpacity, rippleScale]
+    [landScale]
   );
-  const rippleStyle = useAnimatedStyle(() => ({
-    opacity: rippleOpacity.get(),
-    transform: [{ scale: rippleScale.get() }],
-  }));
 
-  // The capsule lands back in the orb: a ripple as it arrives.
+  // The capsule lands back in the orb.
   const wasExpanded = useRef(expanded);
   useEffect(() => {
-    if (wasExpanded.current && !expanded) ripple(CAPSULE_CLOSE.duration - 20);
+    if (wasExpanded.current && !expanded) dip(CAPSULE_CLOSE.duration - 20);
     wasExpanded.current = expanded;
-  }, [expanded, ripple]);
+  }, [expanded, dip]);
 
-  // A new song: the same ripple, from the orb now holding it. Not for the first song shown, and
-  // not while the capsule is out: its light sweep says it, and the ripple follows when it closes.
-  const rippledFor = useRef(songId);
+  // A new song lands in the orb (its cover turns in on its own). Not for the first song shown,
+  // and not while the capsule is out: its light sweep says it, and the dip follows when it closes.
+  const dippedFor = useRef(songId);
   useEffect(() => {
-    if (kind !== 'song' || songId === rippledFor.current) return;
-    if (rippledFor.current !== undefined && !expanded) ripple(0);
-    rippledFor.current = songId;
-  }, [expanded, kind, ripple, songId]);
+    if (kind !== 'song' || songId === dippedFor.current) return;
+    if (dippedFor.current !== undefined && !expanded) dip(0);
+    dippedFor.current = songId;
+  }, [expanded, kind, dip, songId]);
 
   // A new song starts centred; whatever the old one was doing is over.
   useLayoutEffect(() => {
@@ -607,7 +614,9 @@ const Orb = memo(function Orb({
     });
   const gesture = Gesture.Race(pan, hold, tap);
 
-  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.get() * landScale.get() }],
+  }));
   const artStyle = useAnimatedStyle(() => ({
     opacity: interpolate(Math.abs(x.get()), [0, 30, SKIP_OUT_ORB], [1, 0.5, 0], 'clamp'),
     transform: [{ translateX: x.get() }],
@@ -648,15 +657,6 @@ const Orb = memo(function Orb({
           else if (a === 'previous') onSkip('prev');
         }}
       >
-        {/* Behind the orb, so it only shows as it spreads past the edge. */}
-        <Animated.View
-          pointerEvents='none'
-          style={[
-            styles.ripple,
-            { borderColor: colors.primary, backgroundColor: `${colors.primary}1F` },
-            rippleStyle,
-          ]}
-        />
         <GlassSurface radius={PILL_HEIGHT / 2} style={styles.orb} contentStyle={styles.orbInner}>
           {kind === 'idle' ? (
             // Nothing playing: an ember orb that invites you to find something, the bar's one
@@ -680,7 +680,7 @@ const Orb = memo(function Orb({
             <>
               {kind === 'song' && <OrbRing color={colors.primary} trackColor={colors.hairline} />}
               <View style={styles.orbArtBox}>
-                <Animated.View key={songId} entering={SONG_ENTER[direction]} style={styles.orbArt}>
+                <Animated.View key={songId} entering={ORB_TURN_IN[direction]} style={styles.orbArt}>
                   <Animated.View style={[styles.orbArt, artStyle]}>
                     <Image
                       source={{ uri: artworkUri }}
@@ -919,7 +919,7 @@ const Capsule = memo(function Capsule({
     } else {
       content.set(withTiming(0, CAPSULE_CONTENT_OUT));
       maskW.set(withTiming(PILL_HEIGHT, CAPSULE_CLOSE));
-      // Gone the moment it's back in the orb, where the ripple takes over.
+      // Gone the moment it's back in the orb, where the orb's dip takes over.
       maskOpacity.set(withDelay(CAPSULE_CLOSE.duration - 30, withTiming(0, CAPSULE_SHOW)));
     }
   }, [expanded, width, maskW, maskOpacity, content]);
@@ -1385,15 +1385,6 @@ const styles = StyleSheet.create({
   liveDot: { position: 'absolute', top: -1, right: -2, width: 7, height: 7, borderRadius: 4 },
 
   orb: { width: PILL_HEIGHT, height: PILL_HEIGHT },
-  ripple: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: PILL_HEIGHT,
-    height: PILL_HEIGHT,
-    borderRadius: PILL_HEIGHT / 2,
-    borderWidth: 2,
-  },
   orbInner: { alignItems: 'center', justifyContent: 'center' },
   ring: { position: 'absolute', top: -0.5, left: -0.5 },
   orbArtBox: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },
