@@ -1,6 +1,6 @@
 import { blurredArt } from '@/lib/artwork';
 import { EASE_OUT, project } from '@/lib/motion';
-import { openOrigin, orbOrigin, type MorphOrigin } from '@/lib/playerMorph';
+import { LANDED, openOrigin, orbOrigin, playerOpenness, type MorphOrigin } from '@/lib/playerMorph';
 import { SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { useTheme } from '@/context/ThemeContext';
 import {
@@ -111,7 +111,7 @@ export default function Player() {
    * The player grows out of the deck and shrinks back into it: 0 is the shape it came from
    * (lib/playerMorph), 1 full screen. `dragY` is how far you've pulled it down while open.
    */
-  const progress = useSharedValue(0);
+  const progress = playerOpenness;
   const dragY = useSharedValue(0);
   const startY = useSharedValue(0);
   /** The shape it's growing from or shrinking into this time. */
@@ -410,6 +410,8 @@ export default function Player() {
       width: lerp(box.width, screenWidth, p),
       height: lerp(box.height, screenHeight, p),
       borderRadius: lerp(box.radius, interpolate(drag, [0, 120], [0, DRAG_RADIUS], 'clamp'), p),
+      // Fades over the orb as it lands, so the orb shows before the spring has fully settled.
+      opacity: interpolate(p, [0, LANDED], [0, 1], 'clamp'),
       display: shown.get() ? 'flex' : 'none',
     };
   });
@@ -436,7 +438,7 @@ export default function Player() {
       y: top + (artworkSize - size) / 2 + dragY.get(),
     };
     return {
-      opacity: shown.get() && p < 1 ? 1 : 0,
+      opacity: shown.get() && p < 1 ? interpolate(p, [0, LANDED], [0, 1], 'clamp') : 0,
       left: lerp(art.x, target.x, p),
       top: lerp(art.y, target.y, p),
       width: lerp(art.width, size, p),

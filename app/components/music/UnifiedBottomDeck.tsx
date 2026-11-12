@@ -21,7 +21,14 @@ import {
   ROW_PRESS_SCALE,
   SPRING_PRESS,
 } from '@/lib/motion';
-import { artAt, measureRect, openOrigin, orbOrigin } from '@/lib/playerMorph';
+import {
+  artAt,
+  LANDED,
+  measureRect,
+  openOrigin,
+  orbOrigin,
+  playerOpenness,
+} from '@/lib/playerMorph';
 import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE, SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { selectUnreadTotal, useChatStore } from '@/stores/chatStore';
 import { useDeckStore } from '@/stores/deckStore';
@@ -54,6 +61,7 @@ import Animated, {
   interpolate,
   ReduceMotion,
   useAnimatedProps,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -380,6 +388,14 @@ const RING_R = 26.5;
 const RING_C = 2 * Math.PI * RING_R;
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
+/** The ring drawing round to the song's position as the player lands back in the orb. */
+const RING_DRAW = { duration: 480, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
+const RING_TRACK_IN = {
+  duration: 160,
+  easing: EASE_OUT,
+  reduceMotion: ReduceMotion.System,
+} as const;
+
 /** Progress around the orb, same glide as the card's line. */
 const OrbRing = memo(function OrbRing({
   color,
@@ -398,25 +414,50 @@ const OrbRing = memo(function OrbRing({
     shown.set(glide ? withTiming(fraction, { duration: 1000, easing: Easing.linear }) : fraction);
   }, [covered, fraction, duration, shown]);
 
-  const ringProps = useAnimatedProps(() => ({ strokeDashoffset: RING_C * (1 - shown.get()) }));
+  // 1 when the ring is fully drawn. Hidden while the player covers the orb, then drawn from
+  // 12 o'clock to the song's position as the player lands.
+  const drawn = useSharedValue(1);
+  const trackIn = useSharedValue(1);
+  useAnimatedReaction(
+    () => playerOpenness.get() < LANDED,
+    (landed, wasLanded) => {
+      if (landed === wasLanded || wasLanded === null) return;
+      if (landed) {
+        trackIn.set(withTiming(1, RING_TRACK_IN));
+        drawn.set(withTiming(1, RING_DRAW));
+      } else {
+        trackIn.set(0);
+        drawn.set(0);
+      }
+    }
+  );
+
+  const ringProps = useAnimatedProps(() => ({
+    strokeDashoffset: RING_C * (1 - shown.get() * drawn.get()),
+    // A round cap draws a dot even at zero length.
+    strokeOpacity: shown.get() * drawn.get() > 0.002 ? 1 : 0,
+  }));
+  const trackStyle = useAnimatedStyle(() => ({ opacity: trackIn.get() }));
 
   return (
-    <Svg width={58} height={58} viewBox='0 0 58 58' style={styles.ring} pointerEvents='none'>
-      <Circle cx={29} cy={29} r={RING_R} stroke={trackColor} strokeWidth={2.5} fill='none' />
-      <AnimatedCircle
-        cx={29}
-        cy={29}
-        r={RING_R}
-        stroke={color}
-        strokeWidth={2.5}
-        strokeLinecap='round'
-        fill='none'
-        strokeDasharray={RING_C}
-        animatedProps={ringProps}
-        // Start at 12 o'clock.
-        transform='rotate(-90 29 29)'
-      />
-    </Svg>
+    <Animated.View style={[styles.ring, trackStyle]} pointerEvents='none'>
+      <Svg width={58} height={58} viewBox='0 0 58 58'>
+        <Circle cx={29} cy={29} r={RING_R} stroke={trackColor} strokeWidth={2.5} fill='none' />
+        <AnimatedCircle
+          cx={29}
+          cy={29}
+          r={RING_R}
+          stroke={color}
+          strokeWidth={2.5}
+          strokeLinecap='round'
+          fill='none'
+          strokeDasharray={RING_C}
+          animatedProps={ringProps}
+          // Start at 12 o'clock.
+          transform='rotate(-90 29 29)'
+        />
+      </Svg>
+    </Animated.View>
   );
 });
 
