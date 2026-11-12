@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   hasPlausibleLength,
   hasVariantTag,
+  isRelatedToSeed,
   isVersionOfSeed,
   rankWithDiversity,
   scoreSong,
@@ -79,12 +80,6 @@ describe('scoreSong', () => {
     assert.equal(short, long);
   });
 
-  it('never lets co-listening outweigh a shared singer', () => {
-    const coListenedOnly = scoreSong(song(), seed, 1000);
-    const sameSinger = scoreSong(song({ singers: ['arijit singh'] }), seed);
-    assert.ok(sameSinger > coListenedOnly);
-  });
-
   it('keeps a shared singer from pulling in another language', () => {
     const otherLanguage = scoreSong(song({ singers: ['arijit singh'], language: 'tamil' }), seed);
     const sameLanguage = scoreSong(song({ singers: ['arijit singh'] }), seed);
@@ -98,14 +93,44 @@ describe('scoreSong with playlist links', () => {
 
   it('adds points for a link, up to a cap', () => {
     const none = scoreSong(song(), seed);
-    assert.equal(scoreSong(song(), seed, 0, 0.25) - none, 30);
-    assert.equal(scoreSong(song(), seed, 0, 5) - none, 70);
+    assert.equal(scoreSong(song(), seed, 0.25) - none, 30);
+    assert.equal(scoreSong(song(), seed, 5) - none, 70);
   });
 
   it('lets a strong link beat a shared singer alone', () => {
-    const strongLink = scoreSong(song(), seed, 0, 0.5);
+    const strongLink = scoreSong(song(), seed, 0.5);
     const sharedSinger = scoreSong(song({ singers: ['arijit singh'] }), seed);
     assert.ok(strongLink > sharedSinger);
+  });
+});
+
+describe('isRelatedToSeed', () => {
+  const seed = song({
+    singers: ['arijit singh'],
+    musicDirectors: ['pritam'],
+    albumId: 'al1',
+    year: 2016,
+  });
+
+  it('turns away a song that only shares the language and era', () => {
+    assert.equal(isRelatedToSeed(song({ singers: ['badshah'], year: 2016 }), seed), false);
+  });
+
+  it('accepts a shared singer, composer, album or an editorial link', () => {
+    assert.ok(isRelatedToSeed(song({ singers: ['arijit singh'] }), seed));
+    assert.ok(isRelatedToSeed(song({ musicDirectors: ['pritam'] }), seed));
+    assert.ok(isRelatedToSeed(song({ albumId: 'al1' }), seed));
+    assert.ok(isRelatedToSeed(song(), seed, 0.1));
+  });
+
+  it('does not count a shared lyricist alone', () => {
+    assert.equal(
+      isRelatedToSeed(song({ lyricists: ['manoj muntashir'] }), {
+        ...seed,
+        lyricists: ['manoj muntashir'],
+      }),
+      false
+    );
   });
 });
 

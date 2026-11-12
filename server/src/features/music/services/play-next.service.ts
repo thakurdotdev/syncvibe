@@ -6,6 +6,7 @@ import {
   dedupKey,
   hasPlausibleLength,
   hasVariantTag,
+  isRelatedToSeed,
   isVersionOfSeed,
   normalize,
   rankWithDiversity,
@@ -13,17 +14,28 @@ import {
   type ScoredItem,
   type SongEntry,
 } from './play-next.scoring';
+import { personalizePlayNext, type PastListen } from './play-next.personal';
+import { getDislikes } from './dislike.service';
 
 const CACHE_TTL = 30 * 24 * 60 * 60;
 /** Playlists change, so combined results are recomputed sooner. */
 const HYBRID_CACHE_TTL = 7 * 24 * 60 * 60;
 const MAX_LINKED_SONGS = 150;
 const SINGLE_ARTIST_PLAYLIST_WEIGHT = 0.25;
+/**
+ * Popularity charts ("Top 50", "Trending", "Most Searched") hold whatever is big this week, so
+ * being on one says little about fit. One that also names a mood or genre is a real list.
+ */
+const CHART_PLAYLIST_WEIGHT = 0.25;
+const CHART_NAME =
+  '(top ?[0-9]+|trending|superhits|hit songs|most searched|viral|new releases?|chartbusters?|top songs)';
+const MOOD_OR_GENRE_NAME =
+  '(love|romantic|dance|party|sad|hip ?hop|rap|devotional|bhakti|lo-?fi|workout|chill|rock|retro|[0-9]{4}s|decade)';
 const LINK_SHRINKAGE = 2;
 
 /** Read on each call so that switching the flag and restarting takes effect cleanly. */
 const isHybridEngine = (): boolean => process.env.RECO_ENGINE === 'hybrid';
-const cacheKey = (songId: string): string => `${isHybridEngine() ? 'pn:h1:' : 'pn:v6:'}${songId}`;
+const cacheKey = (songId: string): string => `${isHybridEngine() ? 'pn:h2:' : 'pn:v7:'}${songId}`;
 const cacheTtl = (): number => (isHybridEngine() ? HYBRID_CACHE_TTL : CACHE_TTL);
 const SONG_ATTRS = [
   'id',
@@ -63,13 +75,26 @@ const buildArtistILike = (name: string) => {
   return { artistNames: { [Op.iLike]: `%${name}%` } };
 };
 
+/**
+ * Saavn credits lyricists as "Singer, Lyricist" and lists actors in `artistNames`, so both are
+ * left out: a shared lyricist or actor says little about how two songs sound.
+ */
+const NOT_SINGING = ['lyricist', 'starring'];
+
 const extractSingers = (songData: Record<string, unknown>, artistNamesStr = ''): string[] => {
   const artistMap = songData?.artist_map as Record<string, unknown> | undefined;
+  const credits = (artistMap?.artists as Array<{ name?: string; role?: string }>) || [];
+  const notSinging = new Set(
+    credits
+      .filter((a) => NOT_SINGING.some((role) => (a?.role || '').toLowerCase().includes(role)))
+      .map((a) => normalize(a?.name))
+  );
+
   const primaryArtists = ((artistMap?.primary_artists as Array<{ name?: string }>) || [])
     .map((a) => normalize(a?.name))
     .filter(Boolean);
 
-  const artists = ((artistMap?.artists as Array<{ name?: string; role?: string }>) || [])
+  const artists = credits
     .filter((a) => {
       const role = (a?.role || '').toLowerCase();
       return role.includes('singer') || role.includes('primary') || !role;
@@ -89,7 +114,7 @@ const extractSingers = (songData: Record<string, unknown>, artistNamesStr = ''):
     .filter(Boolean);
 
   return [...new Set([...primaryArtists, ...artists, subtitleSinger, ...fromStr])].filter(
-    (s) => s && s !== 'unknown'
+    (s) => s && s !== 'unknown' && !notSinging.has(s)
   );
 };
 
@@ -140,64 +165,6 @@ const buildEntry = (song: SongRow): SongEntry => {
   };
 };
 
-const getCoOccurrenceCandidates = async (
-  baseSongRefId: number
-): Promise<Array<{ song: SongRow; coWeight: number }>> => {
-  if (!baseSongRefId) return [];
-  try {
-    const sequelize = Song.sequelize!;
-    const historyQuery = `
-      SELECT hs2."songRefId", COUNT(*) as co_weight
-      FROM history_songs hs1
-      INNER JOIN history_songs hs2 ON hs1."userId" = hs2."userId" AND hs1."songRefId" != hs2."songRefId"
-      WHERE hs1."songRefId" = :baseSongRefId
-      GROUP BY hs2."songRefId"
-      ORDER BY co_weight DESC
-      LIMIT 40
-    `;
-    const historyResults = (await sequelize.query(historyQuery, {
-      replacements: { baseSongRefId },
-      type: QueryTypes.SELECT,
-    })) as Array<{ songRefId: number; co_weight: string }>;
-
-    const playlistQuery = `
-      SELECT ps2."songRefId", COUNT(*) as co_weight
-      FROM playlist_songs ps1
-      INNER JOIN playlist_songs ps2 ON ps1."playlistId" = ps2."playlistId" AND ps1."songRefId" != ps2."songRefId"
-      WHERE ps1."songRefId" = :baseSongRefId
-      GROUP BY ps2."songRefId"
-      ORDER BY co_weight DESC
-      LIMIT 40
-    `;
-    const playlistResults = (await sequelize.query(playlistQuery, {
-      replacements: { baseSongRefId },
-      type: QueryTypes.SELECT,
-    })) as Array<{ songRefId: number; co_weight: string }>;
-
-    const coMap = new Map<number, number>();
-    for (const r of historyResults) {
-      coMap.set(r.songRefId, (coMap.get(r.songRefId) || 0) + parseInt(r.co_weight, 10) * 2);
-    }
-    for (const r of playlistResults) {
-      coMap.set(r.songRefId, (coMap.get(r.songRefId) || 0) + parseInt(r.co_weight, 10) * 3);
-    }
-
-    if (coMap.size === 0) return [];
-
-    const refIds = [...coMap.keys()];
-    const coSongs = (await Song.findAll({
-      where: { id: { [Op.in]: refIds } },
-      attributes: [...SONG_ATTRS],
-      raw: true,
-    })) as unknown as SongRow[];
-
-    return coSongs.map((s) => ({ song: s, coWeight: coMap.get(s.id) || 1 }));
-  } catch (err) {
-    console.error('[PlayNext] Co-occurrence search error:', (err as Error).message);
-    return [];
-  }
-};
-
 /** Songs that editors place with the seed, strongest first, in the seed's language. */
 const getLinkedCandidates = async (
   baseSongId: string,
@@ -205,7 +172,9 @@ const getLinkedCandidates = async (
 ): Promise<Array<{ song: SongRow; linkStrength: number }>> => {
   if (!language) return [];
   try {
-    const weight = `CASE WHEN p."isSingleArtist" THEN ${SINGLE_ARTIST_PLAYLIST_WEIGHT} ELSE 1 END`;
+    const weight = `CASE WHEN p."isSingleArtist" THEN ${SINGLE_ARTIST_PLAYLIST_WEIGHT}
+      WHEN p.name ~* :chartName AND p.name !~* :moodName THEN ${CHART_PLAYLIST_WEIGHT}
+      ELSE 1 END`;
     const rows = (await sequelize.query(
       `
       WITH seed AS (
@@ -243,6 +212,8 @@ const getLinkedCandidates = async (
           baseSongId,
           language,
           shrinkage: LINK_SHRINKAGE,
+          chartName: CHART_NAME,
+          moodName: MOOD_OR_GENRE_NAME,
           limit: MAX_LINKED_SONGS,
         },
         type: QueryTypes.SELECT,
@@ -276,27 +247,14 @@ const computeForSong = async (baseSongId: string): Promise<string[]> => {
   if (!baseSongRow) return [];
 
   const baseSong = buildEntry(baseSongRow);
-  const candidateMap = new Map<
-    string,
-    { songRow: SongRow; coWeight: number; linkStrength?: number }
-  >();
-
-  const coCandidates = await getCoOccurrenceCandidates(baseSongRow.id);
-  for (const item of coCandidates) {
-    if (item.song.songId !== baseSongId) {
-      candidateMap.set(item.song.songId, { songRow: item.song, coWeight: item.coWeight });
-    }
-  }
+  // Only the seed decides what follows it. Co-listening was dropped: with a handful of
+  // listeners it mostly reflected one person's mixed taste, so party songs followed sad ones.
+  const candidateMap = new Map<string, { songRow: SongRow; linkStrength?: number }>();
 
   if (isHybridEngine()) {
     const linked = await getLinkedCandidates(baseSongId, baseSong.language);
     for (const { song, linkStrength } of linked) {
-      const existing = candidateMap.get(song.songId);
-      candidateMap.set(song.songId, {
-        songRow: song,
-        coWeight: existing?.coWeight ?? 0,
-        linkStrength,
-      });
+      candidateMap.set(song.songId, { songRow: song, linkStrength });
     }
   }
 
@@ -316,7 +274,7 @@ const computeForSong = async (baseSongId: string): Promise<string[]> => {
       limit: 250,
     })) as unknown as SongRow[];
     for (const c of primaryCandidates) {
-      if (!candidateMap.has(c.songId)) candidateMap.set(c.songId, { songRow: c, coWeight: 0 });
+      if (!candidateMap.has(c.songId)) candidateMap.set(c.songId, { songRow: c });
     }
   }
 
@@ -340,37 +298,28 @@ const computeForSong = async (baseSongId: string): Promise<string[]> => {
         limit: 150,
       })) as unknown as SongRow[];
       for (const c of supplementary) {
-        if (!candidateMap.has(c.songId)) candidateMap.set(c.songId, { songRow: c, coWeight: 0 });
+        if (!candidateMap.has(c.songId)) candidateMap.set(c.songId, { songRow: c });
       }
-    }
-  }
-
-  if (candidateMap.size < 40 && baseSong.language) {
-    const catalogFallback = (await Song.findAll({
-      where: { language: baseSong.language, songId: { [Op.ne]: baseSongId } },
-      attributes: [...SONG_ATTRS],
-      order: [['createdAt', 'DESC']],
-      raw: true,
-      limit: 100,
-    })) as unknown as SongRow[];
-    for (const c of catalogFallback) {
-      if (!candidateMap.has(c.songId)) candidateMap.set(c.songId, { songRow: c, coWeight: 0 });
     }
   }
 
   const seen = new Set<string>();
   const scored: ScoredItem[] = [];
 
-  for (const { songRow, coWeight, linkStrength } of candidateMap.values()) {
+  for (const { songRow, linkStrength } of candidateMap.values()) {
     const entry = buildEntry(songRow);
-    if (isVersionOfSeed(entry.name, baseSong.name) || !hasPlausibleLength(entry, baseSong)) {
+    if (
+      isVersionOfSeed(entry.name, baseSong.name) ||
+      !hasPlausibleLength(entry, baseSong) ||
+      !isRelatedToSeed(entry, baseSong, linkStrength)
+    ) {
       continue;
     }
     const dk = dedupKey(entry.name, entry.singers[0] || 'unknown');
     if (seen.has(dk)) continue;
     seen.add(dk);
 
-    const score = scoreSong(entry, baseSong, coWeight, linkStrength);
+    const score = scoreSong(entry, baseSong, linkStrength);
     if (score < MIN_SCORE_THRESHOLD) continue;
 
     scored.push({
@@ -385,52 +334,28 @@ const computeForSong = async (baseSongId: string): Promise<string[]> => {
   return rankWithDiversity(scored, 100);
 };
 
-interface UserHistoryResult {
-  recentSongIds: Set<string>;
-  historyMap: Map<string, { playedCount: number; skipCount: number; likeStatus: boolean }>;
-}
-
-const getUserHistory = async (userId: number): Promise<UserHistoryResult> => {
-  if (!userId) return { recentSongIds: new Set(), historyMap: new Map() };
-
-  const recentEntries = await HistorySong.findAll({
-    where: { userId },
-    attributes: ['songRefId', 'playedCount', 'skipCount', 'likeStatus', 'lastPlayedAt'],
-    order: [['lastPlayedAt', 'DESC']],
-    limit: 50,
+/** The listener's past plays of these songs only, keyed by songId. */
+const getPastListens = async (
+  userId: number,
+  candidates: Array<{ id: number; songId: string }>
+): Promise<Map<string, PastListen>> => {
+  const songIdByRef = new Map(candidates.map((song) => [song.id, song.songId]));
+  const rows = await HistorySong.findAll({
+    where: { userId, songRefId: { [Op.in]: [...songIdByRef.keys()] } },
+    attributes: ['songRefId', 'playedCount', 'skipCount', 'lastPlayedAt'],
     raw: true,
   });
-
-  const recentSongIds = new Set<string>();
-  const historyMap = new Map<
-    string,
-    { playedCount: number; skipCount: number; likeStatus: boolean }
-  >();
-
-  const songIdsByRefId = await Song.findAll({
-    where: { id: recentEntries.map((e) => e.songRefId) },
-    attributes: ['id', 'songId'],
-    raw: true,
-  });
-
-  const refIdToSongId = new Map<number, string>();
-  for (const s of songIdsByRefId) refIdToSongId.set(s.id, s.songId);
-
-  for (let i = 0; i < recentEntries.length; i++) {
-    const entry = recentEntries[i]!;
-    const songId = refIdToSongId.get(entry.songRefId);
+  const listens = new Map<string, PastListen>();
+  for (const row of rows) {
+    const songId = songIdByRef.get(row.songRefId);
     if (!songId) continue;
-
-    if (i < 15) recentSongIds.add(songId);
-
-    historyMap.set(songId, {
-      playedCount: entry.playedCount || 0,
-      skipCount: entry.skipCount || 0,
-      likeStatus: entry.likeStatus || false,
+    listens.set(songId, {
+      lastPlayedAt: row.lastPlayedAt,
+      playedCount: row.playedCount || 0,
+      skipCount: row.skipCount || 0,
     });
   }
-
-  return { recentSongIds, historyMap };
+  return listens;
 };
 
 /** Songs that fit after this one, best first, the same for every listener. */
@@ -459,26 +384,27 @@ export const getPlayNextSongs = async ({
   const cachedIds = await getRelatedSongIds(baseSongId);
   if (cachedIds.length === 0) return [];
 
-  let resultIds = cachedIds.filter((id) => !excludeSongIds.includes(id));
+  const excluded = new Set(excludeSongIds);
+  let resultIds = cachedIds.filter((id) => !excluded.has(id));
 
-  if (userId) {
-    const { recentSongIds, historyMap } = await getUserHistory(userId);
-
-    const personalized = resultIds.map((id) => {
-      let penalty = 0;
-      const history = historyMap.get(id);
-      if (history) {
-        if (recentSongIds.has(id)) penalty -= 50;
-        if (history.skipCount >= 5) penalty -= 40;
-        else if (history.skipCount >= 2) penalty -= 25;
-        if (history.playedCount > 10) penalty -= 20;
-        if (history.likeStatus) penalty += 30;
-      }
-      return { songId: id, score: penalty };
+  if (userId && resultIds.length > 0) {
+    const [candidates, dislikes] = await Promise.all([
+      Song.findAll({
+        where: { songId: { [Op.in]: resultIds } },
+        attributes: ['id', 'songId', 'name'],
+        raw: true,
+      }),
+      getDislikes(userId),
+    ]);
+    const nameById = new Map(candidates.map((song) => [song.songId, song.name || '']));
+    resultIds = personalizePlayNext({
+      candidates: resultIds.map((songId) => ({ songId, name: nameById.get(songId) ?? '' })),
+      history: await getPastListens(userId, candidates),
+      dislikedIds: dislikes.songIds,
+      blockedTitles: dislikes.titles,
+      now: new Date(),
+      limit,
     });
-
-    personalized.sort((a, b) => b.score - a.score);
-    resultIds = personalized.map((p) => p.songId);
   }
 
   const finalIds = resultIds.slice(0, limit);

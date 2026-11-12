@@ -26,6 +26,7 @@ import Playlist from './music/playlist.model';
 import GroupInvite from './music/group-invite.model';
 import GroupSessionHistory from './music/group-session-history.model';
 import PlayerSessionRow from './music/player-session.model';
+import SongDislike from './music/song-dislike.model';
 
 // Post
 import Post from './post/post.model';
@@ -96,6 +97,10 @@ HistorySong.belongsTo(Song, { foreignKey: 'songRefId', as: 'song' });
 Song.hasMany(PlayEvent, { foreignKey: 'songRefId', as: 'playEvents' });
 PlayEvent.belongsTo(Song, { foreignKey: 'songRefId', as: 'song' });
 
+// ─── Song ↔ SongDislike ───────────────────────────────────────────────────
+Song.hasMany(SongDislike, { foreignKey: 'songRefId', as: 'dislikes' });
+SongDislike.belongsTo(Song, { foreignKey: 'songRefId', as: 'song' });
+
 // ─── Song ↔ PlaylistSong ──────────────────────────────────────────────────
 Song.hasMany(PlaylistSong, { foreignKey: 'songRefId', as: 'playlistEntries' });
 PlaylistSong.belongsTo(Song, { foreignKey: 'songRefId', as: 'song' });
@@ -143,6 +148,7 @@ export {
   GroupInvite,
   GroupSessionHistory,
   PlayerSessionRow,
+  SongDislike,
   Post,
   Comment,
   LikeDislike,

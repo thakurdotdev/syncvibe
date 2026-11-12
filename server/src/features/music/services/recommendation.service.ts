@@ -2,7 +2,9 @@ import { Op } from 'sequelize';
 import { HistorySong, Song } from '@/models/index';
 import { cache } from '@/utils/redis';
 import sequelize from '@/utils/sequelize';
+import { getDislikes } from './dislike.service';
 import { getRelatedSongIds } from './play-next.service';
+import { cleanTitle } from './play-next.scoring';
 import {
   dropKnownTitles,
   fuseRelated,
@@ -101,7 +103,9 @@ const loadPicks = async (
  * favourites they haven't played for a while. Each day's list is drawn from it.
  */
 const computePool = async (userId: number): Promise<Pick<SongData>[]> => {
-  const listens = await loadListens(userId);
+  const [allListens, dislikes] = await Promise.all([loadListens(userId), getDislikes(userId)]);
+  // A disliked song can't lead to similar songs or come back as a favourite.
+  const listens = allListens.filter((listen) => !dislikes.songIds.has(listen.songId));
   if (listens.length === 0) return [];
 
   const now = new Date();
@@ -112,11 +116,11 @@ const computePool = async (userId: number): Promise<Pick<SongData>[]> => {
     relatedBySeed.set(seed.songId, await getRelatedSongIds(seed.songId));
   }
 
-  const heard = new Set(listens.map((listen) => listen.songId));
+  const heard = new Set([...allListens.map((listen) => listen.songId), ...dislikes.songIds]);
   const fused = fuseRelated(seeds, relatedBySeed, heard).slice(0, NEW_SONGS_FETCHED);
   const fresh = dropKnownTitles(
-    await loadPicks(fused, 'new'),
-    listens.map((listen) => listen.name)
+    (await loadPicks(fused, 'new')).filter((pick) => !dislikes.titles.has(cleanTitle(pick.name))),
+    allListens.map((listen) => listen.name)
   ).slice(0, NEW_SONGS_IN_POOL);
 
   const favourites = await loadPicks(

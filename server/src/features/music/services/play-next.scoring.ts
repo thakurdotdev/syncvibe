@@ -56,9 +56,6 @@ const VARIANT_TAGS = [
   'jhankar beats',
 ];
 
-/** A few shared listeners say little about taste, so co-listening can only nudge the score. */
-const CO_LISTEN_POINTS_PER_WEIGHT = 2.5;
-const MAX_CO_LISTEN_POINTS = 15;
 /** Editors placing two songs together is the strongest signal of fit, so it can outweigh a singer. */
 const PLAYLIST_LINK_POINTS = 120;
 const MAX_PLAYLIST_LINK_POINTS = 70;
@@ -127,17 +124,28 @@ const normalizePlayCount = (playCount: number): number => {
   return Math.min(Math.log10(playCount) / 9, 1);
 };
 
-export const scoreSong = (
+const shares = (a: string[], b: string[]): boolean => a.some((item) => b.includes(item));
+
+/**
+ * Whether the candidate has something real in common with the playing song: editors put them
+ * together, or they share an album, singer or composer. Language and era alone aren't enough,
+ * they let any song of the day follow any other. Nor is a lyricist: one writer spans film
+ * songs and devotional ones.
+ */
+export const isRelatedToSeed = (
   candidate: SongEntry,
   baseSong: SongEntry,
-  coWeight = 0,
   linkStrength = 0
-): number => {
+): boolean =>
+  linkStrength > 0 ||
+  (!!candidate.albumId && candidate.albumId === baseSong.albumId) ||
+  (!!candidate.albumName && candidate.albumName === baseSong.albumName) ||
+  shares(candidate.singers, baseSong.singers) ||
+  shares(candidate.musicDirectors, baseSong.musicDirectors);
+
+export const scoreSong = (candidate: SongEntry, baseSong: SongEntry, linkStrength = 0): number => {
   let score = 0;
   score += Math.min(linkStrength * PLAYLIST_LINK_POINTS, MAX_PLAYLIST_LINK_POINTS);
-  if (coWeight > 0) {
-    score += Math.min(coWeight * CO_LISTEN_POINTS_PER_WEIGHT, MAX_CO_LISTEN_POINTS);
-  }
   if (candidate.albumId && candidate.albumId === baseSong.albumId) score += 55;
   else if (candidate.albumName && candidate.albumName === baseSong.albumName) score += 50;
 

@@ -15,6 +15,7 @@ import {
   getHistorySongs,
 } from './history.controller';
 import { recordPlayEvents } from './play-events.controller';
+import { addDislike, getDislikedSongs, removeDislike } from './dislike.controller';
 import { searchSongs } from './search.controller';
 import { getLastSessionSongs } from './group-history.controller';
 import {
@@ -62,6 +63,11 @@ musicRouter.get('/playlist/songs', authMiddleware, getPlaylistSongs);
 musicRouter.post('/history/add', authMiddleware, addToHistory);
 musicRouter.post('/music/history/add', authMiddleware, addToHistory);
 musicRouter.post('/play-events', authMiddleware, recordPlayEvents);
+
+// Songs a listener never wants recommended again
+musicRouter.get('/music/dislikes', authMiddleware, getDislikedSongs);
+musicRouter.post('/music/dislikes', authMiddleware, addDislike);
+musicRouter.delete('/music/dislikes/:songId', authMiddleware, removeDislike);
 
 musicRouter.get('/music/recommendations', authMiddleware, getPersonalizedRecommendations);
 musicRouter.get('/music/latestHistory', authMiddleware, getHistorySongs);
