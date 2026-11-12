@@ -34,6 +34,7 @@ const QueuePanel = ({ className, bare = false }) => {
     shuffleQueue,
     playQueueItem,
     canControl,
+    canManage,
     playNow,
     playNext,
     addToQueue,
@@ -71,6 +72,13 @@ const QueuePanel = ({ className, bare = false }) => {
       clearSearch();
     },
     [setQueueTab, clearSearch]
+  );
+
+  // Same rule as the server: your own songs, or any song if you're the host or a co-host.
+  const myId = user?.userid != null ? String(user.userid) : null;
+  const canRemoveItem = useCallback(
+    (item) => canManage || (myId != null && String(item.addedBy?.userId) === myId),
+    [canManage, myId]
   );
 
   const { dismiss: dismissRec, pinToSong } = recs;
@@ -142,6 +150,7 @@ const QueuePanel = ({ className, bare = false }) => {
             shuffleQueue={canControl ? shuffleQueue : undefined}
             onPlayItem={canControl ? playQueueItem : undefined}
             canReorder={canControl}
+            canRemoveItem={canRemoveItem}
             autoPlayRecommendations={autoPlayRecommendations}
             onFetchRecs={handleShowRecsFor}
             onSaveToPlaylist={setSongToSave}
