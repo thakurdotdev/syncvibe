@@ -126,32 +126,6 @@ const StagePlayButton = memo(function StagePlayButton({
   );
 });
 
-/** The way into rooms from the page people open first. Hidden once you're in one. */
-const RoomsCard = memo(function RoomsCard({ colors }: { colors: Colors }) {
-  return (
-    <PressableScale
-      onPress={goRooms}
-      scaleTo={ROW_PRESS_SCALE}
-      accessibilityRole='button'
-      accessibilityLabel='Listen together. Open rooms'
-      style={[styles.roomsCard, { borderColor: colors.hairline }]}
-    >
-      <Gloss tone='surface' />
-      <View style={[styles.roomsIcon, { backgroundColor: colors.primary }]}>
-        <Gloss />
-        <Ionicons name='radio' size={20} color={colors.primaryForeground} />
-      </View>
-      <View style={styles.roomText}>
-        <Text style={[styles.roomsTitle, { color: colors.foreground }]}>Listen together</Text>
-        <Text style={[styles.roomSub, { color: colors.mutedForeground }]} numberOfLines={1}>
-          Start a room and hear the same second.
-        </Text>
-      </View>
-      <Ionicons name='chevron-forward' size={17} color={colors.mutedForeground} />
-    </PressableScale>
-  );
-});
-
 /** Songs you played lately, a swipe away. Tapping one plays it and queues the ones after it. */
 const RecentStrip = memo(function RecentStrip({
   songs,
@@ -582,12 +556,7 @@ function HomeScreen() {
               onIndexChange={onIndexChange}
               showDeck={!inRoom}
             />
-            {!inRoom && (
-              <>
-                <RoomsCard colors={colors} />
-                <RecentStrip songs={recent} colors={colors} />
-              </>
-            )}
+            {!inRoom && <RecentStrip songs={recent} colors={colors} />}
             <BrowseRow colors={colors} />
           </>
         )}
@@ -608,27 +577,6 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   sectionInset: { paddingHorizontal: SIDE_MARGIN },
-
-  roomsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginHorizontal: SIDE_MARGIN,
-    marginTop: 14,
-    padding: 12,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
-  },
-  roomsIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  roomsTitle: { fontFamily: fonts.displaySemibold, fontSize: 16, letterSpacing: -0.2 },
 
   recent: { marginTop: 12 },
   recentRow: { paddingHorizontal: SIDE_MARGIN, gap: 12 },
