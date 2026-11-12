@@ -1,7 +1,9 @@
 import { cn } from '@/lib/utils';
 import {
+  ArrowUpDown,
   Crown,
   Info,
+  ListMinus,
   ListPlus,
   MessageSquareOff,
   Music2,
@@ -17,6 +19,8 @@ import { formatMessageTime } from './chatUtils';
 const ACTIVITY_META = {
   'song-playing': { Icon: Play, tone: 'text-foreground' },
   'song-added': { Icon: ListPlus, tone: 'text-foreground' },
+  'song-removed': { Icon: ListMinus, tone: 'text-muted-foreground' },
+  'song-moved': { Icon: ArrowUpDown, tone: 'text-muted-foreground' },
   'song-skipped': { Icon: SkipForward, tone: 'text-foreground' },
   'queue-ended': { Icon: Music2, tone: 'text-foreground' },
   'user-joined': { Icon: UserPlus, tone: 'text-foreground' },

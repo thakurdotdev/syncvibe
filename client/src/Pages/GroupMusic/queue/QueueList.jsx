@@ -18,10 +18,23 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Bookmark, GripVertical, ListMusic, Play, Shuffle, Sparkles, Trash2 } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
+
+// Rows only move up and down.
+const lockToVerticalAxis = ({ transform }) => ({ ...transform, x: 0 });
 
 const SortableQueueItem = memo(
-  ({ item, isPlaying, canReorder = true, onRemove, onPlayItem, onFetchRecs, onSaveToPlaylist }) => {
+  ({
+    item,
+    isPlaying,
+    canReorder = true,
+    canRemove = false,
+    onRemove,
+    onPlayItem,
+    onFetchRecs,
+    onSaveToPlaylist,
+  }) => {
     const {
       attributes,
       listeners,
@@ -32,11 +45,11 @@ const SortableQueueItem = memo(
     } = useSortable({ id: item.id, disabled: isPlaying || !canReorder });
     const handlePlay = useCallback(() => onPlayItem?.(item.id), [item.id, onPlayItem]);
 
+    // The overlay follows the pointer; the row itself stays behind as a faint placeholder.
     const style = {
-      transform: CSS.Transform.toString(transform),
+      transform: CSS.Translate.toString(transform),
       transition,
-      opacity: isItemDragging ? 0.5 : 1,
-      zIndex: isItemDragging ? 50 : 'auto',
+      opacity: isItemDragging ? 0.35 : 1,
     };
 
     const handleRemove = useCallback(() => onRemove(item.id), [item.id, onRemove]);
@@ -50,33 +63,27 @@ const SortableQueueItem = memo(
     );
 
     return (
-      <motion.div
+      <div
         ref={setNodeRef}
         style={style}
-        layout
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, x: -30 }}
-        transition={{ duration: 0.18 }}
         className={cn(
           'flex items-center gap-2.5 p-2 rounded-xl transition-colors duration-200 w-full overflow-hidden group',
           isPlaying
             ? 'liquid-panel border-primary/15'
-            : 'liquid-hover-row border border-transparent',
-          isItemDragging && 'liquid-panel-elevated'
+            : 'liquid-hover-row border border-transparent'
         )}
       >
-        {!isPlaying ? (
+        {isPlaying ? null : canReorder ? (
           <button
             {...attributes}
             {...listeners}
-            disabled={!canReorder}
             aria-label='Drag to reorder'
-            className='p-1 rounded-lg hover:bg-accent/50 cursor-grab active:cursor-grabbing touch-none opacity-30 hover:opacity-80 transition-opacity disabled:cursor-default disabled:opacity-10'
+            className='p-1 rounded-lg hover:bg-accent/50 cursor-grab active:cursor-grabbing touch-none opacity-30 hover:opacity-80 transition-opacity'
           >
             <GripVertical className='h-4 w-4 text-muted-foreground' />
           </button>
-        ) : (
+        ) : null}
+        {isPlaying && (
           <div className='w-6 shrink-0 text-center'>
             <div className='flex items-center justify-center gap-[3px] h-4'>
               {[0, 1, 2].map((i) => (
@@ -161,26 +168,25 @@ const SortableQueueItem = memo(
               >
                 <Sparkles className='h-3.5 w-3.5' />
               </button>
-              <button
-                onClick={handleRemove}
-                className='h-7 w-7 rounded-xl flex items-center justify-center text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 cursor-pointer transition-all duration-200'
-                title='Remove from queue'
-              >
-                <Trash2 className='h-3.5 w-3.5' />
-              </button>
+              {canRemove && (
+                <button
+                  onClick={handleRemove}
+                  className='h-7 w-7 rounded-xl flex items-center justify-center text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 cursor-pointer transition-all duration-200'
+                  title='Remove from queue'
+                >
+                  <Trash2 className='h-3.5 w-3.5' />
+                </button>
+              )}
             </>
           )}
         </div>
-      </motion.div>
+      </div>
     );
   }
 );
 
 const DragOverlayItem = memo(({ item }) => (
-  <div
-    className='flex items-center gap-2.5 p-2 rounded-xl liquid-panel-elevated w-full max-w-md'
-    style={{ willChange: 'transform' }}
-  >
+  <div className='flex items-center gap-2.5 p-2 rounded-xl liquid-panel-elevated w-full cursor-grabbing'>
     <div className='p-1 shrink-0'>
       <GripVertical className='h-4 w-4 text-muted-foreground' />
     </div>
@@ -223,6 +229,7 @@ const QueueList = memo(
     shuffleQueue,
     onPlayItem,
     canReorder = true,
+    canRemoveItem,
     toggleAutoRecommendations,
     autoPlayRecommendations = true,
     onFetchRecs,
@@ -289,7 +296,6 @@ const QueueList = memo(
               <SortableQueueItem
                 item={currentQueueItem}
                 isPlaying={true}
-                onRemove={removeFromQueue}
                 onFetchRecs={onFetchRecs}
                 onSaveToPlaylist={onSaveToPlaylist}
               />
@@ -351,26 +357,33 @@ const QueueList = memo(
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
                 onDragCancel={handleDragCancel}
+                modifiers={[lockToVerticalAxis]}
               >
                 <SortableContext items={upcomingIds} strategy={verticalListSortingStrategy}>
-                  <AnimatePresence initial={false}>
-                    <div className='space-y-1'>
-                      {upcomingQueue.map((item) => (
-                        <SortableQueueItem
-                          key={item.id}
-                          item={item}
-                          isPlaying={false}
-                          canReorder={canReorder}
-                          onPlayItem={onPlayItem}
-                          onRemove={removeFromQueue}
-                          onFetchRecs={onFetchRecs}
-                          onSaveToPlaylist={onSaveToPlaylist}
-                        />
-                      ))}
-                    </div>
-                  </AnimatePresence>
+                  <div className='space-y-1'>
+                    {upcomingQueue.map((item) => (
+                      <SortableQueueItem
+                        key={item.id}
+                        item={item}
+                        isPlaying={false}
+                        canReorder={canReorder}
+                        canRemove={canRemoveItem ? canRemoveItem(item) : true}
+                        onPlayItem={onPlayItem}
+                        onRemove={removeFromQueue}
+                        onFetchRecs={onFetchRecs}
+                        onSaveToPlaylist={onSaveToPlaylist}
+                      />
+                    ))}
+                  </div>
                 </SortableContext>
-                <DragOverlay>{activeId ? <DragOverlayItem item={activeItem} /> : null}</DragOverlay>
+                {/* The room panels use backdrop-filter, which would anchor the fixed overlay to the
+                    panel instead of the viewport and leave it trailing the pointer. */}
+                {createPortal(
+                  <DragOverlay>
+                    {activeId ? <DragOverlayItem item={activeItem} /> : null}
+                  </DragOverlay>,
+                  document.body
+                )}
               </DndContext>
             </div>
           )}

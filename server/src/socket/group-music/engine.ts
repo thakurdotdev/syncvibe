@@ -356,9 +356,16 @@ export const removeItem = (
   itemId: string,
   by: GroupMember
 ): QueueError | null => {
+  const item = group.upcoming.find((entry) => entry.id === itemId);
   const error = removeUpcoming(group, itemId, by.userId);
   if (error) return error;
   queueChanged(io, group, 'remove', by, { removedId: itemId });
+  if (item) {
+    emitActivityMessage(io, group.id, 'song-removed', {
+      userName: by.userName,
+      songName: songNameOf(item),
+    });
+  }
   void ensureRecommendations(io, group);
   return null;
 };
@@ -370,9 +377,18 @@ export const moveItem = (
   toIndex: number,
   by?: GroupMember
 ): QueueError | null => {
+  const from = group.upcoming.findIndex((entry) => entry.id === itemId);
   const error = moveUpcoming(group, itemId, toIndex);
   if (error) return error;
   queueChanged(io, group, 'reorder', by);
+  // A drop back on the same spot changes nothing worth telling the room.
+  if (by && from !== toIndex) {
+    emitActivityMessage(io, group.id, 'song-moved', {
+      userName: by.userName,
+      songName: songNameOf(group.upcoming[toIndex]!),
+      position: toIndex + 1,
+    });
+  }
   return null;
 };
 
