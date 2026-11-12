@@ -27,6 +27,7 @@ export const useRoomUi = create((set) => ({
   queueTab: QUEUE_TABS.upNext,
   searchFocusRequest: 0,
   chatFocusRequest: 0,
+  inviteFocusRequest: 0,
 
   setMobileTab: (mobileTab) => set({ mobileTab }),
   setSidebarTab: (sidebarTab) => set({ sidebarTab }),
@@ -39,6 +40,14 @@ export const useRoomUi = create((set) => ({
       mobileTab: MOBILE_TABS.queue,
       queueTab: QUEUE_TABS.upNext,
       searchFocusRequest: s.searchFocusRequest + 1,
+    })),
+
+  /** Opens People and puts the cursor in its invite search. */
+  requestInviteFocus: () =>
+    set((s) => ({
+      mobileTab: MOBILE_TABS.people,
+      sidebarTab: SIDEBAR_TABS.people,
+      inviteFocusRequest: s.inviteFocusRequest + 1,
     })),
 
   requestChatFocus: () =>

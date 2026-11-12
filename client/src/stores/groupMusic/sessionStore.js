@@ -249,6 +249,7 @@ export const useGroupSessionStore = create((set, get) => ({
         mutedIds: part.mutedIds ?? currentGroup.mutedIds ?? [],
         skipVotes: part.skipVotes ?? null,
         rejoinRequests: part.rejoinRequests ?? [],
+        pendingInvites: part.pendingInvites ?? [],
         settings: { ...currentGroup.settings, ...part.settings },
         maxMembers: part.maxMembers ?? currentGroup.maxMembers,
         features: { ...currentGroup.features, ...part.features },
