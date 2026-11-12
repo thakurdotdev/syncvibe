@@ -10,14 +10,13 @@ import { convertToHttps, ensureHttpsForPlaylistUrls } from '@/utils/getHttpsUrls
 import useApi from '@/utils/hooks/useApi';
 import type { PlaylistPreviewSong } from '@/types/music';
 import { router } from 'expo-router';
-import { AlertCircle, Edit3, Plus, Trash2, X } from 'lucide-react-native';
+import { AlertCircle, Edit3, Trash2, X } from 'lucide-react-native';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
   Keyboard,
   StyleSheet,
-  useWindowDimensions,
   Text,
   TextInput,
   View,
@@ -27,8 +26,7 @@ import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { HeaderIconButton, TabHeader } from '@/components/ui/AppHeader';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import PressableScale from '@/components/ui/PressableScale';
-import { BUTTON_PRESS_SCALE } from '@/lib/motion';
-import { fonts } from '@/theme/typography';
+import { BUTTON_PRESS_SCALE, ROW_PRESS_SCALE } from '@/lib/motion';
 import { Ionicons } from '@expo/vector-icons';
 
 const LoadingState = () => {
@@ -41,24 +39,25 @@ const LoadingState = () => {
   );
 };
 
-const getImageUrl = (image: unknown): string => {
-  if (typeof image === 'string') return convertToHttps(image);
-  if (image && typeof image === 'object' && !Array.isArray(image)) {
-    const link = (image as { link?: unknown }).link;
-    return typeof link === 'string' ? convertToHttps(link) : '';
+const linkOf = (item: unknown): string => {
+  if (typeof item === 'string') return item;
+  if (item && typeof item === 'object') {
+    const link = (item as { link?: unknown }).link;
+    if (typeof link === 'string') return link;
   }
-  if (!Array.isArray(image)) return '';
-
-  for (let index = image.length - 1; index >= 0; index -= 1) {
-    const item = image[index];
-    if (typeof item === 'string' && item) return convertToHttps(item);
-    if (item && typeof item === 'object') {
-      const link = (item as { link?: unknown }).link;
-      if (typeof link === 'string' && link) return convertToHttps(link);
-    }
-  }
-
   return '';
+};
+
+/** A small cover: the 150px size where there is one. A row shows it at 52px, so the 500px
+ * version would only cost decoding time. */
+const getCoverUrl = (image: unknown): string => {
+  const item = Array.isArray(image)
+    ? (image.find((entry) => (entry as { quality?: string })?.quality === '150x150') ??
+      image[1] ??
+      image[0])
+    : image;
+  const link = linkOf(item);
+  return link ? convertToHttps(link) : '';
 };
 
 const formatRelativeDate = (value?: string | null): string | null => {
@@ -89,8 +88,6 @@ const lastAddedTime = (p: any) => {
   const t = p?.lastAddedAt ? new Date(p.lastAddedAt).getTime() : 0;
   return Number.isFinite(t) ? t : 0;
 };
-
-const CREATE_TILE = { id: 'create', isCreate: true } as const;
 
 const PlaylistScreen = () => {
   const api = useApi();
@@ -202,7 +199,6 @@ const PlaylistScreen = () => {
     setShowUpdateModal(true);
   };
 
-  const { width: windowWidth } = useWindowDimensions();
   const [sort, setSort] = useState<SortMode>('recent');
   const toggleSort = useCallback(() => setSort((m) => (m === 'recent' ? 'name' : 'recent')), []);
 
@@ -218,8 +214,6 @@ const PlaylistScreen = () => {
     return list;
   }, [userPlaylist, sort]);
 
-  const gridItems = useMemo(() => [CREATE_TILE, ...sortedPlaylists], [sortedPlaylists]);
-
   const isDark = theme === 'dark';
 
   if (loading && !selectedPlaylist) return <LoadingState />;
@@ -229,16 +223,9 @@ const PlaylistScreen = () => {
   }
 
   const count = sortedPlaylists.length;
-  const tileWidth = Math.floor((windowWidth - GRID_PADDING * 2 - GRID_GAP) / 2);
 
   const renderPlaylistItem = ({ item }: { item: any }) => (
-    <View style={{ width: tileWidth }}>
-      {item.isCreate ? (
-        <CreateTile width={tileWidth} onPress={openCreateModal} />
-      ) : (
-        <PlaylistTile playlist={item} width={tileWidth} onMore={handleLongPress} />
-      )}
-    </View>
+    <PlaylistRow playlist={item} onMore={handleLongPress} />
   );
 
   return (
@@ -258,12 +245,11 @@ const PlaylistScreen = () => {
       />
 
       <Animated.FlatList
-        data={gridItems}
+        data={sortedPlaylists}
         renderItem={renderPlaylistItem}
         keyExtractor={(item) => `playlist-${item.id}`}
-        numColumns={2}
-        columnWrapperStyle={styles.gridRow}
-        ItemSeparatorComponent={RowGap}
+        initialNumToRender={12}
+        windowSize={7}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: DECK_CLEARANCE }}
         ListHeaderComponent={
@@ -288,6 +274,7 @@ const PlaylistScreen = () => {
                 </PressableScale>
               )}
             </View>
+            <NewPlaylistRow onPress={openCreateModal} />
           </>
         }
         ListFooterComponent={
@@ -476,138 +463,68 @@ const PlaylistScreen = () => {
   );
 };
 
-const GRID_PADDING = 16;
-const GRID_GAP = 12;
-/** How far each card behind the cover peeks out above it. */
-const PEEK = 6;
+const COVER = 52;
+const DISC = 48;
+/** How far the record slides out from behind the cover. */
+const DISC_OFFSET = 22;
 
-const RowGap = () => <View style={{ height: 20 }} />;
-
-/**
- * A playlist cover as a small stack: the first song's art in front, the next two
- * peeking out above it, a little narrower each, so a playlist reads as a pile of songs.
- */
-const CoverStack = memo(function CoverStack({
-  images,
-  fallback,
-  width,
-}: {
-  images: string[];
-  fallback: string;
-  width: number;
-}) {
+/** A record half out of its sleeve. The rings are borders, so the record costs no image. */
+const Sleeve = memo(function Sleeve({ uri }: { uri: string }) {
   const { colors } = useTheme();
-  const front = images[0] || fallback;
-  const layers = [
-    { inset: 16, top: 0, uri: images[2], opacity: 0.4 },
-    { inset: 8, top: PEEK, uri: images[1], opacity: 0.7 },
-  ];
-
   return (
-    <View style={{ width, height: width + PEEK * 2 }}>
-      {layers.map((l, i) => (
-        <View
-          key={i}
-          style={[
-            styles.stackLayer,
-            {
-              top: l.top,
-              left: l.inset,
-              right: l.inset,
-              height: width - l.inset * 2,
-              backgroundColor: colors.raised,
-              opacity: l.opacity,
-            },
-          ]}
-        >
-          {l.uri ? (
-            <Image
-              source={{ uri: l.uri, cache: 'force-cache' }}
-              style={styles.fill}
-              fadeDuration={0}
-            />
-          ) : null}
-        </View>
-      ))}
-      <View
-        style={[
-          styles.stackFront,
-          { top: PEEK * 2, width, height: width, backgroundColor: colors.raised },
-        ]}
-      >
-        {front ? (
-          <Image
-            source={{ uri: front, cache: 'force-cache' }}
-            style={styles.fill}
-            fadeDuration={0}
-          />
+    <View style={styles.sleeve}>
+      <View style={styles.disc}>
+        <View style={[styles.groove, { width: DISC - 8, height: DISC - 8 }]} />
+        <View style={[styles.groove, { width: DISC - 18, height: DISC - 18 }]} />
+      </View>
+      <View style={[styles.cover, { backgroundColor: colors.raised }]}>
+        {uri ? (
+          <Image source={{ uri, cache: 'force-cache' }} style={styles.fill} fadeDuration={0} />
         ) : (
-          <Ionicons name='musical-notes' size={30} color={colors.mutedForeground} />
+          <Ionicons name='musical-notes' size={20} color={colors.mutedForeground} />
         )}
       </View>
     </View>
   );
 });
 
-const CreateTile = memo(function CreateTile({
-  width,
-  onPress,
-}: {
-  width: number;
-  onPress: () => void;
-}) {
+const NewPlaylistRow = memo(function NewPlaylistRow({ onPress }: { onPress: () => void }) {
   const { colors } = useTheme();
   return (
     <PressableScale
       onPress={onPress}
+      scaleTo={ROW_PRESS_SCALE}
       accessibilityRole='button'
       accessibilityLabel='Create playlist'
+      style={styles.row}
     >
-      <View style={{ width, height: width + PEEK * 2 }}>
-        <View
-          style={[
-            styles.stackFront,
-            styles.createFront,
-            { top: PEEK * 2, width, height: width, borderColor: colors.border },
-          ]}
-        >
-          <View style={[styles.createIcon, { backgroundColor: colors.primary }]}>
-            <Ionicons name='add' size={24} color={colors.primaryForeground} />
-          </View>
+      <View style={styles.sleeve}>
+        <View style={[styles.cover, styles.newCover, { borderColor: colors.border }]}>
+          <Ionicons name='add' size={22} color={colors.foreground} />
         </View>
       </View>
-      <View style={styles.tileInfo}>
-        <View style={styles.tileText}>
-          <Text style={[styles.tileTitle, { color: colors.foreground }]}>New playlist</Text>
-          <Text style={[styles.tileMeta, { color: colors.mutedForeground }]}>
-            Start a collection
-          </Text>
-        </View>
-      </View>
+      <Text style={[styles.rowTitle, { color: colors.foreground }]}>New playlist</Text>
     </PressableScale>
   );
 });
 
-/** One of your playlists: stacked cover, name, size and last update, plus a "more" button. */
-export const PlaylistTile = memo(function PlaylistTile({
+/** One of your playlists: its newest song's cover on a record, then name, size and last update. */
+const PlaylistRow = memo(function PlaylistRow({
   playlist,
-  width,
   onMore,
 }: {
   playlist: any;
-  width: number;
   onMore: (playlist: any) => void;
 }) {
   const { colors } = useTheme();
 
   const securedPlaylist = useMemo(() => ensureHttpsForPlaylistUrls(playlist), [playlist]);
-  const previewImages = useMemo(
-    () =>
-      (Array.isArray(playlist.previewSongs) ? (playlist.previewSongs as PlaylistPreviewSong[]) : [])
-        .map((song) => getImageUrl(song.image))
-        .filter(Boolean),
-    [playlist.previewSongs]
-  );
+  const cover = useMemo(() => {
+    const preview = Array.isArray(playlist.previewSongs)
+      ? (playlist.previewSongs as PlaylistPreviewSong[])
+      : [];
+    return getCoverUrl(preview[0]?.image) || getCoverUrl(securedPlaylist?.image);
+  }, [playlist.previewSongs, securedPlaylist]);
 
   const open = useCallback(() => {
     router.push({ pathname: '/user-playlist', params: { id: playlist.id } });
@@ -623,34 +540,30 @@ export const PlaylistTile = memo(function PlaylistTile({
       onPress={open}
       onLongPress={more}
       delayLongPress={350}
+      scaleTo={ROW_PRESS_SCALE}
       accessibilityRole='button'
       accessibilityLabel={`${securedPlaylist.name}, ${meta}`}
+      style={styles.row}
     >
-      <CoverStack
-        images={previewImages}
-        fallback={getImageUrl(securedPlaylist?.image)}
-        width={width}
-      />
-      <View style={styles.tileInfo}>
-        <View style={styles.tileText}>
-          <Text style={[styles.tileTitle, { color: colors.foreground }]} numberOfLines={1}>
-            {securedPlaylist.name}
-          </Text>
-          <Text style={[styles.tileMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
-            {meta}
-          </Text>
-        </View>
-        <PressableScale
-          onPress={more}
-          scaleTo={BUTTON_PRESS_SCALE}
-          hitSlop={10}
-          accessibilityRole='button'
-          accessibilityLabel={`More options for ${securedPlaylist.name}`}
-          style={styles.moreBtn}
-        >
-          <Ionicons name='ellipsis-horizontal' size={17} color={colors.mutedForeground} />
-        </PressableScale>
+      <Sleeve uri={cover} />
+      <View style={styles.rowText}>
+        <Text style={[styles.rowTitle, { color: colors.foreground }]} numberOfLines={1}>
+          {securedPlaylist.name}
+        </Text>
+        <Text style={[styles.rowMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {meta}
+        </Text>
       </View>
+      <PressableScale
+        onPress={more}
+        scaleTo={BUTTON_PRESS_SCALE}
+        hitSlop={10}
+        accessibilityRole='button'
+        accessibilityLabel={`More options for ${securedPlaylist.name}`}
+        style={styles.moreBtn}
+      >
+        <Ionicons name='ellipsis-horizontal' size={18} color={colors.mutedForeground} />
+      </PressableScale>
     </PressableScale>
   );
 });
@@ -683,32 +596,49 @@ const styles = StyleSheet.create({
   },
   sortText: { fontSize: 12.5, fontWeight: '700' },
 
-  gridRow: { gap: GRID_GAP, paddingHorizontal: GRID_PADDING },
-  stackLayer: { position: 'absolute', borderRadius: 12, overflow: 'hidden' },
-  stackFront: {
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+  },
+  sleeve: { width: COVER + DISC_OFFSET, height: COVER, justifyContent: 'center' },
+  disc: {
+    position: 'absolute',
+    left: DISC_OFFSET,
+    width: DISC,
+    height: DISC,
+    borderRadius: DISC / 2,
+    // A record is black in both themes.
+    backgroundColor: '#141416',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groove: {
+    position: 'absolute',
+    borderRadius: DISC,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  cover: {
     position: 'absolute',
     left: 0,
-    borderRadius: 16,
+    width: COVER,
+    height: COVER,
+    borderRadius: 8,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  newCover: { borderWidth: 1.5, borderStyle: 'dashed' },
   fill: { width: '100%', height: '100%' },
-  createFront: { borderWidth: 1.5, borderStyle: 'dashed' },
-  createIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tileInfo: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 },
-  tileText: { flex: 1, minWidth: 0, gap: 2 },
-  tileTitle: { fontFamily: fonts.displaySemibold, fontSize: 15, letterSpacing: -0.2 },
-  tileMeta: { fontSize: 12.5, fontVariant: ['tabular-nums'] },
+  rowText: { flex: 1, minWidth: 0, gap: 3 },
+  rowTitle: { fontSize: 15, fontWeight: '600', letterSpacing: -0.2 },
+  rowMeta: { fontSize: 12.5, fontVariant: ['tabular-nums'] },
   moreBtn: {
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: -6,

@@ -26,6 +26,13 @@ export interface MorphOrigin {
 export const orbOrigin = makeMutable<MorphOrigin | null>(null);
 /** Where the player opens from this time. */
 export const openOrigin = makeMutable<MorphOrigin | null>(null);
+/** How open the full player is, 0 (closed) to 1. The orb watches it to know when it lands. */
+export const playerOpenness = makeMutable(0);
+/**
+ * Below this the closing player is about the orb's size. It fades out over the last stretch
+ * instead of covering the orb until its spring fully settles, and the orb's ring starts there.
+ */
+export const LANDED = 0.12;
 
 /** Artwork of `size`, centred vertically and `inset` from the left of a box. */
 export const artAt = (box: MorphRect, size: number, radius: number, inset?: number): MorphRect => ({

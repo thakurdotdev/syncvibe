@@ -21,7 +21,14 @@ import {
   ROW_PRESS_SCALE,
   SPRING_PRESS,
 } from '@/lib/motion';
-import { artAt, measureRect, openOrigin, orbOrigin } from '@/lib/playerMorph';
+import {
+  artAt,
+  LANDED,
+  measureRect,
+  openOrigin,
+  orbOrigin,
+  playerOpenness,
+} from '@/lib/playerMorph';
 import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE, SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { selectUnreadTotal, useChatStore } from '@/stores/chatStore';
 import { useDeckStore } from '@/stores/deckStore';
@@ -34,6 +41,8 @@ import {
   usePlayerStore,
 } from '@/stores/playerStore';
 import { usePlayerProgress } from '@/hooks/usePlayerProgress';
+import { useAnnounceSync, useSyncStatus } from '@/hooks/useSyncStatus';
+import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -47,16 +56,23 @@ import {
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  cancelAnimation,
   cubicBezier,
   Easing,
   FadeInLeft,
   FadeInRight,
   interpolate,
+  Keyframe,
   ReduceMotion,
   useAnimatedProps,
+  ZoomIn,
+  ZoomOut,
+  useAnimatedReaction,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withDelay,
+  withRepeat,
   withSequence,
   withSpring,
   withTiming,
@@ -356,13 +372,26 @@ const CAPSULE_CONTENT_OUT = {
   reduceMotion: ReduceMotion.System,
 } as const;
 /**
- * A ring that leaves the orb and fades as it spreads: when the capsule lands back in it, and when
- * the song changes. Fast out, slow fade, so it reads as one snappy pulse.
+ * A song lands in the orb: the orb dips a little and springs back, and a new cover turns in
+ * like a record, a quarter turn the way it was sent. Nothing leaves the orb, so it never
+ * reads as a tap on something else.
  */
-const RIPPLE = { duration: 420, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
-const RIPPLE_SCALE = 1.55;
-const RIPPLE_OPACITY = 0.55;
-const INSTANT = { duration: 0 } as const;
+const ORB_DIP = 0.96;
+const ORB_DIP_IN = { duration: 60, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
+const ORB_DIP_OUT = {
+  duration: 300,
+  dampingRatio: 0.55,
+  reduceMotion: ReduceMotion.System,
+} as const;
+const turnIn = (from: string) =>
+  new Keyframe({
+    0: { opacity: 0, transform: [{ rotate: from }] },
+    50: { opacity: 1, easing: Easing.out(Easing.cubic) },
+    100: { transform: [{ rotate: '0deg' }], easing: Easing.out(Easing.cubic) },
+  })
+    .duration(360)
+    .reduceMotion(ReduceMotion.System);
+const ORB_TURN_IN = { next: turnIn('-90deg'), prev: turnIn('90deg') } as const;
 const TABS_HIDE = { duration: 150, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
 /**
  * Switching tabs: Emil Kowalski's segmented-indicator recipe. Every tab is the same width; only the
@@ -380,13 +409,46 @@ const RING_R = 26.5;
 const RING_C = 2 * Math.PI * RING_R;
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-/** Progress around the orb, same glide as the card's line. */
+/** The ring drawing round to the song's position as the player lands back in the orb. */
+const RING_DRAW = { duration: 480, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
+const RING_TRACK_IN = {
+  duration: 160,
+  easing: EASE_OUT,
+  reduceMotion: ReduceMotion.System,
+} as const;
+
+/** Syncing with your other devices: a short arc circling the orb, about a turn a second. */
+const SPIN_ARC = 0.22;
+const SPIN_TURN = {
+  duration: 900,
+  easing: Easing.linear,
+  reduceMotion: ReduceMotion.System,
+} as const;
+const SPIN_OUT = { duration: 160, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
+/** Synced: a badge pops on the orb for a moment, a check or the device it's playing on. */
+const BADGE_IN = ZoomIn.springify().damping(12).stiffness(260).reduceMotion(ReduceMotion.System);
+const BADGE_OUT = ZoomOut.duration(160).reduceMotion(ReduceMotion.System);
+
+/**
+ * Playing, the cover turns slowly like a record; paused, it eases to a stop, a touch smaller and
+ * dimmer. The stop carries on about as far as the record would coast.
+ */
+const RECORD_TURN_MS = 8000;
+const RECORD_COAST = { duration: 600, easing: EASE_OUT } as const;
+const RECORD_COAST_DEG = (360 / RECORD_TURN_MS) * (RECORD_COAST.duration / 2);
+const PAUSED_ART_SCALE = 0.9;
+const PAUSED_ART_OPACITY = 0.6;
+const PLAY_STATE = { duration: 280, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
+
+/** Progress around the orb, same glide as the card's line. While syncing, a spinner instead. */
 const OrbRing = memo(function OrbRing({
   color,
   trackColor,
+  syncing,
 }: {
   color: string;
   trackColor: string;
+  syncing: boolean;
 }) {
   const { position, duration } = usePlayerProgress();
   const fraction = duration > 0 ? Math.min(1, Math.max(0, position / duration)) : 0;
@@ -398,29 +460,92 @@ const OrbRing = memo(function OrbRing({
     shown.set(glide ? withTiming(fraction, { duration: 1000, easing: Easing.linear }) : fraction);
   }, [covered, fraction, duration, shown]);
 
-  const ringProps = useAnimatedProps(() => ({ strokeDashoffset: RING_C * (1 - shown.get()) }));
+  // 1 when the ring is fully drawn. Hidden while the player covers the orb, then drawn from
+  // 12 o'clock to the song's position as the player lands.
+  const drawn = useSharedValue(1);
+  const trackIn = useSharedValue(1);
+  useAnimatedReaction(
+    () => playerOpenness.get() < LANDED,
+    (landed, wasLanded) => {
+      if (landed === wasLanded || wasLanded === null) return;
+      if (landed) {
+        trackIn.set(withTiming(1, RING_TRACK_IN));
+        drawn.set(withTiming(1, RING_DRAW));
+      } else {
+        trackIn.set(0);
+        drawn.set(0);
+      }
+    }
+  );
+
+  // Syncing: the progress arc gives way to a circling one. Done: the progress draws back in.
+  const spin = useSharedValue(0);
+  const spinIn = useSharedValue(0);
+  const wasSyncing = useRef(false);
+  useEffect(() => {
+    if (syncing === wasSyncing.current) return;
+    wasSyncing.current = syncing;
+    if (syncing) {
+      spin.set(0);
+      spin.set(withRepeat(withTiming(360, SPIN_TURN), -1, false));
+      spinIn.set(withTiming(1, RING_TRACK_IN));
+      drawn.set(0);
+    } else {
+      spinIn.set(withTiming(0, SPIN_OUT, (finished) => finished && cancelAnimation(spin)));
+      drawn.set(withTiming(1, RING_DRAW));
+    }
+  }, [syncing, spin, spinIn, drawn]);
+  const spinStyle = useAnimatedStyle(() => ({
+    opacity: spinIn.get(),
+    transform: [{ rotate: `${spin.get()}deg` }],
+  }));
+
+  const ringProps = useAnimatedProps(() => ({
+    strokeDashoffset: RING_C * (1 - shown.get() * drawn.get()),
+    // A round cap draws a dot even at zero length.
+    strokeOpacity: shown.get() * drawn.get() > 0.002 ? 1 : 0,
+  }));
+  const trackStyle = useAnimatedStyle(() => ({ opacity: trackIn.get() }));
 
   return (
-    <Svg width={58} height={58} viewBox='0 0 58 58' style={styles.ring} pointerEvents='none'>
-      <Circle cx={29} cy={29} r={RING_R} stroke={trackColor} strokeWidth={2.5} fill='none' />
-      <AnimatedCircle
-        cx={29}
-        cy={29}
-        r={RING_R}
-        stroke={color}
-        strokeWidth={2.5}
-        strokeLinecap='round'
-        fill='none'
-        strokeDasharray={RING_C}
-        animatedProps={ringProps}
-        // Start at 12 o'clock.
-        transform='rotate(-90 29 29)'
-      />
-    </Svg>
+    <Animated.View style={[styles.ring, trackStyle]} pointerEvents='none'>
+      <Svg width={58} height={58} viewBox='0 0 58 58'>
+        <Circle cx={29} cy={29} r={RING_R} stroke={trackColor} strokeWidth={2.5} fill='none' />
+        <AnimatedCircle
+          cx={29}
+          cy={29}
+          r={RING_R}
+          stroke={color}
+          strokeWidth={2.5}
+          strokeLinecap='round'
+          fill='none'
+          strokeDasharray={RING_C}
+          animatedProps={ringProps}
+          // Start at 12 o'clock.
+          transform='rotate(-90 29 29)'
+        />
+      </Svg>
+      <Animated.View style={[StyleSheet.absoluteFill, spinStyle]}>
+        <Svg width={58} height={58} viewBox='0 0 58 58'>
+          <Circle
+            cx={29}
+            cy={29}
+            r={RING_R}
+            stroke={color}
+            strokeWidth={2.5}
+            strokeLinecap='round'
+            fill='none'
+            strokeDasharray={[RING_C * SPIN_ARC, RING_C]}
+            transform='rotate(-90 29 29)'
+          />
+        </Svg>
+      </Animated.View>
+    </Animated.View>
   );
 });
 
 type OrbKind = 'song' | 'room' | 'idle';
+type SyncBadge = 'check' | 'monitor' | 'smartphone';
 
 /**
  * When a swipe on the orb skips. The orb sits about 40dp from the left edge, so a leftward swipe has
@@ -462,7 +587,13 @@ const Orb = memo(function Orb({
   onSkip,
   glowPlay,
   colors,
+  syncing,
+  syncBadge,
+  playing,
 }: {
+  playing: boolean;
+  syncing: boolean;
+  syncBadge: SyncBadge | null;
   kind: OrbKind;
   artworkUri?: string;
   songId?: string;
@@ -479,39 +610,32 @@ const Orb = memo(function Orb({
   const skipped = useSharedValue(false);
   const startX = useSharedValue(0);
 
-  const rippleScale = useSharedValue(1);
-  const rippleOpacity = useSharedValue(0);
-  const ripple = useCallback(
+  // Its own value, so a landing never fights the press scale.
+  const landScale = useSharedValue(1);
+  const dip = useCallback(
     (delay: number) => {
-      rippleScale.set(
-        withDelay(delay, withSequence(withTiming(1, INSTANT), withTiming(RIPPLE_SCALE, RIPPLE)))
-      );
-      rippleOpacity.set(
-        withDelay(delay, withSequence(withTiming(RIPPLE_OPACITY, INSTANT), withTiming(0, RIPPLE)))
+      landScale.set(
+        withDelay(delay, withSequence(withTiming(ORB_DIP, ORB_DIP_IN), withSpring(1, ORB_DIP_OUT)))
       );
     },
-    [rippleOpacity, rippleScale]
+    [landScale]
   );
-  const rippleStyle = useAnimatedStyle(() => ({
-    opacity: rippleOpacity.get(),
-    transform: [{ scale: rippleScale.get() }],
-  }));
 
-  // The capsule lands back in the orb: a ripple as it arrives.
+  // The capsule lands back in the orb.
   const wasExpanded = useRef(expanded);
   useEffect(() => {
-    if (wasExpanded.current && !expanded) ripple(CAPSULE_CLOSE.duration - 20);
+    if (wasExpanded.current && !expanded) dip(CAPSULE_CLOSE.duration - 20);
     wasExpanded.current = expanded;
-  }, [expanded, ripple]);
+  }, [expanded, dip]);
 
-  // A new song: the same ripple, from the orb now holding it. Not for the first song shown, and
-  // not while the capsule is out: its light sweep says it, and the ripple follows when it closes.
-  const rippledFor = useRef(songId);
+  // A new song lands in the orb (its cover turns in on its own). Not for the first song shown,
+  // and not while the capsule is out: its light sweep says it, and the dip follows when it closes.
+  const dippedFor = useRef(songId);
   useEffect(() => {
-    if (kind !== 'song' || songId === rippledFor.current) return;
-    if (rippledFor.current !== undefined && !expanded) ripple(0);
-    rippledFor.current = songId;
-  }, [expanded, kind, ripple, songId]);
+    if (kind !== 'song' || songId === dippedFor.current) return;
+    if (dippedFor.current !== undefined && !expanded) dip(0);
+    dippedFor.current = songId;
+  }, [expanded, kind, dip, songId]);
 
   // A new song starts centred; whatever the old one was doing is over.
   useLayoutEffect(() => {
@@ -566,7 +690,38 @@ const Orb = memo(function Orb({
     });
   const gesture = Gesture.Race(pan, hold, tap);
 
-  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.get() * landScale.get() }],
+  }));
+  // The record: turns while your song plays and the orb is in view, coasts to a stop on pause.
+  const reduceMotion = useReducedMotion();
+  const covered = useFullPlayerOpen((st) => st.open);
+  const spinning = kind === 'song' && playing && !covered && !reduceMotion;
+  const angle = useSharedValue(0);
+  const pausedLook = useSharedValue(kind === 'song' && !playing ? 1 : 0);
+  useEffect(() => {
+    const from = angle.get() % 360;
+    cancelAnimation(angle);
+    angle.set(from);
+    if (spinning) {
+      // Repeats from where it is, so a turn ends where the next begins.
+      angle.set(
+        withRepeat(withTiming(from + 360, { duration: RECORD_TURN_MS, easing: Easing.linear }), -1)
+      );
+    } else if (!reduceMotion) {
+      angle.set(withTiming(from + RECORD_COAST_DEG, RECORD_COAST));
+    }
+  }, [spinning, reduceMotion, angle]);
+  useEffect(() => {
+    pausedLook.set(withTiming(kind === 'song' && !playing ? 1 : 0, PLAY_STATE));
+  }, [kind, playing, pausedLook]);
+  const pausedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pausedLook.get(), [0, 1], [1, PAUSED_ART_OPACITY]),
+    transform: [{ scale: interpolate(pausedLook.get(), [0, 1], [1, PAUSED_ART_SCALE]) }],
+  }));
+  // Innermost, so a swipe still slides the cover straight sideways whatever its angle.
+  const turnStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${angle.get()}deg` }] }));
+
   const artStyle = useAnimatedStyle(() => ({
     opacity: interpolate(Math.abs(x.get()), [0, 30, SKIP_OUT_ORB], [1, 0.5, 0], 'clamp'),
     transform: [{ translateX: x.get() }],
@@ -607,15 +762,6 @@ const Orb = memo(function Orb({
           else if (a === 'previous') onSkip('prev');
         }}
       >
-        {/* Behind the orb, so it only shows as it spreads past the edge. */}
-        <Animated.View
-          pointerEvents='none'
-          style={[
-            styles.ripple,
-            { borderColor: colors.primary, backgroundColor: `${colors.primary}1F` },
-            rippleStyle,
-          ]}
-        />
         <GlassSurface radius={PILL_HEIGHT / 2} style={styles.orb} contentStyle={styles.orbInner}>
           {kind === 'idle' ? (
             // Nothing playing: an ember orb that invites you to find something, the bar's one
@@ -637,21 +783,43 @@ const Orb = memo(function Orb({
             </View>
           ) : (
             <>
-              {kind === 'song' && <OrbRing color={colors.primary} trackColor={colors.hairline} />}
-              <View style={styles.orbArtBox}>
-                <Animated.View key={songId} entering={SONG_ENTER[direction]} style={styles.orbArt}>
+              {kind === 'song' && (
+                <OrbRing color={colors.primary} trackColor={colors.hairline} syncing={syncing} />
+              )}
+              <Animated.View style={[styles.orbArtBox, pausedStyle]}>
+                <Animated.View key={songId} entering={ORB_TURN_IN[direction]} style={styles.orbArt}>
                   <Animated.View style={[styles.orbArt, artStyle]}>
-                    <Image
-                      source={{ uri: artworkUri }}
-                      style={[styles.orbArt, { backgroundColor: colors.raised }]}
-                      fadeDuration={0}
-                    />
+                    <Animated.View style={[styles.orbArt, turnStyle]}>
+                      <Image
+                        source={{ uri: artworkUri }}
+                        style={[styles.orbArt, { backgroundColor: colors.raised }]}
+                        fadeDuration={0}
+                      />
+                    </Animated.View>
                   </Animated.View>
                 </Animated.View>
-              </View>
+              </Animated.View>
             </>
           )}
         </GlassSurface>
+        {kind === 'song' && syncBadge && (
+          <Animated.View
+            key={syncBadge}
+            entering={BADGE_IN}
+            exiting={BADGE_OUT}
+            pointerEvents='none'
+            style={[
+              styles.syncBadge,
+              { backgroundColor: colors.foreground, borderColor: colors.background },
+            ]}
+          >
+            <Feather
+              name={syncBadge}
+              size={syncBadge === 'check' ? 11 : 10}
+              color={colors.background}
+            />
+          </Animated.View>
+        )}
         <GlowSweep
           width={PILL_HEIGHT}
           height={PILL_HEIGHT}
@@ -878,7 +1046,7 @@ const Capsule = memo(function Capsule({
     } else {
       content.set(withTiming(0, CAPSULE_CONTENT_OUT));
       maskW.set(withTiming(PILL_HEIGHT, CAPSULE_CLOSE));
-      // Gone the moment it's back in the orb, where the ripple takes over.
+      // Gone the moment it's back in the orb, where the orb's dip takes over.
       maskOpacity.set(withDelay(CAPSULE_CLOSE.duration - 30, withTiming(0, CAPSULE_SHOW)));
     }
   }, [expanded, width, maskW, maskOpacity, content]);
@@ -1010,6 +1178,12 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     () => [goHome, goGroup, goPlaylist, goChat],
     [goHome, goGroup, goPlaylist, goChat]
   );
+
+  // Catching up with your other devices shows on the orb: its ring circles, then a badge.
+  const { status: syncStatus, remote } = useSyncStatus();
+  useAnnounceSync(syncStatus, remote?.name);
+  const syncBadge: SyncBadge | null =
+    syncStatus !== 'synced' ? null : !remote ? 'check' : remote.mobile ? 'smartphone' : 'monitor';
 
   const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
   const roomSong = useGroupSessionStore((s) => s.currentItem?.song);
@@ -1234,6 +1408,9 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
             onSkip={onSkip}
             glowPlay={orbKind === 'idle' ? glowPlay : 0}
             colors={colors}
+            syncing={syncStatus === 'syncing'}
+            syncBadge={syncBadge}
+            playing={isPlaying}
           />
         </View>
         <Animated.View style={[styles.pill, tabsStyle]} pointerEvents={expanded ? 'none' : 'auto'}>
@@ -1344,16 +1521,18 @@ const styles = StyleSheet.create({
   liveDot: { position: 'absolute', top: -1, right: -2, width: 7, height: 7, borderRadius: 4 },
 
   orb: { width: PILL_HEIGHT, height: PILL_HEIGHT },
-  ripple: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: PILL_HEIGHT,
-    height: PILL_HEIGHT,
-    borderRadius: PILL_HEIGHT / 2,
-    borderWidth: 2,
-  },
   orbInner: { alignItems: 'center', justifyContent: 'center' },
+  syncBadge: {
+    position: 'absolute',
+    right: -3,
+    bottom: -3,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   ring: { position: 'absolute', top: -0.5, left: -0.5 },
   orbArtBox: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },
   orbArt: { width: 44, height: 44 },
