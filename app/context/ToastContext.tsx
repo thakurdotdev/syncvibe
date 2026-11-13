@@ -9,7 +9,7 @@ import {
   SPRING_SNAP,
   ENTER,
 } from '@/lib/motion';
-import { CircleAlert, CircleCheck, Info } from 'lucide-react-native';
+import { CircleAlert, CircleCheck, Info } from '@/components/ui/icons';
 import React, {
   createContext,
   ReactNode,

@@ -24,12 +24,15 @@ import useApi from '@/utils/hooks/useApi';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export const useHomePageMusic = () => {
-  const { selectedLanguages } = useUser();
+  const { selectedLanguages, restored } = useUser();
   const language = selectedLanguages || 'hindi';
 
   return useQuery({
     queryKey: ['homePageMusic', language],
     queryFn: () => getHomePageMusic(language),
+    // Until the saved languages are read, `language` is only the default: fetching it would
+    // cost a request and swap the whole page a moment later.
+    enabled: restored,
     placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000,
     refetchOnMount: true,

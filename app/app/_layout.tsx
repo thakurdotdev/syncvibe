@@ -12,7 +12,8 @@ import { ChatProvider } from '@/context/SocketContext';
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { typography } from '@/theme/typography';
 import { ToastProvider } from '@/context/ToastContext';
-import { UserProvider } from '@/context/UserContext';
+import { UserProvider, useUser } from '@/context/UserContext';
+import { onboardingCheckAtLaunch } from '@/lib/onboarding';
 import {
   BricolageGrotesque_600SemiBold,
   BricolageGrotesque_700Bold,
@@ -22,7 +23,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import TrackPlayer from '@rntp/player';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { QueryClient } from '@tanstack/react-query';
+import { defaultShouldDehydrateQuery, QueryClient, useIsRestoring } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import * as Notifications from 'expo-notifications';
 import { NotificationBehavior } from 'expo-notifications';
@@ -30,7 +31,7 @@ import * as SystemUI from 'expo-system-ui';
 import { Stack } from 'expo-router';
 import { ObserveRoot, useObserve } from 'expo-observe';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StatusBar, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -39,6 +40,11 @@ import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-c
 import '../global.css';
 
 SplashScreen.preventAutoHideAsync();
+// Started before the first render, so it is usually done by the time anything asks.
+void onboardingCheckAtLaunch();
+
+/** The splash never waits longer than this, whatever is still loading. */
+const SPLASH_MAX_MS = 2500;
 
 configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
@@ -83,6 +89,29 @@ const asyncStoragePersister = createAsyncStoragePersister({
   storage: AsyncStorage,
 });
 
+/**
+ * Queries worth keeping between launches: what a screen shows the moment it opens. The saved
+ * cache is read before the first screen and rewritten while you use the app, so search results
+ * and recommendation lists (one entry per keystroke or song) stay in memory only.
+ */
+const PERSISTED_QUERIES = new Set([
+  'homePageMusic',
+  'station',
+  'recentMusic',
+  'musicHistory',
+  'playlistDetails',
+  'albumDetails',
+  'artistDetails',
+]);
+
+const persistOptions = {
+  persister: asyncStoragePersister,
+  dehydrateOptions: {
+    shouldDehydrateQuery: (query: Parameters<typeof defaultShouldDehydrateQuery>[0]) =>
+      defaultShouldDehydrateQuery(query) && PERSISTED_QUERIES.has(String(query.queryKey[0])),
+  },
+};
+
 function RootLayout() {
   return (
     <ErrorBoundary>
@@ -92,10 +121,7 @@ function RootLayout() {
           <KeyboardProvider>
             <ThemeProvider>
               <ToastProvider>
-                <PersistQueryClientProvider
-                  client={queryClient}
-                  persistOptions={{ persister: asyncStoragePersister }}
-                >
+                <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
                   <UserProvider>
                     <ChatProvider>
                       <NotificationProvider>
@@ -126,13 +152,36 @@ function RootLayoutNav() {
     BricolageGrotesque_800ExtraBold,
   });
   const fontsReady = fontsLoaded || Boolean(fontError);
+  // Everything the first screen reads from this phone. Waiting for it behind the splash means the
+  // first frame is the finished screen: no blank frame, no avatar or saved music popping in.
+  const { restored: userRestored } = useUser();
+  const queriesRestoring = useIsRestoring();
+  const [onboardingKnown, setOnboardingKnown] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    if (!themeLoading && fontsReady) {
+    void onboardingCheckAtLaunch().then(() => setOnboardingKnown(true));
+  }, []);
+
+  const ready =
+    timedOut ||
+    (!themeLoading && fontsReady && onboardingKnown && userRestored && !queriesRestoring);
+
+  useEffect(() => {
+    if (ready) return;
+    const timer = setTimeout(() => setTimedOut(true), SPLASH_MAX_MS);
+    return () => clearTimeout(timer);
+  }, [ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    // One frame later, so the screen under the splash has been drawn.
+    const frame = requestAnimationFrame(() => {
       SplashScreen.hideAsync();
       markInteractive();
-    }
-  }, [themeLoading, fontsReady, markInteractive]);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [ready, markInteractive]);
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(colors.background).catch(() => {

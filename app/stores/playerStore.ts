@@ -441,6 +441,8 @@ export const usePlayerStore = create<PlayerStore>()(
         originalPlaylist: state.originalPlaylist,
         shuffleMode: state.shuffleMode,
         repeatMode: state.repeatMode,
+        // So Library opens with your playlists instead of an empty list while they load.
+        userPlaylist: state.userPlaylist,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {

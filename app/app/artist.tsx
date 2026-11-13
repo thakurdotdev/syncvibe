@@ -22,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
-import { Disc3, ListMusic, Music2, Users } from 'lucide-react-native';
+import { Disc3, ListMusic, Music2, Users } from '@/components/ui/icons';
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,

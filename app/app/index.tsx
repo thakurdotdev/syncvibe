@@ -1,4 +1,4 @@
-import { shouldShowOnboarding } from '@/lib/onboarding';
+import { takeOnboardingDecision } from '@/lib/onboarding';
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 
@@ -6,13 +6,14 @@ export default function Index() {
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
 
   useEffect(() => {
-    shouldShowOnboarding()
-      .then(setShowOnboarding)
-      .catch((error) => {
-        // Never block the app on a storage failure.
-        console.error('Failed to read onboarding state:', error);
-        setShowOnboarding(false);
-      });
+    let active = true;
+    // At launch this is the check the splash screen already waits for, so nothing blank shows.
+    void takeOnboardingDecision().then((show) => {
+      if (active) setShowOnboarding(show);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (showOnboarding === null) return null;

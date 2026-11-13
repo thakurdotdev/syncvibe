@@ -4,8 +4,10 @@ import { signOutGoogle } from '@/lib/googleAuth';
 import { authClient, hasLegacyToken, hasStoredSession, removeLegacyToken } from '@/lib/auth-client';
 import { LANGUAGE_STORAGE_KEY } from '@/lib/languages';
 import { markOnboardingComplete } from '@/lib/onboarding';
+import { usePlayerStore } from '@/stores/playerStore';
+import { destroyTrackPlayer } from '@/stores/trackPlayerBridge';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
+import { reloadAppAsync } from 'expo';
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useState } from 'react';
 
@@ -16,6 +18,11 @@ interface UserContextType {
   setSelectedLanguages: React.Dispatch<React.SetStateAction<string>>;
   getProfile: () => Promise<void>;
   loading: boolean;
+  /**
+   * The saved profile and language preference have been read from this phone. The fresh profile
+   * may still be on its way, but nothing saved is left to pop in.
+   */
+  restored: boolean;
   musicConfig: Record<string, any>;
   setMusicConfig: React.Dispatch<React.SetStateAction<Record<string, any>>>;
   logout: () => Promise<void>;
@@ -37,6 +44,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [restored, setRestored] = useState(false);
   const [musicConfig, setMusicConfig] = useState<Record<string, any>>({});
   const [selectedLanguages, setSelectedLanguages] = useState<string>('hindi');
 
@@ -55,9 +63,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!(await hasStoredSession())) return;
 
     const cachedProfile = await AsyncStorage.getItem('@user_profile');
-    if (cachedProfile && isActive()) {
-      setUser(JSON.parse(cachedProfile));
-      setLoading(false);
+    if (isActive()) {
+      if (cachedProfile) {
+        setUser(JSON.parse(cachedProfile));
+        setLoading(false);
+      }
+      setRestored(true);
     }
 
     const { data: session, error } = await authClient.getSession();
@@ -110,6 +121,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } finally {
         if (isMounted) {
           setLoading(false);
+          setRestored(true);
         }
       }
     };
@@ -122,22 +134,27 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [api]);
 
   const logout = async () => {
+    queryClient.cancelQueries();
+    queryClient.clear();
+    // Playlists are saved on the phone; the next person to sign in mustn't see these.
+    usePlayerStore.getState().setUserPlaylist([]);
+    // Logging out clears everything except the fact that this device has seen onboarding.
+    // The Expo auth client removes the stored session cookie before the request is sent.
+    // The native player outlives a JS reload, so it is stopped here.
+    await Promise.allSettled([
+      authClient.signOut(),
+      AsyncStorage.clear().then(markOnboardingComplete),
+      signOutGoogle(),
+      destroyTrackPlayer(),
+    ]);
+    setUser(null);
+    // A fresh start drops what the old session still holds in memory: its socket, room, messages
+    // and queue. (expo-router's `router.reload()` isn't implemented on native and throws.)
     try {
-      queryClient.cancelQueries();
-      queryClient.clear();
-      // Logging out clears everything except the fact that this device has seen onboarding.
-      // The Expo auth client removes the stored session cookie before the request is sent.
-      await Promise.allSettled([
-        authClient.signOut(),
-        AsyncStorage.clear().then(markOnboardingComplete),
-        signOutGoogle(),
-      ]);
-      setUser(null);
-      router.reload();
+      await reloadAppAsync('Signed out');
     } catch (error) {
-      console.error('Error logging out:', error);
-      setUser(null);
-      router.reload();
+      // The caller still takes you Home, signed out.
+      console.error('Error reloading after logout:', error);
     }
   };
 
@@ -162,6 +179,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser,
         getProfile,
         loading,
+        restored,
         musicConfig,
         setMusicConfig,
         logout,

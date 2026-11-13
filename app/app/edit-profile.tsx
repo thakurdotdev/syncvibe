@@ -2,7 +2,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
 import { useToast } from '@/context/ToastContext';
 import { router } from 'expo-router';
-import { UserIcon, AtSignIcon } from 'lucide-react-native';
+import { UserIcon, AtSignIcon } from '@/components/ui/icons';
 import React, { useState } from 'react';
 import { View, Text, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

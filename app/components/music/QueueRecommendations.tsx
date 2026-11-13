@@ -6,7 +6,7 @@ import { toast } from '@/context/ToastContext';
 import { useSongRecommendationsQuery } from '@/queries/useMusic';
 import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
-import { RefreshCw, Plus, X } from 'lucide-react-native';
+import { RefreshCw, Plus, X } from '@/components/ui/icons';
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,

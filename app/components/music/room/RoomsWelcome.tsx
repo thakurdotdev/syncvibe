@@ -3,13 +3,18 @@ import { Bezel, Gloss } from '@/components/ui/Finish';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
-import { BUTTON_PRESS_SCALE } from '@/lib/motion';
+import { BUTTON_PRESS_SCALE, EASE_OUT } from '@/lib/motion';
 import type { MyRoom } from '@/stores/groupMusic/roomProtocol';
 import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
 import { memo } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { cubicBezier, useReducedMotion } from 'react-native-reanimated';
+import Animated, {
+  cubicBezier,
+  FadeIn,
+  LinearTransition,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { MyRooms } from './MyRooms';
 
 type Colors = ReturnType<typeof useTheme>['colors'];
@@ -21,6 +26,9 @@ const SEAT = 30;
 const SEAT_GAP = 12;
 /** You, then two open seats. */
 const SEATS = [0, 1, 2];
+/** Your rooms arrive from the server a moment after the tab opens: ease them in, not jump. */
+const ROOMS_ENTER = FadeIn.duration(200).easing(EASE_OUT);
+const REFLOW = LinearTransition.duration(220).easing(EASE_OUT);
 
 /** Plays once as the screen appears, then holds still: nothing loops while you read. */
 const enter = (reduced: boolean, delayMs: number, from: Record<string, unknown>) =>
@@ -155,9 +163,18 @@ export const RoomsWelcome = memo(function RoomsWelcome({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[styles.content, { paddingBottom: DECK_CLEARANCE }]}
     >
-      <MyRooms rooms={myRooms} onJoin={onJoinRoom} onAsk={onAskRoom} onDismiss={onDismissRoom} />
+      {myRooms.length > 0 && (
+        <Animated.View entering={ROOMS_ENTER} layout={REFLOW}>
+          <MyRooms
+            rooms={myRooms}
+            onJoin={onJoinRoom}
+            onAsk={onAskRoom}
+            onDismiss={onDismissRoom}
+          />
+        </Animated.View>
+      )}
 
-      <View style={styles.hero}>
+      <Animated.View layout={REFLOW} style={styles.hero}>
         <RoomPreview colors={colors} />
 
         <Animated.View style={enter(reduced, 120, rise)}>
@@ -168,7 +185,7 @@ export const RoomsWelcome = memo(function RoomsWelcome({
             Start a room and everyone hears the same moment, wherever they are.
           </Text>
         </Animated.View>
-      </View>
+      </Animated.View>
 
       <Animated.View style={[styles.actions, enter(reduced, 300, rise)]}>
         <PressableScale

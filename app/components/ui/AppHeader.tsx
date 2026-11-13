@@ -81,18 +81,22 @@ const AvatarButton = memo(function AvatarButton() {
   );
 });
 
-/** Home's one line: the dial, then search and your avatar. */
+/**
+ * Home's one line: the dial, then search and your avatar. Same height, padding and buttons as
+ * `TabHeader`, so switching tabs never moves the page under it.
+ */
 export const HomeHeader = memo(function HomeHeader({ children }: { children: ReactNode }) {
   return (
     <View style={styles.homeHeader}>
       {children}
-      <HeaderIconButton
-        icon='search'
-        label='Search music, your history, playlists and people'
-        tone='plain'
-        onPress={openSearch}
-      />
-      <AvatarButton />
+      <View style={styles.actions}>
+        <HeaderIconButton
+          icon='search'
+          label='Search music, your history, playlists and people'
+          onPress={openSearch}
+        />
+        <AvatarButton />
+      </View>
     </View>
   );
 });
@@ -198,12 +202,11 @@ const styles = StyleSheet.create({
   iconButtonSpacer: { width: 38, height: 38 },
 
   homeHeader: {
+    height: HEADER_HEIGHT,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingLeft: 16,
-    paddingRight: 12,
-    height: 66,
+    gap: 12,
   },
 
   tabHeader: {
