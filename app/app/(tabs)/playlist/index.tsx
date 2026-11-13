@@ -228,8 +228,10 @@ const PlaylistScreen = () => {
         contentContainerStyle={{ paddingBottom: DECK_CLEARANCE }}
         ListHeaderComponent={
           <>
-            <ShortcutRow icon='add' label='New playlist' onPress={openCreateModal} />
-            <ShortcutRow icon='time-outline' label='Listening history' onPress={openHistory} />
+            <View style={styles.shortcuts}>
+              <Shortcut icon='add' label='New playlist' onPress={openCreateModal} />
+              <Shortcut icon='time-outline' label='History' onPress={openHistory} />
+            </View>
             <View style={styles.toolbar}>
               <Text style={[styles.count, { color: colors.mutedForeground }]}>
                 {countKnown ? `${count} ${count === 1 ? 'playlist' : 'playlists'}` : ''}
@@ -501,8 +503,8 @@ const CoverStack = memo(function CoverStack({ uris }: { uris: string[] }) {
   );
 });
 
-/** A row that does something (new playlist, history), lined up with the playlists below it. */
-const ShortcutRow = memo(function ShortcutRow({
+/** A compact action above the list (new playlist, history). Two share one line. */
+const Shortcut = memo(function Shortcut({
   icon,
   label,
   onPress,
@@ -515,17 +517,14 @@ const ShortcutRow = memo(function ShortcutRow({
   return (
     <PressableScale
       onPress={onPress}
-      scaleTo={ROW_PRESS_SCALE}
       accessibilityRole='button'
       accessibilityLabel={label}
-      style={styles.row}
+      style={[styles.shortcut, { backgroundColor: colors.raised }]}
     >
-      <View style={styles.art}>
-        <View style={[styles.cover, { backgroundColor: colors.raised }]}>
-          <Ionicons name={icon} size={22} color={colors.foreground} />
-        </View>
-      </View>
-      <Text style={[styles.rowTitle, { color: colors.foreground }]}>{label}</Text>
+      <Ionicons name={icon} size={18} color={colors.foreground} />
+      <Text style={[styles.shortcutText, { color: colors.foreground }]} numberOfLines={1}>
+        {label}
+      </Text>
     </PressableScale>
   );
 });
@@ -583,13 +582,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  shortcuts: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 4 },
+  shortcut: {
+    flex: 1,
+    height: 42,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  shortcutText: { fontSize: 14, fontWeight: '600', letterSpacing: -0.1 },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     height: 36,
-    marginTop: 8,
+    marginTop: 6,
   },
   count: { fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
   sort: { flexDirection: 'row', alignItems: 'center', gap: 4, height: 28 },
