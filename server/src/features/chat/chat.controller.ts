@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { ChatError } from './chat.errors';
 import { asObject, parseId } from './chat.validation';
+import { cancelUpload, createUpload, getAttachment } from './services/attachment.service';
 import { listConversations, openDirectConversation } from './services/conversation.service';
 import { confirmDelivered, listMessages, markRead, sendMessage } from './services/message.service';
 
@@ -63,5 +64,21 @@ export const postDelivered = respond(async (req) => {
     ...asObject(req.body),
     conversationId: req.params.conversationId,
   });
+  return { ok: true };
+});
+
+/** Somewhere to upload a file before sending it; the message then names it by its id. */
+export const postAttachment = respond((req) =>
+  createUpload(req.user!.userid, req.params.conversationId, asObject(req.body))
+);
+
+/** New links for a file, once the ones a device holds have run out. */
+export const getAttachmentLinks = respond(async (req) => ({
+  attachment: await getAttachment(req.user!.userid, req.params.attachmentId),
+}));
+
+/** A file removed before it was sent. */
+export const deleteAttachment = respond(async (req) => {
+  await cancelUpload(req.user!.userid, req.params.attachmentId);
   return { ok: true };
 });

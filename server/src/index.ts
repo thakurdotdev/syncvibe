@@ -7,6 +7,7 @@ import { flushRooms, restoreRooms } from '@/socket/group-music';
 import { sessionStore } from '@/socket/player/store';
 import { startBackgroundRecalc } from '@/features/music/services/recommendation.service';
 import { resumePendingUpdates } from '@/features/app-update/eas-webhook.controller';
+import { startUploadSweeper } from '@/features/chat/services/attachment.service';
 
 const server = http.createServer(app);
 
@@ -41,6 +42,7 @@ sequelize
       console.log(`Server running on port ${port}`);
       startBackgroundRecalc(60000);
       resumePendingUpdates().catch(console.error);
+      startUploadSweeper();
     });
   })
   .catch((err: Error) => {

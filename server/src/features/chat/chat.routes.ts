@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import { authMiddleware } from '@/middleware/auth.middleware';
 import {
+  deleteAttachment,
+  getAttachmentLinks,
   getConversations,
   getMessages,
   openConversation,
+  postAttachment,
   postMessage,
   postDelivered,
   postRead,
@@ -12,7 +15,8 @@ import {
 /**
  * Reading over HTTP; sending, editing, deleting, reacting and read receipts go over the socket
  * (see socket/chat), which also carries everything that happens to other devices. Sending and
- * reading are also here for notification actions, which run with no socket.
+ * reading are also here for notification actions, which run with no socket. Files are uploaded
+ * straight to storage with a link from here, then sent over the socket by their id.
  */
 export const chatRouter: Router = Router();
 
@@ -22,3 +26,6 @@ chatRouter.get('/chat/conversations/:conversationId/messages', authMiddleware, g
 chatRouter.post('/chat/conversations/:conversationId/messages', authMiddleware, postMessage);
 chatRouter.post('/chat/conversations/:conversationId/read', authMiddleware, postRead);
 chatRouter.post('/chat/conversations/:conversationId/delivered', authMiddleware, postDelivered);
+chatRouter.post('/chat/conversations/:conversationId/attachments', authMiddleware, postAttachment);
+chatRouter.get('/chat/attachments/:attachmentId', authMiddleware, getAttachmentLinks);
+chatRouter.delete('/chat/attachments/:attachmentId', authMiddleware, deleteAttachment);

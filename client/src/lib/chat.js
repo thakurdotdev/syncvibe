@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { useChatStore } from '@/stores/chatStore';
-import { uploadToCloudinary } from '@/Utils/cloudinaryUpload';
+import { prepareFile } from '@/lib/attachments';
 
 /**
  * Direct messages, talking to the server. Reading goes over HTTP; everything the user does goes
@@ -120,9 +120,72 @@ export const loadOlder = async (conversationId) => {
 
 // ── Sending ─────────────────────────────────────────────────────────────────
 
-/** What a message being sent still needs, by clientId: its file, and the upload once it's done. */
+/**
+ * What a message being sent still needs, by clientId: its text, its file and, once uploaded,
+ * the upload's id. A message with a file uploads it straight to storage first, then is sent
+ * naming it.
+ */
 const drafts = new Map();
 const inFlight = new Set();
+
+/** Progress is shown in steps, so a fast upload doesn't redraw the bubble hundreds of times. */
+const PROGRESS_STEP = 0.02;
+
+const httpError = (error, fallback) => {
+  const data = error?.response?.data;
+  if (data?.code) return new ChatError(data.code, data.message || fallback);
+  return new ChatError(error?.response ? 'INTERNAL' : 'TIMEOUT', fallback);
+};
+
+/** Uploads the file to the address the server signed for it, reporting how far it has got. */
+const putFile = (upload, file, onProgress, signal) =>
+  new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(upload.method || 'PUT', upload.url);
+    for (const [name, value] of Object.entries(upload.headers || {})) {
+      xhr.setRequestHeader(name, value);
+    }
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(event.loaded / event.total);
+    };
+    xhr.onload = () =>
+      xhr.status >= 200 && xhr.status < 300
+        ? resolve()
+        : reject(new ChatError('TIMEOUT', "Couldn't upload the file"));
+    xhr.onerror = () => reject(new ChatError('TIMEOUT', "Couldn't upload the file"));
+    xhr.onabort = () => reject(new ChatError('CANCELLED', 'Cancelled'));
+    signal.addEventListener('abort', () => xhr.abort(), { once: true });
+    xhr.send(file);
+  });
+
+const uploadFile = async (conversationId, clientId, draft) => {
+  const { file, meta } = draft;
+  let created;
+  try {
+    ({ data: created } = await http.post(`/conversations/${conversationId}/attachments`, {
+      name: file.name,
+      size: file.size,
+      ...meta,
+    }));
+  } catch (error) {
+    throw httpError(error, "Couldn't send the file");
+  }
+  draft.uploadId = created.attachment.id;
+
+  let shown = 0;
+  store().setUploadProgress(clientId, 0);
+  await putFile(
+    created.upload,
+    file,
+    (progress) => {
+      if (progress - shown < PROGRESS_STEP && progress < 1) return;
+      shown = progress;
+      store().setUploadProgress(clientId, progress);
+    },
+    draft.abort.signal
+  );
+  draft.uploaded = true;
+};
 
 const deliver = async (conversationId, clientId) => {
   const draft = drafts.get(clientId);
@@ -130,21 +193,37 @@ const deliver = async (conversationId, clientId) => {
   inFlight.add(clientId);
   store().setPendingStatus(conversationId, clientId, 'sending');
 
-  try {
-    if (draft.file && !draft.attachment) {
-      const uploaded = await uploadToCloudinary(draft.file, 'chat');
-      draft.attachment = { url: uploaded.image, width: uploaded.width, height: uploaded.height };
+  const send = async () => {
+    if (draft.file && !draft.uploaded) {
+      if (draft.abort.signal.aborted) draft.abort = new AbortController();
+      await uploadFile(conversationId, clientId, draft);
     }
-    const { message } = await command('chat:send', {
+    return command('chat:send', {
       conversationId,
       clientId,
       body: draft.body,
-      attachment: draft.attachment ?? null,
+      attachmentId: draft.file ? draft.uploadId : undefined,
       replyToId: draft.replyToId,
     });
+  };
+
+  try {
+    let reply;
+    try {
+      reply = await send();
+    } catch (error) {
+      // The upload ran out or was removed while waiting (offline for hours): upload it again.
+      if (error.code !== 'GONE' || !draft.file) throw error;
+      draft.uploaded = false;
+      draft.uploadId = null;
+      reply = await send();
+    }
     drafts.delete(clientId);
-    store().receiveMessage(message);
+    store().setUploadProgress(clientId, null);
+    store().receiveMessage(reply.message);
   } catch (error) {
+    store().setUploadProgress(clientId, null);
+    if (error.code === 'CANCELLED') return;
     // Offline: it stays "sending" and goes out by itself when the connection is back. The server
     // stores a clientId once, so sending it again can't make a second copy.
     if (error.code !== 'OFFLINE') {
@@ -160,47 +239,113 @@ const deliver = async (conversationId, clientId) => {
   }
 };
 
-export const sendMessage = (conversationId, { body, file, replyTo }) => {
-  const text = body?.trim() || null;
-  if (!text && !file) return;
+const quoteOf = (replyTo) =>
+  replyTo
+    ? {
+        id: replyTo.id,
+        senderId: replyTo.senderId,
+        type: replyTo.type,
+        body: replyTo.body,
+        hasAttachment: Boolean(replyTo.attachment),
+        attachmentKind: replyTo.attachment?.kind ?? null,
+        attachmentName: replyTo.attachment?.name ?? null,
+        deleted: false,
+      }
+    : null;
 
-  const clientId = newClientId();
-  const localUrl = file ? URL.createObjectURL(file) : undefined;
-  drafts.set(clientId, { body: text, file, replyToId: replyTo?.id ?? null });
-
+const addPending = (conversationId, clientId, { body, attachment, localUrl, replyTo }) =>
   store().addPending({
     id: null,
     clientId,
     conversationId,
     senderId: store().meId,
-    type: file ? 'image' : 'text',
-    body: text,
-    attachment: file ? { url: localUrl } : null,
+    type: !attachment ? 'text' : attachment.kind === 'image' ? 'image' : 'file',
+    body,
+    attachment,
     localUrl,
     call: null,
-    replyTo: replyTo
-      ? {
-          id: replyTo.id,
-          senderId: replyTo.senderId,
-          type: replyTo.type,
-          body: replyTo.body,
-          hasAttachment: Boolean(replyTo.attachment),
-          deleted: false,
-        }
-      : null,
+    replyTo: quoteOf(replyTo),
     reactions: [],
     editedAt: null,
     createdAt: new Date().toISOString(),
     status: 'sending',
   });
+
+/**
+ * Sends text, files or both. Each file becomes its own message; the text goes with the first.
+ * `files` are `{ file, kind }` that passed `checkFile`.
+ */
+export const sendMessage = async (conversationId, { body, files = [], replyTo }) => {
+  let text = body?.trim() || null;
+  if (!text && files.length === 0) return;
   setTyping(conversationId, false);
-  void deliver(conversationId, clientId);
+
+  if (files.length === 0) {
+    const clientId = newClientId();
+    drafts.set(clientId, { body: text, replyToId: replyTo?.id ?? null });
+    addPending(conversationId, clientId, { body: text, attachment: null, replyTo });
+    void deliver(conversationId, clientId);
+    return;
+  }
+
+  // Shown at once, in order; measuring and shrinking happen while they're already on screen.
+  const pending = files.map(({ file, kind }, index) => {
+    const clientId = newClientId();
+    const localUrl =
+      kind === 'image' || kind === 'video' || kind === 'audio'
+        ? URL.createObjectURL(file)
+        : undefined;
+    const caption = index === 0 ? text : null;
+    addPending(conversationId, clientId, {
+      body: caption,
+      attachment: {
+        kind,
+        name: file.name,
+        size: file.size,
+        mime: file.type,
+        url: localUrl ?? null,
+        downloadUrl: null,
+      },
+      localUrl,
+      replyTo: index === 0 ? replyTo : null,
+    });
+    return { clientId, file, kind, caption, replyToId: index === 0 ? (replyTo?.id ?? null) : null };
+  });
+  text = null;
+
+  for (const item of pending) {
+    const prepared = await prepareFile(item.file, item.kind);
+    const { file, ...meta } = prepared;
+    drafts.set(item.clientId, {
+      body: item.caption,
+      file,
+      meta,
+      replyToId: item.replyToId,
+      abort: new AbortController(),
+      uploadId: null,
+      uploaded: false,
+    });
+    if (meta.width || meta.durationSec) {
+      store().patchPendingAttachment(conversationId, item.clientId, {
+        width: meta.width,
+        height: meta.height,
+        durationSec: meta.durationSec,
+        size: file.size,
+      });
+    }
+    void deliver(conversationId, item.clientId);
+  }
 };
 
 export const retryMessage = (message) => deliver(message.conversationId, message.clientId);
 
+/** Removes a message that hasn't been sent, stopping its upload and dropping what was uploaded. */
 export const discardMessage = (message) => {
+  const draft = drafts.get(message.clientId);
   drafts.delete(message.clientId);
+  draft?.abort?.abort();
+  if (draft?.uploadId) http.delete(`/attachments/${draft.uploadId}`).catch(() => {});
+  store().setUploadProgress(message.clientId, null);
   store().removePending(message.conversationId, message.clientId);
 };
 
@@ -211,6 +356,73 @@ const flushOutbox = () => {
         void deliver(Number(conversationId), message.clientId);
       }
     }
+  }
+};
+
+// ── Files ───────────────────────────────────────────────────────────────────
+
+const refreshing = new Map();
+const REFRESH_AGAIN_AFTER_MS = 60_000;
+
+/**
+ * New links for a file whose links ran out (a tab left open for hours). Asked at most once a
+ * minute per file, so a file that really is gone doesn't make a request on every render.
+ */
+export const refreshAttachment = (message) => {
+  const id = message?.attachment?.id;
+  if (!id || message.id == null) return;
+  if (Date.now() - (refreshing.get(id) ?? 0) < REFRESH_AGAIN_AFTER_MS) return;
+  refreshing.set(id, Date.now());
+  http
+    .get(`/attachments/${id}`)
+    .then(({ data }) => store().replaceAttachment(message.conversationId, data.attachment))
+    .catch(() => {});
+};
+
+/** Whether a file's links are about to run out, so they're renewed before they're used. */
+export const linksExpiring = (attachment) =>
+  Boolean(attachment?.expiresAt) && Date.parse(attachment.expiresAt) - Date.now() < 5 * 60_000;
+
+/** The file's links, renewed first if they're about to run out. */
+export const freshAttachment = async (message) => {
+  const attachment = message.attachment;
+  if (!attachment?.id || !linksExpiring(attachment)) return attachment;
+  const { data } = await http.get(`/attachments/${attachment.id}`);
+  store().replaceAttachment(message.conversationId, data.attachment);
+  return data.attachment;
+};
+
+const clickLink = (href, download) => {
+  const link = document.createElement('a');
+  link.href = href;
+  link.rel = 'noopener';
+  if (download) link.download = download;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
+/**
+ * Saves a file under its name. The download link answers "save as", so the page stays where it
+ * is. Photos from before files moved to R2 have no such link and are fetched instead.
+ */
+export const downloadAttachment = async (message) => {
+  try {
+    const attachment = await freshAttachment(message);
+    if (attachment?.downloadUrl) {
+      clickLink(attachment.downloadUrl);
+      return;
+    }
+    if (!attachment?.url) throw new Error('No file');
+    const blob = await (await fetch(attachment.url)).blob();
+    const url = URL.createObjectURL(blob);
+    clickLink(
+      url,
+      `photo-${message.id}.${(blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')}`
+    );
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  } catch {
+    throw new ChatError('INTERNAL', "Couldn't download the file");
   }
 };
 
@@ -354,7 +566,9 @@ export const bindChatSocket = (nextSocket, { userId, onIncoming }) => {
 
 /** On sign-out: nothing of the last user's conversations stays in memory. */
 export const resetChat = () => {
+  drafts.forEach((draft) => draft.abort?.abort());
   drafts.clear();
+  refreshing.clear();
   inFlight.clear();
   typingSent.clear();
   store().reset();

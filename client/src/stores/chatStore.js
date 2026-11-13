@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { attachmentLabel } from '@/lib/attachments';
 
 /**
  * Everything the app knows about direct messages. Only this file changes that state; lib/chat
@@ -72,6 +73,8 @@ const initialState = {
   presence: {},
   /** conversationId → the other person is typing */
   typing: {},
+  /** clientId → how much of a file being sent has been uploaded, 0 to 1 */
+  uploads: {},
 };
 
 export const useChatStore = create((set, get) => ({
@@ -178,6 +181,18 @@ export const useChatStore = create((set, get) => ({
       threads: patchThread(state, conversationId, (thread) => ({
         messages: thread.messages.map((m) =>
           m.clientId === clientId && isPending(m) ? { ...m, status, error } : m
+        ),
+      })),
+    })),
+
+  /** What was measured about a file after its message went on screen. */
+  patchPendingAttachment: (conversationId, clientId, patch) =>
+    set((state) => ({
+      threads: patchThread(state, conversationId, (thread) => ({
+        messages: thread.messages.map((m) =>
+          m.clientId === clientId && isPending(m) && m.attachment
+            ? { ...m, attachment: { ...m.attachment, ...patch } }
+            : m
         ),
       })),
     })),
@@ -298,6 +313,29 @@ export const useChatStore = create((set, get) => ({
         }) ?? state.conversations,
     })),
 
+  setUploadProgress: (clientId, progress) =>
+    set((state) => {
+      const uploads = { ...state.uploads };
+      if (progress == null) delete uploads[clientId];
+      else uploads[clientId] = progress;
+      return { uploads };
+    }),
+
+  /** New links for a file, wherever it shows in the conversation. */
+  replaceAttachment: (conversationId, attachment) =>
+    set((state) => {
+      const swap = (m) =>
+        m?.attachment?.id === attachment.id ? { ...m, attachment: { ...attachment } } : m;
+      return {
+        threads: patchThread(state, conversationId, (thread) => ({
+          messages: thread.messages.map(swap),
+        })),
+        conversations:
+          patchConversation(state, conversationId, (c) => ({ lastMessage: swap(c.lastMessage) })) ??
+          state.conversations,
+      };
+    }),
+
   setTyping: (conversationId, typing) =>
     set((state) => ({ typing: { ...state.typing, [conversationId]: typing } })),
 
@@ -334,6 +372,6 @@ export const previewOf = (message, meId) => {
     if (outcome === 'rejected') return 'Declined call';
     return 'Video call';
   }
-  const text = message.body || (message.attachment ? 'Photo' : '');
+  const text = message.body || attachmentLabel(message.attachment);
   return message.senderId === meId ? `You: ${text}` : text;
 };

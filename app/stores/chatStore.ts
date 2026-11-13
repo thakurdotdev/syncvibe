@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { attachmentLabel, type AttachmentKind } from '@/lib/attachments';
 
 /**
  * Everything the app knows about direct messages. Only this file changes that state; lib/chat
@@ -10,12 +11,25 @@ import { create } from 'zustand';
  * that is what lists use as a key.
  */
 
-export type MessageType = 'text' | 'image' | 'call';
+export type MessageType = 'text' | 'image' | 'file' | 'call';
 
+/**
+ * A file in a message. Files sent since they moved to private storage have an `id`, a name and
+ * signed links that last at least six hours (`expiresAt`); photos from before are a public `url`
+ * only. On a message being sent, `url` is the file on this device.
+ */
 export interface Attachment {
-  url: string;
+  id?: string;
+  kind?: AttachmentKind;
+  name?: string;
+  mime?: string;
+  size?: number;
   width?: number;
   height?: number;
+  durationSec?: number;
+  url: string | null;
+  downloadUrl?: string | null;
+  expiresAt?: string | null;
 }
 
 export interface ReplyPreview {
@@ -24,6 +38,8 @@ export interface ReplyPreview {
   type: MessageType;
   body: string | null;
   hasAttachment: boolean;
+  attachmentKind?: AttachmentKind | null;
+  attachmentName?: string | null;
   deleted: boolean;
 }
 
@@ -107,6 +123,8 @@ interface ChatData {
   presence: Record<number, boolean>;
   /** conversationId → the other person is typing */
   typing: Record<number, boolean>;
+  /** clientId → how much of a file being sent has been uploaded, 0 to 1 */
+  uploads: Record<string, number>;
 }
 
 interface ChatActions {
@@ -126,6 +144,13 @@ interface ChatActions {
     error?: string | null
   ) => void;
   removePending: (conversationId: number, clientId: string) => void;
+  patchPendingAttachment: (
+    conversationId: number,
+    clientId: string,
+    patch: Partial<Attachment>
+  ) => void;
+  setUploadProgress: (clientId: string, progress: number | null) => void;
+  replaceAttachment: (conversationId: number, attachment: Attachment) => void;
   receiveMessage: (message: ChatMessage) => boolean;
   updateMessage: (message: ChatMessage) => void;
   removeMessage: (event: {
@@ -205,6 +230,7 @@ const initialState: ChatData = {
   threads: {},
   presence: {},
   typing: {},
+  uploads: {},
 };
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -314,6 +340,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
         ),
       })),
     })),
+
+  /** What was measured about a file after its message went on screen. */
+  patchPendingAttachment: (conversationId, clientId, patch) =>
+    set((state) => ({
+      threads: patchThread(state, conversationId, (thread) => ({
+        messages: thread.messages.map((m) =>
+          m.clientId === clientId && isPending(m) && m.attachment
+            ? { ...m, attachment: { ...m.attachment, ...patch } }
+            : m
+        ),
+      })),
+    })),
+
+  setUploadProgress: (clientId, progress) =>
+    set((state) => {
+      const uploads = { ...state.uploads };
+      if (progress == null) delete uploads[clientId];
+      else uploads[clientId] = progress;
+      return { uploads };
+    }),
+
+  /** New links for a file, wherever it shows in the conversation. */
+  replaceAttachment: (conversationId, attachment) =>
+    set((state) => {
+      const swap = <T extends ChatMessage | null>(m: T): T =>
+        m?.attachment?.id && m.attachment.id === attachment.id
+          ? { ...m, attachment: { ...attachment } }
+          : m;
+      return {
+        threads: patchThread(state, conversationId, (thread) => ({
+          messages: thread.messages.map(swap),
+        })),
+        conversations:
+          patchConversation(state, conversationId, (c) => ({ lastMessage: swap(c.lastMessage) })) ??
+          state.conversations,
+      };
+    }),
 
   removePending: (conversationId, clientId) =>
     set((state) => ({
@@ -475,6 +538,6 @@ export const previewOf = (message: ChatMessage | null, meId: number | null): str
     if (outcome === 'rejected') return 'Declined call';
     return 'Video call';
   }
-  const text = message.body || (message.attachment ? 'Photo' : '');
+  const text = message.body || attachmentLabel(message.attachment);
   return message.senderId === meId ? `You: ${text}` : text;
 };

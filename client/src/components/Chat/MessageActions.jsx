@@ -1,4 +1,4 @@
-import { Copy, CornerUpLeft, Info, MoreHorizontal, Pencil, Trash } from 'lucide-react';
+import { Copy, CornerUpLeft, Download, Info, MoreHorizontal, Pencil, Trash } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
@@ -83,6 +83,12 @@ const MessageActions = ({ message, isOwn, meId, open, shown, onOpenChange, actio
           </div>
           <DropdownMenuSeparator />
 
+          {message.attachment?.downloadUrl && (
+            <DropdownMenuItem className='cursor-pointer' onSelect={() => actions.download(message)}>
+              <Download className='mr-2 h-4 w-4' />
+              Download
+            </DropdownMenuItem>
+          )}
           {message.body && (
             <DropdownMenuItem className='cursor-pointer' onSelect={() => actions.copy(message)}>
               <Copy className='mr-2 h-4 w-4' />

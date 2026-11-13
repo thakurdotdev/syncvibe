@@ -1,5 +1,5 @@
 import { invalid } from './chat.errors';
-import type { AttachmentDto } from './chat.types';
+import type { LegacyPhoto } from '@/models/chat/message.model';
 
 export const MAX_BODY_LENGTH = 2000;
 export const DEFAULT_PAGE_SIZE = 40;
@@ -48,13 +48,13 @@ const parseSide = (value: unknown): number | undefined =>
     : undefined;
 
 /**
- * Only images uploaded to our own chat folder. Anything else would make the other person's device
+ * A photo from app versions that still upload to Cloudinary: only images in our own chat folder. Anything else would make the other person's device
  * fetch an address the sender chose, which gives away their IP and can track when they read it.
  */
 export const parseAttachment = (
   value: unknown,
   cloudName = process.env.CLOUD_NAME
-): AttachmentDto | null => {
+): LegacyPhoto | null => {
   if (value == null) return null;
   const raw = value as { url?: unknown; width?: unknown; height?: unknown };
   if (typeof raw !== 'object' || typeof raw.url !== 'string' || raw.url.length > 500) {

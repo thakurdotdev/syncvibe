@@ -1,11 +1,12 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
-import { MAX_MESSAGE_LENGTH } from '@/lib/chat';
+import { fileIcon, formatBytes, formatDuration } from '@/lib/attachments';
+import { MAX_MESSAGE_LENGTH, type PickedFile } from '@/lib/chat';
 import { BUTTON_PRESS_SCALE } from '@/lib/motion';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ChatInputProps {
@@ -14,16 +15,70 @@ interface ChatInputProps {
   /** Whether there is text in the box, for the "typing…" the other person sees. */
   onTyping: (hasText: boolean) => void;
   onAttach: () => void;
-  filePreview: string | null;
-  onRemoveAttachment: () => void;
+  /** Files picked to send with the next message. */
+  files: PickedFile[];
+  onRemoveFile: (key: string) => void;
   /** Who and what is being replied to, shown above the input until sent or cancelled. */
   replyingTo?: { name: string; text: string } | null;
   onCancelReply?: () => void;
   /** The message being edited. Its text fills the box until saved or cancelled. */
-  editing?: { key: string; body: string; hasPhoto: boolean } | null;
+  editing?: { key: string; body: string; hasAttachment: boolean } | null;
   onSaveEdit?: (text: string) => void;
   onCancelEdit?: () => void;
 }
+
+/** A file waiting to be sent: a thumbnail for photos, a small card for anything else. */
+const StagedFile = React.memo(
+  ({ file, onRemove }: { file: PickedFile; onRemove: (key: string) => void }) => {
+    const { colors } = useTheme();
+    const remove = (
+      <PressableScale
+        onPress={() => onRemove(file.key)}
+        scaleTo={BUTTON_PRESS_SCALE}
+        hitSlop={10}
+        accessibilityRole='button'
+        accessibilityLabel={`Remove ${file.name}`}
+        style={[
+          styles.removeFile,
+          { backgroundColor: colors.foreground, borderColor: colors.background },
+        ]}
+      >
+        <Ionicons name='close' size={12} color={colors.background} />
+      </PressableScale>
+    );
+
+    if (file.kind === 'image') {
+      return (
+        <View style={styles.stagedThumb}>
+          <Image source={{ uri: file.uri }} style={styles.stagedImage} fadeDuration={0} />
+          {remove}
+        </View>
+      );
+    }
+
+    const video = file.kind === 'video';
+    return (
+      <View style={[styles.stagedCard, { backgroundColor: colors.raised }]}>
+        <MaterialCommunityIcons
+          name={(video ? 'play-circle-outline' : fileIcon(file.name, file.kind)) as any}
+          size={22}
+          color={colors.foreground}
+        />
+        <View style={styles.stagedText}>
+          <Text style={[styles.stagedName, { color: colors.foreground }]} numberOfLines={1}>
+            {file.name}
+          </Text>
+          <Text style={[styles.stagedMeta, { color: colors.mutedForeground }]}>
+            {video && file.durationSec
+              ? `${formatDuration(file.durationSec)} · ${formatBytes(file.size)}`
+              : formatBytes(file.size)}
+          </Text>
+        </View>
+        {remove}
+      </View>
+    );
+  }
+);
 
 /** Lets the options sheet finish closing: its window takes the keyboard's focus until it's gone. */
 const FOCUS_AFTER_SHEET_MS = 240;
@@ -36,8 +91,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   onTyping,
   onAttach,
-  filePreview,
-  onRemoveAttachment,
+  files,
+  onRemoveFile,
   replyingTo,
   onCancelReply,
   editing,
@@ -86,8 +141,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   }, [editMode]);
 
   const canSubmit = editMode
-    ? Boolean(editText.trim() || editing?.hasPhoto)
-    : Boolean(draft.trim() || filePreview);
+    ? Boolean(editText.trim() || editing?.hasAttachment)
+    : Boolean(draft.trim() || files.length);
   // The keyboard covers the navigation bar, so only clear the bar when it's showing.
   const bottom = keyboardVisible ? 8 : Math.max(insets.bottom, 8);
 
@@ -134,20 +189,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </View>
       ) : null}
 
-      {filePreview && !editMode ? (
-        <View style={styles.preview}>
-          <Image source={{ uri: filePreview }} style={styles.previewImage} fadeDuration={0} />
-          <PressableScale
-            onPress={onRemoveAttachment}
-            scaleTo={BUTTON_PRESS_SCALE}
-            hitSlop={12}
-            accessibilityRole='button'
-            accessibilityLabel='Remove photo'
-            style={styles.removePhoto}
-          >
-            <Ionicons name='close' size={14} color='#fff' />
-          </PressableScale>
-        </View>
+      {files.length > 0 && !editMode ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps='handled'
+          contentContainerStyle={styles.staged}
+        >
+          {files.map((file) => (
+            <StagedFile key={file.key} file={file} onRemove={onRemoveFile} />
+          ))}
+        </ScrollView>
       ) : null}
 
       <View style={styles.row}>
@@ -156,10 +208,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
             onPress={onAttach}
             scaleTo={BUTTON_PRESS_SCALE}
             accessibilityRole='button'
-            accessibilityLabel='Add a photo'
+            accessibilityLabel='Attach photos, videos or files'
             style={styles.sideButton}
           >
-            <Ionicons name='image-outline' size={24} color={colors.foreground} />
+            <Ionicons name='add-circle-outline' size={26} color={colors.foreground} />
           </PressableScale>
         )}
 
@@ -167,7 +219,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           ref={inputRef}
           value={text}
           onChangeText={handleChange}
-          placeholder='Message'
+          placeholder={files.length && !editMode ? 'Add a message' : 'Message'}
           placeholderTextColor={colors.mutedForeground}
           multiline
           maxLength={MAX_MESSAGE_LENGTH}
@@ -234,18 +286,31 @@ const styles = StyleSheet.create({
   bannerBody: { flex: 1 },
   replyTitle: { fontSize: 13, fontWeight: '600' },
   bannerQuote: { fontSize: 13, marginTop: 1 },
-  preview: { alignSelf: 'flex-start', marginLeft: 48, marginBottom: 8 },
-  previewImage: { width: 72, height: 72, borderRadius: 12 },
-  removePhoto: {
+  staged: { gap: 10, paddingHorizontal: 8, paddingTop: 8, paddingBottom: 10 },
+  stagedThumb: { width: 68, height: 68 },
+  stagedImage: { width: 68, height: 68, borderRadius: 12 },
+  stagedCard: {
+    width: 176,
+    height: 68,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+  },
+  stagedText: { flex: 1, minWidth: 0 },
+  stagedName: { fontSize: 13, fontWeight: '600' },
+  stagedMeta: { fontSize: 12, marginTop: 2, fontVariant: ['tabular-nums'] },
+  removeFile: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: -6,
+    right: -6,
     width: 22,
     height: 22,
     borderRadius: 11,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
   },
 });
 

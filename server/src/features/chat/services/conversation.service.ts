@@ -1,9 +1,10 @@
 import { QueryTypes, type Transaction } from 'sequelize';
 import sequelize from '@/utils/sequelize';
-import { Conversation, ConversationMember, Message, User } from '@/models/index';
+import { ChatAttachment, Conversation, ConversationMember, Message, User } from '@/models/index';
 import { isOnline } from '@/socket/presence';
 import { invalid, notFound } from '../chat.errors';
 import type { ConversationDto } from '../chat.types';
+import { removeObject } from './attachment.storage';
 import { presentMessages } from './message.presenter';
 
 const MAX_CONVERSATIONS = 200;
@@ -187,10 +188,24 @@ export const deleteConversationsOf = async (
     transaction,
   });
   if (memberships.length === 0) return;
-  // Members, messages and reactions follow through the tables' ON DELETE CASCADE.
-  await Conversation.destroy({
-    where: { id: memberships.map((membership) => membership.conversationId) },
+  const ids = memberships.map((membership) => membership.conversationId);
+  const files = await ChatAttachment.findAll({
+    where: { conversationId: ids, status: ['pending', 'sent'] },
+    attributes: ['storageKey'],
     transaction,
   });
+  // Members, messages, reactions and file rows follow through the tables' ON DELETE CASCADE.
+  await Conversation.destroy({ where: { id: ids }, transaction });
   memberCache.clear();
+
+  // The files themselves go once the deletion is certain.
+  if (files.length > 0) {
+    transaction.afterCommit(() => {
+      for (const file of files) {
+        removeObject(file.storageKey).catch((error: unknown) =>
+          console.error('Removing a chat file of a deleted account failed:', error)
+        );
+      }
+    });
+  }
 };

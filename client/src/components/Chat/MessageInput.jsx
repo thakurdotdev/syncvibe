@@ -1,12 +1,29 @@
-import { CornerUpLeft, ImagePlus, Pencil, SendHorizontal, Check, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import {
+  Check,
+  CornerUpLeft,
+  FileArchive,
+  FileAudio,
+  FileSpreadsheet,
+  FileText,
+  Paperclip,
+  Pencil,
+  Play,
+  SendHorizontal,
+  X,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ACCEPT,
+  attachmentLabel,
+  fileFamily,
+  filesFromClipboard,
+  formatBytes,
+  replyLabel,
+} from '@/lib/attachments';
 import { MAX_MESSAGE_LENGTH, setTyping } from '@/lib/chat';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_ROWS_PX = 140;
 /** The count appears once this close to the limit. */
 const SHOW_COUNT_WITHIN = 200;
@@ -29,6 +46,68 @@ const Banner = ({ icon: Icon, title, text, onCancel, cancelLabel }) => (
   </div>
 );
 
+const removeButton =
+  'absolute -right-1.5 -top-1.5 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-foreground text-background shadow-sm ring-2 ring-card transition-transform hover:scale-110';
+
+/** A file waiting to be sent: a thumbnail for photos and videos, a small card for the rest. */
+const StagedFile = ({ item, onRemove }) => {
+  const { file, kind, preview } = item;
+  const remove = (
+    <button
+      type='button'
+      onClick={() => onRemove(item.id)}
+      aria-label={`Remove ${file.name}`}
+      className={removeButton}
+    >
+      <X className='h-3 w-3' strokeWidth={2.5} />
+    </button>
+  );
+
+  if (preview) {
+    return (
+      <div className='relative h-16 w-16 shrink-0' title={file.name}>
+        {kind === 'video' ? (
+          <video
+            src={`${preview}#t=0.1`}
+            preload='metadata'
+            muted
+            className='h-full w-full rounded-lg object-cover'
+          />
+        ) : (
+          <img src={preview} alt={file.name} className='h-full w-full rounded-lg object-cover' />
+        )}
+        {kind === 'video' && (
+          <span className='absolute inset-0 flex items-center justify-center'>
+            <Play className='h-4 w-4 fill-on-scrim text-on-scrim drop-shadow' />
+          </span>
+        )}
+        {remove}
+      </div>
+    );
+  }
+
+  const family = kind === 'audio' ? 'audio' : fileFamily(file.name);
+  const Icon =
+    { audio: FileAudio, archive: FileArchive, sheet: FileSpreadsheet }[family] ?? FileText;
+  return (
+    <div
+      className='relative flex h-16 w-48 shrink-0 items-center gap-2.5 rounded-lg bg-foreground/[0.05] px-2.5'
+      title={file.name}
+    >
+      <span className='flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-foreground/[0.07]'>
+        <Icon className='h-4.5 w-4.5' strokeWidth={1.75} />
+      </span>
+      <span className='min-w-0'>
+        <span className='block truncate text-xs font-medium'>{file.name}</span>
+        <span className='block text-[11px] tabular-nums text-muted-foreground'>
+          {formatBytes(file.size)}
+        </span>
+      </span>
+      {remove}
+    </div>
+  );
+};
+
 /** Where messages are written. The same box edits an existing message. */
 const MessageInput = ({
   conversationId,
@@ -40,11 +119,13 @@ const MessageInput = ({
   onCancelEdit,
   onSaveEdit,
   onSend,
+  files,
+  onAddFiles,
+  onRemoveFile,
 }) => {
   const [draft, setDraft] = useState('');
   const [editText, setEditText] = useState('');
   const [editingId, setEditingId] = useState(null);
-  const [file, setFile] = useState(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -71,27 +152,11 @@ const MessageInput = ({
     el.style.height = `${Math.min(el.scrollHeight, MAX_ROWS_PX)}px`;
   }, [text]);
 
-  const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
-  useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
-
   useEffect(() => () => setTyping(conversationId, false), [conversationId]);
-
-  const pickFile = (picked) => {
-    if (!picked) return;
-    if (!IMAGE_TYPES.includes(picked.type)) {
-      toast.error('Photos can be JPG, PNG, GIF or WebP');
-      return;
-    }
-    if (picked.size > MAX_IMAGE_BYTES) {
-      toast.error('Photos can be up to 5 MB');
-      return;
-    }
-    setFile(picked);
-  };
 
   const canSubmit = editing
     ? Boolean(text.trim() || editing.attachment)
-    : Boolean(text.trim() || file);
+    : Boolean(text.trim() || files.length);
 
   const submit = () => {
     if (!canSubmit) return;
@@ -99,9 +164,8 @@ const MessageInput = ({
       onSaveEdit(text);
       return;
     }
-    onSend({ body: text, file });
+    onSend({ body: text });
     setText('');
-    setFile(null);
     inputRef.current?.focus();
   };
 
@@ -121,10 +185,11 @@ const MessageInput = ({
   };
 
   const handlePaste = (e) => {
-    const pasted = [...(e.clipboardData?.files || [])].find((f) => f.type.startsWith('image/'));
-    if (pasted && !editing) {
+    if (editing) return;
+    const pasted = filesFromClipboard(e.clipboardData);
+    if (pasted.length) {
       e.preventDefault();
-      pickFile(pasted);
+      onAddFiles(pasted);
     }
   };
 
@@ -136,7 +201,7 @@ const MessageInput = ({
         <Banner
           icon={Pencil}
           title='Editing message'
-          text={editing.body || 'Photo'}
+          text={editing.body || attachmentLabel(editing.attachment)}
           onCancel={onCancelEdit}
           cancelLabel='Cancel editing'
         />
@@ -145,24 +210,22 @@ const MessageInput = ({
         <Banner
           icon={CornerUpLeft}
           title={`Replying to ${replyTo.senderId === meId ? 'yourself' : peerName}`}
-          text={replyTo.body || 'Photo'}
+          text={replyLabel({
+            body: replyTo.body,
+            hasAttachment: Boolean(replyTo.attachment),
+            attachmentKind: replyTo.attachment?.kind,
+            attachmentName: replyTo.attachment?.name,
+          })}
           onCancel={onCancelReply}
           cancelLabel='Cancel reply'
         />
       )}
 
-      {preview && !editing && (
-        <div className='relative mb-3 mr-auto h-24 w-24 overflow-hidden rounded-md'>
-          <img src={preview} alt='Ready to send' className='h-full w-full object-cover' />
-          <Button
-            variant='destructive'
-            size='icon'
-            className='absolute right-0.5 top-0.5 h-6 w-6 rounded-full'
-            onClick={() => setFile(null)}
-            aria-label='Remove photo'
-          >
-            <X className='h-3 w-3' />
-          </Button>
+      {files.length > 0 && !editing && (
+        <div className='-mx-3 mb-2 flex gap-2.5 overflow-x-auto px-3 pt-2 pb-1 [scrollbar-width:thin]'>
+          {files.map((item) => (
+            <StagedFile key={item.id} item={item} onRemove={onRemoveFile} />
+          ))}
         </div>
       )}
 
@@ -173,19 +236,20 @@ const MessageInput = ({
             size='icon'
             className='shrink-0 rounded-full'
             onClick={() => fileInputRef.current?.click()}
-            aria-label='Add a photo'
-            title='Add a photo'
+            aria-label='Attach files'
+            title='Attach files. You can also paste or drop them here.'
           >
-            <ImagePlus className='h-5 w-5 text-muted-foreground' />
+            <Paperclip className='h-5 w-5 text-muted-foreground' />
           </Button>
         )}
         <input
           type='file'
-          accept={IMAGE_TYPES.join(',')}
+          multiple
+          accept={ACCEPT}
           className='hidden'
           ref={fileInputRef}
           onChange={(e) => {
-            pickFile(e.target.files?.[0]);
+            onAddFiles(e.target.files);
             e.target.value = '';
           }}
         />
@@ -200,7 +264,7 @@ const MessageInput = ({
             onBlur={() => setTyping(conversationId, false)}
             rows={1}
             maxLength={MAX_MESSAGE_LENGTH}
-            placeholder='Message'
+            placeholder={files.length && !editing ? 'Add a message' : 'Message'}
             aria-label={editing ? 'Edit message' : `Message ${peerName}`}
             className='surface-input block max-h-[140px] border bg-transparent min-h-10 w-full resize-none rounded-3xl px-4 py-2.5 text-sm leading-5 outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring'
           />

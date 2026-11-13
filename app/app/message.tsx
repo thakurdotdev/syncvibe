@@ -4,6 +4,7 @@ import ChatInput from '@/components/chat/ChatInput';
 import DateBubble from '@/components/chat/DateBubble';
 import MessageBubble from '@/components/chat/MessageBubble';
 import MessageHeader from '@/components/chat/MessageHeader';
+import VideoViewer from '@/components/chat/VideoViewer';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
@@ -18,8 +19,17 @@ import {
   sendMessage,
   setTyping,
   toggleReaction,
-  type PickedPhoto,
+  type PickedFile,
 } from '@/lib/chat';
+import { attachmentLabel, MAX_FILES_AT_ONCE } from '@/lib/attachments';
+import {
+  downloadToCache,
+  openFile,
+  pickDocuments,
+  pickMedia,
+  saveAttachment,
+  type Picked,
+} from '@/lib/chatFiles';
 import { putConversationOnScreen, registerConversationScreen } from '@/lib/chatScreen';
 import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE } from '@/lib/motion';
 import {
@@ -30,10 +40,8 @@ import {
   type ChatMessage,
 } from '@/stores/chatStore';
 import { getOptimizedImageUrl } from '@/utils/Cloudinary';
-import { saveImageToGallery } from '@/utils/saveImage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -80,6 +88,9 @@ const formatDate = (dateString: string) => {
   });
 };
 
+/** How long the bottom sheet takes to close before a picker opens over it. */
+const SHEET_CLOSE_MS = 260;
+
 /** A gap this long starts a new run of messages, even from the same person. */
 const GROUP_GAP_MS = 5 * 60 * 1000;
 /** Scrolled this far back, a button appears to return to the latest message. */
@@ -104,15 +115,18 @@ const ChatWithUser = () => {
   );
   const isTyping = useChatStore((s) => Boolean(activeId && s.typing[activeId]));
 
-  const [photo, setPhoto] = useState<PickedPhoto | null>(null);
+  const [files, setFiles] = useState<PickedFile[]>([]);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [editing, setEditing] = useState<ChatMessage | null>(null);
   const [selected, setSelected] = useState<ChatMessage | null>(null);
   // One sheet whose contents change. Opening a second sheet while the first closes doesn't work:
   // the first one reports "closed" when its animation ends, which shut the one that replaced it.
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [sheetView, setSheetView] = useState<'options' | 'confirm-delete' | 'info'>('options');
+  const [sheetView, setSheetView] = useState<'options' | 'confirm-delete' | 'info' | 'attach'>(
+    'options'
+  );
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
+  const [playing, setPlaying] = useState<ChatMessage | null>(null);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
   const listRef = useRef<FlatList<Row>>(null);
@@ -170,42 +184,56 @@ const ChatWithUser = () => {
 
   const handleSend = useCallback(
     (text: string) => {
-      if (!activeId || (!text.trim() && !photo)) return;
-      sendMessage(activeId, { body: text, photo, replyTo });
-      setPhoto(null);
+      if (!activeId || (!text.trim() && files.length === 0)) return;
+      sendMessage(activeId, { body: text, files, replyTo });
+      setFiles([]);
       setReplyTo(null);
       listRef.current?.scrollToOffset({ offset: 0, animated: true });
     },
-    [activeId, photo, replyTo]
+    [activeId, files, replyTo]
   );
 
-  const handleAttachment = useCallback(async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        toast('Allow SyncVibe to see your photos in your phone settings', { type: 'error' });
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        quality: 0.7,
-        allowsMultipleSelection: false,
-      });
-      const asset = result.canceled ? null : result.assets?.[0];
-      if (asset) {
-        setPhoto({
-          uri: asset.uri,
-          fileName: asset.fileName,
-          mimeType: asset.mimeType,
-          width: asset.width,
-          height: asset.height,
-        });
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
+  const handleAttachment = useCallback(() => {
+    Keyboard.dismiss();
+    setSheetView('attach');
+    setSheetOpen(true);
+  }, []);
+
+  const addPicked = useCallback((picked: Picked | null) => {
+    if (!picked) return;
+    picked.problems.forEach((problem) => toast(problem, { type: 'error' }));
+    if (picked.files.length) {
+      setFiles((current) => [...current, ...picked.files].slice(0, MAX_FILES_AT_ONCE));
     }
   }, []);
+
+  // The picker opens once the sheet has gone, so the two don't fight over the screen.
+  const pickAfterSheet = useCallback(
+    (pick: (room: number) => Promise<Picked | null>) => {
+      setSheetOpen(false);
+      const room = MAX_FILES_AT_ONCE - files.length;
+      if (room <= 0) {
+        toast(`You can send up to ${MAX_FILES_AT_ONCE} files at once`, { type: 'error' });
+        return;
+      }
+      setTimeout(() => {
+        pick(room)
+          .then(addPicked)
+          .catch((error) => {
+            console.error('Picking files failed:', error);
+            toast("Couldn't open your files. Try again.", { type: 'error' });
+          });
+      }, SHEET_CLOSE_MS);
+    },
+    [files.length, addPicked]
+  );
+
+  const handlePickMedia = useCallback(() => pickAfterSheet(pickMedia), [pickAfterSheet]);
+  const handlePickDocuments = useCallback(() => pickAfterSheet(pickDocuments), [pickAfterSheet]);
+  const handleRemoveFile = useCallback(
+    (key: string) => setFiles((current) => current.filter((file) => file.key !== key)),
+    []
+  );
 
   // Newest first, for the inverted list. Items keep the same message objects between renders, so
   // only rows whose message changed draw again.
@@ -241,12 +269,19 @@ const ChatWithUser = () => {
   const photos = useMemo(
     () =>
       messages
-        .filter((m) => m.attachment?.url && m.id != null)
+        .filter(
+          (m) => m.attachment?.url && m.id != null && (m.attachment.kind ?? 'image') === 'image'
+        )
         .map((m): GalleryPhoto & { id: number | null } => ({
           id: m.id,
-          url: m.attachment!.url,
+          url: m.attachment!.url!,
+          name: m.attachment!.name,
           // The size the bubble already downloaded, shown until the full photo arrives.
-          preview: m.localUrl || getOptimizedImageUrl(m.attachment!.url, { thumbnail: true }),
+          preview:
+            m.localUrl ||
+            (m.attachment!.id
+              ? m.attachment!.url!
+              : getOptimizedImageUrl(m.attachment!.url!, { thumbnail: true })),
           title: m.senderId === meId ? 'You' : peerName,
           subtitle: formatFullDateTime(m.createdAt),
           caption: m.body,
@@ -254,8 +289,12 @@ const ChatWithUser = () => {
     [messages, meId, peerName]
   );
 
-  const handleImagePress = useCallback(
+  const handleOpenMedia = useCallback(
     (message: ChatMessage) => {
+      if (message.attachment?.kind === 'video') {
+        if (message.attachment.url) setPlaying(message);
+        return;
+      }
       const index = photos.findIndex((item) => item.id === message.id);
       if (index !== -1) setGalleryIndex(index);
     },
@@ -368,17 +407,39 @@ const ChatWithUser = () => {
     toast('Copied');
   }, [selected]);
 
-  const handleSavePhoto = useCallback(async () => {
-    setSheetOpen(false);
-    if (!selected?.attachment) return;
+  const saveFile = useCallback(async (message: ChatMessage | null) => {
+    if (!message?.attachment) return;
     try {
-      await saveImageToGallery(selected.attachment.url);
-      toast('Saved to gallery', { type: 'success' });
+      const where = await saveAttachment(message);
+      if (where === 'gallery') toast('Saved to your gallery', { type: 'success' });
+      else if (where === 'folder') toast('Saved', { type: 'success' });
     } catch (error) {
       toast(
         error instanceof Error && error.message === 'permission'
-          ? 'Allow SyncVibe to add photos in your phone settings'
-          : "Couldn't save the photo",
+          ? 'Allow SyncVibe to add photos and videos in your phone settings'
+          : "Couldn't save the file. Try again.",
+        { type: 'error' }
+      );
+    }
+  }, []);
+
+  const handleSaveFile = useCallback(() => {
+    setSheetOpen(false);
+    void saveFile(selected);
+  }, [selected, saveFile]);
+
+  const handleOpenFile = useCallback(async () => {
+    setSheetOpen(false);
+    const target = selected;
+    if (!target?.attachment) return;
+    try {
+      const { file, attachment } = await downloadToCache(target);
+      await openFile(file, attachment.name || file.name);
+    } catch (error) {
+      toast(
+        error instanceof Error && error.message === 'no-app'
+          ? 'No app on this phone can open this file. Save it instead.'
+          : "Couldn't open the file. Try again.",
         { type: 'error' }
       );
     }
@@ -419,14 +480,15 @@ const ChatWithUser = () => {
           status={isOwn ? statusOf(item.message) : null}
           startsGroup={item.startsGroup}
           endsGroup={item.endsGroup}
-          onImagePress={handleImagePress}
+          onOpenMedia={handleOpenMedia}
           onLongPress={handleLongPress}
+          onCancel={discardMessage}
           onReact={handleReact}
           onRetry={retryMessage}
         />
       );
     },
-    [meId, peerName, statusOf, handleImagePress, handleLongPress, handleReact]
+    [meId, peerName, statusOf, handleOpenMedia, handleLongPress, handleReact]
   );
 
   const handleEndReached = useCallback(() => {
@@ -546,13 +608,13 @@ const ChatWithUser = () => {
           onSend={handleSend}
           onTyping={handleTyping}
           onAttach={handleAttachment}
-          filePreview={photo?.uri ?? null}
-          onRemoveAttachment={() => setPhoto(null)}
+          files={files}
+          onRemoveFile={handleRemoveFile}
           replyingTo={
             replyTo
               ? {
                   name: replyTo.senderId === meId ? 'yourself' : peerName,
-                  text: replyTo.body || 'Photo',
+                  text: replyTo.body || attachmentLabel(replyTo.attachment) || 'Message',
                 }
               : null
           }
@@ -562,7 +624,7 @@ const ChatWithUser = () => {
               ? {
                   key: editing.clientId,
                   body: editing.body || '',
-                  hasPhoto: Boolean(editing.attachment),
+                  hasAttachment: Boolean(editing.attachment),
                 }
               : null
           }
@@ -578,8 +640,31 @@ const ChatWithUser = () => {
           />
         ) : null}
 
+        {playing?.attachment?.url ? (
+          <VideoViewer
+            uri={playing.attachment.url}
+            title={playing.senderId === meId ? 'You' : peerName}
+            subtitle={formatFullDateTime(playing.createdAt)}
+            onClose={() => setPlaying(null)}
+            onSave={() => void saveFile(playing)}
+          />
+        ) : null}
+
         <SwipeableModal isVisible={sheetOpen} onClose={closeSheet} dragAnywhere>
-          {sheetView === 'options' ? (
+          {sheetView === 'attach' ? (
+            <View style={styles.sheet}>
+              <OptionItem
+                icon='images-outline'
+                text='Photos and videos'
+                onPress={handlePickMedia}
+              />
+              <OptionItem icon='document-outline' text='Files' onPress={handlePickDocuments} />
+              <Text style={[styles.sheetNote, { color: colors.mutedForeground }]}>
+                Photos up to 25 MB, videos and archives up to 100 MB, documents and audio up to 50
+                MB. Only the people in this chat can open them.
+              </Text>
+            </View>
+          ) : sheetView === 'options' ? (
             <View style={styles.sheet}>
               {selectedOnServer ? (
                 <View style={styles.reactionRow}>
@@ -610,8 +695,20 @@ const ChatWithUser = () => {
               {selected?.body ? (
                 <OptionItem icon='copy-outline' text='Copy text' onPress={handleCopyText} />
               ) : null}
+              {selected?.attachment && selectedOnServer && selected.attachment.kind === 'file' ? (
+                <OptionItem icon='open-outline' text='Open with…' onPress={handleOpenFile} />
+              ) : null}
               {selected?.attachment && selectedOnServer ? (
-                <OptionItem icon='download-outline' text='Save photo' onPress={handleSavePhoto} />
+                <OptionItem
+                  icon='download-outline'
+                  text={
+                    (selected.attachment.kind ?? 'image') === 'image' ||
+                    selected.attachment.kind === 'video'
+                      ? 'Save to gallery'
+                      : 'Save to phone'
+                  }
+                  onPress={handleSaveFile}
+                />
               ) : null}
               {selectedIsOwn && selectedOnServer ? (
                 <OptionItem
@@ -760,6 +857,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   sheet: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8 },
+  sheetNote: { fontSize: 12.5, lineHeight: 17, paddingHorizontal: 12, paddingTop: 6 },
   reactionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

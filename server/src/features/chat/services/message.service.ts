@@ -17,8 +17,10 @@ import {
   parseOptionalId,
   parsePageSize,
 } from '../chat.validation';
+import { isStoredFile, type MessageAttachment } from '@/models/chat/message.model';
+import { claimAttachment, prepareAttachment, removeAttachmentOf } from './attachment.service';
 import { findDirectConversationId, requireMembers } from './conversation.service';
-import { presentMessages } from './message.presenter';
+import { attachmentLabel, presentMessages } from './message.presenter';
 
 // Per person, across all their devices. Far above what typing by hand reaches.
 const allowSend = createRateLimiter({ limit: 30, windowMs: 10_000 });
@@ -33,7 +35,11 @@ const others = (members: number[], userId: number) => members.filter((id) => id 
 // ── Sending ─────────────────────────────────────────────────────────────────
 
 const pushPreview = (message: MessageDto) =>
-  message.body || (message.attachment ? 'Photo' : 'New message');
+  message.body || attachmentLabel(message.attachment) || 'New message';
+
+/** A photo shows in the notification itself; the link lasts long enough for that. */
+const pushImage = (message: MessageDto) =>
+  message.attachment?.kind === 'image' ? message.attachment.url : null;
 
 /**
  * Sends a new message to everyone's devices. If none of the recipient's devices confirms it, they
@@ -58,7 +64,7 @@ const announceMessage = (message: MessageDto, members: number[]): void => {
         messageId: message.id,
         sentAt: message.createdAt,
         senderid: message.senderId,
-        imageUrl: message.attachment?.url ?? null,
+        imageUrl: pushImage(message),
       });
     })().catch((error) => console.error('Announcing a chat message failed:', error));
   }
@@ -70,7 +76,7 @@ interface NewMessage {
   clientId: string;
   type: MessageDto['type'];
   body: string | null;
-  attachment: MessageDto['attachment'];
+  attachment: MessageAttachment | null;
   meta: CallDto | null;
   replyToId: number | null;
 }
@@ -95,6 +101,10 @@ const storeMessage = async (
       throw invalid('This message was already sent');
     }
     return { message, created, receipt: null };
+  }
+
+  if (isStoredFile(input.attachment)) {
+    await claimAttachment(input.attachment.id, message.id, transaction);
   }
 
   await Conversation.update(
@@ -145,12 +155,22 @@ export const sendMessage = async (
   const conversationId = parseId(input.conversationId, 'conversationId');
   const clientId = parseClientId(input.clientId);
   const body = parseBody(input.body);
-  const attachment = parseAttachment(input.attachment);
   const replyToId = parseOptionalId(input.replyToId, 'replyToId');
-  if (!body && !attachment) throw invalid('A message needs text or a photo');
+  // A file uploaded to the chat bucket; or, from app versions before that, a Cloudinary photo.
+  const hasFile = input.attachmentId != null;
+  const legacyPhoto = hasFile ? null : parseAttachment(input.attachment);
+  if (!body && !hasFile && !legacyPhoto) throw invalid('A message needs text or a file');
 
   const members = await requireMembers(conversationId, senderId);
   limit(allowSend(senderId));
+  const attachment: MessageAttachment | null = hasFile
+    ? await prepareAttachment(senderId, conversationId, input.attachmentId)
+    : legacyPhoto;
+  const type = !attachment
+    ? 'text'
+    : isStoredFile(attachment) && attachment.kind !== 'image'
+      ? 'file'
+      : 'image';
 
   const { message, created, receipt } = await sequelize.transaction(async (transaction) => {
     if (replyToId) {
@@ -167,7 +187,7 @@ export const sendMessage = async (
         conversationId,
         senderId,
         clientId,
-        type: attachment ? 'image' : 'text',
+        type,
         body,
         attachment,
         meta: null,
@@ -284,7 +304,7 @@ export const editMessage = async (
   if (message.senderId !== userId || message.type === 'call') {
     throw new ChatError('FORBIDDEN', "You can't edit this message");
   }
-  // A photo can lose its caption; a text message can't become empty.
+  // A file can lose its caption; a text message can't become empty.
   if (!body && !message.attachment) throw invalid("A message can't be empty");
   if (body === message.body) return present(message);
 
@@ -330,7 +350,13 @@ export const deleteMessage = async (
     return latest ? (await presentMessages([latest], transaction))[0]! : null;
   });
 
-  const publicId = attachment ? cloudinaryPublicId(attachment.url) : null;
+  if (isStoredFile(attachment)) {
+    removeAttachmentOf(messageId).catch((error: unknown) =>
+      console.error('Removing a deleted chat file failed:', error)
+    );
+  }
+  const publicId =
+    attachment && !isStoredFile(attachment) ? cloudinaryPublicId(attachment.url) : null;
   if (publicId) {
     Cloudinary.uploader
       .destroy(publicId, { invalidate: true })
