@@ -1,7 +1,8 @@
 import { AlertCircle, Check, CheckCheck, Clock } from 'lucide-react';
 import { memo } from 'react';
-import { getOptimizedImageUrl } from '@/Utils/Cloudinary';
+import { replyLabel } from '@/lib/attachments';
 import { cn } from '@/lib/utils';
+import AttachmentView from './AttachmentView';
 import { formatTime } from './ChatDateUtils';
 import MessageActions from './MessageActions';
 
@@ -29,9 +30,7 @@ const ReplyQuote = ({ replyTo, isOwn, authorName, onJump }) => (
   >
     <span className='text-[11px] font-semibold opacity-90'>{authorName}</span>
     <span className={cn('line-clamp-2 text-xs opacity-80', replyTo.deleted && 'italic')}>
-      {replyTo.deleted
-        ? 'Deleted message'
-        : replyTo.body || (replyTo.hasAttachment ? 'Photo' : 'Message')}
+      {replyTo.deleted ? 'Deleted message' : replyLabel(replyTo)}
     </span>
   </button>
 );
@@ -84,9 +83,9 @@ const MessageBubble = ({
 }) => {
   const pending = message.id == null;
   const failed = status === 'failed';
-  const image = message.attachment;
-  const mediaOnly = image && !message.body && !message.replyTo;
-  const ratio = image?.width && image?.height ? image.width / image.height : null;
+  const attachment = message.attachment;
+  const visual = attachment && ['image', 'video'].includes(attachment.kind ?? 'image');
+  const mediaOnly = visual && !message.body && !message.replyTo;
 
   return (
     <div
@@ -127,32 +126,16 @@ const MessageBubble = ({
               />
             )}
 
-            {image && (
-              <button
-                type='button'
-                onClick={() => !pending && actions.openImage(message)}
-                className={cn(
-                  'relative block overflow-hidden rounded-xl',
-                  !mediaOnly && message.body && 'mb-2'
-                )}
-                style={
-                  ratio ? { aspectRatio: ratio, width: Math.min(280, image.width) } : undefined
-                }
-                aria-label='Open photo'
-              >
-                <img
-                  src={message.localUrl || getOptimizedImageUrl(image.url, { thumbnail: true })}
-                  alt=''
-                  loading='lazy'
-                  className={cn(
-                    'max-h-80 max-w-full rounded-xl object-cover',
-                    ratio && 'h-full w-full'
-                  )}
+            {attachment && (
+              <div className={cn(!mediaOnly && message.body && 'mb-2')}>
+                <AttachmentView
+                  message={message}
+                  isOwn={isOwn}
+                  sending={status === 'sending'}
+                  mediaRounded={mediaOnly ? '' : 'rounded-xl'}
+                  actions={actions}
                 />
-                {status === 'sending' && (
-                  <span className='absolute inset-0 animate-pulse bg-background/40' />
-                )}
-              </button>
+              </div>
             )}
 
             {message.body && (

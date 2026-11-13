@@ -1,15 +1,25 @@
-import { MessagesSquare } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { MessagesSquare, Paperclip } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
+  MAX_FILES_AT_ONCE,
+  checkFile,
+  dragHasFiles,
+  droppedFolders,
+  filesFromClipboard,
+} from '@/lib/attachments';
+import {
   deleteMessage,
   discardMessage,
+  downloadAttachment,
   editMessage,
+  freshAttachment,
   loadOlder,
   loadThread,
   markRead,
+  newClientId,
   retryMessage,
   sendMessage,
   toggleReaction,
@@ -18,7 +28,8 @@ import { selectConversation, selectThread, useChatStore } from '@/stores/chatSto
 import { startCall } from '@/lib/call';
 import { selectBusy, useCallStore } from '@/stores/callStore';
 import ChatHeader from './ChatHeader';
-import ImageGallery from './ImageGallery';
+import FilePreview from './FilePreview';
+import MediaViewer from './MediaViewer';
 import MessageInfoModal from './MessageInfoModal';
 import MessageInput from './MessageInput';
 import MessageList from './MessageList';
@@ -73,7 +84,11 @@ const OpenThread = ({ conversation }) => {
   const [replyTo, setReplyTo] = useState(null);
   const [editing, setEditing] = useState(null);
   const [infoFor, setInfoFor] = useState(null);
-  const [galleryIndex, setGalleryIndex] = useState(null);
+  const [mediaIndex, setMediaIndex] = useState(null);
+  const [previewing, setPreviewing] = useState(null);
+  const [staged, setStaged] = useState([]);
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
 
   // Read receipts go out only while the conversation is actually being looked at.
   const lastId = thread.messages.findLast((m) => m.id != null)?.id;
@@ -91,12 +106,80 @@ const OpenThread = ({ conversation }) => {
     };
   }, [activeId, thread.status, lastId]);
 
-  const images = useMemo(
+  // Photos and videos, in the viewer's order.
+  const media = useMemo(
     () =>
       thread.messages
-        .filter((m) => m.attachment?.url && m.id != null)
-        .map((m) => ({ id: m.id, url: m.attachment.url })),
+        .filter(
+          (m) =>
+            m.id != null &&
+            m.attachment?.url &&
+            ['image', 'video'].includes(m.attachment.kind ?? 'image')
+        )
+        .map((m) => ({
+          key: m.id,
+          message: m,
+          kind: m.attachment.kind ?? 'image',
+          url: m.attachment.url,
+          downloadUrl: m.attachment.downloadUrl ?? m.attachment.url,
+          name: m.attachment.name,
+        })),
     [thread.messages]
+  );
+
+  // Files picked but not yet sent. Each becomes its own message.
+  const addFiles = useCallback(
+    (list) => {
+      const incoming = [...(list || [])];
+      if (incoming.length === 0) return;
+      const next = [...staged];
+      const problems = [];
+      for (const file of incoming) {
+        if (next.length >= MAX_FILES_AT_ONCE) {
+          problems.push(`You can send up to ${MAX_FILES_AT_ONCE} files at once`);
+          break;
+        }
+        const { kind, error } = checkFile(file);
+        if (error) {
+          problems.push(error);
+          continue;
+        }
+        const duplicate = next.some(
+          (item) =>
+            item.file.name === file.name &&
+            item.file.size === file.size &&
+            item.file.lastModified === file.lastModified
+        );
+        if (duplicate) continue;
+        next.push({
+          id: newClientId(),
+          file,
+          kind,
+          preview: kind === 'image' || kind === 'video' ? URL.createObjectURL(file) : null,
+        });
+      }
+      for (const problem of new Set(problems)) toast.error(problem);
+      setStaged(next);
+    },
+    [staged]
+  );
+
+  const removeFile = useCallback((id) => {
+    setStaged((current) => {
+      const gone = current.find((item) => item.id === id);
+      if (gone?.preview) URL.revokeObjectURL(gone.preview);
+      return current.filter((item) => item.id !== id);
+    });
+  }, []);
+
+  const stagedRef = useRef(staged);
+  useEffect(() => {
+    stagedRef.current = staged;
+  }, [staged]);
+  useEffect(
+    () => () =>
+      stagedRef.current.forEach((item) => item.preview && URL.revokeObjectURL(item.preview)),
+    []
   );
 
   const actions = useMemo(
@@ -120,21 +203,96 @@ const OpenThread = ({ conversation }) => {
           .writeText(message.body)
           .then(() => toast.success('Copied'))
           .catch(() => toast.error("Couldn't copy")),
-      openImage: (message) => {
-        const index = images.findIndex((image) => image.id === message.id);
-        if (index !== -1) setGalleryIndex(index);
+      openMedia: (message) => {
+        const index = media.findIndex((item) => item.key === message.id);
+        if (index !== -1) setMediaIndex(index);
       },
+      preview: (message) =>
+        freshAttachment(message).then(setPreviewing).catch(report("Couldn't open the file")),
+      download: (message) =>
+        downloadAttachment(message).catch(report("Couldn't download the file")),
     }),
-    [images]
+    [media]
   );
 
   const handleSend = useCallback(
-    ({ body, file }) => {
-      sendMessage(activeId, { body, file, replyTo });
+    ({ body }) => {
+      const files = staged.map(({ file, kind }) => ({ file, kind }));
+      staged.forEach((item) => item.preview && URL.revokeObjectURL(item.preview));
+      setStaged([]);
+      void sendMessage(activeId, { body, files, replyTo });
       setReplyTo(null);
     },
-    [activeId, replyTo]
+    [activeId, replyTo, staged]
   );
+
+  const dropHandlers = {
+    onDragEnter: (e) => {
+      if (!dragHasFiles(e) || editing) return;
+      e.preventDefault();
+      dragDepth.current += 1;
+      setDragging(true);
+    },
+    onDragOver: (e) => {
+      if (!dragHasFiles(e) || editing) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    },
+    onDragLeave: (e) => {
+      if (!dragHasFiles(e)) return;
+      dragDepth.current = Math.max(0, dragDepth.current - 1);
+      if (dragDepth.current === 0) setDragging(false);
+    },
+    onDrop: (e) => {
+      if (!dragHasFiles(e) || editing) return;
+      e.preventDefault();
+      dragDepth.current = 0;
+      setDragging(false);
+      const folders = droppedFolders(e.dataTransfer);
+      if (folders.length) toast.error(`Folders can't be sent. Zip ${folders[0]} first.`);
+      addFiles([...e.dataTransfer.files].filter((file) => !folders.includes(file.name)));
+    },
+  };
+
+  // A file let go anywhere else on the page would make the browser open it and leave the chat.
+  // A drag that ends outside the window never sends the leave that would hide the overlay.
+  useEffect(() => {
+    const keepPage = (e) => {
+      if (dragHasFiles(e)) e.preventDefault();
+    };
+    const reset = () => {
+      dragDepth.current = 0;
+      setDragging(false);
+    };
+    window.addEventListener('dragover', keepPage);
+    window.addEventListener('drop', keepPage);
+    window.addEventListener('drop', reset);
+    window.addEventListener('dragend', reset);
+    return () => {
+      window.removeEventListener('dragover', keepPage);
+      window.removeEventListener('drop', keepPage);
+      window.removeEventListener('drop', reset);
+      window.removeEventListener('dragend', reset);
+    };
+  }, []);
+
+  // Pasting a file attaches it wherever the focus is, not only in the message box. Other text
+  // fields (search, for one) keep their paste.
+  useEffect(() => {
+    const onPaste = (e) => {
+      if (e.defaultPrevented || editing) return;
+      const target = e.target;
+      if (target instanceof HTMLElement && target.closest('input, textarea, [contenteditable]')) {
+        return;
+      }
+      const files = filesFromClipboard(e.clipboardData);
+      if (files.length === 0) return;
+      e.preventDefault();
+      addFiles(files);
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [addFiles, editing]);
 
   const handleSaveEdit = useCallback(
     async (body) => {
@@ -150,7 +308,7 @@ const OpenThread = ({ conversation }) => {
 
   return (
     <>
-      <div className='relative flex h-full flex-col'>
+      <div className='relative flex h-full flex-col' {...dropHandlers}>
         <ChatHeader
           peer={peer}
           online={online}
@@ -179,16 +337,38 @@ const OpenThread = ({ conversation }) => {
           onCancelEdit={() => setEditing(null)}
           onSaveEdit={handleSaveEdit}
           onSend={handleSend}
+          files={staged}
+          onAddFiles={addFiles}
+          onRemoveFile={removeFile}
         />
+
+        {dragging && (
+          <div className='pointer-events-none absolute inset-2 z-30 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-primary/50 bg-background/85 backdrop-blur-sm animate-in fade-in-0 duration-100'>
+            <span className='flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary'>
+              <Paperclip className='h-5 w-5' />
+            </span>
+            <p className='text-sm font-medium'>Drop to send to {peer.name}</p>
+          </div>
+        )}
       </div>
 
-      {galleryIndex != null && images.length > 0 && (
-        <ImageGallery
-          images={images.map((image) => image.url)}
-          initialIndex={Math.min(galleryIndex, images.length - 1)}
-          onClose={() => setGalleryIndex(null)}
+      {mediaIndex != null && media.length > 0 && (
+        <MediaViewer
+          items={media}
+          initialIndex={Math.min(mediaIndex, media.length - 1)}
+          onClose={() => setMediaIndex(null)}
+          onDownload={(item) => actions.download(item.message)}
         />
       )}
+
+      <FilePreview
+        attachment={previewing}
+        onClose={() => setPreviewing(null)}
+        onDownload={() => {
+          const message = thread.messages.find((m) => m.attachment?.id === previewing?.id);
+          if (message) actions.download(message);
+        }}
+      />
 
       <MessageInfoModal
         message={infoFor}
