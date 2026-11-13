@@ -5,8 +5,9 @@ import { authClient, hasLegacyToken, hasStoredSession, removeLegacyToken } from 
 import { LANGUAGE_STORAGE_KEY } from '@/lib/languages';
 import { markOnboardingComplete } from '@/lib/onboarding';
 import { usePlayerStore } from '@/stores/playerStore';
+import { destroyTrackPlayer } from '@/stores/trackPlayerBridge';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
+import { reloadAppAsync } from 'expo';
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useState } from 'react';
 
@@ -133,24 +134,27 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [api]);
 
   const logout = async () => {
+    queryClient.cancelQueries();
+    queryClient.clear();
+    // Playlists are saved on the phone; the next person to sign in mustn't see these.
+    usePlayerStore.getState().setUserPlaylist([]);
+    // Logging out clears everything except the fact that this device has seen onboarding.
+    // The Expo auth client removes the stored session cookie before the request is sent.
+    // The native player outlives a JS reload, so it is stopped here.
+    await Promise.allSettled([
+      authClient.signOut(),
+      AsyncStorage.clear().then(markOnboardingComplete),
+      signOutGoogle(),
+      destroyTrackPlayer(),
+    ]);
+    setUser(null);
+    // A fresh start drops what the old session still holds in memory: its socket, room, messages
+    // and queue. (expo-router's `router.reload()` isn't implemented on native and throws.)
     try {
-      queryClient.cancelQueries();
-      queryClient.clear();
-      // Playlists are saved on the phone; the next person to sign in mustn't see these.
-      usePlayerStore.getState().setUserPlaylist([]);
-      // Logging out clears everything except the fact that this device has seen onboarding.
-      // The Expo auth client removes the stored session cookie before the request is sent.
-      await Promise.allSettled([
-        authClient.signOut(),
-        AsyncStorage.clear().then(markOnboardingComplete),
-        signOutGoogle(),
-      ]);
-      setUser(null);
-      router.reload();
+      await reloadAppAsync('Signed out');
     } catch (error) {
-      console.error('Error logging out:', error);
-      setUser(null);
-      router.reload();
+      // The caller still takes you Home, signed out.
+      console.error('Error reloading after logout:', error);
     }
   };
 
