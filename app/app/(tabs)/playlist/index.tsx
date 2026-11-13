@@ -10,7 +10,7 @@ import { convertToHttps, ensureHttpsForPlaylistUrls } from '@/utils/getHttpsUrls
 import useApi from '@/utils/hooks/useApi';
 import type { PlaylistPreviewSong } from '@/types/music';
 import { router } from 'expo-router';
-import { AlertCircle, Edit3, Trash2, X } from 'lucide-react-native';
+import { AlertCircle, Edit3, Trash2, X } from '@/components/ui/icons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Keyboard, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';

@@ -9,7 +9,7 @@ import { ONBOARDING_STORAGE_KEY } from '@/lib/onboarding';
 import { typography } from '@/theme/typography';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ArrowRight } from 'lucide-react-native';
+import { ArrowRight } from '@/components/ui/icons';
 import { ReactNode, useCallback, useRef, useState } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {

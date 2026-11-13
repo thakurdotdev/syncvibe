@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { Check, Music, X } from 'lucide-react-native';
+import { Check, Music, X } from '@/components/ui/icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const LanguagePreference = () => {

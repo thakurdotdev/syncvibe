@@ -18,7 +18,7 @@ import {
 } from '@/stores/playerStore';
 import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
-import { Sparkles, Trash2Icon } from 'lucide-react-native';
+import { Sparkles, Trash2Icon } from '@/components/ui/icons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler';

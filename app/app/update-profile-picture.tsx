@@ -4,7 +4,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { EASE_OUT } from '@/lib/motion';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Image as ImageIcon, Check } from 'lucide-react-native';
+import { Camera, ImageIcon, Check } from '@/components/ui/icons';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';

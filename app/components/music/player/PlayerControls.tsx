@@ -11,7 +11,7 @@ import {
 } from '@/stores/playerStore';
 import { Ionicons } from '@expo/vector-icons';
 import TrackPlayer from '@rntp/player';
-import { Repeat, Repeat1, Shuffle } from 'lucide-react-native';
+import { Repeat, Repeat1, Shuffle } from '@/components/ui/icons';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';

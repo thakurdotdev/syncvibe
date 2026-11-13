@@ -1,7 +1,7 @@
 import { useTheme } from '@/context/ThemeContext';
 import { PRESS_IN, SPRING_PRESS, STATE } from '@/lib/motion';
 import { EDGE_GUARD, SWIPE_ACTIVATE } from '@/lib/swipe';
-import { Trash2 } from 'lucide-react-native';
+import { Trash2 } from '@/components/ui/icons';
 import {
   memo,
   startTransition,
