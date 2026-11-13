@@ -1,11 +1,12 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { ROW_PRESS_SCALE } from '@/lib/motion';
+import { replyLabel } from '@/lib/attachments';
 import type { ChatMessage, MessageStatus } from '@/stores/chatStore';
-import { getOptimizedImageUrl } from '@/utils/Cloudinary';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import AttachmentView from './AttachmentView';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -17,8 +18,11 @@ interface MessageBubbleProps {
   /** Messages in a row from one person sit together; time shows once, at the end of the run. */
   startsGroup: boolean;
   endsGroup: boolean;
-  onImagePress: (message: ChatMessage) => void;
+  /** A photo or video was tapped. */
+  onOpenMedia: (message: ChatMessage) => void;
   onLongPress: (message: ChatMessage) => void;
+  /** Stops a file that is still uploading. */
+  onCancel: (message: ChatMessage) => void;
   onReact: (message: ChatMessage, emoji: string) => void;
   onRetry: (message: ChatMessage) => void;
 }
@@ -30,7 +34,6 @@ const formatDuration = (seconds = 0) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
 const LONG_PRESS_MS = 300;
-const IMAGE_WIDTH = 240;
 
 const STATUS_ICON: Record<MessageStatus, { name: any; label: string }> = {
   sending: { name: 'clock-outline', label: 'Sending' },
@@ -55,15 +58,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   status,
   startsGroup,
   endsGroup,
-  onImagePress,
+  onOpenMedia,
   onLongPress,
+  onCancel,
   onReact,
   onRetry,
 }) => {
   const { colors } = useTheme();
   const failed = status === 'failed';
   const sending = status === 'sending';
-  const image = message.attachment;
+  const attachment = message.attachment;
   const reply = message.replyTo;
 
   if (message.type === 'call') {
@@ -98,10 +102,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   const openActions = () => onLongPress(message);
   const textColor = isOwn ? colors.primaryForeground : colors.foreground;
-  const imageHeight =
-    image?.width && image?.height
-      ? Math.min(360, Math.max(120, (IMAGE_WIDTH * image.height) / image.width))
-      : IMAGE_WIDTH;
   const showMeta = (endsGroup || Boolean(message.editedAt) || sending) && !failed;
 
   return (
@@ -112,29 +112,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         { marginTop: startsGroup ? 10 : 2 },
       ]}
     >
-      {image ? (
-        <PressableScale
-          onPress={() => onImagePress(message)}
+      {attachment ? (
+        <AttachmentView
+          message={message}
+          isOwn={isOwn}
+          sending={sending}
+          corners={corners}
+          onOpenMedia={onOpenMedia}
           onLongPress={openActions}
-          delayLongPress={LONG_PRESS_MS}
-          scaleTo={ROW_PRESS_SCALE}
-          accessibilityRole='imagebutton'
-          accessibilityLabel='Photo. Tap to view, hold for options'
-        >
-          <Image
-            source={{
-              uri: message.localUrl || getOptimizedImageUrl(image.url, { thumbnail: true }),
-            }}
-            style={[styles.image, corners, { height: imageHeight, backgroundColor: colors.raised }]}
-            resizeMode='cover'
-            fadeDuration={0}
-          />
-          {sending ? (
-            <View style={[styles.sending, corners]}>
-              <ActivityIndicator color='#fff' />
-            </View>
-          ) : null}
-        </PressableScale>
+          onCancel={onCancel}
+        />
       ) : null}
 
       {message.body || reply ? (
@@ -147,7 +134,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             styles.bubble,
             corners,
             { backgroundColor: isOwn ? colors.primary : colors.raised },
-            image ? styles.afterImage : null,
+            attachment ? styles.afterImage : null,
           ]}
         >
           {reply ? (
@@ -163,9 +150,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 ]}
                 numberOfLines={2}
               >
-                {reply.deleted
-                  ? 'Deleted message'
-                  : reply.body || (reply.hasAttachment ? 'Photo' : 'Message')}
+                {reply.deleted ? 'Deleted message' : replyLabel(reply)}
               </Text>
             </View>
           ) : null}
@@ -271,14 +256,6 @@ const styles = StyleSheet.create({
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, paddingHorizontal: 4 },
   time: { fontSize: 11, fontVariant: ['tabular-nums'] },
   failed: { fontSize: 12, fontWeight: '600' },
-  image: { width: IMAGE_WIDTH, borderRadius: RADIUS },
-  sending: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: RADIUS,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
   call: {
     alignSelf: 'center',
     flexDirection: 'row',

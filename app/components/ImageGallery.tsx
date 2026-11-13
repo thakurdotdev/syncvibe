@@ -259,6 +259,8 @@ const ZoomableImage = memo(function ZoomableImage({
 
 export interface GalleryPhoto {
   url: string;
+  /** The file's name, so it is saved as the right type. */
+  name?: string;
   /** A smaller version that is probably already downloaded. */
   preview?: string;
   /** Who sent it and when, shown at the top. */
@@ -353,7 +355,7 @@ const ImageGallery = ({
     if (saveState === 'saving' || !photo) return;
     setSaveState('saving');
     try {
-      await saveImageToGallery(photo.url);
+      await saveImageToGallery(photo.url, photo.name);
       setSaveState('saved');
     } catch (error) {
       setSaveState(error instanceof Error && error.message === 'permission' ? 'denied' : 'failed');
