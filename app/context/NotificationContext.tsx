@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import * as Notifications from 'expo-notifications';
 import { registerForPushNotificationsAsync } from '@/utils/registerForPushNotificationsAsync';
 import { handleChatAction, MARK_READ_ACTION, REPLY_ACTION } from '@/lib/notificationActions';
-import { useChatStore } from '@/stores/chatStore';
+import { openConversation } from '@/lib/chatScreen';
 import { useUser } from './UserContext';
 import useApi from '@/utils/hooks/useApi';
 import { router } from 'expo-router';
@@ -63,8 +63,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     // 4. Default / Open Chat Action: Route to specific conversation. The screen loads the
     // conversation itself, so this works on a cold start before the list has arrived.
     if (conversationId) {
-      useChatStore.getState().setActive(conversationId);
-      setTimeout(() => router.push('/message'), 150);
+      setTimeout(() => openConversation(conversationId), 150);
     }
   }, []);
 

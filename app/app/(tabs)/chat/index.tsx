@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
-import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,6 +20,7 @@ import ChatSearchBar from '@/components/chat/ChatSearchBar';
 import ChatListItem from '@/components/chat/ChatListItem';
 import { TabHeader } from '@/components/ui/AppHeader';
 import { loadThread, openConversationWith, refreshConversations } from '@/lib/chat';
+import { openConversation } from '@/lib/chatScreen';
 import { previewOf, useChatStore, type Conversation } from '@/stores/chatStore';
 
 interface SearchUser {
@@ -74,11 +74,6 @@ const ChatListScreen: React.FC = () => {
     };
   }, [term, api]);
 
-  const openConversation = useCallback((conversationId: number) => {
-    useChatStore.getState().setActive(conversationId);
-    router.push('/message');
-  }, []);
-
   const startWith = useCallback(
     async (person: SearchUser) => {
       try {
@@ -90,7 +85,7 @@ const ChatListScreen: React.FC = () => {
         toast(`Couldn't open a chat with ${person.name}`, { type: 'error' });
       }
     },
-    [openConversation, changeQuery]
+    [changeQuery]
   );
 
   const handleRefresh = useCallback(async () => {
@@ -113,7 +108,7 @@ const ChatListScreen: React.FC = () => {
         onPressIn={() => void loadThread(item.id)}
       />
     ),
-    [meId, presence, typing, openConversation]
+    [meId, presence, typing]
   );
 
   const renderPerson = useCallback(

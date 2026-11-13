@@ -1,6 +1,7 @@
 import { API_URL } from '@/constants';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { bindChatSocket, resetChat } from '@/lib/chat';
+import { conversationOnScreen } from '@/lib/chatScreen';
 import { bindPlayerSocket } from '@/lib/player';
 import { showMessageBanner } from '@/components/chat/MessageBanner';
 import { clearMessageNotification, showMessageNotification } from '@/lib/messageNotifications';
@@ -42,11 +43,11 @@ export const useChat = (): ChatContextType => {
  */
 const notify = (message: ChatMessage) => {
   if (Platform.OS === 'web' || message.id == null) return;
-  const { activeId, conversations, meId } = useChatStore.getState();
+  const { conversations, meId } = useChatStore.getState();
   const sender = conversations.find((c) => c.id === message.conversationId)?.peer;
 
   if (AppState.currentState === 'active') {
-    if (activeId === message.conversationId) return;
+    if (conversationOnScreen() === message.conversationId) return;
     showMessageBanner({
       conversationId: message.conversationId,
       name: sender?.name || 'New message',
@@ -61,6 +62,7 @@ const notify = (message: ChatMessage) => {
     messageId: message.id,
     senderName: sender?.name,
     preview: previewOf(message, meId),
+    imageUrl: message.attachment?.url,
   }).catch(() => {});
 };
 

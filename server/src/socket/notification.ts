@@ -79,6 +79,8 @@ export interface MessageNotificationData {
   sentAt?: string;
   /** The message the notification is about, for "Mark as read". */
   messageId?: number;
+  /** A photo sent in the message, shown in the notification. */
+  imageUrl?: string | null;
   senderid?: number | string;
   from?: string | number;
   name?: string;
@@ -112,6 +114,7 @@ export async function sendPushNotification(
         senderId: message.senderid,
         senderName: message.senderName,
         preview: message.content,
+        imageUrl: message.imageUrl,
         sentAt: message.sentAt,
       },
       priority: 'high',
@@ -127,7 +130,9 @@ export async function sendPushNotification(
       to: recipientToken,
       sound: 'default',
       title: message.senderName || 'New message',
-      body: message.content || 'Sent a photo',
+      body: message.content || 'Photo',
+      // Older apps show it beside the text.
+      ...(message.imageUrl ? { richContent: { image: message.imageUrl } } : {}),
       data: {
         conversationId: message.conversationId,
         messageId: message.messageId,

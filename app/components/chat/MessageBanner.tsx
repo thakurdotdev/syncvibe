@@ -1,4 +1,4 @@
-import { router, usePathname } from 'expo-router';
+import { usePathname } from 'expo-router';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -9,7 +9,7 @@ import { create } from 'zustand';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { ENTER, EXIT, ROW_PRESS_SCALE } from '@/lib/motion';
-import { useChatStore } from '@/stores/chatStore';
+import { openConversation } from '@/lib/chatScreen';
 import Avatar from './Avatar';
 
 /**
@@ -84,8 +84,7 @@ const MessageBanner = () => {
     if (!banner) return;
     hide();
     y.set(HIDDEN_Y);
-    useChatStore.getState().setActive(banner.conversationId);
-    router.push('/message');
+    openConversation(banner.conversationId);
   }, [banner, hide, y]);
 
   const swipe = useMemo(

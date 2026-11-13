@@ -38,14 +38,15 @@ export const getMessages = respond((req) =>
 );
 
 /**
- * Devices normally send over the socket. This is for when there isn't one: replying from a
- * notification while the app is closed.
+ * Devices normally send over the socket. This is for replying from a notification, which may have
+ * no socket; replying there doesn't mark the conversation read.
  */
 export const postMessage = respond(async (req) => ({
-  message: await sendMessage(req.user!.userid, {
-    ...asObject(req.body),
-    conversationId: req.params.conversationId,
-  }),
+  message: await sendMessage(
+    req.user!.userid,
+    { ...asObject(req.body), conversationId: req.params.conversationId },
+    { read: false }
+  ),
 }));
 
 /** Like `postMessage`, for "Mark as read" on a notification while the app is closed. */

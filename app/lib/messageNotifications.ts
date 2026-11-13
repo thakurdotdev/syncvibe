@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import { ChatNotifications } from '@/modules/chat-notifications';
 
 /**
  * Message notifications drawn by the app: one per conversation, holding its latest lines, like
@@ -19,6 +20,8 @@ interface Line {
   messageId: number | null;
   text: string;
   mine: boolean;
+  /** A photo in the message, shown in the notification while it is the latest line. */
+  imageUrl?: string | null;
 }
 
 interface Stored {
@@ -34,6 +37,7 @@ export interface IncomingMessage {
   messageId: number;
   senderName?: string | null;
   preview?: string | null;
+  imageUrl?: string | null;
 }
 
 const storageKey = (conversationId: number) => `notif:chat:${conversationId}`;
@@ -48,15 +52,28 @@ const read = async (conversationId: number): Promise<Stored | null> => {
   }
 };
 
+/**
+ * A small JPEG of a chat photo. Android decodes it itself, and may not read the WebP or AVIF that
+ * Cloudinary would otherwise pick.
+ */
+const notificationImage = (url: string): string | null => {
+  if (!url.startsWith('https://')) return null;
+  const marker = '/image/upload/';
+  if (!url.startsWith('https://res.cloudinary.com/') || !url.includes(marker)) return url;
+  return url.replace(marker, `${marker}c_limit,w_720,h_720,f_jpg,q_auto/`);
+};
+
 const present = async (conversationId: number, stored: Stored, quiet: boolean) => {
   await AsyncStorage.setItem(storageKey(conversationId), JSON.stringify(stored)).catch(() => {});
   const fromThem = stored.lines.filter((line) => !line.mine).length;
+  const identifier = notificationIdFor(conversationId);
+  const body = stored.lines.map((line) => (line.mine ? `You: ${line.text}` : line.text)).join('\n');
   await Notifications.scheduleNotificationAsync({
-    identifier: notificationIdFor(conversationId),
+    identifier,
     content: {
       title: stored.senderName,
       subtitle: stored.count > 1 ? `${stored.count} new messages` : undefined,
-      body: stored.lines.map((line) => (line.mine ? `You: ${line.text}` : line.text)).join('\n'),
+      body,
       data: {
         type: 'message',
         conversationId,
@@ -68,6 +85,13 @@ const present = async (conversationId: number, stored: Stored, quiet: boolean) =
     },
     trigger: { channelId: quiet ? QUIET_MESSAGES_CHANNEL : MESSAGES_CHANNEL },
   });
+
+  const latest = stored.lines[stored.lines.length - 1];
+  const image =
+    latest && !latest.mine && latest.imageUrl ? notificationImage(latest.imageUrl) : null;
+  if (image && ChatNotifications) {
+    await ChatNotifications.showPicture(identifier, image, body, latest.text).catch(() => false);
+  }
 };
 
 /** Adds a message to its conversation's notification, or starts one. */
@@ -84,7 +108,12 @@ export const showMessageNotification = async (message: IncomingMessage): Promise
   stored.senderName = message.senderName || stored.senderName;
   stored.lines = [
     ...stored.lines,
-    { messageId: message.messageId, text: message.preview || 'New message', mine: false },
+    {
+      messageId: message.messageId,
+      text: message.preview || (message.imageUrl ? 'Photo' : 'New message'),
+      mine: false,
+      imageUrl: message.imageUrl ?? null,
+    },
   ].slice(-MAX_LINES);
   stored.count += 1;
   stored.lastMessageId = Math.max(stored.lastMessageId, message.messageId);
@@ -93,17 +122,19 @@ export const showMessageNotification = async (message: IncomingMessage): Promise
 
 /**
  * Shows a reply written into the notification under the messages, which also tells Android the
- * reply went (it spins until the notification changes).
+ * reply went (it spins until the notification changes). With no text it is only redrawn.
  */
-export const addReplyToNotification = async (conversationId: number, text: string) => {
+export const addReplyToNotification = async (conversationId: number, text: string | null) => {
   const stored = await read(conversationId);
   if (!stored) {
     await Notifications.dismissNotificationAsync(notificationIdFor(conversationId)).catch(() => {});
     return;
   }
-  stored.lines = [...stored.lines, { messageId: null, text, mine: true }].slice(-MAX_LINES);
-  // Replying means the earlier messages were seen: what follows starts a new count.
-  stored.count = 0;
+  if (text) {
+    stored.lines = [...stored.lines, { messageId: null, text, mine: true }].slice(-MAX_LINES);
+    // What arrives after a reply starts a new count.
+    stored.count = 0;
+  }
   await present(conversationId, stored, true);
 };
 

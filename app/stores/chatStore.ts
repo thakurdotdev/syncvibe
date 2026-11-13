@@ -350,14 +350,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         patchConversation(current, conversation.id, (c) => ({
           lastMessage: isNew || showsPending ? message : c.lastMessage,
           lastMessageAt: isNew ? message.createdAt : c.lastMessageAt,
-          // Whoever sends a message has seen everything before it.
-          ...(mine
-            ? { unreadCount: 0, myLastReadMessageId: Math.max(c.myLastReadMessageId, id) }
-            : {
-                unreadCount: isNew ? c.unreadCount + 1 : c.unreadCount,
-                peerLastReadMessageId: Math.max(c.peerLastReadMessageId, id),
-                peerLastDeliveredMessageId: Math.max(c.peerLastDeliveredMessageId, id),
-              }),
+          // Read and delivered positions come only from receipts: a reply sent from a
+          // notification doesn't mean the messages before it were read.
+          unreadCount: !mine && isNew ? c.unreadCount + 1 : c.unreadCount,
         })) ?? current.conversations
       ),
     }));

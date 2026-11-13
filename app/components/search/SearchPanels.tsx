@@ -4,7 +4,7 @@ import { SongCard } from '@/components/music/MusicCards';
 import SearchHistory from '@/components/music/SearchHistory';
 import PressableScale from '@/components/ui/PressableScale';
 import { openConversationWith } from '@/lib/chat';
-import { useChatStore } from '@/stores/chatStore';
+import { openConversation } from '@/lib/chatScreen';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import { useUser } from '@/context/UserContext';
@@ -416,8 +416,7 @@ export const PeoplePanel = memo(function PeoplePanel({ query }: { query: string 
     setOpeningId(person.userid);
     try {
       const conversation = await openConversationWith(person.userid);
-      useChatStore.getState().setActive(conversation.id);
-      router.push('/message');
+      openConversation(conversation.id);
     } catch {
       toast(`Couldn't open a chat with ${person.name}`);
     } finally {

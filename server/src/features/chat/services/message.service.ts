@@ -33,7 +33,7 @@ const others = (members: number[], userId: number) => members.filter((id) => id 
 // ── Sending ─────────────────────────────────────────────────────────────────
 
 const pushPreview = (message: MessageDto) =>
-  message.body || (message.attachment ? 'Sent a photo' : 'New message');
+  message.body || (message.attachment ? 'Photo' : 'New message');
 
 /**
  * Sends a new message to everyone's devices. If none of the recipient's devices confirms it, they
@@ -58,6 +58,7 @@ const announceMessage = (message: MessageDto, members: number[]): void => {
         messageId: message.id,
         sentAt: message.createdAt,
         senderid: message.senderId,
+        imageUrl: message.attachment?.url ?? null,
       });
     })().catch((error) => console.error('Announcing a chat message failed:', error));
   }
@@ -80,8 +81,9 @@ interface NewMessage {
  */
 const storeMessage = async (
   input: NewMessage,
-  transaction: Transaction
-): Promise<{ message: Message; created: boolean }> => {
+  transaction: Transaction,
+  read: boolean
+): Promise<{ message: Message; created: boolean; receipt: ReceiptDto | null }> => {
   const [message, created] = await Message.findOrCreate({
     where: { senderId: input.senderId, clientId: input.clientId },
     defaults: input,
@@ -92,7 +94,7 @@ const storeMessage = async (
     if (message.conversationId !== input.conversationId || message.deletedAt) {
       throw invalid('This message was already sent');
     }
-    return { message, created };
+    return { message, created, receipt: null };
   }
 
   await Conversation.update(
@@ -105,29 +107,40 @@ const storeMessage = async (
       transaction,
     }
   );
-  // Sending means you have seen everything above it. Devices work this out for themselves from
-  // the message, so no receipt is sent for it.
-  await ConversationMember.update(
-    {
-      lastReadMessageId: message.id,
-      lastReadAt: new Date(),
-      lastDeliveredMessageId: message.id,
-    },
+  // Sending from the conversation means you have seen everything above it. A reply from a
+  // notification only shows those messages reached you: they stay unread until marked read.
+  const now = new Date();
+  const [, moved] = await ConversationMember.update(
+    read
+      ? {
+          lastReadMessageId: message.id,
+          lastReadAt: now,
+          lastDeliveredMessageId: message.id,
+          lastDeliveredAt: now,
+        }
+      : { lastDeliveredMessageId: message.id, lastDeliveredAt: now },
     {
       where: {
         conversationId: input.conversationId,
         userId: input.senderId,
-        lastReadMessageId: { [Op.lt]: message.id },
+        [read ? 'lastReadMessageId' : 'lastDeliveredMessageId']: { [Op.lt]: message.id },
       },
       transaction,
+      returning: true,
     }
   );
-  return { message, created };
+  return { message, created, receipt: moved[0] ? toReceipt(moved[0]) : null };
 };
+
+export interface SendOptions {
+  /** False for a reply from a notification, which doesn't mean the conversation was read. */
+  read?: boolean;
+}
 
 export const sendMessage = async (
   senderId: number,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
+  { read = true }: SendOptions = {}
 ): Promise<MessageDto> => {
   const conversationId = parseId(input.conversationId, 'conversationId');
   const clientId = parseClientId(input.clientId);
@@ -139,7 +152,7 @@ export const sendMessage = async (
   const members = await requireMembers(conversationId, senderId);
   limit(allowSend(senderId));
 
-  const { message, created } = await sequelize.transaction(async (transaction) => {
+  const { message, created, receipt } = await sequelize.transaction(async (transaction) => {
     if (replyToId) {
       const target = await Message.findOne({
         where: { id: replyToId, conversationId, deletedAt: null },
@@ -160,13 +173,18 @@ export const sendMessage = async (
         meta: null,
         replyToId,
       },
-      transaction
+      transaction,
+      read
     );
     const [presented] = await presentMessages([stored.message], transaction);
-    return { message: presented!, created: stored.created };
+    return { message: presented!, created: stored.created, receipt: stored.receipt };
   });
 
-  if (created) announceMessage(message, members);
+  if (created) {
+    announceMessage(message, members);
+    // After the message, so devices already have it when its sender's position moves.
+    if (receipt) emitToUsers(members, 'chat:receipt', receipt);
+  }
   return message;
 };
 
@@ -183,7 +201,7 @@ export const recordCall = async (
   const conversationId = await findDirectConversationId(callerId, receiverId);
   if (!conversationId) return;
 
-  const message = await sequelize.transaction(async (transaction) => {
+  const { message, receipt } = await sequelize.transaction(async (transaction) => {
     const stored = await storeMessage(
       {
         conversationId,
@@ -195,12 +213,18 @@ export const recordCall = async (
         meta: call,
         replyToId: null,
       },
-      transaction
+      transaction,
+      true
     );
-    return (await presentMessages([stored.message], transaction))[0]!;
+    return {
+      message: (await presentMessages([stored.message], transaction))[0]!,
+      receipt: stored.receipt,
+    };
   });
 
-  announceMessage(message, await requireMembers(conversationId, callerId));
+  const members = await requireMembers(conversationId, callerId);
+  announceMessage(message, members);
+  if (receipt) emitToUsers(members, 'chat:receipt', receipt);
 };
 
 // ── Reading history ─────────────────────────────────────────────────────────
