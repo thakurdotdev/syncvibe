@@ -427,7 +427,7 @@ const StationStage = memo(function StationStage({
 });
 
 function HomeScreen() {
-  const { user } = useUser();
+  const { user, restored } = useUser();
   const { colors } = useTheme();
   const { width, height } = useWindowDimensions();
   const queryClient = useQueryClient();
@@ -436,9 +436,10 @@ function HomeScreen() {
   const { data: homePageData, isLoading, isError, refetch: refetchHome } = useHomePageMusic();
   const { data: recommendations, refetch: refetchRecent } = useRecentMusic();
 
-  // Saved data is still being read from storage, which is too quick to show anything for.
+  // Saved data (or your saved languages) is still being read from storage, which is too quick
+  // to show anything for.
   const isRestoring = useIsRestoring();
-  const waiting = isLoading || isRestoring;
+  const waiting = isLoading || isRestoring || !restored;
 
   // Only when you pull: data also refreshes by itself in the background, and a spinner appearing
   // for that, with nothing touched, reads as something going wrong.

@@ -17,3 +17,26 @@ export const shouldShowOnboarding = async (): Promise<boolean> => {
   ]);
   return !signedIn && stored.every(([, value]) => !value);
 };
+
+const checkSafely = () =>
+  shouldShowOnboarding().catch((error) => {
+    // Never block the app on a storage failure.
+    console.error('Failed to read onboarding state:', error);
+    return false;
+  });
+
+let startupCheck: Promise<boolean> | null = null;
+let startupCheckTaken = false;
+
+/** The check made at launch. The root layout keeps the splash screen up until it settles. */
+export const onboardingCheckAtLaunch = () => (startupCheck ??= checkSafely());
+
+/**
+ * For the `/` route. The first visit reuses the launch check; later ones check again, because
+ * finishing onboarding or signing in changes the answer.
+ */
+export const takeOnboardingDecision = (): Promise<boolean> => {
+  if (startupCheckTaken) return checkSafely();
+  startupCheckTaken = true;
+  return onboardingCheckAtLaunch();
+};
