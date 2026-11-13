@@ -10,6 +10,7 @@ import { RoomScreen } from '@/components/music/room/RoomScreen';
 import { RoomsWelcome } from '@/components/music/room/RoomsWelcome';
 import { useMyRooms } from '@/components/music/room/useMyRooms';
 import { TabHeader } from '@/components/ui/AppHeader';
+import { TabLoading } from '@/components/ui/TabLoading';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useChat } from '@/context/SocketContext';
@@ -35,7 +36,7 @@ function Reconnecting() {
 /** Rooms tab: welcome, reconnecting, or the live room, plus the sheets rooms use. */
 export default function RoomsTab() {
   const { createGroup, joinGroup, leaveGroup } = useGroupMusic();
-  const { user } = useUser();
+  const { user, loading } = useUser();
   const { colors } = useTheme();
 
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
@@ -79,7 +80,7 @@ export default function RoomsTab() {
     );
   }, [currentGroup, leaveGroup]);
 
-  if (!user) return <LoginScreen />;
+  if (!user) return loading ? <TabLoading title='Rooms' /> : <LoginScreen />;
 
   if (scanning) {
     return (
