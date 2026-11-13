@@ -20,6 +20,7 @@ import {
   toggleReaction,
   type PickedPhoto,
 } from '@/lib/chat';
+import { putConversationOnScreen, registerConversationScreen } from '@/lib/chatScreen';
 import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE } from '@/lib/motion';
 import {
   messageStatus,
@@ -33,7 +34,7 @@ import { saveImageToGallery } from '@/utils/saveImage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -122,17 +123,28 @@ const ChatWithUser = () => {
     if (activeId) void loadThread(activeId);
   }, [activeId]);
 
-  // Leaving the screen closes the conversation, so new messages count as unread again.
+  // Switching to another conversation, or leaving: the other person stops seeing "typing…".
   useEffect(
     () => () => {
-      const { activeId: current, setActive } = useChatStore.getState();
-      if (current) setTyping(current, false);
-      setActive(null);
+      if (activeId) setTyping(activeId, false);
     },
-    []
+    [activeId]
   );
 
-  // Read receipts go out only while the conversation is on screen with the app in front.
+  // Another screen pushed on top (a profile, a photo) keeps this one mounted: it isn't in front.
+  const [focused, setFocused] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, [])
+  );
+  useEffect(() => {
+    if (!focused || !activeId) return undefined;
+    return putConversationOnScreen(activeId);
+  }, [focused, activeId]);
+
+  // Read receipts go out only while the conversation is in front with the app in front.
   const lastId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].id != null) return messages[i].id;
@@ -141,13 +153,13 @@ const ChatWithUser = () => {
   }, [messages]);
 
   useEffect(() => {
-    if (!activeId || thread.status !== 'ready') return;
+    if (!activeId || !focused || thread.status !== 'ready') return;
     if (AppState.currentState === 'active') markRead(activeId);
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') markRead(activeId);
     });
     return () => subscription.remove();
-  }, [activeId, thread.status, lastId]);
+  }, [activeId, focused, thread.status, lastId]);
 
   const handleTyping = useCallback(
     (hasText: boolean) => {
@@ -783,4 +795,24 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: 13, marginTop: 2 },
 });
 
-export default ChatWithUser;
+/**
+ * The one conversation screen. Opening another conversation while it is open switches it in place
+ * (lib/chatScreen), and the key starts that conversation fresh: no draft, reply or sheet carried
+ * over from the last one.
+ */
+const ConversationScreen = () => {
+  const activeId = useChatStore((s) => s.activeId);
+
+  // Leaving the screen closes the conversation, so new messages count as unread again.
+  useEffect(() => {
+    const unregister = registerConversationScreen();
+    return () => {
+      unregister();
+      useChatStore.getState().setActive(null);
+    };
+  }, []);
+
+  return <ChatWithUser key={activeId ?? 'none'} />;
+};
+
+export default ConversationScreen;
