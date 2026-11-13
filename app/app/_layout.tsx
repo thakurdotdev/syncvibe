@@ -23,7 +23,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import TrackPlayer from '@rntp/player';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import { QueryClient, useIsRestoring } from '@tanstack/react-query';
+import { defaultShouldDehydrateQuery, QueryClient, useIsRestoring } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import * as Notifications from 'expo-notifications';
 import { NotificationBehavior } from 'expo-notifications';
@@ -89,6 +89,29 @@ const asyncStoragePersister = createAsyncStoragePersister({
   storage: AsyncStorage,
 });
 
+/**
+ * Queries worth keeping between launches: what a screen shows the moment it opens. The saved
+ * cache is read before the first screen and rewritten while you use the app, so search results
+ * and recommendation lists (one entry per keystroke or song) stay in memory only.
+ */
+const PERSISTED_QUERIES = new Set([
+  'homePageMusic',
+  'station',
+  'recentMusic',
+  'musicHistory',
+  'playlistDetails',
+  'albumDetails',
+  'artistDetails',
+]);
+
+const persistOptions = {
+  persister: asyncStoragePersister,
+  dehydrateOptions: {
+    shouldDehydrateQuery: (query: Parameters<typeof defaultShouldDehydrateQuery>[0]) =>
+      defaultShouldDehydrateQuery(query) && PERSISTED_QUERIES.has(String(query.queryKey[0])),
+  },
+};
+
 function RootLayout() {
   return (
     <ErrorBoundary>
@@ -98,10 +121,7 @@ function RootLayout() {
           <KeyboardProvider>
             <ThemeProvider>
               <ToastProvider>
-                <PersistQueryClientProvider
-                  client={queryClient}
-                  persistOptions={{ persister: asyncStoragePersister }}
-                >
+                <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
                   <UserProvider>
                     <ChatProvider>
                       <NotificationProvider>
