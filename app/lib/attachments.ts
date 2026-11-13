@@ -92,6 +92,17 @@ export const extensionOf = (name = ''): string => {
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
 };
 
+/**
+ * The name to send a file under. Some providers (Google Drive, for one) name files without an
+ * extension; the type they report then supplies it, so the file isn't refused for having none.
+ */
+export const nameWithExtension = (name: string, mimeType?: string | null): string => {
+  if (RULES[extensionOf(name)]) return name;
+  const type = mimeType?.toLowerCase().split(';')[0]?.trim();
+  const ext = type ? Object.keys(RULES).find((key) => RULES[key]!.mime === type) : undefined;
+  return ext ? `${name}.${ext}` : name;
+};
+
 /** The type a file is stored and opened as, from its extension. */
 export const mimeOf = (name: string): string =>
   RULES[extensionOf(name)]?.mime ?? 'application/octet-stream';
