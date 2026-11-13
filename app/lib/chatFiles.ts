@@ -1,10 +1,17 @@
+import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, FileMode, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as Crypto from 'expo-crypto';
 import * as MediaLibrary from 'expo-media-library';
 import { Image } from 'react-native';
-import { checkFile, extensionOf, MAX_FILES_AT_ONCE, mimeOf } from '@/lib/attachments';
+import {
+  checkFile,
+  extensionOf,
+  MAX_FILES_AT_ONCE,
+  mimeOf,
+  nameWithExtension,
+} from '@/lib/attachments';
 import { freshAttachment, type PickedFile } from '@/lib/chat';
 import type { Attachment, ChatMessage } from '@/stores/chatStore';
 import { saveImageToGallery } from '@/utils/saveImage';
@@ -92,13 +99,24 @@ const measure = (uri: string) =>
     )
   );
 
-/** Any files, from the system's file picker. */
+/**
+ * Any files, from the system's file picker. Each is copied into the app's cache under its real
+ * name: the picker's own addresses (content://…/document/msf:123) carry no name or extension,
+ * and a copy also stays readable if sending has to be tried again later.
+ */
 export const pickDocuments = async (room: number): Promise<Picked | null> => {
-  const result = await File.pickFileAsync({ multipleFiles: true });
-  if (result.canceled || !result.result?.length) return null;
+  const result = await DocumentPicker.getDocumentAsync({
+    multiple: true,
+    copyToCacheDirectory: true,
+  });
+  if (result.canceled || !result.assets?.length) return null;
 
   const picked = accept(
-    result.result.map((file) => ({ uri: file.uri, name: file.name, size: sizeOf(file.uri) })),
+    result.assets.map((asset) => ({
+      uri: asset.uri,
+      name: nameWithExtension(asset.name, asset.mimeType),
+      size: sizeOf(asset.uri, asset.size),
+    })),
     room
   );
   // Photos picked as files still show as photos; their size on screen keeps the layout steady.
