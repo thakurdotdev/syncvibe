@@ -16,7 +16,8 @@ import {
  * `{ ok: true, ... }` or `{ ok: false, code, message }`, and who is asking always comes from the
  * socket's session, never from the payload.
  *
- *   chat:send    { conversationId, clientId, body?, attachment?, replyToId? } → { message }
+ *   chat:send    { conversationId, clientId, body?, attachmentId?, replyToId? } → { message }
+ *                (attachmentId: from POST /api/chat/conversations/:id/attachments, once uploaded)
  *   chat:edit    { messageId, body }                                         → { message }
  *   chat:delete  { messageId }                                               → { conversationId, messageId }
  *   chat:react   { messageId, emoji | null }                                 → { message }

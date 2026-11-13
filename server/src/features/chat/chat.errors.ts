@@ -4,6 +4,8 @@ export type ChatErrorCode =
   | 'NOT_FOUND'
   | 'FORBIDDEN'
   | 'RATE_LIMITED'
+  | 'GONE'
+  | 'UNAVAILABLE'
   | 'INTERNAL';
 
 const STATUS: Record<ChatErrorCode, number> = {
@@ -12,6 +14,9 @@ const STATUS: Record<ChatErrorCode, number> = {
   NOT_FOUND: 404,
   FORBIDDEN: 403,
   RATE_LIMITED: 429,
+  // An upload that expired or was removed: the device uploads the file again.
+  GONE: 410,
+  UNAVAILABLE: 503,
   INTERNAL: 500,
 };
 

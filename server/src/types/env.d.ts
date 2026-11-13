@@ -62,6 +62,11 @@ declare global {
       R2_SECRET_ACCESS_KEY: string;
       R2_BUCKET_NAME: string;
       R2_PUBLIC_URL: string;
+      /** Chat files. A bucket with no public access; files are read through signed links. */
+      R2_CHAT_BUCKET_NAME?: string;
+      /** Only if the keys above can't reach the chat bucket. */
+      R2_CHAT_ACCESS_KEY_ID?: string;
+      R2_CHAT_SECRET_ACCESS_KEY?: string;
 
       // EAS
       EAS_WEBHOOK_SECRET?: string;

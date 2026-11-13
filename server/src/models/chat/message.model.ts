@@ -8,13 +8,33 @@ import {
 import sequelize from '@/utils/sequelize';
 import { bigint } from './bigint';
 
-export type MessageType = 'text' | 'image' | 'call';
+export type MessageType = 'text' | 'image' | 'file' | 'call';
 
-export interface MessageAttachment {
+/** A file in the private chat bucket, as the message keeps it. Links are signed when shown. */
+export interface StoredFile {
+  /** The chat_attachments row. */
+  id: string;
+  key: string;
+  kind: 'image' | 'video' | 'audio' | 'file';
+  name: string;
+  mime: string;
+  size: number;
+  width?: number;
+  height?: number;
+  durationSec?: number;
+}
+
+/** A photo sent before files moved to R2: a public Cloudinary address. */
+export interface LegacyPhoto {
   url: string;
   width?: number;
   height?: number;
 }
+
+export type MessageAttachment = StoredFile | LegacyPhoto;
+
+export const isStoredFile = (attachment: MessageAttachment | null): attachment is StoredFile =>
+  Boolean(attachment && 'key' in attachment);
 
 export interface CallMeta {
   outcome: 'missed' | 'completed' | 'rejected';
