@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { TabLoading } from '@/components/ui/TabLoading';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import useApi from '@/utils/hooks/useApi';
 import { useUser } from '@/context/UserContext';
@@ -30,9 +31,27 @@ interface SearchUser {
 }
 
 const SEARCH_DELAY_MS = 400;
+const SKELETON_ROWS = 6;
+/** Same box as a ChatListItem (52pt avatar, 12pt padding), so rows land where these were. */
+const ROW_AVATAR = 52;
+
+/** Still stand-ins for conversations while the list loads. */
+const ConversationSkeleton = ({ color }: { color: string }) => (
+  <View accessibilityLabel='Loading conversations'>
+    {Array.from({ length: SKELETON_ROWS }, (_, i) => (
+      <View key={i} style={styles.skeletonRow}>
+        <View style={[styles.skeletonAvatar, { backgroundColor: color }]} />
+        <View style={styles.skeletonLines}>
+          <View style={[styles.skeletonLine, { width: '46%', backgroundColor: color }]} />
+          <View style={[styles.skeletonLine, { width: '72%', backgroundColor: color }]} />
+        </View>
+      </View>
+    ))}
+  </View>
+);
 
 const ChatListScreen: React.FC = () => {
-  const { user } = useUser();
+  const { user, loading } = useUser();
   const api = useApi();
   const { colors } = useTheme();
 
@@ -118,26 +137,29 @@ const ChatListScreen: React.FC = () => {
     [startWith]
   );
 
-  const empty = (
-    <View style={styles.emptyContainer}>
-      {(term ? searching : !loaded) ? (
-        <ActivityIndicator size='small' color={colors.primary} />
-      ) : (
-        <>
-          <Ionicons name='chatbubble-ellipses-outline' size={48} color={colors.mutedForeground} />
-          <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
-            {term ? 'No one found' : 'No conversations yet'}
-          </Text>
-          <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-            {term ? 'Try a different name' : 'Search for someone to start messaging'}
-          </Text>
-        </>
-      )}
-    </View>
-  );
+  const empty =
+    !term && !loaded ? (
+      <ConversationSkeleton color={colors.muted} />
+    ) : (
+      <View style={styles.emptyContainer}>
+        {searching ? (
+          <ActivityIndicator size='small' color={colors.primary} />
+        ) : (
+          <>
+            <Ionicons name='chatbubble-ellipses-outline' size={48} color={colors.mutedForeground} />
+            <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>
+              {term ? 'No one found' : 'No conversations yet'}
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
+              {term ? 'Try a different name' : 'Search for someone to start messaging'}
+            </Text>
+          </>
+        )}
+      </View>
+    );
 
   if (!user) {
-    return <LoginScreen />;
+    return loading ? <TabLoading title='Messages' showSearch={false} /> : <LoginScreen />;
   }
 
   return (
@@ -191,6 +213,15 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   emptyTitle: { fontSize: 16, fontWeight: '600', marginTop: 16 },
   emptySubtitle: { fontSize: 13, marginTop: 8, textAlign: 'center', maxWidth: '80%' },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  skeletonAvatar: { width: ROW_AVATAR, height: ROW_AVATAR, borderRadius: ROW_AVATAR / 2 },
+  skeletonLines: { flex: 1, marginLeft: 14, gap: 8 },
+  skeletonLine: { height: 12, borderRadius: 6 },
 });
 
 export default ChatListScreen;
