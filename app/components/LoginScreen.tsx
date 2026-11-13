@@ -26,6 +26,7 @@ import { Button } from './ui/button';
 import TwoFactorLogin from './TwoFactorLogin';
 
 const { width, height } = Dimensions.get('window');
+const PROFILE_FAILED = "You're signed in, but your profile didn't load. Please try again.";
 
 const LoginScreen = () => {
   const { getProfile } = useUser();
@@ -47,6 +48,14 @@ const LoginScreen = () => {
   const passkeysSupported = isPasskeySupported();
 
   const signInWithGoogle = useGoogleLogin();
+
+  // Signed in, but without a profile the app would still look signed out. Say so instead of
+  // leaving the spinner up; signing in again is safe.
+  const finishLogin = async () => {
+    setIsLoggingIn(true);
+    if (!(await getProfile())) throw new Error(PROFILE_FAILED);
+    navigateAfterLogin();
+  };
 
   const navigateAfterLogin = () => {
     if (router.canGoBack()) {
@@ -78,9 +87,7 @@ const LoginScreen = () => {
     setPasskeyLoading(true);
     try {
       await signInWithPasskey();
-      setIsLoggingIn(true);
-      await getProfile();
-      navigateAfterLogin();
+      await finishLogin();
     } catch (err: any) {
       if (!(err instanceof PasskeyCancelledError)) {
         setError(err.message || 'Passkey sign-in failed. Please try again.');
@@ -128,9 +135,7 @@ const LoginScreen = () => {
       if (result && 'twoFactorRedirect' in result && result.twoFactorRedirect) {
         setShow2FA(true);
       } else {
-        setIsLoggingIn(true);
-        await getProfile();
-        navigateAfterLogin();
+        await finishLogin();
       }
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
@@ -142,9 +147,12 @@ const LoginScreen = () => {
 
   const handle2FASuccess = async () => {
     setShow2FA(false);
-    setIsLoggingIn(true);
-    await getProfile();
-    navigateAfterLogin();
+    try {
+      await finishLogin();
+    } catch (err: any) {
+      setError(err.message);
+      setIsLoggingIn(false);
+    }
   };
 
   const handle2FAClose = () => {

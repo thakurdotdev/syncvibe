@@ -22,8 +22,9 @@ export const useGoogleLogin = () => {
       authClient.signIn.social({ provider: 'google', idToken: { token: authResult.token } })
     );
 
-    // getProfile reports its own errors, so a slow or failed profile load doesn't fail sign-in.
-    await getProfile();
+    if (!(await getProfile())) {
+      throw new Error("You're signed in, but your profile didn't load. Please try again.");
+    }
     return true;
   };
 };

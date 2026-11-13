@@ -4,10 +4,11 @@ import { signOutGoogle } from '@/lib/googleAuth';
 import { authClient, hasLegacyToken, hasStoredSession, removeLegacyToken } from '@/lib/auth-client';
 import { LANGUAGE_STORAGE_KEY } from '@/lib/languages';
 import { markOnboardingComplete } from '@/lib/onboarding';
+import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { usePlayerStore } from '@/stores/playerStore';
-import { destroyTrackPlayer } from '@/stores/trackPlayerBridge';
+import { bridgeStopSong } from '@/stores/trackPlayerBridge';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { reloadAppAsync } from 'expo';
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useState } from 'react';
 
@@ -16,7 +17,8 @@ interface UserContextType {
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
   selectedLanguages: string;
   setSelectedLanguages: React.Dispatch<React.SetStateAction<string>>;
-  getProfile: () => Promise<void>;
+  /** Loads your profile. Resolves true once you're signed in with a profile, false otherwise. */
+  getProfile: () => Promise<boolean>;
   loading: boolean;
   /**
    * The saved profile and language preference have been read from this phone. The fresh profile
@@ -52,7 +54,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * Shows the cached profile right away, then confirms the session with Better Auth (which also
    * refreshes the stored session cookie) and loads the fresh profile.
    */
-  const loadProfile = async (isActive: () => boolean = () => true) => {
+  const loadProfile = async (isActive: () => boolean = () => true): Promise<boolean> => {
     if (await hasLegacyToken()) {
       // Sessions from before Better Auth are no longer accepted, so this user signs in again.
       await markOnboardingComplete();
@@ -60,7 +62,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await removeLegacyToken();
     }
 
-    if (!(await hasStoredSession())) return;
+    if (!(await hasStoredSession())) return false;
 
     const cachedProfile = await AsyncStorage.getItem('@user_profile');
     if (isActive()) {
@@ -75,7 +77,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!session && !error) {
       await AsyncStorage.removeItem('@user_profile');
       if (isActive()) setUser(null);
-      return;
+      return false;
     }
 
     const response = await api.get('/api/profile');
@@ -83,7 +85,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const freshUser = response.data.user;
       setUser(freshUser);
       await AsyncStorage.setItem('@user_profile', JSON.stringify(freshUser));
+      return true;
     }
+    return Boolean(cachedProfile);
   };
 
   const handleProfileError = async (error: any) => {
@@ -96,9 +100,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const getProfile = async () => {
     try {
-      await loadProfile();
+      return await loadProfile();
     } catch (error: any) {
       await handleProfileError(error);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -136,26 +141,28 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     queryClient.cancelQueries();
     queryClient.clear();
-    // Playlists are saved on the phone; the next person to sign in mustn't see these.
-    usePlayerStore.getState().setUserPlaylist([]);
+    // What's in memory belongs to the account that's leaving: its room, queue and playlists
+    // (playlists are also saved on the phone, so the next person mustn't see them). The socket,
+    // messages and presence go when `user` does (ChatProvider). Stopping is local only: your
+    // music on another device keeps playing.
+    useGroupSessionStore.getState().resetSession(() => useGroupPlaybackStore.getState().reset());
+    void bridgeStopSong();
+    usePlayerStore.setState({
+      currentSong: null,
+      playlist: [],
+      originalPlaylist: [],
+      isPlaying: false,
+      isLoading: false,
+      userPlaylist: [],
+    });
     // Logging out clears everything except the fact that this device has seen onboarding.
     // The Expo auth client removes the stored session cookie before the request is sent.
-    // The native player outlives a JS reload, so it is stopped here.
     await Promise.allSettled([
       authClient.signOut(),
       AsyncStorage.clear().then(markOnboardingComplete),
       signOutGoogle(),
-      destroyTrackPlayer(),
     ]);
     setUser(null);
-    // A fresh start drops what the old session still holds in memory: its socket, room, messages
-    // and queue. (expo-router's `router.reload()` isn't implemented on native and throws.)
-    try {
-      await reloadAppAsync('Signed out');
-    } catch (error) {
-      // The caller still takes you Home, signed out.
-      console.error('Error reloading after logout:', error);
-    }
   };
 
   const updateUser = async (userData: Partial<User>) => {
