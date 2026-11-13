@@ -12,32 +12,15 @@ import type { PlaylistPreviewSong } from '@/types/music';
 import { router } from 'expo-router';
 import { AlertCircle, Edit3, Trash2, X } from 'lucide-react-native';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Keyboard,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image, Keyboard, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { TabLoading } from '@/components/ui/TabLoading';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { HeaderIconButton, TabHeader } from '@/components/ui/AppHeader';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import PressableScale from '@/components/ui/PressableScale';
 import { BUTTON_PRESS_SCALE, ROW_PRESS_SCALE } from '@/lib/motion';
 import { Ionicons } from '@expo/vector-icons';
-
-const LoadingState = () => {
-  const { colors } = useTheme();
-
-  return (
-    <TabSafeAreaView style={[styles.centerContainer, { backgroundColor: colors.background }]}>
-      <ActivityIndicator size='large' color={colors.primary} />
-    </TabSafeAreaView>
-  );
-};
 
 const linkOf = (item: unknown): string => {
   if (typeof item === 'string') return item;
@@ -92,9 +75,11 @@ const lastAddedTime = (p: any) => {
 const PlaylistScreen = () => {
   const api = useApi();
   const { colors, theme } = useTheme();
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const { userPlaylist, setUserPlaylist } = usePlaylistState();
   const [loading, setLoading] = useState(false);
+  // Until the first answer, an empty list only means "not loaded yet", not "no playlists".
+  const [fetched, setFetched] = useState(false);
 
   const getPlaylists = async () => {
     try {
@@ -102,8 +87,29 @@ const PlaylistScreen = () => {
       if (data?.data) setUserPlaylist(data.data);
     } catch (error) {
       console.error('Error fetching playlists:', error);
+    } finally {
+      setFetched(true);
     }
   };
+
+  // Saved playlists show straight away; this brings in changes from your other devices.
+  const userId = user?.userid;
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    api
+      .get('/api/playlist/get')
+      .then(({ data }) => {
+        if (active && data?.data) setUserPlaylist(data.data);
+      })
+      .catch((error) => console.error('Error fetching playlists:', error))
+      .finally(() => {
+        if (active) setFetched(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [api, userId, setUserPlaylist]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -216,13 +222,12 @@ const PlaylistScreen = () => {
 
   const isDark = theme === 'dark';
 
-  if (loading && !selectedPlaylist) return <LoadingState />;
-
   if (!user) {
-    return <LoginScreen />;
+    return userLoading ? <TabLoading title='Library' /> : <LoginScreen />;
   }
 
   const count = sortedPlaylists.length;
+  const countKnown = fetched || count > 0;
 
   const renderPlaylistItem = ({ item }: { item: any }) => (
     <PlaylistRow playlist={item} onMore={handleLongPress} />
@@ -256,7 +261,7 @@ const PlaylistScreen = () => {
           <>
             <View style={styles.toolbar}>
               <Text style={[styles.count, { color: colors.mutedForeground }]}>
-                {count} {count === 1 ? 'playlist' : 'playlists'}
+                {countKnown ? `${count} ${count === 1 ? 'playlist' : 'playlists'}` : ''}
               </Text>
               {count > 1 && (
                 <PressableScale
@@ -278,7 +283,7 @@ const PlaylistScreen = () => {
           </>
         }
         ListFooterComponent={
-          count === 0 ? (
+          countKnown && count === 0 ? (
             <Text style={[styles.empty, { color: colors.mutedForeground }]}>
               Playlists you make show up here. Add songs from any track's menu.
             </Text>
@@ -571,11 +576,6 @@ const PlaylistRow = memo(function PlaylistRow({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  centerContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   toolbar: {
     flexDirection: 'row',

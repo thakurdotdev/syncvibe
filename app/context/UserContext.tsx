@@ -4,6 +4,7 @@ import { signOutGoogle } from '@/lib/googleAuth';
 import { authClient, hasLegacyToken, hasStoredSession, removeLegacyToken } from '@/lib/auth-client';
 import { LANGUAGE_STORAGE_KEY } from '@/lib/languages';
 import { markOnboardingComplete } from '@/lib/onboarding';
+import { usePlayerStore } from '@/stores/playerStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -135,6 +136,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       queryClient.cancelQueries();
       queryClient.clear();
+      // Playlists are saved on the phone; the next person to sign in mustn't see these.
+      usePlayerStore.getState().setUserPlaylist([]);
       // Logging out clears everything except the fact that this device has seen onboarding.
       // The Expo auth client removes the stored session cookie before the request is sent.
       await Promise.allSettled([
