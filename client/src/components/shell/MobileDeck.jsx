@@ -1,6 +1,7 @@
 import he from 'he';
 import { WifiOff } from 'lucide-react';
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useReducedMotion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { NextIcon, PauseIcon, PlayIcon, SearchMusicIcon } from '@/components/icons/NavIcons';
 import { paths } from '@/lib/paths';
@@ -87,11 +88,63 @@ const ProgressRing = memo(() => {
 });
 ProgressRing.displayName = 'ProgressRing';
 
+/**
+ * Playing, the cover turns slowly like a record; paused, it coasts to a stop, a touch smaller and
+ * dimmer. Same timings as the app's orb.
+ */
+const RECORD_TURN_MS = 8000;
+const RECORD_COAST_MS = 600;
+
+const useRecordTurn = (ref, spinning) => {
+  const reduceMotion = useReducedMotion();
+  const turn = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || reduceMotion) return undefined;
+    // The cover's element is new after the orb showed a room or search instead.
+    if (turn.current?.effect?.target !== el) {
+      turn.current?.cancel();
+      turn.current = el.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], {
+        duration: RECORD_TURN_MS,
+        iterations: Infinity,
+      });
+      turn.current.pause();
+    }
+    const animation = turn.current;
+    if (spinning) {
+      animation.playbackRate = 1;
+      animation.play();
+      return undefined;
+    }
+    if (animation.playState !== 'running') {
+      animation.pause();
+      return undefined;
+    }
+    // Slows from full speed to nothing (ease-out), then holds where it stopped.
+    let frame;
+    const start = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / RECORD_COAST_MS);
+      animation.playbackRate = (1 - t) ** 3;
+      if (t < 1) frame = requestAnimationFrame(step);
+      else animation.pause();
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [ref, spinning, reduceMotion]);
+  useEffect(() => () => turn.current?.cancel(), []);
+};
+
 const glass =
   'border border-border/60 bg-card/75 shadow-[0_8px_24px_hsl(var(--foreground)/0.12)] backdrop-blur-xl';
 
-const Orb = memo(({ kind, art, title, where, onTap, onHold, onSkip, ripple }) => {
+const Orb = memo(({ kind, art, title, where, playing, onTap, onHold, onSkip, ripple }) => {
   const press = useRef(null);
+  const record = useRef(null);
+  const sheetOpen = useUiStore((s) => s.playerSheetOpen);
+  const paused = kind === 'song' && !playing;
+  // Only while it's in view: the open player covers the orb.
+  useRecordTurn(record, kind === 'song' && playing && !sheetOpen);
   const [offset, setOffset] = useState(0);
 
   const end = () => {
@@ -164,7 +217,11 @@ const Orb = memo(({ kind, art, title, where, onTap, onHold, onSkip, ripple }) =>
           <>
             {kind === 'song' && <ProgressRing />}
             <span
-              className='overflow-hidden rounded-full bg-raised'
+              ref={record}
+              className={cn(
+                'overflow-hidden rounded-full bg-raised transition-[opacity,scale] duration-300 ease-out motion-reduce:transition-none',
+                paused && 'scale-90 opacity-60'
+              )}
               style={{ width: ART, height: ART }}
             >
               {art && (
@@ -444,6 +501,7 @@ export const MobileDeck = memo(() => {
           art={artOf(song)}
           title={titleOf(song)}
           where={kind === 'song' ? where : null}
+          playing={isPlaying}
           onTap={onTap}
           onHold={() => expand(HOLD_SONG_MS)}
           onSkip={onSkip}
