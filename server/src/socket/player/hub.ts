@@ -57,6 +57,12 @@ const loading = new Map<string, Promise<PlayerSession>>();
 const devices = new Map<string, Map<string, ConnectedDevice>>();
 const lostTimers = new Map<string, NodeJS.Timeout>();
 const evictTimers = new Map<string, NodeJS.Timeout>();
+/**
+ * Playback paused because the device playing it dropped off, by user: which device, and the
+ * revision that pause made. That pause shouldn't count as "something changed elsewhere" when the
+ * same device comes back with what it played meanwhile.
+ */
+const lossPauses = new Map<string, { deviceId: string; rev: number }>();
 
 /** Every device of one user that follows their session. */
 export const playerRoom = (userId: string) => `player:${userId}`;
@@ -176,8 +182,19 @@ export const deviceHello = async (io: Server, userId: string, hello: Hello) => {
 
   const session = await getSession(userId);
   if (session.active?.deviceId === device.deviceId) cancelTimer(lostTimers, userId);
-  if (hello.resume)
-    apply(io, session, resume(session, deviceInfo(device), hello.resume, Date.now()));
+  const lossPause = lossPauses.get(userId);
+  if (lossPause?.deviceId === device.deviceId) lossPauses.delete(userId);
+  if (hello.resume) {
+    let heard = hello.resume;
+    if (
+      lossPause?.deviceId === device.deviceId &&
+      lossPause.rev === session.revs.playback &&
+      heard.rev === lossPause.rev - 1
+    ) {
+      heard = { ...heard, rev: session.revs.playback };
+    }
+    apply(io, session, resume(session, deviceInfo(device), heard, Date.now()));
+  }
 
   tellDevices(io, userId, session);
   return snapshotOf(session);
@@ -192,6 +209,16 @@ export const deviceGone = (io: Server, userId: string, deviceId: string, socketI
 
   const session = sessions.get(userId);
   if (!session) return;
+
+  if (session.active?.deviceId === deviceId) {
+    // Nobody can hear it now, so the other devices shouldn't show it moving on. The device stays
+    // the one playing for a while, so that coming back with what it played offline still works.
+    const paused = pause(session, Date.now());
+    if (changed(paused)) {
+      apply(io, session, paused);
+      lossPauses.set(userId, { deviceId, rev: session.revs.playback });
+    }
+  }
   tellDevices(io, userId, session);
 
   if (session.active?.deviceId === deviceId) {
@@ -199,6 +226,7 @@ export const deviceGone = (io: Server, userId: string, deviceId: string, socketI
     const timer = setTimeout(() => {
       lostTimers.delete(userId);
       if (isOnline(userId, deviceId)) return;
+      lossPauses.delete(userId);
       apply(io, session, deviceLost(session, deviceId, Date.now()));
       scheduleEvict(userId);
     }, LOST_GRACE_MS);
@@ -457,6 +485,7 @@ export const resetHub = (): void => {
     timers.clear();
   }
   sessions.clear();
+  lossPauses.clear();
   loading.clear();
   devices.clear();
 };
