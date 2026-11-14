@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react'
 import {
   Keyboard,
   KeyboardAvoidingView,
+  type LayoutChangeEvent,
   Modal,
   Platform,
   StyleSheet,
@@ -70,6 +71,8 @@ interface SwipeableModalProps {
  */
 /** Longer than any close animation; see `armCloseGuard`. */
 const CLOSE_GUARD_MS = 900;
+/** How long an open waits for the Modal's `onShow` before it goes ahead without it. */
+const SHOW_FALLBACK_MS = 250;
 
 const SwipeableModal: React.FC<SwipeableModalProps> = (props) => {
   const { isVisible } = props;
@@ -131,6 +134,12 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
   const closingRef = useRef(false);
   const onCloseRef = useRef(onClose);
   const closeGuard = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The open waits for the sheet's real height and for the Modal window to be on screen.
+  // Starting earlier, the travel distance changes mid-animation (a jump) and the first
+  // frames play before anything is drawn: together they look like it opened twice.
+  const measuredRef = useRef(false);
+  const shownRef = useRef(false);
+  const openPendingRef = useRef(false);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -201,7 +210,14 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
     progress.set(withTiming(1, SHEET_OPEN));
   }, [progress, gestureY, closing, gestureActive]);
 
+  const openWhenReady = useCallback(() => {
+    if (!openPendingRef.current || !measuredRef.current || !shownRef.current) return;
+    openPendingRef.current = false;
+    animateOpen();
+  }, [animateOpen]);
+
   const animateClose = useCallback(() => {
+    openPendingRef.current = false;
     if (closingRef.current || closing.get() === 1) return;
 
     closingRef.current = true;
@@ -223,13 +239,37 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
     []
   );
 
+  const handleSheetLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      sheetTop.set(event.nativeEvent.layout.y);
+      sheetHeight.set(event.nativeEvent.layout.height);
+      if (!measuredRef.current) {
+        measuredRef.current = true;
+        openWhenReady();
+      }
+    },
+    [sheetTop, sheetHeight, openWhenReady]
+  );
+
+  const handleShow = useCallback(() => {
+    shownRef.current = true;
+    openWhenReady();
+  }, [openWhenReady]);
+
+  // If the platform never reports the Modal as shown, open anyway rather than stay hidden.
+  useEffect(() => {
+    const fallback = setTimeout(handleShow, SHOW_FALLBACK_MS);
+    return () => clearTimeout(fallback);
+  }, [handleShow]);
+
   useEffect(() => {
     if (isVisible) {
-      const frame = requestAnimationFrame(animateOpen);
-      return () => cancelAnimationFrame(frame);
+      openPendingRef.current = true;
+      openWhenReady();
+      return;
     }
     animateClose();
-  }, [isVisible, animateOpen, animateClose]);
+  }, [isVisible, openWhenReady, animateClose]);
 
   const internalScrollHandler = useAnimatedScrollHandler((event) => {
     internalScrollOffset.set(event.contentOffset.y);
@@ -378,6 +418,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
       statusBarTranslucent
       hardwareAccelerated
       onRequestClose={dismissible ? animateClose : undefined}
+      onShow={handleShow}
     >
       <GestureHandlerRootView style={styles.root}>
         {fullScreen && (
@@ -420,10 +461,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
                 style,
                 fixedKeyboardSheetStyle,
               ]}
-              onLayout={(event) => {
-                sheetTop.set(event.nativeEvent.layout.y);
-                sheetHeight.set(event.nativeEvent.layout.height);
-              }}
+              onLayout={handleSheetLayout}
             >
               {!hideHandle && (
                 <View style={styles.handleContainer}>
