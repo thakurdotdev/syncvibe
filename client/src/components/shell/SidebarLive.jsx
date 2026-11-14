@@ -11,7 +11,7 @@ import Equalizer from '@/Pages/GroupMusic/components/Equalizer';
 import { getArtistName, getSongImage } from '@/Pages/GroupMusic/utils/song';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/playbackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
-import { usePlayerSessionStore, useRemoteDevice } from '@/stores/playerSessionStore';
+import { usePlayingOn } from '@/stores/playerSessionStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useUiStore } from '@/stores/uiStore';
 import { FALLBACK_ART } from './nav';
@@ -137,18 +137,6 @@ const SeekBar = () => {
       className='dock-seek relative block w-full px-2.5 pb-1'
     />
   );
-};
-
-/**
- * Where your music plays. Another device playing gets a strip naming it; once that device drops
- * off, the server has paused and pressing play moves playback here.
- */
-const usePlayingOn = () => {
-  const remote = useRemoteDevice();
-  const reachable = usePlayerSessionStore((s) => s.playback?.activeOnline !== false);
-  const deviceId = usePlayerSessionStore((s) => s.deviceId);
-  const deviceCount = usePlayerSessionStore((s) => (s.live ? s.devices.length : 0));
-  return { remote, offline: Boolean(remote && !reachable), deviceId, deviceCount };
 };
 
 const PlayingOnStrip = ({ remote, offline, onPlayHere }) =>
