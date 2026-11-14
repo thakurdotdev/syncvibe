@@ -35,12 +35,6 @@ const LINKS: Link[] = [
     icon: 'linkedin',
   },
   { name: 'X', handle: '@thakurdotdev', url: 'https://x.com/thakurdotdev', icon: 'x' },
-  {
-    name: 'Instagram',
-    handle: '@thakurdotdev',
-    url: 'https://instagram.com/thakurdotdev',
-    icon: 'instagram',
-  },
 ];
 
 // The easter egg pops from just under full size, never from nothing.
