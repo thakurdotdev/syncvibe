@@ -1,11 +1,15 @@
 import he from 'he';
+import { WifiOff } from 'lucide-react';
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { NextIcon, PauseIcon, PlayIcon, SearchMusicIcon } from '@/components/icons/NavIcons';
 import { paths } from '@/lib/paths';
+import { transferTo } from '@/lib/player';
 import { cn } from '@/lib/utils';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/playbackStore';
+import { DeviceIcon } from '@/Pages/Music/BottomPlayer/DevicePicker';
 import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
+import { usePlayingOn } from '@/stores/playerSessionStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useUiStore } from '@/stores/uiStore';
 import { NAV_ITEMS } from './nav';
@@ -20,6 +24,8 @@ import { useChatSummary } from './useShellData';
  *   holds the room's song and takes you back there.
  * - The capsule grows out of the orb over the tabs when the song changes (and on hold): title,
  *   play/pause, next. It closes like a magnet, back into the orb, which ripples as it lands.
+ * - When another of your devices plays, the orb wears its icon and the capsule names it. If that
+ *   device drops off, the artwork dims and play moves playback here.
  */
 
 const PILL = 58;
@@ -84,7 +90,7 @@ ProgressRing.displayName = 'ProgressRing';
 const glass =
   'border border-border/60 bg-card/75 shadow-[0_8px_24px_hsl(var(--foreground)/0.12)] backdrop-blur-xl';
 
-const Orb = memo(({ kind, art, title, onTap, onHold, onSkip, ripple }) => {
+const Orb = memo(({ kind, art, title, where, onTap, onHold, onSkip, ripple }) => {
   const press = useRef(null);
   const [offset, setOffset] = useState(0);
 
@@ -107,7 +113,7 @@ const Orb = memo(({ kind, art, title, onTap, onHold, onSkip, ripple }) => {
       ? 'Search music'
       : kind === 'room'
         ? 'Back to the room'
-        : `Open player: ${title}`;
+        : `Open player: ${title}${where?.label ? `. ${where.label}` : ''}`;
 
   return (
     <button
@@ -166,7 +172,10 @@ const Orb = memo(({ kind, art, title, onTap, onHold, onSkip, ripple }) => {
                   src={art}
                   alt=''
                   draggable={false}
-                  className='h-full w-full object-cover'
+                  className={cn(
+                    'h-full w-full object-cover',
+                    where?.offline && 'brightness-75 grayscale'
+                  )}
                   style={{
                     transform: offset ? `translateX(${offset}px)` : undefined,
                     opacity: offset ? Math.max(0.3, 1 - Math.abs(offset) / 40) : 1,
@@ -178,6 +187,21 @@ const Orb = memo(({ kind, art, title, onTap, onHold, onSkip, ripple }) => {
           </>
         )}
       </span>
+      {kind === 'song' && where?.remote && (
+        <span
+          aria-hidden='true'
+          className={cn(
+            'absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full border-2 border-background',
+            where.offline ? 'bg-muted text-muted-foreground' : 'bg-foreground text-background'
+          )}
+        >
+          {where.offline ? (
+            <WifiOff className='h-2.5 w-2.5' />
+          ) : (
+            <DeviceIcon device={where.remote} className='h-2.5 w-2.5' />
+          )}
+        </span>
+      )}
     </button>
   );
 });
@@ -253,7 +277,7 @@ const Tabs = memo(({ hidden }) => {
 });
 Tabs.displayName = 'Tabs';
 
-const Capsule = memo(({ expanded, song, isPlaying, onOpen, onPlayPause, onNext }) => (
+const Capsule = memo(({ expanded, song, isPlaying, where, onOpen, onPlayPause, onNext }) => (
   <div
     aria-hidden={!expanded}
     className={cn(
@@ -279,13 +303,24 @@ const Capsule = memo(({ expanded, song, isPlaying, onOpen, onPlayPause, onNext }
         <p className='truncate text-[13.5px] font-semibold leading-tight text-foreground'>
           {titleOf(song)}
         </p>
-        <p className='truncate text-[12px] text-muted-foreground'>{artistOf(song)}</p>
+        {where?.remote ? (
+          <p className='flex items-center gap-1 text-[12px] text-muted-foreground'>
+            {where.offline ? (
+              <WifiOff className='h-3 w-3 shrink-0' />
+            ) : (
+              <DeviceIcon device={where.remote} className='h-3 w-3 shrink-0 text-foreground' />
+            )}
+            <span className='truncate'>{where.label}</span>
+          </p>
+        ) : (
+          <p className='truncate text-[12px] text-muted-foreground'>{artistOf(song)}</p>
+        )}
       </button>
       <button
         type='button'
         onClick={onPlayPause}
         tabIndex={expanded ? 0 : -1}
-        aria-label={isPlaying ? 'Pause' : 'Play'}
+        aria-label={where?.offline ? 'Play here' : isPlaying ? 'Pause' : 'Play'}
         className='grid h-11 w-11 shrink-0 place-items-center rounded-full text-foreground active:scale-90 transition-transform'
       >
         {isPlaying ? <PauseIcon size={24} /> : <PlayIcon size={24} />}
@@ -313,6 +348,14 @@ export const MobileDeck = memo(() => {
   const sheetOpen = useUiStore((s) => s.playerSheetOpen);
   const setSheetOpen = useUiStore((s) => s.setPlayerSheetOpen);
   const setSearchOpen = useUiStore((s) => s.setSearchOpen);
+  const { remote, offline, deviceId } = usePlayingOn();
+  const where = remote
+    ? {
+        remote,
+        offline,
+        label: offline ? `${remote.name} disconnected · paused` : `Playing on ${remote.name}`,
+      }
+    : null;
 
   const showSong = !inRoom && !!currentSong;
   const kind = showSong ? 'song' : inRoom ? 'room' : 'idle';
@@ -363,6 +406,13 @@ export const MobileDeck = memo(() => {
     if (!first && !sheetOpen) expand(SHOW_SONG_MS);
   }, [kind, song?.id, sheetOpen, expand]);
 
+  // The device playing dropped off: say so, since the music just stopped.
+  const wasOffline = useRef(offline);
+  useEffect(() => {
+    if (offline && !wasOffline.current && kind === 'song' && !sheetOpen) expand(SHOW_SONG_MS);
+    wasOffline.current = offline;
+  }, [offline, kind, sheetOpen, expand]);
+
   // Going anywhere, or opening the player, puts it away.
   const { pathname } = useLocation();
   useEffect(() => {
@@ -393,6 +443,7 @@ export const MobileDeck = memo(() => {
           kind={kind}
           art={artOf(song)}
           title={titleOf(song)}
+          where={kind === 'song' ? where : null}
           onTap={onTap}
           onHold={() => expand(HOLD_SONG_MS)}
           onSkip={onSkip}
@@ -405,12 +456,15 @@ export const MobileDeck = memo(() => {
           expanded={expanded}
           song={song}
           isPlaying={isPlaying}
+          where={where}
           onOpen={() => {
             collapse();
             setSheetOpen(true);
           }}
           onPlayPause={() => {
-            usePlayerStore.getState().handlePlayPause();
+            // With the playing device gone, the transfer starts sound here inside the tap.
+            if (offline) void transferTo(deviceId);
+            else usePlayerStore.getState().handlePlayPause();
             expand(SHOW_SONG_MS);
           }}
           onNext={() => {

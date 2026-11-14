@@ -42,6 +42,8 @@ import {
 } from '@/stores/playerStore';
 import { usePlayerProgress } from '@/hooks/usePlayerProgress';
 import { useAnnounceSync, useSyncStatus } from '@/hooks/useSyncStatus';
+import { transferTo } from '@/lib/player';
+import { type PlayerDevice, usePlayingOn } from '@/stores/playerSessionStore';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -59,14 +61,14 @@ import Animated, {
   cancelAnimation,
   cubicBezier,
   Easing,
+  FadeIn,
   FadeInLeft,
   FadeInRight,
+  FadeOut,
   interpolate,
   Keyframe,
   ReduceMotion,
   useAnimatedProps,
-  ZoomIn,
-  ZoomOut,
   useAnimatedReaction,
   useAnimatedStyle,
   useReducedMotion,
@@ -148,6 +150,53 @@ const MiniProgressBar = memo(function MiniProgressBar({
   );
 });
 
+type Where = { device: PlayerDevice; offline: boolean; icon: OrbBadge; label: string };
+
+/** The other device playing, as the deck shows it. */
+const whereOf = (device: PlayerDevice | null, offline: boolean): Where | null =>
+  device
+    ? {
+        device,
+        offline,
+        icon: offline ? 'wifi-off' : device.mobile ? 'smartphone' : 'monitor',
+        label: offline ? `${device.name} disconnected · paused` : `Playing on ${device.name}`,
+      }
+    : null;
+
+/** Under the title: the artist, or which device plays when it isn't this phone. */
+const SongSubtitle = memo(function SongSubtitle({
+  where,
+  artist,
+  colors,
+}: {
+  where: Where | null;
+  artist: string;
+  colors: Colors;
+}) {
+  if (!where) {
+    return (
+      <Text style={[styles.artistName, { color: colors.mutedForeground }]} numberOfLines={1}>
+        {artist}
+      </Text>
+    );
+  }
+  return (
+    <View style={styles.playingOn}>
+      <Feather
+        name={where.icon}
+        size={11}
+        color={where.offline ? colors.mutedForeground : colors.foreground}
+      />
+      <Text
+        style={[styles.artistName, styles.playingOnText, { color: colors.mutedForeground }]}
+        numberOfLines={1}
+      >
+        {where.label}
+      </Text>
+    </View>
+  );
+});
+
 type MiniPlayerRowProps = {
   currentSong: any;
   isPlaying: boolean;
@@ -157,6 +206,8 @@ type MiniPlayerRowProps = {
   colors: ReturnType<typeof useTheme>['colors'];
   /** Opens the full player; the deck passes one that grows it out of this card. */
   onOpen?: () => void;
+  /** Which other device plays, if one does. */
+  where?: Where | null;
 };
 
 const SWIPE_OPEN_DISTANCE = 24;
@@ -184,6 +235,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
   handlePrevSong,
   colors,
   onOpen = openFullPlayer,
+  where = null,
 }: MiniPlayerRowProps) {
   const artistName = useMemo(
     () =>
@@ -292,12 +344,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
                 <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>
                   {currentSong?.name}
                 </Text>
-                <Text
-                  style={[styles.artistName, { color: colors.mutedForeground }]}
-                  numberOfLines={1}
-                >
-                  {artistName}
-                </Text>
+                <SongSubtitle where={where} artist={artistName} colors={colors} />
               </View>
             </Animated.View>
           </Animated.View>
@@ -308,7 +355,7 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
           scaleTo={BUTTON_PRESS_SCALE}
           hitSlop={6}
           accessibilityRole='button'
-          accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+          accessibilityLabel={where?.offline ? 'Play here' : isPlaying ? 'Pause' : 'Play'}
           style={styles.miniControl}
         >
           {isPlaying ? (
@@ -425,9 +472,26 @@ const SPIN_TURN = {
   reduceMotion: ReduceMotion.System,
 } as const;
 const SPIN_OUT = { duration: 160, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
-/** Synced: a badge pops on the orb for a moment, a check or the device it's playing on. */
-const BADGE_IN = ZoomIn.springify().damping(12).stiffness(260).reduceMotion(ReduceMotion.System);
-const BADGE_OUT = ZoomOut.duration(160).reduceMotion(ReduceMotion.System);
+/**
+ * The badge on the orb: the device playing when it isn't this phone (for as long as it is), or a
+ * check for a moment once synced. It grows in from a little smaller, without overshoot, a beat
+ * after the ring starts drawing back; a different icon cross-fades inside the same badge.
+ */
+const BADGE_IN = new Keyframe({
+  0: { opacity: 0, transform: [{ scale: 0.6 }] },
+  100: { opacity: 1, transform: [{ scale: 1 }], easing: Easing.out(Easing.cubic) },
+})
+  .duration(220)
+  .delay(120)
+  .reduceMotion(ReduceMotion.System);
+const BADGE_OUT = new Keyframe({
+  0: { opacity: 1, transform: [{ scale: 1 }] },
+  100: { opacity: 0, transform: [{ scale: 0.6 }], easing: Easing.in(Easing.cubic) },
+})
+  .duration(160)
+  .reduceMotion(ReduceMotion.System);
+const BADGE_ICON_IN = FadeIn.duration(160).reduceMotion(ReduceMotion.System);
+const BADGE_ICON_OUT = FadeOut.duration(120).reduceMotion(ReduceMotion.System);
 
 /**
  * Playing, the cover turns slowly like a record; paused, it eases to a stop, a touch smaller and
@@ -545,7 +609,7 @@ const OrbRing = memo(function OrbRing({
 });
 
 type OrbKind = 'song' | 'room' | 'idle';
-type SyncBadge = 'check' | 'monitor' | 'smartphone';
+type OrbBadge = 'check' | 'monitor' | 'smartphone' | 'wifi-off';
 
 /**
  * When a swipe on the orb skips. The orb sits about 40dp from the left edge, so a leftward swipe has
@@ -588,12 +652,12 @@ const Orb = memo(function Orb({
   glowPlay,
   colors,
   syncing,
-  syncBadge,
+  badge,
   playing,
 }: {
   playing: boolean;
   syncing: boolean;
-  syncBadge: SyncBadge | null;
+  badge: OrbBadge | null;
   kind: OrbKind;
   artworkUri?: string;
   songId?: string;
@@ -802,22 +866,30 @@ const Orb = memo(function Orb({
             </>
           )}
         </GlassSurface>
-        {kind === 'song' && syncBadge && (
+        {kind === 'song' && badge && (
           <Animated.View
-            key={syncBadge}
             entering={BADGE_IN}
             exiting={BADGE_OUT}
             pointerEvents='none'
             style={[
-              styles.syncBadge,
-              { backgroundColor: colors.foreground, borderColor: colors.background },
+              styles.orbBadge,
+              badge === 'wifi-off'
+                ? { backgroundColor: colors.muted, borderColor: colors.background }
+                : { backgroundColor: colors.foreground, borderColor: colors.background },
             ]}
           >
-            <Feather
-              name={syncBadge}
-              size={syncBadge === 'check' ? 11 : 10}
-              color={colors.background}
-            />
+            <Animated.View
+              key={badge}
+              entering={BADGE_ICON_IN}
+              exiting={BADGE_ICON_OUT}
+              style={styles.orbBadgeIcon}
+            >
+              <Feather
+                name={badge}
+                size={badge === 'check' ? 11 : 10}
+                color={badge === 'wifi-off' ? colors.mutedForeground : colors.background}
+              />
+            </Animated.View>
           </Animated.View>
         )}
         <GlowSweep
@@ -960,7 +1032,9 @@ const Capsule = memo(function Capsule({
   direction,
   glowPlay,
   colors,
+  where,
 }: {
+  where: Where | null;
   expanded: boolean;
   width: number;
   currentSong: any;
@@ -1092,12 +1166,7 @@ const Capsule = memo(function Capsule({
                     >
                       {currentSong?.name}
                     </Text>
-                    <Text
-                      style={[styles.artistName, { color: colors.mutedForeground }]}
-                      numberOfLines={1}
-                    >
-                      {artist}
-                    </Text>
+                    <SongSubtitle where={where} artist={artist} colors={colors} />
                   </Animated.View>
                 </Animated.View>
               </PressableScale>
@@ -1106,7 +1175,7 @@ const Capsule = memo(function Capsule({
                 scaleTo={BUTTON_PRESS_SCALE}
                 hitSlop={6}
                 accessibilityRole='button'
-                accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+                accessibilityLabel={where?.offline ? 'Play here' : isPlaying ? 'Pause' : 'Play'}
                 style={styles.miniControl}
               >
                 {isPlaying ? (
@@ -1182,8 +1251,23 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   // Catching up with your other devices shows on the orb: its ring circles, then a badge.
   const { status: syncStatus, remote } = useSyncStatus();
   useAnnounceSync(syncStatus, remote?.name);
-  const syncBadge: SyncBadge | null =
-    syncStatus !== 'synced' ? null : !remote ? 'check' : remote.mobile ? 'smartphone' : 'monitor';
+  // Another device playing is shown for as long as it plays; the check only for a moment.
+  const playingOn = usePlayingOn();
+  const where = useMemo(
+    () => whereOf(playingOn.remote, playingOn.offline),
+    [playingOn.remote, playingOn.offline]
+  );
+  const orbBadge: OrbBadge | null = where
+    ? where.icon
+    : syncStatus === 'synced' && !remote
+      ? 'check'
+      : null;
+  // With the device playing gone, play means "here".
+  const { deviceId } = playingOn;
+  const playPause = useCallback(() => {
+    if (playingOn.offline && deviceId) void transferTo(deviceId);
+    else handlePlayPause();
+  }, [playingOn.offline, deviceId, handlePlayPause]);
 
   const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
   const roomSong = useGroupSessionStore((s) => s.currentItem?.song);
@@ -1219,6 +1303,14 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     []
   );
   const collapse = useCallback(() => setCapsule((c) => (c.on ? { ...c, on: false } : c)), []);
+  // The device playing dropped off: the capsule says so once, since the music just stopped.
+  const [wasOffline, setWasOffline] = useState(playingOn.offline);
+  if (wasOffline !== playingOn.offline) {
+    setWasOffline(playingOn.offline);
+    if (playingOn.offline && showSong && !fullPlayerOpen && !showCard) {
+      setCapsule((c) => ({ on: true, ms: SHOW_SONG_MS, key: c.key + 1 }));
+    }
+  }
   useEffect(() => {
     if (!capsule.on) return;
     const t = setTimeout(() => setCapsule((c) => ({ ...c, on: false })), capsule.ms);
@@ -1292,9 +1384,9 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     [handleNextSong, handlePrevSong]
   );
   const onCapsulePlayPause = useCallback(() => {
-    handlePlayPause();
+    playPause();
     expand(SHOW_SONG_MS);
-  }, [handlePlayPause, expand]);
+  }, [playPause, expand]);
   const onCapsuleNext = useCallback(() => handleNextSong(), [handleNextSong]);
   const onCapsuleSkip = useCallback(
     (dir: 'next' | 'prev') => {
@@ -1380,11 +1472,12 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
                 <MiniPlayerRow
                   currentSong={currentSong}
                   isPlaying={isPlaying}
-                  handlePlayPause={handlePlayPause}
+                  handlePlayPause={playPause}
                   handleNextSong={handleNextSong}
                   handlePrevSong={handlePrevSong}
                   colors={colors}
                   onOpen={openFromCard}
+                  where={where}
                 />
                 <MiniProgressBar color={colors.primary} trackColor={colors.hairline} />
               </>
@@ -1409,7 +1502,7 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
             glowPlay={orbKind === 'idle' ? glowPlay : 0}
             colors={colors}
             syncing={syncStatus === 'syncing'}
-            syncBadge={syncBadge}
+            badge={orbBadge}
             playing={isPlaying}
           />
         </View>
@@ -1455,6 +1548,7 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
             direction={direction}
             glowPlay={orbKind === 'song' ? glowPlay : 0}
             colors={colors}
+            where={where}
           />
         )}
       </View>
@@ -1522,7 +1616,16 @@ const styles = StyleSheet.create({
 
   orb: { width: PILL_HEIGHT, height: PILL_HEIGHT },
   orbInner: { alignItems: 'center', justifyContent: 'center' },
-  syncBadge: {
+  orbBadgeIcon: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  orbBadge: {
     position: 'absolute',
     right: -3,
     bottom: -3,
@@ -1593,6 +1696,8 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     marginTop: 1,
   },
+  playingOn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
+  playingOnText: { flexShrink: 1, marginTop: 0 },
   miniControl: {
     width: 44,
     height: 44,

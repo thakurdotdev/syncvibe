@@ -99,32 +99,58 @@ test('autoplay songs are taken only from the device playing, for the song playin
   assert.deepEqual(fresh, { ok: true, added: 1 });
 });
 
-test('the playing device gets a grace period, then the session pauses with nobody playing', async () => {
+test('the playing device dropping off pauses at once, then nobody is playing', async () => {
   const { io, last } = setup();
   await deviceHello(io, USER, { device: PHONE, socketId: 's-phone' });
   await runCommand(io, USER, PHONE, { type: 'load', songs: [song('a')] });
+  mock.timers.tick(3000);
 
   deviceGone(io, USER, PHONE.deviceId, 's-phone');
-  assert.equal(last('player:playback').activeOnline, false);
-  assert.equal(last('player:playback').timeline.playing, true);
+  let playback = last('player:playback');
+  assert.equal(playback.activeOnline, false);
+  assert.equal(playback.active.deviceId, 'phone-1');
+  assert.equal(playback.timeline.playing, false);
+  assert.equal(playback.timeline.positionMs, 3000);
 
   mock.timers.tick(LOST_GRACE_MS);
-  const playback = last('player:playback');
+  playback = last('player:playback');
   assert.equal(playback.active, null);
   assert.equal(playback.timeline.playing, false);
-  assert.equal(playback.timeline.positionMs, LOST_GRACE_MS);
+  assert.equal(playback.timeline.positionMs, 3000);
 });
 
-test('coming back within the grace period keeps the device playing', async () => {
+test('coming back within the grace period with what it played takes playback back', async () => {
   const { io, last } = setup();
   await deviceHello(io, USER, { device: PHONE, socketId: 's-phone' });
   await runCommand(io, USER, PHONE, { type: 'load', songs: [song('a')] });
+  const heardRev = last('player:playback').rev;
   deviceGone(io, USER, PHONE.deviceId, 's-phone');
   mock.timers.tick(5000);
-  await deviceHello(io, USER, { device: PHONE, socketId: 's-phone-2' });
+  await deviceHello(io, USER, {
+    device: PHONE,
+    socketId: 's-phone-2',
+    resume: { rev: heardRev, songId: 'a', positionMs: 5000, playing: true },
+  });
   mock.timers.tick(LOST_GRACE_MS);
   assert.equal(last('player:playback').active.deviceId, 'phone-1');
   assert.equal(last('player:playback').timeline.playing, true);
+});
+
+test('coming back after a change elsewhere follows the session instead', async () => {
+  const { io, last } = setup();
+  await deviceHello(io, USER, { device: PHONE, socketId: 's-phone' });
+  await deviceHello(io, USER, { device: WEB, socketId: 's-web' });
+  await runCommand(io, USER, PHONE, { type: 'load', songs: [song('a'), song('b')] });
+  const heardRev = last('player:playback').rev;
+  deviceGone(io, USER, PHONE.deviceId, 's-phone');
+  await runCommand(io, USER, WEB, { type: 'next' });
+  await deviceHello(io, USER, {
+    device: PHONE,
+    socketId: 's-phone-2',
+    resume: { rev: heardRev, songId: 'a', positionMs: 5000, playing: true },
+  });
+  assert.equal(last('player:playback').song.id, 'b');
+  assert.equal(last('player:playback').timeline.playing, false);
 });
 
 test("an old socket closing doesn't take away the device's new connection", async () => {

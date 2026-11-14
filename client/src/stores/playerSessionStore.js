@@ -29,3 +29,15 @@ export const remoteDeviceOf = ({ live, playback, deviceId }) =>
 
 export const useRemoteDevice = () => usePlayerSessionStore(remoteDeviceOf);
 export const usePlayerDevices = () => usePlayerSessionStore((s) => s.devices);
+
+/**
+ * Where your music plays, for the players that show it: the other device playing (if any), and
+ * whether it has dropped off, in which case the server has paused and play means "here".
+ */
+export const usePlayingOn = () => {
+  const remote = useRemoteDevice();
+  const reachable = usePlayerSessionStore((s) => s.playback?.activeOnline !== false);
+  const deviceId = usePlayerSessionStore((s) => s.deviceId);
+  const deviceCount = usePlayerSessionStore((s) => (s.live ? s.devices.length : 0));
+  return { remote, offline: Boolean(remote && !reachable), deviceId, deviceCount };
+};
