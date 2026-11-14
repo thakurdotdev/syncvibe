@@ -11,7 +11,7 @@ import { usePlayerSessionStore, useRemoteDevice } from '@/stores/playerSessionSt
  * choosing one moves playback there from the same spot.
  */
 
-const DeviceIcon = ({ device, className }) => {
+export const DeviceIcon = ({ device, className }) => {
   const Icon = device.mobile ? Smartphone : Laptop;
   return <Icon className={className} />;
 };
@@ -46,8 +46,11 @@ const DeviceRow = ({ device, isThis, isPlaying, onPick }) => (
   </button>
 );
 
-/** The button in the full player that opens the list of your devices. */
-export const DevicePicker = memo(({ className }) => {
+/**
+ * The button that opens the list of your devices. `children`, if given, is the trigger instead
+ * of the speaker icon (the sidebar uses a line of text).
+ */
+export const DevicePicker = memo(({ className, children, side = 'top', align = 'end' }) => {
   const [open, setOpen] = useState(false);
   const live = usePlayerSessionStore((s) => s.live);
   const devices = usePlayerSessionStore((s) => s.devices);
@@ -72,21 +75,23 @@ export const DevicePicker = memo(({ className }) => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant='ghost'
-          size='icon'
-          onClick={(e) => e.stopPropagation()}
-          className={cn(
-            'h-8.5 w-8.5 rounded-full cursor-pointer transition-colors hover:bg-muted',
-            remote ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
-            className
-          )}
-          aria-label={remote ? `Playing on ${remote.name}. Choose a device` : 'Choose a device'}
-        >
-          <MonitorSpeaker size={18} />
-        </Button>
+        {children ?? (
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              'h-8.5 w-8.5 rounded-full cursor-pointer transition-colors hover:bg-muted',
+              remote ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+              className
+            )}
+            aria-label={remote ? `Playing on ${remote.name}. Choose a device` : 'Choose a device'}
+          >
+            <MonitorSpeaker size={18} />
+          </Button>
+        )}
       </PopoverTrigger>
-      <PopoverContent align='end' side='top' className='w-72 p-1.5'>
+      <PopoverContent align={align} side={side} className='w-72 p-1.5'>
         <p className='px-2.5 pb-1.5 pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
           Play on
         </p>
