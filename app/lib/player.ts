@@ -430,6 +430,11 @@ export const remoteProgress = () => {
   };
 };
 
+/** Your music went into a room on this phone: another of your devices playing it stops. */
+export const pauseRemotePlayback = () => {
+  if (remoteDeviceOf(session()) && playingNow()) void send({ type: 'pause' });
+};
+
 // ── Devices ─────────────────────────────────────────────────────────────────
 
 /** "Play here" or "play there". Starts playing if it was paused and you chose this phone. */

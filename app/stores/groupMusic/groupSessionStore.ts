@@ -7,6 +7,7 @@ import { searchSongs } from '@/utils/api/getSongs';
 import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { getDeviceId } from '@/utils/deviceId';
 import { toast } from '@/context/ToastContext';
+import type { RoomSeed } from '@/lib/roomSeed';
 import {
   queueViewOf,
   ROOM_PROTOCOL,
@@ -33,6 +34,8 @@ interface GroupSessionState {
   isQueueOpen: boolean;
 
   isGroupModalOpen: boolean;
+  /** Set when the create form opens from your music: the name it starts with. */
+  groupModalName: string | null;
   isRejoining: boolean;
   connectionState: 'connected' | 'disconnected' | 'reconnecting';
 
@@ -58,7 +61,8 @@ interface GroupSessionActions {
   triggerSoundEffectAnimation: (sfx: ActiveSoundEffect) => void;
   clearActiveSoundEffect: () => void;
 
-  createGroup: (socket: any, user: any, groupName: string) => void;
+  /** `seed` starts the room with your own music (lib/roomSeed); without it the room is empty. */
+  createGroup: (socket: any, user: any, groupName: string, seed?: RoomSeed | null) => void;
   joinGroup: (socket: any, user: any, groupId: string) => void;
   rejoinGroup: (socket: any, user: any, groupId: string) => void;
   leaveGroup: (socket: any, user: any, resetPlayback: () => void) => void;
@@ -108,7 +112,7 @@ interface GroupSessionActions {
   clearSearch: () => void;
 
   handleGroupCreated: (
-    created: Group & { sync?: RoomSnapshot },
+    created: Group & { sync?: RoomSnapshot; seeded?: { count: number } },
     user: any,
     openInviteSheet?: () => void
   ) => void;
@@ -124,6 +128,20 @@ interface JoinedRoom {
 }
 
 type GroupSessionStore = GroupSessionState & GroupSessionActions;
+
+/** How many songs a room being created was asked to start with, to say how many came along. */
+let pendingSeedCount = 0;
+
+const seededMessage = (group: Group, seeded?: { count: number }) => {
+  const sent = pendingSeedCount;
+  pendingSeedCount = 0;
+  if (!seeded?.count || !sent) return null;
+  const left = sent - seeded.count;
+  const limit = group.settings?.maxQueueSize;
+  return left > 0 && seeded.count === limit
+    ? `This room holds ${limit} songs, so ${left} stayed in your queue`
+    : `${group.name} is playing your music`;
+};
 
 const FRESH_ROOM = {
   queue: [] as QueueItem[],
@@ -156,6 +174,7 @@ const initialState: GroupSessionState = {
   ...FRESH_ROOM,
   isQueueOpen: false,
   isGroupModalOpen: false,
+  groupModalName: null,
   isRejoining: false,
   connectionState: 'disconnected',
   typingUsers: {},
@@ -212,12 +231,13 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     }
   },
 
-  createGroup: (socket, user, groupName) => {
+  createGroup: (socket, user, groupName, seed) => {
     if (!groupName.trim() || !user) {
       Alert.alert('Error', 'Please enter a group name');
       return;
     }
 
+    pendingSeedCount = seed?.songs.length ?? 0;
     void getDeviceId().then((deviceId) => {
       socket?.emit('create-music-group', {
         name: groupName,
@@ -226,9 +246,10 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
         profilePic: user.profilepic,
         deviceId,
         protocol: ROOM_PROTOCOL,
+        ...(seed ? { seed } : {}),
       });
     });
-    set({ isGroupModalOpen: false });
+    set({ isGroupModalOpen: false, groupModalName: null });
   },
 
   joinGroup: (socket, user, groupId) => {
@@ -513,7 +534,7 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
   },
 
   handleGroupCreated: (created, user, openInviteSheet) => {
-    const { sync, ...group } = created;
+    const { sync, seeded, ...group } = created;
     const { saveSession } = get();
     set({
       currentGroup: group,
@@ -529,6 +550,8 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     });
     get().applySnapshot(sync);
     saveSession(group.id);
+    const fromMusic = seededMessage(group, seeded);
+    if (fromMusic) toast(fromMusic, { type: 'success' });
     openInviteSheet?.();
   },
 

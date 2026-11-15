@@ -4,6 +4,8 @@ import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useDislikeSong } from '@/queries/useMusic';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
+import { useUser } from '@/context/UserContext';
+import { startRoomFromMusic } from '@/lib/roomSeed';
 import { Song } from '@/types/song';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -61,6 +63,9 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const { addToQueue: addToGroupQueue, playNext: playNextInGroup } = useGroupMusic();
   const { mutate: dislike } = useDislikeSong();
+  const { user } = useUser();
+  // From the song that's on (the full player's options), outside a room.
+  const canStartRoom = !currentGroup && currentSong?.id === song.id;
 
   const artistName = song.artist_map?.artists || [{ name: 'Unknown Artist', id: null }];
   const albumArt = song.image?.[2]?.link || song.image?.[1]?.link;
@@ -156,6 +161,18 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
                   }}
                 />
               </>
+            )}
+
+            {canStartRoom && (
+              <OptionRow
+                icon={<Ionicons name='radio-outline' size={22} color={colors.foreground} />}
+                label='Start a Room with This'
+                color={colors.foreground}
+                onPress={() => {
+                  close();
+                  startRoomFromMusic(user?.name);
+                }}
+              />
             )}
 
             <OptionRow

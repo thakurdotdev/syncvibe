@@ -1,8 +1,10 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { Segmented, type SegmentOption } from '@/components/ui/Segmented';
+import Toggle from '@/components/ui/Toggle';
+import { takeRoomSeed, useRoomSeedPreview, type RoomSeed } from '@/lib/roomSeed';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import SwipeableModal from '@/components/SwipeableModal';
 import { Input } from '@/components/ui/input';
 import { useTheme } from '@/context/ThemeContext';
@@ -13,11 +15,13 @@ import { fonts } from '@/theme/typography';
 interface CreateOrJoinModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateGroup: (name: string) => void;
+  onCreateGroup: (name: string, seed?: RoomSeed | null) => void;
   onJoinGroup: (id: string) => void;
   onScanQRCode: () => void;
   /** Which form to show first. */
   initialTab?: 'create' | 'join';
+  /** A name to start from, e.g. when starting a room from the player. */
+  initialName?: string;
 }
 
 type Mode = 'create' | 'join';
@@ -35,6 +39,52 @@ const COPY = {
 /** Ideas to tap instead of typing; the first uses your own name. */
 const NAME_IDEAS = ['Late night', 'Road trip', 'Study session', 'Workout'];
 
+type Colors = ReturnType<typeof useTheme>['colors'];
+
+/**
+ * While something is on: whether the new room starts with it and its queue. The whole row
+ * toggles, like a settings row.
+ */
+const StartWithMusic = ({
+  enabled,
+  onChange,
+  colors,
+}: {
+  enabled: boolean;
+  onChange: (value: boolean) => void;
+  colors: Colors;
+}) => {
+  const { song, upNext } = useRoomSeedPreview();
+  if (!song) return null;
+  const art = song.image?.[1]?.link || song.image?.[0]?.link;
+  return (
+    <PressableScale
+      onPress={() => onChange(!enabled)}
+      scaleTo={BUTTON_PRESS_SCALE}
+      accessibilityRole='switch'
+      accessibilityState={{ checked: enabled }}
+      accessibilityLabel={`Start with what you're playing: ${song.name}`}
+      style={[styles.musicRow, { backgroundColor: colors.raised }]}
+    >
+      <View style={[styles.musicArt, { backgroundColor: colors.card }]}>
+        {art ? <Image source={{ uri: art }} style={styles.musicArtImage} fadeDuration={0} /> : null}
+      </View>
+      <View style={styles.scanText}>
+        <Text style={[styles.scanTitle, { color: colors.foreground }]}>
+          {"Start with what you're playing"}
+        </Text>
+        <Text style={[styles.scanBody, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {song.name}
+          {upNext > 0 ? ` · ${upNext} up next` : ''}
+        </Text>
+      </View>
+      <View pointerEvents='none'>
+        <Toggle value={enabled} onValueChange={onChange} />
+      </View>
+    </PressableScale>
+  );
+};
+
 /**
  * Only what starting or joining a room takes, so it stays a small sheet sitting on the keyboard.
  * Tapping outside or dragging it down closes it.
@@ -46,13 +96,16 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
   onJoinGroup,
   onScanQRCode,
   initialTab = 'create',
+  initialName = '',
 }) => {
   const { colors } = useTheme();
   const { user } = useUser();
   const [mode, setMode] = useState<Mode>(initialTab);
   // The caller unmounts this from onClose, so closing here lets the sheet slide away first.
   const [open, setOpen] = useState(isOpen);
-  const [name, setName] = useState('');
+  const [name, setName] = useState(initialName);
+  // On unless you turn it off: starting a room while listening usually means sharing that.
+  const [withMusic, setWithMusic] = useState(true);
   const [code, setCode] = useState('');
 
   const value = (mode === 'create' ? name : code).trim();
@@ -67,7 +120,8 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
 
   const submit = () => {
     if (!value) return;
-    if (mode === 'create') onCreateGroup(value);
+    // Taken at the moment you press it, so the room picks the song up exactly where it is.
+    if (mode === 'create') onCreateGroup(value, withMusic ? takeRoomSeed() : null);
     else onJoinGroup(value);
     setOpen(false);
   };
@@ -142,6 +196,7 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
                 );
               })}
             </ScrollView>
+            <StartWithMusic enabled={withMusic} onChange={setWithMusic} colors={colors} />
           </View>
         ) : (
           <View style={styles.field}>
@@ -230,6 +285,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scanText: { flex: 1, minWidth: 0 },
+  musicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 10,
+    borderRadius: 14,
+  },
+  musicArt: { width: 40, height: 40, borderRadius: 10, overflow: 'hidden' },
+  musicArtImage: { width: 40, height: 40 },
   scanTitle: { fontSize: 14, fontWeight: '600' },
   scanBody: { fontSize: 12, marginTop: 1 },
   submit: {

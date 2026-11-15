@@ -5,6 +5,7 @@ import { SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { useTheme } from '@/context/ThemeContext';
 import {
   setFullPlayerOpen,
+  setOnCloseFullPlayer,
   setOnOpenFullPlayer,
   useCurrentSong,
   useIsPlaying,
@@ -254,6 +255,11 @@ export default function Player() {
       if (closeGuard.current) clearTimeout(closeGuard.current);
     };
   }, [redraw]);
+
+  useEffect(() => {
+    setOnCloseFullPlayer(closePlayer);
+    return () => setOnCloseFullPlayer(null);
+  }, [closePlayer]);
 
   const handleBack = useCallback(() => {
     if (activeTab === 'queue') showTab('player');
