@@ -625,9 +625,139 @@
     opacity: 0;
   }
 }
+/* Joining a room: one ripple of the live colour, a beat after the room's cover opens. */
+.deck-ripple-live {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid hsl(var(--live));
+  pointer-events: none;
+  animation: deck-ripple-live 720ms cubic-bezier(0.23, 1, 0.32, 1) 240ms both;
+}
+@keyframes deck-ripple-live {
+  from {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+/* A new song's cover turns in a quarter turn the way it was sent, sliding in from that side. */
+.deck-cover-next {
+  animation: deck-turn-next 380ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+.deck-cover-prev {
+  animation: deck-turn-prev 380ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+@keyframes deck-turn-next {
+  from {
+    opacity: 0;
+    transform: translateX(14px) rotate(-90deg);
+  }
+  45% {
+    opacity: 1;
+  }
+}
+@keyframes deck-turn-prev {
+  from {
+    opacity: 0;
+    transform: translateX(-14px) rotate(90deg);
+  }
+  45% {
+    opacity: 1;
+  }
+}
+/* The orb holds something new (music starts, a room, back to your song): it opens from the centre. */
+.deck-cover-open {
+  animation: deck-cover-open 340ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+@keyframes deck-cover-open {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  40% {
+    opacity: 1;
+  }
+}
+/* A finished lap fades while the next song's ring starts from the top. */
+.deck-lap {
+  animation: deck-lap 420ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+@keyframes deck-lap {
+  from {
+    stroke-opacity: 1;
+  }
+  to {
+    stroke-opacity: 0;
+  }
+}
+/* Holding the orb: the hairline fills as the hold counts down to the capsule (420 ms in all). */
+.deck-charge {
+  stroke-dashoffset: var(--deck-charge-c);
+  animation:
+    deck-charge 270ms linear 150ms forwards,
+    deck-charge-in 80ms ease-out 150ms both;
+}
+@keyframes deck-charge {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes deck-charge-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* Badges grow in from a little smaller, without overshoot. */
+.deck-badge {
+  animation: deck-badge 220ms cubic-bezier(0.33, 1, 0.68, 1) 120ms both;
+}
+@keyframes deck-badge {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+/* Opening the site: the tabs rise into place, the orb a beat later. Backwards fill only, so they
+   never hold an opacity the capsule needs to change. */
+.deck-rise {
+  animation: deck-rise 300ms cubic-bezier(0.23, 1, 0.32, 1) 60ms backwards;
+}
+@keyframes deck-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+.deck-pop {
+  animation: deck-pop 380ms cubic-bezier(0.34, 1.2, 0.64, 1) 140ms backwards;
+}
+@keyframes deck-pop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.8);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .deck-ripple {
+  .deck-ripple,
+  .deck-ripple-live,
+  .deck-charge {
     display: none;
+  }
+  .deck-cover-next,
+  .deck-cover-prev,
+  .deck-cover-open,
+  .deck-lap,
+  .deck-badge,
+  .deck-rise,
+  .deck-pop {
+    animation: none;
   }
   .deck-capsule-open,
   .deck-capsule-closed {

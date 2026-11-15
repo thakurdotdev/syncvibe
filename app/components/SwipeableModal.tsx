@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import {
+  Dimensions,
   Keyboard,
   KeyboardAvoidingView,
   type LayoutChangeEvent,
@@ -19,12 +20,11 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  cancelAnimation,
   interpolate,
   Extrapolation,
   type SharedValue,
 } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
+import { scheduleOnRN, scheduleOnUI } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
 import {
@@ -71,8 +71,8 @@ interface SwipeableModalProps {
  */
 /** Longer than any close animation; see `armCloseGuard`. */
 const CLOSE_GUARD_MS = 900;
-/** How long an open waits for the Modal's `onShow` before it goes ahead without it. */
-const SHOW_FALLBACK_MS = 250;
+/** How long an open waits for the Modal to be shown at its real size before it goes ahead anyway. */
+const READY_FALLBACK_MS = 250;
 
 const SwipeableModal: React.FC<SwipeableModalProps> = (props) => {
   const { isVisible } = props;
@@ -118,13 +118,16 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
   );
   const availableHeight = Math.max(0, windowHeight - topInset);
 
-  const progress = useSharedValue(0);
-  const gestureY = useSharedValue(0);
+  // How far below its resting place the sheet is, in points: one value for opening, closing and
+  // dragging. Points rather than a fraction of the height, so content that grows mid-animation
+  // extends the sheet upward instead of moving it.
+  const offset = useSharedValue(windowHeight);
+  // Hidden until the open starts; until then the Modal's layout may still move it (see `handleRootLayout`).
+  const placed = useSharedValue(0);
   const keyboardInset = useSharedValue(0);
   const internalScrollOffset = useSharedValue(0);
   const touchStartY = useSharedValue(0);
   const sheetTop = useSharedValue(0);
-  // Off-screen whatever its real size, until the first layout says how far it has to travel.
   const sheetHeight = useSharedValue(windowHeight);
   const dragEligible = useSharedValue(false);
   const gestureActive = useSharedValue(false);
@@ -134,11 +137,12 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
   const closingRef = useRef(false);
   const onCloseRef = useRef(onClose);
   const closeGuard = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The open waits for the sheet's real height and for the Modal window to be on screen.
-  // Starting earlier, the travel distance changes mid-animation (a jump) and the first
-  // frames play before anything is drawn: together they look like it opened twice.
+  // The open waits for the sheet's height, the Modal window to be on screen and the Modal's final
+  // size. Starting before any of them, the sheet jumps partway through: it looks like a flicker.
   const measuredRef = useRef(false);
   const shownRef = useRef(false);
+  const rootSettledRef = useRef(false);
+  const firstRootHeightRef = useRef<number | null>(null);
   const openPendingRef = useRef(false);
 
   useEffect(() => {
@@ -200,18 +204,28 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
   const animateOpen = useCallback(() => {
     if (closeGuard.current) clearTimeout(closeGuard.current);
     closeGuard.current = null;
-    cancelAnimation(gestureY);
-    closing.set(0);
     closingRef.current = false;
+    closing.set(0);
     gestureActive.set(false);
-    gestureY.set(0);
-    // Nothing carried momentum into a tap, so a curve: it moves from the first frame, where a
-    // spring would still be picking up speed.
-    progress.set(withTiming(1, SHEET_OPEN));
-  }, [progress, gestureY, closing, gestureActive]);
+    scheduleOnUI(() => {
+      'worklet';
+      // Start just out of sight (or where a close left it), so the first frame already shows it
+      // moving. Nothing carried momentum into a tap, so a curve rather than a spring.
+      offset.set(Math.min(offset.get(), sheetHeight.get()));
+      placed.set(1);
+      offset.set(withTiming(0, SHEET_OPEN));
+    });
+  }, [offset, placed, sheetHeight, closing, gestureActive]);
 
   const openWhenReady = useCallback(() => {
-    if (!openPendingRef.current || !measuredRef.current || !shownRef.current) return;
+    if (
+      !openPendingRef.current ||
+      !measuredRef.current ||
+      !shownRef.current ||
+      !rootSettledRef.current
+    ) {
+      return;
+    }
     openPendingRef.current = false;
     animateOpen();
   }, [animateOpen]);
@@ -222,15 +236,17 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
 
     closingRef.current = true;
     closing.set(1);
-    progress.set(
-      withTiming(0, SHEET_CLOSE, (finished) => {
-        'worklet';
-        if (finished) scheduleOnRN(finishClose);
-      })
-    );
-    gestureY.set(withTiming(0, SHEET_CLOSE));
+    scheduleOnUI(() => {
+      'worklet';
+      offset.set(
+        withTiming(sheetHeight.get(), SHEET_CLOSE, (finished) => {
+          'worklet';
+          if (finished) scheduleOnRN(finishClose);
+        })
+      );
+    });
     armCloseGuard();
-  }, [progress, gestureY, closing, finishClose, armCloseGuard]);
+  }, [offset, sheetHeight, closing, finishClose, armCloseGuard]);
 
   useEffect(
     () => () => {
@@ -251,16 +267,42 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
     [sheetTop, sheetHeight, openWhenReady]
   );
 
+  /**
+   * On Android the Modal's first layout is the screen minus the status and navigation bars; a frame
+   * or two later the edge-to-edge window reports its real size and everything inside moves down by
+   * those bars. The sheet sits at the bottom, so it would drop mid-open. It is settled once it fills
+   * the screen or its size has changed from that first guess.
+   */
+  const handleRootLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      if (rootSettledRef.current) return;
+      const { height } = event.nativeEvent.layout;
+      const first = firstRootHeightRef.current;
+      if (first === null) firstRootHeightRef.current = height;
+      const fillsScreen = height >= Dimensions.get('screen').height - 1;
+      if (fillsScreen || (first !== null && Math.abs(height - first) > 0.5)) {
+        rootSettledRef.current = true;
+        openWhenReady();
+      }
+    },
+    [openWhenReady]
+  );
+
   const handleShow = useCallback(() => {
     shownRef.current = true;
     openWhenReady();
   }, [openWhenReady]);
 
-  // If the platform never reports the Modal as shown, open anyway rather than stay hidden.
+  // If the platform never reports the Modal as shown or settled (a split screen, say), open
+  // anyway rather than stay hidden.
   useEffect(() => {
-    const fallback = setTimeout(handleShow, SHOW_FALLBACK_MS);
+    const fallback = setTimeout(() => {
+      shownRef.current = true;
+      rootSettledRef.current = true;
+      openWhenReady();
+    }, READY_FALLBACK_MS);
     return () => clearTimeout(fallback);
-  }, [handleShow]);
+  }, [openWhenReady]);
 
   useEffect(() => {
     if (isVisible) {
@@ -323,13 +365,13 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
         .onStart((e) => {
           'worklet';
           // Grabbing it mid-settle continues from where it is on screen, with no jump.
-          dragOrigin.set(gestureY.get() - e.translationY);
+          dragOrigin.set(offset.get() - e.translationY);
         })
         .onUpdate((e) => {
           'worklet';
           // Downward follows the finger exactly; upward past the resting place resists.
           const next = dragOrigin.get() + e.translationY;
-          gestureY.set(next >= 0 ? next : rubberband(next, sheetHeight.get(), OVERDRAG_RESISTANCE));
+          offset.set(next >= 0 ? next : rubberband(next, sheetHeight.get(), OVERDRAG_RESISTANCE));
         })
         .onEnd((e) => {
           'worklet';
@@ -338,18 +380,14 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
 
           // Where the flick was going decides, so a quick one is enough from any distance.
           const dismissAt = Math.min(sheetHeight.get() * 0.4, MAX_DISMISS_DISTANCE);
-          if (gestureY.get() + project(e.velocityY) > dismissAt) {
-            // Spring out carrying the flick's velocity (in progress units).
+          if (offset.get() + project(e.velocityY) > dismissAt) {
+            // Spring out carrying the flick's velocity.
             closing.set(1);
             scheduleOnRN(armCloseGuard);
-            progress.set(
+            offset.set(
               withSpring(
-                0,
-                {
-                  ...SPRING_SHEET,
-                  overshootClamping: true,
-                  velocity: -e.velocityY / Math.max(sheetHeight.get(), 1),
-                },
+                sheetHeight.get(),
+                { ...SPRING_SHEET, overshootClamping: true, velocity: e.velocityY },
                 (finished) => {
                   'worklet';
                   if (finished) scheduleOnRN(finishClose);
@@ -358,7 +396,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
             );
           } else {
             // Clamped: an overshoot would lift the sheet off the bottom of the screen.
-            gestureY.set(
+            offset.set(
               withSpring(0, { ...SPRING_SNAP, overshootClamping: true, velocity: e.velocityY })
             );
           }
@@ -373,8 +411,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
       dragOrigin,
       finishClose,
       gestureActive,
-      gestureY,
-      progress,
+      offset,
       scrollable,
       sheetHeight,
       sheetTop,
@@ -382,20 +419,22 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
     ]
   );
 
+  // Follows the sheet: clear when it's out of sight, full when it's at rest.
   const backdropStyle = useAnimatedStyle(() => ({
     opacity:
-      interpolate(progress.get(), [0, 1], [0, backdropOpacity], Extrapolation.CLAMP) *
+      placed.get() *
       interpolate(
-        Math.max(gestureY.get(), 0),
-        [0, sheetHeight.get()],
-        [1, 0.35],
+        offset.get(),
+        [0, Math.max(sheetHeight.get(), 1)],
+        [backdropOpacity, 0],
         Extrapolation.CLAMP
       ),
   }));
 
   // Travels its own height, not the window's: a short sheet is on screen from the first frame.
   const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - progress.get()) * sheetHeight.get() + gestureY.get() }],
+    opacity: placed.get(),
+    transform: [{ translateY: offset.get() }],
   }));
 
   const fixedKeyboardSheetStyle = useAnimatedStyle(() => {
@@ -420,7 +459,7 @@ const Sheet: React.FC<SwipeableModalProps & { onClosed: () => void }> = ({
       onRequestClose={dismissible ? animateClose : undefined}
       onShow={handleShow}
     >
-      <GestureHandlerRootView style={styles.root}>
+      <GestureHandlerRootView style={styles.root} onLayout={handleRootLayout}>
         {fullScreen && (
           <StatusBar
             translucent

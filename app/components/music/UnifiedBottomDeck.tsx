@@ -6,29 +6,28 @@ import {
   PauseIcon,
   PlayIcon,
   RoomsIcon,
-  SearchMusicIcon,
 } from '@/components/icons/NavIcons';
 import GlassSurface from '@/components/shell/GlassSurface';
+import { Orb, type OrbBadge, type OrbKind } from '@/components/music/deck/Orb';
+import {
+  CAPSULE_CLOSE,
+  DECK_SIDE,
+  ORB_ART,
+  PILL_HEIGHT,
+  SKIP_OUT_TIMING,
+  SKIP_RETURN_DELAY_MS,
+} from '@/components/music/deck/constants';
 import GlowSweep from '@/components/shell/GlowSweep';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import {
   BUTTON_PRESS_SCALE,
   EASE_IN_OUT,
-  EASE_MAGNET,
   EASE_OUT,
-  PRESS_IN,
   ROW_PRESS_SCALE,
   SPRING_PRESS,
 } from '@/lib/motion';
-import {
-  artAt,
-  LANDED,
-  measureRect,
-  openOrigin,
-  orbOrigin,
-  playerOpenness,
-} from '@/lib/playerMorph';
+import { artAt, measureRect, openOrigin, orbOrigin } from '@/lib/playerMorph';
 import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE, SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { selectUnreadTotal, useChatStore } from '@/stores/chatStore';
 import { useDeckStore } from '@/stores/deckStore';
@@ -45,7 +44,6 @@ import { useAnnounceSync, useSyncStatus } from '@/hooks/useSyncStatus';
 import { transferTo } from '@/lib/player';
 import { type PlayerDevice, usePlayingOn } from '@/stores/playerSessionStore';
 import { Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -58,29 +56,20 @@ import {
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-  cancelAnimation,
   cubicBezier,
   Easing,
-  FadeIn,
   FadeInLeft,
   FadeInRight,
-  FadeOut,
   interpolate,
-  Keyframe,
   ReduceMotion,
-  useAnimatedProps,
-  useAnimatedReaction,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withDelay,
-  withRepeat,
   withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle } from 'react-native-svg';
 import { scheduleOnRN } from 'react-native-worklets';
 
 export const TAB_BAR_HEIGHT = 110;
@@ -89,9 +78,6 @@ export const DECK_CLEARANCE = 172;
 /** The tab pill and the gap above it, excluding the bottom safe-area inset. */
 export const DECK_NAV_HEIGHT = 70;
 
-const PILL_HEIGHT = 58;
-/** The orb's artwork, and the card's: matched by the full player's cover as it flies. */
-const ORB_ART = 44;
 const CARD_ART = 40;
 const CARD_ART_RADIUS = 11;
 const CARD_ART_INSET = 8;
@@ -214,9 +200,6 @@ const SWIPE_OPEN_DISTANCE = 24;
 const SWIPE_OPEN_VELOCITY = 400;
 /** A committed skip carries the song this far out, where it has faded away. */
 const SKIP_OUT = 120;
-const SKIP_OUT_TIMING = { duration: 110, easing: EASE_OUT, reduceMotion: ReduceMotion.System };
-/** If no new song arrives (end of the queue), the old one comes back after this. */
-const SKIP_RETURN_DELAY_MS = 400;
 // The new song comes in from the side the swipe came from, like the full player's artwork.
 const SONG_ENTER = {
   next: FadeInRight.duration(200).easing(EASE_OUT).reduceMotion(ReduceMotion.System),
@@ -379,10 +362,6 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
   );
 });
 
-const DECK_SIDE = 12;
-/** A skipped song's artwork leaves the orb this far, faded out by then. */
-const SKIP_OUT_ORB = 40;
-const PRESS_OUT = { duration: 150, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
 /**
  * How long the capsule stays out on its own: after a song change, and after a hold. Long enough to
  * read a title; a swipe or play/pause restarts it, so it never closes under your finger.
@@ -394,23 +373,18 @@ const CAPSULE_OPEN = {
   easing: EASE_OUT,
   reduceMotion: ReduceMotion.System,
 } as const;
-/**
- * Closing is a magnet: the capsule starts back gently and gathers speed into the orb, so it ends
- * on a snap rather than drifting to a stop. Quicker than opening.
- */
-const CAPSULE_CLOSE = {
-  duration: 170,
-  easing: EASE_MAGNET,
-  reduceMotion: ReduceMotion.System,
-} as const;
 const CAPSULE_SHOW = {
   duration: 60,
   easing: Easing.linear,
   reduceMotion: ReduceMotion.System,
 } as const;
+/**
+ * The capsule's content comes in staggered from one value: the title first, its controls a
+ * moment behind. Out, all of it goes at once.
+ */
 const CAPSULE_CONTENT_IN = {
-  duration: 170,
-  easing: EASE_OUT,
+  duration: 230,
+  easing: Easing.linear,
   reduceMotion: ReduceMotion.System,
 } as const;
 const CAPSULE_CONTENT_OUT = {
@@ -418,27 +392,10 @@ const CAPSULE_CONTENT_OUT = {
   easing: EASE_OUT,
   reduceMotion: ReduceMotion.System,
 } as const;
-/**
- * A song lands in the orb: the orb dips a little and springs back, and a new cover turns in
- * like a record, a quarter turn the way it was sent. Nothing leaves the orb, so it never
- * reads as a tap on something else.
- */
-const ORB_DIP = 0.96;
-const ORB_DIP_IN = { duration: 60, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
-const ORB_DIP_OUT = {
-  duration: 300,
-  dampingRatio: 0.55,
-  reduceMotion: ReduceMotion.System,
-} as const;
-const turnIn = (from: string) =>
-  new Keyframe({
-    0: { opacity: 0, transform: [{ rotate: from }] },
-    50: { opacity: 1, easing: Easing.out(Easing.cubic) },
-    100: { transform: [{ rotate: '0deg' }], easing: Easing.out(Easing.cubic) },
-  })
-    .duration(360)
-    .reduceMotion(ReduceMotion.System);
-const ORB_TURN_IN = { next: turnIn('-90deg'), prev: turnIn('90deg') } as const;
+const easeOutCubic = (t: number) => {
+  'worklet';
+  return 1 - (1 - t) ** 3;
+};
 const TABS_HIDE = { duration: 150, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
 /**
  * Switching tabs: Emil Kowalski's segmented-indicator recipe. Every tab is the same width; only the
@@ -452,457 +409,24 @@ const TAB_ICON_FADE = {
   transitionDuration: 220,
   transitionTimingFunction: cubicBezier(0.77, 0, 0.175, 1),
 } as const;
-const RING_R = 26.5;
-const RING_C = 2 * Math.PI * RING_R;
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-/** The ring drawing round to the song's position as the player lands back in the orb. */
-const RING_DRAW = { duration: 480, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
-const RING_TRACK_IN = {
-  duration: 160,
+/**
+ * Opening the app, the deck rises into place: the tab pill (and the card) first, the orb a beat
+ * later. Once per launch: the deck also unmounts for the keyboard and some pages, and coming back
+ * from those it is just there.
+ */
+let deckHasEntered = false;
+const DECK_RISE = 16;
+const DECK_RISE_TIMING = {
+  duration: 300,
   easing: EASE_OUT,
   reduceMotion: ReduceMotion.System,
 } as const;
-
-/** Syncing with your other devices: a short arc circling the orb, about a turn a second. */
-const SPIN_ARC = 0.22;
-const SPIN_TURN = {
-  duration: 900,
-  easing: Easing.linear,
-  reduceMotion: ReduceMotion.System,
-} as const;
-const SPIN_OUT = { duration: 160, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
-/**
- * The badge on the orb: the device playing when it isn't this phone (for as long as it is), or a
- * check for a moment once synced. It grows in from a little smaller, without overshoot, a beat
- * after the ring starts drawing back; a different icon cross-fades inside the same badge.
- */
-const BADGE_IN = new Keyframe({
-  0: { opacity: 0, transform: [{ scale: 0.6 }] },
-  100: { opacity: 1, transform: [{ scale: 1 }], easing: Easing.out(Easing.cubic) },
-})
-  .duration(220)
-  .delay(120)
-  .reduceMotion(ReduceMotion.System);
-const BADGE_OUT = new Keyframe({
-  0: { opacity: 1, transform: [{ scale: 1 }] },
-  100: { opacity: 0, transform: [{ scale: 0.6 }], easing: Easing.in(Easing.cubic) },
-})
-  .duration(160)
-  .reduceMotion(ReduceMotion.System);
-const BADGE_ICON_IN = FadeIn.duration(160).reduceMotion(ReduceMotion.System);
-const BADGE_ICON_OUT = FadeOut.duration(120).reduceMotion(ReduceMotion.System);
-
-/**
- * Playing, the cover turns slowly like a record; paused, it eases to a stop, a touch smaller and
- * dimmer. The stop carries on about as far as the record would coast.
- */
-const RECORD_TURN_MS = 8000;
-const RECORD_COAST = { duration: 600, easing: EASE_OUT } as const;
-const RECORD_COAST_DEG = (360 / RECORD_TURN_MS) * (RECORD_COAST.duration / 2);
-const PAUSED_ART_SCALE = 0.9;
-const PAUSED_ART_OPACITY = 0.6;
-const PLAY_STATE = { duration: 280, easing: EASE_OUT, reduceMotion: ReduceMotion.System } as const;
-
-/** Progress around the orb, same glide as the card's line. While syncing, a spinner instead. */
-const OrbRing = memo(function OrbRing({
-  color,
-  trackColor,
-  syncing,
-}: {
-  color: string;
-  trackColor: string;
-  syncing: boolean;
-}) {
-  const { position, duration } = usePlayerProgress();
-  const fraction = duration > 0 ? Math.min(1, Math.max(0, position / duration)) : 0;
-  const shown = useSharedValue(fraction);
-  const covered = useFullPlayerOpen((s) => s.open);
-
-  useEffect(() => {
-    const glide = !covered && fraction >= shown.get() && (fraction - shown.get()) * duration < 2.5;
-    shown.set(glide ? withTiming(fraction, { duration: 1000, easing: Easing.linear }) : fraction);
-  }, [covered, fraction, duration, shown]);
-
-  // 1 when the ring is fully drawn. Hidden while the player covers the orb, then drawn from
-  // 12 o'clock to the song's position as the player lands.
-  const drawn = useSharedValue(1);
-  const trackIn = useSharedValue(1);
-  useAnimatedReaction(
-    () => playerOpenness.get() < LANDED,
-    (landed, wasLanded) => {
-      if (landed === wasLanded || wasLanded === null) return;
-      if (landed) {
-        trackIn.set(withTiming(1, RING_TRACK_IN));
-        drawn.set(withTiming(1, RING_DRAW));
-      } else {
-        trackIn.set(0);
-        drawn.set(0);
-      }
-    }
-  );
-
-  // Syncing: the progress arc gives way to a circling one. Done: the progress draws back in.
-  const spin = useSharedValue(0);
-  const spinIn = useSharedValue(0);
-  const wasSyncing = useRef(false);
-  useEffect(() => {
-    if (syncing === wasSyncing.current) return;
-    wasSyncing.current = syncing;
-    if (syncing) {
-      spin.set(0);
-      spin.set(withRepeat(withTiming(360, SPIN_TURN), -1, false));
-      spinIn.set(withTiming(1, RING_TRACK_IN));
-      drawn.set(0);
-    } else {
-      spinIn.set(withTiming(0, SPIN_OUT, (finished) => finished && cancelAnimation(spin)));
-      drawn.set(withTiming(1, RING_DRAW));
-    }
-  }, [syncing, spin, spinIn, drawn]);
-  const spinStyle = useAnimatedStyle(() => ({
-    opacity: spinIn.get(),
-    transform: [{ rotate: `${spin.get()}deg` }],
-  }));
-
-  const ringProps = useAnimatedProps(() => ({
-    strokeDashoffset: RING_C * (1 - shown.get() * drawn.get()),
-    // A round cap draws a dot even at zero length.
-    strokeOpacity: shown.get() * drawn.get() > 0.002 ? 1 : 0,
-  }));
-  const trackStyle = useAnimatedStyle(() => ({ opacity: trackIn.get() }));
-
-  return (
-    <Animated.View style={[styles.ring, trackStyle]} pointerEvents='none'>
-      <Svg width={58} height={58} viewBox='0 0 58 58'>
-        <Circle cx={29} cy={29} r={RING_R} stroke={trackColor} strokeWidth={2.5} fill='none' />
-        <AnimatedCircle
-          cx={29}
-          cy={29}
-          r={RING_R}
-          stroke={color}
-          strokeWidth={2.5}
-          strokeLinecap='round'
-          fill='none'
-          strokeDasharray={RING_C}
-          animatedProps={ringProps}
-          // Start at 12 o'clock.
-          transform='rotate(-90 29 29)'
-        />
-      </Svg>
-      <Animated.View style={[StyleSheet.absoluteFill, spinStyle]}>
-        <Svg width={58} height={58} viewBox='0 0 58 58'>
-          <Circle
-            cx={29}
-            cy={29}
-            r={RING_R}
-            stroke={color}
-            strokeWidth={2.5}
-            strokeLinecap='round'
-            fill='none'
-            strokeDasharray={[RING_C * SPIN_ARC, RING_C]}
-            transform='rotate(-90 29 29)'
-          />
-        </Svg>
-      </Animated.View>
-    </Animated.View>
-  );
-});
-
-type OrbKind = 'song' | 'room' | 'idle';
-type OrbBadge = 'check' | 'monitor' | 'smartphone' | 'wifi-off';
-
-/**
- * When a swipe on the orb skips. The orb sits about 40dp from the left edge, so a leftward swipe has
- * little room: a short drag, or a shorter flick, is enough. Travel is measured from where the finger
- * landed, because Android zeroes the pan's translation when it activates.
- */
-const ORB_SKIP_DISTANCE = 24;
-const ORB_FLICK_DISTANCE = 10;
-const ORB_FLICK_VELOCITY = 450;
-/** Moving back this fast at release means you changed your mind. */
-const ORB_REVERSE_VELOCITY = 300;
-const isOrbSkip = (dx: number, vx: number) => {
-  'worklet';
-  const speedOut = dx < 0 ? -vx : vx;
-  if (speedOut < -ORB_REVERSE_VELOCITY) return false;
-  const distance = Math.abs(dx);
-  return (
-    distance >= ORB_SKIP_DISTANCE ||
-    (distance >= ORB_FLICK_DISTANCE && speedOut >= ORB_FLICK_VELOCITY)
-  );
-};
-/** Hold this long to show the song and its controls. */
-const ORB_HOLD_MS = 420;
-
-/**
- * The round button left of the tabs: what's playing, or Search when nothing is.
- * Tap opens the full player (or the room), or shrinks the capsule when it's out. Hold shows the
- * capsule. Swipe sideways to skip: the artwork follows your finger, and the next one slides in
- * from the side you swiped.
- */
-const Orb = memo(function Orb({
-  kind,
-  artworkUri,
-  songId,
-  direction,
-  expanded,
-  onTap,
-  onHold,
-  onSkip,
-  glowPlay,
-  colors,
-  syncing,
-  badge,
-  playing,
-}: {
-  playing: boolean;
-  syncing: boolean;
-  badge: OrbBadge | null;
-  kind: OrbKind;
-  artworkUri?: string;
-  songId?: string;
-  direction: 'next' | 'prev';
-  expanded: boolean;
-  onTap: () => void;
-  onHold: () => void;
-  onSkip: (dir: 'next' | 'prev') => void;
-  glowPlay: number;
-  colors: Colors;
-}) {
-  const scale = useSharedValue(1);
-  const x = useSharedValue(0);
-  const skipped = useSharedValue(false);
-  const startX = useSharedValue(0);
-
-  // Its own value, so a landing never fights the press scale.
-  const landScale = useSharedValue(1);
-  const dip = useCallback(
-    (delay: number) => {
-      landScale.set(
-        withDelay(delay, withSequence(withTiming(ORB_DIP, ORB_DIP_IN), withSpring(1, ORB_DIP_OUT)))
-      );
-    },
-    [landScale]
-  );
-
-  // The capsule lands back in the orb.
-  const wasExpanded = useRef(expanded);
-  useEffect(() => {
-    if (wasExpanded.current && !expanded) dip(CAPSULE_CLOSE.duration - 20);
-    wasExpanded.current = expanded;
-  }, [expanded, dip]);
-
-  // A new song lands in the orb (its cover turns in on its own). Not for the first song shown,
-  // and not while the capsule is out: its light sweep says it, and the dip follows when it closes.
-  const dippedFor = useRef(songId);
-  useEffect(() => {
-    if (kind !== 'song' || songId === dippedFor.current) return;
-    if (dippedFor.current !== undefined && !expanded) dip(0);
-    dippedFor.current = songId;
-  }, [expanded, kind, dip, songId]);
-
-  // A new song starts centred; whatever the old one was doing is over.
-  useLayoutEffect(() => {
-    x.set(0);
-  }, [songId, x]);
-
-  const canSwipe = kind === 'song';
-  const pan = Gesture.Pan()
-    .enabled(canSwipe)
-    // The first few points of the screen edge belong to Android's back gesture.
-    .hitSlop({ left: -(EDGE_GUARD - DECK_SIDE) })
-    .activeOffsetX([-8, 8])
-    .failOffsetY([-14, 14])
-    .onBegin((e) => {
-      skipped.set(false);
-      startX.set(e.absoluteX);
-    })
-    .onUpdate((e) => {
-      x.set((e.absoluteX - startX.get()) * 0.5);
-    })
-    .onEnd((e, success) => {
-      const dx = e.absoluteX - startX.get();
-      if (!success || !isOrbSkip(dx, e.velocityX)) return;
-      const forward = dx < 0;
-      skipped.set(true);
-      x.set(
-        withSequence(
-          withTiming(forward ? -SKIP_OUT_ORB : SKIP_OUT_ORB, SKIP_OUT_TIMING),
-          withDelay(SKIP_RETURN_DELAY_MS, withSpring(0, SPRING_PRESS))
-        )
-      );
-      scheduleOnRN(onSkip, forward ? 'next' : 'prev');
-    })
-    .onFinalize(() => {
-      if (!skipped.get()) x.set(withSpring(0, SPRING_PRESS));
-    });
-  const hold = Gesture.LongPress()
-    .minDuration(ORB_HOLD_MS)
-    .onStart(() => {
-      scale.set(withTiming(1, PRESS_OUT));
-      scheduleOnRN(onHold);
-    });
-  const tap = Gesture.Tap()
-    .onBegin(() => {
-      scale.set(withTiming(BUTTON_PRESS_SCALE, PRESS_IN));
-    })
-    .onEnd((_e, success) => {
-      if (success) scheduleOnRN(onTap);
-    })
-    .onFinalize(() => {
-      scale.set(withTiming(1, PRESS_OUT));
-    });
-  const gesture = Gesture.Race(pan, hold, tap);
-
-  const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.get() * landScale.get() }],
-  }));
-  // The record: turns while your song plays and the orb is in view, coasts to a stop on pause.
-  const reduceMotion = useReducedMotion();
-  const covered = useFullPlayerOpen((st) => st.open);
-  const spinning = kind === 'song' && playing && !covered && !reduceMotion;
-  const angle = useSharedValue(0);
-  const pausedLook = useSharedValue(kind === 'song' && !playing ? 1 : 0);
-  useEffect(() => {
-    const from = angle.get() % 360;
-    cancelAnimation(angle);
-    angle.set(from);
-    if (spinning) {
-      // Repeats from where it is, so a turn ends where the next begins.
-      angle.set(
-        withRepeat(withTiming(from + 360, { duration: RECORD_TURN_MS, easing: Easing.linear }), -1)
-      );
-    } else if (!reduceMotion) {
-      angle.set(withTiming(from + RECORD_COAST_DEG, RECORD_COAST));
-    }
-  }, [spinning, reduceMotion, angle]);
-  useEffect(() => {
-    pausedLook.set(withTiming(kind === 'song' && !playing ? 1 : 0, PLAY_STATE));
-  }, [kind, playing, pausedLook]);
-  const pausedStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(pausedLook.get(), [0, 1], [1, PAUSED_ART_OPACITY]),
-    transform: [{ scale: interpolate(pausedLook.get(), [0, 1], [1, PAUSED_ART_SCALE]) }],
-  }));
-  // Innermost, so a swipe still slides the cover straight sideways whatever its angle.
-  const turnStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${angle.get()}deg` }] }));
-
-  const artStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(Math.abs(x.get()), [0, 30, SKIP_OUT_ORB], [1, 0.5, 0], 'clamp'),
-    transform: [{ translateX: x.get() }],
-  }));
-
-  const label =
-    kind === 'idle'
-      ? 'Search'
-      : expanded
-        ? 'Hide song'
-        : kind === 'room'
-          ? 'Back to room'
-          : 'Open player';
-
-  return (
-    <GestureDetector gesture={gesture}>
-      <Animated.View
-        style={pressStyle}
-        accessible
-        accessibilityRole='button'
-        accessibilityLabel={label}
-        accessibilityHint={kind === 'song' ? 'Swipe left or right to change song' : undefined}
-        accessibilityActions={
-          kind === 'song'
-            ? [
-                { name: 'activate' },
-                { name: 'longpress', label: 'Show song and controls' },
-                { name: 'next', label: 'Next song' },
-                { name: 'previous', label: 'Previous song' },
-              ]
-            : [{ name: 'activate' }]
-        }
-        onAccessibilityAction={(e) => {
-          const a = e.nativeEvent.actionName;
-          if (a === 'activate') onTap();
-          else if (a === 'longpress') onHold();
-          else if (a === 'next') onSkip('next');
-          else if (a === 'previous') onSkip('prev');
-        }}
-      >
-        <GlassSurface radius={PILL_HEIGHT / 2} style={styles.orb} contentStyle={styles.orbInner}>
-          {kind === 'idle' ? (
-            // Nothing playing: an ember orb that invites you to find something, the bar's one
-            // spot of colour. A soft highlight on the upper left gives it some depth.
-            <View style={styles.orbIdle}>
-              <LinearGradient
-                colors={colors.gradients.primary as [string, string, ...string[]]}
-                start={{ x: 0.15, y: 0 }}
-                end={{ x: 0.85, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.38)', 'rgba(255, 255, 255, 0)']}
-                start={{ x: 0.2, y: 0 }}
-                end={{ x: 0.6, y: 0.6 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <SearchMusicIcon size={24} color={colors.primaryForeground} />
-            </View>
-          ) : (
-            <>
-              {kind === 'song' && (
-                <OrbRing color={colors.primary} trackColor={colors.hairline} syncing={syncing} />
-              )}
-              <Animated.View style={[styles.orbArtBox, pausedStyle]}>
-                <Animated.View key={songId} entering={ORB_TURN_IN[direction]} style={styles.orbArt}>
-                  <Animated.View style={[styles.orbArt, artStyle]}>
-                    <Animated.View style={[styles.orbArt, turnStyle]}>
-                      <Image
-                        source={{ uri: artworkUri }}
-                        style={[styles.orbArt, { backgroundColor: colors.raised }]}
-                        fadeDuration={0}
-                      />
-                    </Animated.View>
-                  </Animated.View>
-                </Animated.View>
-              </Animated.View>
-            </>
-          )}
-        </GlassSurface>
-        {kind === 'song' && badge && (
-          <Animated.View
-            entering={BADGE_IN}
-            exiting={BADGE_OUT}
-            pointerEvents='none'
-            style={[
-              styles.orbBadge,
-              badge === 'wifi-off'
-                ? { backgroundColor: colors.muted, borderColor: colors.background }
-                : { backgroundColor: colors.foreground, borderColor: colors.background },
-            ]}
-          >
-            <Animated.View
-              key={badge}
-              entering={BADGE_ICON_IN}
-              exiting={BADGE_ICON_OUT}
-              style={styles.orbBadgeIcon}
-            >
-              <Feather
-                name={badge}
-                size={badge === 'check' ? 11 : 10}
-                color={badge === 'wifi-off' ? colors.mutedForeground : colors.background}
-              />
-            </Animated.View>
-          </Animated.View>
-        )}
-        <GlowSweep
-          width={PILL_HEIGHT}
-          height={PILL_HEIGHT}
-          radius={PILL_HEIGHT / 2}
-          colors={colors.gradients.primary}
-          play={glowPlay}
-        />
-      </Animated.View>
-    </GestureDetector>
-  );
-});
+const ORB_RISE = { duration: 380, dampingRatio: 0.8, reduceMotion: ReduceMotion.System } as const;
+const PILL_RISE_DELAY_MS = 60;
+const ORB_RISE_DELAY_MS = 140;
+/** The ember orb catches its sweep of light once it has risen. */
+const LAUNCH_SWEEP_MS = 460;
 
 type TabButtonProps = {
   name: string;
@@ -1116,7 +640,7 @@ const Capsule = memo(function Capsule({
     if (expanded) {
       maskOpacity.set(withTiming(1, CAPSULE_SHOW));
       maskW.set(withTiming(width, CAPSULE_OPEN));
-      content.set(withDelay(80, withTiming(1, CAPSULE_CONTENT_IN)));
+      content.set(withDelay(60, withTiming(1, CAPSULE_CONTENT_IN)));
     } else {
       content.set(withTiming(0, CAPSULE_CONTENT_OUT));
       maskW.set(withTiming(PILL_HEIGHT, CAPSULE_CLOSE));
@@ -1126,11 +650,16 @@ const Capsule = memo(function Capsule({
   }, [expanded, width, maskW, maskOpacity, content]);
 
   const maskStyle = useAnimatedStyle(() => ({ width: maskW.get(), opacity: maskOpacity.get() }));
-  const contentStyle = useAnimatedStyle(() => ({
-    opacity: content.get(),
-    // Out of the orb on the way in, back toward it on the way out.
-    transform: [{ translateX: (1 - content.get()) * -14 }],
-  }));
+  // Out of the orb on the way in, back toward it on the way out: the title over the first 70%
+  // of the way, the controls over the last 70%.
+  const metaStyle = useAnimatedStyle(() => {
+    const t = easeOutCubic(interpolate(content.get(), [0, 0.7], [0, 1], 'clamp'));
+    return { opacity: t, transform: [{ translateX: (1 - t) * -14 }] };
+  });
+  const controlsStyle = useAnimatedStyle(() => {
+    const t = easeOutCubic(interpolate(content.get(), [0.3, 1], [0, 1], 'clamp'));
+    return { opacity: t, transform: [{ translateX: (1 - t) * -10 }] };
+  });
 
   const artist =
     currentSong?.artist_map?.artists
@@ -1150,51 +679,55 @@ const Capsule = memo(function Capsule({
       <GestureDetector gesture={swipe}>
         <View style={{ width, height: PILL_HEIGHT }}>
           <GlassSurface radius={PILL_HEIGHT / 2} style={styles.fill}>
-            <Animated.View style={[styles.capsuleContent, contentStyle]}>
-              <PressableScale
-                onPress={onOpen}
-                scaleTo={ROW_PRESS_SCALE}
-                style={styles.capsuleMeta}
-                accessibilityRole='button'
-                accessibilityLabel={`Open player: ${currentSong?.name ?? ''}`}
-              >
-                <Animated.View key={songId} entering={SONG_ENTER[direction]}>
-                  <Animated.View style={songStyle}>
-                    <Text
-                      style={[styles.songTitle, { color: colors.foreground }]}
-                      numberOfLines={1}
-                    >
-                      {currentSong?.name}
-                    </Text>
-                    <SongSubtitle where={where} artist={artist} colors={colors} />
+            <View style={styles.capsuleContent}>
+              <Animated.View style={[styles.capsuleMetaBox, metaStyle]}>
+                <PressableScale
+                  onPress={onOpen}
+                  scaleTo={ROW_PRESS_SCALE}
+                  style={styles.capsuleMeta}
+                  accessibilityRole='button'
+                  accessibilityLabel={`Open player: ${currentSong?.name ?? ''}`}
+                >
+                  <Animated.View key={songId} entering={SONG_ENTER[direction]}>
+                    <Animated.View style={songStyle}>
+                      <Text
+                        style={[styles.songTitle, { color: colors.foreground }]}
+                        numberOfLines={1}
+                      >
+                        {currentSong?.name}
+                      </Text>
+                      <SongSubtitle where={where} artist={artist} colors={colors} />
+                    </Animated.View>
                   </Animated.View>
-                </Animated.View>
-              </PressableScale>
-              <PressableScale
-                onPress={onPlayPause}
-                scaleTo={BUTTON_PRESS_SCALE}
-                hitSlop={6}
-                accessibilityRole='button'
-                accessibilityLabel={where?.offline ? 'Play here' : isPlaying ? 'Pause' : 'Play'}
-                style={styles.miniControl}
-              >
-                {isPlaying ? (
-                  <PauseIcon size={24} color={colors.foreground} />
-                ) : (
-                  <PlayIcon size={24} color={colors.foreground} />
-                )}
-              </PressableScale>
-              <PressableScale
-                onPress={onNext}
-                scaleTo={BUTTON_PRESS_SCALE}
-                hitSlop={6}
-                accessibilityRole='button'
-                accessibilityLabel='Next song'
-                style={styles.miniControl}
-              >
-                <NextIcon size={22} color={colors.foreground} />
-              </PressableScale>
-            </Animated.View>
+                </PressableScale>
+              </Animated.View>
+              <Animated.View style={[styles.capsuleControls, controlsStyle]}>
+                <PressableScale
+                  onPress={onPlayPause}
+                  scaleTo={BUTTON_PRESS_SCALE}
+                  hitSlop={6}
+                  accessibilityRole='button'
+                  accessibilityLabel={where?.offline ? 'Play here' : isPlaying ? 'Pause' : 'Play'}
+                  style={styles.miniControl}
+                >
+                  {isPlaying ? (
+                    <PauseIcon size={24} color={colors.foreground} />
+                  ) : (
+                    <PlayIcon size={24} color={colors.foreground} />
+                  )}
+                </PressableScale>
+                <PressableScale
+                  onPress={onNext}
+                  scaleTo={BUTTON_PRESS_SCALE}
+                  hitSlop={6}
+                  accessibilityRole='button'
+                  accessibilityLabel='Next song'
+                  style={styles.miniControl}
+                >
+                  <NextIcon size={22} color={colors.foreground} />
+                </PressableScale>
+              </Animated.View>
+            </View>
           </GlassSurface>
           <GlowSweep
             width={width}
@@ -1452,12 +985,42 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     width: pillW.get(),
   }));
 
+  // Opening the app (not the deck coming back after the keyboard): it rises into place.
+  const [entering] = useState(() => !deckHasEntered);
+  const pillIn = useSharedValue(entering ? 0 : 1);
+  const orbIn = useSharedValue(entering ? 0 : 1);
+  useEffect(() => {
+    deckHasEntered = true;
+    if (!entering) return;
+    pillIn.set(withDelay(PILL_RISE_DELAY_MS, withTiming(1, DECK_RISE_TIMING)));
+    orbIn.set(withDelay(ORB_RISE_DELAY_MS, withSpring(1, ORB_RISE)));
+  }, [entering, pillIn, orbIn]);
+  const launchSwept = useRef(false);
+  useEffect(() => {
+    if (!entering || launchSwept.current) return;
+    launchSwept.current = true;
+    if (orbKind !== 'idle') return;
+    const t = setTimeout(() => setGlowPlay((n) => n + 1), LAUNCH_SWEEP_MS);
+    return () => clearTimeout(t);
+  }, [entering, orbKind]);
+  const cardRiseStyle = useAnimatedStyle(() => ({
+    opacity: pillIn.get(),
+    transform: [{ translateY: (1 - pillIn.get()) * DECK_RISE }],
+  }));
+  const orbRiseStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(1, orbIn.get()),
+    transform: [{ translateY: (1 - orbIn.get()) * DECK_RISE }, { scale: 0.8 + 0.2 * orbIn.get() }],
+  }));
+
   // The tabs step back while the capsule covers them.
   const tabsShown = useSharedValue(1);
   useEffect(() => {
     tabsShown.set(expanded ? withTiming(0, TABS_HIDE) : withDelay(60, withTiming(1, TABS_HIDE)));
   }, [expanded, tabsShown]);
-  const tabsStyle = useAnimatedStyle(() => ({ opacity: tabsShown.get() }));
+  const tabsStyle = useAnimatedStyle(() => ({
+    opacity: tabsShown.get() * pillIn.get(),
+    transform: [{ translateY: (1 - pillIn.get()) * DECK_RISE }],
+  }));
 
   return (
     <View
@@ -1466,45 +1029,51 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     >
       {cardKind && (
         <View ref={cardRef} collapsable={false}>
-          <DeckCard>
-            {cardKind === 'song' ? (
-              <>
-                <MiniPlayerRow
-                  currentSong={currentSong}
-                  isPlaying={isPlaying}
-                  handlePlayPause={playPause}
-                  handleNextSong={handleNextSong}
-                  handlePrevSong={handlePrevSong}
-                  colors={colors}
-                  onOpen={openFromCard}
-                  where={where}
-                />
-                <MiniProgressBar color={colors.primary} trackColor={colors.hairline} />
-              </>
-            ) : (
-              <RoomCardRow colors={colors} />
-            )}
-          </DeckCard>
+          <Animated.View style={cardRiseStyle}>
+            <DeckCard>
+              {cardKind === 'song' ? (
+                <>
+                  <MiniPlayerRow
+                    currentSong={currentSong}
+                    isPlaying={isPlaying}
+                    handlePlayPause={playPause}
+                    handleNextSong={handleNextSong}
+                    handlePrevSong={handlePrevSong}
+                    colors={colors}
+                    onOpen={openFromCard}
+                    where={where}
+                  />
+                  <MiniProgressBar color={colors.primary} trackColor={colors.hairline} />
+                </>
+              ) : (
+                <RoomCardRow colors={colors} />
+              )}
+            </DeckCard>
+          </Animated.View>
         </View>
       )}
 
       <View ref={navRef} style={styles.navLine} onLayout={onNavLayout} pointerEvents='box-none'>
         <View ref={orbRef} collapsable={false} style={styles.orbSlot}>
-          <Orb
-            kind={orbKind}
-            artworkUri={artworkUri}
-            songId={songId}
-            direction={direction}
-            expanded={expanded}
-            onTap={onOrbTap}
-            onHold={onOrbHold}
-            onSkip={onSkip}
-            glowPlay={orbKind === 'idle' ? glowPlay : 0}
-            colors={colors}
-            syncing={syncStatus === 'syncing'}
-            badge={orbBadge}
-            playing={isPlaying}
-          />
+          {/* Inside the measured view, so the rise never moves where the player morphs from. */}
+          <Animated.View style={orbRiseStyle}>
+            <Orb
+              kind={orbKind}
+              artworkUri={artworkUri}
+              songId={songId}
+              direction={direction}
+              expanded={expanded}
+              onTap={onOrbTap}
+              onHold={onOrbHold}
+              onSkip={onSkip}
+              glowPlay={orbKind === 'idle' ? glowPlay : 0}
+              colors={colors}
+              syncing={syncStatus === 'syncing'}
+              badge={orbBadge}
+              playing={isPlaying}
+              entering={entering}
+            />
+          </Animated.View>
         </View>
         <Animated.View style={[styles.pill, tabsStyle]} pointerEvents={expanded ? 'none' : 'auto'}>
           <GlassSurface
@@ -1585,7 +1154,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  capsuleMetaBox: { flex: 1, minWidth: 0, height: '100%' },
   capsuleMeta: { flex: 1, minWidth: 0, justifyContent: 'center', paddingRight: 4, height: '100%' },
+  capsuleControls: { flexDirection: 'row', alignItems: 'center' },
 
   pill: { flex: 1, height: PILL_HEIGHT, zIndex: 1 },
   pillInner: { flexDirection: 'row', alignItems: 'center', padding: 5, gap: 2 },
