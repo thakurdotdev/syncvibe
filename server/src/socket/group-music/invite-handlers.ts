@@ -23,6 +23,7 @@ import { forgetFormer, formerOf, noteDeparture, settleRequest } from './former';
 import { handleMemberGone, metaChanged, transferHost } from './host';
 import { INVITE_TTL_MS, noteInvite, settleInvite } from './invites';
 import { touchRoom } from './room-store';
+import { seedRoom, startSeededRoom, type RoomSeed } from './engine';
 import { sendPushNotification } from '../notification';
 
 interface CreateGroupSocketData {
@@ -33,6 +34,8 @@ interface CreateGroupSocketData {
   createdBy: string | number;
   userName: string;
   profilePic?: string;
+  /** Start with what the creator was listening to. Versions before 1.17 don't send it. */
+  seed?: unknown;
 }
 
 interface JoinGroupSocketData {
@@ -55,6 +58,20 @@ interface SendInviteSocketData {
 interface AcceptInviteSocketData extends JoinGroupSocketData {
   inviterId?: string | number;
 }
+
+/** Rooms hold at most this many songs on any plan, so a longer queue isn't worth reading. */
+const MAX_SEED_SONGS = 50;
+
+const isSongObject = (song: unknown): song is Record<string, unknown> =>
+  typeof song === 'object' && song !== null && !Array.isArray(song);
+
+const seedOf = (value: unknown): RoomSeed | null => {
+  const data = value as Partial<RoomSeed> | null | undefined;
+  if (!data || !Array.isArray(data.songs)) return null;
+  const songs = data.songs.slice(0, MAX_SEED_SONGS).filter(isSongObject);
+  if (songs.length === 0) return null;
+  return { songs, positionMs: Number(data.positionMs) || 0, playing: data.playing === true };
+};
 
 export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string | number): void => {
   /** Who is asking comes from the connection. A request naming someone else is ignored. */
@@ -106,14 +123,24 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       });
       group.qrCode = qrCodeBuffer.toString('base64');
 
+      // Seeded only now, so the song's clock starts as the room opens rather than before the QR.
+      const seed = seedOf(data.seed);
+      // How many of your songs came along, so the device can say if the room's limit left some out.
+      const seeded = seed ? { count: seedRoom(group, seed, group.members[0]!) } : undefined;
+
       musicGroups.set(groupId, group);
       touchRoom(group, 'core', 'queue');
       enterRoom(socket, groupId, data.protocol);
       trackUserGroup(data.createdBy, groupId);
 
       socket.data.deviceId = data.deviceId;
-      socket.emit('group-created', { ...publicGroupOf(group), sync: joinPayloadOf(group).sync });
+      socket.emit('group-created', {
+        ...publicGroupOf(group),
+        sync: joinPayloadOf(group).sync,
+        ...(seeded ? { seeded } : {}),
+      });
       tellMyRooms(io, data.createdBy);
+      startSeededRoom(io, group);
     } catch (err) {
       console.error('QR Code Generation Failed:', err);
       socket.emit('error', { message: 'QR Code generation failed' });
