@@ -1,4 +1,4 @@
-import { Clock, Disc3, ListMusic, MoreHorizontal, ThumbsDown, User } from 'lucide-react';
+import { Clock, Disc3, ListMusic, MoreHorizontal, Radio, ThumbsDown, User } from 'lucide-react';
 import { memo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useDislikeSong } from '@/hooks/useDislikeSong';
+import { useStartRoom } from '@/hooks/useStartRoom';
 import { usePlayerStore } from '@/stores/playerStore';
 import QueueActions from './QueueActions';
 import QueueTab from './QueueTab';
@@ -26,6 +27,7 @@ const DesktopQueuePanel = memo(
   }) => {
     const playlistLength = usePlayerStore((s) => s.playlist.length);
     const dislike = useDislikeSong();
+    const startRoom = useStartRoom();
 
     return (
       <TooltipProvider delayDuration={300}>
@@ -70,6 +72,15 @@ const DesktopQueuePanel = memo(
                     <ListMusic className='mr-2 h-4 w-4 text-muted-foreground' />
                     Add to Playlist
                   </DropdownMenuItem>
+                  {startRoom && (
+                    <DropdownMenuItem
+                      onClick={startRoom}
+                      className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
+                    >
+                      <Radio className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                      Start a room with this
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onClick={onOpenSleepTimer}
                     className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'

@@ -6,6 +6,7 @@ import {
   Disc3,
   ListMusic,
   MoreHorizontal,
+  Radio,
   ThumbsDown,
   User,
   X,
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useDislikeSong } from '@/hooks/useDislikeSong';
+import { useStartRoom } from '@/hooks/useStartRoom';
 import { usePlayerStore } from '@/stores/playerStore';
 import SleepTimerDialog, { useSleepTimerLeft } from '../SleepTimer';
 import DesktopQueuePanel from './DesktopQueuePanel';
@@ -37,6 +39,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
   const playlistLength = usePlayerStore((s) => s.playlist.length);
   const navigate = useNavigate();
   const dislike = useDislikeSong();
+  const startRoom = useStartRoom();
 
   useEffect(() => {
     if (isOpen) {
@@ -131,6 +134,15 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                     <ListMusic className='mr-2 h-4 w-4 text-muted-foreground' />
                     Add to Playlist
                   </DropdownMenuItem>
+                  {startRoom && (
+                    <DropdownMenuItem
+                      onClick={startRoom}
+                      className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
+                    >
+                      <Radio className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                      Start a room with this
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onClick={onOpenSleepTimer}
                     className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'

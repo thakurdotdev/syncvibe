@@ -1,9 +1,13 @@
+import he from 'he';
 import { memo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Users, Radio, MessageCircle, Plus, LogIn } from 'lucide-react';
+import { Users, Radio, MessageCircle, Plus, LogIn, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { EASE_OUT } from '@/lib/motion';
+import { useRoomSeedPreview } from '@/lib/roomSeed';
+import Equalizer from './components/Equalizer';
 import MyRooms from './MyRooms';
+import { getSongImage } from './utils/song';
 
 const FEATURE_CARDS = [
   { icon: Users, title: 'Listen', subtitle: 'Together' },
@@ -11,7 +15,45 @@ const FEATURE_CARDS = [
   { icon: MessageCircle, title: 'Group', subtitle: 'Chat' },
 ];
 
-const WelcomeView = ({ onOpenModal, myRooms = [], onJoinRoom, onAskRoom, onDismissRoom }) => {
+/** What you're listening to, one tap from being a room's first song. */
+const StartFromMusic = ({ onStart }) => {
+  const { song, upNext, playing } = useRoomSeedPreview();
+  if (!song) return null;
+  const image = getSongImage(song, 'small');
+  return (
+    <button
+      type='button'
+      onClick={onStart}
+      className='group mb-6 flex w-full max-w-sm cursor-pointer items-center gap-3 rounded-2xl border border-border bg-muted/20 p-2.5 text-left transition-colors duration-200 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+    >
+      <span className='relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-muted'>
+        {image && <img src={image} alt='' className='h-full w-full object-cover' />}
+        {playing && (
+          <span className='absolute inset-0 flex items-center justify-center bg-scrim/40'>
+            <Equalizer bars={3} className='h-3.5' barClassName='bg-on-scrim' />
+          </span>
+        )}
+      </span>
+      <span className='min-w-0 flex-1'>
+        <span className='block text-sm font-semibold'>Start a room with this</span>
+        <span className='block truncate text-xs text-muted-foreground'>
+          {he.decode(song.name || '')}
+          {upNext > 0 && ` · ${upNext} up next`}
+        </span>
+      </span>
+      <ChevronRight className='h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5' />
+    </button>
+  );
+};
+
+const WelcomeView = ({
+  onOpenModal,
+  onStartFromMusic,
+  myRooms = [],
+  onJoinRoom,
+  onAskRoom,
+  onDismissRoom,
+}) => {
   return (
     <motion.div
       key='welcome'
@@ -34,6 +76,8 @@ const WelcomeView = ({ onOpenModal, myRooms = [], onJoinRoom, onAskRoom, onDismi
         <p className='text-muted-foreground text-sm sm:text-base mb-10 max-w-sm leading-relaxed'>
           Create or join a group to listen together, perfectly synchronized across all devices.
         </p>
+
+        <StartFromMusic onStart={onStartFromMusic} />
 
         <div className='flex flex-col sm:flex-row items-center gap-3 mb-12 w-full sm:w-auto'>
           <motion.div whileTap={{ scale: 0.97 }} className='w-full sm:w-auto'>

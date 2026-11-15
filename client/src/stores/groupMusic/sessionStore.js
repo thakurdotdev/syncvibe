@@ -4,9 +4,31 @@ import { toast } from 'sonner';
 import { getDeviceId } from './deviceId';
 import { queueViewOf, ROOM_PROTOCOL, sendRoomCommand } from './roomProtocol';
 import axios from 'axios';
+import he from 'he';
 import _ from 'lodash';
 
 const SESSION_KEY = 'syncvibe_group_session';
+
+/** What a room being created was asked to start with, to say how much of it came along. */
+let pendingSeed = null;
+
+const seededMessage = (group, seeded) => {
+  const sent = pendingSeed;
+  pendingSeed = null;
+  if (!seeded?.count || !sent) return null;
+  const upNext = seeded.count - 1;
+  const left = sent.count - seeded.count;
+  const limit = group.settings?.maxQueueSize;
+  return {
+    title: `${group.name} is playing your music`,
+    description:
+      left > 0 && seeded.count === limit
+        ? `This room holds ${limit} songs, so ${left} stayed in your own queue.`
+        : upNext > 0
+          ? `${sent.name} and ${upNext} up next`
+          : sent.name,
+  };
+};
 
 const FRESH_ROOM = {
   queue: [],
@@ -40,6 +62,8 @@ export const useGroupSessionStore = create((set, get) => ({
   ...FRESH_ROOM,
 
   isGroupModalOpen: false,
+  /** Set when the create form opens from your music: the name it starts with. */
+  groupModalName: null,
   connectionState: 'disconnected',
   isRejoining: false,
   floatingReactions: [],
@@ -95,11 +119,15 @@ export const useGroupSessionStore = create((set, get) => ({
     }
   },
 
-  createGroup: (socket, user, groupName) => {
+  /** `seed` starts the room with your own music (lib/roomSeed.js); without it the room is empty. */
+  createGroup: (socket, user, groupName, seed) => {
     if (!groupName.trim()) {
       toast.error('Please enter a group name');
       return;
     }
+    pendingSeed = seed
+      ? { count: seed.songs.length, name: he.decode(seed.songs[0]?.name || 'Your song') }
+      : null;
     socket.emit('create-music-group', {
       name: groupName,
       createdBy: user.userid,
@@ -107,8 +135,9 @@ export const useGroupSessionStore = create((set, get) => ({
       profilePic: user.profilepic,
       deviceId: getDeviceId(),
       protocol: ROOM_PROTOCOL,
+      ...(seed ? { seed } : {}),
     });
-    set({ isGroupModalOpen: false });
+    set({ isGroupModalOpen: false, groupModalName: null });
   },
 
   joinGroup: (socket, user, groupId) => {
@@ -463,7 +492,7 @@ export const useGroupSessionStore = create((set, get) => ({
 
   handleGroupCreated: (created, user, setInviteSheetOpen) => {
     if (!created) return;
-    const { sync, ...group } = created;
+    const { sync, seeded, ...group } = created;
     const { saveSession } = get();
     set({
       currentGroup: group,
@@ -480,7 +509,9 @@ export const useGroupSessionStore = create((set, get) => ({
     });
     get().applySnapshot(sync);
     saveSession(group.id);
-    toast.success(`Created group: ${group.name}`);
+    const fromMusic = seededMessage(group, seeded);
+    if (fromMusic) toast.success(fromMusic.title, { description: fromMusic.description });
+    else toast.success(`Created group: ${group.name}`);
     setInviteSheetOpen(true);
   },
 
