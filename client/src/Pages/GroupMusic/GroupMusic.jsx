@@ -3,6 +3,8 @@ import { useProfile } from '@/Context/Context';
 import { useGroupMusic } from '@/Context/GroupMusicContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useCallback, useState } from 'react';
+import { openStartRoom } from '@/lib/roomSeed';
+import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
 import '../Music/music.css';
 import GlobalSoundAnimation from './GlobalSoundAnimation';
 import GroupModal from './GroupModal';
@@ -39,15 +41,22 @@ const GroupMusic = () => {
 
   const [isQrCodeOpen, setIsQrCodeOpen] = useState(false);
   const [modalDefaultTab, setModalDefaultTab] = useState('join');
+  // Set when the form opens from your music (lib/roomSeed.js): the name it starts with.
+  const groupModalName = useGroupSessionStore((s) => s.groupModalName);
 
   const openGroupModal = useCallback(
     (tab = 'join') => {
       setModalDefaultTab(tab);
+      useGroupSessionStore.setState({ groupModalName: null });
       setIsGroupModalOpen(true);
     },
     [setIsGroupModalOpen]
   );
-  const closeGroupModal = useCallback(() => setIsGroupModalOpen(false), [setIsGroupModalOpen]);
+  const openStartFromMusic = useCallback(() => openStartRoom(user?.name), [user?.name]);
+  const closeGroupModal = useCallback(
+    () => useGroupSessionStore.setState({ isGroupModalOpen: false, groupModalName: null }),
+    []
+  );
   const openInvite = useRoomUi((s) => s.requestInviteFocus);
   const openQrCode = useCallback(() => setIsQrCodeOpen(true), []);
   const closeQrCode = useCallback(() => setIsQrCodeOpen(false), []);
@@ -69,6 +78,7 @@ const GroupMusic = () => {
               <div className='h-full overflow-y-auto overscroll-contain'>
                 <WelcomeView
                   onOpenModal={openGroupModal}
+                  onStartFromMusic={openStartFromMusic}
                   myRooms={myRooms.rooms}
                   onJoinRoom={joinGroup}
                   onAskRoom={myRooms.ask}
@@ -86,7 +96,8 @@ const GroupMusic = () => {
           onClose={closeGroupModal}
           onCreateGroup={createGroup}
           onJoinGroup={joinGroup}
-          defaultTab={modalDefaultTab}
+          defaultTab={groupModalName !== null ? 'create' : modalDefaultTab}
+          defaultName={groupModalName ?? ''}
         />
       )}
 

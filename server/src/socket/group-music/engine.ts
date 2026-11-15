@@ -136,6 +136,52 @@ const stop = (io: Server, group: MusicGroup, action: string): void => {
 /** A room brought back after a restart: picks its clock up where the last process left it. */
 export const resumeRoom = (io: Server, group: MusicGroup): void => scheduleEnd(io, group);
 
+// --- Starting from your own music ---
+
+export interface RoomSeed {
+  /** The song you were on, then what was queued after it. */
+  songs: Array<Record<string, unknown>>;
+  /** Where that song was when you asked. */
+  positionMs: number;
+  playing: boolean;
+}
+
+/**
+ * Fills a new room with what its creator was listening to: their song goes on where it was and
+ * their queue follows, up to the room's limit. Runs before anyone is in the room, so it tells no
+ * one; `startSeededRoom` starts its clock once the room is open. Returns how many songs it took.
+ */
+export const seedRoom = (
+  group: MusicGroup,
+  seed: RoomSeed,
+  by: GroupMember,
+  now = Date.now()
+): number => {
+  const { added } = addSongs(group, seed.songs.slice(0, group.settings.maxQueueSize), by);
+  const first = group.upcoming.shift();
+  if (!first) return 0;
+
+  first.status = 'playing';
+  group.current = first;
+  group.trackStartedAt = now;
+  // Your own player stops as the room takes over, a moment before the room's start; picking up
+  // from the same spot then reads as a short pause rather than a jump.
+  const durationMs = durationMsOf(first);
+  const requested = Number.isFinite(seed.positionMs) ? Math.max(0, seed.positionMs) : 0;
+  const positionMs = durationMs > 0 ? Math.min(requested, durationMs) : requested;
+  group.timeline = seed.playing
+    ? playFrom(positionMs, now, leadFor('track', null))
+    : pausedAt(positionMs, now);
+  return added.length;
+};
+
+/** The seeded room is open: its song moves on by itself, and autoplay tops up a short queue. */
+export const startSeededRoom = (io: Server, group: MusicGroup): void => {
+  if (!group.current) return;
+  scheduleEnd(io, group);
+  void ensureRecommendations(io, group);
+};
+
 // --- Autoplay ---
 
 /**

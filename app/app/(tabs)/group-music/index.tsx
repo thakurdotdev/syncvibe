@@ -12,6 +12,7 @@ import { useMyRooms } from '@/components/music/room/useMyRooms';
 import { TabHeader } from '@/components/ui/AppHeader';
 import { TabLoading } from '@/components/ui/TabLoading';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
+import { startRoomFromMusic } from '@/lib/roomSeed';
 import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useChat } from '@/context/SocketContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -42,6 +43,7 @@ export default function RoomsTab() {
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const isRejoining = useGroupSessionStore((s) => s.isRejoining);
   const isGroupModalOpen = useGroupSessionStore((s) => s.isGroupModalOpen);
+  const groupModalName = useGroupSessionStore((s) => s.groupModalName);
   const isQueueOpen = useGroupSessionStore((s) => s.isQueueOpen);
   const isInviteSheetOpen = useGroupInviteStore((s) => s.isInviteSheetOpen);
   const { socket } = useChat();
@@ -52,7 +54,7 @@ export default function RoomsTab() {
 
   const openModal = useCallback((tab: 'create' | 'join') => {
     setModalTab(tab);
-    useGroupSessionStore.setState({ isGroupModalOpen: true });
+    useGroupSessionStore.setState({ isGroupModalOpen: true, groupModalName: null });
   }, []);
   const [scanning, setScanning] = useState(false);
 
@@ -118,6 +120,7 @@ export default function RoomsTab() {
           onAskRoom={myRooms.ask}
           onDismissRoom={myRooms.dismiss}
           onStart={() => openModal('create')}
+          onStartFromMusic={() => startRoomFromMusic(user?.name)}
           onJoin={() => openModal('join')}
           onScan={() => setScanning(true)}
         />
@@ -126,8 +129,11 @@ export default function RoomsTab() {
       {isGroupModalOpen && (
         <CreateOrJoinModal
           isOpen
-          initialTab={modalTab}
-          onClose={() => useGroupSessionStore.setState({ isGroupModalOpen: false })}
+          initialTab={groupModalName !== null ? 'create' : modalTab}
+          initialName={groupModalName ?? ''}
+          onClose={() =>
+            useGroupSessionStore.setState({ isGroupModalOpen: false, groupModalName: null })
+          }
           onCreateGroup={createGroup}
           onJoinGroup={joinGroup}
           onScanQRCode={() => setScanning(true)}

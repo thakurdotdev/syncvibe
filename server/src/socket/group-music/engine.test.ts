@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, mock, test } from 'node:test';
 import type { Server } from 'socket.io';
 import { runCommand, type RoomCommand } from './commands';
+import { seedRoom, startSeededRoom } from './engine';
 import { effects } from './effects';
 import { handleMemberGone } from './host';
 import { createGroupState, legacyRoomOf, musicGroups, syncRoomOf } from './state';
@@ -294,4 +295,68 @@ test('older versions are told about a resume at the moment it starts', async () 
   const resume = events(legacyRoomOf(GROUP), 'playback-update').at(-1);
   assert.equal(resume.isPlaying, true);
   assert.equal(resume.serverTime, group.timeline.anchorAt);
+});
+
+test('a room started from your music carries on where your song was, queue and all', async () => {
+  const { io, group } = setup();
+  group.current = null;
+  const host = group.members[0]!;
+  const count = seedRoom(
+    group,
+    {
+      songs: [song('a', 200), song('b'), song('a'), song('c')],
+      positionMs: 42_000,
+      playing: true,
+    },
+    host
+  );
+
+  assert.equal(count, 3, 'the repeat of a is left out');
+  assert.equal(group.current?.song.id, 'a');
+  assert.equal(group.current?.status, 'playing');
+  assert.deepEqual(
+    group.upcoming.map((item) => item.song.id),
+    ['b', 'c']
+  );
+  assert.equal(group.upcoming[0]!.addedBy.userId, 1, 'yours, so you can take them out');
+  // It starts a moment from now, from the spot your own player was at.
+  assert.ok(group.timeline.anchorAt > START);
+  assert.equal(positionAt(group.timeline, group.timeline.anchorAt), 42_000);
+
+  startSeededRoom(io, group);
+  mock.timers.tick(200_000);
+  await Promise.resolve();
+  assert.equal(group.current?.song.id, 'b', 'moves on by itself when the song ends');
+});
+
+test("a seeded room keeps to its plan's queue size, and a paused song stays paused", () => {
+  const { group } = setup({ pro: false });
+  const count = seedRoom(
+    group,
+    {
+      songs: [song('a', 100), song('b'), song('c'), song('d'), song('e')],
+      positionMs: 250_000,
+      playing: false,
+    },
+    group.members[0]!
+  );
+
+  assert.equal(count, 3);
+  assert.equal(group.upcoming.length, 2);
+  assert.equal(group.timeline.playing, false);
+  assert.equal(group.timeline.positionMs, 100_000, 'never past the end of the song');
+});
+
+test('a seed with nothing playable leaves the room empty', () => {
+  const { group } = setup();
+  assert.equal(
+    seedRoom(
+      group,
+      { songs: [{ name: 'no id' }], positionMs: 0, playing: true },
+      group.members[0]!
+    ),
+    0
+  );
+  assert.equal(group.current, null);
+  assert.equal(group.timeline.playing, false);
 });

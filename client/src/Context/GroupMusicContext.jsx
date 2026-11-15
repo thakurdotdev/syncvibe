@@ -594,7 +594,7 @@ export function GroupMusicProvider({ children }) {
   );
 
   const wrappedCreateGroup = useCallback(
-    (name) => session.createGroup(socket, user, name),
+    (name, seed) => session.createGroup(socket, user, name, seed),
     [socket, user]
   );
 

@@ -4,11 +4,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { QrCode, Plus, Users, Loader2 } from 'lucide-react';
+import { takeRoomSeed } from '@/lib/roomSeed';
 import { cn } from '@/lib/utils';
 import QRScanner from './QRScanner';
+import StartWithMusic from './StartWithMusic';
 
-const GroupModal = ({ isOpen, onClose, onCreateGroup, onJoinGroup, defaultTab = 'join' }) => {
-  const [newGroupName, setNewGroupName] = useState('');
+const GroupModal = ({
+  isOpen,
+  onClose,
+  onCreateGroup,
+  onJoinGroup,
+  defaultTab = 'join',
+  defaultName = '',
+}) => {
+  const [newGroupName, setNewGroupName] = useState(defaultName);
+  // On unless you turn it off: starting a room while listening usually means sharing that.
+  const [withMusic, setWithMusic] = useState(true);
   const [groupId, setGroupId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
@@ -17,7 +28,8 @@ const GroupModal = ({ isOpen, onClose, onCreateGroup, onJoinGroup, defaultTab = 
   const handleCreate = async () => {
     if (!newGroupName.trim()) return;
     setIsCreating(true);
-    await onCreateGroup(newGroupName);
+    // Taken at the moment you press it, so the room picks the song up exactly where it is.
+    await onCreateGroup(newGroupName, withMusic ? takeRoomSeed() : null);
     setNewGroupName('');
     setIsCreating(false);
   };
@@ -131,6 +143,8 @@ const GroupModal = ({ isOpen, onClose, onCreateGroup, onJoinGroup, defaultTab = 
                     onKeyPress={(e) => e.key === 'Enter' && handleCreate()}
                   />
                 </div>
+
+                <StartWithMusic enabled={withMusic} onChange={setWithMusic} />
 
                 <Button
                   onClick={handleCreate}

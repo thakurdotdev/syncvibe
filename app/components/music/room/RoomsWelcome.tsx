@@ -4,6 +4,7 @@ import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
 import { BUTTON_PRESS_SCALE, EASE_OUT } from '@/lib/motion';
+import { useRoomSeedPreview } from '@/lib/roomSeed';
 import type { MyRoom } from '@/stores/groupMusic/roomProtocol';
 import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
@@ -133,6 +134,43 @@ const RoomPreview = memo(function RoomPreview({ colors }: { colors: Colors }) {
   );
 });
 
+/** What you're listening to, one tap from being a new room's first song. */
+const StartFromMusic = memo(function StartFromMusic({
+  colors,
+  onPress,
+}: {
+  colors: Colors;
+  onPress: () => void;
+}) {
+  const { song, upNext } = useRoomSeedPreview();
+  if (!song) return null;
+  const art = song.image?.[1]?.link || song.image?.[0]?.link;
+  return (
+    <PressableScale
+      onPress={onPress}
+      scaleTo={BUTTON_PRESS_SCALE}
+      accessibilityRole='button'
+      accessibilityLabel={`Start a room with ${song.name}`}
+      style={[styles.music, { borderColor: colors.hairline }]}
+    >
+      <Gloss tone='surface' />
+      <View style={[styles.musicArt, { backgroundColor: colors.raised }]}>
+        {art ? <Image source={{ uri: art }} style={styles.musicArtImage} fadeDuration={0} /> : null}
+      </View>
+      <View style={styles.musicText}>
+        <Text style={[styles.musicTitle, { color: colors.foreground }]}>
+          Start a room with this
+        </Text>
+        <Text style={[styles.musicBody, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {song.name}
+          {upNext > 0 ? ` · ${upNext} up next` : ''}
+        </Text>
+      </View>
+      <Ionicons name='chevron-forward' size={18} color={colors.mutedForeground} />
+    </PressableScale>
+  );
+});
+
 /**
  * Rooms tab when you're not in a room: ways back into your rooms (playing on another device, or
  * left lately), a preview of the room, what it has, and the ways in.
@@ -143,6 +181,7 @@ export const RoomsWelcome = memo(function RoomsWelcome({
   onAskRoom,
   onDismissRoom,
   onStart,
+  onStartFromMusic,
   onJoin,
   onScan,
 }: {
@@ -151,6 +190,8 @@ export const RoomsWelcome = memo(function RoomsWelcome({
   onAskRoom: (groupId: string) => Promise<void>;
   onDismissRoom: (groupId: string) => void;
   onStart: () => void;
+  /** The create form with what you're playing on, when something is. */
+  onStartFromMusic: () => void;
   onJoin: () => void;
   onScan: () => void;
 }) {
@@ -188,6 +229,7 @@ export const RoomsWelcome = memo(function RoomsWelcome({
       </Animated.View>
 
       <Animated.View style={[styles.actions, enter(reduced, 300, rise)]}>
+        <StartFromMusic colors={colors} onPress={onStartFromMusic} />
         <PressableScale
           onPress={onStart}
           accessibilityRole='button'
@@ -302,4 +344,18 @@ const styles = StyleSheet.create({
   },
   joinText: { fontSize: 15, fontWeight: '600' },
   scan: { flex: 0, width: 50 },
+  music: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 10,
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  musicArt: { width: 40, height: 40, borderRadius: 10, overflow: 'hidden' },
+  musicArtImage: { width: 40, height: 40 },
+  musicText: { flex: 1, minWidth: 0 },
+  musicTitle: { fontSize: 14, fontWeight: '600' },
+  musicBody: { fontSize: 12, marginTop: 1 },
 });

@@ -34,6 +34,8 @@ import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
 import { usePlayerStore } from '@/stores/playerStore';
 import { runAfterIdle } from '@/utils/runAfterIdle';
 import { soundEffectsManager } from '@/utils/soundEffectsManager';
+import type { RoomSeed } from '@/lib/roomSeed';
+import { pauseRemotePlayback } from '@/lib/player';
 
 interface GroupMusicContextType {
   socket: any;
@@ -41,7 +43,7 @@ interface GroupMusicContextType {
 
   handlePlayPause: (forceState?: boolean) => Promise<void>;
   handleSeek: (value: number) => Promise<void>;
-  createGroup: (groupName: string) => void;
+  createGroup: (groupName: string, seed?: RoomSeed | null) => void;
   joinGroup: (groupId: string) => void;
   leaveGroup: () => void;
   sendMessage: (message: string, messageType?: string, extra?: Record<string, any>) => void;
@@ -321,6 +323,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
 
     socket.on('group-created', (group: any) => {
       if (!user) return;
+      // Your music moved into the room: it plays here now, not on another of your devices too.
+      if (group?.seeded) pauseRemotePlayback();
       ss.getState().handleGroupCreated(group, user, () => {
         inv.setState({ isInviteSheetOpen: true });
       });
@@ -577,7 +581,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
   );
 
   const createGroup = useCallback(
-    (groupName: string) => ss.getState().createGroup(socket, user, groupName),
+    (groupName: string, seed?: RoomSeed | null) =>
+      ss.getState().createGroup(socket, user, groupName, seed),
     [socket, user]
   );
 

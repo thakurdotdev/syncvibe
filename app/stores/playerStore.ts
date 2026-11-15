@@ -121,6 +121,15 @@ export const openFullPlayer = () => {
   onOpenFullPlayer?.();
 };
 
+let onCloseFullPlayer: (() => void) | null = null;
+export const setOnCloseFullPlayer = (cb: (() => void) | null) => {
+  onCloseFullPlayer = cb;
+};
+/** Closes the full player, for an option in it that takes you to a tab underneath. */
+export const closeFullPlayer = () => {
+  onCloseFullPlayer?.();
+};
+
 interface PlayerState {
   currentSong: Song | null;
   isPlaying: boolean;
