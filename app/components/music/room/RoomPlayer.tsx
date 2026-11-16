@@ -242,10 +242,10 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
 const styles = StyleSheet.create({
   card: { borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   tint: { ...StyleSheet.absoluteFill, width: '100%', height: '100%', transform: [{ scale: 1.4 }] },
-  body: { padding: 12, gap: 8 },
+  body: { padding: 12, gap: 6 },
   // Above the slider, whose touch area reaches up behind this row.
   top: { flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 1 },
-  art: { width: 56, height: 56, borderRadius: 14 },
+  art: { width: 50, height: 50, borderRadius: 13 },
   meta: { flex: 1, minWidth: 0 },
   title: { fontFamily: fonts.displaySemibold, fontSize: 16.5, letterSpacing: -0.3 },
   artist: { fontSize: 13, marginTop: 1 },
@@ -285,8 +285,8 @@ const styles = StyleSheet.create({
   reactions: { flexDirection: 'row', gap: 6 },
   reaction: {
     flex: 1,
-    height: 32,
-    borderRadius: 16,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },

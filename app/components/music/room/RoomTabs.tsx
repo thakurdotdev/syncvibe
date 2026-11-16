@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: 14,
     padding: 4,
-    height: 44,
+    height: 40,
     borderWidth: StyleSheet.hairlineWidth,
   },
   pill: {
