@@ -9,6 +9,16 @@ export interface GroupMember {
   profilePic: string;
 }
 
+export interface PendingInvite {
+  userId: string;
+  userName: string;
+  profilePic?: string;
+  invitedById: string;
+  invitedByName?: string;
+  invitedAt: number;
+  expiresAt: number;
+}
+
 export interface Group {
   id: string;
   name: string;
@@ -20,6 +30,8 @@ export interface Group {
   skipVotes?: SkipVotes | null;
   /** Waiting for a host or co-host to answer. */
   rejoinRequests?: RejoinRequest[];
+  /** Invited and not yet answered, so nobody invites the same person twice. */
+  pendingInvites?: PendingInvite[];
   qrCode?: string;
   members?: GroupMember[];
   queue?: QueueItem[];

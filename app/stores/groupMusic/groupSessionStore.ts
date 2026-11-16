@@ -114,7 +114,7 @@ interface GroupSessionActions {
   handleGroupCreated: (
     created: Group & { sync?: RoomSnapshot; seeded?: { count: number } },
     user: any,
-    openInviteSheet?: () => void
+    openInvite?: () => void
   ) => void;
   handleGroupJoined: (data: JoinedRoom) => void;
   handleGroupRejoined: (data: JoinedRoom) => void;
@@ -353,6 +353,7 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
         mutedIds: part.mutedIds ?? currentGroup.mutedIds ?? [],
         skipVotes: part.skipVotes ?? null,
         rejoinRequests: part.rejoinRequests ?? [],
+        pendingInvites: part.pendingInvites ?? [],
         settings: { ...currentGroup.settings, ...part.settings },
         maxMembers: part.maxMembers ?? currentGroup.maxMembers,
         features: { ...currentGroup.features, ...part.features },
@@ -533,7 +534,7 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     set({ searchQuery: '', searchResults: [], isSearchLoading: false });
   },
 
-  handleGroupCreated: (created, user, openInviteSheet) => {
+  handleGroupCreated: (created, user, openInvite) => {
     const { sync, seeded, ...group } = created;
     const { saveSession } = get();
     set({
@@ -552,7 +553,7 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     saveSession(group.id);
     const fromMusic = seededMessage(group, seeded);
     if (fromMusic) toast(fromMusic, { type: 'success' });
-    openInviteSheet?.();
+    openInvite?.();
   },
 
   handleGroupJoined: (data) => {
