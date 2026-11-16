@@ -103,6 +103,18 @@ export default function ProfileScreen() {
             onPress={() => router.push('/music-language')}
           />
           <SettingsRow
+            icon='mic'
+            label='Music taste'
+            detail='Favourite artists and sharing'
+            onPress={() => router.push('/music-taste')}
+          />
+          <SettingsRow icon='heart' label='Liked songs' onPress={() => router.push('/liked')} />
+          <SettingsRow
+            icon='bar-chart-2'
+            label='Your week in music'
+            onPress={() => router.push('/recap')}
+          />
+          <SettingsRow
             icon='clock'
             label='Listening history'
             onPress={() => router.push('/song-history')}

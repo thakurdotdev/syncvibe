@@ -1,5 +1,6 @@
 import { CoverDeck, DECK_PEEK } from '@/components/music/home/CoverDeck';
 import { SongRow } from '@/components/music/home/HomeSections';
+import { FriendsStrip, WeekRow } from '@/components/music/home/PersonalHome';
 import { playStationFrom } from '@/components/music/home/playStation';
 import { VibeDial } from '@/components/music/home/VibeDial';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
@@ -17,6 +18,7 @@ import {
   useRecentMusic,
   useStationSongs,
 } from '@/queries/useMusic';
+import { useLanguageSync, useMoods, useShelves } from '@/queries/usePersonal';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { usePlaybackState, usePlayerControls } from '@/stores/playerStore';
@@ -469,7 +471,13 @@ function HomeScreen() {
       ),
     [homePageData?.trending, recommendations]
   );
-  const stations = useMemo(() => buildStations(homePageData, forYou), [homePageData, forYou]);
+  useLanguageSync();
+  const { data: shelves } = useShelves();
+  const { data: moods } = useMoods();
+  const stations = useMemo(
+    () => buildStations(homePageData, forYou, { shelves, moods }),
+    [homePageData, forYou, shelves, moods]
+  );
   const recent = useMemo(
     () => (recommendations?.recentlyPlayed ?? []).filter((s) => s?.id).slice(0, RECENT_SHOWN),
     [recommendations?.recentlyPlayed]
@@ -558,6 +566,8 @@ function HomeScreen() {
               showDeck={!inRoom}
             />
             {!inRoom && <RecentStrip songs={recent} colors={colors} />}
+            {user?.userid ? <FriendsStrip /> : null}
+            {user?.userid ? <WeekRow /> : null}
             <BrowseRow colors={colors} />
           </>
         )}

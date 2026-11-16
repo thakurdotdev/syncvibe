@@ -1,8 +1,9 @@
+import type { Mood } from '@/api/personal';
 import type { Album, Playlist } from '@/types/music';
 import type { Song } from '@/types/song';
 import { toBrowseSections } from './browseSections';
 
-export type StationSource = { kind: 'playlist' | 'album'; id: string };
+export type StationSource = { kind: 'playlist' | 'album' | 'mood'; id: string };
 
 /** A vibe on the dial. Its songs are either here already or come from one playlist or album. */
 export type Station = { key: string; title: string; songs?: Song[]; source?: StationSource };
@@ -30,10 +31,22 @@ export const shortSongName = (name?: string) =>
  * The dial's stations: your own mix first, then whatever the API offers right now, with its own
  * titles and order. Sections change by language and over time, so none is named here.
  */
-export const buildStations = (modules: unknown, forYou: Song[]): Station[] => {
+export const buildStations = (
+  modules: unknown,
+  forYou: Song[],
+  personal: { shelves?: Array<{ key: string; title: string; songs: Song[] }>; moods?: Mood[] } = {}
+): Station[] => {
   const stations: Station[] = [];
   const mine = uniqueSongs(forYou);
   if (mine.length) stations.push({ key: 'for-you', title: 'For you', songs: mine });
+
+  // Your Daily Mixes, time of day, new releases, rediscover and likes come next.
+  for (const shelf of personal.shelves ?? []) {
+    const songs = uniqueSongs(shelf.songs);
+    if (songs.length >= MIN_OWN_SONGS) {
+      stations.push({ key: `shelf-${shelf.key}`, title: shelf.title, songs });
+    }
+  }
 
   for (const section of toBrowseSections(modules)) {
     const songs = uniqueSongs(
@@ -62,6 +75,14 @@ export const buildStations = (modules: unknown, forYou: Song[]): Station[] => {
         source: { kind: 'album', id: String(album.album_id || album.id) },
       });
     }
+  }
+  // Moods last: each is fetched, picked for you, when the dial reaches it.
+  for (const mood of personal.moods ?? []) {
+    stations.push({
+      key: `mood-${mood.key}`,
+      title: mood.title,
+      source: { kind: 'mood', id: mood.key },
+    });
   }
   return stations;
 };

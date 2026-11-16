@@ -2,6 +2,7 @@ import { API_URL } from '@/constants';
 import { Song } from '@/types/song';
 import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { getAuthHeaders } from '@/lib/auth-client';
+import { playNextParams } from '@/api/music';
 import { markRecommendations, recordPlayEnd } from '@/utils/playEvents';
 import axios from 'axios';
 import { create } from 'zustand';
@@ -44,8 +45,9 @@ export const checkAndFetchRecommendations = async (targetSong?: Song | null, for
       ...(await getAuthHeaders()),
     };
 
-    const response = await axios.get(`${API_URL}/api/play-next/${song.id}?limit=20`, {
+    const response = await axios.get(`${API_URL}/api/play-next/${song.id}`, {
       headers,
+      params: playNextParams(),
       timeout: 10000,
     });
 

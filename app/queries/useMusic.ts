@@ -14,6 +14,7 @@ import {
   searchMusic,
   undoDislikeSong,
 } from '@/api/music';
+import { getMoodStation } from '@/api/personal';
 import { toast } from '@/context/ToastContext';
 import { useUser } from '@/context/UserContext';
 import { Station, StationSource, uniqueSongs } from '@/lib/stations';
@@ -161,6 +162,7 @@ const STATION_SONGS = 15;
 export const stationQuery = (source: StationSource) => ({
   queryKey: ['station', source.kind, source.id],
   queryFn: async () => {
+    if (source.kind === 'mood') return uniqueSongs(await getMoodStation(source.id));
     const details =
       source.kind === 'playlist'
         ? await getPlaylistDetails(source.id)

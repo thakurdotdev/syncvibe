@@ -295,6 +295,30 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen
+            name='liked'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name='recap'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name='blend'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name='music-taste'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
             name='song-history'
             options={{
               headerShown: false,

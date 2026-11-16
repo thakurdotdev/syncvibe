@@ -44,6 +44,36 @@ let lastActivityAt = 0;
 let isFlushing = false;
 let queueWrites: Promise<unknown> = Promise.resolve();
 const recommendations = new Map<string, { seedSongId: string; position: number }>();
+/** A quick skip: moved on before this much of the song played. */
+const QUICK_SKIP_MS = 30_000;
+const MAX_SIGNALS = 30;
+/** What this listening session told us, newest first, so autoplay can follow it. */
+let signals: { sessionId: string | null; skipped: string[]; finished: string[] } = {
+  sessionId: null,
+  skipped: [],
+  finished: [],
+};
+
+const noteSignal = (play: ActivePlay, endReason: PlayEndReason) => {
+  if (signals.sessionId !== play.sessionId) {
+    signals = { sessionId: play.sessionId, skipped: [], finished: [] };
+  }
+  const keep = (list: string[]) =>
+    [play.songId, ...list.filter((id) => id !== play.songId)].slice(0, MAX_SIGNALS);
+  if (endReason === 'completed') signals.finished = keep(signals.finished);
+  else if (endReason === 'next' && play.playedMs < QUICK_SKIP_MS) {
+    signals.skipped = keep(signals.skipped);
+  }
+};
+
+/** Songs skipped quickly and songs played to the end in this session. */
+export const sessionSignals = (): { skipped: string[]; finished: string[] } =>
+  signals.sessionId === sessionId && Date.now() - lastActivityAt <= NEW_SESSION_AFTER_MS
+    ? { skipped: signals.skipped, finished: signals.finished }
+    : { skipped: [], finished: [] };
+
+/** Whether autoplay put this song in the queue, so steering can swap it for another. */
+export const isRecommended = (songId: string) => recommendations.has(songId);
 
 const currentSessionId = (): string => {
   const now = Date.now();
@@ -124,6 +154,7 @@ const inferEndReason = (play: ActivePlay): PlayEndReason => {
 };
 
 const finish = (play: ActivePlay, endReason: PlayEndReason) => {
+  noteSignal(play, endReason);
   const { lastPositionSeconds: _position, ...event } = play;
   enqueue({ ...event, endReason }).catch(console.error);
 };
