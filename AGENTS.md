@@ -122,6 +122,12 @@ and browser audit scripts.
 - **Merging to `main` deploys.** Shipyard rebuilds and restarts the server and the web app
   (`client/`) within minutes. A GitHub workflow queues an EAS Android build for changes in `app/`.
   There is no staging.
+- **Until 30 November 2026 there are no EAS build minutes.** Build the app on Instabox (see App
+  releases) and don't wait for or check the EAS workflow. Merge every PR that touches `app/` with
+  `[skip ci]` in the merge commit's body, so GitHub skips the workflow instead of showing it failed:
+  `gh pr merge N --merge --subject "Merge pull request #N: <title>" --body "[skip ci]"`. If the PR
+  also changes `server/` or `client/`, check that the deploy still went out. From 1 December 2026,
+  merge without it and let EAS build again (then delete this note).
 - The web hosts `client/public/.well-known/assetlinks.json` for Android passkeys. Don't remove it.
 
 ### Only when running on the production server
