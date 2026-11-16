@@ -210,6 +210,26 @@ The server owns what a room is playing; devices only ask for changes and follow.
   not multi-instance: Socket.IO still runs in one process.
 - Room chat and invites still use their original events. Direct messages and calls are separate: see below.
 
+## Recommendations and personal music
+
+Few people listen yet, so everything is built from one person's own signals and song data, not
+from what others play. Pure rules live in `*.scoring.ts` / `*.logic.ts` / `play-next.personal.ts`
+next to their services in `server/src/features/music/services/` and are unit tested.
+
+- **Play-next** (`play-next.service.ts`): songs related to one song (editor playlists, singers,
+  album), shared by everyone and cached; then fitted to the listener (dislikes, recent plays) and
+  steered by this session's quick skips and finished songs and by `steer` (`more`, `different`,
+  `mood:<key>`). Room autoplay uses `getPlayNextForRoom`: nobody present's dislikes, their artists.
+- **Taste** comes from `listener.service.ts` `loadProfile`: history, likes (`song_likes`, count
+  more than plays), dislikes and `music_tastes` (languages, favourite artists, share listening).
+- **Moods** are read from editor playlist names (`moods.ts`); audio alone couldn't tell them apart.
+- **Home shelves** (`personal.service.ts`): Daily Mixes (one per language and mood), time of day,
+  new releases from your artists (fetched in the background, cached per artist), rediscover, likes.
+  Made for you (`recommendation.service.ts`) says why each song is there.
+- **Friends:** Blend and "listening now" need people to follow each other (Blend also allows two
+  people who both wrote in one chat) and respect `share_listening`.
+- Clients send the session signals from `playEvents` in both `client/` and `app/`; keep them alike.
+
 ## Calls (video, web only)
 
 The server owns the call; the video goes browser to browser (WebRTC), through Cloudflare TURN only
