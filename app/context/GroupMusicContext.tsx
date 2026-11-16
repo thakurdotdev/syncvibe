@@ -325,9 +325,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       if (!user) return;
       // Your music moved into the room: it plays here now, not on another of your devices too.
       if (group?.seeded) pauseRemotePlayback();
-      ss.getState().handleGroupCreated(group, user, () => {
-        inv.setState({ isInviteSheetOpen: true });
-      });
+      // A new room starts on People with the invite search ready.
+      ss.getState().handleGroupCreated(group, user, () => inv.getState().requestInviteFocus());
       enterRoom(group?.sync);
     });
 
@@ -516,10 +515,6 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    socket.on('invite-sent', () => {
-      Alert.alert('Invite Sent', 'Your invite has been sent.');
-    });
-
     socket.on('invite-error', ({ error, message }: { error?: string; message?: string }) => {
       Alert.alert('Invite Error', error || message || 'Could not send the invite.');
     });
@@ -558,7 +553,6 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
         'member-presence',
         'user-typing',
         'group-invite-received',
-        'invite-sent',
         'invite-error',
         'invite-accepted',
         'group-invite-declined',

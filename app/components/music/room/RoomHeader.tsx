@@ -147,8 +147,8 @@ const SpeakerDelaySheet = ({ visible, onClose }: { visible: boolean; onClose: ()
 };
 
 /**
- * Room header: name with live connection state and who's here on the left; invite and a
- * "more" sheet (QR code, share code, leave) on the right.
+ * Room header, one slim row: name with live connection state; then who's here (opens People),
+ * invite (People with the search ready) and a "more" sheet (QR code, share code, leave).
  */
 export const RoomHeader = memo(function RoomHeader({
   onInvite,
@@ -198,57 +198,52 @@ export const RoomHeader = memo(function RoomHeader({
 
   return (
     <View style={styles.row}>
-      <View style={styles.left}>
-        <View style={styles.titleRow}>
-          <Text
-            style={[styles.title, { color: colors.foreground }]}
-            numberOfLines={1}
-            accessibilityRole='header'
-          >
-            {group.name}
-          </Text>
-          <ConnectionBadge />
-        </View>
-        <PressableScale
-          onPress={onShowPeople}
-          accessibilityRole='button'
-          accessibilityLabel={`${members.length} in the room. Show people`}
-          style={styles.people}
+      <View style={styles.titleRow}>
+        <Text
+          style={[styles.title, { color: colors.foreground }]}
+          numberOfLines={1}
+          accessibilityRole='header'
         >
-          <View style={styles.faces}>
-            {members.slice(0, 4).map((m, i) => (
-              <Image
-                key={String(m.userId)}
-                source={{ uri: getProfileCloudinaryUrl(m.profilePic) }}
-                style={[
-                  styles.face,
-                  {
-                    borderColor: colors.background,
-                    marginLeft: i ? -7 : 0,
-                    backgroundColor: colors.muted,
-                  },
-                ]}
-                fadeDuration={0}
-              />
-            ))}
-          </View>
-          <View style={[styles.liveDot, { backgroundColor: colors.live }]} />
-          <Text style={[styles.count, { color: colors.mutedForeground }]}>
-            {members.length} listening
-          </Text>
-        </PressableScale>
+          {group.name}
+        </Text>
+        <ConnectionBadge />
       </View>
 
-      <View style={styles.actions}>
-        <HeaderIconButton tone='primary' label='Invite friends' onPress={onInvite}>
-          <Ionicons name='person-add' size={17} color={colors.primaryForeground} />
-        </HeaderIconButton>
-        <HeaderIconButton
-          icon='ellipsis-horizontal'
-          label='More room options'
-          onPress={() => setMoreOpen(true)}
-        />
-      </View>
+      <PressableScale
+        onPress={onShowPeople}
+        accessibilityRole='button'
+        accessibilityLabel={`${members.length} in the room. Show people`}
+        hitSlop={6}
+        style={[styles.people, { backgroundColor: colors.raised }]}
+      >
+        <View style={styles.faces}>
+          {members.slice(0, 3).map((m, i) => (
+            <Image
+              key={String(m.userId)}
+              source={{ uri: getProfileCloudinaryUrl(m.profilePic) }}
+              style={[
+                styles.face,
+                {
+                  borderColor: colors.raised,
+                  marginLeft: i ? -6 : 0,
+                  backgroundColor: colors.muted,
+                },
+              ]}
+              fadeDuration={0}
+            />
+          ))}
+        </View>
+        <Text style={[styles.count, { color: colors.foreground }]}>{members.length}</Text>
+      </PressableScale>
+
+      <HeaderIconButton tone='primary' label='Invite friends' onPress={onInvite}>
+        <Ionicons name='person-add' size={16} color={colors.primaryForeground} />
+      </HeaderIconButton>
+      <HeaderIconButton
+        icon='ellipsis-horizontal'
+        label='More room options'
+        onPress={() => setMoreOpen(true)}
+      />
 
       <MoreSheet visible={moreOpen} onClose={() => setMoreOpen(false)} actions={actions} />
       <SpeakerDelaySheet visible={delayOpen} onClose={() => setDelayOpen(false)} />
@@ -257,23 +252,29 @@ export const RoomHeader = memo(function RoomHeader({
 });
 
 const styles = StyleSheet.create({
+  // One row: the room's name gets the width, people and actions sit at the end.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 10,
-    gap: 12,
+    paddingTop: 4,
+    paddingBottom: 8,
+    gap: 8,
   },
-  left: { flex: 1, minWidth: 0, gap: 4 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { fontFamily: fonts.display, fontSize: 24, letterSpacing: -0.6, flexShrink: 1 },
-  people: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start' },
+  titleRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  title: { fontFamily: fonts.display, fontSize: 21, letterSpacing: -0.5, flexShrink: 1 },
+  people: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 38,
+    paddingLeft: 5,
+    paddingRight: 11,
+    borderRadius: 19,
+  },
   faces: { flexDirection: 'row' },
-  face: { width: 22, height: 22, borderRadius: 11, borderWidth: 2 },
-  liveDot: { width: 6, height: 6, borderRadius: 3 },
-  count: { fontSize: 12.5, fontWeight: '600' },
-  actions: { flexDirection: 'row', gap: 8 },
+  face: { width: 26, height: 26, borderRadius: 13, borderWidth: 2 },
+  count: { fontSize: 13.5, fontWeight: '700', fontVariant: ['tabular-nums'] },
 
   sheet: { paddingHorizontal: 12, paddingBottom: 8, gap: 2 },
   sheetRow: {

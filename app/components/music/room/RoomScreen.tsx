@@ -3,8 +3,9 @@ import { QueueSheet } from '@/components/music/group/QueueSheet';
 import { DECK_NAV_HEIGHT } from '@/components/music/UnifiedBottomDeck';
 import { useUser } from '@/context/UserContext';
 import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
+import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -88,6 +89,19 @@ export const RoomScreen = memo(function RoomScreen({
   const showQueue = useCallback(() => changeTab('queue'), [changeTab]);
   const showPeople = useCallback(() => changeTab('people'), [changeTab]);
 
+  // Invite (here or on creating a room) opens People with its search focused.
+  const [inviteFocus, setInviteFocus] = useState(0);
+  useEffect(() => {
+    const take = () => {
+      if (!useGroupInviteStore.getState().inviteFocusPending) return;
+      useGroupInviteStore.setState({ inviteFocusPending: false });
+      changeTab('people');
+      setInviteFocus((n) => n + 1);
+    };
+    take();
+    return useGroupInviteStore.subscribe(take);
+  }, [changeTab]);
+
   return (
     <KeyboardAvoidingView behavior='padding' style={styles.root}>
       <RoomHeader
@@ -122,7 +136,7 @@ export const RoomScreen = memo(function RoomScreen({
           <QueueSheet inline embedded />
         </View>
         <View style={[styles.panel, tab !== 'people' && styles.hidden]}>
-          <PeoplePanel onInvite={onInvite} bottomInset={deckInset} />
+          <PeoplePanel focusRequest={inviteFocus} bottomInset={deckInset} />
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -132,7 +146,7 @@ export const RoomScreen = memo(function RoomScreen({
 const styles = StyleSheet.create({
   root: { flex: 1, minHeight: 0 },
   player: { paddingHorizontal: 16 },
-  tabs: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  tabs: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 2 },
   panels: { flex: 1, minHeight: 0 },
   panel: { ...StyleSheet.absoluteFill },
   // Hidden panels stay mounted (state, scroll, drafts) but take no input or paint.

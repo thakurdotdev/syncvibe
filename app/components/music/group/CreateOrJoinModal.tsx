@@ -27,8 +27,8 @@ interface CreateOrJoinModalProps {
 type Mode = 'create' | 'join';
 
 const MODES: SegmentOption<Mode>[] = [
-  { value: 'create', label: 'Create', icon: 'add-circle-outline' },
-  { value: 'join', label: 'Join', icon: 'enter-outline' },
+  { value: 'create', label: 'Create' },
+  { value: 'join', label: 'Join' },
 ];
 
 const COPY = {
@@ -159,7 +159,6 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
               returnKeyType='go'
               onSubmitEditing={submit}
               accessibilityLabel='Room name'
-              leftIcon={<Ionicons name='musical-notes' size={18} color={colors.mutedForeground} />}
             />
             <ScrollView
               horizontal
@@ -211,7 +210,6 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
               returnKeyType='go'
               onSubmitEditing={submit}
               accessibilityLabel='Room code'
-              leftIcon={<Ionicons name='key-outline' size={18} color={colors.mutedForeground} />}
             />
             <PressableScale
               onPress={scan}
@@ -240,11 +238,6 @@ export const CreateOrJoinModal: React.FC<CreateOrJoinModalProps> = ({
           accessibilityState={{ disabled: !value }}
           style={[styles.submit, { backgroundColor: colors.primary, opacity: value ? 1 : 0.4 }]}
         >
-          <Ionicons
-            name={mode === 'create' ? 'radio' : 'enter-outline'}
-            size={18}
-            color={colors.primaryForeground}
-          />
           <Text style={[styles.submitText, { color: colors.primaryForeground }]}>
             {mode === 'create' ? 'Create room' : 'Join room'}
           </Text>

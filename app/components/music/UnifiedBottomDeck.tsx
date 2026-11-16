@@ -9,6 +9,7 @@ import {
 } from '@/components/icons/NavIcons';
 import GlassSurface from '@/components/shell/GlassSurface';
 import { Orb, type OrbBadge, type OrbKind } from '@/components/music/deck/Orb';
+import { useAppActive } from '@/hooks/useAppActive';
 import {
   CAPSULE_CLOSE,
   DECK_SIDE,
@@ -766,6 +767,9 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   const { currentSong, isPlaying, activePlayerMode } = usePlaybackState();
   const { handlePlayPause, handleNextSong, handlePrevSong } = usePlayerControls();
   const fullPlayerOpen = useFullPlayerOpen((s) => s.open);
+  // Songs that change while the app is in the background change quietly: nothing pops out, so
+  // reopening the app doesn't play a queued animation.
+  const appActive = useAppActive();
   const { theme } = useTheme();
   const tabPillColor = useMemo(
     () => mixHex(colors.card, colors.primary, TAB_TINT[theme === 'dark' ? 'dark' : 'light']),
@@ -856,7 +860,14 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     if (shown.id !== songId) {
       setDirection(queueIndex === shown.index - 1 ? 'prev' : 'next');
       // A new song (not the first one this deck sees): show it, with one sweep of light.
-      if (showSong && shown.id !== undefined && !fullPlayerOpen && !showCard && songPopup) {
+      if (
+        showSong &&
+        shown.id !== undefined &&
+        appActive &&
+        !fullPlayerOpen &&
+        !showCard &&
+        songPopup
+      ) {
         setCapsule((c) => ({ on: true, ms: SHOW_SONG_MS, key: c.key + 1 }));
         setGlowPlay((n) => n + 1);
       }
@@ -864,8 +875,9 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
     setShown({ id: songId, index: queueIndex });
   }
 
-  // Going anywhere, opening the player, or the orb no longer holding your song puts it away.
-  const context = `${activeSegment}|${orbKind}|${fullPlayerOpen}`;
+  // Going anywhere, opening the player, leaving the app, or the orb no longer holding your song
+  // puts it away.
+  const context = `${activeSegment}|${orbKind}|${fullPlayerOpen}|${appActive}`;
   const [lastContext, setLastContext] = useState(context);
   if (lastContext !== context) {
     setLastContext(context);
@@ -902,13 +914,20 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
   );
   const openFromCard = useCallback(() => void openFrom('card'), [openFrom]);
 
-  const onOrbTap = useCallback(() => {
-    if (expanded) collapse();
-    else if (orbKind === 'song') void openFrom('orb');
-    else if (orbKind === 'room') {
+  // Your song: tap plays or pauses, a swipe up opens the full player. The room's orb takes you to
+  // the room either way (pausing it would pause everyone), and with nothing on it's Search.
+  const onOrbOpen = useCallback(() => {
+    if (orbKind === 'song') {
+      collapse();
+      void openFrom('orb');
+    } else if (orbKind === 'room') {
       if (!onRoomTab) router.navigate('/(tabs)/group-music');
     } else router.push('/search');
-  }, [expanded, collapse, orbKind, onRoomTab, openFrom]);
+  }, [collapse, orbKind, onRoomTab, openFrom]);
+  const onOrbTap = useCallback(() => {
+    if (orbKind === 'song') playPause();
+    else onOrbOpen();
+  }, [orbKind, playPause, onOrbOpen]);
   const onOrbHold = useCallback(() => {
     if (orbKind === 'song') expand(HOLD_SONG_MS);
   }, [orbKind, expand]);
@@ -1064,6 +1083,8 @@ export const UnifiedBottomDeck = memo(function UnifiedBottomDeck({
               direction={direction}
               expanded={expanded}
               onTap={onOrbTap}
+              onOpen={onOrbOpen}
+              animate={appActive}
               onHold={onOrbHold}
               onSkip={onSkip}
               glowPlay={orbKind === 'idle' ? glowPlay : 0}

@@ -14,13 +14,15 @@ interface InviteData {
 
 interface GroupInviteState {
   pendingInvite: InviteData | null;
-  isInviteSheetOpen: boolean;
+  /** Set to open the room's People tab with the invite search focused; the room clears it. */
+  inviteFocusPending: boolean;
 }
 
 interface GroupInviteActions {
   acceptInvite: (socket: any, user: any, invite: InviteData) => void;
   declineInvite: (socket: any, invite: InviteData) => void;
   sendInvite: (socket: any, user: any, currentGroup: any, inviteeUserId: number) => void;
+  requestInviteFocus: () => void;
   reset: () => void;
 }
 
@@ -28,7 +30,7 @@ type GroupInviteStore = GroupInviteState & GroupInviteActions;
 
 const initialState: GroupInviteState = {
   pendingInvite: null,
-  isInviteSheetOpen: false,
+  inviteFocusPending: false,
 };
 
 export const useGroupInviteStore = create<GroupInviteStore>()((set) => ({
@@ -70,6 +72,8 @@ export const useGroupInviteStore = create<GroupInviteStore>()((set) => ({
     });
   },
 
+  requestInviteFocus: () => set({ inviteFocusPending: true }),
+
   reset: () => set({ ...initialState }),
 }));
 
@@ -77,6 +81,5 @@ export const useGroupInvite = () =>
   useGroupInviteStore(
     useShallow((s) => ({
       pendingInvite: s.pendingInvite,
-      isInviteSheetOpen: s.isInviteSheetOpen,
     }))
   );

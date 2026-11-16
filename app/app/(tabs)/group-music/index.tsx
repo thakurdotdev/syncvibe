@@ -3,7 +3,6 @@ import LoginScreen from '@/components/LoginScreen';
 import { CreateOrJoinModal } from '@/components/music/group/CreateOrJoinModal';
 import { GlobalSoundAnimation } from '@/components/music/group/GlobalSoundAnimation';
 import { InviteNotification } from '@/components/music/group/InviteNotification';
-import { InviteSheet } from '@/components/music/group/InviteSheet';
 import { QRCodeModal } from '@/components/music/group/QRCodeModal';
 import { QueueSheet } from '@/components/music/group/QueueSheet';
 import { RoomScreen } from '@/components/music/room/RoomScreen';
@@ -45,7 +44,6 @@ export default function RoomsTab() {
   const isGroupModalOpen = useGroupSessionStore((s) => s.isGroupModalOpen);
   const groupModalName = useGroupSessionStore((s) => s.groupModalName);
   const isQueueOpen = useGroupSessionStore((s) => s.isQueueOpen);
-  const isInviteSheetOpen = useGroupInviteStore((s) => s.isInviteSheetOpen);
   const { socket } = useChat();
   const myRooms = useMyRooms(socket, currentGroup?.id);
 
@@ -58,10 +56,7 @@ export default function RoomsTab() {
   }, []);
   const [scanning, setScanning] = useState(false);
 
-  const openInvite = useCallback(
-    () => useGroupInviteStore.setState({ isInviteSheetOpen: true }),
-    []
-  );
+  const openInvite = useGroupInviteStore((s) => s.requestInviteFocus);
   const openQr = useCallback(() => setShowQr(true), []);
 
   const shareCode = useCallback(() => {
@@ -148,13 +143,6 @@ export default function RoomsTab() {
           isOpen={showQr}
           onClose={() => setShowQr(false)}
           qrCode={currentGroup.qrCode}
-        />
-      )}
-
-      {isInviteSheetOpen && (
-        <InviteSheet
-          isOpen
-          onClose={() => useGroupInviteStore.setState({ isInviteSheetOpen: false })}
         />
       )}
 
