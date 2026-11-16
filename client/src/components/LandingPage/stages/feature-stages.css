@@ -1,0 +1,248 @@
+/* Bento stages. Each sits on its tile's own ground (the tile is the stage), pinned to the
+   tile's gutter and run off the bottom, so the tile edge does the cropping. */
+.fs-queue .ss-stage,
+.fs-roles .ss-stage,
+.fs-join .ss-stage {
+  --gutter: 32px;
+  overflow: hidden;
+}
+
+.fs-panel {
+  position: absolute;
+  top: 0;
+  right: var(--gutter);
+  left: var(--gutter);
+  height: 400px;
+  padding: 18px 20px;
+  border-radius: 20px 20px 0 0;
+  background: var(--ss-surface);
+  box-shadow: var(--ss-shadow-ground);
+}
+
+.fs-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.fs-panel-title {
+  color: var(--ss-text-strong);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.fs-autoplay {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fs-autoplay-label {
+  color: var(--ss-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fs-autoplay .ss-toggle[data-on] {
+  background: hsl(var(--primary));
+}
+
+.fs-autoplay .ss-toggle[data-on] .ss-toggle__knob {
+  background: hsl(var(--primary-foreground));
+}
+
+.fs-list {
+  position: relative;
+  margin: 0 -8px;
+}
+
+.fs-slot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 60px;
+  will-change: transform;
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fs-slot[data-lifted] {
+  z-index: 2;
+  transition: none;
+}
+
+.fs-row {
+  will-change: transform;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 56px;
+  padding: 0 12px 0 8px;
+  border-radius: 14px;
+  background: var(--ss-surface);
+  transition:
+    box-shadow 0.25s ease,
+    scale 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fs-slot[data-lifted] .fs-row {
+  scale: 1.02;
+  background: var(--ss-raised);
+  box-shadow: var(--ss-shadow-lift);
+}
+
+.fs-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.fs-row-title {
+  color: var(--ss-text-strong);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.fs-row-sub {
+  color: var(--ss-text);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.fs-grip {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 24px;
+  color: var(--ss-icon);
+}
+
+/* Roles */
+.fs-people {
+  top: var(--gutter);
+  height: 360px;
+  padding: 10px;
+  border-radius: 20px 20px 0 0;
+}
+
+.fs-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 10px;
+  border-radius: 14px;
+}
+
+.fs-person[data-open] {
+  background: var(--ss-ink-1);
+}
+
+.fs-person .fs-row-text {
+  gap: 4px;
+}
+
+.fs-more {
+  --sv-round: 32px;
+  color: var(--ss-icon);
+}
+
+.fs-more[data-hover] {
+  background: var(--ss-ink-3);
+}
+
+.fs-menu {
+  position: absolute;
+  top: 116px;
+  right: 18px;
+  width: 210px;
+  padding: 6px;
+  --ss-popover-bg: var(--ss-raised);
+  --ss-popover-shadow: var(--ss-shadow-float);
+  border-radius: 14px;
+}
+
+.fs-menu .ss-menu {
+  --ss-row: 36px;
+}
+
+.fs-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ss-text-strong);
+  font-size: 13px;
+}
+
+.fs-menu-item svg {
+  flex: none;
+  color: var(--ss-icon);
+}
+
+.fs-menu-item[data-danger],
+.fs-menu-item[data-danger] svg {
+  color: hsl(var(--destructive));
+}
+
+/* Join: one ticket-like card, the QR is the object */
+.fs-ticket {
+  position: absolute;
+  top: var(--gutter);
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 236px;
+  height: 330px;
+  padding: 20px 20px 0;
+  border-radius: 22px 22px 0 0;
+  translate: -50% 0;
+  background: var(--ss-surface);
+  box-shadow: var(--ss-shadow-ground);
+}
+
+.fs-ticket-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.fs-ticket-room {
+  color: var(--ss-text-strong);
+  font-size: 19px;
+  line-height: 1.3;
+}
+
+.fs-qr {
+  display: block;
+  width: 136px;
+  height: 136px;
+  margin: 16px 0;
+  padding: 10px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--ss-line);
+}
+
+.fs-qr img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.fs-copy {
+  flex: none;
+}
+
+/* Narrow tiles */
+.fs-queue .ss-stage[data-layout='compact'],
+.fs-roles .ss-stage[data-layout='compact'],
+.fs-join .ss-stage[data-layout='compact'] {
+  --gutter: 20px;
+}

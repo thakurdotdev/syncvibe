@@ -1,0 +1,522 @@
+/* The hero stage: a device pair on the page's own ground (no plate). The browser is pinned
+   top-left and runs off the bottom; the phone straddles its right edge over the chat column. */
+.hs-stage .ss-stage {
+  --gutter: 24px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.hs-window {
+  position: absolute;
+  top: var(--gutter);
+  left: 0;
+  width: 1060px;
+  height: 640px;
+  box-shadow: var(--ss-shadow-hero);
+}
+
+.hs-window .ss-window__body {
+  background: hsl(var(--canvas));
+}
+
+.hs-app {
+  display: flex;
+  height: 100%;
+}
+
+.hs-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+  width: 172px;
+  padding: 16px 12px;
+}
+
+.hs-brand {
+  margin: 0 0 14px 8px;
+  color: var(--ss-text-strong);
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.hs-search,
+.hs-nav,
+.hs-playlist {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 10px;
+  color: var(--ss-icon);
+}
+
+.hs-nav[data-active] {
+  background: var(--ss-surface);
+  box-shadow: 0 0 0 1px var(--ss-line);
+  color: var(--ss-text-strong);
+}
+
+.hs-nav-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hs-side-rule {
+  height: 1px;
+  margin: 12px 8px;
+  background: var(--ss-line);
+}
+
+.hs-playlist {
+  height: 40px;
+}
+
+.hs-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  margin: 8px 0 8px 0;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: var(--ss-surface);
+  box-shadow: 0 0 0 1px var(--ss-line);
+}
+
+.hs-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hs-room {
+  color: var(--ss-text-strong);
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.hs-pile {
+  margin-left: auto;
+}
+
+.hs-player {
+  display: flex;
+  gap: 20px;
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--ss-canvas);
+}
+
+.hs-cover-wrap {
+  position: relative;
+  flex: none;
+}
+
+.hs-meta {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.hs-title {
+  display: block;
+  color: var(--ss-text-strong);
+  font-size: 26px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.hs-artist {
+  display: block;
+  margin: 4px 0 14px;
+  color: var(--ss-text);
+  font-size: 13px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.hs-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.sv-transport {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hs-reactions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.hs-react {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  font-size: 16px;
+  transition: background 0.15s ease;
+}
+
+.hs-react[data-hover] {
+  background: var(--ss-ink-2);
+}
+
+.hs-react,
+.hs-ph-react {
+  will-change: transform;
+  transition:
+    background 0.15s ease,
+    scale 0.15s ease;
+}
+
+.hs-react[data-pressed] {
+  scale: 0.94;
+}
+
+.hs-queue {
+  margin-top: 18px;
+}
+
+.hs-queue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 6px;
+}
+
+.hs-label {
+  color: var(--ss-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hs-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 4px;
+}
+
+.hs-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.hs-grip {
+  flex: none;
+  color: var(--ss-icon-faint);
+}
+
+.hs-row-title {
+  color: var(--ss-text-strong);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.hs-chat {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 200px;
+  margin: 8px 8px 8px 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--ss-surface);
+  box-shadow: 0 0 0 1px var(--ss-line);
+}
+
+.hs-chat-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.hs-bubble {
+  align-self: flex-start;
+  padding: 10px 12px;
+  border-radius: 14px 14px 14px 4px;
+  background: var(--ss-ink-2);
+}
+
+.hs-bubble--me {
+  align-self: flex-end;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--ss-ink-4);
+}
+
+.hs-rest {
+  position: absolute;
+  top: 506px;
+  left: 470px;
+  width: 1px;
+  height: 1px;
+}
+
+/* The phone: a satellite a level above the window, over its chat column. */
+.hs-phone {
+  position: absolute;
+  top: 92px;
+  right: 0;
+  border-radius: 44px;
+  box-shadow: var(--ss-shadow-satellite);
+}
+
+/* Phone screen, in screen points */
+.hs-ph {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0 18px;
+  background: hsl(var(--background));
+  color: var(--ss-text-strong);
+}
+
+.hs-ph-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-top: 8px;
+}
+
+.hs-ph-room {
+  display: block;
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.hs-ph-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  color: var(--ss-text);
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.hs-ph-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ss-success);
+}
+
+.hs-ph-invite {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.hs-ph-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 28px;
+  background: var(--ss-surface);
+  box-shadow: 0 0 0 1px var(--ss-line);
+}
+
+.hs-ph-meta {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hs-ph-title {
+  display: block;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.hs-ph-artist {
+  display: block;
+  margin: 2px 0 10px;
+  color: var(--ss-text);
+  font-size: 14px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.hs-ph .sv-times {
+  font-size: 13px;
+}
+
+.hs-ph .sv-transport {
+  margin-top: 4px;
+}
+
+.hs-ph-reactions {
+  display: flex;
+  flex-basis: 100%;
+  gap: 6px;
+}
+
+.hs-ph-react {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  height: 40px;
+  border-radius: 14px;
+  background: var(--ss-ink-2);
+  font-size: 19px;
+}
+
+.hs-ph-react[data-pressed] {
+  scale: 0.94;
+}
+
+.hs-ph-tabs {
+  display: flex;
+  margin-top: 16px;
+  padding: 4px;
+  border-radius: 16px;
+  background: var(--ss-ink-2);
+  color: var(--ss-text);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.hs-ph-tabs > span {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.hs-ph-tabs > span[data-active] {
+  background: var(--ss-surface);
+  color: var(--ss-text-strong);
+  font-weight: 600;
+  box-shadow: 0 1px 2px hsl(var(--scrim) / 0.12);
+}
+
+.hs-ph-feed {
+  display: flex;
+  flex-direction: column;
+  margin-top: 14px;
+}
+
+.hs-ph-msg {
+  display: flex;
+  flex: none;
+  margin-bottom: 6px;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.hs-ph-bubble {
+  padding: 10px 14px;
+  border-radius: 20px 20px 20px 6px;
+  background: var(--ss-ink-2);
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.hs-ph-name {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ss-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hs-ph-activity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  color: var(--ss-text);
+  font-size: 13px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.hs-ph-rule {
+  flex: 1;
+  height: 1px;
+  background: var(--ss-line);
+}
+
+/* Compact: the phone is the hero; the laptop is a small card over the phone's chat. */
+.hs-stage--compact .ss-stage {
+  --gutter: 16px;
+}
+
+.hs-phone--compact {
+  top: var(--gutter);
+  right: auto;
+  left: var(--gutter);
+}
+
+.hs-mini {
+  position: absolute;
+  z-index: 3;
+  right: var(--gutter);
+  bottom: var(--gutter);
+  left: 56px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--ss-raised);
+  box-shadow: var(--ss-shadow-satellite);
+}
+
+.hs-mini-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ss-text);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.hs-mini-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hs-mini-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.hs-mini-title {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--ss-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.hs-mini .sv-times {
+  margin-top: 4px;
+}

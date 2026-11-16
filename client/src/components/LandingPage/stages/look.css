@@ -1,0 +1,164 @@
+/*
+ * SyncVibe's look for stageshow stages (components/stageshow). The kit's tokens point at the
+ * site's own, so every stage follows the theme toggle. Album art is the only colour.
+ * Unlayered on purpose: the kit lives in @layer stageshow, so these win without !important.
+ */
+.sv-look .ss-stage {
+  --ss-font: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --ss-display: 'Bricolage Grotesque', 'Geist', ui-sans-serif, sans-serif;
+
+  --ss-canvas: hsl(var(--canvas));
+  --ss-surface: hsl(var(--card));
+  --ss-chrome: hsl(var(--card));
+  --ss-raised: hsl(var(--card));
+  --ss-well: hsl(var(--background));
+
+  --ss-ink-1: hsl(var(--foreground) / 0.04);
+  --ss-ink-2: hsl(var(--foreground) / 0.065);
+  --ss-ink-3: hsl(var(--foreground) / 0.09);
+  --ss-ink-4: hsl(var(--foreground) / 0.12);
+  --ss-ink-5: hsl(var(--foreground) / 0.18);
+  --ss-fill: hsl(var(--muted));
+
+  --ss-line: hsl(var(--foreground) / 0.08);
+  --ss-line-faint: hsl(var(--foreground) / 0.05);
+  --ss-text-strong: hsl(var(--foreground));
+  --ss-text: hsl(var(--muted-foreground));
+  --ss-text-faint: color-mix(in srgb, hsl(var(--muted-foreground)) 70%, hsl(var(--card)));
+  --ss-icon: hsl(var(--muted-foreground));
+  --ss-icon-faint: color-mix(in srgb, hsl(var(--muted-foreground)) 45%, hsl(var(--card)));
+
+  /* Mono: the accent is the ink. Status green is kept for "live" only. */
+  --ss-accent: hsl(var(--primary));
+  --ss-accent-soft: hsl(var(--foreground) / 0.08);
+  --ss-accent-text: hsl(var(--foreground));
+  --ss-success: hsl(var(--success));
+  --ss-success-soft: hsl(var(--success) / 0.14);
+  --ss-success-text: hsl(var(--success));
+
+  --ss-radius-sm: 8px;
+  --ss-radius-md: 10px;
+  --ss-radius-lg: 14px;
+  --ss-radius-window: 16px;
+
+  color: hsl(var(--foreground));
+}
+
+.sv-look .ss-stage[data-theme='dark'] {
+  --ss-raised: hsl(var(--raised));
+  --ss-shadow-hero:
+    0 0 0 1px hsl(var(--foreground) / 0.1), 0 30px 60px -16px hsl(var(--scrim) / 0.7);
+  --ss-shadow-satellite:
+    0 0 0 1px hsl(var(--foreground) / 0.12), 0 24px 48px -12px hsl(var(--scrim) / 0.8);
+  --ss-shadow-ground:
+    0 0 0 1px hsl(var(--foreground) / 0.1), 0 24px 48px -24px hsl(var(--scrim) / 0.8);
+  --ss-shadow-float: 0 0 0 1px hsl(var(--foreground) / 0.12), 0 12px 32px hsl(var(--scrim) / 0.6);
+}
+
+/* Round transport buttons, the way the room's player draws them. */
+.sv-look .sv-round.ss-button {
+  width: var(--sv-round, 32px);
+  height: var(--sv-round, 32px);
+  padding: 0;
+  border-radius: 999px;
+  justify-content: center;
+}
+
+.sv-look .sv-round.ss-button[data-variant='primary'] {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.sv-look .sv-display {
+  font-family: var(--ss-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variation-settings: 'wdth' 100;
+}
+
+/* Album art: a hairline so pale covers never look see-through. */
+.sv-look .sv-cover {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  flex: none;
+  background: hsl(var(--muted));
+  box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.06);
+}
+
+.sv-look .sv-cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.45s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.sv-look .sv-cover img[data-on] {
+  opacity: 1;
+}
+
+/* The shared playhead: one element painted up to --sv-p, so nothing inside it reflows. */
+.sv-look .sv-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    hsl(var(--foreground)) var(--sv-p, 0%),
+    hsl(var(--foreground) / 0.14) var(--sv-p, 0%)
+  );
+}
+
+.sv-look .sv-times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  color: var(--ss-text);
+  font-size: 11px;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A reaction rising from what was reacted to, on every screen in the room. */
+.sv-look .sv-burst {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  font-size: 30px;
+  line-height: 1;
+  opacity: 0;
+  animation: sv-burst 1.6s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+.sv-look .sv-burst:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.sv-look .sv-burst:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+@keyframes sv-burst {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.6);
+  }
+  18% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-84px) scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-look .sv-burst {
+    display: none;
+  }
+}

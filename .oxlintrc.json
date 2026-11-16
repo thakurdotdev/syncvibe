@@ -3,5 +3,6 @@
   "plugins": ["react", "typescript", "unicorn", "import", "jsx-a11y"],
   "categories": {
     "correctness": "warn"
-  }
+  },
+  "ignorePatterns": ["client/src/components/stageshow/**"]
 }
