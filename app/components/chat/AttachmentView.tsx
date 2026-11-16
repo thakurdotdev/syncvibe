@@ -3,13 +3,19 @@ import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import { fileIcon, formatBytes, formatDuration, typeLabel } from '@/lib/attachments';
 import { refreshAttachment } from '@/lib/chat';
-import { downloadToCache, openFile } from '@/lib/chatFiles';
+import {
+  autoSaveToGallery,
+  downloadToCache,
+  isDownloaded,
+  onDownloaded,
+  openFile,
+} from '@/lib/chatFiles';
 import { BUTTON_PRESS_SCALE, ROW_PRESS_SCALE } from '@/lib/motion';
 import { useChatStore, type ChatMessage } from '@/stores/chatStore';
 import { getOptimizedImageUrl } from '@/utils/Cloudinary';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAudioPlayer, useAudioPlayerStatus, type AudioPlayer } from 'expo-audio';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Image, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -87,14 +93,19 @@ const useUpload = (message: ChatMessage) => useChatStore((s) => s.uploads[messag
 /** A photo or a video, as a picture in the conversation. Tapping opens the viewer. */
 const MediaTile = ({
   message,
+  isOwn,
   sending,
   corners,
   onOpenMedia,
   onLongPress,
   onCancel,
-}: Omit<AttachmentViewProps, 'isOwn'>) => {
+}: AttachmentViewProps) => {
   const { colors } = useTheme();
   const progress = useUpload(message);
+  // Chat profile → Save to gallery: what they send you also lands in the phone's gallery.
+  useEffect(() => {
+    if (!isOwn) autoSaveToGallery(message);
+  }, [isOwn, message]);
   const attachment = message.attachment!;
   const video = attachment.kind === 'video';
   const legacy = !attachment.id;
@@ -374,6 +385,8 @@ const FileCard = ({ message, isOwn, sending, onLongPress, onCancel }: Attachment
   const name = attachment.name || 'File';
   const pending = message.id == null;
   const [download, setDownload] = useState<number | null>(null);
+  // Once it's on the phone the card stops offering to download it; it just opens.
+  const downloaded = useSyncExternalStore(onDownloaded, () => isDownloaded(attachment));
   const tint = isOwn ? colors.primaryForeground : colors.foreground;
 
   const open = async () => {
@@ -409,7 +422,7 @@ const FileCard = ({ message, isOwn, sending, onLongPress, onCancel }: Attachment
       delayLongPress={LONG_PRESS_MS}
       scaleTo={ROW_PRESS_SCALE}
       accessibilityRole='button'
-      accessibilityLabel={`${name}, ${typeLabel(name)}, ${formatBytes(attachment.size)}. Tap to open, hold for options`}
+      accessibilityLabel={`${name}, ${typeLabel(name)}, ${formatBytes(attachment.size)}. ${downloaded ? 'Downloaded. ' : ''}Tap to open, hold for options`}
       style={styles.file}
     >
       <View style={[styles.fileIcon, { backgroundColor: fade(tint, 0.12) }]}>
@@ -438,7 +451,7 @@ const FileCard = ({ message, isOwn, sending, onLongPress, onCancel }: Attachment
             {sending ? <Ionicons name='close' size={15} color={tint} /> : null}
           </ProgressRing>
         </PressableScale>
-      ) : pending ? null : (
+      ) : pending || downloaded ? null : (
         <View style={[styles.fileAction, { borderColor: fade(tint, 0.25) }]}>
           <Ionicons name='arrow-down' size={16} color={tint} />
         </View>
