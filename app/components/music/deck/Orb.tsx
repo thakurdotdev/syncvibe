@@ -133,6 +133,19 @@ const ORB_FLICK_DISTANCE = 10;
 const ORB_FLICK_VELOCITY = 450;
 /** Moving back this fast at release means you changed your mind. */
 const ORB_REVERSE_VELOCITY = 300;
+/** A swipe up opens the full player: a short drag, or a shorter flick. */
+const ORB_OPEN_DISTANCE = 28;
+const ORB_OPEN_FLICK_DISTANCE = 12;
+const ORB_OPEN_FLICK_VELOCITY = 500;
+/** How far the orb follows your finger up before it opens, as a hint of where it's going. */
+const ORB_LIFT_MAX = 14;
+const isOrbOpen = (dy: number, vy: number) => {
+  'worklet';
+  if (vy > ORB_REVERSE_VELOCITY) return false;
+  return (
+    dy <= -ORB_OPEN_DISTANCE || (dy <= -ORB_OPEN_FLICK_DISTANCE && vy <= -ORB_OPEN_FLICK_VELOCITY)
+  );
+};
 const isOrbSkip = (dx: number, vx: number) => {
   'worklet';
   const speedOut = dx < 0 ? -vx : vx;
@@ -205,6 +218,8 @@ type OrbProps = {
   direction: 'next' | 'prev';
   expanded: boolean;
   onTap: () => void;
+  /** Swipe up: the full player (or the room, or Search). */
+  onOpen: () => void;
   onHold: () => void;
   onSkip: (dir: 'next' | 'prev') => void;
   glowPlay: number;
@@ -215,13 +230,15 @@ type OrbProps = {
   playing: boolean;
   /** The app just opened: the ring draws round once the deck has risen into place. */
   entering?: boolean;
+  /** False while the app is in the background: a new song just appears, without its entrance. */
+  animate?: boolean;
 };
 
 /**
  * The round button left of the tabs: what's playing (your song or the room's), or Search when
- * nothing is. Tap opens the full player (or the room), or shrinks the capsule when it's out. Hold
- * shows the capsule. Swipe sideways to skip: the artwork follows your finger, and the next one
- * slides in from the side you swiped.
+ * nothing is. With your song, tap plays or pauses and a swipe up opens the full player; the room's
+ * orb and Search open on either. Hold shows the capsule. Swipe sideways to skip: the artwork
+ * follows your finger, and the next one slides in from the side you swiped.
  */
 export const Orb = memo(function Orb({
   kind,
@@ -230,6 +247,7 @@ export const Orb = memo(function Orb({
   direction,
   expanded,
   onTap,
+  onOpen,
   onHold,
   onSkip,
   glowPlay,
@@ -238,6 +256,7 @@ export const Orb = memo(function Orb({
   badge,
   playing,
   entering = false,
+  animate = true,
 }: OrbProps) {
   const roomPlaying = useGroupPlaybackStore((s) => s.isPlaying);
   const isPlaying = kind === 'room' ? roomPlaying : kind === 'song' && playing;
@@ -245,10 +264,14 @@ export const Orb = memo(function Orb({
   // How the next cover comes in, worked out while rendering so it's right on its first frame:
   // the orb holding something new opens from the centre, a new song turns in the way it was sent.
   const [seen, setSeen] = useState({ kind, songId });
-  const [enter, setEnter] = useState<'open' | 'next' | 'prev'>(direction);
+  const [enter, setEnter] = useState<'open' | 'next' | 'prev' | 'none'>(direction);
   const [kindChanged, setKindChanged] = useState(false);
   if (seen.kind !== kind || seen.songId !== songId) {
-    if (seen.kind !== kind) {
+    if (!animate) {
+      // In the background nobody sees it; animating then only plays it late, on return.
+      setEnter('none');
+      setKindChanged(false);
+    } else if (seen.kind !== kind) {
       setEnter('open');
       setKindChanged(true);
     } else setEnter(direction);
@@ -259,6 +282,10 @@ export const Orb = memo(function Orb({
   const x = useSharedValue(0);
   const skipped = useSharedValue(false);
   const startX = useSharedValue(0);
+  const startY = useSharedValue(0);
+  const lift = useSharedValue(0);
+  /** Which way this drag goes, fixed by its first clear movement: 0 not yet, 1 sideways, 2 up. */
+  const axis = useSharedValue(0);
 
   // Its own value, so a landing never fights the press scale.
   const landScale = useSharedValue(1);
@@ -283,9 +310,9 @@ export const Orb = memo(function Orb({
   const dippedFor = useRef(songId);
   useEffect(() => {
     if (kind !== 'song' || songId === dippedFor.current) return;
-    if (dippedFor.current !== undefined && !expanded) dip(0);
+    if (dippedFor.current !== undefined && !expanded && animate) dip(0);
     dippedFor.current = songId;
-  }, [expanded, kind, dip, songId]);
+  }, [expanded, kind, dip, songId, animate]);
 
   // Joining a room: one ripple of the live colour.
   const ripple = useSharedValue(1);
@@ -315,24 +342,37 @@ export const Orb = memo(function Orb({
   }, [kind, expanded, canCharge]);
 
   // Built only when what it calls changes, not on every render of the deck.
-  const canSwipe = kind === 'song';
+  const canSkip = kind === 'song';
   const gesture = useMemo(() => {
-    const pan = Gesture.Pan()
-      .enabled(canSwipe)
+    const base = Gesture.Pan()
       // The first few points of the screen edge belong to Android's back gesture.
       .hitSlop({ left: -(EDGE_GUARD - DECK_SIDE) })
-      .activeOffsetX([-8, 8])
-      .failOffsetY([-14, 14])
+      // Up opens; dragging down is left alone.
+      .activeOffsetY(-8)
+      .failOffsetY(14);
+    // Sideways skips, for your song only.
+    const pan = (canSkip ? base.activeOffsetX([-8, 8]) : base.failOffsetX([-14, 14]))
       .onBegin((e) => {
         skipped.set(false);
+        axis.set(0);
         startX.set(e.absoluteX);
+        startY.set(e.absoluteY);
       })
       .onUpdate((e) => {
-        x.set((e.absoluteX - startX.get()) * 0.5);
+        const dx = e.absoluteX - startX.get();
+        const dy = e.absoluteY - startY.get();
+        if (axis.get() === 0) axis.set(canSkip && Math.abs(dx) > Math.abs(dy) ? 1 : 2);
+        if (axis.get() === 1) x.set(dx * 0.5);
+        else lift.set(Math.max(-ORB_LIFT_MAX, Math.min(0, dy * 0.4)));
       })
       .onEnd((e, success) => {
+        if (!success) return;
+        if (axis.get() === 2) {
+          if (isOrbOpen(e.absoluteY - startY.get(), e.velocityY)) scheduleOnRN(onOpen);
+          return;
+        }
         const dx = e.absoluteX - startX.get();
-        if (!success || !isOrbSkip(dx, e.velocityX)) return;
+        if (!isOrbSkip(dx, e.velocityX)) return;
         const forward = dx < 0;
         skipped.set(true);
         x.set(
@@ -345,6 +385,7 @@ export const Orb = memo(function Orb({
       })
       .onFinalize(() => {
         if (!skipped.get()) x.set(withSpring(0, SPRING_PRESS));
+        lift.set(withSpring(0, SPRING_PRESS));
       });
     const hold = Gesture.LongPress()
       .minDuration(ORB_HOLD_MS)
@@ -373,10 +414,26 @@ export const Orb = memo(function Orb({
         scale.set(withTiming(1, PRESS_OUT));
       });
     return Gesture.Race(pan, hold, tap);
-  }, [canSwipe, canCharge, charge, chargeShown, onHold, onSkip, onTap, scale, skipped, startX, x]);
+  }, [
+    canSkip,
+    canCharge,
+    charge,
+    chargeShown,
+    onHold,
+    onOpen,
+    onSkip,
+    onTap,
+    scale,
+    skipped,
+    startX,
+    startY,
+    lift,
+    axis,
+    x,
+  ]);
 
   const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.get() * landScale.get() }],
+    transform: [{ translateY: lift.get() }, { scale: scale.get() * landScale.get() }],
   }));
 
   // The record: turns while the music plays and the orb is in view, coasts to a stop on pause.
@@ -428,13 +485,7 @@ export const Orb = memo(function Orb({
   }));
 
   const label =
-    kind === 'idle'
-      ? 'Search'
-      : expanded
-        ? 'Hide song'
-        : kind === 'room'
-          ? 'Back to room'
-          : 'Open player';
+    kind === 'idle' ? 'Search' : kind === 'room' ? 'Back to room' : isPlaying ? 'Pause' : 'Play';
 
   // The room wears its own badge, the Rooms icon in the theme's live colour. The icon is what
   // says "a room": in Mono the live colour is the same as the accent, so colour alone can't.
@@ -457,11 +508,16 @@ export const Orb = memo(function Orb({
           accessible
           accessibilityRole='button'
           accessibilityLabel={label}
-          accessibilityHint={kind === 'song' ? 'Swipe left or right to change song' : undefined}
+          accessibilityHint={
+            kind === 'song'
+              ? 'Swipe up to open the player, left or right to change song'
+              : undefined
+          }
           accessibilityActions={
             kind === 'song'
               ? [
                   { name: 'activate' },
+                  { name: 'open', label: 'Open player' },
                   { name: 'longpress', label: 'Show song and controls' },
                   { name: 'next', label: 'Next song' },
                   { name: 'previous', label: 'Previous song' },
@@ -471,6 +527,7 @@ export const Orb = memo(function Orb({
           onAccessibilityAction={(e) => {
             const a = e.nativeEvent.actionName;
             if (a === 'activate') onTap();
+            else if (a === 'open') onOpen();
             else if (a === 'longpress') onHold();
             else if (a === 'next') onSkip('next');
             else if (a === 'previous') onSkip('prev');
@@ -526,7 +583,13 @@ export const Orb = memo(function Orb({
                 <Animated.View style={[styles.orbArtBox, pausedStyle]}>
                   <Animated.View
                     key={`${kind}:${songId}`}
-                    entering={enter === 'open' ? ORB_OPEN : ORB_TURN_IN[enter]}
+                    entering={
+                      enter === 'none'
+                        ? undefined
+                        : enter === 'open'
+                          ? ORB_OPEN
+                          : ORB_TURN_IN[enter]
+                    }
                     style={styles.orbArt}
                   >
                     <Animated.View style={[styles.orbArt, artStyle]}>
