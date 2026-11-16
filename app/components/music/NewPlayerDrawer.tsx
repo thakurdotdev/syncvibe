@@ -2,6 +2,7 @@ import { usePlayerControls, usePlaybackState, usePlaylistState } from '@/stores/
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useDislikeSong } from '@/queries/useMusic';
+import { useIsLiked, useToggleLike } from '@/queries/usePersonal';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import { useUser } from '@/context/UserContext';
@@ -63,6 +64,8 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const { addToQueue: addToGroupQueue, playNext: playNextInGroup } = useGroupMusic();
   const { mutate: dislike } = useDislikeSong();
+  const liked = useIsLiked(song.id);
+  const toggleLike = useToggleLike();
   const { user } = useUser();
   // From the song that's on (the full player's options), outside a room.
   const canStartRoom = !currentGroup && currentSong?.id === song.id;
@@ -171,6 +174,24 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
                 onPress={() => {
                   close();
                   startRoomFromMusic(user?.name);
+                }}
+              />
+            )}
+
+            {user?.userid && (
+              <OptionRow
+                icon={
+                  <Ionicons
+                    name={liked ? 'heart' : 'heart-outline'}
+                    size={22}
+                    color={colors.foreground}
+                  />
+                }
+                label={liked ? 'Remove from Liked Songs' : 'Like'}
+                color={colors.foreground}
+                onPress={() => {
+                  toggleLike(song, !liked);
+                  close();
                 }}
               />
             )}

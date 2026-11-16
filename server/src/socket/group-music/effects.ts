@@ -9,6 +9,8 @@ export const effects = {
     baseSongId: string;
     limit: number;
     excludeSongIds: string[];
+    /** Who is in the room, so autoplay suits all of them. */
+    listenerIds: number[];
   }): Promise<Array<Record<string, unknown>>> => [],
   recordPlayed: async (_group: MusicGroup, _item: QueueItem): Promise<void> => {},
 };

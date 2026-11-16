@@ -10,6 +10,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { Button } from '@/components/ui/button';
 import { LANGUAGES, LANGUAGE_STORAGE_KEY } from '@/lib/languages';
+import { useSaveTaste } from '@/queries/usePersonal';
 
 const { width } = Dimensions.get('window');
 const CHIP_WIDTH = (width - 40 - 16) / 3;
@@ -63,7 +64,8 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
 };
 
 export default function LanguagePreferenceScreen() {
-  const { selectedLanguages, setSelectedLanguages } = useUser();
+  const { selectedLanguages, setSelectedLanguages, user } = useUser();
+  const { mutate: saveTaste } = useSaveTaste();
   const { colors } = useTheme();
   const { toast } = useToast();
   const insets = useSafeAreaInsets();
@@ -91,6 +93,8 @@ export default function LanguagePreferenceScreen() {
       const langString = Array.from(selectedLangs).join(',');
       await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, langString);
       setSelectedLanguages(langString);
+      // Saved with the account too, so recommendations and the web use them.
+      if (user?.userid) saveTaste({ languages: Array.from(selectedLangs) });
       toast('Preferences updated successfully!', { type: 'success' });
       router.back();
     } catch (error) {

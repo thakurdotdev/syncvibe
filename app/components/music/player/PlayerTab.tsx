@@ -18,6 +18,7 @@ import Animated, {
   ReduceMotion,
 } from 'react-native-reanimated';
 import { ArtworkCarousel } from './ArtworkCarousel';
+import { LikeButton } from '../LikeButton';
 import { PlayingOnRow } from './DeviceSheet';
 import { Scrubber, secondary, Transport } from './PlayerControls';
 
@@ -109,18 +110,22 @@ export const PlayerTab = memo(function PlayerTab({
       </Animated.View>
 
       <View style={styles.panel}>
-        <Animated.View
-          key={currentSong.id}
-          entering={textMotion.entering}
-          exiting={textMotion.exiting}
-        >
-          <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
-            {currentSong.name}
-          </Text>
-          <Text style={[styles.artist, { color: quiet }]} numberOfLines={1}>
-            {artistName}
-          </Text>
-        </Animated.View>
+        <View style={styles.titleRow}>
+          <Animated.View
+            key={currentSong.id}
+            entering={textMotion.entering}
+            exiting={textMotion.exiting}
+            style={styles.titleText}
+          >
+            <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
+              {currentSong.name}
+            </Text>
+            <Text style={[styles.artist, { color: quiet }]} numberOfLines={1}>
+              {artistName}
+            </Text>
+          </Animated.View>
+          <LikeButton song={currentSong} />
+        </View>
 
         <Scrubber active={isOpen} fallbackDuration={Number(currentSong.duration) || 0} />
         <Transport />
@@ -175,6 +180,8 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   artArea: { flex: 1, justifyContent: 'center' },
   panel: { paddingHorizontal: 24, gap: 14 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  titleText: { flex: 1, minWidth: 0 },
   title: { fontFamily: fonts.display, fontSize: 25, lineHeight: 31, letterSpacing: -0.6 },
   artist: { fontSize: 15, fontWeight: '500', marginTop: 2 },
   upNext: {

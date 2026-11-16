@@ -31,6 +31,8 @@ const LanguagePreference = lazy(() => import('./Pages/Music/LanguagePrefrance'))
 const Playlist = lazy(() => import('./Pages/Music/Playlist'));
 const UserPlaylistDetails = lazy(() => import('./Pages/Music/UserPlaylistDetails'));
 const LibraryPage = lazy(() => import('./Pages/Library'));
+const RecapPage = lazy(() => import('./Pages/Music/Recap'));
+const BlendPage = lazy(() => import('./Pages/Music/Blend'));
 const PlansPage = lazy(() => import('./Pages/Plans'));
 const PaymentHistoryPage = lazy(() => import('./Pages/PaymentHistory'));
 const PublishUpdate = lazy(() => import('./Pages/Admin/PublishUpdate'));
@@ -59,6 +61,9 @@ export const privateRoutes = [
   { path: paths.messages, element: <Chat /> },
   { path: paths.library, element: <LibraryPage tab='playlists' /> },
   { path: paths.history, element: <LibraryPage tab='history' /> },
+  { path: paths.liked, element: <LibraryPage tab='liked' /> },
+  { path: paths.recap, element: <RecapPage /> },
+  { path: '/blend/:userId', element: <BlendPage /> },
   { path: '/library/playlist/:id', element: <UserPlaylistDetails /> },
   { path: '/playlist/:id', element: <Playlist /> },
   { path: '/album/:id', element: <Album /> },

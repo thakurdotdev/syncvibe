@@ -15,6 +15,28 @@ let sessionId = null;
 let lastActivityAt = 0;
 let isFlushing = false;
 const recommendations = new Map();
+/** A quick skip: moved on before this much of the song played. */
+const QUICK_SKIP_MS = 30_000;
+const MAX_SIGNALS = 30;
+/** What this listening session told us, newest first, so autoplay can follow it. */
+let signals = { sessionId: null, skipped: [], finished: [] };
+
+const noteSignal = (play, endReason) => {
+  if (signals.sessionId !== play.sessionId) {
+    signals = { sessionId: play.sessionId, skipped: [], finished: [] };
+  }
+  const keep = (list) =>
+    [play.songId, ...list.filter((id) => id !== play.songId)].slice(0, MAX_SIGNALS);
+  if (endReason === 'completed') signals.finished = keep(signals.finished);
+  else if (endReason === 'next' && play.playedMs < QUICK_SKIP_MS)
+    signals.skipped = keep(signals.skipped);
+};
+
+/** Songs skipped quickly and songs played to the end in this session. */
+export const sessionSignals = () =>
+  signals.sessionId === sessionId && Date.now() - lastActivityAt <= NEW_SESSION_AFTER_MS
+    ? { skipped: signals.skipped, finished: signals.finished }
+    : { skipped: [], finished: [] };
 
 const currentSessionId = () => {
   const now = Date.now();
@@ -79,6 +101,7 @@ const inferEndReason = (play) => {
 };
 
 const save = (play, endReason) => {
+  noteSignal(play, endReason);
   const { lastPositionSeconds: _position, ...event } = play;
   writeQueue([...readQueue(), { ...event, endReason }].slice(-MAX_QUEUED_EVENTS));
 };
@@ -173,3 +196,6 @@ export const recordPageClosing = () => {
   // A batch that also goes out with the next visit's flush is ignored by its event IDs.
   send(batch, true).catch(() => {});
 };
+
+/** Whether autoplay put this song in the queue, so steering can swap it for another. */
+export const isRecommended = (songId) => recommendations.has(songId);

@@ -1,8 +1,8 @@
 import { Song, GroupSessionHistory } from '@/models/index';
-import { getPlayNextSongs } from '@/features/music/services/play-next.service';
+import { getPlayNextForRoom } from '@/features/music/services/play-next.service';
 import { effects } from './effects';
 
-effects.recommend = (options) => getPlayNextSongs(options);
+effects.recommend = (options) => getPlayNextForRoom(options);
 
 effects.recordPlayed = async (group, queueItem) => {
   if (!queueItem?.song?.id) return;

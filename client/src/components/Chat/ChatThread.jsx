@@ -27,6 +27,7 @@ import {
 import { selectConversation, selectThread, useChatStore } from '@/stores/chatStore';
 import { startCall } from '@/lib/call';
 import { selectBusy, useCallStore } from '@/stores/callStore';
+import { paths } from '@/lib/paths';
 import ChatHeader from './ChatHeader';
 import FilePreview from './FilePreview';
 import MediaViewer from './MediaViewer';
@@ -316,6 +317,7 @@ const OpenThread = ({ conversation }) => {
           onBack={isMobile ? () => setActive(null) : null}
           onOpenProfile={() => navigate(`/u/${peer.username}`, { state: { user: peer } })}
           onCall={inCall ? null : () => startCall(conversation.peer)}
+          onBlend={() => navigate(paths.blend(peer.userid))}
         />
 
         <MessageList

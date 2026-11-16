@@ -700,6 +700,20 @@ const ChatWithUser = () => {
                 ) : null}
               </View>
               <View style={styles.bleed}>
+                {conversation?.peer.userid ? (
+                  <SettingsRow
+                    icon='shuffle'
+                    label='Make a Blend'
+                    detail='A mix of both your tastes'
+                    onPress={() => {
+                      closeSheet();
+                      router.push({
+                        pathname: '/blend',
+                        params: { userId: String(conversation.peer.userid) },
+                      });
+                    }}
+                  />
+                ) : null}
                 <SettingsRow
                   icon='image'
                   label='Save to gallery'

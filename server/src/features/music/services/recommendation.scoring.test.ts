@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  artistWeights,
   dropKnownTitles,
   engagement,
   fuseRelated,
@@ -186,5 +187,54 @@ describe('pickForDay', () => {
     );
     assert.equal(list.length, 6);
     assert.equal(new Set(list.map((item) => item.songId)).size, 6);
+  });
+});
+
+describe('likes', () => {
+  it('make a liked song count more than one played a few times', () => {
+    assert.ok(
+      engagement(listen({ liked: true, playedCount: 0 })) > engagement(listen({ playedCount: 6 }))
+    );
+  });
+
+  it('keep a liked song as a seed even when it was skipped', () => {
+    const seeds = pickSeeds([listen({ songId: 'liked', liked: true, skipCount: 3 })], NOW);
+    assert.deepEqual(
+      seeds.map((seed) => seed.songId),
+      ['liked']
+    );
+  });
+});
+
+describe('fuseRelated reasons', () => {
+  it('credits the seed that did most to bring a song in', () => {
+    const fused = fuseRelated(
+      [
+        { songId: 'strong', weight: 1 },
+        { songId: 'weak', weight: 0.2 },
+      ],
+      new Map([
+        ['strong', ['x', 'y', 'shared']],
+        ['weak', ['shared']],
+      ]),
+      new Set()
+    );
+    assert.equal(fused.find((item) => item.songId === 'shared')!.seedId, 'strong');
+  });
+});
+
+describe('artistWeights', () => {
+  it('gives the most played artist 1 and leaves out mostly skipped songs', () => {
+    const weights = artistWeights(
+      [
+        listen({ songId: 'a', artist: 'Arijit Singh', playedCount: 8 }),
+        listen({ songId: 'b', artist: 'KK', playedCount: 2 }),
+        listen({ songId: 'c', artist: 'Skipped', playedCount: 2, skipCount: 2 }),
+      ],
+      NOW
+    );
+    assert.equal(weights.get('arijit singh'), 1);
+    assert.ok((weights.get('kk') ?? 0) < 1);
+    assert.equal(weights.has('skipped'), false);
   });
 });

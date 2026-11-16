@@ -47,6 +47,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { Button } from '@/components/ui/button';
+import SteerBar from './SteerBar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -621,6 +622,7 @@ const QueueTab = memo(({ variant } = {}) => {
   return (
     <TooltipProvider delayDuration={300}>
       <div className='h-full'>
+        {currentSongId && <SteerBar />}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

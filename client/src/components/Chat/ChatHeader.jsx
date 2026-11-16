@@ -1,4 +1,4 @@
-import { ArrowLeft, Video } from 'lucide-react';
+import { ArrowLeft, Blend, Video } from 'lucide-react';
 import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import PresenceDot from '../ui/presence-dot';
@@ -7,7 +7,7 @@ import { Card } from '../ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
 /** `onCall` is null while a call is already going on. */
-const ChatHeader = ({ peer, online, typing, onBack, onOpenProfile, onCall }) => (
+const ChatHeader = ({ peer, online, typing, onBack, onOpenProfile, onCall, onBlend }) => (
   <Card className='sticky top-0 z-10 flex w-full flex-row items-center gap-3 rounded-none border-b p-3 shadow-xs'>
     {onBack && (
       <Button
@@ -46,7 +46,23 @@ const ChatHeader = ({ peer, online, typing, onBack, onOpenProfile, onCall }) => 
       </div>
     </button>
 
-    <div className='ml-auto flex items-center gap-2'>
+    <div className='ml-auto flex items-center gap-1'>
+      {onBlend && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant='ghost'
+              size='icon'
+              className='h-11 w-11 rounded-full'
+              aria-label={`Make a Blend with ${peer?.name}`}
+              onClick={onBlend}
+            >
+              <Blend size={20} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Make a Blend</TooltipContent>
+        </Tooltip>
+      )}
       <Tooltip>
         <TooltipTrigger asChild>
           <Button

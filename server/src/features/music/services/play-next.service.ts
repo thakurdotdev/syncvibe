@@ -3,6 +3,7 @@ import { Song, HistorySong } from '@/models/index';
 import { cache } from '@/utils/redis';
 import sequelize from '@/utils/sequelize';
 import {
+  cleanTitle,
   dedupKey,
   hasPlausibleLength,
   hasVariantTag,
@@ -14,8 +15,15 @@ import {
   type ScoredItem,
   type SongEntry,
 } from './play-next.scoring';
-import { personalizePlayNext, type PastListen } from './play-next.personal';
-import { getDislikes } from './dislike.service';
+import {
+  personalizePlayNext,
+  steerPlayNext,
+  type PastListen,
+  type Steer,
+} from './play-next.personal';
+import { loadProfile, loadSongFacts, type ListenerProfile } from './listener.service';
+import { moodStation, songMoods } from './mood.service';
+import { artistWeights, fuseRelated, pickSeeds } from './recommendation.scoring';
 
 const CACHE_TTL = 30 * 24 * 60 * 60;
 /** Playlists change, so combined results are recomputed sooner. */
@@ -48,6 +56,10 @@ const SONG_ATTRS = [
   'songData',
 ] as const;
 const MIN_SCORE_THRESHOLD = 25;
+/** A room's taste is read from at most this many people, so a full room stays quick. */
+const MAX_ROOM_LISTENERS = 8;
+/** How many places a song by an artist everyone in the room loves moves up. */
+const ROOM_FIT_POINTS = 8;
 
 interface SongRow {
   id: number;
@@ -373,53 +385,194 @@ interface PlayNextParams {
   userId?: number | null;
   limit?: number;
   excludeSongIds?: string[];
+  /** Songs skipped quickly this session, which steer away from their artists. */
+  skippedSongIds?: string[];
+  /** Songs played to the end this session. */
+  finishedSongIds?: string[];
+  steer?: Steer | null;
 }
 
-export const getPlayNextSongs = async ({
-  baseSongId,
-  userId = null,
-  limit = 20,
-  excludeSongIds = [],
-}: PlayNextParams): Promise<Array<Record<string, unknown>>> => {
-  const cachedIds = await getRelatedSongIds(baseSongId);
-  if (cachedIds.length === 0) return [];
+/** How many candidates steering may reorder before the list is cut to size. */
+const STEER_POOL = 60;
+/** "Something different" starts from this many other sides of the listener's taste. */
+const DIFFERENT_SEEDS = 3;
+const DIFFERENT_PER_SINGER = 2;
 
-  const excluded = new Set(excludeSongIds);
-  let resultIds = cachedIds.filter((id) => !excluded.has(id));
-
-  if (userId && resultIds.length > 0) {
-    const [candidates, dislikes] = await Promise.all([
-      Song.findAll({
-        where: { songId: { [Op.in]: resultIds } },
-        attributes: ['id', 'songId', 'name'],
-        raw: true,
-      }),
-      getDislikes(userId),
-    ]);
-    const nameById = new Map(candidates.map((song) => [song.songId, song.name || '']));
-    resultIds = personalizePlayNext({
-      candidates: resultIds.map((songId) => ({ songId, name: nameById.get(songId) ?? '' })),
-      history: await getPastListens(userId, candidates),
-      dislikedIds: dislikes.songIds,
-      blockedTitles: dislikes.titles,
-      now: new Date(),
-      limit,
-    });
-  }
-
-  const finalIds = resultIds.slice(0, limit);
-  if (finalIds.length === 0) return [];
-
+const songDataFor = async (ids: string[]): Promise<Array<Record<string, unknown>>> => {
+  if (ids.length === 0) return [];
   const songs = await Song.findAll({
-    where: { songId: { [Op.in]: finalIds } },
+    where: { songId: { [Op.in]: ids } },
     attributes: ['songId', 'songData'],
     raw: true,
   });
-
   const dataMap = new Map<string, Record<string, unknown>>();
   for (const s of songs) dataMap.set(s.songId, s.songData as Record<string, unknown>);
+  return ids.map((id) => dataMap.get(id)).filter((d): d is Record<string, unknown> => !!d);
+};
 
-  return finalIds.map((id) => dataMap.get(id)).filter((d): d is Record<string, unknown> => !!d);
+/** Reorders candidates by this session's skips and plays and what the listener asked for. */
+const steer = async (
+  baseSongId: string,
+  candidateIds: string[],
+  { skippedSongIds = [], finishedSongIds = [], steer: request = null }: PlayNextParams
+): Promise<string[]> => {
+  if (!request && skippedSongIds.length === 0 && finishedSongIds.length === 0) return candidateIds;
+  const [facts, moods] = await Promise.all([
+    loadSongFacts([baseSongId, ...candidateIds, ...skippedSongIds, ...finishedSongIds]),
+    request?.startsWith('mood:')
+      ? songMoods(candidateIds)
+      : Promise.resolve(new Map<string, string>()),
+  ]);
+  const singerOf = (id: string) => normalize(facts.get(id)?.artist);
+  const skippedArtists = new Map<string, number>();
+  for (const id of skippedSongIds) {
+    const singer = singerOf(id);
+    if (singer) skippedArtists.set(singer, (skippedArtists.get(singer) ?? 0) + 1);
+  }
+  const base = facts.get(baseSongId);
+  return steerPlayNext({
+    candidates: candidateIds.map((songId) => ({
+      songId,
+      singer: singerOf(songId),
+      album: normalize(facts.get(songId)?.album),
+      mood: moods.get(songId) ?? null,
+    })),
+    baseSingers: new Set(base ? [normalize(base.artist)] : []),
+    baseAlbum: normalize(base?.album),
+    skippedArtists,
+    finishedArtists: new Set(finishedSongIds.map(singerOf).filter(Boolean)),
+    steer: request,
+  });
+};
+
+/** Seeds from the parts of a listener's taste unlike this song, and songs related to them. */
+const anotherSide = async (baseSongId: string, profile: ListenerProfile): Promise<string[]> => {
+  const seeds = pickSeeds(profile.listens, new Date());
+  const ids = [baseSongId, ...seeds.map((seed) => seed.songId)];
+  const [facts, moods] = await Promise.all([loadSongFacts(ids), songMoods(ids)]);
+  const base = facts.get(baseSongId);
+  const kindOf = (id: string) => `${facts.get(id)?.language ?? ''}:${moods.get(id) ?? ''}`;
+  const away = seeds
+    .filter(
+      (seed) =>
+        kindOf(seed.songId) !== kindOf(baseSongId) &&
+        normalize(facts.get(seed.songId)?.artist) !== normalize(base?.artist)
+    )
+    .slice(0, DIFFERENT_SEEDS);
+  if (away.length === 0) return [];
+
+  const relatedBySeed = new Map<string, string[]>();
+  for (const seed of away) relatedBySeed.set(seed.songId, await getRelatedSongIds(seed.songId));
+  const fused = fuseRelated(away, relatedBySeed, profile.known).slice(0, STEER_POOL);
+  const fusedFacts = await loadSongFacts(fused.map((item) => item.songId));
+  const perSinger = new Map<string, number>();
+  return fused
+    .map((item) => item.songId)
+    .filter((id) => {
+      const singer = normalize(fusedFacts.get(id)?.artist);
+      const count = perSinger.get(singer) ?? 0;
+      perSinger.set(singer, count + 1);
+      return count < DIFFERENT_PER_SINGER;
+    });
+};
+
+export const getPlayNextSongs = async (
+  params: PlayNextParams
+): Promise<Array<Record<string, unknown>>> => {
+  const { baseSongId, userId = null, limit = 20, excludeSongIds = [], steer: request } = params;
+  const cachedIds = await getRelatedSongIds(baseSongId);
+
+  const excluded = new Set(excludeSongIds);
+  let resultIds = cachedIds.filter((id) => !excluded.has(id));
+  const profile = userId ? await loadProfile(userId) : null;
+
+  if (profile && resultIds.length > 0) {
+    const candidates = await Song.findAll({
+      where: { songId: { [Op.in]: resultIds } },
+      attributes: ['id', 'songId', 'name'],
+      raw: true,
+    });
+    const nameById = new Map(candidates.map((song) => [song.songId, song.name || '']));
+    resultIds = personalizePlayNext({
+      candidates: resultIds.map((songId) => ({ songId, name: nameById.get(songId) ?? '' })),
+      history: await getPastListens(profile.userId, candidates),
+      dislikedIds: profile.dislikes.songIds,
+      blockedTitles: profile.dislikes.titles,
+      now: new Date(),
+      limit: Math.max(limit, STEER_POOL),
+    });
+  }
+
+  // "Something different" leaves this song's corner altogether: songs like another side of the
+  // listener's taste, in a different language or mood from this one.
+  if (request === 'different' && profile) {
+    const elsewhere = await anotherSide(baseSongId, profile);
+    if (elsewhere.length > 0) {
+      resultIds = [...elsewhere.filter((id) => !excluded.has(id)), ...resultIds];
+    }
+  }
+
+  resultIds = await steer(baseSongId, resultIds, params);
+
+  // Asked for a mood the related songs barely have: the mood's station fills the rest.
+  const moodKey = request?.startsWith('mood:') ? request.slice('mood:'.length) : null;
+  if (moodKey) {
+    const moods = await songMoods(resultIds);
+    const matching = resultIds.filter((id) => moods.get(id) === moodKey);
+    if (matching.length < limit) {
+      const station = await moodStation(moodKey, profile, limit);
+      const stationIds = station
+        .map((song) => String(song.id))
+        .filter((id) => id !== baseSongId && !excluded.has(id) && !matching.includes(id));
+      resultIds = [...matching, ...stationIds];
+    }
+  }
+
+  return songDataFor(resultIds.slice(0, limit));
+};
+
+/**
+ * Autoplay for a room: songs like the one playing that suit the people in it. Anything one of
+ * them disliked is left out, and songs by artists the room plays more move up.
+ */
+export const getPlayNextForRoom = async ({
+  baseSongId,
+  listenerIds,
+  limit = 10,
+  excludeSongIds = [],
+}: {
+  baseSongId: string;
+  listenerIds: number[];
+  limit?: number;
+  excludeSongIds?: string[];
+}): Promise<Array<Record<string, unknown>>> => {
+  const excluded = new Set(excludeSongIds);
+  const related = (await getRelatedSongIds(baseSongId)).filter((id) => !excluded.has(id));
+  const listeners = listenerIds.slice(0, MAX_ROOM_LISTENERS);
+  if (related.length === 0 || listeners.length === 0) return songDataFor(related.slice(0, limit));
+
+  const profiles = await Promise.all(listeners.map((id) => loadProfile(id)));
+  const facts = await loadSongFacts(related);
+  const now = new Date();
+  const affinities = profiles.map((profile) => artistWeights(profile.listens, now));
+  const ranked = related
+    .filter((id) =>
+      profiles.every(
+        (profile) =>
+          !profile.dislikes.songIds.has(id) &&
+          !profile.dislikes.titles.has(cleanTitle(facts.get(id)?.name ?? ''))
+      )
+    )
+    .map((id, index) => {
+      const singer = normalize(facts.get(id)?.artist);
+      const fit =
+        affinities.reduce((sum, weights) => sum + (weights.get(singer) ?? 0), 0) /
+        affinities.length;
+      return { id, value: -index + ROOM_FIT_POINTS * fit };
+    })
+    .sort((a, b) => b.value - a.value)
+    .map((item) => item.id);
+  return songDataFor(ranked.slice(0, limit));
 };
 
 export const rebuildAllPlayNext = async (): Promise<{ processed: number; total: number }> => {

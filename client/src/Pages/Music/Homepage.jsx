@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronRight, Music2, RotateCcw, Users } from 'lucide-react';
+import { ArrowRight, Music2, RotateCcw, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProfile } from '@/Context/Context';
 import { paths } from '@/lib/paths';
@@ -11,27 +11,15 @@ import {
   useHomepageModulesQuery,
   useRecommendationsQuery,
 } from '@/hooks/queries/useHomepageQueries';
-import { cn } from '@/lib/utils';
 import { AlbumCard, ArtistCard, NewSongCard, PlaylistCard } from '@/Pages/Music/Cards';
-import { QuickPicks, QuickPicksSkeleton, TrendingChart } from './HomeSections';
-
-const Section = ({ title, children, className, link, linkText }) => (
-  <section className={cn('space-y-3', className)}>
-    <div className='flex items-end justify-between'>
-      <h2 className='text-xl font-bold md:text-2xl'>{title}</h2>
-      {link && (
-        <Link
-          to={link}
-          className='inline-flex items-center gap-0.5 text-sm font-medium text-muted-foreground hover:text-foreground'
-        >
-          {linkText || 'See all'}
-          <ChevronRight className='h-4 w-4' />
-        </Link>
-      )}
-    </div>
-    {children}
-  </section>
-);
+import {
+  QuickPicks,
+  QuickPicksSkeleton,
+  ScrollableRow,
+  Section,
+  TrendingChart,
+} from './HomeSections';
+import { FriendsNow, MoodChips, PersonalShelves, SongShelf, WeekCard } from './PersonalSections';
 
 const greeting = () => {
   const h = new Date().getHours();
@@ -93,13 +81,6 @@ const Hero = () => {
     </header>
   );
 };
-
-/** Native horizontal scroller: cheaper than a JS scroll area and snaps card-by-card. */
-const ScrollableRow = ({ children }) => (
-  <div className='row-scroll -mx-2 flex snap-x snap-mandatory scroll-px-2 gap-1 overflow-x-auto px-2 pb-3 [&>*]:snap-start'>
-    {children}
-  </div>
-);
 
 const CardSkeleton = ({ type = 'song' }) => {
   if (type === 'artist') {
@@ -187,19 +168,21 @@ const HomePage = () => {
           )
         )}
 
+        <FriendsNow />
+
         {reccLoading ? (
           <SectionSkeleton type='song' />
         ) : (
-          recommendations?.songs?.length > 0 && (
-            <Section title='Made for you'>
-              <ScrollableRow>
-                {recommendations.songs.map((song) => (
-                  <NewSongCard key={song.id} song={song} />
-                ))}
-              </ScrollableRow>
-            </Section>
-          )
+          <SongShelf
+            title='Made for you'
+            songs={recommendations?.songs}
+            reasons={recommendations?.reasons}
+          />
         )}
+
+        <WeekCard />
+        <PersonalShelves />
+        <MoodChips />
 
         {homePageData.trending?.length > 0 && (
           <Section title='Trending now'>

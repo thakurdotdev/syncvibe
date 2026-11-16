@@ -10,7 +10,7 @@ import type {
 } from '@/types/music';
 import { Song } from '@/types/song';
 import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
-import { markRecommendations } from '@/utils/playEvents';
+import { markRecommendations, sessionSignals } from '@/utils/playEvents';
 import axios from 'axios';
 
 export const getHomePageMusic = async (language = 'hindi'): Promise<HomePageResponse> => {
@@ -100,9 +100,25 @@ export const searchMusic = async (query: string): Promise<Song[]> => {
   return response.data.data ?? [];
 };
 
-export const fetchSongRecommendations = async (api: any, id: string | number): Promise<Song[]> => {
+/** Query for play-next: this session's quick skips and finished songs, and what was asked for. */
+export const playNextParams = (steer?: string | null) => {
+  const { skipped, finished } = sessionSignals();
+  return {
+    limit: 20,
+    ...(skipped.length ? { skipped: skipped.join(',') } : {}),
+    ...(finished.length ? { finished: finished.join(',') } : {}),
+    ...(steer ? { steer } : {}),
+  };
+};
+
+/** `steer` asks for 'more', 'different' or `mood:<key>`. */
+export const fetchSongRecommendations = async (
+  api: any,
+  id: string | number,
+  steer?: string | null
+): Promise<Song[]> => {
   try {
-    const response = await api.get(`/api/play-next/${id}?limit=20`);
+    const response = await api.get(`/api/play-next/${id}`, { params: playNextParams(steer) });
     if (response?.data?.data?.length) {
       const newRecommendations = response.data.data?.map(ensureHttpsForSongUrls);
       markRecommendations(String(id), newRecommendations);

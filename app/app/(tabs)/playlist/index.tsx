@@ -9,6 +9,7 @@ import { usePlaylistState } from '@/stores/playerStore';
 import { convertToHttps, ensureHttpsForPlaylistUrls } from '@/utils/getHttpsUrls';
 import useApi from '@/utils/hooks/useApi';
 import type { PlaylistPreviewSong } from '@/types/music';
+import { useLikedIds } from '@/queries/usePersonal';
 import { router } from 'expo-router';
 import { AlertCircle, Edit3, Trash2, X } from '@/components/ui/icons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
@@ -252,6 +253,7 @@ const PlaylistScreen = () => {
                 </PressableScale>
               )}
             </View>
+            <LikedRow />
           </>
         }
         ListFooterComponent={
@@ -525,6 +527,38 @@ const Shortcut = memo(function Shortcut({
       <Text style={[styles.shortcutText, { color: colors.foreground }]} numberOfLines={1}>
         {label}
       </Text>
+    </PressableScale>
+  );
+});
+
+/** Liked songs, always first: it fills itself as you tap hearts. */
+const LikedRow = memo(function LikedRow() {
+  const { colors } = useTheme();
+  const { data: ids } = useLikedIds();
+  const count = ids?.length ?? 0;
+  const meta = `${count} ${count === 1 ? 'song' : 'songs'}`;
+
+  return (
+    <PressableScale
+      onPress={() => router.push('/liked')}
+      scaleTo={ROW_PRESS_SCALE}
+      accessibilityRole='button'
+      accessibilityLabel={`Liked songs, ${meta}`}
+      style={styles.row}
+    >
+      <View style={styles.art}>
+        <View style={[styles.cover, { backgroundColor: colors.raised }]}>
+          <Ionicons name='heart' size={22} color={colors.foreground} />
+        </View>
+      </View>
+      <View style={styles.rowText}>
+        <Text style={[styles.rowTitle, { color: colors.foreground }]} numberOfLines={1}>
+          Liked songs
+        </Text>
+        <Text style={[styles.rowMeta, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {meta}
+        </Text>
+      </View>
     </PressableScale>
   );
 });

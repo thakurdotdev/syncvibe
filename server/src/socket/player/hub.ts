@@ -115,6 +115,16 @@ export const playbackOf = (session: PlayerSession, now = Date.now()) => {
   };
 };
 
+/**
+ * The song a user's own player is playing right now, if one of their devices is playing it.
+ * Only live sessions are read: one nobody has used since a restart isn't playing anything.
+ */
+export const nowPlayingOf = (userId: string): Record<string, unknown> | null => {
+  const session = sessions.get(userId);
+  if (!session?.timeline.playing || !isOnline(userId, session.active?.deviceId)) return null;
+  return currentItem(session)?.song ?? null;
+};
+
 export const queueOf = (session: PlayerSession) => ({
   rev: session.revs.queue,
   items: session.items,
