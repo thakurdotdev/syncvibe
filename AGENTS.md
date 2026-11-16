@@ -27,7 +27,8 @@ pnpm workspace (`pnpm@12.3.4`, `node-linker=hoisted`). Install from the root: `p
 - `src/middleware/auth.middleware.ts`: `authMiddleware` sets `req.user` and `req.sessionId`.
 - `src/models/`: Sequelize models. `src/socket/`: Socket.IO handlers. `src/utils/helpers.ts`: IP,
   Cloudflare location and user-agent helpers.
-- `sql/NNN_*.sql`: schema changes, run by hand (see Database).
+- `src/migrations/NNN_*.ts`: schema changes, applied on deploy (see Database). `sql/`: older
+  hand-run changes.
 - Tests: `pnpm --filter syncvibe-api test` (node's test runner, `src/**/*.test.ts`).
 
 ### client/
@@ -142,13 +143,20 @@ ask the user to run production steps (migrations, restarts) themselves.
 
 ## Database
 
-- Schema changes are plain SQL files in `server/sql/`, numbered (`005_...sql`), idempotent
-  (`IF NOT EXISTS`) and run by hand with `psql`. There is no `sequelize.sync` and no ORM migration.
-- **MUST:** a new migration runs on production **before** the code that needs it is merged (on the
-  production machine an agent may run it after asking; elsewhere the user runs it). Better Auth
-  checks the schema at runtime: a missing column makes every session check fail with
-  "Database schema mismatch". If that happens, run the migration, then restart the server (it
-  caches the failed check).
+- Schema changes are Sequelize migrations in `server/src/migrations/NNN_name.ts` (Umzug, history
+  in `SequelizeMeta`). Create one with `pnpm db:migrate:new add_song_likes`, apply with
+  `pnpm db:migrate`, list with `pnpm db:migrate:status`. There is no `sequelize.sync`.
+- Each migration runs in its own transaction on one connection: pass `{ transaction }` to every
+  query (a query without it times out). Keep migrations idempotent (`IF NOT EXISTS`) and
+  additive: the old version keeps serving while they run and stays live if the deploy fails
+  later, so a column the live code still reads can't be dropped or renamed in the same deploy.
+- **Deploys run them.** Shipyard runs `bun run db:migrate` in `server/` before starting the new
+  version; a failed migration stops the deploy and the old version keeps serving. Better Auth
+  checks the schema at runtime ("Database schema mismatch" on every session check if a column
+  is missing), which is why the migration must ship in the same PR as the code that needs it.
+- `server/sql/001`–`009` are the older hand-run changes. They are not run again;
+  `009_baseline` only checks that they were applied. A database without them (a new dev
+  database) needs them run by hand with `psql` first.
 - Locally, run migrations against your own dev database (`DATABASE_URL` in `server/.env`).
 - **MUST:** ask the user before any destructive SQL (`DROP`, `DELETE`, `TRUNCATE`, data rewrites).
   Back up first.
