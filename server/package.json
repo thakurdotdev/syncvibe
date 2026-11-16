@@ -11,6 +11,10 @@
     "dev": "tsx watch --env-file=.env src/index.ts",
     "build": "tsc && tsc-alias --resolve-full-paths",
     "start": "node dist/index.js",
+    "db:migrate": "tsx --env-file-if-exists=.env src/scripts/migrate.ts",
+    "db:migrate:status": "tsx --env-file-if-exists=.env src/scripts/migrate.ts status",
+    "db:migrate:down": "tsx --env-file-if-exists=.env src/scripts/migrate.ts down",
+    "db:migrate:new": "tsx --env-file-if-exists=.env src/scripts/migrate.ts new",
     "sync:editorial": "tsx --env-file=.env src/scripts/sync-editorial-playlists.ts",
     "migrate:auth": "tsx --env-file=.env src/scripts/migrate-auth-data.ts",
     "test": "node --import tsx --test \"src/**/*.test.ts\""
@@ -48,6 +52,7 @@
     "sequelize": "^6.37.7",
     "socket.io": "^4.8.3",
     "ua-parser-js": "^1.0.41",
+    "umzug": "^3.8.3",
     "uuid": "^13.0.0",
     "yup": "^1.7.1"
   },

@@ -1,9 +1,10 @@
 import { configDotenv } from 'dotenv';
-import { Sequelize } from 'sequelize';
+import { Sequelize, type Options } from 'sequelize';
 
 configDotenv();
 
-const sequelize = new Sequelize(process.env.DATABASE_URL, {
+/** Shared with the migration runner, which needs the same connection on its own pool. */
+export const sequelizeOptions: Options = {
   dialect: 'postgres',
   logging: false,
   pool: {
@@ -17,6 +18,8 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
       rejectUnauthorized: false,
     },
   },
-});
+};
+
+const sequelize = new Sequelize(process.env.DATABASE_URL, sequelizeOptions);
 
 export default sequelize;
