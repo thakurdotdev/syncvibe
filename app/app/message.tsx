@@ -3,7 +3,10 @@ import SwipeableModal from '@/components/SwipeableModal';
 import ChatInput from '@/components/chat/ChatInput';
 import DateBubble from '@/components/chat/DateBubble';
 import MessageBubble from '@/components/chat/MessageBubble';
+import Avatar from '@/components/chat/Avatar';
 import MessageHeader from '@/components/chat/MessageHeader';
+import { SettingsRow } from '@/components/profile/SettingsGroup';
+import Toggle from '@/components/ui/Toggle';
 import VideoViewer from '@/components/chat/VideoViewer';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
@@ -23,6 +26,7 @@ import {
 } from '@/lib/chat';
 import { attachmentLabel, MAX_FILES_AT_ONCE } from '@/lib/attachments';
 import {
+  allowGallery,
   downloadToCache,
   openFile,
   pickDocuments,
@@ -39,6 +43,7 @@ import {
   useChatStore,
   type ChatMessage,
 } from '@/stores/chatStore';
+import { useMediaStore } from '@/stores/mediaStore';
 import { getOptimizedImageUrl } from '@/utils/Cloudinary';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -122,9 +127,9 @@ const ChatWithUser = () => {
   // One sheet whose contents change. Opening a second sheet while the first closes doesn't work:
   // the first one reports "closed" when its animation ends, which shut the one that replaced it.
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [sheetView, setSheetView] = useState<'options' | 'confirm-delete' | 'info' | 'attach'>(
-    'options'
-  );
+  const [sheetView, setSheetView] = useState<
+    'options' | 'confirm-delete' | 'info' | 'attach' | 'profile'
+  >('options');
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const [playing, setPlaying] = useState<ChatMessage | null>(null);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
@@ -447,6 +452,31 @@ const ChatWithUser = () => {
 
   const handleShowInfo = useCallback(() => setSheetView('info'), []);
 
+  // The chat's profile, with what's set for this chat alone.
+  const conversationId = conversation?.id;
+  const savesToGallery = useMediaStore((s) =>
+    conversationId == null ? false : s.galleryChats[conversationId] != null
+  );
+  const setChatGallery = useMediaStore((s) => s.setChatGallery);
+  const handleOpenProfile = useCallback(() => {
+    Keyboard.dismiss();
+    setSheetView('profile');
+    setSheetOpen(true);
+  }, []);
+  const toggleGallery = useCallback(
+    async (on: boolean) => {
+      if (conversationId == null) return;
+      if (on && !(await allowGallery())) {
+        toast('Allow SyncVibe to add photos and videos in your phone settings', {
+          type: 'error',
+        });
+        return;
+      }
+      setChatGallery(conversationId, on);
+    },
+    [conversationId, setChatGallery]
+  );
+
   const handleListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     setShowJumpToLatest(e.nativeEvent.contentOffset.y > JUMP_BUTTON_AFTER);
   }, []);
@@ -529,6 +559,7 @@ const ChatWithUser = () => {
       <KeyboardAvoidingView behavior='padding' style={styles.container}>
         <MessageHeader
           onBack={() => router.back()}
+          onOpenProfile={conversation ? handleOpenProfile : undefined}
           user={conversation?.peer}
           isOnline={isOnline}
           isTyping={isTyping}
@@ -651,7 +682,45 @@ const ChatWithUser = () => {
         ) : null}
 
         <SwipeableModal isVisible={sheetOpen} onClose={closeSheet} dragAnywhere>
-          {sheetView === 'attach' ? (
+          {sheetView === 'profile' ? (
+            <View style={styles.sheet}>
+              <View style={styles.profile}>
+                <Avatar
+                  name={conversation?.peer.name}
+                  profilepic={conversation?.peer.profilepic ?? undefined}
+                  size='lg'
+                />
+                <Text style={[styles.profileName, { color: colors.foreground }]} numberOfLines={1}>
+                  {peerName}
+                </Text>
+                {conversation?.peer.username ? (
+                  <Text style={[styles.profileHandle, { color: colors.mutedForeground }]}>
+                    @{conversation.peer.username}
+                  </Text>
+                ) : null}
+              </View>
+              <View style={styles.bleed}>
+                <SettingsRow
+                  icon='image'
+                  label='Save to gallery'
+                  detail='New photos and videos from this chat'
+                  onPress={() => void toggleGallery(!savesToGallery)}
+                  trailing={
+                    <Toggle
+                      value={savesToGallery}
+                      onValueChange={(on) => void toggleGallery(on)}
+                      accessibilityLabel='Save to gallery'
+                    />
+                  }
+                />
+              </View>
+              <Text style={[styles.sheetNote, { color: colors.mutedForeground }]}>
+                {savesToGallery
+                  ? `Photos and videos ${peerName.split(' ')[0] || 'this person'} sends go to the SyncVibe album in your gallery. Videos wait for Wi-Fi.`
+                  : 'Photos and videos from this chat stay in SyncVibe. Hold one to save it.'}
+              </Text>
+            </View>
+          ) : sheetView === 'attach' ? (
             <View style={styles.sheet}>
               <OptionItem
                 icon='images-outline'
@@ -858,6 +927,11 @@ const styles = StyleSheet.create({
   },
   sheet: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8 },
   sheetNote: { fontSize: 12.5, lineHeight: 17, paddingHorizontal: 12, paddingTop: 6 },
+  // Lines the row's icon up with the note under it.
+  bleed: { marginHorizontal: -8 },
+  profile: { alignItems: 'center', gap: 4, paddingTop: 4, paddingBottom: 16 },
+  profileName: { fontSize: 20, fontWeight: '700', letterSpacing: -0.3, marginTop: 8 },
+  profileHandle: { fontSize: 14 },
   reactionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

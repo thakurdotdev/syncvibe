@@ -3,7 +3,8 @@ import { Directory, File, FileMode, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as Crypto from 'expo-crypto';
-import * as MediaLibrary from 'expo-media-library';
+import { getPermissionsAsync, requestPermissionsAsync } from 'expo-media-library';
+import { getNetworkStateAsync, NetworkStateType } from 'expo-network';
 import { Image } from 'react-native';
 import {
   checkFile,
@@ -14,7 +15,8 @@ import {
 } from '@/lib/attachments';
 import { freshAttachment, type PickedFile } from '@/lib/chat';
 import type { Attachment, ChatMessage } from '@/stores/chatStore';
-import { saveImageToGallery } from '@/utils/saveImage';
+import { useMediaStore } from '@/stores/mediaStore';
+import { addToGallery, saveImageToGallery } from '@/utils/saveImage';
 
 /**
  * Files in conversations, on the phone: picking them to send, and opening or saving the ones
@@ -139,6 +141,26 @@ const cacheFolder = () => {
 const cachedCopy = (attachment: Attachment) =>
   new File(cacheFolder(), `${attachment.id}.${extensionOf(attachment.name) || 'bin'}`);
 
+const isComplete = (file: File, attachment: Attachment) =>
+  file.exists && (!attachment.size || file.size === attachment.size);
+
+// Tells file cards that one of them is now on the phone (it may have been saved from the menu).
+const downloadListeners = new Set<() => void>();
+export const onDownloaded = (listener: () => void) => {
+  downloadListeners.add(listener);
+  return () => void downloadListeners.delete(listener);
+};
+
+/** Already downloaded to this phone, so opening it needs no network. */
+export const isDownloaded = (attachment: Attachment | null | undefined): boolean => {
+  if (!attachment?.id) return false;
+  try {
+    return isComplete(cachedCopy(attachment), attachment);
+  } catch {
+    return false;
+  }
+};
+
 /** The file on this phone, downloaded once. `onProgress` gets 0 to 1. */
 export const downloadToCache = async (
   message: ChatMessage,
@@ -148,7 +170,7 @@ export const downloadToCache = async (
   if (!attachment?.id || !attachment.downloadUrl) throw new Error('unavailable');
 
   const target = cachedCopy(attachment);
-  if (target.exists && target.size === attachment.size) return { file: target, attachment };
+  if (isComplete(target, attachment)) return { file: target, attachment };
   if (target.exists) target.delete();
 
   const file = await File.createDownloadTask(attachment.downloadUrl, target, {
@@ -156,6 +178,7 @@ export const downloadToCache = async (
       onProgress?.(totalBytes ? bytesWritten / totalBytes : 0),
   }).downloadAsync();
   if (!file) throw new Error('download');
+  downloadListeners.forEach((listener) => listener());
   return { file, attachment };
 };
 
@@ -208,10 +231,10 @@ export const saveAttachment = async (
     return 'gallery';
   }
   if (kind === 'image' || kind === 'video') {
-    const { status } = await MediaLibrary.requestPermissionsAsync(true);
+    const { status } = await requestPermissionsAsync(true);
     if (status !== 'granted') throw new Error('permission');
     const { file } = await downloadToCache(message, onProgress);
-    await MediaLibrary.createAssetAsync(file.uri);
+    await addToGallery(file.uri);
     return 'gallery';
   }
 
@@ -225,4 +248,46 @@ export const saveAttachment = async (
   const name = attachment.name || file.name;
   await copyInto(file, folder.createFile(name, mimeOf(name)));
   return 'folder';
+};
+
+// ── Save to gallery (setting) ───────────────────────────────────────────────
+
+/** Asks for the gallery when a chat's setting is turned on. False if the person said no. */
+export const allowGallery = async () => (await requestPermissionsAsync(true)).status === 'granted';
+
+let saving: Promise<void> = Promise.resolve();
+const queued = new Set<string>();
+
+/**
+ * In a chat with "Save to gallery" on, a photo or video the other person sent is copied to the
+ * gallery the first time it shows. Videos wait for Wi-Fi, so mobile data isn't spent on
+ * them unasked. One at a time, quietly: the chat keeps working if any of it fails.
+ */
+export const autoSaveToGallery = (message: ChatMessage) => {
+  const attachment = message.attachment;
+  const id = attachment?.id;
+  if (!id || message.id == null) return;
+  if (attachment.kind !== 'image' && attachment.kind !== 'video') return;
+  const media = useMediaStore.getState();
+  const since = media.galleryChats[message.conversationId];
+  if (since == null || Date.parse(message.createdAt) < since) return;
+  if (queued.has(id) || media.savedIds.includes(id)) return;
+  queued.add(id);
+
+  saving = saving.then(async () => {
+    try {
+      if ((await getPermissionsAsync(true)).status !== 'granted') return;
+      if (attachment.kind === 'video') {
+        const network = await getNetworkStateAsync();
+        if (network.type !== NetworkStateType.WIFI) return;
+      }
+      const { file } = await downloadToCache(message);
+      await addToGallery(file.uri);
+      useMediaStore.getState().markSaved(id);
+    } catch {
+      // Tried again the next time it shows.
+    } finally {
+      queued.delete(id);
+    }
+  });
 };
