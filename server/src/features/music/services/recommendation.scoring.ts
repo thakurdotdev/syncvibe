@@ -12,12 +12,22 @@ export interface Listen {
   /** Percent of the last play. 0 on rows from older clients, which never reported it. */
   completionRate: number;
   skipCount: number;
+  /** When it was last played, or liked for a liked song never played. */
   lastPlayedAt: Date;
+  liked?: boolean;
+  language?: string;
 }
 
 export interface Seed {
   songId: string;
   weight: number;
+}
+
+export interface Fused {
+  songId: string;
+  score: number;
+  /** The seed that did most to bring it in, to say why it's there. */
+  seedId: string;
 }
 
 export interface Pick<T = unknown> {
@@ -28,6 +38,8 @@ export interface Pick<T = unknown> {
   score: number;
   kind: 'new' | 'favourite';
   song: T;
+  /** Shown under the song: "Because you played …". */
+  reason?: string;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -46,6 +58,8 @@ const FAVOURITE_SHARE = 0.25;
 const MAX_PER_ARTIST = 2;
 /** How far the day's draw can move a song: enough to rotate the list, not to bury the best. */
 const DAILY_SPREAD = 0.8;
+const LIKED_ENGAGEMENT = 3;
+const LIKED_BOOST = 1.5;
 
 const daysSince = (date: Date, now: Date): number =>
   Math.max(now.getTime() - new Date(date).getTime(), 0) / DAY_MS;
@@ -55,11 +69,30 @@ export const engagement = (listen: Listen): number => {
   const plays = Math.log2(1 + Math.max(listen.playedCount, 1));
   const completion = listen.completionRate > 0 ? 0.5 + listen.completionRate / 100 : 1;
   const skipShare = Math.min(listen.skipCount / Math.max(listen.playedCount, 1), 1);
-  return plays * completion * (1 - 0.8 * skipShare);
+  const played = plays * completion * (1 - 0.8 * skipShare);
+  // A like says more than plays do: worth a song replayed about seven times, and then some.
+  return listen.liked ? Math.max(played, LIKED_ENGAGEMENT) * LIKED_BOOST : played;
 };
 
+/** A liked song is never written off for being skipped; the like is the clearer signal. */
 const isMostlySkipped = (listen: Listen): boolean =>
-  listen.skipCount > 0 && listen.skipCount >= listen.playedCount;
+  !listen.liked && listen.skipCount > 0 && listen.skipCount >= listen.playedCount;
+
+/** How much this listener's recent listening leans on each artist, the top one being 1. */
+export const artistWeights = (listens: Listen[], now: Date): Map<string, number> => {
+  const weights = new Map<string, number>();
+  for (const listen of listens) {
+    if (isMostlySkipped(listen)) continue;
+    const artist = normalize(listen.artist);
+    if (!artist) continue;
+    const weight =
+      engagement(listen) * 0.5 ** (daysSince(listen.lastPlayedAt, now) / RECENCY_HALF_LIFE_DAYS);
+    weights.set(artist, (weights.get(artist) ?? 0) + weight);
+  }
+  const top = Math.max(...weights.values(), 0);
+  if (top > 0) for (const [artist, weight] of weights) weights.set(artist, weight / top);
+  return weights;
+};
 
 /** The songs that best describe current taste: liked, recent, and from different artists. */
 export const pickSeeds = (listens: Listen[], now: Date): Seed[] => {
@@ -95,17 +128,24 @@ export const fuseRelated = (
   seeds: Seed[],
   relatedBySeed: Map<string, string[]>,
   heard: Set<string>
-): Array<{ songId: string; score: number }> => {
-  const scores = new Map<string, number>();
+): Fused[] => {
+  const fused = new Map<string, Fused & { best: number }>();
   for (const seed of seeds) {
     const related = (relatedBySeed.get(seed.songId) ?? []).slice(0, RELATED_PER_SEED);
     related.forEach((songId, rank) => {
       if (heard.has(songId)) return;
-      scores.set(songId, (scores.get(songId) ?? 0) + seed.weight / (RANK_SMOOTHING + rank));
+      const share = seed.weight / (RANK_SMOOTHING + rank);
+      const entry = fused.get(songId);
+      if (!entry) {
+        fused.set(songId, { songId, score: share, seedId: seed.songId, best: share });
+        return;
+      }
+      entry.score += share;
+      if (share > entry.best) Object.assign(entry, { best: share, seedId: seed.songId });
     });
   }
-  return [...scores.entries()]
-    .map(([songId, score]) => ({ songId, score }))
+  return [...fused.values()]
+    .map(({ songId, score, seedId }) => ({ songId, score, seedId }))
     .sort((a, b) => b.score - a.score);
 };
 

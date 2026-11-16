@@ -94,14 +94,19 @@ export const getPersonalizedRecommendations = async (
     const userId = req.user!.userid;
     const limit = parseInt((req.query.limit as string) || '12', 10);
 
-    const [recommendationSongs, recentlyPlayedSongs] = await Promise.all([
+    const [madeForYou, recentlyPlayedSongs] = await Promise.all([
       getRecommendationsForUser(userId, limit),
       getRecentlyPlayed(userId, 15),
     ]);
 
     res.status(200).json({
       success: true,
-      data: { songs: recommendationSongs, recentlyPlayed: recentlyPlayedSongs },
+      data: {
+        songs: madeForYou.songs,
+        // Song id to why it's there. Older clients ignore it.
+        reasons: madeForYou.reasons,
+        recentlyPlayed: recentlyPlayedSongs,
+      },
     });
   } catch (error) {
     console.error('Error in getPersonalizedRecommendations:', error);

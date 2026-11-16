@@ -93,3 +93,52 @@ export const personalizePlayNext = ({
   }
   return result;
 };
+
+export type Steer = 'more' | 'different' | `mood:${string}`;
+
+export interface SteerCandidate {
+  songId: string;
+  singer: string;
+  album: string;
+  mood: string | null;
+}
+
+/**
+ * Reorders the next songs by what the listener did this session and asked for. Two quick skips of
+ * an artist push the rest of that artist to the end; artists played to the end move up a little.
+ * "more" brings the playing song's singers and album forward, "different" moves them back, and a
+ * mood brings songs of that mood forward. Nothing is dropped, so autoplay never runs dry.
+ */
+export const steerPlayNext = ({
+  candidates,
+  baseSingers,
+  baseAlbum,
+  skippedArtists,
+  finishedArtists,
+  steer,
+}: {
+  candidates: SteerCandidate[];
+  baseSingers: Set<string>;
+  baseAlbum: string;
+  /** Normalised artist name to how many of their songs were skipped quickly this session. */
+  skippedArtists: Map<string, number>;
+  finishedArtists: Set<string>;
+  steer?: Steer | null;
+}): string[] => {
+  const steerMood = steer?.startsWith('mood:') ? steer.slice('mood:'.length) : null;
+  const score = (candidate: SteerCandidate, index: number): number => {
+    const isBase =
+      baseSingers.has(candidate.singer) || (!!baseAlbum && candidate.album === baseAlbum);
+    let value = -index;
+    if ((skippedArtists.get(candidate.singer) ?? 0) >= 2) value -= 1000;
+    else if (finishedArtists.has(candidate.singer)) value += 3;
+    if (steer === 'more' && isBase) value += 500;
+    if (steer === 'different' && isBase) value -= 500;
+    if (steerMood && candidate.mood === steerMood) value += 500;
+    return value;
+  };
+  return candidates
+    .map((candidate, index) => ({ songId: candidate.songId, value: score(candidate, index) }))
+    .sort((a, b) => b.value - a.value)
+    .map((item) => item.songId);
+};

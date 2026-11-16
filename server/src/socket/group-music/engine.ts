@@ -211,6 +211,7 @@ export const ensureRecommendations = async (
       baseSongId,
       limit: AUTO_RECOMMENDATIONS,
       excludeSongIds: [...new Set([...queued, ...group.recentSongIds])],
+      listenerIds: group.members.map((member) => Number(member.userId)).filter(Number.isInteger),
     });
     if (!isLive(group) || !group.settings.autoPlayRecommendations || !recs?.length) return false;
 

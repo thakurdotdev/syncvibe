@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { blockedTitlesOf, personalizePlayNext, type PastListen } from './play-next.personal';
+import {
+  blockedTitlesOf,
+  personalizePlayNext,
+  steerPlayNext,
+  type PastListen,
+  type SteerCandidate,
+} from './play-next.personal';
 
 const NOW = new Date('2026-11-12T12:00:00Z');
 const daysAgo = (days: number) => new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000);
@@ -73,5 +79,48 @@ describe('blockedTitlesOf', () => {
       [...blockedTitlesOf(['Baarish', 'Tum Hi Ho - From "Aashiqui 2"'])],
       ['tum hi ho']
     );
+  });
+});
+
+describe('steerPlayNext', () => {
+  const candidate = (songId: string, singer: string, overrides: Partial<SteerCandidate> = {}) => ({
+    songId,
+    singer,
+    album: '',
+    mood: null,
+    ...overrides,
+  });
+  const steerRun = (
+    candidates: SteerCandidate[],
+    options: Partial<Parameters<typeof steerPlayNext>[0]> = {}
+  ) =>
+    steerPlayNext({
+      candidates,
+      baseSingers: new Set(['arijit']),
+      baseAlbum: '',
+      skippedArtists: new Map(),
+      finishedArtists: new Set(),
+      ...options,
+    });
+
+  it('keeps the order when nothing happened this session', () => {
+    assert.deepEqual(steerRun([candidate('a', 'x'), candidate('b', 'y')]), ['a', 'b']);
+  });
+
+  it('moves an artist skipped twice to the end, but not one skipped once', () => {
+    const list = [candidate('a', 'x'), candidate('b', 'y'), candidate('c', 'z')];
+    assert.deepEqual(steerRun(list, { skippedArtists: new Map([['x', 2]]) }), ['b', 'c', 'a']);
+    assert.deepEqual(steerRun(list, { skippedArtists: new Map([['x', 1]]) }), ['a', 'b', 'c']);
+  });
+
+  it('brings the playing singer forward for "more" and sends them back for "different"', () => {
+    const list = [candidate('a', 'x'), candidate('b', 'arijit'), candidate('c', 'y')];
+    assert.deepEqual(steerRun(list, { steer: 'more' }), ['b', 'a', 'c']);
+    assert.deepEqual(steerRun(list, { steer: 'different' }), ['a', 'c', 'b']);
+  });
+
+  it('brings songs of the asked mood forward', () => {
+    const list = [candidate('a', 'x'), candidate('b', 'y', { mood: 'sad' })];
+    assert.deepEqual(steerRun(list, { steer: 'mood:sad' }), ['b', 'a']);
   });
 });

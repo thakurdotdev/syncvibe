@@ -16,6 +16,22 @@ import {
 } from './history.controller';
 import { recordPlayEvents } from './play-events.controller';
 import { addDislike, getDislikedSongs, removeDislike } from './dislike.controller';
+import {
+  addLike,
+  getBlendWith,
+  getFriendsNow,
+  getLikedIds,
+  getLikedSongs,
+  getMoods,
+  getMoodStation,
+  getMusicTaste,
+  getShelves,
+  getWeeklyRecap,
+  removeLike,
+  updateMusicTaste,
+} from './personal.controller';
+import type { Steer } from './services/play-next.personal';
+import { moodByKey } from './services/moods';
 import { searchSongs } from './search.controller';
 import { getLastSessionSongs } from './group-history.controller';
 import {
@@ -68,6 +84,24 @@ musicRouter.post('/play-events', authMiddleware, recordPlayEvents);
 musicRouter.get('/music/dislikes', authMiddleware, getDislikedSongs);
 musicRouter.post('/music/dislikes', authMiddleware, addDislike);
 musicRouter.delete('/music/dislikes/:songId', authMiddleware, removeDislike);
+
+// Songs a listener liked
+musicRouter.get('/music/likes', authMiddleware, getLikedSongs);
+musicRouter.get('/music/likes/ids', authMiddleware, getLikedIds);
+musicRouter.post('/music/likes', authMiddleware, addLike);
+musicRouter.delete('/music/likes/:songId', authMiddleware, removeLike);
+
+// Languages and artists a listener chose, and whether friends see what they play
+musicRouter.get('/music/taste', authMiddleware, getMusicTaste);
+musicRouter.put('/music/taste', authMiddleware, updateMusicTaste);
+
+// Personal home: Daily Mixes, time of day, new releases, rediscover, liked
+musicRouter.get('/music/shelves', authMiddleware, getShelves);
+musicRouter.get('/music/moods', getMoods);
+musicRouter.get('/music/moods/:mood', optionalAuthMiddleware, getMoodStation);
+musicRouter.get('/music/blend/:userId', authMiddleware, getBlendWith);
+musicRouter.get('/music/friends/now', authMiddleware, getFriendsNow);
+musicRouter.get('/music/recap', authMiddleware, getWeeklyRecap);
 
 musicRouter.get('/music/recommendations', authMiddleware, getPersonalizedRecommendations);
 musicRouter.get('/music/latestHistory', authMiddleware, getHistorySongs);
@@ -223,6 +257,26 @@ musicRouter.get('/sync/status', (_req: Request, res: Response) => {
 });
 
 // Play Next
+/** Session signals beyond this many are old news for steering. */
+const MAX_SESSION_SIGNALS = 30;
+
+const idList = (value: unknown): string[] =>
+  typeof value === 'string' && value
+    ? value
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean)
+    : [];
+
+const steerOf = (value: unknown): Steer | null => {
+  if (value === 'more' || value === 'different') return value;
+  if (typeof value === 'string' && value.startsWith('mood:')) {
+    const mood = moodByKey(value.slice('mood:'.length));
+    return mood ? `mood:${mood.key}` : null;
+  }
+  return null;
+};
+
 musicRouter.get(
   '/play-next/:songId',
   optionalAuthMiddleware,
@@ -235,14 +289,15 @@ musicRouter.get(
       }
       const limitRaw = parseInt(req.query.limit as string, 10);
       const limit = Math.min(Math.max(limitRaw || 20, 1), 50);
-      const excludeSongIds = req.query.exclude
-        ? (req.query.exclude as string).split(',').map((s) => s.trim())
-        : [];
+      const excludeSongIds = idList(req.query.exclude);
       const data = await getPlayNextSongs({
         baseSongId: songId,
         userId: req.user?.userid ?? null,
         limit,
         excludeSongIds,
+        skippedSongIds: idList(req.query.skipped).slice(0, MAX_SESSION_SIGNALS),
+        finishedSongIds: idList(req.query.finished).slice(0, MAX_SESSION_SIGNALS),
+        steer: steerOf(req.query.steer),
       });
       res.json({ success: true, data });
     } catch (error) {
