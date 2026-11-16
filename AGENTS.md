@@ -107,6 +107,13 @@ and browser audit scripts.
 - **Adding library components:** test the CLI in a scratch project first, because it rewrites
   `index.css`. Then change `motion/react` to `framer-motion`, use `lucide-react` and our tokens. Wensity
   returns HTTP 402 for Pro items; we don't have a Pro licence.
+- **Landing demos (stageshow):** the animated hero and feature demos are built with the `stageshow`
+  skill (`npx skills add benjitaylor/skills --skill stageshow`). Its kit is vendored in
+  `client/src/components/stageshow/` (MIT, keep `LICENSE`), trimmed to the parts the landing page
+  uses; lint and format skip that folder. To use another part, copy only its `.tsx` and `.css` (and
+  what they import) from the skill's kit, and export it from `index.ts` by file path, not through a
+  sub-folder `index.ts`, which would pull in every part. Don't copy the whole kit or its brand logos.
+  Our styling lives in `LandingPage/stages/`; `look.css` maps the kit's colours to our tokens.
 - **Check:** view screenshots from 320px to 1920px in both themes before saying it's done. Keep paired
   buttons on one line, including on phones.
 
