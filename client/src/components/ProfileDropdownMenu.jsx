@@ -184,7 +184,7 @@ const ProfileDropdownMenu = ({ fromSidebar = true, collapsed = false }) => {
               className='gap-2.5 px-2.5 py-2 rounded-xl text-xs font-medium cursor-pointer'
             >
               <Languages size={15} className='text-muted-foreground' />
-              <span>Music languages</span>
+              <span>Music taste</span>
             </DropdownMenuItem>
 
             <DropdownMenuItem

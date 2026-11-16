@@ -1,6 +1,7 @@
 import axios from 'axios';
 import he from 'he';
-import { Loader2, Play } from 'lucide-react';
+import { ChevronRight, Loader2, Play } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { memo, useMemo, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -14,6 +15,36 @@ const PICKS_LARGE = 8;
 const CHART_LENGTH = 20;
 
 const GRID = 'grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4';
+
+/** A home section: heading, optional link or action on the right, then its content. */
+export const Section = ({ title, subtitle, action, children, className, link, linkText }) => (
+  <section className={cn('space-y-3', className)}>
+    <div className='flex items-end justify-between gap-3'>
+      <div className='min-w-0'>
+        <h2 className='truncate text-xl font-bold md:text-2xl'>{title}</h2>
+        {subtitle && <p className='mt-0.5 truncate text-sm text-muted-foreground'>{subtitle}</p>}
+      </div>
+      {action}
+      {link && (
+        <Link
+          to={link}
+          className='inline-flex shrink-0 items-center gap-0.5 text-sm font-medium text-muted-foreground hover:text-foreground'
+        >
+          {linkText || 'See all'}
+          <ChevronRight className='h-4 w-4' />
+        </Link>
+      )}
+    </div>
+    {children}
+  </section>
+);
+
+/** Native horizontal scroller: cheaper than a JS scroll area and snaps card-by-card. */
+export const ScrollableRow = ({ children }) => (
+  <div className='row-scroll -mx-2 flex snap-x snap-mandatory scroll-px-2 gap-1 overflow-x-auto px-2 pb-3 [&>*]:snap-start'>
+    {children}
+  </div>
+);
 
 const QuickTile = memo(function QuickTile({ song, className }) {
   const isCurrent = usePlayerStore((s) => s.currentSong?.id === song.id);

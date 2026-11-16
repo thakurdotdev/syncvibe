@@ -8,7 +8,7 @@ import getFollowList from '../../Utils/getFollowList';
 import Followers from '../Modals/Followers';
 import Followings from '../Modals/Followings';
 import { Button } from '../ui/button';
-import { Loader2, MessageCircle, UserCheck, UserPlus } from 'lucide-react';
+import { Blend, Loader2, MessageCircle, UserCheck, UserPlus } from 'lucide-react';
 import { paths } from '@/lib/paths';
 
 const SeeUserProfile = () => {
@@ -147,6 +147,18 @@ const SeeUserProfile = () => {
                 >
                   <MessageCircle className='h-4 w-4' />
                   Message
+                </Button>
+              )}
+              {userData.isFollowing && (
+                <Button
+                  variant='outline'
+                  size='icon'
+                  onClick={() => navigate(paths.blend(profile.userid))}
+                  className='shrink-0 rounded-full'
+                  aria-label={`Make a Blend with ${profile.name}`}
+                  title='Make a Blend'
+                >
+                  <Blend className='h-4 w-4' />
                 </Button>
               )}
             </div>

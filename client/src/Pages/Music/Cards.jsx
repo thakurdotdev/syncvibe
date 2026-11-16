@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useDislikeSong } from '@/hooks/useDislikeSong';
+import { useIsLiked, useToggleLike } from '@/hooks/useLikes';
 import { usePlayerStore } from '@/stores/playerStore';
 import AddToPlaylist from './AddToPlaylist';
 import { ensureHttpsForDownloadUrls } from './Common';
@@ -354,7 +355,7 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
   );
 });
 
-export const NewSongCard = memo(({ song }) => {
+export const NewSongCard = memo(({ song, reason, onPlay }) => {
   const navigate = useNavigate();
   // Boolean selectors: a card only re-renders when *its* state changes, not on every
   // play/pause or queue edit elsewhere.
@@ -376,6 +377,8 @@ export const NewSongCard = memo(({ song }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const dislike = useDislikeSong();
+  const liked = useIsLiked(song?.id);
+  const toggleLike = useToggleLike();
 
   if (!song?.id || !song?.image?.[2]) return null;
 
@@ -391,6 +394,11 @@ export const NewSongCard = memo(({ song }) => {
   const handlePlay = async () => {
     if (isCurrentSong) {
       handlePlayPause();
+      return;
+    }
+    // Part of a list (a mix, a station): the list plays from here.
+    if (onPlay && song?.download_url) {
+      onPlay();
       return;
     }
     if (song?.download_url) {
@@ -551,6 +559,14 @@ export const NewSongCard = memo(({ song }) => {
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
+                      toggleLike(song, !liked);
+                    }}
+                  >
+                    {liked ? 'Remove from Liked songs' : 'Like'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setIsModalOpen(true);
                     }}
                   >
@@ -574,13 +590,19 @@ export const NewSongCard = memo(({ song }) => {
         <div>
           <p className='font-medium text-sm truncate'>{name}</p>
           <p className='text-xs text-muted-foreground truncate'>{artistName}</p>
-          {(song.language || song.album || song.type !== 'song') && (
-            <Badge
-              variant='outline'
-              className='mt-1.5 text-[10px] h-5 capitalize max-w-full truncate'
-            >
-              {song.language || (song.type === 'song' ? song.album : song.type)}
-            </Badge>
+          {reason ? (
+            <p className='mt-1 line-clamp-2 text-[11px] leading-snug text-muted-foreground/80'>
+              {reason}
+            </p>
+          ) : (
+            (song.language || song.album || song.type !== 'song') && (
+              <Badge
+                variant='outline'
+                className='mt-1.5 text-[10px] h-5 capitalize max-w-full truncate'
+              >
+                {song.language || (song.type === 'song' ? song.album : song.type)}
+              </Badge>
+            )
           )}
         </div>
       </div>

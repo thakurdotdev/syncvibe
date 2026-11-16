@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SheetTitle } from '@/components/ui/sheet';
 import { usePlayerStore } from '@/stores/playerStore';
 import { MusicControls, ProgressBarMusic, VolumeControl } from '../Common';
+import LikeButton from '@/components/Music/LikeButton';
 import { DevicePicker, PlayingOnNotice } from './DevicePicker';
 
 const useCrossfadeImage = (src) => {
@@ -231,7 +232,10 @@ const NowPlayingTab = memo(({ currentSong }) => {
             {/* Volume and where it plays; the rest is in the ⋯ menu */}
             <div className='flex items-center justify-between pt-1 px-1 border-t border-border/40'>
               <VolumeControl showVolume={true} alwaysShowSlider={true} />
-              <DevicePicker />
+              <div className='flex items-center gap-1'>
+                <LikeButton song={currentSong} />
+                <DevicePicker />
+              </div>
             </div>
             <PlayingOnNotice />
           </div>
@@ -312,7 +316,10 @@ const NowPlayingTab = memo(({ currentSong }) => {
             {/* Mobile Actions Toolbar */}
             <div className='flex items-center justify-between px-1 pt-1'>
               <VolumeControl showVolume={true} alwaysShowSlider={true} />
-              <DevicePicker />
+              <div className='flex items-center gap-1'>
+                <LikeButton song={currentSong} />
+                <DevicePicker />
+              </div>
             </div>
             <PlayingOnNotice />
           </div>

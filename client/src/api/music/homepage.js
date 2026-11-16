@@ -30,6 +30,7 @@ export const fetchRecommendations = async () => {
 
   return {
     songs: data?.data?.songs || [],
+    reasons: data?.data?.reasons || {},
     recentlyPlayed: data?.data?.recentlyPlayed || [],
   };
 };

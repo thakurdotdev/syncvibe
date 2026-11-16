@@ -5,13 +5,15 @@ import { paths } from '@/lib/paths';
 import { cn } from '@/lib/utils';
 import HistoryPage from '@/Pages/Music/History';
 import UserPlaylist from '@/Pages/Music/UserPlaylist';
+import LikedSongs from './LikedSongs';
 import { SPRING } from '@/lib/motion';
 
-/** Everything you've saved or played: playlists and listening history under one roof. */
+/** Everything you've saved or played: playlists, liked songs and history under one roof. */
 const LibraryPage = ({ tab = 'playlists' }) => {
   const { data: playlists } = useUserPlaylistsQuery();
   const tabs = [
     { key: 'playlists', label: 'Playlists', to: paths.library, count: playlists?.length },
+    { key: 'liked', label: 'Liked', to: paths.liked },
     { key: 'history', label: 'History', to: paths.history },
   ];
 
@@ -54,6 +56,10 @@ const LibraryPage = ({ tab = 'playlists' }) => {
 
         {tab === 'history' ? (
           <HistoryPage embedded />
+        ) : tab === 'liked' ? (
+          <div className='px-4 pb-32 pt-8 md:px-6'>
+            <LikedSongs />
+          </div>
         ) : (
           <div className='px-4 pb-32 pt-8 md:px-6'>
             <UserPlaylist embedded />

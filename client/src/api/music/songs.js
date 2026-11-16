@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { markRecommendations } from '@/stores/playEvents';
+import { markRecommendations, sessionSignals } from '@/stores/playEvents';
 
 const SONG_URL = import.meta.env.VITE_SONG_URL;
 
@@ -51,9 +51,18 @@ export const fetchExternalPlaylist = async (id) => {
   return data?.data;
 };
 
-export const fetchSongRecommendations = async (id) => {
+/**
+ * What plays after a song. This session's quick skips and finished songs go along so autoplay
+ * follows them, and `steer` asks for 'more', 'different' or `mood:<key>`.
+ */
+export const fetchSongRecommendations = async (id, steer = null) => {
   try {
-    const { data } = await axios.get(`${API_URL}/api/play-next/${id}?limit=20`, {
+    const { skipped, finished } = sessionSignals();
+    const params = new URLSearchParams({ limit: '20' });
+    if (skipped.length) params.set('skipped', skipped.join(','));
+    if (finished.length) params.set('finished', finished.join(','));
+    if (steer) params.set('steer', steer);
+    const { data } = await axios.get(`${API_URL}/api/play-next/${id}?${params}`, {
       withCredentials: true,
     });
     const songs = data?.data || [];
