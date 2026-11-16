@@ -19,12 +19,12 @@ function hasValidImage(profilepic: string | undefined): boolean {
 interface AvatarProps {
   name?: string;
   profilepic?: string;
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
   isOnline?: boolean;
 }
 
-const SIZES = { sm: 38, md: 52 } as const;
-const INDICATOR = { sm: 10, md: 13 } as const;
+const SIZES = { sm: 38, md: 52, lg: 84 } as const;
+const INDICATOR = { sm: 10, md: 13, lg: 18 } as const;
 
 const Avatar: React.FC<AvatarProps> = ({ name, profilepic, size = 'md', isOnline }) => {
   const { colors } = useTheme();
