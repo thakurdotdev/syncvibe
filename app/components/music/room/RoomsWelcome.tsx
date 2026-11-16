@@ -237,7 +237,6 @@ export const RoomsWelcome = memo(function RoomsWelcome({
           style={[styles.cta, { backgroundColor: colors.primary }]}
         >
           <Gloss />
-          <Ionicons name='radio' size={19} color={colors.primaryForeground} />
           <Text style={[styles.ctaText, { color: colors.primaryForeground }]}>Start a room</Text>
         </PressableScale>
 
@@ -249,7 +248,6 @@ export const RoomsWelcome = memo(function RoomsWelcome({
             style={[styles.join, { borderColor: colors.hairline }]}
           >
             <Gloss tone='surface' />
-            <Ionicons name='enter-outline' size={18} color={colors.foreground} />
             <Text style={[styles.joinText, { color: colors.foreground }]}>Join with code</Text>
           </PressableScale>
           <PressableScale
