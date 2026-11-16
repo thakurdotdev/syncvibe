@@ -13,6 +13,7 @@ export const LANGUAGES = [
   'punjabi',
   'bhojpuri',
   'haryanvi',
+  'maithili',
   'tamil',
   'telugu',
   'marathi',
