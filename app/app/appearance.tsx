@@ -1,5 +1,6 @@
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import { SettingsGroup, SettingsRow } from '@/components/profile/SettingsGroup';
+import DeckPreview from '@/components/settings/DeckPreview';
 import { GLASS_SUPPORTED } from '@/components/shell/GlassSurface';
 import { StackHeader } from '@/components/ui/AppHeader';
 import PressableScale from '@/components/ui/PressableScale';
@@ -215,6 +216,7 @@ export default function AppearanceScreen() {
         </SettingsGroup>
 
         <SettingsGroup title='Bottom bar'>
+          <DeckPreview glass={glass} songPopup={songPopup} showCard={showCard} />
           {GLASS_SUPPORTED && (
             <SettingsRow
               icon='layers'
