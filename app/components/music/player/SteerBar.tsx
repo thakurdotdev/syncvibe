@@ -39,6 +39,8 @@ export const SteerBar = memo(function SteerBar() {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      // A ScrollView grows to fill its parent by default, which pushed the queue to the bottom.
+      style={styles.bar}
       contentContainerStyle={styles.row}
       accessibilityLabel='Steer what plays next'
     >
@@ -71,6 +73,7 @@ export const SteerBar = memo(function SteerBar() {
 });
 
 const styles = StyleSheet.create({
+  bar: { flexGrow: 0, flexShrink: 0 },
   row: { gap: 8, paddingHorizontal: 12, paddingBottom: 8 },
   chip: {
     flexDirection: 'row',
