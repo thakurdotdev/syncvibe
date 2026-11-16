@@ -9,5 +9,6 @@
   "bracketSpacing": true,
   "arrowParens": "always",
   "jsxSingleQuote": true,
-  "endOfLine": "lf"
+  "endOfLine": "lf",
+  "ignorePatterns": ["client/src/components/stageshow/**"]
 }
