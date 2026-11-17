@@ -196,6 +196,3 @@ export const recordPageClosing = () => {
   // A batch that also goes out with the next visit's flush is ignored by its event IDs.
   send(batch, true).catch(() => {});
 };
-
-/** Whether autoplay put this song in the queue, so steering can swap it for another. */
-export const isRecommended = (songId) => recommendations.has(songId);

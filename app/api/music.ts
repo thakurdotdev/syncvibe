@@ -100,25 +100,19 @@ export const searchMusic = async (query: string): Promise<Song[]> => {
   return response.data.data ?? [];
 };
 
-/** Query for play-next: this session's quick skips and finished songs, and what was asked for. */
-export const playNextParams = (steer?: string | null) => {
+/** Query for play-next: this session's quick skips and finished songs. */
+export const playNextParams = () => {
   const { skipped, finished } = sessionSignals();
   return {
     limit: 20,
     ...(skipped.length ? { skipped: skipped.join(',') } : {}),
     ...(finished.length ? { finished: finished.join(',') } : {}),
-    ...(steer ? { steer } : {}),
   };
 };
 
-/** `steer` asks for 'more', 'different' or `mood:<key>`. */
-export const fetchSongRecommendations = async (
-  api: any,
-  id: string | number,
-  steer?: string | null
-): Promise<Song[]> => {
+export const fetchSongRecommendations = async (api: any, id: string | number): Promise<Song[]> => {
   try {
-    const response = await api.get(`/api/play-next/${id}`, { params: playNextParams(steer) });
+    const response = await api.get(`/api/play-next/${id}`, { params: playNextParams() });
     if (response?.data?.data?.length) {
       const newRecommendations = response.data.data?.map(ensureHttpsForSongUrls);
       markRecommendations(String(id), newRecommendations);

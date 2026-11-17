@@ -218,8 +218,9 @@ next to their services in `server/src/features/music/services/` and are unit tes
 
 - **Play-next** (`play-next.service.ts`): songs related to one song (editor playlists, singers,
   album), shared by everyone and cached; then fitted to the listener (dislikes, recent plays) and
-  steered by this session's quick skips and finished songs and by `steer` (`more`, `different`,
-  `mood:<key>`). Room autoplay uses `getPlayNextForRoom`: nobody present's dislikes, their artists.
+  steered by this session's quick skips and finished songs. The queue follows the playing song
+  only; `steer` (`more`, `different`, `mood:<key>`) is still accepted for apps 1.21.0–1.21.1,
+  which had chips for it. Room autoplay uses `getPlayNextForRoom`: nobody present's dislikes, their artists.
 - **Taste** comes from `listener.service.ts` `loadProfile`: history, likes (`song_likes`, count
   more than plays), dislikes and `music_tastes` (languages, favourite artists, share listening).
 - **Moods** are read from editor playlist names (`moods.ts`); audio alone couldn't tell them apart.

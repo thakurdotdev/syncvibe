@@ -53,15 +53,14 @@ export const fetchExternalPlaylist = async (id) => {
 
 /**
  * What plays after a song. This session's quick skips and finished songs go along so autoplay
- * follows them, and `steer` asks for 'more', 'different' or `mood:<key>`.
+ * follows them.
  */
-export const fetchSongRecommendations = async (id, steer = null) => {
+export const fetchSongRecommendations = async (id) => {
   try {
     const { skipped, finished } = sessionSignals();
     const params = new URLSearchParams({ limit: '20' });
     if (skipped.length) params.set('skipped', skipped.join(','));
     if (finished.length) params.set('finished', finished.join(','));
-    if (steer) params.set('steer', steer);
     const { data } = await axios.get(`${API_URL}/api/play-next/${id}?${params}`, {
       withCredentials: true,
     });
