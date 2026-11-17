@@ -13,13 +13,9 @@ import {
   unlikeSong,
   type Taste,
 } from '@/api/personal';
-import { fetchSongRecommendations } from '@/api/music';
 import { toast } from '@/context/ToastContext';
 import { useUser } from '@/context/UserContext';
-import { usePlayerStore } from '@/stores/playerStore';
 import type { Song } from '@/types/song';
-import { api } from '@/utils/hooks/useApi';
-import { isRecommended } from '@/utils/playEvents';
 import { LANGUAGE_STORAGE_KEY } from '@/lib/languages';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -182,24 +178,3 @@ export const useBlend = (userId: string | undefined) =>
     retry: false,
     staleTime: 30 * 60 * 1000,
   });
-
-/**
- * Swaps autoplay's upcoming picks for ones that go where you ask. Songs you queued yourself stay,
- * in front of the new picks. A plain add, so it works from whichever of your devices you're on.
- */
-export const steerQueue = async (steer: string, label: string): Promise<boolean> => {
-  const { currentSong } = usePlayerStore.getState();
-  if (!currentSong?.id) return false;
-  const picks = await fetchSongRecommendations(api, currentSong.id, steer);
-  if (!picks.length) {
-    toast('Nothing new to play that way yet');
-    return false;
-  }
-  const store = usePlayerStore.getState();
-  const index = store.playlist.findIndex((song) => song.id === currentSong.id);
-  const yours = store.playlist.slice(index + 1).filter((song) => !isRecommended(song.id));
-  store.removeFromQueueBelow(currentSong.id);
-  store.addToQueue([...yours, ...picks]);
-  toast(`Up next: ${label}`);
-  return true;
-};

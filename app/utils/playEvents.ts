@@ -72,9 +72,6 @@ export const sessionSignals = (): { skipped: string[]; finished: string[] } =>
     ? { skipped: signals.skipped, finished: signals.finished }
     : { skipped: [], finished: [] };
 
-/** Whether autoplay put this song in the queue, so steering can swap it for another. */
-export const isRecommended = (songId: string) => recommendations.has(songId);
-
 const currentSessionId = (): string => {
   const now = Date.now();
   if (!sessionId || now - lastActivityAt > NEW_SESSION_AFTER_MS) {

@@ -27,7 +27,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SwipeableModal from '../../SwipeableModal';
 import { PlayingBars } from '../PlayingBars';
 import { SortableQueue } from './SortableQueue';
-import { SteerBar } from './SteerBar';
 
 const ITEM_HEIGHT = 58;
 /** Row height + its vertical margins: the distance between one row and the next. */
@@ -332,8 +331,6 @@ export const QueueTab = memo(function QueueTab({
           </View>
         </View>
       </GestureDetector>
-
-      {opened && currentSong?.id && <SteerBar />}
 
       {opened && (
         <SortableQueue
