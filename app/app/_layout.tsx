@@ -14,12 +14,6 @@ import { typography } from '@/theme/typography';
 import { ToastProvider } from '@/context/ToastContext';
 import { UserProvider, useUser } from '@/context/UserContext';
 import { onboardingCheckAtLaunch } from '@/lib/onboarding';
-import {
-  BricolageGrotesque_600SemiBold,
-  BricolageGrotesque_700Bold,
-  BricolageGrotesque_800ExtraBold,
-  useFonts,
-} from '@expo-google-fonts/bricolage-grotesque';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import TrackPlayer from '@rntp/player';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
@@ -145,13 +139,6 @@ function RootLayout() {
 function RootLayoutNav() {
   const { colors, theme, isLoading: themeLoading } = useTheme();
   const { markInteractive } = useObserve();
-  // Display face shared with the web app. On failure we fall back to the system font.
-  const [fontsLoaded, fontError] = useFonts({
-    BricolageGrotesque_600SemiBold,
-    BricolageGrotesque_700Bold,
-    BricolageGrotesque_800ExtraBold,
-  });
-  const fontsReady = fontsLoaded || Boolean(fontError);
   // Everything the first screen reads from this phone. Waiting for it behind the splash means the
   // first frame is the finished screen: no blank frame, no avatar or saved music popping in.
   const { restored: userRestored } = useUser();
@@ -165,7 +152,7 @@ function RootLayoutNav() {
 
   const ready =
     timedOut ||
-    (!themeLoading && fontsReady && onboardingKnown && userRestored && !queriesRestoring);
+    (!themeLoading && onboardingKnown && userRestored && !queriesRestoring);
 
   useEffect(() => {
     if (ready) return;

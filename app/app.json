@@ -2,7 +2,7 @@
   "expo": {
     "name": "SyncVibe",
     "slug": "syncvibe",
-    "version": "1.21.2",
+    "version": "1.22.0",
     "orientation": "portrait",
     "icon": "./assets/syncvibe.png",
     "scheme": "syncvibe",
@@ -24,13 +24,11 @@
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "CAMERA",
-        "RECORD_AUDIO",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "REQUEST_INSTALL_PACKAGES",
         "MODIFY_AUDIO_SETTINGS",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_SPECIAL_USE",
         "POST_NOTIFICATIONS"
       ],
       "intentFilters": [
@@ -44,6 +42,10 @@
           ],
           "category": ["BROWSABLE", "DEFAULT"]
         }
+      ],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -53,6 +55,17 @@
     },
     "plugins": [
       "expo-router",
+      "expo-asset",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/BricolageGrotesque_600SemiBold.ttf",
+            "./assets/fonts/BricolageGrotesque_700Bold.ttf",
+            "./assets/fonts/BricolageGrotesque_800ExtraBold.ttf"
+          ]
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -81,15 +94,27 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow SyncVibe to access your camera to capture and share moments."
+          "cameraPermission": "Allow SyncVibe to access your camera to capture and share moments.",
+          "recordAudioAndroid": false
         }
       ],
       "expo-media-library",
       "expo-system-ui",
       "expo-web-browser",
       "expo-secure-store",
-      "expo-audio",
-      ["expo-video", { "supportsBackgroundPlayback": false, "supportsPictureInPicture": false }],
+      [
+        "expo-audio",
+        {
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": false,
+          "supportsPictureInPicture": false
+        }
+      ],
       "react-native-nitro-google-signin"
     ],
     "experiments": {
