@@ -11,7 +11,8 @@ import { fonts } from '@/theme/typography';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { memo, useRef, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { useRoomControl } from './useRoomControl';
 
 type Action = {
@@ -218,7 +219,7 @@ export const RoomHeader = memo(function RoomHeader({
       >
         <View style={styles.faces}>
           {members.slice(0, 3).map((m, i) => (
-            <Image
+            <CachedImage
               key={String(m.userId)}
               source={{ uri: getProfileCloudinaryUrl(m.profilePic) }}
               style={[
@@ -229,7 +230,6 @@ export const RoomHeader = memo(function RoomHeader({
                   backgroundColor: colors.muted,
                 },
               ]}
-              fadeDuration={0}
             />
           ))}
         </View>

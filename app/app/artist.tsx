@@ -3,7 +3,6 @@ import { blurredArt } from '@/lib/artwork';
 import { SONG_LIST_WINDOW } from '@/lib/lists';
 import { AlbumCard, ArtistCard, PlaylistCard, SongCard } from '@/components/music/MusicCards';
 import { Tabs, TabItem } from '@/components/ui/tabs';
-import { SONG_URL } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import { usePlayerControls } from '@/stores/playerStore';
@@ -19,19 +18,13 @@ import {
   ensureHttpsForSongUrls,
 } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { Disc3, ListMusic, Music2, Users } from '@/components/ui/icons';
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import React, { memo, useCallback, useMemo, useState } from 'react';
+import { useArtistDetails } from '@/queries/useMusic';
+import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -67,35 +60,15 @@ export default function ArtistScreen() {
   const { width } = useWindowDimensions();
   const { addToPlaylist, playSong } = usePlayerControls();
 
-  const [artistData, setArtistData] = useState<ArtistDetails | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Cached and saved on the phone: an artist you've opened before is there with no spinner.
+  const { data, isPending: loading, refetch } = useArtistDetails(id);
+  const artistData: ArtistDetails | null = data?.id ? data : null;
   const [activeTab, setActiveTab] = useState<ArtistTab>('songs');
 
   const scrollY = useSharedValue(0);
 
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const { addPlaylistToQueue } = useGroupMusic();
-
-  const fetchArtistData = useCallback(async () => {
-    if (!id) return;
-    try {
-      setLoading(true);
-      const response = await axios.get(`${SONG_URL}/artist?id=${id}`);
-      const data = response.data?.data as ArtistDetails;
-      setArtistData(data);
-    } catch (error) {
-      console.error('Error fetching artist data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (id) {
-      fetchArtistData();
-      setActiveTab('songs');
-    }
-  }, [id, fetchArtistData]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -301,7 +274,7 @@ export default function ArtistScreen() {
           No artist data available
         </Text>
         <PressableScale
-          onPress={fetchArtistData}
+          onPress={() => refetch()}
           style={[styles.primaryButton, { backgroundColor: colors.primary, width: 140 }]}
         >
           <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Retry</Text>
@@ -314,7 +287,7 @@ export default function ArtistScreen() {
     <View style={styles.headerWrapper}>
       <Animated.View style={[styles.heroContent, heroAnimatedStyle]}>
         <View style={styles.artistAvatarShadow}>
-          <Image
+          <CachedImage
             source={{
               uri:
                 coverUrl ||
@@ -330,8 +303,6 @@ export default function ArtistScreen() {
                 borderColor: colors.border + '40',
               },
             ]}
-            resizeMode='cover'
-            fadeDuration={0}
           />
         </View>
 
@@ -416,7 +387,9 @@ export default function ArtistScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Edge-to-Edge Ambient Background */}
-      {coverUrl ? <Image {...blurredArt(coverUrl, 60)} style={styles.heroBackgroundImage} /> : null}
+      {coverUrl ? (
+        <CachedImage {...blurredArt(coverUrl, 60)} style={styles.heroBackgroundImage} />
+      ) : null}
       <LinearGradient
         colors={[
           'rgba(0,0,0,0.15)',

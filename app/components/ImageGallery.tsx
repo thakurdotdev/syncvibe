@@ -7,7 +7,6 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Modal,
   StyleSheet,
   Text,
@@ -15,6 +14,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   clamp,
@@ -232,17 +232,17 @@ const ZoomableImage = memo(function ZoomableImage({
       <View style={size}>
         <Animated.View style={[size, imageStyle]}>
           {loading && preview ? (
-            <Image
+            <CachedImage
               source={{ uri: preview }}
-              resizeMode='contain'
-              fadeDuration={0}
+              contentFit='contain'
               style={StyleSheet.absoluteFill}
             />
           ) : null}
-          <Image
+          <CachedImage
             source={{ uri }}
-            resizeMode='contain'
-            fadeDuration={0}
+            contentFit='contain'
+            // Zooming in scales this bitmap, so keep every pixel rather than the screen-sized copy.
+            allowDownscaling={false}
             onLoadEnd={() => setLoading(false)}
             style={size}
           />
@@ -434,11 +434,7 @@ const ImageGallery = ({
         accessibilityState={{ selected: i === index }}
         style={[styles.thumb, i === index ? styles.thumbActive : styles.thumbIdle]}
       >
-        <Image
-          source={{ uri: item.preview ?? item.url }}
-          style={styles.thumbImage}
-          fadeDuration={0}
-        />
+        <CachedImage source={{ uri: item.preview ?? item.url }} style={styles.thumbImage} />
       </PressableScale>
     ),
     [index, jumpTo, photos.length]

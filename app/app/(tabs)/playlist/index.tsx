@@ -13,7 +13,8 @@ import { useLikedIds } from '@/queries/usePersonal';
 import { router } from 'expo-router';
 import { AlertCircle, Edit3, Trash2, X } from '@/components/ui/icons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, Keyboard, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, StyleSheet, Text, TextInput, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Animated from 'react-native-reanimated';
 import { TabLoading } from '@/components/ui/TabLoading';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
@@ -477,11 +478,7 @@ const CoverStack = memo(function CoverStack({ uris }: { uris: string[] }) {
       {fanned &&
         BEHIND.map(({ at, style, dim }) => (
           <View key={at} style={[tile, style]}>
-            <Image
-              source={{ uri: uris[at], cache: 'force-cache' }}
-              style={styles.fill}
-              fadeDuration={0}
-            />
+            <CachedImage source={{ uri: uris[at] }} style={styles.fill} />
             <View
               style={[
                 StyleSheet.absoluteFill,
@@ -492,11 +489,7 @@ const CoverStack = memo(function CoverStack({ uris }: { uris: string[] }) {
         ))}
       <View style={tile}>
         {uris[0] ? (
-          <Image
-            source={{ uri: uris[0], cache: 'force-cache' }}
-            style={styles.fill}
-            fadeDuration={0}
-          />
+          <CachedImage source={{ uri: uris[0] }} style={styles.fill} />
         ) : (
           <Ionicons name='musical-notes' size={20} color={colors.mutedForeground} />
         )}

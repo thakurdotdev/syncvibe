@@ -6,7 +6,8 @@ import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { memo, type ReactNode } from 'react';
-import { Image, StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type TextStyle } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, { type AnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PressableScale from './PressableScale';
@@ -72,10 +73,9 @@ const AvatarButton = memo(function AvatarButton() {
       accessibilityLabel='Your profile'
       style={[styles.avatarRing, { borderColor: colors.border }]}
     >
-      <Image
+      <CachedImage
         source={{ uri: getProfileCloudinaryUrl(user.profilepic) }}
         style={styles.avatar}
-        fadeDuration={0}
       />
     </PressableScale>
   );

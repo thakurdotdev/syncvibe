@@ -2,7 +2,7 @@ import { usePlayerProgress } from '@/hooks/usePlayerProgress';
 import { EASE_OUT } from '@/lib/motion';
 import { LANDED, playerOpenness } from '@/lib/playerMorph';
 import { useFullPlayerOpen } from '@/stores/playerStore';
-import { useProgress } from '@rntp/player';
+import { useTrackProgress } from '@/hooks/useTrackProgress';
 import { memo, useEffect, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, {
@@ -203,7 +203,7 @@ export const SongOrbRing = memo(function SongOrbRing(props: RingProps) {
  * room's; your other devices' playback has nothing to do with it.
  */
 export const RoomOrbRing = memo(function RoomOrbRing(props: RingProps) {
-  const { position, duration } = useProgress();
+  const { position, duration } = useTrackProgress();
   return <RingView {...props} fraction={fractionOf(position, duration)} duration={duration} />;
 });
 

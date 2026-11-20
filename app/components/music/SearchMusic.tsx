@@ -10,13 +10,13 @@ import React, { useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Text,
   TextInput,
   TouchableOpacity,
   View,
   StatusBar,
 } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 
 const formatDuration = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -79,11 +79,9 @@ export default function SearchMusic() {
         >
           <View className='flex-row items-center p-3'>
             <View className='w-14 h-14 rounded-lg overflow-hidden mr-3'>
-              <Image
+              <CachedImage
                 source={{ uri: song.image[2]?.link || song.image[0]?.link }}
                 className='w-full h-full'
-                resizeMode='cover'
-                fadeDuration={0}
               />
               <BlurView intensity={10} tint='dark' className='absolute inset-0 opacity-25' />
             </View>

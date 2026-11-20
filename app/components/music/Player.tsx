@@ -1,5 +1,5 @@
 import { blurredArt } from '@/lib/artwork';
-import { EASE_OUT, project } from '@/lib/motion';
+import { project } from '@/lib/motion';
 import { LANDED, openOrigin, orbOrigin, playerOpenness, type MorphOrigin } from '@/lib/playerMorph';
 import { SWIPE_DIRECTION_DECIDED } from '@/lib/swipe';
 import { useTheme } from '@/context/ThemeContext';
@@ -13,14 +13,13 @@ import {
   useQueueNeighbors,
 } from '@/stores/playerStore';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, BackHandler, Image, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { AppState, BackHandler, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   clamp,
   interpolate,
   useAnimatedReaction,
-  FadeIn,
-  FadeOut,
   ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
@@ -65,8 +64,7 @@ const lerp = (from: number, to: number, t: number) => {
 
 const system = ReduceMotion.System;
 // No overshoot: the sheet must never lift past the top and show the app behind it.
-const BACKDROP_ENTER = FadeIn.duration(260).easing(EASE_OUT);
-const BACKDROP_EXIT = FadeOut.duration(200).easing(EASE_OUT);
+const BACKDROP_FADE = { duration: 260, effect: 'cross-dissolve' } as const;
 const OPEN = { duration: 440, dampingRatio: 1, reduceMotion: system } as const;
 const CLOSE = { duration: 380, dampingRatio: 1, reduceMotion: system } as const;
 const SNAP_BACK = { duration: 260, dampingRatio: 1, reduceMotion: system } as const;
@@ -80,12 +78,10 @@ const Backdrop = ({ uri }: { uri?: string }) => {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents='none'>
       {uri ? (
-        <Animated.Image
-          key={uri}
-          entering={BACKDROP_ENTER}
-          exiting={BACKDROP_EXIT}
+        // The old backdrop stays until the next song's is ready, then dissolves into it.
+        <CachedImage
           {...blurredArt(uri, 28)}
-          resizeMode='cover'
+          transition={BACKDROP_FADE}
           style={StyleSheet.absoluteFill}
         />
       ) : null}
@@ -555,7 +551,7 @@ export default function Player() {
         style={[styles.flyingCover, coverColors, flyingCoverStyle]}
       >
         {coverUri ? (
-          <Image source={{ uri: coverUri }} fadeDuration={0} style={StyleSheet.absoluteFill} />
+          <CachedImage source={{ uri: coverUri }} style={StyleSheet.absoluteFill} />
         ) : null}
       </Animated.View>
 

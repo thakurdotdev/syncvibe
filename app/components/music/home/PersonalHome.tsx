@@ -9,7 +9,8 @@ import { convertToHttps } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { memo } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { playStationFrom } from './playStation';
 
 const SIDE_MARGIN = 16;
@@ -37,7 +38,7 @@ const FriendCard = memo(function FriendCard({ friend }: { friend: FriendActivity
     >
       <View>
         {art ? (
-          <Image
+          <CachedImage
             source={{ uri: convertToHttps(art) }}
             style={[styles.art, { backgroundColor: colors.raised }]}
           />
@@ -48,7 +49,7 @@ const FriendCard = memo(function FriendCard({ friend }: { friend: FriendActivity
         )}
         <View style={[styles.avatar, { backgroundColor: colors.raised, borderColor: colors.card }]}>
           {user.profilepic ? (
-            <Image source={{ uri: user.profilepic }} style={styles.avatarImage} />
+            <CachedImage source={{ uri: user.profilepic }} style={styles.avatarImage} />
           ) : (
             <Text style={[styles.avatarLetter, { color: colors.foreground }]}>
               {user.name?.[0] ?? '?'}

@@ -5,7 +5,8 @@ import { fonts } from '@/theme/typography';
 import { getOptimizedImageUrl } from '@/utils/Cloudinary';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { memo } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 
 type User = {
   name?: string;
@@ -39,10 +40,9 @@ export const ProfileIdentity = memo(function ProfileIdentity({
         accessibilityLabel='Change profile photo'
         style={styles.avatarWrap}
       >
-        <Image
+        <CachedImage
           source={{ uri: getOptimizedImageUrl(user.profilepic) }}
           style={[styles.avatar, { backgroundColor: colors.muted }]}
-          fadeDuration={0}
         />
         <View
           style={[

@@ -25,15 +25,8 @@ import { SearchHistoryItem, searchHistoryManager } from '@/utils/searchHistory';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  SectionList,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, SectionList, StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 
 const LIST_PROPS = {
   showsVerticalScrollIndicator: false,
@@ -300,10 +293,9 @@ const PlaylistRow = memo(function PlaylistRow({
       style={styles.row}
     >
       {art ? (
-        <Image
+        <CachedImage
           source={{ uri: art }}
           style={[styles.art, { backgroundColor: colors.muted }]}
-          fadeDuration={0}
         />
       ) : (
         <View style={[styles.art, styles.artEmpty, { backgroundColor: colors.muted }]}>
@@ -434,10 +426,9 @@ export const PeoplePanel = memo(function PeoplePanel({ query }: { query: string 
         accessibilityLabel={`Message ${item.name}`}
         style={styles.row}
       >
-        <Image
+        <CachedImage
           source={{ uri: getProfileCloudinaryUrl(item.profilepic) }}
           style={[styles.avatar, { backgroundColor: colors.muted }]}
-          fadeDuration={0}
         />
         <View style={styles.rowText}>
           <Text style={[styles.rowTitle, { color: colors.foreground }]} numberOfLines={1}>

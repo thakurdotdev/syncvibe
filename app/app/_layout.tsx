@@ -150,9 +150,7 @@ function RootLayoutNav() {
     void onboardingCheckAtLaunch().then(() => setOnboardingKnown(true));
   }, []);
 
-  const ready =
-    timedOut ||
-    (!themeLoading && onboardingKnown && userRestored && !queriesRestoring);
+  const ready = timedOut || (!themeLoading && onboardingKnown && userRestored && !queriesRestoring);
 
   useEffect(() => {
     if (ready) return;
@@ -190,6 +188,9 @@ function RootLayoutNav() {
           screenOptions={{
             animation: 'default',
             gestureEnabled: false,
+            // A screen under another one stops re-rendering (the player ticks, sockets, queries)
+            // until you come back to it, so the screen you're on has the JS thread to itself.
+            freezeOnBlur: true,
             headerStyle: {
               backgroundColor: colors.background,
             },

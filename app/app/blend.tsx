@@ -12,7 +12,8 @@ import { Song } from '@/types/song';
 import { convertToHttps } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, FlatList, Image, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const Avatar = ({ name, uri, size }: { name?: string; uri?: string | null; size: number }) => {
@@ -31,7 +32,7 @@ const Avatar = ({ name, uri, size }: { name?: string; uri?: string | null; size:
       ]}
     >
       {uri ? (
-        <Image source={{ uri }} style={StyleSheet.absoluteFill} />
+        <CachedImage source={{ uri }} style={StyleSheet.absoluteFill} />
       ) : (
         <Text style={[styles.avatarLetter, { color: colors.foreground }]}>{name?.[0] ?? '?'}</Text>
       )}
@@ -62,7 +63,7 @@ export default function BlendScreen() {
         accessibilityLabel={`Play ${item.name}${tag ? `, from ${tag}` : ''}`}
         style={styles.row}
       >
-        <Image
+        <CachedImage
           source={{ uri: art ? convertToHttps(art) : undefined }}
           style={[styles.art, { backgroundColor: colors.raised }]}
         />

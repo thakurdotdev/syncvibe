@@ -13,7 +13,8 @@ import { router } from 'expo-router';
 import PressableScale from '@/components/ui/PressableScale';
 import { ROW_PRESS_SCALE } from '@/lib/motion';
 import React, { useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import SwipeableModal from '../SwipeableModal';
 import AddToPlaylist from './AddToPlaylist';
 
@@ -105,12 +106,7 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
         <View style={styles.container}>
           <View style={styles.headerContainer}>
             <View style={styles.albumArtContainer}>
-              <Image
-                source={{ uri: albumArt }}
-                style={styles.albumArt}
-                resizeMode='cover'
-                fadeDuration={0}
-              />
+              <CachedImage source={{ uri: albumArt }} style={styles.albumArt} />
             </View>
             <View style={styles.songInfoContainer}>
               <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>

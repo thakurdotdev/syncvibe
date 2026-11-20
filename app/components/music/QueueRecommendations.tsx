@@ -8,15 +8,8 @@ import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
 import { RefreshCw, Plus, X } from '@/components/ui/icons';
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 const SkeletonCard = memo(({ colors }: { colors: any }) => (
@@ -67,12 +60,7 @@ const RecommendationItem = memo(
     return (
       <Animated.View entering={SECTION_ENTER}>
         <View style={[recItemStyles.container, { backgroundColor: colors.card }]}>
-          <Image
-            source={{ uri: imageUrl }}
-            style={recItemStyles.image}
-            resizeMode='cover'
-            fadeDuration={0}
-          />
+          <CachedImage source={{ uri: imageUrl }} style={recItemStyles.image} />
           <View style={recItemStyles.info}>
             <Text style={[recItemStyles.title, { color: colors.text }]} numberOfLines={1}>
               {song.name}

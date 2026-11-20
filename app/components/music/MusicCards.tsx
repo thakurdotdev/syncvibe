@@ -12,11 +12,13 @@ import { Album, Artist, Playlist } from '@/types/music';
 import { Song } from '@/types/song';
 import { convertToHttps, ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
-import { useProgress } from '@rntp/player';
+import { useTrackProgress } from '@/hooks/useTrackProgress';
 import { usePlayerProgress } from '@/hooks/usePlayerProgress';
 import { router } from 'expo-router';
+import { usePrefetchDetails } from '@/queries/useMusic';
 import { memo, default as React, useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import PressableScale from '@/components/ui/PressableScale';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -188,16 +190,18 @@ interface CardContainerProps {
   children: React.ReactNode;
   onPress?: () => void | Promise<void>;
   onLongPress?: () => void | Promise<void>;
+  onPressIn?: () => void;
   width?: number | `${number}%` | 'auto';
   style?: StyleProp<ViewStyle>;
 }
 
 export const CardContainer = memo(
-  ({ children, onPress, onLongPress, width, style }: CardContainerProps) => {
+  ({ children, onPress, onLongPress, onPressIn, width, style }: CardContainerProps) => {
     // Press feedback runs on the UI thread (no re-render per touch), like every card app-wide.
     return (
       <PressableScale
         onPress={onPress}
+        onPressIn={onPressIn}
         onLongPress={onLongPress}
         delayLongPress={350}
         unstable_pressDelay={LIST_PRESS_DELAY}
@@ -265,7 +269,7 @@ export const SongCard = memo(
               borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
             }}
           >
-            <Image
+            <CachedImage
               {...coverProps(coverUrl(song.image, 1))}
               style={{ width: '100%', height: '100%' }}
               alt='Song cover'
@@ -334,17 +338,9 @@ const coverUrl = (image: unknown, tier: 0 | 1 | 2 = 2): string | undefined => {
   return typeof link === 'string' ? convertToHttps(link) : undefined;
 };
 
-/**
- * One image view, rounded directly rather than clipped by a wrapper. `resizeMethod` decodes
- * Android bitmaps at the size shown, so a card doesn't hold a full 500px cover in memory.
- */
+/** One image view, rounded directly rather than clipped by a wrapper. */
 const coverProps = (uri: string | undefined) =>
-  ({
-    source: uri ? { uri, cache: 'force-cache' as const } : {},
-    fadeDuration: IMAGE_FADE_MS,
-    resizeMode: 'cover',
-    resizeMethod: 'resize',
-  }) as const;
+  ({ source: uri ?? null, transition: IMAGE_FADE_MS }) as const;
 
 const CardText = memo(function CardText({
   title,
@@ -382,6 +378,7 @@ export const AlbumCard = memo(
       if (customOnPress) customOnPress();
       else router.push({ pathname: '/albums', params: { id } });
     }, [id, customOnPress]);
+    const prefetch = usePrefetchDetails('album', id);
 
     if (!album) return null;
 
@@ -389,8 +386,13 @@ export const AlbumCard = memo(
     const artistName = typeof album.artist === 'object' ? album.artist?.name : album.artist;
 
     return (
-      <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
-        <Image
+      <CardContainer
+        onPress={handlePress}
+        onPressIn={customOnPress ? undefined : prefetch}
+        onLongPress={onLongPress}
+        width={width}
+      >
+        <CachedImage
           {...coverProps(coverUrl(album.image))}
           style={[cardStyles.cover, { backgroundColor: colors.raised }]}
           alt={`Album: ${name}`}
@@ -415,12 +417,18 @@ export const PlaylistCard = memo(
       if (customOnPress) customOnPress();
       else router.push({ pathname: '/playlists', params: { id } });
     }, [id, customOnPress]);
+    const prefetch = usePrefetchDetails('playlist', id);
 
     if (!playlist?.name || !playlist?.image) return null;
 
     return (
-      <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
-        <Image
+      <CardContainer
+        onPress={handlePress}
+        onPressIn={customOnPress ? undefined : prefetch}
+        onLongPress={onLongPress}
+        width={width}
+      >
+        <CachedImage
           {...coverProps(coverUrl(playlist.image))}
           style={[cardStyles.cover, { backgroundColor: colors.raised }]}
           alt={`Playlist: ${playlist.name}`}
@@ -446,7 +454,7 @@ export const NewSongCard = memo(({ song, width }: SongCardProps & CardWidth) => 
     <>
       <CardContainer width={width} onPress={onPress} onLongPress={onLongPress}>
         <View>
-          <Image
+          <CachedImage
             {...coverProps(coverUrl(song.image))}
             style={[cardStyles.cover, { backgroundColor: colors.raised }]}
             alt={`Song: ${song.name}`}
@@ -479,12 +487,18 @@ export const ArtistCard = memo(
       if (customOnPress) customOnPress();
       else router.push({ pathname: '/artist', params: { id } });
     }, [id, customOnPress]);
+    const prefetch = usePrefetchDetails('artist', id);
 
     if (!artist?.name || !artist?.image) return null;
 
     return (
-      <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
-        <Image
+      <CardContainer
+        onPress={handlePress}
+        onPressIn={customOnPress ? undefined : prefetch}
+        onLongPress={onLongPress}
+        width={width}
+      >
+        <CachedImage
           {...coverProps(coverUrl(artist.image))}
           style={[cardStyles.avatar, { backgroundColor: colors.raised }]}
           alt={`Artist: ${artist.name}`}
@@ -553,7 +567,7 @@ export const ProgressBar = memo(() => {
 });
 
 export const GroupSongControls = memo(() => {
-  const { position, duration } = useProgress();
+  const { position, duration } = useTrackProgress();
   const { handleSeek } = useGroupMusic();
 
   return (

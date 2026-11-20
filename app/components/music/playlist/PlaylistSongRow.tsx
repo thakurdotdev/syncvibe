@@ -7,7 +7,8 @@ import { Song } from '@/types/song';
 import { convertToHttps } from '@/utils/getHttpsUrls';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { memo, useMemo } from 'react';
-import { Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -104,10 +105,9 @@ export const PlaylistSongRow = memo(function PlaylistSongRow({
           size={24}
           color={selected ? colors.primary : colors.mutedForeground}
         />
-        <Image
+        <CachedImage
           source={{ uri: cover ? convertToHttps(cover) : undefined }}
           style={[styles.cover, { backgroundColor: colors.muted }]}
-          fadeDuration={0}
         />
         <View style={styles.text}>
           <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>

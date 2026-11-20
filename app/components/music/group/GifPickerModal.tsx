@@ -9,12 +9,12 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Image,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 
 const COLUMN_GAP = 8;
 const CONTENT_PADDING = 16;
@@ -81,11 +81,10 @@ const MediaThumbnail = React.memo(
             },
           ]}
         >
-          <Image
+          <CachedImage
             source={{ uri: displayImage }}
             style={thumbnailStyles.stickerImage}
-            resizeMode='contain'
-            fadeDuration={0}
+            contentFit='contain'
           />
         </PressableScale>
       );
@@ -103,11 +102,9 @@ const MediaThumbnail = React.memo(
           },
         ]}
       >
-        <Image
+        <CachedImage
           source={{ uri: displayImage }}
           style={[thumbnailStyles.mediaImage, { width: itemWidth }]}
-          resizeMode='cover'
-          fadeDuration={0}
         />
 
         {/* Subtle Clip Badge */}

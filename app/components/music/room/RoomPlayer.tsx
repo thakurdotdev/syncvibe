@@ -10,7 +10,8 @@ import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useRef } from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ART_SWAP, CachedImage } from '@/components/ui/CachedImage';
 import { useRoomControl } from './useRoomControl';
 
 const REACTIONS = ['🔥', '❤️', '👏', '😍', '🎵'] as const;
@@ -138,7 +139,9 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.hairline }]}>
-      {art ? <Image {...blurredArt(art, 45)} style={styles.tint} /> : null}
+      {art ? (
+        <CachedImage {...blurredArt(art, 45)} transition={ART_SWAP} style={styles.tint} />
+      ) : null}
       <View
         style={[
           StyleSheet.absoluteFill,
@@ -148,11 +151,10 @@ export const RoomPlayer = memo(function RoomPlayer({ onChooseSong }: { onChooseS
 
       <View style={styles.body}>
         <View style={styles.top}>
-          <Image
+          <CachedImage
             source={{ uri: art }}
+            transition={ART_SWAP}
             style={[styles.art, { backgroundColor: colors.raised }]}
-            resizeMode='cover'
-            fadeDuration={0}
           />
           <View style={styles.meta}>
             <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>

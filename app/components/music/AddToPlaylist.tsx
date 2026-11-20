@@ -9,13 +9,13 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import SwipeableModal from '../SwipeableModal';
 import Animated, {
   useAnimatedStyle,
@@ -176,14 +176,13 @@ const AddToPlaylist: React.FC<AddToPlaylistProps> = ({ dialogOpen, setDialogOpen
           },
         ]}
       >
-        <Image
+        <CachedImage
           source={
             item.image && getImageUrl(item.image)
               ? { uri: getImageUrl(item.image) }
               : require('../../assets/syncvibe.png')
           }
           style={{ width: 48, height: 48, borderRadius: 8, marginRight: 14 }}
-          fadeDuration={0}
         />
         <View style={{ flex: 1 }}>
           <Text

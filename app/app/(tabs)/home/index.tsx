@@ -30,7 +30,6 @@ import { useIsRestoring, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -38,6 +37,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { CachedImage, prefetchImages } from '@/components/ui/CachedImage';
 import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
 type Colors = ReturnType<typeof useTheme>['colors'];
@@ -159,11 +159,9 @@ const RecentStrip = memo(function RecentStrip({
               accessibilityLabel={`Play ${song.name} by ${songArtist(song)}`}
               style={styles.recentTile}
             >
-              <Image
-                source={{ uri: art ? convertToHttps(art) : undefined, cache: 'force-cache' }}
+              <CachedImage
+                source={{ uri: art ? convertToHttps(art) : undefined }}
                 style={[styles.recentArt, { backgroundColor: colors.raised }]}
-                fadeDuration={0}
-                resizeMethod='resize'
               />
               <Text style={[styles.recentTitle, { color: colors.foreground }]} numberOfLines={1}>
                 {shortSongName(song.name)}
@@ -194,7 +192,7 @@ const LiveRoomCard = memo(function LiveRoomCard({ colors }: { colors: Colors }) 
       <View style={styles.liveTop}>
         <View style={[styles.roomThumb, { borderColor: colors.live }]}>
           {art ? (
-            <Image source={{ uri: art }} style={styles.roomThumbImg} fadeDuration={0} />
+            <CachedImage source={{ uri: art }} style={styles.roomThumbImg} />
           ) : (
             <Ionicons name='radio' size={22} color={colors.live} />
           )}
@@ -243,7 +241,7 @@ const YourMusicCard = memo(function YourMusicCard({ colors }: { colors: Colors }
     <View
       style={[styles.yourMusic, { backgroundColor: colors.card, borderColor: colors.hairline }]}
     >
-      <Image source={{ uri: art }} style={styles.yourArt} fadeDuration={0} />
+      <CachedImage source={{ uri: art }} style={styles.yourArt} />
       <View style={styles.roomText}>
         <Text style={[styles.yourLabel, { color: colors.mutedForeground }]}>Your music</Text>
         <Text style={[styles.yourTitle, { color: colors.foreground }]} numberOfLines={1}>
@@ -509,8 +507,7 @@ function HomeScreen() {
   useEffect(() => {
     for (const near of [stations[stationIndex - 1], stations[stationIndex + 1]]) {
       if (near?.source) queryClient.prefetchQuery(stationQuery(near.source)).catch(() => {});
-      const cover = near?.songs?.[0]?.image?.[2]?.link;
-      if (cover) Image.prefetch(cover).catch(() => {});
+      prefetchImages([near?.songs?.[0]?.image?.[2]?.link]);
     }
   }, [queryClient, stationIndex, stations]);
 

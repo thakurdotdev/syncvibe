@@ -2,7 +2,6 @@ import PressableScale from '@/components/ui/PressableScale';
 import { blurredArt } from '@/lib/artwork';
 import { SONG_LIST_WINDOW } from '@/lib/lists';
 import { SongCard } from '@/components/music/MusicCards';
-import { SONG_URL } from '@/constants';
 import { usePlayerControls } from '@/stores/playerStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupMusic } from '@/context/GroupMusicContext';
@@ -11,18 +10,12 @@ import { toast } from '@/context/ToastContext';
 import { Song } from '@/types/song';
 import { convertToHttps, ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { useCallback, useMemo } from 'react';
+import { usePlaylistDetails } from '@/queries/useMusic';
+import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -47,34 +40,16 @@ const renderSong = ({ item }: { item: Song }) => <SongCard song={item} />;
 
 export default function PlaylistScreen() {
   const { colors, theme } = useTheme();
-  const { id } = useLocalSearchParams();
-  const [playlistData, setPlaylistData] = useState<PlaylistData | null>(null);
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const { addToPlaylist, playSong } = usePlayerControls();
-  const [loading, setLoading] = useState(true);
+  // Cached and saved on the phone: a playlist you've opened before is there with no spinner.
+  const { data, isPending: loading } = usePlaylistDetails(id);
+  const playlistData = data?.id ? (data as unknown as PlaylistData) : null;
   const { width } = useWindowDimensions();
   const scrollY = useSharedValue(0);
 
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const { addPlaylistToQueue } = useGroupMusic();
-
-  const fetchPlaylistData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`${SONG_URL}/playlist?id=${id}`);
-      const data = response.data;
-      setPlaylistData(data.data);
-    } catch (error) {
-      console.error('Error fetching playlist data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (id) {
-      fetchPlaylistData();
-    }
-  }, [id, fetchPlaylistData]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -173,7 +148,7 @@ export default function PlaylistScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Edge-to-Edge Ambient Background */}
-      <Image {...blurredArt(coverUrl, 60)} style={styles.heroBackgroundImage} />
+      <CachedImage {...blurredArt(coverUrl, 60)} style={styles.heroBackgroundImage} />
       <LinearGradient
         colors={[
           'rgba(0,0,0,0.1)',
@@ -200,11 +175,9 @@ export default function PlaylistScreen() {
           <View style={styles.headerWrapper}>
             <Animated.View style={[styles.heroContent, heroAnimatedStyle]}>
               <View style={styles.artworkShadow}>
-                <Image
+                <CachedImage
                   source={{ uri: coverUrl }}
                   style={[styles.playlistImage, { width: imageSize, height: imageSize }]}
-                  resizeMode='cover'
-                  fadeDuration={0}
                 />
               </View>
 

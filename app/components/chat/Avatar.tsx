@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { useTheme } from '@/context/ThemeContext';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 
@@ -37,10 +38,9 @@ const Avatar: React.FC<AvatarProps> = ({ name, profilepic, size = 'md', isOnline
   return (
     <View style={[styles.container, { width: dim, height: dim }]}>
       {showImage ? (
-        <Image
+        <CachedImage
           source={{ uri: getProfileCloudinaryUrl(profilepic) }}
           style={[
-            styles.image,
             {
               width: dim,
               height: dim,
@@ -48,7 +48,6 @@ const Avatar: React.FC<AvatarProps> = ({ name, profilepic, size = 'md', isOnline
               backgroundColor: colors.muted,
             },
           ]}
-          fadeDuration={0}
         />
       ) : (
         <View
@@ -89,9 +88,6 @@ const Avatar: React.FC<AvatarProps> = ({ name, profilepic, size = 'md', isOnline
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
-  },
-  image: {
-    resizeMode: 'cover',
   },
   initialsContainer: {
     alignItems: 'center',

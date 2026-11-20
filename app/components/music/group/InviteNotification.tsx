@@ -1,6 +1,7 @@
 import PressableScale from '@/components/ui/PressableScale';
 import React, { useEffect, useRef } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SwipeableModal from '@/components/SwipeableModal';
@@ -38,14 +39,13 @@ export const InviteNotification: React.FC = () => {
         {/* Profile Avatar with Music Badge */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarWrapper}>
-            <Image
+            <CachedImage
               source={{
                 uri:
                   getProfileCloudinaryUrl(pendingInvite.inviterPic) ||
                   'https://via.placeholder.com/64',
               }}
               style={[styles.avatar, { backgroundColor: colors.secondary }]}
-              fadeDuration={0}
             />
             <View
               style={[

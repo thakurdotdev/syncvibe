@@ -9,7 +9,8 @@ import { useFullPlayerOpen } from '@/stores/playerStore';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -594,10 +595,9 @@ export const Orb = memo(function Orb({
                   >
                     <Animated.View style={[styles.orbArt, artStyle]}>
                       <Animated.View style={[styles.orbArt, turnStyle]}>
-                        <Image
+                        <CachedImage
                           source={{ uri: artworkUri }}
                           style={[styles.orbArt, { backgroundColor: colors.raised }]}
-                          fadeDuration={0}
                         />
                       </Animated.View>
                     </Animated.View>

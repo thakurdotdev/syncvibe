@@ -3,7 +3,8 @@ import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE } from '@/lib/swipe';
 import { useIsPlaying, usePlayerControls } from '@/stores/playerStore';
 import { Song } from '@/types/song';
 import { memo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   ReduceMotion,
@@ -130,12 +131,7 @@ export const ArtworkCarousel = memo(function ArtworkCarousel({
               // Keyed by song, so a cover keeps its loaded image as it moves between slots.
               <View key={item.id} style={[styles.slot, { left: at * width, width, height: size }]}>
                 <View style={[styles.cover, { width: size, height: size }]}>
-                  <Image
-                    source={{ uri: art(item) }}
-                    style={styles.coverImage}
-                    resizeMode='cover'
-                    fadeDuration={0}
-                  />
+                  <CachedImage source={{ uri: art(item) }} style={styles.coverImage} />
                 </View>
               </View>
             ))}

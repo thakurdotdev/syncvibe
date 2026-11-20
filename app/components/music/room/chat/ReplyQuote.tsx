@@ -1,7 +1,9 @@
 import { useTheme } from '@/context/ThemeContext';
 import type { ReplyRef } from '@/stores/groupMusic/types';
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import PressableScale from '@/components/ui/PressableScale';
+import { ROW_PRESS_SCALE } from '@/lib/motion';
 import { previewText } from './chatUtils';
 
 /** Quoted message inside a reply bubble. Tapping it jumps to the original. */
@@ -18,8 +20,9 @@ export const ReplyQuote = memo(function ReplyQuote({
   const tint = own ? colors.primaryForeground : colors.primary;
 
   return (
-    <Pressable
+    <PressableScale
       onPress={() => onPress?.(reply.id)}
+      scaleTo={ROW_PRESS_SCALE}
       accessibilityRole='button'
       accessibilityLabel={`Reply to ${reply.userName ?? 'message'}. Jump to original`}
       style={[
@@ -39,7 +42,7 @@ export const ReplyQuote = memo(function ReplyQuote({
           {previewText(reply) || 'Message'}
         </Text>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 });
 

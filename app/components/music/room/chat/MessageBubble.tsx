@@ -3,7 +3,8 @@ import { useTheme } from '@/context/ThemeContext';
 import type { Message } from '@/stores/groupMusic/types';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import { memo, useMemo, useRef } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import type { AnchorRect } from './MessageActions';
 import { formatClock, isEmojiOnly, isGif, isSound, toReactionChips } from './chatUtils';
 import { MessageReactions } from './MessageReactions';
@@ -71,10 +72,9 @@ export const MessageBubble = memo(function MessageBubble({
         {!own && (
           <View style={styles.avatarSlot}>
             {groupStart && (
-              <Image
+              <CachedImage
                 source={{ uri: getProfileCloudinaryUrl(m.profilePic) }}
                 style={[styles.avatar, { backgroundColor: colors.muted }]}
-                fadeDuration={0}
               />
             )}
           </View>
@@ -104,12 +104,7 @@ export const MessageBubble = memo(function MessageBubble({
             ) : null}
 
             {gif ? (
-              <Image
-                source={{ uri: m.gifUrl }}
-                style={styles.gif}
-                resizeMode='cover'
-                fadeDuration={0}
-              />
+              <CachedImage source={{ uri: m.gifUrl }} style={styles.gif} />
             ) : sound ? (
               <SoundMessageRow msg={m} isOwn={own} />
             ) : emoji ? (
