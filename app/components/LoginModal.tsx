@@ -4,7 +4,8 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 
 const LoginModal = ({ title }: { title?: string }) => {
   const router = useRouter();
@@ -29,14 +30,13 @@ const LoginModal = ({ title }: { title?: string }) => {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Image
+                <CachedImage
                   source={{
                     uri: 'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp',
                   }}
                   style={{ width: 65, height: 65 }}
-                  resizeMode='contain'
+                  contentFit='contain'
                   className='rounded-full'
-                  fadeDuration={0}
                 />
               </LinearGradient>
             </View>

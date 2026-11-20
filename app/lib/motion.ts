@@ -59,8 +59,8 @@ export const BUTTON_PRESS_SCALE = 0.92;
  */
 export const LIST_PRESS_DELAY = 70;
 /**
- * Android's cross-fade for an image that had to be downloaded. Short enough to feel instant, and
- * images already in memory appear with no fade at all.
+ * Fade-in for a cover in a list as it arrives. Short enough to feel instant; one already in
+ * memory (components/ui/CachedImage) appears in the first frame.
  */
 export const IMAGE_FADE_MS = 120;
 

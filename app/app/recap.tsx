@@ -9,7 +9,8 @@ import { useRecap } from '@/queries/usePersonal';
 import { fonts } from '@/theme/typography';
 import { convertToHttps } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Image, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PEAK = {
@@ -124,7 +125,7 @@ export default function RecapScreen() {
               style={styles.row}
             >
               <Text style={[styles.rank, { color: colors.mutedForeground }]}>{index + 1}</Text>
-              <Image
+              <CachedImage
                 source={{ uri: art ? convertToHttps(art) : undefined }}
                 style={[styles.art, { backgroundColor: colors.raised }]}
               />
@@ -151,7 +152,7 @@ export default function RecapScreen() {
         {recap.topArtists.map((artist, index) => (
           <View key={artist.id ?? artist.name} style={styles.row}>
             <Text style={[styles.rank, { color: colors.mutedForeground }]}>{index + 1}</Text>
-            <Image
+            <CachedImage
               source={{ uri: artist.image ? convertToHttps(artist.image) : undefined }}
               style={[styles.art, styles.round, { backgroundColor: colors.raised }]}
             />

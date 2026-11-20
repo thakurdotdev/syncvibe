@@ -47,14 +47,8 @@ import { type PlayerDevice, usePlayingOn } from '@/stores/playerSessionStore';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import {
-  Image,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-  type LayoutChangeEvent,
-} from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cubicBezier,
@@ -319,10 +313,9 @@ export const MiniPlayerRow = memo(function MiniPlayerRow({
         >
           <Animated.View key={songId} entering={SONG_ENTER[direction]} style={styles.miniSongEnter}>
             <Animated.View style={[styles.miniSongInner, songStyle]}>
-              <Image
+              <CachedImage
                 source={{ uri: artworkUri }}
                 style={[styles.artwork, { backgroundColor: colors.raised }]}
-                fadeDuration={0}
               />
               <View style={styles.songInfo}>
                 <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>
@@ -509,10 +502,9 @@ const RoomCardRow = memo(function RoomCardRow({ colors }: { colors: Colors }) {
       accessibilityRole='button'
       accessibilityLabel={`Back to ${name}`}
     >
-      <Image
+      <CachedImage
         source={{ uri: artworkUri }}
         style={[styles.artwork, { backgroundColor: colors.raised }]}
-        fadeDuration={0}
       />
       <View style={styles.songInfo}>
         <Text style={[styles.songTitle, { color: colors.foreground }]} numberOfLines={1}>

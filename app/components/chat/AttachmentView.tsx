@@ -16,7 +16,8 @@ import { getOptimizedImageUrl } from '@/utils/Cloudinary';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAudioPlayer, useAudioPlayerStatus, type AudioPlayer } from 'expo-audio';
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Image, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Svg, { Circle } from 'react-native-svg';
 
 const MEDIA_WIDTH = 240;
@@ -137,11 +138,9 @@ const MediaTile = ({
         ]}
       >
         {!video && uri ? (
-          <Image
+          <CachedImage
             source={{ uri }}
             style={StyleSheet.absoluteFill}
-            resizeMode='cover'
-            fadeDuration={0}
             onError={() => !message.localUrl && refreshAttachment(message)}
           />
         ) : null}

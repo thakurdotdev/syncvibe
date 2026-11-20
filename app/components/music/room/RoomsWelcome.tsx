@@ -9,7 +9,8 @@ import type { MyRoom } from '@/stores/groupMusic/roomProtocol';
 import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
 import { memo } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, {
   cubicBezier,
   FadeIn,
@@ -75,7 +76,7 @@ const RoomPreview = memo(function RoomPreview({ colors }: { colors: Colors }) {
                 {i > 0 ? (
                   <Ionicons name='add' size={14} color={colors.mutedForeground} />
                 ) : pic ? (
-                  <Image source={{ uri: pic }} style={styles.seatImage} />
+                  <CachedImage source={{ uri: pic }} style={styles.seatImage} />
                 ) : (
                   <Text style={[styles.seatInitial, { color: colors.foreground }]}>{initial}</Text>
                 )}
@@ -155,7 +156,7 @@ const StartFromMusic = memo(function StartFromMusic({
     >
       <Gloss tone='surface' />
       <View style={[styles.musicArt, { backgroundColor: colors.raised }]}>
-        {art ? <Image source={{ uri: art }} style={styles.musicArtImage} fadeDuration={0} /> : null}
+        {art ? <CachedImage source={{ uri: art }} style={styles.musicArtImage} /> : null}
       </View>
       <View style={styles.musicText}>
         <Text style={[styles.musicTitle, { color: colors.foreground }]}>

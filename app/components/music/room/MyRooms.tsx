@@ -13,7 +13,8 @@ import type { Song } from '@/types/song';
 import { TimeAgo } from '@/utils/TimeAgo';
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 
 type Colors = ReturnType<typeof useTheme>['colors'];
 
@@ -86,7 +87,7 @@ const PlayingCard = memo(function PlayingCard({
       <View style={styles.info}>
         <View style={[styles.art, { backgroundColor: colors.raised }]}>
           {art ? (
-            <Image source={{ uri: art }} style={styles.artImage} />
+            <CachedImage source={{ uri: art }} style={styles.artImage} />
           ) : (
             <Ionicons name='radio' size={22} color={colors.mutedForeground} />
           )}

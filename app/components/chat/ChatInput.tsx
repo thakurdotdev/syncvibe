@@ -6,7 +6,8 @@ import { MAX_MESSAGE_LENGTH, type PickedFile } from '@/lib/chat';
 import { BUTTON_PRESS_SCALE } from '@/lib/motion';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ChatInputProps {
@@ -50,7 +51,7 @@ const StagedFile = React.memo(
     if (file.kind === 'image') {
       return (
         <View style={styles.stagedThumb}>
-          <Image source={{ uri: file.uri }} style={styles.stagedImage} fadeDuration={0} />
+          <CachedImage source={{ uri: file.uri }} style={styles.stagedImage} />
           {remove}
         </View>
       );

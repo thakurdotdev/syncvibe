@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
@@ -14,6 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SwipeableModal from '@/components/SwipeableModal';
 import { Input } from '@/components/ui/input';
@@ -44,10 +44,9 @@ const SearchResultItem = React.memo(
 
     return (
       <View style={[styles.resultItem, { borderBottomColor: colors.border + '30' }]}>
-        <Image
+        <CachedImage
           source={{ uri: item.image?.[1]?.link || 'https://via.placeholder.com/50' }}
           style={[styles.resultArt, { backgroundColor: colors.secondary }]}
-          fadeDuration={0}
         />
         <View style={styles.resultInfo}>
           <Text style={[styles.resultName, { color: colors.foreground }]} numberOfLines={1}>

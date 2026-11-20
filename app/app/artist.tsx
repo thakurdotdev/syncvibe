@@ -24,14 +24,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { Disc3, ListMusic, Music2, Users } from '@/components/ui/icons';
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -314,7 +308,7 @@ export default function ArtistScreen() {
     <View style={styles.headerWrapper}>
       <Animated.View style={[styles.heroContent, heroAnimatedStyle]}>
         <View style={styles.artistAvatarShadow}>
-          <Image
+          <CachedImage
             source={{
               uri:
                 coverUrl ||
@@ -330,8 +324,6 @@ export default function ArtistScreen() {
                 borderColor: colors.border + '40',
               },
             ]}
-            resizeMode='cover'
-            fadeDuration={0}
           />
         </View>
 
@@ -416,7 +408,9 @@ export default function ArtistScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Edge-to-Edge Ambient Background */}
-      {coverUrl ? <Image {...blurredArt(coverUrl, 60)} style={styles.heroBackgroundImage} /> : null}
+      {coverUrl ? (
+        <CachedImage {...blurredArt(coverUrl, 60)} style={styles.heroBackgroundImage} />
+      ) : null}
       <LinearGradient
         colors={[
           'rgba(0,0,0,0.15)',

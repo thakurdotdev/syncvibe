@@ -20,7 +20,8 @@ import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
 import { Sparkles, Trash2Icon } from '@/components/ui/icons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler';
 import Animated, { FadeIn, type SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -80,11 +81,10 @@ const SongCardQueue = memo(
         ]}
       >
         <View style={queueItemStyles.thumbnailWrapper}>
-          <Image
-            source={{ uri: songImage, cache: 'force-cache' }}
+          <CachedImage
+            source={{ uri: songImage }}
             style={[queueItemStyles.thumbnail, { backgroundColor: colors.muted }]}
-            fadeDuration={IMAGE_FADE_MS}
-            resizeMode='cover'
+            transition={IMAGE_FADE_MS}
           />
           {isCurrentSong && (
             <View style={queueItemStyles.thumbnailOverlay}>
@@ -357,16 +357,14 @@ export const QueueTab = memo(function QueueTab({
         >
           <View style={queueMenuStyles.container}>
             <View style={queueMenuStyles.header}>
-              <Image
+              <CachedImage
                 source={{
                   uri:
                     menuSong.image?.[1]?.link ||
                     menuSong.image?.[0]?.link ||
                     menuSong.image?.[2]?.link,
-                  cache: 'force-cache',
                 }}
                 style={queueMenuStyles.headerImage}
-                fadeDuration={0}
               />
               <View style={queueMenuStyles.headerInfo}>
                 <Text

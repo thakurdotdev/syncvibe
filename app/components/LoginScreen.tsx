@@ -11,7 +11,6 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
-  Image,
   StyleSheet,
   Text,
   View,
@@ -19,6 +18,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Input } from './ui/input';
@@ -206,11 +206,10 @@ const LoginScreen = () => {
             ]}
           >
             <BlurView intensity={theme === 'light' ? 10 : 40} tint={theme} style={styles.logoBlur}>
-              <Image
+              <CachedImage
                 source={require('../assets/syncvibe.png')}
                 style={styles.logo}
-                resizeMode='contain'
-                fadeDuration={0}
+                contentFit='contain'
               />
             </BlurView>
           </View>
@@ -295,10 +294,9 @@ const LoginScreen = () => {
             onPress={handleGoogleSignIn}
             disabled={loading}
           >
-            <Image
+            <CachedImage
               source={require('../assets/images/google.png')}
               style={styles.googleIcon}
-              fadeDuration={0}
             />
             {loading ? (
               <ActivityIndicator size='small' color={colors.mutedForeground} />

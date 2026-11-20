@@ -1,6 +1,7 @@
 import { EASE_OUT } from '@/lib/motion';
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View, Image } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, { FadeInUp, FadeOutUp, useReducedMotion } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/context/ThemeContext';
@@ -76,14 +77,13 @@ export const GlobalSoundAnimation: React.FC<GlobalSoundAnimationProps> = ({ curr
         ]}
       >
         {activeSoundEffect.profilePic ? (
-          <Image
+          <CachedImage
             source={{
               uri:
                 getProfileCloudinaryUrl(activeSoundEffect.profilePic) ||
                 'https://via.placeholder.com/26',
             }}
             style={[styles.avatar, { borderColor: colors.primary + '80' }]}
-            fadeDuration={0}
           />
         ) : (
           <View style={[styles.iconWrap, { backgroundColor: colors.primary + '25' }]}>

@@ -1,6 +1,7 @@
 import PressableScale from '@/components/ui/PressableScale';
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import SwipeableModal from '@/components/SwipeableModal';
 import { useTheme } from '@/context/ThemeContext';
 
@@ -18,11 +19,10 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ isOpen, onClose, qrCod
       <View style={styles.content}>
         <Text style={[styles.title, { color: colors.foreground }]}>Group QR Code</Text>
         <View style={[styles.qrContainer, { backgroundColor: colors.secondary }]}>
-          <Image
+          <CachedImage
             source={{ uri: `data:image/png;base64,${qrCode}` }}
             style={styles.qrImage}
-            resizeMode='contain'
-            fadeDuration={0}
+            contentFit='contain'
           />
         </View>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>

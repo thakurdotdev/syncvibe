@@ -6,7 +6,8 @@ import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import type { RejoinRequest } from '@/stores/groupMusic/types';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import { memo, useMemo } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { useRoomControl } from './useRoomControl';
 
 const NO_REQUESTS: RejoinRequest[] = [];
@@ -39,10 +40,9 @@ export const RejoinRequestsBanner = memo(function RejoinRequestsBanner() {
       style={[styles.banner, { backgroundColor: colors.card, borderColor: colors.hairline }]}
       accessibilityRole='alert'
     >
-      <Image
+      <CachedImage
         source={{ uri: getProfileCloudinaryUrl(request.profilePic) }}
         style={[styles.avatar, { backgroundColor: colors.raised }]}
-        fadeDuration={0}
       />
       <View style={styles.text}>
         <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>

@@ -9,7 +9,8 @@ import { Song } from '@/types/song';
 import { convertToHttps } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   clamp,
@@ -84,11 +85,10 @@ const DeckCover = memo(function DeckCover({
         accessibilityHint='Swipe sideways for other songs'
         style={[styles.press, { backgroundColor: colors.raised }]}
       >
-        <Image
-          source={{ uri: coverUrl(song), cache: 'force-cache' }}
+        <CachedImage
+          source={{ uri: coverUrl(song) }}
           style={styles.image}
-          fadeDuration={IMAGE_FADE_MS}
-          resizeMethod='resize'
+          transition={IMAGE_FADE_MS}
         />
         {isTop && isCurrentSong ? (
           <View style={styles.bars}>

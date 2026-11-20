@@ -8,15 +8,8 @@ import type { GroupMember, PendingInvite } from '@/stores/groupMusic/types';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { sameUser } from './chat/chatUtils';
 import MemberActionsSheet, { type MemberRole } from './MemberActionsSheet';
 import { type InviteUser, useInviteSearch } from './useInviteSearch';
@@ -226,10 +219,9 @@ export const PeoplePanel = memo(function PeoplePanel({
           accessibilityHint={actionable ? 'Shows what you can do' : undefined}
           style={[styles.row, away && styles.away]}
         >
-          <Image
+          <CachedImage
             source={{ uri: getProfileCloudinaryUrl(item.profilePic) }}
             style={[styles.avatar, { backgroundColor: colors.muted }]}
-            fadeDuration={0}
           />
           <View style={styles.text}>
             <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={1}>
@@ -280,10 +272,9 @@ export const PeoplePanel = memo(function PeoplePanel({
       return (
         <View style={styles.row}>
           <View>
-            <Image
+            <CachedImage
               source={{ uri: getProfileCloudinaryUrl(item.profilepic) }}
               style={[styles.avatar, { backgroundColor: colors.muted }]}
-              fadeDuration={0}
             />
             {item.isOnline ? (
               <View
@@ -362,10 +353,9 @@ export const PeoplePanel = memo(function PeoplePanel({
           const yours = sameUser(invite.invitedById, user?.userid);
           return (
             <View style={styles.row}>
-              <Image
+              <CachedImage
                 source={{ uri: getProfileCloudinaryUrl(invite.profilePic ?? '') }}
                 style={[styles.avatar, { backgroundColor: colors.muted }]}
-                fadeDuration={0}
               />
               <View style={styles.text}>
                 <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={1}>

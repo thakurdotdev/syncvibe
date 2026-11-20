@@ -13,6 +13,11 @@ import TrackPlayer, { Event } from '@rntp/player';
 import { useQueryClient } from '@tanstack/react-query';
 import { runAfterIdle } from '@/utils/runAfterIdle';
 import { recoverPlayEvents, setPlayEventsEnabled } from '@/utils/playEvents';
+import { prefetchImages } from '@/components/ui/CachedImage';
+import type { Song } from '@/types/song';
+
+/** Both cover sizes the deck, orb and full player show. */
+const coversOf = (song?: Song | null) => [song?.image?.[1]?.link, song?.image?.[2]?.link];
 
 export default function PlayerInitializer() {
   const { user } = useUser();
@@ -28,6 +33,24 @@ export default function PlayerInitializer() {
       destroyTrackPlayer();
     };
   }, []);
+
+  // The songs either side of the one playing have their covers in memory before a skip or a
+  // swipe brings them in, so the new cover is there in the first frame of its slide.
+  useEffect(
+    () =>
+      usePlayerStore.subscribe((state, prev) => {
+        if (state.currentSong?.id === prev.currentSong?.id && state.playlist === prev.playlist) {
+          return;
+        }
+        const index = state.playlist.findIndex((song) => song.id === state.currentSong?.id);
+        if (index === -1) return;
+        prefetchImages([
+          ...coversOf(state.playlist[index + 1]),
+          ...coversOf(state.playlist[index - 1]),
+        ]);
+      }),
+    []
+  );
 
   useEffect(() => {
     setBridgeUserId(user?.userid);

@@ -6,10 +6,9 @@ const SAAVN_SIZE = /-\d+x\d+\.(jpe?g|png|webp)/i;
  * Covers that don't come in sizes keep the radius they were given.
  */
 export const blurredArt = (uri: string | undefined, blurRadius: number) => {
-  if (!uri || !SAAVN_SIZE.test(uri)) return { source: { uri }, blurRadius, fadeDuration: 0 };
+  if (!uri || !SAAVN_SIZE.test(uri)) return { source: uri ?? null, blurRadius };
   return {
-    source: { uri: uri.replace(SAAVN_SIZE, '-150x150.$1') },
+    source: uri.replace(SAAVN_SIZE, '-150x150.$1'),
     blurRadius: Math.round(blurRadius * 0.3),
-    fadeDuration: 0,
   };
 };

@@ -7,7 +7,8 @@ import { shortSongName } from '@/lib/stations';
 import { Song } from '@/types/song';
 import { convertToHttps } from '@/utils/getHttpsUrls';
 import { memo } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 
 const songThumb = (song: Song) => {
   const link = song.image?.[1]?.link || song.image?.[0]?.link;
@@ -44,11 +45,10 @@ export const SongRow = memo(function SongRow({
         accessibilityLabel={`${isCurrentSong && isPlaying ? 'Pause' : 'Play'} ${song.name} by ${artist}`}
         style={styles.row}
       >
-        <Image
-          source={{ uri: songThumb(song), cache: 'force-cache' }}
+        <CachedImage
+          source={{ uri: songThumb(song) }}
           style={[styles.art, { backgroundColor: colors.raised }]}
-          fadeDuration={IMAGE_FADE_MS}
-          resizeMethod='resize'
+          transition={IMAGE_FADE_MS}
         />
         <View style={styles.text}>
           <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>

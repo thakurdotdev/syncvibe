@@ -13,7 +13,8 @@ import { convertToHttps } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const MAX_ARTISTS = 20;
@@ -36,7 +37,7 @@ const useArtistSearch = (query: string) => {
 const ArtistAvatar = ({ artist, size }: { artist: TasteArtist; size: number }) => {
   const { colors } = useTheme();
   return artist.image ? (
-    <Image
+    <CachedImage
       source={{ uri: convertToHttps(artist.image) }}
       style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.raised }}
     />

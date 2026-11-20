@@ -6,7 +6,8 @@ import { typography } from '@/theme/typography';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { memo, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -88,12 +89,11 @@ export function SignInStep({ active, languages, onSkip }: SignInStepProps) {
           {Array.from({ length: RING_COUNT }, (_, index) => (
             <Ring key={index} index={index} active={active} />
           ))}
-          <Image
+          <CachedImage
             source={require('../../assets/syncvibe.png')}
             style={styles.logo}
-            resizeMode='contain'
+            contentFit='contain'
             accessibilityIgnoresInvertColors
-            fadeDuration={0}
           />
         </View>
 
@@ -135,10 +135,9 @@ export function SignInStep({ active, languages, onSkip }: SignInStepProps) {
             <ActivityIndicator size='small' color={colors.foreground} />
           ) : (
             <>
-              <Image
+              <CachedImage
                 source={require('../../assets/images/google.png')}
                 style={styles.googleIcon}
-                fadeDuration={0}
               />
               <Text style={[styles.googleText, { color: colors.foreground }]}>
                 Continue with Google

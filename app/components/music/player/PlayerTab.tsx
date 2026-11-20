@@ -5,7 +5,8 @@ import { fonts } from '@/theme/typography';
 import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useState } from 'react';
-import { Image, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, {
   useAnimatedStyle,
   type SharedValue,
@@ -146,10 +147,10 @@ export const PlayerTab = memo(function PlayerTab({
             style={styles.upNextSong}
           >
             {nextArt ? (
-              <Image
+              <CachedImage
                 source={{ uri: nextArt }}
                 style={[styles.upNextArt, { backgroundColor: `${colors.foreground}14` }]}
-                fadeDuration={IMAGE_FADE_MS}
+                transition={IMAGE_FADE_MS}
               />
             ) : (
               <View style={[styles.upNextArt, styles.upNextEmpty]}>

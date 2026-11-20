@@ -4,7 +4,8 @@ import Toggle from '@/components/ui/Toggle';
 import { takeRoomSeed, useRoomSeedPreview, type RoomSeed } from '@/lib/roomSeed';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import SwipeableModal from '@/components/SwipeableModal';
 import { Input } from '@/components/ui/input';
 import { useTheme } from '@/context/ThemeContext';
@@ -67,7 +68,7 @@ const StartWithMusic = ({
       style={[styles.musicRow, { backgroundColor: colors.raised }]}
     >
       <View style={[styles.musicArt, { backgroundColor: colors.card }]}>
-        {art ? <Image source={{ uri: art }} style={styles.musicArtImage} fadeDuration={0} /> : null}
+        {art ? <CachedImage source={{ uri: art }} style={styles.musicArtImage} /> : null}
       </View>
       <View style={styles.scanText}>
         <Text style={[styles.scanTitle, { color: colors.foreground }]}>

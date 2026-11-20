@@ -15,14 +15,8 @@ import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -173,7 +167,7 @@ export default function PlaylistScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Edge-to-Edge Ambient Background */}
-      <Image {...blurredArt(coverUrl, 60)} style={styles.heroBackgroundImage} />
+      <CachedImage {...blurredArt(coverUrl, 60)} style={styles.heroBackgroundImage} />
       <LinearGradient
         colors={[
           'rgba(0,0,0,0.1)',
@@ -200,11 +194,9 @@ export default function PlaylistScreen() {
           <View style={styles.headerWrapper}>
             <Animated.View style={[styles.heroContent, heroAnimatedStyle]}>
               <View style={styles.artworkShadow}>
-                <Image
+                <CachedImage
                   source={{ uri: coverUrl }}
                   style={[styles.playlistImage, { width: imageSize, height: imageSize }]}
-                  resizeMode='cover'
-                  fadeDuration={0}
                 />
               </View>
 

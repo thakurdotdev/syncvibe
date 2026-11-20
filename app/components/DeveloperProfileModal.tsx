@@ -5,7 +5,8 @@ import { CURRENT_APP_VERSION } from '@/stores/appUpdateStore';
 import { fonts } from '@/theme/typography';
 import { Feather } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, Linking, StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, { FadeOut, Keyframe } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -109,10 +110,9 @@ const DeveloperProfileModal: React.FC<DeveloperProfileModalProps> = ({ isVisible
             accessibilityLabel='Pankaj Thakur'
             style={[styles.avatarRing, { borderColor: colors.hairline }]}
           >
-            <Image
+            <CachedImage
               source={{ uri: AVATAR }}
               style={[styles.avatar, { backgroundColor: colors.raised }]}
-              fadeDuration={0}
             />
           </PressableScale>
           <View style={styles.whoText}>

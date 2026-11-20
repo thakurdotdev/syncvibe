@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
   StyleSheet,
@@ -15,6 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import SwipeableModal from '@/components/SwipeableModal';
@@ -80,10 +80,10 @@ const QueueItemRow = React.memo(
         accessibilityHint='Hold to reorder, swipe left to remove'
         style={[styles.queueItem, isActive && { backgroundColor: colors.raised, borderRadius: 12 }]}
       >
-        <Image
+        <CachedImage
           source={{ uri: item.song?.image?.[1]?.link }}
           style={[styles.itemArt, { backgroundColor: colors.raised }]}
-          fadeDuration={IMAGE_FADE_MS}
+          transition={IMAGE_FADE_MS}
         />
         <View style={styles.itemInfo}>
           <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
@@ -96,10 +96,9 @@ const QueueItemRow = React.memo(
         {item.isAutoRecommended ? (
           <Ionicons name='sparkles' size={15} color={colors.mutedForeground} />
         ) : item.addedBy?.profilePic ? (
-          <Image
+          <CachedImage
             source={{ uri: String(item.addedBy.profilePic) }}
             style={[styles.itemAvatar, { backgroundColor: colors.raised }]}
-            fadeDuration={0}
           />
         ) : null}
       </PressableScale>
@@ -129,10 +128,9 @@ const SearchResultRow = React.memo(
 
     return (
       <View style={styles.searchItem}>
-        <Image
+        <CachedImage
           source={{ uri: song.image?.[1]?.link }}
           style={[styles.itemArt, { backgroundColor: colors.secondary }]}
-          fadeDuration={0}
         />
         <View style={styles.itemInfo}>
           <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
@@ -337,10 +335,9 @@ const PlaylistBrowser: React.FC<{
             : item.image?.[1]?.link || item.image?.[0]?.link || '';
         return (
           <PressableScale onPress={() => handleSelectPlaylist(item)} style={styles.playlistRow}>
-            <Image
+            <CachedImage
               source={{ uri: imageUrl }}
               style={[styles.itemArt, { backgroundColor: colors.secondary }]}
-              fadeDuration={0}
             />
             <View style={styles.itemInfo}>
               <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
@@ -675,10 +672,9 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
       <View>
         {showNowPlaying && (
           <View style={[styles.nowPlaying, { backgroundColor: colors.secondary }]}>
-            <Image
+            <CachedImage
               source={{ uri: currentSong.image?.[1]?.link }}
               style={styles.nowPlayingArt}
-              fadeDuration={0}
             />
             <View style={styles.nowPlayingInfo}>
               <Text style={[styles.nowPlayingText, { color: colors.primary }]}>NOW PLAYING</Text>

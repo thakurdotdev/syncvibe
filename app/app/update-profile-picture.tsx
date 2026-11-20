@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View, Image, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, Text, View, ActivityIndicator, Alert } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { EASE_OUT } from '@/lib/motion';
 import { router } from 'expo-router';
@@ -124,11 +125,9 @@ export default function UpdateProfilePictureScreen() {
       <Animated.View entering={CONTENT_ENTER} style={styles.content}>
         <View style={styles.imageContainer}>
           {imageSourceUri ? (
-            <Image
+            <CachedImage
               source={{ uri: imageSourceUri }}
               style={[styles.avatar, { borderColor: colors.border }]}
-              resizeMode='cover'
-              fadeDuration={0}
             />
           ) : (
             <View
