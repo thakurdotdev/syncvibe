@@ -11,7 +11,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowRight } from '@/components/ui/icons';
 import { ReactNode, useCallback, useRef, useState } from 'react';
-import { BackHandler, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { BackHandler, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import PressableScale from '@/components/ui/PressableScale';
+import { BUTTON_PRESS_SCALE } from '@/lib/motion';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -173,8 +175,9 @@ export default function OnboardingScreen() {
             <ProgressSegment key={index} index={index} scrollX={scrollX} width={width} />
           ))}
         </View>
-        <Pressable
+        <PressableScale
           onPress={() => goTo(LAST_PAGE)}
+          scaleTo={BUTTON_PRESS_SCALE}
           disabled={page === LAST_PAGE}
           hitSlop={12}
           accessibilityRole='button'
@@ -183,7 +186,7 @@ export default function OnboardingScreen() {
           style={[styles.skip, page === LAST_PAGE && styles.hidden]}
         >
           <Text style={[styles.skipText, { color: colors.mutedForeground }]}>Skip</Text>
-        </Pressable>
+        </PressableScale>
       </View>
 
       <Animated.ScrollView

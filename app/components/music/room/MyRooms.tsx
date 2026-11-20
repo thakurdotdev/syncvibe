@@ -1,5 +1,6 @@
 import { Bezel, Gloss } from '@/components/ui/Finish';
 import PressableScale from '@/components/ui/PressableScale';
+import { BUTTON_PRESS_SCALE } from '@/lib/motion';
 import { useTheme } from '@/context/ThemeContext';
 import type {
   FormerRoom,
@@ -13,7 +14,7 @@ import type { Song } from '@/types/song';
 import { TimeAgo } from '@/utils/TimeAgo';
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { CachedImage } from '@/components/ui/CachedImage';
 
 type Colors = ReturnType<typeof useTheme>['colors'];
@@ -188,15 +189,16 @@ const FormerRoomRow = memo(function FormerRoomRow({
           </Text>
         </PressableScale>
       )}
-      <Pressable
+      <PressableScale
         onPress={() => onDismiss(room.groupId)}
+        scaleTo={BUTTON_PRESS_SCALE}
         hitSlop={8}
         accessibilityRole='button'
         accessibilityLabel={`Don't show ${room.name} again`}
         style={styles.dismiss}
       >
         <Ionicons name='close' size={18} color={colors.mutedForeground} />
-      </Pressable>
+      </PressableScale>
     </View>
   );
 });

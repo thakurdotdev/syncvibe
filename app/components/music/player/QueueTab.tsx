@@ -20,7 +20,7 @@ import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
 import { Sparkles, Trash2Icon } from '@/components/ui/icons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { CachedImage } from '@/components/ui/CachedImage';
 import { GestureDetector, type GestureType } from 'react-native-gesture-handler';
 import Animated, { FadeIn, type SharedValue } from 'react-native-reanimated';
@@ -282,10 +282,11 @@ export const QueueTab = memo(function QueueTab({
               {upcomingCount} {upcomingCount === 1 ? 'song' : 'songs'}
             </Text>
             <View style={queueStyles.headerActions}>
-              <Pressable
+              <PressableScale
                 onPress={() => handleFetchRecommendations()}
                 disabled={isFetchingRecs || !currentSong?.id}
-                style={({ pressed }) => [queueStyles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
+                scaleTo={BUTTON_PRESS_SCALE}
+                style={queueStyles.headerBtn}
               >
                 {isFetchingRecs ? (
                   <ActivityIndicator size={14} color={colors.primary} />
@@ -295,11 +296,12 @@ export const QueueTab = memo(function QueueTab({
                 <Text style={[queueStyles.headerBtnText, { color: colors.primary }]}>
                   {isFetchingRecs ? 'Fetching...' : 'Get Recs'}
                 </Text>
-              </Pressable>
+              </PressableScale>
 
-              <Pressable
+              <PressableScale
                 onPress={handleToggleAutoFetch}
-                style={({ pressed }) => [queueStyles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
+                scaleTo={BUTTON_PRESS_SCALE}
+                style={queueStyles.headerBtn}
               >
                 <Ionicons
                   name={autoFetchRecommendations ? 'sync' : 'sync-outline'}
@@ -314,18 +316,19 @@ export const QueueTab = memo(function QueueTab({
                 >
                   Auto
                 </Text>
-              </Pressable>
+              </PressableScale>
 
               {playlist.length > 1 && (
-                <Pressable
+                <PressableScale
                   onPress={handleClearQueue}
-                  style={({ pressed }) => [queueStyles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
+                  scaleTo={BUTTON_PRESS_SCALE}
+                  style={queueStyles.headerBtn}
                 >
                   <Trash2Icon size={14} color={colors.destructive} />
                   <Text style={[queueStyles.headerBtnText, { color: colors.destructive }]}>
                     Clear
                   </Text>
-                </Pressable>
+                </PressableScale>
               )}
             </View>
           </View>
@@ -386,11 +389,9 @@ export const QueueTab = memo(function QueueTab({
 
             <View style={queueMenuStyles.options}>
               {!isMenuSongCurrent && (
-                <Pressable
-                  style={({ pressed }) => [
-                    queueMenuStyles.optionRow,
-                    { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 },
-                  ]}
+                <PressableScale
+                  scaleTo={ROW_PRESS_SCALE}
+                  style={[queueMenuStyles.optionRow, { backgroundColor: colors.card }]}
                   onPress={() => handleMenuPlayNow(menuSong)}
                 >
                   <View style={[queueMenuStyles.iconContainer, { backgroundColor: colors.muted }]}>
@@ -399,14 +400,12 @@ export const QueueTab = memo(function QueueTab({
                   <Text style={[queueMenuStyles.optionText, { color: colors.foreground }]}>
                     Play Now
                   </Text>
-                </Pressable>
+                </PressableScale>
               )}
 
-              <Pressable
-                style={({ pressed }) => [
-                  queueMenuStyles.optionRow,
-                  { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 },
-                ]}
+              <PressableScale
+                scaleTo={ROW_PRESS_SCALE}
+                style={[queueMenuStyles.optionRow, { backgroundColor: colors.card }]}
                 onPress={() => handleMenuFetchRecs(menuSong.id)}
               >
                 <View style={[queueMenuStyles.iconContainer, { backgroundColor: colors.muted }]}>
@@ -415,15 +414,13 @@ export const QueueTab = memo(function QueueTab({
                 <Text style={[queueMenuStyles.optionText, { color: colors.foreground }]}>
                   Fetch Recommendations
                 </Text>
-              </Pressable>
+              </PressableScale>
 
               {!isMenuSongCurrent && (
                 <>
-                  <Pressable
-                    style={({ pressed }) => [
-                      queueMenuStyles.optionRow,
-                      { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 },
-                    ]}
+                  <PressableScale
+                    scaleTo={ROW_PRESS_SCALE}
+                    style={[queueMenuStyles.optionRow, { backgroundColor: colors.card }]}
                     onPress={() => handleRemoveBelow(menuSong.id)}
                   >
                     <View
@@ -434,13 +431,11 @@ export const QueueTab = memo(function QueueTab({
                     <Text style={[queueMenuStyles.optionText, { color: colors.foreground }]}>
                       Remove Below
                     </Text>
-                  </Pressable>
+                  </PressableScale>
 
-                  <Pressable
-                    style={({ pressed }) => [
-                      queueMenuStyles.optionRow,
-                      { backgroundColor: colors.card, opacity: pressed ? 0.8 : 1 },
-                    ]}
+                  <PressableScale
+                    scaleTo={ROW_PRESS_SCALE}
+                    style={[queueMenuStyles.optionRow, { backgroundColor: colors.card }]}
                     onPress={() => handleRemove(menuSong.id)}
                   >
                     <View
@@ -454,7 +449,7 @@ export const QueueTab = memo(function QueueTab({
                     <Text style={[queueMenuStyles.optionText, { color: colors.destructive }]}>
                       Remove from Queue
                     </Text>
-                  </Pressable>
+                  </PressableScale>
                 </>
               )}
             </View>
