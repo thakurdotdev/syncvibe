@@ -12,7 +12,7 @@ import { Album, Artist, Playlist } from '@/types/music';
 import { Song } from '@/types/song';
 import { convertToHttps, ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
-import { useProgress } from '@rntp/player';
+import { useTrackProgress } from '@/hooks/useTrackProgress';
 import { usePlayerProgress } from '@/hooks/usePlayerProgress';
 import { router } from 'expo-router';
 import { memo, default as React, useCallback, useEffect, useMemo, useState } from 'react';
@@ -546,7 +546,7 @@ export const ProgressBar = memo(() => {
 });
 
 export const GroupSongControls = memo(() => {
-  const { position, duration } = useProgress();
+  const { position, duration } = useTrackProgress();
   const { handleSeek } = useGroupMusic();
 
   return (
