@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTrackProgress } from '@/hooks/useTrackProgress';
 import { usePlayerProgress } from '@/hooks/usePlayerProgress';
 import { router } from 'expo-router';
+import { usePrefetchDetails } from '@/queries/useMusic';
 import { memo, default as React, useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { CachedImage } from '@/components/ui/CachedImage';
@@ -189,16 +190,18 @@ interface CardContainerProps {
   children: React.ReactNode;
   onPress?: () => void | Promise<void>;
   onLongPress?: () => void | Promise<void>;
+  onPressIn?: () => void;
   width?: number | `${number}%` | 'auto';
   style?: StyleProp<ViewStyle>;
 }
 
 export const CardContainer = memo(
-  ({ children, onPress, onLongPress, width, style }: CardContainerProps) => {
+  ({ children, onPress, onLongPress, onPressIn, width, style }: CardContainerProps) => {
     // Press feedback runs on the UI thread (no re-render per touch), like every card app-wide.
     return (
       <PressableScale
         onPress={onPress}
+        onPressIn={onPressIn}
         onLongPress={onLongPress}
         delayLongPress={350}
         unstable_pressDelay={LIST_PRESS_DELAY}
@@ -375,6 +378,7 @@ export const AlbumCard = memo(
       if (customOnPress) customOnPress();
       else router.push({ pathname: '/albums', params: { id } });
     }, [id, customOnPress]);
+    const prefetch = usePrefetchDetails('album', id);
 
     if (!album) return null;
 
@@ -382,7 +386,12 @@ export const AlbumCard = memo(
     const artistName = typeof album.artist === 'object' ? album.artist?.name : album.artist;
 
     return (
-      <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
+      <CardContainer
+        onPress={handlePress}
+        onPressIn={customOnPress ? undefined : prefetch}
+        onLongPress={onLongPress}
+        width={width}
+      >
         <CachedImage
           {...coverProps(coverUrl(album.image))}
           style={[cardStyles.cover, { backgroundColor: colors.raised }]}
@@ -408,11 +417,17 @@ export const PlaylistCard = memo(
       if (customOnPress) customOnPress();
       else router.push({ pathname: '/playlists', params: { id } });
     }, [id, customOnPress]);
+    const prefetch = usePrefetchDetails('playlist', id);
 
     if (!playlist?.name || !playlist?.image) return null;
 
     return (
-      <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
+      <CardContainer
+        onPress={handlePress}
+        onPressIn={customOnPress ? undefined : prefetch}
+        onLongPress={onLongPress}
+        width={width}
+      >
         <CachedImage
           {...coverProps(coverUrl(playlist.image))}
           style={[cardStyles.cover, { backgroundColor: colors.raised }]}
@@ -472,11 +487,17 @@ export const ArtistCard = memo(
       if (customOnPress) customOnPress();
       else router.push({ pathname: '/artist', params: { id } });
     }, [id, customOnPress]);
+    const prefetch = usePrefetchDetails('artist', id);
 
     if (!artist?.name || !artist?.image) return null;
 
     return (
-      <CardContainer onPress={handlePress} onLongPress={onLongPress} width={width}>
+      <CardContainer
+        onPress={handlePress}
+        onPressIn={customOnPress ? undefined : prefetch}
+        onLongPress={onLongPress}
+        width={width}
+      >
         <CachedImage
           {...coverProps(coverUrl(artist.image))}
           style={[cardStyles.avatar, { backgroundColor: colors.raised }]}

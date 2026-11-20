@@ -23,6 +23,7 @@ import { MusicHistoryParams } from '@/types/music';
 import { Song } from '@/types/song';
 import useApi from '@/utils/hooks/useApi';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 
 export const useHomePageMusic = () => {
   const { selectedLanguages, restored } = useUser();
@@ -133,6 +134,26 @@ export const useArtistDetails = (artistId: string | undefined) => {
     queryFn: () => getArtistDetails(artistId!),
     enabled: !!artistId,
   });
+};
+
+const DETAILS = {
+  album: { key: 'albumDetails', fetch: getAlbumDetails },
+  playlist: { key: 'playlistDetails', fetch: getPlaylistDetails },
+  artist: { key: 'artistDetails', fetch: getArtistDetails },
+} as const;
+
+/**
+ * Starts loading an album, playlist or artist page as a finger lands on its card, a beat before
+ * the tap ends and the page opens. Nothing happens when the page is cached and fresh.
+ */
+export const usePrefetchDetails = (kind: keyof typeof DETAILS, id: string | undefined) => {
+  const client = useQueryClient();
+  return useCallback(() => {
+    if (!id) return;
+    const { key, fetch } = DETAILS[kind];
+    const queryFn: () => Promise<unknown> = () => fetch(id);
+    void client.prefetchQuery({ queryKey: [key, id], queryFn });
+  }, [client, kind, id]);
 };
 
 export const useSearchMusic = (query: string) => {

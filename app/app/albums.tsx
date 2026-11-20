@@ -2,7 +2,6 @@ import PressableScale from '@/components/ui/PressableScale';
 import { blurredArt } from '@/lib/artwork';
 import { SONG_LIST_WINDOW } from '@/lib/lists';
 import { SongCard } from '@/components/music/MusicCards';
-import { SONG_URL } from '@/constants';
 import { usePlayerControls } from '@/stores/playerStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupMusic } from '@/context/GroupMusicContext';
@@ -11,11 +10,11 @@ import { toast } from '@/context/ToastContext';
 import { Song } from '@/types/song';
 import { convertToHttps, ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { Music2Icon } from '@/components/ui/icons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { useAlbumDetails } from '@/queries/useMusic';
 import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, {
@@ -44,34 +43,16 @@ const renderSong = ({ item }: { item: Song }) => <SongCard song={item} />;
 
 export default function AlbumScreen() {
   const { colors, theme } = useTheme();
-  const { id } = useLocalSearchParams();
-  const [albumData, setAlbumData] = useState<AlbumData | null>(null);
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const { addToPlaylist, playSong } = usePlayerControls();
-  const [loading, setLoading] = useState(true);
+  // Cached and saved on the phone: an album you've opened before is there with no spinner.
+  const { data, isPending: loading, refetch } = useAlbumDetails(id);
+  const albumData = data?.id ? (data as unknown as AlbumData) : null;
   const { width } = useWindowDimensions();
   const scrollY = useSharedValue(0);
 
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const { addPlaylistToQueue } = useGroupMusic();
-
-  const fetchAlbumData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`${SONG_URL}/album?id=${id}`);
-      const data = response.data;
-      setAlbumData(data.data);
-    } catch (error) {
-      console.error('Error fetching album data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (id) {
-      fetchAlbumData();
-    }
-  }, [id, fetchAlbumData]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -168,7 +149,7 @@ export default function AlbumScreen() {
         <Music2Icon size={80} color={colors.primary} />
         <Text style={[styles.emptyText, { color: colors.foreground }]}>No album found</Text>
         <PressableScale
-          onPress={fetchAlbumData}
+          onPress={() => refetch()}
           style={[styles.primaryButton, { backgroundColor: colors.primary, width: 140 }]}
         >
           <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Retry</Text>
