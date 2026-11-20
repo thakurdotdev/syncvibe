@@ -19,6 +19,7 @@ import {
   bridgeFollow,
   bridgeNativeState,
   bridgeSeek,
+  bridgeSetPlaying,
   bridgeSetRepeatMode,
   bridgeSilence,
   setBridgeSync,
@@ -108,6 +109,13 @@ const showQueue = () => {
   usePlayerStore.setState({ playlist: songs, originalPlaylist: songs });
 };
 
+/**
+ * What the last play/pause tap asked for, until the server has answered it. The tap shows at
+ * once; anything the server sends before its answer is older than the tap and doesn't undo it.
+ */
+let playIntent: { playing: boolean; id: number } | null = null;
+let lastIntentId = 0;
+
 const follow = () => {
   const { playback, live } = session();
   if (!live || !playback) return;
@@ -133,12 +141,13 @@ const follow = () => {
     const jumped = followed.jumps !== playback.jumps || !followed.active;
     // The native player loops a song by itself (and must not move on) on "repeat one".
     bridgeSetRepeatMode(playback.repeat);
-    bridgeFollow(song, positionMsOf(playback) / 1000, playback.timeline.playing, jumped);
+    const playing = playIntent?.playing ?? playback.timeline.playing;
+    bridgeFollow(song, positionMsOf(playback) / 1000, playing, jumped);
   } else {
     // Someone else plays, or nobody does: this phone stays silent.
     if (followed.active || bridgeNativeState().playing) bridgeSilence();
     usePlayerStore.setState({
-      isPlaying: playback.timeline.playing && !!playback.active,
+      isPlaying: playIntent?.playing ?? (playback.timeline.playing && !!playback.active),
       isLoading: false,
     });
   }
@@ -338,8 +347,20 @@ const routes: Record<string, (...args: any[]) => unknown> = {
   playSong,
   setPlaylist,
   playPause: () => {
-    const playing = isActive() ? bridgeNativeState().playing : playingNow();
-    void send({ type: playing ? 'pause' : 'play' });
+    const playing =
+      playIntent?.playing ?? (isActive() ? bridgeNativeState().playing : playingNow());
+    const next = !playing;
+    // Acting first and telling the server after: waiting for its answer made every tap as slow
+    // as the network. The phone playing pauses or plays right away; a remote shows it right away.
+    const id = ++lastIntentId;
+    playIntent = { playing: next, id };
+    if (!(isActive() && bridgeSetPlaying(next))) usePlayerStore.setState({ isPlaying: next });
+    void send({ type: next ? 'play' : 'pause' }).then(() => {
+      if (playIntent?.id !== id) return;
+      playIntent = null;
+      // Whatever the server settled on, refused or offline included, is what plays now.
+      follow();
+    });
   },
   next: (isAutoPlay?: boolean) => {
     const { playback } = session();
@@ -527,6 +548,7 @@ export const bindPlayerSocket = (newSocket: Socket) => {
     pinger = null;
     socket = null;
     pending = null;
+    playIntent = null;
     followed = { songId: null, jumps: null, active: false };
     setSession({
       live: false,

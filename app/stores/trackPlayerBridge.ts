@@ -694,6 +694,28 @@ export const bridgeFollow = (
   syncNativeQueue();
 };
 
+/**
+ * Plays or pauses the song this phone already has loaded, at once. Returns false when that isn't
+ * possible here (another song, or nothing loaded), and the server's answer has to do it.
+ */
+export const bridgeSetPlaying = (playing: boolean) => {
+  if (!initialized || store().activePlayerMode === 'group') return false;
+  const s = store();
+  if (!s.currentSong || TrackPlayer.getActiveMediaItem()?.mediaId !== s.currentSong.id) {
+    return false;
+  }
+  if (playing) {
+    if (TrackPlayer.getPlaybackState() === 'idle') return false;
+    resetErrors();
+    applyPendingResume(s.currentSong.id);
+    TrackPlayer.play();
+  } else {
+    TrackPlayer.pause();
+  }
+  s.setPlaying(playing);
+  return true;
+};
+
 export const bridgeSeek = (seconds: number) => {
   if (!initialized) return;
   cancelResumeGuard();
