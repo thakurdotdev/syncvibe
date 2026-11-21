@@ -110,6 +110,17 @@ export const setOnAfterSongTransition = (cb: ((song: Song) => void) | null) => {
   onAfterSongTransition = cb;
 };
 
+/**
+ * In a room the room owns playback. A song started anywhere else goes to the room guard
+ * instead (components/music/room/RoomSongSheet asks what to do with it), which returns true
+ * when it took it.
+ */
+let roomGuard: ((song: Song) => boolean) | null = null;
+export const setRoomGuard = (guard: ((song: Song) => boolean) | null) => {
+  roomGuard = guard;
+};
+export const heldForRoom = (song: Song) => Boolean(roomGuard?.(song));
+
 /** Whether the full player covers the app, so things hidden under it can stop animating. */
 export const useFullPlayerOpen = create<{ open: boolean }>(() => ({ open: false }));
 export const setFullPlayerOpen = (open: boolean) => useFullPlayerOpen.setState({ open });
@@ -204,6 +215,7 @@ export const usePlayerStore = create<PlayerStore>()(
 
       playSong: (song: Song) => {
         if (!song?.id) return;
+        if (heldForRoom(song)) return;
         if (get().activePlayerMode === 'group') return;
         const secureAudio = ensureHttpsForSongUrls(song);
         if (routed('playSong', secureAudio)) return;

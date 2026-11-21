@@ -29,6 +29,7 @@ import DesktopQueuePanel from './DesktopQueuePanel';
 import NowPlayingTab from './NowPlayingTab';
 import QueueActions from './QueueActions';
 import QueueTab from './QueueTab';
+import RoomCover from './RoomCover';
 
 const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
   const [mobileQueueOpen, setMobileQueueOpen] = useState(false);
@@ -81,6 +82,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
       >
         <div className='h-full w-full relative'>
           <NowPlayingTab currentSong={currentSong} />
+          <RoomCover onClose={onClose} />
 
           {/* Top Bar Navigation */}
           <div className='absolute top-4 left-4 right-4 flex items-center justify-between z-30 pointer-events-none'>

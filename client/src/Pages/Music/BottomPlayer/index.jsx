@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { useSongRecommendationsQuery } from '@/hooks/queries/useSongQueries';
+import { useBackCloses } from '@/hooks/useBackCloses';
 import { useShellLayout } from '@/components/shell/useShellLayout';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/playbackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/sessionStore';
@@ -58,6 +59,8 @@ const BottomPlayer = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const isSheetOpen = useUiStore((s) => s.playerSheetOpen);
   const setIsSheetOpen = useUiStore((s) => s.setPlayerSheetOpen);
+  // Back closes the full player, and so does anything in it that opens a page.
+  useBackCloses('player', isSheetOpen, () => setIsSheetOpen(false));
   const lastFetchedForId = useRef(null);
 
   const currentIndex = playlist.findIndex((song) => song.id === currentSong?.id);

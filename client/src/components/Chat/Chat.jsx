@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useBackCloses } from '@/hooks/useBackCloses';
 import { openConversationWith } from '@/lib/chat';
 import { paths } from '@/lib/paths';
 import { useChatStore } from '@/stores/chatStore';
@@ -36,6 +37,9 @@ const Chat = () => {
         toast.error(error?.response?.data?.message || "Couldn't open that conversation")
       );
   }, [conversationId, userId, navigate, setActive]);
+
+  // On a phone a conversation covers the list: Back returns to the list, not the page before.
+  useBackCloses('chat', isMobile && Boolean(activeId), () => setActive(null));
 
   // Leaving the page closes the conversation, so new messages count as unread again.
   useEffect(() => () => setActive(null), [setActive]);

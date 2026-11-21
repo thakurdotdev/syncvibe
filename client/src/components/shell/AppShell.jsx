@@ -3,6 +3,7 @@ import { Suspense, useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import ActiveGroupBar from '@/components/ActiveGroupBar';
 import CallLayer from '@/components/Call/CallLayer';
+import RoomSongSheet from '@/components/RoomSongSheet';
 import { useProfileSuspenseQuery } from '@/hooks/queries/useProfileQuery';
 import { paths } from '@/lib/paths';
 import { cn } from '@/lib/utils';
@@ -79,6 +80,7 @@ const AppShell = () => {
       {isMobile && tabBarVisible && <MobileDeck />}
       <BottomPlayer />
       <ActiveGroupBar />
+      <RoomSongSheet />
       <MusicCommand />
       <CallLayer />
     </div>
