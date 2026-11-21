@@ -96,7 +96,27 @@ const RoomCard = ({ collapsed }) => {
           </p>
         </div>
       </div>
+      <YourMusicWaits />
     </button>
+  );
+};
+
+/** Under the room: your own song, so it's clear why it isn't playing. */
+const YourMusicWaits = () => {
+  const song = usePlayerStore((s) => s.currentSong);
+  if (!song) return null;
+  return (
+    <span className='relative flex items-center gap-2 border-t border-border/70 bg-muted/40 px-3 py-1.5 text-[11px] text-muted-foreground'>
+      <img
+        src={getSongImage(song, 'small') || FALLBACK_ART}
+        alt=''
+        className='h-4 w-4 shrink-0 rounded object-cover grayscale'
+      />
+      <span className='min-w-0 truncate'>
+        <span className='font-semibold text-foreground'>Your music is paused</span> ·{' '}
+        {he.decode(song.name || '')}
+      </span>
+    </span>
   );
 };
 

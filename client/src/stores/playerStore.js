@@ -26,6 +26,17 @@ export const setPlayerRouter = (next) => {
 };
 const routed = (action, ...args) => Boolean(router?.(action, ...args));
 
+/**
+ * In a room the room owns playback. A song started anywhere else goes to the room guard
+ * instead (components/RoomSongSheet asks what to do with it), which returns true when it took
+ * it. `list` is the whole list the song was played from, if any.
+ */
+let roomGuard = null;
+export const setRoomGuard = (next) => {
+  roomGuard = next;
+};
+export const heldForRoom = (song, list) => Boolean(roomGuard?.(song, list));
+
 export const usePlayerStore = create(
   persist(
     (set, get) => ({
@@ -55,6 +66,7 @@ export const usePlayerStore = create(
 
       playSong: (song) => {
         if (!song?.id) return;
+        if (heldForRoom(song)) return;
         if (routed('playSong', ensureHttpsForDownloadUrls(song))) return;
         set({ isLoading: true });
         const secureAudio = ensureHttpsForDownloadUrls(song);
