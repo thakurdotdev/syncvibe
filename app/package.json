@@ -76,5 +76,10 @@
     "expo-dev-client": "~57.0.21",
     "postcss": "^8.5.15",
     "typescript": "~6.0.3"
+  },
+  "reanimated": {
+    "staticFeatureFlags": {
+      "ANDROID_SYNCHRONOUSLY_UPDATE_UI_PROPS": true
+    }
   }
 }
