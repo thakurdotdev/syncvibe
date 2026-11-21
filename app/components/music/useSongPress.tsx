@@ -21,7 +21,8 @@ export const useSongPress = (song: Song) => {
 
   const onPress = useCallback(async () => {
     const player = usePlayerStore.getState();
-    if (player.currentSong?.id === song.id) {
+    // In a room your song is paused, not playable: tapping it asks what to do (playSong).
+    if (player.currentSong?.id === song.id && player.activePlayerMode === 'normal') {
       player.handlePlayPause();
       return;
     }

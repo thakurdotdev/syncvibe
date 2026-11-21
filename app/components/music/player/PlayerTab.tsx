@@ -20,7 +20,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ArtworkCarousel } from './ArtworkCarousel';
 import { LikeButton } from '../LikeButton';
+import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { PlayingOnRow } from './DeviceSheet';
+import { RoomOwnsPlayback } from './RoomOwnsPlayback';
 import { Scrubber, secondary, Transport } from './PlayerControls';
 
 // The title moves with the artwork: the old one leaves the way the cover went and the new one
@@ -78,6 +80,7 @@ export const PlayerTab = memo(function PlayerTab({
   const { colors } = useTheme();
   const quiet = secondary(colors.foreground);
   const nextArt = nextSong?.image?.[1]?.link || nextSong?.image?.[0]?.link;
+  const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
 
   // Which way the last song change went, set while rendering so the new title animates the right
   // way on its first frame. Only one step back is "previous": jumps, and wrapping round to the
@@ -128,9 +131,15 @@ export const PlayerTab = memo(function PlayerTab({
           <LikeButton song={currentSong} />
         </View>
 
-        <Scrubber active={isOpen} fallbackDuration={Number(currentSong.duration) || 0} />
-        <Transport />
-        <PlayingOnRow />
+        {inRoom ? (
+          <RoomOwnsPlayback />
+        ) : (
+          <>
+            <Scrubber active={isOpen} fallbackDuration={Number(currentSong.duration) || 0} />
+            <Transport />
+            <PlayingOnRow />
+          </>
+        )}
 
         <PressableScale
           onPress={onOpenQueue}

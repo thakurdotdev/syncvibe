@@ -6,6 +6,7 @@ import GlobalBottomDeck from '@/components/shell/GlobalBottomDeck';
 import { deckBlurTarget } from '@/components/shell/GlassSurface';
 import { BlurTargetView } from 'expo-blur';
 import PlayerInitializer from '@/components/music/PlayerInitializer';
+import { RoomSongSheet } from '@/components/music/room/RoomSongSheet';
 import { GroupMusicProvider } from '@/context/GroupMusicContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { ChatProvider } from '@/context/SocketContext';
@@ -362,6 +363,7 @@ function RootLayoutNav() {
       </BlurTargetView>
       <GlobalBottomDeck />
       <Player />
+      <RoomSongSheet />
       <MessageBanner />
       <AppUpdateModal />
     </>
