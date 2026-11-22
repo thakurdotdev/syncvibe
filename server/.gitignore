@@ -3,3 +3,7 @@ node_modules
 .vscode
 .deployment
 .vercel
+
+# Local secret files (managed by envy)
+.env.*
+!.env.example
