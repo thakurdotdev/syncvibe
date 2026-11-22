@@ -1,5 +1,3 @@
-import LoginModal from '@/components/LoginModal';
-import LoginScreen from '@/components/LoginScreen';
 import SwipeableModal from '@/components/SwipeableModal';
 import Button from '@/components/ui/button';
 import { useTheme } from '@/context/ThemeContext';
@@ -55,7 +53,7 @@ const lastAddedTime = (p: any) => {
 const PlaylistScreen = () => {
   const api = useApi();
   const { colors, theme } = useTheme();
-  const { user, loading: userLoading } = useUser();
+  const { user } = useUser();
   const { userPlaylist, setUserPlaylist } = usePlaylistState();
   const [loading, setLoading] = useState(false);
   // Until the first answer, an empty list only means "not loaded yet", not "no playlists".
@@ -203,7 +201,8 @@ const PlaylistScreen = () => {
   const isDark = theme === 'dark';
 
   if (!user) {
-    return userLoading ? <TabLoading title='Library' /> : <LoginScreen />;
+    // Signed out only for a moment: the auth gate sends you to sign in.
+    return <TabLoading title='Library' />;
   }
 
   const count = sortedPlaylists.length;
@@ -437,8 +436,6 @@ const PlaylistScreen = () => {
           </View>
         </View>
       </SwipeableModal>
-
-      {!user && <LoginModal />}
     </TabSafeAreaView>
   );
 };

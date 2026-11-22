@@ -1,16 +1,16 @@
+import { AuthPanel } from '@/components/auth/AuthPanel';
 import { BeatHero } from '@/components/onboarding/BeatHero';
 import { LanguageStep } from '@/components/onboarding/LanguageStep';
-import { SignInStep } from '@/components/onboarding/SignInStep';
+import { HeaderIconButton } from '@/components/ui/AppHeader';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
 import { LANGUAGE_STORAGE_KEY } from '@/lib/languages';
-import { ONBOARDING_STORAGE_KEY } from '@/lib/onboarding';
 import { typography } from '@/theme/typography';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { ArrowRight } from '@/components/ui/icons';
-import { ReactNode, useCallback, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { BackHandler, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import PressableScale from '@/components/ui/PressableScale';
 import { BUTTON_PRESS_SCALE } from '@/lib/motion';
@@ -88,20 +88,31 @@ function ProgressSegment({
 }
 
 export default function OnboardingScreen() {
-  const { user, selectedLanguages, setSelectedLanguages } = useUser();
+  const { selectedLanguages, setSelectedLanguages } = useUser();
   const { colors } = useTheme();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
 
   const pagerRef = useAnimatedRef<Animated.ScrollView>();
   const scrollX = useSharedValue(0);
   const pageIndex = useSharedValue(0);
-  const finished = useRef(false);
   const [page, setPage] = useState(0);
+  const [formOpen, setFormOpen] = useState(false);
   const [languages, setLanguages] = useState(
     () => new Set(selectedLanguages.split(',').filter(Boolean))
   );
+
+  // Saved on reaching sign-in, so they're kept however the account gets signed in. Onboarding
+  // itself is marked done by the auth gate once a profile loads.
+  const onSignInPage = page === LAST_PAGE;
+  useEffect(() => {
+    if (!onSignInPage) return;
+    const languageList = Array.from(languages).join(',');
+    setSelectedLanguages(languageList);
+    AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, languageList).catch((error) =>
+      console.error('Failed to save languages:', error)
+    );
+  }, [onSignInPage, languages, setSelectedLanguages]);
 
   const handlePageChange = (next: number) => {
     setPage(next);
@@ -121,41 +132,16 @@ export default function OnboardingScreen() {
     pagerRef.current?.scrollTo({ x: index * width, animated: true });
   };
 
-  const finish = useCallback(async () => {
-    if (finished.current) return;
-    finished.current = true;
-
-    const languageList = Array.from(languages).join(',');
-    setSelectedLanguages(languageList);
-    try {
-      await AsyncStorage.multiSet([
-        [LANGUAGE_STORAGE_KEY, languageList],
-        [ONBOARDING_STORAGE_KEY, '1'],
-      ]);
-    } catch (error) {
-      console.error('Failed to save onboarding state:', error);
-    }
-    router.replace('/(tabs)/home');
-  }, [languages, router, setSelectedLanguages]);
-
-  // Runs only while this screen is focused: a login on the modal above closes itself first, and
-  // onboarding then finishes when focus returns here.
-  useFocusEffect(
-    useCallback(() => {
-      if (user) finish();
-    }, [user, finish])
-  );
-
-  // Registered only while focused, so the back button still closes the login modal.
   useFocusEffect(
     useCallback(() => {
       const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-        if (page === 0) return false;
+        // An open email step handles back itself.
+        if (page === 0 || formOpen) return false;
         pagerRef.current?.scrollTo({ x: (page - 1) * width, animated: true });
         return true;
       });
       return () => subscription.remove();
-    }, [page, pagerRef, width])
+    }, [page, formOpen, pagerRef, width])
   );
 
   return (
@@ -169,7 +155,23 @@ export default function OnboardingScreen() {
         },
       ]}
     >
-      <View style={styles.topBar}>
+      {/* An open email step has its own back button, so the bar steps aside. */}
+      <View
+        style={[styles.topBar, formOpen && styles.hidden]}
+        pointerEvents={formOpen ? 'none' : 'auto'}
+        importantForAccessibility={formOpen ? 'no-hide-descendants' : 'auto'}
+      >
+        <View
+          style={page === 0 && styles.hidden}
+          pointerEvents={page === 0 ? 'none' : 'auto'}
+          importantForAccessibility={page === 0 ? 'no-hide-descendants' : 'auto'}
+        >
+          <HeaderIconButton
+            icon='chevron-back'
+            label='Previous step'
+            onPress={() => goTo(Math.max(0, page - 1))}
+          />
+        </View>
         <View style={styles.segments}>
           {Array.from({ length: PAGE_COUNT }, (_, index) => (
             <ProgressSegment key={index} index={index} scrollX={scrollX} width={width} />
@@ -199,6 +201,7 @@ export default function OnboardingScreen() {
         keyboardShouldPersistTaps='handled'
         onScroll={onScroll}
         scrollEventThrottle={16}
+        scrollEnabled={!formOpen}
         style={styles.pager}
       >
         <Page
@@ -206,15 +209,26 @@ export default function OnboardingScreen() {
           scrollX={scrollX}
           width={width}
           footer={
-            <Button
-              size='lg'
-              onPress={() => goTo(1)}
-              icon={<ArrowRight size={20} color={colors.primaryForeground} />}
-              iconPosition='right'
-              style={styles.fullWidth}
-            >
-              Get started
-            </Button>
+            <View style={styles.footerStack}>
+              <Button
+                size='lg'
+                onPress={() => goTo(1)}
+                icon={<ArrowRight size={20} color={colors.primaryForeground} />}
+                iconPosition='right'
+                style={styles.fullWidth}
+              >
+                Get started
+              </Button>
+              <Button
+                variant='ghost'
+                size='lg'
+                onPress={() => goTo(LAST_PAGE)}
+                style={styles.fullWidth}
+                textStyle={{ color: colors.foreground }}
+              >
+                I already have an account
+              </Button>
+            </View>
           }
         >
           <View style={styles.welcome}>
@@ -241,7 +255,7 @@ export default function OnboardingScreen() {
               iconPosition='right'
               style={styles.fullWidth}
             >
-              Continue
+              {`Continue with ${languages.size} ${languages.size === 1 ? 'language' : 'languages'}`}
             </Button>
           }
         >
@@ -249,7 +263,11 @@ export default function OnboardingScreen() {
         </Page>
 
         <Page index={2} scrollX={scrollX} width={width}>
-          <SignInStep active={page === LAST_PAGE} languages={languages} onSkip={finish} />
+          <AuthPanel
+            active={page === LAST_PAGE}
+            languages={languages}
+            onFormOpenChange={setFormOpen}
+          />
         </Page>
       </Animated.ScrollView>
     </View>
@@ -263,10 +281,11 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    paddingHorizontal: 24,
-    height: 32,
-    marginBottom: 12,
+    gap: 14,
+    paddingLeft: 16,
+    paddingRight: 24,
+    height: 40,
+    marginBottom: 8,
   },
   segments: {
     flex: 1,
@@ -305,6 +324,9 @@ const styles = StyleSheet.create({
   },
   fullWidth: {
     width: '100%',
+  },
+  footerStack: {
+    gap: 4,
   },
   welcome: {
     flex: 1,

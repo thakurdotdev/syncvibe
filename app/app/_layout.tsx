@@ -14,6 +14,7 @@ import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import { typography } from '@/theme/typography';
 import { ToastProvider } from '@/context/ToastContext';
 import { UserProvider, useUser } from '@/context/UserContext';
+import { useAuthGate } from '@/hooks/useAuthGate';
 import { onboardingCheckAtLaunch } from '@/lib/onboarding';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import TrackPlayer from '@rntp/player';
@@ -140,6 +141,7 @@ function RootLayout() {
 function RootLayoutNav() {
   const { colors, theme, isLoading: themeLoading } = useTheme();
   const { markInteractive } = useObserve();
+  useAuthGate();
   // Everything the first screen reads from this phone. Waiting for it behind the splash means the
   // first frame is the finished screen: no blank frame, no avatar or saved music popping in.
   const { restored: userRestored } = useUser();
@@ -217,12 +219,11 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen
-            name='login'
+            name='sign-in'
             options={{
-              title: 'Login',
-              presentation: 'modal',
               headerShown: false,
               gestureEnabled: false,
+              animation: 'fade',
             }}
           />
           <Stack.Screen

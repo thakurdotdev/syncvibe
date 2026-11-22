@@ -16,7 +16,6 @@ import useApi from '@/utils/hooks/useApi';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
-import LoginScreen from '@/components/LoginScreen';
 import ChatSearchBar from '@/components/chat/ChatSearchBar';
 import ChatListItem from '@/components/chat/ChatListItem';
 import { TabHeader } from '@/components/ui/AppHeader';
@@ -51,7 +50,7 @@ const ConversationSkeleton = ({ color }: { color: string }) => (
 );
 
 const ChatListScreen: React.FC = () => {
-  const { user, loading } = useUser();
+  const { user } = useUser();
   const api = useApi();
   const { colors } = useTheme();
 
@@ -159,7 +158,8 @@ const ChatListScreen: React.FC = () => {
     );
 
   if (!user) {
-    return loading ? <TabLoading title='Messages' showSearch={false} /> : <LoginScreen />;
+    // Signed out only for a moment: the auth gate sends you to sign in.
+    return <TabLoading title='Messages' showSearch={false} />;
   }
 
   return (

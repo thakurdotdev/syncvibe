@@ -1,5 +1,4 @@
 import DeveloperProfileModal from '@/components/DeveloperProfileModal';
-import LoginScreen from '@/components/LoginScreen';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import { ProfileIdentity } from '@/components/profile/ProfileIdentity';
 import { SettingsGroup, SettingsRow } from '@/components/profile/SettingsGroup';
@@ -44,14 +43,15 @@ export default function ProfileScreen() {
         text: 'Log out',
         style: 'destructive',
         onPress: async () => {
+          // The auth gate takes you to sign-in.
           await logout();
-          router.replace('/(tabs)/home');
         },
       },
     ]);
   }, [logout]);
 
-  if (loading) {
+  // Signed out only for a moment: the auth gate sends you to sign in.
+  if (loading || !user) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <StackHeader title='Profile' />
@@ -61,8 +61,6 @@ export default function ProfileScreen() {
       </View>
     );
   }
-
-  if (!user) return <LoginScreen />;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
