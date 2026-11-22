@@ -1,8 +1,11 @@
+import { useUser } from '@/context/UserContext';
 import { takeOnboardingDecision } from '@/lib/onboarding';
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
 
+/** Signed in: the app. Signed out: onboarding on a new install, otherwise sign-in. */
 export default function Index() {
+  const { user, loading } = useUser();
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -16,7 +19,8 @@ export default function Index() {
     };
   }, []);
 
-  if (showOnboarding === null) return null;
+  if (user) return <Redirect href='/(tabs)/home' />;
+  if (loading || showOnboarding === null) return null;
 
-  return <Redirect href={showOnboarding ? '/onboarding' : '/(tabs)/home'} />;
+  return <Redirect href={showOnboarding ? '/onboarding' : '/sign-in'} />;
 }

@@ -87,8 +87,6 @@ const Loading = () => {
   );
 };
 
-const goToLogin = () => router.push('/login');
-
 export const SongsPanel = memo(function SongsPanel({
   text,
   query,
@@ -199,17 +197,8 @@ export const HistoryPanel = memo(function HistoryPanel({ query }: { query: strin
   const songs = data?.songs ?? [];
   const hasMore = (data?.count ?? 0) > songs.length;
 
-  if (!user?.userid) {
-    return (
-      <Message
-        icon='clock'
-        title='Search what you have played'
-        subtitle='Log in to keep your listening history.'
-        action='Log in'
-        onAction={goToLogin}
-      />
-    );
-  }
+  // Signed out only for a moment: the auth gate sends you to sign in.
+  if (!user?.userid) return null;
   if (isError) {
     return (
       <Message
@@ -450,17 +439,8 @@ export const PeoplePanel = memo(function PeoplePanel({ query }: { query: string 
     [colors, openChat, openingId]
   );
 
-  if (!user?.userid) {
-    return (
-      <Message
-        icon='users'
-        title='Find people on SyncVibe'
-        subtitle='Log in to search for friends and message them.'
-        action='Log in'
-        onAction={goToLogin}
-      />
-    );
-  }
+  // Signed out only for a moment: the auth gate sends you to sign in.
+  if (!user?.userid) return null;
   if (query.length < MIN_REMOTE_QUERY) {
     return <Message icon='users' title='Find people' subtitle='Search by name to message them.' />;
   }

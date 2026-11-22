@@ -1,5 +1,4 @@
 import QRScannerScreen from '@/app/qr-scanner';
-import LoginScreen from '@/components/LoginScreen';
 import { CreateOrJoinModal } from '@/components/music/group/CreateOrJoinModal';
 import { GlobalSoundAnimation } from '@/components/music/group/GlobalSoundAnimation';
 import { InviteNotification } from '@/components/music/group/InviteNotification';
@@ -36,7 +35,7 @@ function Reconnecting() {
 /** Rooms tab: welcome, reconnecting, or the live room, plus the sheets rooms use. */
 export default function RoomsTab() {
   const { createGroup, joinGroup, leaveGroup } = useGroupMusic();
-  const { user, loading } = useUser();
+  const { user } = useUser();
   const { colors } = useTheme();
 
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
@@ -77,7 +76,8 @@ export default function RoomsTab() {
     );
   }, [currentGroup, leaveGroup]);
 
-  if (!user) return loading ? <TabLoading title='Rooms' /> : <LoginScreen />;
+  // Signed out only for a moment: the auth gate sends you to sign in.
+  if (!user) return <TabLoading title='Rooms' />;
 
   if (scanning) {
     return (

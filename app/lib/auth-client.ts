@@ -1,7 +1,7 @@
 import { expoClient } from '@better-auth/expo/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAuthClient } from 'better-auth/react';
-import { twoFactorClient } from 'better-auth/client/plugins';
+import { emailOTPClient, twoFactorClient } from 'better-auth/client/plugins';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
@@ -27,7 +27,11 @@ const userAgent = () => {
 export const authClient = createAuthClient({
   baseURL: `${API_URL}/api/auth`,
   fetchOptions: { headers: { 'User-Agent': userAgent() } },
-  plugins: [expoClient({ storagePrefix: 'syncvibe', storage: SecureStore }), twoFactorClient()],
+  plugins: [
+    expoClient({ storagePrefix: 'syncvibe', storage: SecureStore }),
+    twoFactorClient(),
+    emailOTPClient(),
+  ],
 });
 
 /** Session cookie header for calls to the SyncVibe API outside /api/auth. */
