@@ -56,19 +56,25 @@ function scheme(p: MaterialYouPalettes, dark: boolean): ThemeColors {
   // Light and dark tones for one role.
   const t = (shades: Shades, light: number, night: number) => tone(shades, dark ? night : light);
 
-  const background = t(n1, 96, 6);
-  const card = t(n1, 99, 12);
-  const popover = t(n1, 100, 17);
-  const raised = t(n1, 92, 22);
-  const foreground = t(n1, 10, 90);
-  const mutedForeground = t(n2, 30, 80);
+  // Surfaces follow the same lightness steps as our other themes (Material tone ≈ L*): page,
+  // card, popover, raised. Dark ones take a little of the primary, the way Material tints raised
+  // surfaces, so the wallpaper shows instead of a flat near-black.
+  const tint = t(a1, 40, 80);
+  const surface = (light: number, night: number, amount: number) =>
+    dark ? mix(tone(n1, night), tint, amount) : tone(n1, light);
+  const background = surface(95.5, 7, 0.04);
+  const card = surface(99.5, 11, 0.05);
+  const popover = surface(100, 13.5, 0.06);
+  const raised = surface(93, 15.5, 0.07);
+  const foreground = t(n1, 10, 92);
+  const mutedForeground = t(n2, 32, 76);
   const primary = t(a1, 40, 80);
   const onPrimary = t(a1, 100, 20);
   const primaryContainer = t(a1, 90, 30);
   const onPrimaryContainer = t(a1, 10, 90);
   const secondaryContainer = t(a2, 90, 30);
   const onSecondaryContainer = t(a2, 10, 90);
-  const outlineVariant = t(n2, 80, 30);
+  const outlineVariant = t(n2, 86, 25);
   const { error, onError } = dark ? ERROR.dark : ERROR.light;
 
   // Material's pressed state: the content colour laid over the container at 10%.
@@ -101,7 +107,7 @@ function scheme(p: MaterialYouPalettes, dark: boolean): ThemeColors {
     liveForeground: t(a3, 100, 20),
     receipt: dark ? '#53BDEB' : '#0B7BC2',
     raised,
-    hairline: withAlpha(foreground, 0.09),
+    hairline: withAlpha(foreground, 0.1),
     sheen: 'rgba(255, 255, 255, 0)',
 
     primaryHover: hovered(primary, onPrimary),
