@@ -17,6 +17,7 @@ const THEME_NAMES: Record<ThemeChoice, string> = {
   mono: 'Mono',
   ember: 'Ember',
   aubergine: 'Aubergine',
+  material: 'Material You',
 };
 const SCHEME_NAMES: Record<string, string> = { system: 'System', light: 'Light', dark: 'Dark' };
 

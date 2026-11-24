@@ -565,8 +565,15 @@ export const colorPalettes: Record<ColorPaletteName, ColorPalette> = {
 
 export type ColorTheme = 'light' | 'dark';
 
-/** Themes offered in Settings → Appearance, in order. Mono is the default. */
-export const THEME_CHOICES = ['mono', 'ember', 'aubergine'] as const;
+/**
+ * Themes offered in Settings → Appearance, in order. Mono is the default. `material` is the
+ * wallpaper's colours (theme/materialYou.ts), offered only where Android provides them.
+ */
+export const THEME_CHOICES = ['mono', 'ember', 'aubergine', 'material'] as const;
 export type ThemeChoice = (typeof THEME_CHOICES)[number];
 export const isThemeChoice = (value: unknown): value is ThemeChoice =>
   (THEME_CHOICES as readonly unknown[]).includes(value);
+
+/** A theme's palette. Material You falls back to Mono where the wallpaper's colours are missing. */
+export const paletteFor = (choice: ThemeChoice, materialYou: ColorPalette | null): ColorPalette =>
+  choice === 'material' ? (materialYou ?? monoPalette) : colorPalettes[choice];

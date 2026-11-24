@@ -8,7 +8,13 @@ import Toggle from '@/components/ui/Toggle';
 import { useTheme } from '@/context/ThemeContext';
 import { PRESS_SCALE } from '@/lib/motion';
 import { useDeckStore } from '@/stores/deckStore';
-import { colorPalettes, THEME_CHOICES, type ThemeChoice, type ThemeColors } from '@/theme/color';
+import {
+  paletteFor,
+  THEME_CHOICES,
+  type ColorPalette,
+  type ThemeChoice,
+  type ThemeColors,
+} from '@/theme/color';
 import { LinearGradient } from 'expo-linear-gradient';
 import { memo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -25,6 +31,7 @@ const THEME_INFO: Record<ThemeChoice, { name: string; detail: string }> = {
   mono: { name: 'Mono', detail: 'Black and white; artwork brings the colour' },
   ember: { name: 'Ember', detail: 'Warm orange on neutral greys' },
   aubergine: { name: 'Aubergine', detail: 'Plum darks and magenta, like the web' },
+  material: { name: 'Material You', detail: 'Colours from your wallpaper' },
 };
 
 /** A tiny phone drawn in one scheme's colours: a header, a few rows, a bar. */
@@ -55,17 +62,16 @@ const SchemeCard = memo(function SchemeCard({
   label,
   selected,
   onPress,
-  palette,
+  palette: p,
   colors,
 }: {
   scheme: Scheme;
   label: string;
   selected: boolean;
   onPress: () => void;
-  palette: ThemeChoice;
+  palette: ColorPalette;
   colors: ThemeColors;
 }) {
-  const p = colorPalettes[palette];
   return (
     <PressableScale
       onPress={onPress}
@@ -128,16 +134,17 @@ function Swatch({ c }: { c: ThemeColors }) {
 
 const ThemeCard = memo(function ThemeCard({
   choice,
+  palette: p,
   selected,
   onPress,
   colors,
 }: {
   choice: ThemeChoice;
+  palette: ColorPalette;
   selected: boolean;
   onPress: () => void;
   colors: ThemeColors;
 }) {
-  const p = colorPalettes[choice];
   const info = THEME_INFO[choice];
   return (
     <PressableScale
@@ -170,7 +177,9 @@ const ThemeCard = memo(function ThemeCard({
 
 /** Settings → Appearance: colour scheme, theme, and how the bottom bar looks. */
 export default function AppearanceScreen() {
-  const { colors, themePreference, setTheme, palette, setPalette } = useTheme();
+  const { colors, themePreference, setTheme, palette, setPalette, materialYou } = useTheme();
+  // Material You only where Android gives the wallpaper's colours (12 and newer).
+  const choices = THEME_CHOICES.filter((c) => c !== 'material' || materialYou);
   const glass = useDeckStore((s) => s.glass);
   const setGlass = useDeckStore((s) => s.setGlass);
   const songPopup = useDeckStore((s) => s.songPopup);
@@ -194,7 +203,7 @@ export default function AppearanceScreen() {
                 label={s.label}
                 selected={themePreference === s.value}
                 onPress={() => setTheme(s.value)}
-                palette={palette}
+                palette={paletteFor(palette, materialYou)}
                 colors={colors}
               />
             ))}
@@ -203,10 +212,11 @@ export default function AppearanceScreen() {
 
         <SettingsGroup title='Theme'>
           <View style={styles.grid} accessibilityRole='radiogroup'>
-            {THEME_CHOICES.map((choice) => (
+            {choices.map((choice) => (
               <ThemeCard
                 key={choice}
                 choice={choice}
+                palette={paletteFor(choice, materialYou)}
                 selected={palette === choice}
                 onPress={() => setPalette(choice)}
                 colors={colors}
