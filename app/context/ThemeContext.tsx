@@ -1,4 +1,12 @@
-import { colorPalettes, ColorTheme, isThemeChoice, ThemeChoice, ThemeColors } from '@/theme/color';
+import {
+  ColorPalette,
+  ColorTheme,
+  isThemeChoice,
+  paletteFor,
+  ThemeChoice,
+  ThemeColors,
+} from '@/theme/color';
+import { readMaterialYouPalette } from '@/theme/materialYou';
 import { storageCache } from '@/utils/storageCache';
 import React, {
   createContext,
@@ -34,6 +42,8 @@ interface ThemeContextType {
   /** Which theme's colours (Settings → Appearance). */
   palette: ThemeChoice;
   setPalette: (palette: ThemeChoice) => void;
+  /** The wallpaper's colours, or null where Android doesn't provide them (before 12, iOS). */
+  materialYou: ColorPalette | null;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -50,6 +60,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [themePreference, setThemePreference] = useState<ThemePreference>('system');
   const [palette, setPaletteState] = useState<ThemeChoice>('mono');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [materialYou, setMaterialYou] = useState<ColorPalette | null>(readMaterialYouPalette);
 
   const prevThemeRef = useRef<ThemePreference>(themePreference);
   const pendingThemeUpdate = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,6 +140,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
+      // The wallpaper may have changed while the app was away.
+      if (nextAppState === 'active') setMaterialYou(readMaterialYouPalette());
       if (nextAppState === 'active' && themePreference === 'system') {
         const currentColorScheme = Appearance.getColorScheme();
         if (isColorTheme(currentColorScheme) && currentColorScheme !== theme) {
@@ -169,7 +182,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     });
   }, []);
 
-  const themeColors = useMemo(() => colorPalettes[palette][theme], [palette, theme]);
+  const themeColors = useMemo(
+    () => paletteFor(palette, materialYou)[theme],
+    [palette, materialYou, theme]
+  );
 
   const contextValue = useMemo(
     () => ({
@@ -182,6 +198,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       themePreference,
       palette,
       setPalette,
+      materialYou,
     }),
     [
       theme,
@@ -193,6 +210,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       themePreference,
       palette,
       setPalette,
+      materialYou,
     ]
   );
 
