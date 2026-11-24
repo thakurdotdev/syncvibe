@@ -29,7 +29,7 @@ const SCHEMES: { value: Scheme; label: string }[] = [
 
 const THEME_INFO: Record<ThemeChoice, { name: string; detail: string }> = {
   mono: { name: 'Mono', detail: 'Black and white; artwork brings the colour' },
-  ember: { name: 'Ember', detail: 'Warm orange on neutral greys' },
+  ember: { name: 'Ember', detail: 'Warm orange on warm greys' },
   aubergine: { name: 'Aubergine', detail: 'Plum darks and magenta, like the web' },
   material: { name: 'Material You', detail: 'Colours from your wallpaper' },
 };
