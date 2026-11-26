@@ -4,6 +4,7 @@ import {
   Loader2,
   Pause,
   Play,
+  Radio,
   Repeat,
   Repeat1,
   Share2,
@@ -22,6 +23,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useCurrentGroup, useGroupMusicActions } from '@/Context/GroupMusicContext';
+import { useProfile } from '@/Context/Context';
+import { openStartRoom } from '@/lib/roomSeed';
+import { paths } from '@/lib/paths';
+import he from 'he';
+import { useNavigate } from 'react-router-dom';
 
 export const formatTime = (time) => {
   if (!time) return '00:00';
@@ -36,10 +42,21 @@ export const PlaylistActions = ({
   disabled,
   songs = [],
   showShare = true,
+  /** What a room started from here is called: the playlist's, album's or artist's name. */
+  roomName,
 }) => {
   const [isShareDrawerOpen, setIsShareDrawerOpen] = useState(false);
   const currentGroup = useCurrentGroup();
   const { addPlaylistToQueue } = useGroupMusicActions();
+  const { user } = useProfile() ?? {};
+  const navigate = useNavigate();
+
+  // Plays it here first, then opens the create form, which starts the room with your music.
+  const handleStartRoom = () => {
+    onPlayAll();
+    openStartRoom(user?.name, roomName ? he.decode(roomName) : undefined);
+    navigate(paths.rooms);
+  };
 
   const handleAddToGroup = () => {
     if (!songs?.length) return;
@@ -69,6 +86,13 @@ export const PlaylistActions = ({
           >
             <Users className='w-4 h-4' />
             Add to Group Queue ({songs.length})
+          </Button>
+        )}
+
+        {!currentGroup && user?.userid && songs?.length > 0 && (
+          <Button variant='outline' onClick={handleStartRoom} disabled={disabled} className='gap-2'>
+            <Radio className='w-4 h-4' />
+            Start a room
           </Button>
         )}
 

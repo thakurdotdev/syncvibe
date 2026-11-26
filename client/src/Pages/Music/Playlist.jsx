@@ -84,6 +84,7 @@ const Playlist = () => {
         </div>
       </div>
       <PlaylistActions
+        roomName={playlistData?.name}
         onPlayAll={handlePlayAll}
         onShuffle={handleShuffle}
         disabled={!playlistData?.songs?.length}

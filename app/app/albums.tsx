@@ -8,6 +8,7 @@ import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useTheme } from '@/context/ThemeContext';
 import { toastRoomAdd } from '@/stores/groupMusic/groupSessionStore';
 import { useUser } from '@/context/UserContext';
+import { startRoomFromMusic } from '@/lib/roomSeed';
 import { Song } from '@/types/song';
 import { convertToHttps, ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
@@ -269,6 +270,37 @@ export default function AlbumScreen() {
                   <Ionicons name='people' size={18} color={colors.foreground} />
                   <Text style={[styles.groupButtonText, { color: colors.foreground }]}>
                     Add to Group Queue ({newSongs.length})
+                  </Text>
+                </View>
+              </PressableScale>
+            )}
+
+            {!currentGroup && user?.userid && newSongs.length > 0 && (
+              <PressableScale
+                onPress={() => {
+                  handlePlayAll();
+                  startRoomFromMusic(user?.name, albumData?.name);
+                }}
+                accessibilityRole='button'
+                accessibilityLabel='Start a room with these songs'
+                style={{ marginBottom: 16 }}
+              >
+                <View
+                  style={[
+                    styles.groupButton,
+                    {
+                      backgroundColor: isDark
+                        ? 'rgba(127, 127, 127, 0.16)'
+                        : 'rgba(127, 127, 127, 0.1)',
+                      borderColor: isDark
+                        ? 'rgba(127, 127, 127, 0.35)'
+                        : 'rgba(127, 127, 127, 0.25)',
+                    },
+                  ]}
+                >
+                  <Ionicons name='radio-outline' size={18} color={colors.foreground} />
+                  <Text style={[styles.groupButtonText, { color: colors.foreground }]}>
+                    Start a Room with These
                   </Text>
                 </View>
               </PressableScale>

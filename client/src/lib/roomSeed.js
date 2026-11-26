@@ -49,6 +49,12 @@ const roomNameFor = (userName) => {
   return first ? `${first}'s room` : '';
 };
 
-/** Opens the create form on Rooms (Pages/GroupMusic), already named, with your music on. */
-export const openStartRoom = (userName) =>
-  useGroupSessionStore.setState({ isGroupModalOpen: true, groupModalName: roomNameFor(userName) });
+/**
+ * Opens the create form on Rooms (Pages/GroupMusic), already named, with your music on. `name`
+ * names it after what you started (a playlist or album) instead of after you.
+ */
+export const openStartRoom = (userName, name) =>
+  useGroupSessionStore.setState({
+    isGroupModalOpen: true,
+    groupModalName: name?.trim() || roomNameFor(userName),
+  });

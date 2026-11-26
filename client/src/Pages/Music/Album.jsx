@@ -63,6 +63,7 @@ const Album = () => {
         </div>
       </div>
       <PlaylistActions
+        roomName={albumData?.name}
         onPlayAll={handlePlayAll}
         onShuffle={handleShuffle}
         disabled={!albumData?.songs?.length}
