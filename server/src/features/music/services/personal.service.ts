@@ -1,8 +1,11 @@
-import { QueryTypes } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
+import { Song } from '@/models/index';
 import { cache } from '@/utils/redis';
 import sequelize from '@/utils/sequelize';
 import { listLikedSongs } from './like.service';
 import { withoutBlockedArtists } from './artist-block.logic';
+import { albumsInProgress, IN_PROGRESS_DAYS, restOfAlbum } from './continue-album.logic';
+import { decodeEntities } from './lyrics.logic';
 import { loadProfile, loadSongData, loadSongFacts, type ListenerProfile } from './listener.service';
 import { moodByKey } from './moods';
 import { songMoods } from './mood.service';
@@ -224,6 +227,89 @@ const slowShelves = async (
   return shelves;
 };
 
+const SONG_API_URL = process.env.SONG_API_URL || 'https://song.thakur.dev';
+const ALBUM_CACHE_SECONDS = 24 * 60 * 60;
+/** Recent plays looked at for an album in progress. */
+const RECENT_PLAYS = 60;
+/** Albums in progress looked up at the song API, most recent first. */
+const ALBUMS_TRIED = 3;
+
+interface AlbumTracks {
+  name: string;
+  songs: SongData[];
+}
+
+/** An album's songs in order, from the song API, kept a day. */
+const albumTracks = async (albumId: string): Promise<AlbumTracks | null> => {
+  const key = `album-tracks:v1:${albumId}`;
+  const cached = await cache.get<AlbumTracks>(key);
+  if (cached) return cached;
+  const response = await fetch(`${SONG_API_URL}/album?id=${encodeURIComponent(albumId)}`, {
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!response.ok) return null;
+  const data = ((await response.json()) as { data?: { name?: string; songs?: SongData[] } }).data;
+  const album: AlbumTracks = {
+    name: decodeEntities(String(data?.name ?? '')),
+    songs: (data?.songs ?? []).filter((song) => typeof song?.id === 'string'),
+  };
+  await cache.set(key, album, ALBUM_CACHE_SECONDS);
+  return album;
+};
+
+/** "Continue <album>": the rest of an album you've been playing through lately. */
+const continueAlbumShelf = async (profile: ListenerProfile): Promise<Shelf | null> => {
+  const since = Date.now() - IN_PROGRESS_DAYS * 24 * 60 * 60 * 1000;
+  const recent = profile.listens
+    .filter((listen) => listen.playedCount > 0 && new Date(listen.lastPlayedAt).getTime() >= since)
+    .sort((a, b) => new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime())
+    .slice(0, RECENT_PLAYS);
+  if (recent.length < 2) return null;
+
+  const rows = await Song.findAll({
+    where: { songId: { [Op.in]: recent.map((listen) => listen.songId) } },
+    attributes: ['songId', 'songData'],
+    raw: true,
+  });
+  const albumOf = new Map(
+    rows.map((row) => [row.songId, String((row.songData as SongData)?.album_id ?? '')])
+  );
+  const albumIds = albumsInProgress(
+    recent.map((listen) => ({
+      songId: listen.songId,
+      albumId: albumOf.get(listen.songId) ?? '',
+      playedAt: new Date(listen.lastPlayedAt),
+    }))
+  ).slice(0, ALBUMS_TRIED);
+  const played = new Set(
+    profile.listens.filter((listen) => listen.playedCount > 0).map((listen) => listen.songId)
+  );
+
+  // The most recent album with enough of it still ahead of you.
+  for (const albumId of albumIds) {
+    const album = await albumTracks(albumId).catch(() => null);
+    if (!album || album.songs.length === 0) continue;
+    const rest = restOfAlbum(
+      album.songs.map((song) => String(song.id)),
+      played
+    );
+    if (!rest) continue;
+    const byId = new Map(album.songs.map((song) => [String(song.id), song]));
+    const songs = rest
+      .filter((id) => !profile.dislikes.songIds.has(id))
+      .map((id) => byId.get(id)!)
+      .filter(Boolean);
+    if (songs.length < 2) continue;
+    return {
+      key: 'continue-album',
+      title: `Continue ${album.name || 'the album'}`,
+      subtitle: 'Pick up the album where you left off',
+      songs,
+    };
+  }
+  return null;
+};
+
 /**
  * The listener's own shelves for the home page, in order: Daily Mixes, this time of day, new
  * releases from their artists, favourites to rediscover, and their latest likes.
@@ -236,13 +322,17 @@ export const getPersonalShelves = async (
   const localHour = new Date(Date.now() - options.tzOffsetMinutes * 60_000).getUTCHours();
   const band = hourBandOf(localHour);
 
-  const [slow, releases, liked] = await Promise.all([
+  const [slow, releases, liked, continuing] = await Promise.all([
     profile.listens.length > 0 ? slowShelves(profile, band, options.tzOffsetMinutes) : [],
     newFromYourArtists(profile).catch((err) => {
       console.error('[Shelves] New releases failed:', (err as Error).message);
       return [];
     }),
     listLikedSongs(userId, SHELF_SONGS),
+    continueAlbumShelf(profile).catch((err) => {
+      console.error('[Shelves] Continue album failed:', (err as Error).message);
+      return null;
+    }),
   ]);
 
   const [mixes, rest] = [
@@ -252,6 +342,8 @@ export const getPersonalShelves = async (
   const timeShelf = rest.filter((shelf) => shelf.key.startsWith('time-'));
   const others = rest.filter((shelf) => !shelf.key.startsWith('time-'));
   const shelves: Shelf[] = [
+    // Something you were in the middle of comes first.
+    ...(continuing ? [continuing] : []),
     ...mixes,
     ...timeShelf,
     ...(releases.length >= 3
