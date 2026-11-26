@@ -67,13 +67,19 @@ const PanelTabs = ({ tabs, value, onChange, idPrefix, className, fill = false })
             className={cn(
               'flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              fill && 'flex-1',
+              fill && 'min-w-0 flex-1 px-2',
               selected
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            {Icon && <Icon className='h-3.5 w-3.5' aria-hidden='true' />}
+            {/* Four tabs share a phone's width: there the labels need the room more. */}
+            {Icon && (
+              <Icon
+                className={cn('h-3.5 w-3.5 shrink-0', fill && 'max-[440px]:hidden')}
+                aria-hidden='true'
+              />
+            )}
             <span>{label}</span>
             {alert ? <Badge value={alert} tone='alert' /> : <Badge value={count} />}
           </button>

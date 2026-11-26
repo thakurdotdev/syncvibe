@@ -2,6 +2,8 @@ import { useProfile } from '@/Context/Context';
 import { useGroupMusic } from '@/Context/GroupMusicContext';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { memo, useCallback, useEffect, useMemo } from 'react';
+import LyricsView from '@/components/Lyrics/LyricsView';
+import { roomPosition } from '@/components/Lyrics/positions';
 import ChatPanel from '../chat/ChatPanel';
 import { useUnreadCount } from '../chat/useUnreadCount';
 import { useElementWidth } from '../hooks/useElementWidth';
@@ -159,6 +161,21 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
     />
   );
 
+  const lyricsShown = isDesktop
+    ? sidebarTab === SIDEBAR_TABS.lyrics
+    : mobileTab === MOBILE_TABS.lyrics;
+  // Clicking a line moves the room's song, so only for those who can control playback.
+  const lyrics = (
+    <LyricsView
+      songId={currentSong?.id}
+      nextSongId={upcomingQueue[0]?.song?.id}
+      getPosition={roomPosition}
+      active={lyricsShown}
+      onSeek={canControl ? handleSeek : undefined}
+      size='medium'
+    />
+  );
+
   const people = (
     <PeoplePanel
       members={groupMembers}
@@ -220,6 +237,7 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
           </div>
           <RoomSidebar
             chat={chat}
+            lyrics={lyrics}
             people={people}
             unreadCount={unreadCount}
             memberCount={groupMembers.length}
@@ -231,6 +249,7 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
           <MobileRoomTabs
             chat={chat}
             queue={<QueuePanel bare />}
+            lyrics={lyrics}
             people={people}
             unreadCount={unreadCount}
             queueCount={upcomingQueue.length}

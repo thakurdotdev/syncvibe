@@ -1,9 +1,10 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
-import { EASE_OUT, IMAGE_FADE_MS, ROW_PRESS_SCALE } from '@/lib/motion';
+import { BUTTON_PRESS_SCALE, EASE_OUT, IMAGE_FADE_MS, ROW_PRESS_SCALE } from '@/lib/motion';
 import { fonts } from '@/theme/typography';
 import { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
+import { MicVocal } from '@/components/ui/icons';
 import { memo, useState } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { CachedImage } from '@/components/ui/CachedImage';
@@ -24,6 +25,8 @@ import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { PlayingOnRow } from './DeviceSheet';
 import { RoomOwnsPlayback } from './RoomOwnsPlayback';
 import { Scrubber, secondary, Transport } from './PlayerControls';
+import { LyricsView } from '../lyrics/LyricsView';
+import { heardPosition, useLyricsPlayback } from '../lyrics/useLyricsPlayback';
 
 // The title moves with the artwork: the old one leaves the way the cover went and the new one
 // follows it in. Exits are quicker than entries, so the two barely overlap.
@@ -42,6 +45,8 @@ const TEXT_MOTION = {
 } as const;
 const UP_NEXT_ENTER = FadeIn.duration(180).easing(EASE_OUT).reduceMotion(system);
 const UP_NEXT_EXIT = FadeOut.duration(100).easing(EASE_OUT).reduceMotion(system);
+const SWAP_IN = FadeIn.duration(200).easing(EASE_OUT).reduceMotion(system);
+const SWAP_OUT = FadeOut.duration(120).easing(EASE_OUT).reduceMotion(system);
 
 interface PlayerTabProps {
   currentSong: Song;
@@ -81,6 +86,9 @@ export const PlayerTab = memo(function PlayerTab({
   const quiet = secondary(colors.foreground);
   const nextArt = nextSong?.image?.[1]?.link || nextSong?.image?.[0]?.link;
   const inRoom = useGroupSessionStore((s) => Boolean(s.currentGroup));
+  // The lyrics take the cover's place; the song's title and controls stay below them.
+  const [lyricsShown, setLyricsShown] = useState(false);
+  const lyrics = useLyricsPlayback();
 
   // Which way the last song change went, set while rendering so the new title animates the right
   // way on its first frame. Only one step back is "previous": jumps, and wrapping round to the
@@ -103,14 +111,28 @@ export const PlayerTab = memo(function PlayerTab({
   return (
     <View style={[styles.root, { paddingBottom: Math.max(14, bottomInset + 6) }]}>
       <Animated.View style={[styles.artArea, coverStyle]} onLayout={onArtAreaLayout}>
-        <ArtworkCarousel
-          song={currentSong}
-          prev={prevSong}
-          next={nextSong}
-          index={queueIndex}
-          size={artworkSize}
-          width={screenWidth}
-        />
+        {lyricsShown ? (
+          <Animated.View entering={SWAP_IN} exiting={SWAP_OUT} style={styles.lyrics}>
+            <LyricsView
+              songId={lyrics.songId}
+              nextSongId={lyrics.nextSongId}
+              getPosition={heardPosition}
+              active={isOpen}
+              onSeek={lyrics.onSeek}
+            />
+          </Animated.View>
+        ) : (
+          <Animated.View entering={SWAP_IN} exiting={SWAP_OUT}>
+            <ArtworkCarousel
+              song={currentSong}
+              prev={prevSong}
+              next={nextSong}
+              index={queueIndex}
+              size={artworkSize}
+              width={screenWidth}
+            />
+          </Animated.View>
+        )}
       </Animated.View>
 
       <View style={styles.panel}>
@@ -128,6 +150,24 @@ export const PlayerTab = memo(function PlayerTab({
               {artistName}
             </Text>
           </Animated.View>
+          <PressableScale
+            onPress={() => setLyricsShown((shown) => !shown)}
+            scaleTo={BUTTON_PRESS_SCALE}
+            hitSlop={6}
+            accessibilityRole='button'
+            accessibilityLabel={lyricsShown ? 'Show cover' : 'Show lyrics'}
+            accessibilityState={{ selected: lyricsShown }}
+            style={[
+              styles.lyricsButton,
+              lyricsShown && { backgroundColor: `${colors.foreground}14` },
+            ]}
+          >
+            <MicVocal
+              size={20}
+              color={lyricsShown ? colors.foreground : quiet}
+              strokeWidth={lyricsShown ? 2.2 : 1.9}
+            />
+          </PressableScale>
           <LikeButton song={currentSong} />
         </View>
 
@@ -189,6 +229,14 @@ export const PlayerTab = memo(function PlayerTab({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   artArea: { flex: 1, justifyContent: 'center' },
+  lyrics: { flex: 1, alignSelf: 'stretch' },
+  lyricsButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   panel: { paddingHorizontal: 24, gap: 14 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   titleText: { flex: 1, minWidth: 0 },

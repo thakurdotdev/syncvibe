@@ -30,6 +30,7 @@ import PlayerSessionRow from './music/player-session.model';
 import SongDislike from './music/song-dislike.model';
 import SongLike from './music/song-like.model';
 import MusicTaste from './music/music-taste.model';
+import SongLyrics from './music/song-lyrics.model';
 
 // Post
 import Post from './post/post.model';
@@ -160,6 +161,7 @@ export {
   SongDislike,
   SongLike,
   MusicTaste,
+  SongLyrics,
   Post,
   Comment,
   LikeDislike,

@@ -33,6 +33,7 @@ import {
 import type { Steer } from './services/play-next.personal';
 import { moodByKey } from './services/moods';
 import { searchSongs } from './search.controller';
+import { getSongLyrics, reportSongLyrics } from './lyrics.controller';
 import { getLastSessionSongs } from './group-history.controller';
 import {
   syncModulesData,
@@ -102,6 +103,10 @@ musicRouter.get('/music/moods/:mood', optionalAuthMiddleware, getMoodStation);
 musicRouter.get('/music/blend/:userId', authMiddleware, getBlendWith);
 musicRouter.get('/music/friends/now', authMiddleware, getFriendsNow);
 musicRouter.get('/music/recap', authMiddleware, getWeeklyRecap);
+
+// Lyrics: timed when we can find them
+musicRouter.get('/music/lyrics/:songId', getSongLyrics);
+musicRouter.post('/music/lyrics/:songId/report', authMiddleware, reportSongLyrics);
 
 musicRouter.get('/music/recommendations', authMiddleware, getPersonalizedRecommendations);
 musicRouter.get('/music/latestHistory', authMiddleware, getHistorySongs);
