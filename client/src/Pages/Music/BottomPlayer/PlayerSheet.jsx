@@ -9,6 +9,7 @@ import {
   Radio,
   ThumbsDown,
   User,
+  UserX,
   X,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useState } from 'react';
@@ -21,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { useDislikeSong } from '@/hooks/useDislikeSong';
+import { mainArtistOf, useDislikeArtist, useDislikeSong } from '@/hooks/useDislikeSong';
 import { useStartRoom } from '@/hooks/useStartRoom';
 import { usePlayerStore } from '@/stores/playerStore';
 import SleepTimerDialog, { useSleepTimerLeft } from '../SleepTimer';
@@ -40,6 +41,8 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
   const playlistLength = usePlayerStore((s) => s.playlist.length);
   const navigate = useNavigate();
   const dislike = useDislikeSong();
+  const dislikeArtist = useDislikeArtist();
+  const mainArtist = mainArtistOf(currentSong);
   const startRoom = useStartRoom();
 
   useEffect(() => {
@@ -183,6 +186,15 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                     <ThumbsDown className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
                     Don&apos;t recommend
                   </DropdownMenuItem>
+                  {mainArtist && (
+                    <DropdownMenuItem
+                      onClick={() => dislikeArtist(mainArtist)}
+                      className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
+                    >
+                      <UserX className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                      <span className='truncate'>Don&apos;t recommend {mainArtist.name}</span>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

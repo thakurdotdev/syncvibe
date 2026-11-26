@@ -2,6 +2,7 @@
 
 import {
   addToHistory,
+  dislikeArtist,
   dislikeSong,
   fetchSongRecommendations,
   getAlbumDetails,
@@ -12,6 +13,7 @@ import {
   getRecentMusic,
   getRelatedSongs,
   searchMusic,
+  undoDislikeArtist,
   undoDislikeSong,
 } from '@/api/music';
 import { getMoodStation } from '@/api/personal';
@@ -75,6 +77,43 @@ export const useDislikeSong = () => {
           onPress: () => {
             undoDislikeSong(api, song.id)
               .then(() => queryClient.invalidateQueries({ queryKey: ['recentMusic'] }))
+              .catch(() => toast("Couldn't undo. Try again.", { type: 'error' }));
+          },
+        },
+      });
+    },
+    onError: () => toast("Couldn't save that. Try again.", { type: 'error' }),
+  });
+};
+
+/** Who a song is by, for "Don't recommend <artist>": its first singer or primary artist. */
+export const mainArtistOf = (song: Song): { id: string; name: string } | null => {
+  const map = song.artist_map;
+  const pick =
+    map?.primary_artists?.[0] ??
+    map?.artists?.find((artist: { role?: string }) => artist?.role === 'singer') ??
+    map?.artists?.[0];
+  return pick?.id && pick?.name ? { id: String(pick.id), name: String(pick.name) } : null;
+};
+
+export const useDislikeArtist = () => {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['recentMusic'] });
+    queryClient.invalidateQueries({ queryKey: ['personal', 'shelves'] });
+  };
+
+  return useMutation({
+    mutationFn: (artist: { id: string; name: string }) => dislikeArtist(api, artist),
+    onSuccess: (_data, artist) => {
+      refresh();
+      toast(`We won't recommend ${artist.name}`, {
+        action: {
+          label: 'Undo',
+          onPress: () => {
+            undoDislikeArtist(api, artist.id)
+              .then(refresh)
               .catch(() => toast("Couldn't undo. Try again.", { type: 'error' }));
           },
         },

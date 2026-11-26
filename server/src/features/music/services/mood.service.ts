@@ -1,6 +1,7 @@
 import { QueryTypes } from 'sequelize';
 import { cache } from '@/utils/redis';
 import sequelize from '@/utils/sequelize';
+import { withoutBlockedArtists } from './artist-block.logic';
 import { languagesOf, loadSongData, type ListenerProfile } from './listener.service';
 import { MOODS, moodByKey } from './moods';
 import { cleanTitle, normalize } from './play-next.scoring';
@@ -160,7 +161,8 @@ export const moodStation = async (
     titles.add(title);
     chosen.push(row.songId);
   }
-  return loadSongData(chosen);
+  const songs = await loadSongData(chosen);
+  return profile ? withoutBlockedArtists(songs, profile.dislikes.artistIds) : songs;
 };
 
 export const listMoods = () => MOODS.map(({ key, title }) => ({ key, title }));

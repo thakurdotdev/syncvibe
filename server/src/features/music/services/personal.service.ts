@@ -2,6 +2,7 @@ import { QueryTypes } from 'sequelize';
 import { cache } from '@/utils/redis';
 import sequelize from '@/utils/sequelize';
 import { listLikedSongs } from './like.service';
+import { withoutBlockedArtists } from './artist-block.logic';
 import { loadProfile, loadSongData, loadSongFacts, type ListenerProfile } from './listener.service';
 import { moodByKey } from './moods';
 import { songMoods } from './mood.service';
@@ -250,7 +251,7 @@ export const getPersonalShelves = async (
   ];
   const timeShelf = rest.filter((shelf) => shelf.key.startsWith('time-'));
   const others = rest.filter((shelf) => !shelf.key.startsWith('time-'));
-  return [
+  const shelves: Shelf[] = [
     ...mixes,
     ...timeShelf,
     ...(releases.length >= 3
@@ -259,4 +260,14 @@ export const getPersonalShelves = async (
     ...others,
     ...(liked.length > 0 ? [{ key: 'liked', title: 'Liked songs', songs: liked }] : []),
   ];
+  // Artists the listener blocked leave every shelf but their own likes.
+  const blocked = profile.dislikes.artistIds;
+  if (blocked.size === 0) return shelves;
+  return shelves
+    .map((shelf) =>
+      shelf.key === 'liked'
+        ? shelf
+        : { ...shelf, songs: withoutBlockedArtists(shelf.songs, blocked) }
+    )
+    .filter((shelf) => shelf.songs.length > 0);
 };

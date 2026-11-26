@@ -1,7 +1,7 @@
 import { usePlayerControls, usePlaybackState, usePlaylistState } from '@/stores/playerStore';
 import { toastRoomAdd, useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupMusic } from '@/context/GroupMusicContext';
-import { useDislikeSong } from '@/queries/useMusic';
+import { mainArtistOf, useDislikeArtist, useDislikeSong } from '@/queries/useMusic';
 import { useIsLiked, useToggleLike } from '@/queries/usePersonal';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
@@ -43,7 +43,10 @@ const OptionRow = ({
 }) => (
   <PressableScale scaleTo={ROW_PRESS_SCALE} style={styles.optionRow} onPress={onPress}>
     <View style={styles.iconContainer}>{icon}</View>
-    <Text style={[styles.optionText, { color }, emphasized && styles.optionTextEmphasized]}>
+    <Text
+      style={[styles.optionText, { color }, emphasized && styles.optionTextEmphasized]}
+      numberOfLines={1}
+    >
       {label}
     </Text>
   </PressableScale>
@@ -69,6 +72,8 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const { addToQueue: addToGroupQueue, playNext: playNextInGroup } = useGroupMusic();
   const { mutate: dislike } = useDislikeSong();
+  const { mutate: dislikeArtist } = useDislikeArtist();
+  const mainArtist = mainArtistOf(song);
   const liked = useIsLiked(song.id);
   const toggleLike = useToggleLike();
   const { user } = useUser();
@@ -251,6 +256,18 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
                 close();
               }}
             />
+
+            {user?.userid && mainArtist && (
+              <OptionRow
+                icon={<Feather name='user-x' size={20} color={colors.foreground} />}
+                label={`Don't Recommend ${mainArtist.name}`}
+                color={colors.foreground}
+                onPress={() => {
+                  dislikeArtist(mainArtist);
+                  close();
+                }}
+              />
+            )}
           </View>
         </View>
       </SwipeableModal>
