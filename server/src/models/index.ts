@@ -32,6 +32,7 @@ import SongLike from './music/song-like.model';
 import MusicTaste from './music/music-taste.model';
 import SongLyrics from './music/song-lyrics.model';
 import SavedRoom from './music/saved-room.model';
+import ArtistDislike from './music/artist-dislike.model';
 
 // Post
 import Post from './post/post.model';
@@ -164,6 +165,7 @@ export {
   MusicTaste,
   SongLyrics,
   SavedRoom,
+  ArtistDislike,
   Post,
   Comment,
   LikeDislike,

@@ -1,6 +1,7 @@
 import { Op } from 'sequelize';
 import { HistorySong, Song } from '@/models/index';
 import { cache } from '@/utils/redis';
+import { withoutBlockedArtists } from './artist-block.logic';
 import { getRelatedSongIds } from './play-next.service';
 import { cleanTitle } from './play-next.scoring';
 import {
@@ -193,7 +194,11 @@ export const getRecommendationsForUser = async (
   const pool = cached && cached.length > 0 ? cached : await buildPool(userId);
 
   const day = new Date().toISOString().slice(0, 10);
-  const picks = pickForDay(pool, limit, `${userId}:${day}`);
+  const { dislikes } = await loadProfile(userId);
+  const allowed = dislikes.artistIds.size
+    ? pool.filter((pick) => withoutBlockedArtists([pick.song], dislikes.artistIds).length > 0)
+    : pool;
+  const picks = pickForDay(allowed, limit, `${userId}:${day}`);
   return {
     songs: picks.map((pick) => pick.song),
     reasons: Object.fromEntries(

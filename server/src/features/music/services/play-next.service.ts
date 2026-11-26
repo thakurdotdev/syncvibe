@@ -22,6 +22,7 @@ import {
   type Steer,
 } from './play-next.personal';
 import { loadProfile, loadSongFacts, type ListenerProfile } from './listener.service';
+import { withoutBlockedArtists } from './artist-block.logic';
 import { moodStation, songMoods } from './mood.service';
 import { artistWeights, fuseRelated, pickSeeds } from './recommendation.scoring';
 
@@ -572,7 +573,13 @@ export const getPlayNextForRoom = async ({
     })
     .sort((a, b) => b.value - a.value)
     .map((item) => item.id);
-  return songDataFor(ranked.slice(0, limit));
+  // Nobody here gets an artist they blocked.
+  const blocked = new Set(profiles.flatMap((profile) => [...profile.dislikes.artistIds]));
+  if (blocked.size === 0) return songDataFor(ranked.slice(0, limit));
+  return withoutBlockedArtists(await songDataFor(ranked.slice(0, limit * 2)), blocked).slice(
+    0,
+    limit
+  );
 };
 
 export const rebuildAllPlayNext = async (): Promise<{ processed: number; total: number }> => {

@@ -15,7 +15,14 @@ import {
   getHistorySongs,
 } from './history.controller';
 import { recordPlayEvents } from './play-events.controller';
-import { addDislike, getDislikedSongs, removeDislike } from './dislike.controller';
+import {
+  addArtistDislike,
+  addDislike,
+  getDislikedArtists,
+  getDislikedSongs,
+  removeArtistDislike,
+  removeDislike,
+} from './dislike.controller';
 import {
   addLike,
   getBlendWith,
@@ -85,6 +92,10 @@ musicRouter.post('/play-events', authMiddleware, recordPlayEvents);
 musicRouter.get('/music/dislikes', authMiddleware, getDislikedSongs);
 musicRouter.post('/music/dislikes', authMiddleware, addDislike);
 musicRouter.delete('/music/dislikes/:songId', authMiddleware, removeDislike);
+// Artists a listener never wants recommended
+musicRouter.get('/music/dislikes-artists', authMiddleware, getDislikedArtists);
+musicRouter.post('/music/dislikes-artists', authMiddleware, addArtistDislike);
+musicRouter.delete('/music/dislikes-artists/:artistId', authMiddleware, removeArtistDislike);
 
 // Songs a listener liked
 musicRouter.get('/music/likes', authMiddleware, getLikedSongs);
