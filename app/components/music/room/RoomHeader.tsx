@@ -5,6 +5,7 @@ import { HeaderIconButton } from '@/components/ui/AppHeader';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { useGroupMusic } from '@/context/GroupMusicContext';
+import { useForgetSavedRoom, useKeepRoom, useSaveRoomPlaylist } from '@/queries/useSavedRooms';
 import { useGroupPlaybackStore } from '@/stores/groupMusic/groupPlaybackStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { fonts } from '@/theme/typography';
@@ -170,6 +171,9 @@ export const RoomHeader = memo(function RoomHeader({
   const [moreOpen, setMoreOpen] = useState(false);
   const [delayOpen, setDelayOpen] = useState(false);
   const { setControlMode, setQueueRule } = useGroupMusic();
+  const keepRoom = useKeepRoom();
+  const forgetRoom = useForgetSavedRoom();
+  const savePlaylist = useSaveRoomPlaylist();
   const { isHost, controlMode } = useRoomControl();
 
   if (!group) return null;
@@ -180,6 +184,29 @@ export const RoomHeader = memo(function RoomHeader({
   const actions: Action[] = [
     { key: 'qr', label: 'Show QR code', icon: 'grid', onPress: onShowQr },
     { key: 'share', label: 'Share room code', icon: 'share-2', onPress: onShare },
+    {
+      key: 'playlist',
+      label: 'Save songs as a playlist',
+      icon: 'list',
+      onPress: () => savePlaylist.mutate(group.id),
+    },
+    ...(isHost
+      ? [
+          group.savedRoom?.id
+            ? {
+                key: 'forget',
+                label: 'Stop keeping this room',
+                icon: 'bookmark' as const,
+                onPress: () => forgetRoom.mutate(group.savedRoom!.id),
+              }
+            : {
+                key: 'keep',
+                label: 'Keep this room',
+                icon: 'bookmark' as const,
+                onPress: () => keepRoom.mutate(group.id),
+              },
+        ]
+      : []),
     ...(isHost
       ? [
           {

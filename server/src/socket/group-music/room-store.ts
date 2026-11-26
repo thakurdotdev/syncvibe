@@ -1,5 +1,6 @@
 import { getRedis } from '@/utils/redis';
 import { STOPPED } from './timeline';
+import { effects } from './effects';
 import type { MusicGroup } from './state';
 
 /*
@@ -59,6 +60,7 @@ export const serializeCore = (group: MusicGroup): string =>
     maxMembers: group.maxMembers,
     features: group.features,
     qrCode: group.qrCode,
+    savedRoom: group.savedRoom,
   });
 
 export const serializeQueue = (group: MusicGroup): string => JSON.stringify(group.upcoming);
@@ -101,6 +103,7 @@ export const deserializeRoom = (stored: Record<string, string>): MusicGroup | nu
       maxMembers: core.maxMembers ?? 2,
       features: core.features ?? { realtimeChat: false, realtimeSync: false },
       qrCode: core.qrCode,
+      ...(core.savedRoom?.id ? { savedRoom: core.savedRoom } : {}),
     };
   } catch {
     return null;
@@ -129,8 +132,32 @@ export const flushRooms = async (): Promise<void> => {
   await multi.exec().catch(logFailure);
 };
 
+/** A kept room's copy is written this long after a change, so a busy room writes rarely. */
+const SAVED_ROOM_DELAY_MS = 15_000;
+const savedRoomTimers = new Map<string, NodeJS.Timeout>();
+
+/** Writes a kept room's copy soon (once, however many changes come before then). */
+const followSavedRoom = (group: MusicGroup): void => {
+  if (!group.savedRoom || savedRoomTimers.has(group.id)) return;
+  const timer = setTimeout(() => {
+    savedRoomTimers.delete(group.id);
+    void effects.saveRoom(group, false);
+  }, SAVED_ROOM_DELAY_MS);
+  timer.unref?.();
+  savedRoomTimers.set(group.id, timer);
+};
+
+/** The live room ended: its kept copy gets the last word and stops being live. */
+export const endSavedRoom = (group: MusicGroup): void => {
+  const timer = savedRoomTimers.get(group.id);
+  if (timer) clearTimeout(timer);
+  savedRoomTimers.delete(group.id);
+  if (group.savedRoom) void effects.saveRoom(group, true);
+};
+
 /** Call after changing a room. Never waits on Redis and never fails the change. */
 export const touchRoom = (group: MusicGroup, ...parts: RoomPart[]): void => {
+  followSavedRoom(group);
   if (!redis()) return;
   const entry = dirty.get(group.id) ?? { group, parts: new Set<RoomPart>() };
   entry.group = group;

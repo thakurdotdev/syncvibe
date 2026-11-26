@@ -7,6 +7,7 @@ import type {
   PendingInvite,
   QueueItem,
   RejoinRequest,
+  SavedRoomLink,
   SkipVotes,
   SongRequest,
 } from './types';
@@ -36,6 +37,8 @@ export interface RoomQueuePart {
 
 export interface RoomMetaPart {
   rev: number;
+  name?: string;
+  savedRoom?: SavedRoomLink | null;
   hostId: number | string;
   coHosts?: string[];
   mutedIds?: string[];

@@ -34,6 +34,7 @@ const GroupMusic = () => {
     setIsGroupModalOpen,
     createGroup,
     joinGroup,
+    openSavedRoom,
   } = useGroupMusic();
 
   const { socket } = useSocket();
@@ -83,6 +84,7 @@ const GroupMusic = () => {
                   onJoinRoom={joinGroup}
                   onAskRoom={myRooms.ask}
                   onDismissRoom={myRooms.dismiss}
+                  onOpenSavedRoom={openSavedRoom}
                 />
               </div>
             )}

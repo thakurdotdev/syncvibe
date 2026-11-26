@@ -148,6 +148,21 @@ export const useGroupSessionStore = create((set, get) => ({
     set({ isGroupModalOpen: false, groupModalName: null });
   },
 
+  /** Opens a kept room again: same name, setup and last queue. Joins it if it's still going. */
+  openSavedRoom: (socket, user, room) => {
+    if (!room?.id || !user) return;
+    pendingSeed = null;
+    socket.emit('create-music-group', {
+      name: room.name,
+      createdBy: user.userid,
+      userName: user.name,
+      profilePic: user.profilepic,
+      deviceId: getDeviceId(),
+      protocol: ROOM_PROTOCOL,
+      savedRoomId: room.id,
+    });
+  },
+
   joinGroup: (socket, user, groupId) => {
     if (!groupId.trim()) return;
     socket.emit('join-music-group', {
@@ -286,6 +301,7 @@ export const useGroupSessionStore = create((set, get) => ({
       metaRev: part.rev,
       currentGroup: {
         ...currentGroup,
+        name: part.name ?? currentGroup.name,
         createdBy: part.hostId ?? currentGroup.createdBy,
         coHosts: part.coHosts ?? currentGroup.coHosts ?? [],
         mutedIds: part.mutedIds ?? currentGroup.mutedIds ?? [],
@@ -295,6 +311,7 @@ export const useGroupSessionStore = create((set, get) => ({
         settings: { ...currentGroup.settings, ...part.settings },
         maxMembers: part.maxMembers ?? currentGroup.maxMembers,
         features: { ...currentGroup.features, ...part.features },
+        savedRoom: part.savedRoom === undefined ? currentGroup.savedRoom : part.savedRoom,
       },
     });
     return true;

@@ -18,9 +18,20 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Copy, LogOut, Minus, MoreHorizontal, Plus, QrCode } from 'lucide-react';
+import {
+  Bookmark,
+  BookmarkX,
+  Copy,
+  ListPlus,
+  LogOut,
+  Minus,
+  MoreHorizontal,
+  Plus,
+  QrCode,
+} from 'lucide-react';
 import { memo, useState } from 'react';
 import { useGroupMusic } from '@/Context/GroupMusicContext';
+import { useForgetSavedRoom, useKeepRoom, useSaveRoomPlaylist } from '@/hooks/useSavedRooms';
 
 const OFFSET_STEP_MS = 25;
 
@@ -79,7 +90,11 @@ const RoomMenu = ({
   onSetOutputOffset,
 }) => {
   const [confirmLeave, setConfirmLeave] = useState(false);
-  const { fairQueue, approveSongs, setQueueRule } = useGroupMusic();
+  const { fairQueue, approveSongs, setQueueRule, currentGroup } = useGroupMusic();
+  const keepRoom = useKeepRoom();
+  const forgetRoom = useForgetSavedRoom();
+  const savePlaylist = useSaveRoomPlaylist();
+  const savedRoomId = currentGroup?.savedRoom?.id;
 
   return (
     <>
@@ -102,6 +117,28 @@ const RoomMenu = ({
             <QrCode className='mr-2 h-4 w-4' />
             Show QR code
           </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={savePlaylist.isPending}
+            onSelect={() => currentGroup?.id && savePlaylist.mutate(currentGroup.id)}
+          >
+            <ListPlus className='mr-2 h-4 w-4' />
+            Save songs as a playlist
+          </DropdownMenuItem>
+          {isHost &&
+            (savedRoomId ? (
+              <DropdownMenuItem onSelect={() => forgetRoom.mutate(savedRoomId)}>
+                <BookmarkX className='mr-2 h-4 w-4' />
+                Stop keeping this room
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                disabled={keepRoom.isPending}
+                onSelect={() => currentGroup?.id && keepRoom.mutate(currentGroup.id)}
+              >
+                <Bookmark className='mr-2 h-4 w-4' />
+                Keep this room
+              </DropdownMenuItem>
+            ))}
 
           <DropdownMenuSeparator />
           {isHost && (

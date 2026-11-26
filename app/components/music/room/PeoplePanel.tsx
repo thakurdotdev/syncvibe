@@ -22,11 +22,15 @@ const SENDING_GRACE_MS = 8_000;
 
 type Row =
   | { kind: 'title'; key: string; text: string }
+  /** The kept room's regulars who aren't here, with one button to invite them all. */
+  | { kind: 'regulars'; key: string; count: number; uninvited: InviteUser[] }
   | { kind: 'member'; key: string; member: GroupMember }
   | { kind: 'invited'; key: string; invite: PendingInvite }
   | { kind: 'candidate'; key: string; user: InviteUser }
   | { kind: 'skeleton'; key: string }
   | { kind: 'empty'; key: string; text: string };
+
+const NO_REGULARS: { userId: string; userName: string; profilePic?: string }[] = [];
 
 const skeletonRows = (prefix: string): Row[] =>
   [0, 1, 2].map((i) => ({ kind: 'skeleton', key: `${prefix}-skeleton-${i}` }));
@@ -63,6 +67,7 @@ export const PeoplePanel = memo(function PeoplePanel({
   const typing = useGroupSessionStore((s) => s.typingUsers);
   const pendingInvites = useGroupSessionStore((s) => s.currentGroup?.pendingInvites ?? NO_INVITES);
   const maxMembers = useGroupSessionStore((s) => s.currentGroup?.maxMembers ?? 0);
+  const regulars = useGroupSessionStore((s) => s.currentGroup?.savedRoom?.regulars ?? NO_REGULARS);
   const { transferHost, setCoHost, muteMember, removeMember, sendInvite } = useGroupMusic();
   const {
     hostId,
@@ -174,12 +179,38 @@ export const PeoplePanel = memo(function PeoplePanel({
       }
     }
 
+    const absentRegulars: InviteUser[] = regulars
+      .filter((r) => !memberIds.has(String(r.userId)))
+      .map((r) => ({
+        userid: Number(r.userId),
+        name: r.userName,
+        username: '',
+        profilepic: r.profilePic ?? '',
+      }));
+    if (absentRegulars.length > 0) {
+      out.push({
+        kind: 'regulars',
+        key: 'title-regulars',
+        count: absentRegulars.length,
+        uninvited: absentRegulars.filter(
+          (u) => !invitedIds.has(String(u.userid)) && !sending.has(String(u.userid))
+        ),
+      });
+      out.push(...candidates(absentRegulars));
+    }
+    const regularIds = new Set(regulars.map((r) => String(r.userId)));
+
     if (!search.hasLoaded) {
       out.push({ kind: 'title', key: 'title-suggested', text: 'Suggested' });
       out.push(...skeletonRows('suggested'));
     } else {
       const suggestions = search.users
-        .filter((u) => !memberIds.has(String(u.userid)) && !invitedIds.has(String(u.userid)))
+        .filter(
+          (u) =>
+            !memberIds.has(String(u.userid)) &&
+            !invitedIds.has(String(u.userid)) &&
+            !regularIds.has(String(u.userid))
+        )
         .slice(0, SUGGESTION_COUNT);
       if (suggestions.length > 0) {
         out.push({ kind: 'title', key: 'title-suggested', text: 'Suggested' });
@@ -201,6 +232,8 @@ export const PeoplePanel = memo(function PeoplePanel({
     invitedIds,
     roleOf,
     user?.userid,
+    regulars,
+    sending,
   ]);
 
   const renderMember = useCallback(
@@ -302,7 +335,7 @@ export const PeoplePanel = memo(function PeoplePanel({
               )}
             </View>
             <Text style={[styles.sub, { color: colors.mutedForeground }]} numberOfLines={1}>
-              @{item.username}
+              {item.username ? `@${item.username}` : 'Comes to this room'}
             </Text>
           </View>
           {inRoom ? (
@@ -343,6 +376,27 @@ export const PeoplePanel = memo(function PeoplePanel({
             <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
               {item.text}
             </Text>
+          );
+        case 'regulars':
+          return (
+            <View style={styles.regularsTitle}>
+              <Text style={[styles.sectionTitle, styles.shrink, { color: colors.mutedForeground }]}>
+                Regulars · {item.count}
+              </Text>
+              {item.uninvited.length > 1 && !isFull ? (
+                <PressableScale
+                  onPress={() => item.uninvited.forEach((u) => handleInvite(u.userid))}
+                  accessibilityRole='button'
+                  accessibilityLabel={`Invite all ${item.uninvited.length} regulars`}
+                  hitSlop={6}
+                  style={[styles.inviteAll, { backgroundColor: colors.raised }]}
+                >
+                  <Text style={[styles.inviteAllText, { color: colors.foreground }]}>
+                    Invite all
+                  </Text>
+                </PressableScale>
+              ) : null}
+            </View>
           );
         case 'member':
           return renderMember(item.member);
@@ -396,7 +450,7 @@ export const PeoplePanel = memo(function PeoplePanel({
           return <Text style={[styles.empty, { color: colors.mutedForeground }]}>{item.text}</Text>;
       }
     },
-    [colors, renderMember, renderCandidate, user?.userid, now]
+    [colors, renderMember, renderCandidate, user?.userid, now, isFull, handleInvite]
   );
 
   const selectedRole = selected ? roleOf(selected.userId) : 'listener';
@@ -463,6 +517,15 @@ const styles = StyleSheet.create({
   root: { flex: 1, minHeight: 0 },
   searchBar: { paddingHorizontal: 16, paddingTop: 10 },
   list: { paddingHorizontal: 16 },
+  regularsTitle: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  inviteAll: {
+    height: 28,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  inviteAllText: { fontSize: 12.5, fontWeight: '600' },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '700',

@@ -13,4 +13,6 @@ export const effects = {
     listenerIds: number[];
   }): Promise<Array<Record<string, unknown>>> => [],
   recordPlayed: async (_group: MusicGroup, _item: QueueItem): Promise<void> => {},
+  /** Writes a kept room's copy; `ended`: the live room is gone, so it's no longer live. */
+  saveRoom: async (_group: MusicGroup, _ended: boolean): Promise<void> => {},
 };
