@@ -2,7 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Server } from 'socket.io';
 import type { PlanLimits } from '@/services/entitlement.service';
 import { appendMessage, clearHistory } from './chat-history';
-import { forgetRoom } from './room-store';
+import type { SavedRoomLink } from './saved-room';
+import { endSavedRoom, forgetRoom } from './room-store';
 import { STOPPED, type Timeline } from './timeline';
 
 export interface GroupMember {
@@ -104,6 +105,8 @@ export interface MusicGroup {
   skipVotes: SkipVotes | null;
   /** Songs waiting for a host's OK, oldest first. */
   requests: SongRequest[];
+  /** Set when the room is kept between sessions (saved_rooms); the copy there follows it. */
+  savedRoom?: SavedRoomLink;
   createdAt: number;
   members: GroupMember[];
   current: QueueItem | null;
@@ -252,6 +255,7 @@ export const emitActivityMessage = (
 export const removeGroup = (groupId: string): void => {
   const group = musicGroups.get(groupId);
   if (group?.endTimer) clearTimeout(group.endTimer);
+  if (group) endSavedRoom(group);
   musicGroups.delete(groupId);
   clearHistory(groupId);
   forgetRoom(groupId);

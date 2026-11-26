@@ -3,7 +3,7 @@ import QRCode from 'qrcode';
 import { Op } from 'sequelize';
 import type { Server, Socket } from 'socket.io';
 import { getUserPlanLimits } from '@/services/entitlement.service';
-import { GroupInvite, User } from '@/models/index';
+import { GroupInvite, SavedRoom, User } from '@/models/index';
 import {
   allRoomsOf,
   canManage,
@@ -24,6 +24,8 @@ import { handleMemberGone, metaChanged, transferHost } from './host';
 import { INVITE_TTL_MS, noteInvite, settleInvite } from './invites';
 import { touchRoom } from './room-store';
 import { seedRoom, startSeededRoom, type RoomSeed } from './engine';
+import { effects } from './effects';
+import { applySavedSettings } from './saved-room';
 import { sendPushNotification } from '../notification';
 
 interface CreateGroupSocketData {
@@ -36,6 +38,8 @@ interface CreateGroupSocketData {
   profilePic?: string;
   /** Start with what the creator was listening to. Versions before 1.17 don't send it. */
   seed?: unknown;
+  /** Open a kept room (saved_rooms) again: its name, setup, co-hosts and last queue. */
+  savedRoomId?: number;
 }
 
 interface JoinGroupSocketData {
@@ -97,6 +101,30 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
 
   socket.on('create-music-group', async (data: CreateGroupSocketData) => {
     if (!isSelf(data?.createdBy)) return;
+
+    const saved = data.savedRoomId
+      ? await SavedRoom.findOne({
+          where: { id: Number(data.savedRoomId), ownerId: Number(userId) },
+        }).catch(() => null)
+      : null;
+    if (data.savedRoomId && !saved) {
+      socket.emit('error', { message: 'That room is no longer saved' });
+      return;
+    }
+    // Still going from last time (someone stayed): go back into it rather than start another.
+    const live = saved?.liveGroupId ? musicGroups.get(saved.liveGroupId) : undefined;
+    if (saved && live?.savedRoom?.id === saved.id) {
+      join({
+        deviceId: data.deviceId,
+        protocol: data.protocol,
+        groupId: live.id,
+        userId: data.createdBy,
+        userName: data.userName,
+        profilePic: data.profilePic,
+      });
+      return;
+    }
+
     const groupId = generateGroupId();
 
     let planLimits = null;
@@ -108,7 +136,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
 
     const group = createGroupState({
       id: groupId,
-      name: data.name,
+      name: saved?.name ?? data.name,
       createdBy: data.createdBy,
       userName: data.userName,
       profilePic: data.profilePic,
@@ -123,8 +151,20 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       });
       group.qrCode = qrCodeBuffer.toString('base64');
 
+      if (saved) {
+        applySavedSettings(group, saved.settings);
+        group.coHosts = saved.coHostIds.filter((id) => id !== String(data.createdBy));
+        group.savedRoom = {
+          id: saved.id,
+          ownerId: String(saved.ownerId),
+          regulars: saved.regulars,
+        };
+      }
       // Seeded only now, so the song's clock starts as the room opens rather than before the QR.
-      const seed = seedOf(data.seed);
+      // A kept room picks up its last queue, paused until someone presses play.
+      const seed = saved?.queue.length
+        ? seedOf({ songs: saved.queue, positionMs: 0, playing: false })
+        : seedOf(data.seed);
       // How many of your songs came along, so the device can say if the room's limit left some out.
       const seeded = seed ? { count: seedRoom(group, seed, group.members[0]!) } : undefined;
 
@@ -141,6 +181,8 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       });
       tellMyRooms(io, data.createdBy);
       startSeededRoom(io, group);
+      // Marks the kept room as live now, so opening it again joins this one.
+      if (saved) void effects.saveRoom(group, false);
     } catch (err) {
       console.error('QR Code Generation Failed:', err);
       socket.emit('error', { message: 'QR Code generation failed' });

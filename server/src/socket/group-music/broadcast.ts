@@ -49,8 +49,13 @@ const skipVotesPart = (group: MusicGroup) => {
     : null;
 };
 
+/** Whether the room is kept, and who usually comes (so anyone can invite them). */
+const savedRoomOf = (group: MusicGroup) =>
+  group.savedRoom ? { id: group.savedRoom.id, regulars: group.savedRoom.regulars } : null;
+
 const metaPart = (group: MusicGroup) => ({
   rev: group.revs.meta,
+  name: group.name,
   hostId: group.createdBy,
   coHosts: group.coHosts,
   mutedIds: group.mutedIds,
@@ -60,6 +65,7 @@ const metaPart = (group: MusicGroup) => ({
   settings: group.settings,
   maxMembers: group.maxMembers,
   features: group.features,
+  savedRoom: savedRoomOf(group),
 });
 
 /** Everything a device needs to be in the room, in one message. */
@@ -112,6 +118,7 @@ export const publicGroupOf = (group: MusicGroup) => ({
   maxMembers: group.maxMembers,
   features: group.features,
   qrCode: group.qrCode,
+  savedRoom: savedRoomOf(group),
   playbackState: legacyPlaybackState(group),
   ...legacyQueueState(group),
 });
