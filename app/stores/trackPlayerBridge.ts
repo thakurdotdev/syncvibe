@@ -1,4 +1,5 @@
 import { Song } from '@/types/song';
+import { checkSleepTimer, noteSongChangeForSleepTimer } from './sleepTimerStore';
 import { playbackHistory } from '@/utils/playbackHistory';
 import {
   recordPlayEnd,
@@ -1023,6 +1024,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
 
               if (!isRestoredTransition) {
                 recordSongStart(song);
+                noteSongChangeForSleepTimer();
               }
               // Moved on by itself (a song ended, or a notification button): tell the others.
               sync?.moved(song.id);
@@ -1095,6 +1097,7 @@ export const dispatchTrackPlayerEvent = async (event: { type: string; [key: stri
           s.setPlaying(TrackPlayer.isPlaying());
         }
 
+        checkSleepTimer();
         // Native ticks every 5s while playing (progressSync in playerSetup), plus one
         // final tick on pause. Save it so a killed app comes back to this spot.
         if (restorePending || !s.currentSong || mediaId !== s.currentSong.id) break;
