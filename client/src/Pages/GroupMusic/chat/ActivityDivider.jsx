@@ -2,13 +2,16 @@ import { cn } from '@/lib/utils';
 import {
   ArrowUpDown,
   Crown,
+  Hourglass,
   Info,
   ListMinus,
   ListPlus,
   MessageSquareOff,
   Music2,
   Play,
+  Repeat2,
   Shield,
+  ShieldCheck,
   SkipForward,
   UserMinus,
   UserPlus,
@@ -32,6 +35,9 @@ const ACTIVITY_META = {
   'member-removed': { Icon: UserMinus, tone: 'text-destructive' },
   'skip-vote': { Icon: SkipForward, tone: 'text-muted-foreground' },
   'skipped-by-vote': { Icon: SkipForward, tone: 'text-foreground' },
+  'song-requested': { Icon: Hourglass, tone: 'text-muted-foreground' },
+  'fair-queue': { Icon: Repeat2, tone: 'text-muted-foreground' },
+  'approve-songs': { Icon: ShieldCheck, tone: 'text-muted-foreground' },
 };
 
 const DEFAULT_META = { Icon: Info, tone: 'text-muted-foreground' };

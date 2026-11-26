@@ -652,6 +652,17 @@ export function GroupMusicProvider({ children }) {
     [socket]
   );
 
+  const wrappedAnswerRequest = useCallback(
+    (requestId, approve) =>
+      useGroupSessionStore.getState().answerRequest(socket, requestId, approve),
+    [socket]
+  );
+
+  const wrappedSetQueueRule = useCallback(
+    (rule, enabled) => useGroupSessionStore.getState().setQueueRule(socket, rule, enabled),
+    [socket]
+  );
+
   const wrappedSetControlMode = useCallback(
     (mode) => useGroupSessionStore.getState().setControlMode(socket, mode),
     [socket]
@@ -828,6 +839,11 @@ export function GroupMusicProvider({ children }) {
     skipVote,
     voteSkip: wrappedVoteSkip,
     setControlMode: wrappedSetControlMode,
+    answerRequest: wrappedAnswerRequest,
+    setQueueRule: wrappedSetQueueRule,
+    songRequests: session.requests,
+    fairQueue: Boolean(session.currentGroup?.settings?.fairQueue),
+    approveSongs: Boolean(session.currentGroup?.settings?.approveSongs),
     transferHost: wrappedTransferHost,
     setCoHost: wrappedSetCoHost,
     muteMember: wrappedMuteMember,
