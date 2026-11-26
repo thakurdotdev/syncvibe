@@ -17,6 +17,7 @@ export { default as Disc3 } from 'lucide-react-native/dist/esm/icons/disc-3';
 export { default as ImageIcon } from 'lucide-react-native/dist/esm/icons/image';
 export { default as Info } from 'lucide-react-native/dist/esm/icons/info';
 export { default as ListMusic } from 'lucide-react-native/dist/esm/icons/list-music';
+export { default as MicVocal } from 'lucide-react-native/dist/esm/icons/mic-vocal';
 export { default as Music } from 'lucide-react-native/dist/esm/icons/music';
 export {
   default as Music2,

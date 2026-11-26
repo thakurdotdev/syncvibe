@@ -9,6 +9,8 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LyricsView } from '../lyrics/LyricsView';
+import { heardPosition, useLyricsPlayback } from '../lyrics/useLyricsPlayback';
 import { ChatPanel } from './chat/ChatPanel';
 import { isActivity, sameUser } from './chat/chatUtils';
 import { PeoplePanel } from './PeoplePanel';
@@ -88,6 +90,7 @@ export const RoomScreen = memo(function RoomScreen({
 
   const showQueue = useCallback(() => changeTab('queue'), [changeTab]);
   const showPeople = useCallback(() => changeTab('people'), [changeTab]);
+  const lyrics = useLyricsPlayback();
 
   // Invite (here or on creating a room) opens People with its search focused.
   const [inviteFocus, setInviteFocus] = useState(0);
@@ -134,6 +137,17 @@ export const RoomScreen = memo(function RoomScreen({
           style={[styles.panel, tab !== 'queue' && styles.hidden, { paddingBottom: deckInset }]}
         >
           <QueueSheet inline embedded />
+        </View>
+        <View style={[styles.panel, tab !== 'lyrics' && styles.hidden]}>
+          <LyricsView
+            songId={lyrics.songId}
+            nextSongId={lyrics.nextSongId}
+            getPosition={heardPosition}
+            active={tab === 'lyrics'}
+            onSeek={lyrics.onSeek}
+            bottomInset={deckInset}
+            size='medium'
+          />
         </View>
         <View style={[styles.panel, tab !== 'people' && styles.hidden]}>
           <PeoplePanel focusRequest={inviteFocus} bottomInset={deckInset} />

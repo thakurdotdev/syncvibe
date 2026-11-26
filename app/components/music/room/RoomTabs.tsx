@@ -5,11 +5,12 @@ import { memo, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-export type RoomTab = 'chat' | 'queue' | 'people';
+export type RoomTab = 'chat' | 'queue' | 'lyrics' | 'people';
 
 const TABS: { key: RoomTab; label: string }[] = [
   { key: 'chat', label: 'Chat' },
   { key: 'queue', label: 'Queue' },
+  { key: 'lyrics', label: 'Lyrics' },
   { key: 'people', label: 'People' },
 ];
 
