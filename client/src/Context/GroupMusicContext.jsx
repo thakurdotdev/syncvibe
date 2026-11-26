@@ -652,6 +652,11 @@ export function GroupMusicProvider({ children }) {
     [socket]
   );
 
+  const wrappedOpenSavedRoom = useCallback(
+    (room) => useGroupSessionStore.getState().openSavedRoom(socket, user, room),
+    [socket, user]
+  );
+
   const wrappedAnswerRequest = useCallback(
     (requestId, approve) =>
       useGroupSessionStore.getState().answerRequest(socket, requestId, approve),
@@ -840,6 +845,7 @@ export function GroupMusicProvider({ children }) {
     voteSkip: wrappedVoteSkip,
     setControlMode: wrappedSetControlMode,
     answerRequest: wrappedAnswerRequest,
+    openSavedRoom: wrappedOpenSavedRoom,
     setQueueRule: wrappedSetQueueRule,
     songRequests: session.requests,
     fairQueue: Boolean(session.currentGroup?.settings?.fairQueue),

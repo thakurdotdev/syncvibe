@@ -7,6 +7,7 @@ import { EASE_OUT } from '@/lib/motion';
 import { useRoomSeedPreview } from '@/lib/roomSeed';
 import Equalizer from './components/Equalizer';
 import MyRooms from './MyRooms';
+import SavedRooms from './SavedRooms';
 import { getSongImage } from './utils/song';
 
 const FEATURE_CARDS = [
@@ -53,6 +54,7 @@ const WelcomeView = ({
   onJoinRoom,
   onAskRoom,
   onDismissRoom,
+  onOpenSavedRoom,
 }) => {
   return (
     <motion.div
@@ -65,6 +67,7 @@ const WelcomeView = ({
     >
       <div className='max-w-lg w-full flex flex-col items-center text-center'>
         <MyRooms rooms={myRooms} onJoin={onJoinRoom} onAsk={onAskRoom} onDismiss={onDismissRoom} />
+        <SavedRooms onOpen={onOpenSavedRoom} />
 
         <div className='relative mb-8'>
           <div className='h-24 w-24 sm:h-28 sm:w-28 rounded-full bg-primary/10 flex items-center justify-center'>

@@ -248,6 +248,7 @@ const PeoplePanel = ({
   mutedIds,
   maxMembers,
   pendingInvites = NO_INVITES,
+  regulars = NO_INVITES,
   onSendInvite,
   onMakeHost,
   onSetCoHost,
@@ -322,12 +323,32 @@ const PeoplePanel = ({
     return null;
   };
 
+  // People who usually come to this kept room and aren't here: one tap to ask them all.
+  const absentRegulars = useMemo(
+    () =>
+      regulars
+        .filter((r) => !memberIds.has(String(r.userId)))
+        .map((r) => ({
+          userid: r.userId,
+          name: r.userName,
+          profilepic: r.profilePic,
+          subtitle: 'Comes to this room',
+        })),
+    [regulars, memberIds]
+  );
+  const uninvitedRegulars = absentRegulars.filter((r) => statusOfCandidate(r.userid) === null);
+
   const suggestions = useMemo(
     () =>
       search.users
-        .filter((u) => !memberIds.has(String(u.userid)) && !invitedIds.has(String(u.userid)))
+        .filter(
+          (u) =>
+            !memberIds.has(String(u.userid)) &&
+            !invitedIds.has(String(u.userid)) &&
+            !regulars.some((r) => String(r.userId) === String(u.userid))
+        )
         .slice(0, SUGGESTION_COUNT),
-    [search.users, memberIds, invitedIds]
+    [search.users, memberIds, invitedIds, regulars]
   );
 
   const candidateRows = (users) => (
@@ -411,6 +432,24 @@ const PeoplePanel = ({
                     />
                   ))}
                 </ul>
+              </>
+            )}
+
+            {absentRegulars.length > 0 && (
+              <>
+                <div className='flex items-center justify-between pr-1'>
+                  <SectionTitle>Regulars · {absentRegulars.length}</SectionTitle>
+                  {uninvitedRegulars.length > 1 && !isFull && (
+                    <button
+                      type='button'
+                      onClick={() => uninvitedRegulars.forEach((r) => handleInvite(r.userid))}
+                      className='cursor-pointer rounded-full px-2.5 py-1 text-xs font-medium text-foreground hover:bg-foreground/[0.06]'
+                    >
+                      Invite all
+                    </button>
+                  )}
+                </div>
+                {candidateRows(absentRegulars)}
               </>
             )}
 

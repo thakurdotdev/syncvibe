@@ -185,6 +185,7 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
       mutedIds={currentGroup?.mutedIds}
       maxMembers={maxMembers}
       pendingInvites={currentGroup?.pendingInvites}
+      regulars={currentGroup?.savedRoom?.regulars}
       onSendInvite={sendInvite}
       onMakeHost={isHost ? transferHost : undefined}
       onSetCoHost={isHost ? setCoHost : undefined}

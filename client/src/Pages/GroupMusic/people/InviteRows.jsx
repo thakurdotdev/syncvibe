@@ -52,7 +52,9 @@ export const InviteCandidateRow = memo(({ user, status, disabledReason, onInvite
           </span>
         )}
       </p>
-      <p className='truncate text-[11px] text-muted-foreground'>@{user.username}</p>
+      <p className='truncate text-[11px] text-muted-foreground'>
+        {user.username ? `@${user.username}` : user.subtitle}
+      </p>
     </div>
     {status === 'in-room' ? (
       <span className='shrink-0 text-[11px] text-muted-foreground'>In the room</span>
