@@ -85,6 +85,9 @@ const stopDriftChecks = () => {
   driftTimer = null;
 };
 
+/** The room's audio element, for what reads the position as you hear it (lyrics). */
+export const getRoomAudioElement = () => audioElement;
+
 export const useGroupPlaybackStore = create((set, get) => {
   /** Where this tab's audio should be right now, in seconds. */
   const targetNow = () => roomPositionS(room, serverNow()) + get().outputOffsetMs / 1000;

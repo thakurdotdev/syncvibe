@@ -1,4 +1,4 @@
-import { ListMusic, MessageCircle, Users } from 'lucide-react';
+import { ListMusic, MessageCircle, MicVocal, Users } from 'lucide-react';
 import { memo, useMemo } from 'react';
 import { Panel, PanelHeader } from '../components/Panel';
 import PanelTabs, { TabPanel } from '../components/PanelTabs';
@@ -6,8 +6,8 @@ import { MOBILE_TABS, useRoomUi } from '../hooks/useRoomUi';
 
 const ID_PREFIX = 'room-mobile';
 
-/** Phone / tablet layout: chat, queue and people share the space below the player. */
-const MobileRoomTabs = ({ chat, queue, people, unreadCount, queueCount, memberCount }) => {
+/** Phone / tablet layout: chat, queue, lyrics and people share the space below the player. */
+const MobileRoomTabs = ({ chat, queue, lyrics, people, unreadCount, queueCount, memberCount }) => {
   const activeTab = useRoomUi((s) => s.mobileTab);
   const setMobileTab = useRoomUi((s) => s.setMobileTab);
 
@@ -15,6 +15,7 @@ const MobileRoomTabs = ({ chat, queue, people, unreadCount, queueCount, memberCo
     () => [
       { value: MOBILE_TABS.chat, label: 'Chat', icon: MessageCircle, alert: unreadCount },
       { value: MOBILE_TABS.queue, label: 'Queue', icon: ListMusic, count: queueCount },
+      { value: MOBILE_TABS.lyrics, label: 'Lyrics', icon: MicVocal },
       { value: MOBILE_TABS.people, label: 'People', icon: Users, count: memberCount },
     ],
     [unreadCount, queueCount, memberCount]
@@ -44,6 +45,14 @@ const MobileRoomTabs = ({ chat, queue, people, unreadCount, queueCount, memberCo
         active={activeTab === MOBILE_TABS.queue}
       >
         {queue}
+      </TabPanel>
+      <TabPanel
+        idPrefix={ID_PREFIX}
+        value={MOBILE_TABS.lyrics}
+        active={activeTab === MOBILE_TABS.lyrics}
+        className='px-4'
+      >
+        {lyrics}
       </TabPanel>
       <TabPanel
         idPrefix={ID_PREFIX}

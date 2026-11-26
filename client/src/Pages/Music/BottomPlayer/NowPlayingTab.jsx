@@ -1,5 +1,5 @@
 import he from 'he';
-import { ChevronRight, Music } from 'lucide-react';
+import { ChevronRight, MicVocal, Music } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -7,6 +7,11 @@ import { SheetTitle } from '@/components/ui/sheet';
 import { usePlayerStore } from '@/stores/playerStore';
 import { MusicControls, ProgressBarMusic, VolumeControl } from '../Common';
 import LikeButton from '@/components/Music/LikeButton';
+import LyricsView from '@/components/Lyrics/LyricsView';
+import { ownPosition, seekOwn } from '@/components/Lyrics/positions';
+import { Button } from '@/components/ui/button';
+import useMediaQuery from '@/hooks/use-media-query';
+import { cn } from '@/lib/utils';
 import { DevicePicker, PlayingOnNotice } from './DevicePicker';
 
 const useCrossfadeImage = (src) => {
@@ -101,6 +106,46 @@ const CrossfadeAvatar = memo(({ images, size, name }) => (
 ));
 CrossfadeAvatar.displayName = 'CrossfadeAvatar';
 
+/** Swaps the cover for the song's lyrics; the title and controls stay where they are. */
+const LyricsToggle = memo(({ shown, onToggle }) => (
+  <Button
+    type='button'
+    variant='ghost'
+    size='icon'
+    aria-pressed={shown}
+    aria-label={shown ? 'Show cover' : 'Show lyrics'}
+    title={shown ? 'Show cover' : 'Lyrics'}
+    onClick={onToggle}
+    className={cn(
+      'h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground',
+      shown && 'bg-foreground/[0.08] text-foreground'
+    )}
+  >
+    <MicVocal className='h-[18px] w-[18px]' />
+  </Button>
+));
+LyricsToggle.displayName = 'LyricsToggle';
+
+/** The cover, or the lyrics in a box of about the same footprint. */
+const CoverOrLyrics = memo(({ shown, images, name, coverSize, lyricsStyle, songId, nextSongId }) =>
+  shown ? (
+    <div className='animate-in fade-in duration-200' style={lyricsStyle}>
+      <LyricsView
+        songId={songId}
+        nextSongId={nextSongId}
+        getPosition={ownPosition}
+        onSeek={seekOwn}
+        active
+      />
+    </div>
+  ) : (
+    <div className='animate-in fade-in duration-200'>
+      <CrossfadeAvatar images={images} size={coverSize} name={name} />
+    </div>
+  )
+);
+CoverOrLyrics.displayName = 'CoverOrLyrics';
+
 const NowPlayingTab = memo(({ currentSong }) => {
   const songImage = useMemo(
     () => currentSong?.image?.[2]?.link || currentSong?.image?.[1]?.link,
@@ -109,6 +154,10 @@ const NowPlayingTab = memo(({ currentSong }) => {
   const images = useCrossfadeImage(songImage);
   const nextSong = useNextSong(currentSong);
   const [showEntrance, setShowEntrance] = useState(false);
+  const [lyricsShown, setLyricsShown] = useState(false);
+  const toggleLyrics = useCallback(() => setLyricsShown((shown) => !shown), []);
+  // Both layouts are in the page; only the one on screen shows lyrics, so one reads the position.
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -176,7 +225,15 @@ const NowPlayingTab = memo(({ currentSong }) => {
             transform: showEntrance ? 'scale(1)' : 'scale(0.95)',
           }}
         >
-          <CrossfadeAvatar images={images} size='min(36vw, 48vh, 400px)' name={decodedName} />
+          <CoverOrLyrics
+            shown={lyricsShown && isDesktop === true}
+            images={images}
+            name={decodedName}
+            coverSize='min(36vw, 48vh, 400px)'
+            lyricsStyle={{ width: 'min(38vw, 440px)', height: 'min(62vh, 540px)' }}
+            songId={currentSong?.id}
+            nextSongId={nextSong?.id}
+          />
         </div>
 
         {/* Right: Meta + Player Controls */}
@@ -233,6 +290,7 @@ const NowPlayingTab = memo(({ currentSong }) => {
             <div className='flex items-center justify-between pt-1 px-1 border-t border-border/40'>
               <VolumeControl showVolume={true} alwaysShowSlider={true} />
               <div className='flex items-center gap-1'>
+                <LyricsToggle shown={lyricsShown} onToggle={toggleLyrics} />
                 <LikeButton song={currentSong} />
                 <DevicePicker />
               </div>
@@ -260,7 +318,15 @@ const NowPlayingTab = memo(({ currentSong }) => {
               transform: showEntrance ? 'scale(1)' : 'scale(0.95)',
             }}
           >
-            <CrossfadeAvatar images={images} size='min(82vw, 36vh, 320px)' name={decodedName} />
+            <CoverOrLyrics
+              shown={lyricsShown && isDesktop === false}
+              images={images}
+              name={decodedName}
+              coverSize='min(82vw, 36vh, 320px)'
+              lyricsStyle={{ width: 'min(86vw, 384px)', height: 'max(36vh, 240px)' }}
+              songId={currentSong?.id}
+              nextSongId={nextSong?.id}
+            />
           </div>
 
           {/* Mobile Info + Controls */}
@@ -317,6 +383,7 @@ const NowPlayingTab = memo(({ currentSong }) => {
             <div className='flex items-center justify-between px-1 pt-1'>
               <VolumeControl showVolume={true} alwaysShowSlider={true} />
               <div className='flex items-center gap-1'>
+                <LyricsToggle shown={lyricsShown} onToggle={toggleLyrics} />
                 <LikeButton song={currentSong} />
                 <DevicePicker />
               </div>
