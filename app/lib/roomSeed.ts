@@ -67,9 +67,15 @@ export const roomNameFor = (userName?: string | null) => {
   return first ? `${first}'s room` : '';
 };
 
-/** Opens the create form on Rooms, already named, with your music on. */
-export const startRoomFromMusic = (userName?: string | null) => {
+/**
+ * Opens the create form on Rooms, already named, with your music on. `name` names it after what
+ * you started (a playlist or album) instead of after you.
+ */
+export const startRoomFromMusic = (userName?: string | null, name?: string | null) => {
   closeFullPlayer();
-  useGroupSessionStore.setState({ isGroupModalOpen: true, groupModalName: roomNameFor(userName) });
+  useGroupSessionStore.setState({
+    isGroupModalOpen: true,
+    groupModalName: name?.trim() || roomNameFor(userName),
+  });
   router.navigate('/(tabs)/group-music');
 };
