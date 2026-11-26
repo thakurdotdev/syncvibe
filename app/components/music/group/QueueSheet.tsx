@@ -1,5 +1,6 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { SortableQueue } from '@/components/music/player/SortableQueue';
+import { SongRequests } from '@/components/music/room/SongRequests';
 import { Segmented, type SegmentOption } from '@/components/ui/Segmented';
 import { BUTTON_PRESS_SCALE, IMAGE_FADE_MS, LIST_PRESS_DELAY, ROW_PRESS_SCALE } from '@/lib/motion';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -881,6 +882,7 @@ export const QueueSheet: React.FC<{ inline?: boolean; embedded?: boolean }> = ({
             {activeTab === 'queue' && (
               <View style={styles.flex}>
                 {renderQueueHeader()}
+                <SongRequests />
                 {upcomingQueue.length > 0 ? (
                   // The same list as the player's queue. The row moves only on the UI thread, and
                   // a drop changes no layout, so nothing can flicker when the new order arrives.

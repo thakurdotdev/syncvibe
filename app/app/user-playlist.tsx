@@ -11,6 +11,8 @@ import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
+import { toastRoomAdd } from '@/stores/groupMusic/groupSessionStore';
+import { useUser } from '@/context/UserContext';
 import { convertToHttps } from '@/utils/getHttpsUrls';
 import useApi from '@/utils/hooks/useApi';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,6 +59,7 @@ export default function UserPlaylistDetails() {
 
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const { addPlaylistToQueue } = useGroupMusic();
+  const { user } = useUser();
   const insets = useSafeAreaInsets();
 
   // Picking several songs, then removing them with one confirmation.
@@ -194,9 +197,9 @@ export default function UserPlaylistDetails() {
     if (playlistData?.songs?.length) {
       const songs = playlistData.songs.map((s) => s.songData).filter(Boolean);
       addPlaylistToQueue(songs);
-      toast(`Added ${songs.length} songs to group queue`, { type: 'success' });
+      toastRoomAdd(user?.userid, `Added ${songs.length} songs to group queue`);
     }
-  }, [playlistData, addPlaylistToQueue]);
+  }, [playlistData, addPlaylistToQueue, user?.userid]);
 
   const getBgUrl = useMemo(() => {
     if (!playlistData?.image) return '';

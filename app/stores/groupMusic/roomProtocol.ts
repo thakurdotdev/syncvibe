@@ -2,7 +2,14 @@ import type { Socket } from 'socket.io-client';
 import { addClockSample, clockRtt } from './roomClock';
 import type { RoomPlayback } from './roomSync';
 import type { Song } from '@/types/song';
-import type { GroupMember, PendingInvite, QueueItem, RejoinRequest, SkipVotes } from './types';
+import type {
+  GroupMember,
+  PendingInvite,
+  QueueItem,
+  RejoinRequest,
+  SkipVotes,
+  SongRequest,
+} from './types';
 
 /** Sent when joining, so the server speaks the current sync protocol to this device. */
 export const ROOM_PROTOCOL = 2;
@@ -11,7 +18,8 @@ const COMMAND_TIMEOUT_MS = 8000;
 const PING_TIMEOUT_MS = 4000;
 
 export type CommandResult =
-  | { ok: true; addedCount?: number }
+  /** `requestedCount`: the songs wait for a host's OK rather than being queued. */
+  | { ok: true; addedCount?: number; requestedCount?: number }
   | { ok: false; code: string; error: string };
 
 export interface RoomRevs {
@@ -23,6 +31,7 @@ export interface RoomRevs {
 export interface RoomQueuePart {
   rev: number;
   upcoming: QueueItem[];
+  requests?: SongRequest[];
 }
 
 export interface RoomMetaPart {

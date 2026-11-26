@@ -56,6 +56,8 @@ interface GroupMusicContextType {
   shuffleQueue: () => void;
   /** Who may control playback: everyone, or only the host. Only the host can change it. */
   setControlMode: (mode: 'everyone' | 'host') => void;
+  answerRequest: (requestId: string, approve: boolean) => void;
+  setQueueRule: (rule: 'fair' | 'approve', enabled: boolean) => void;
   transferHost: (userId: number | string) => void;
   setCoHost: (userId: number | string, enabled: boolean) => void;
   muteMember: (userId: number | string, enabled: boolean) => void;
@@ -625,6 +627,18 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     [socket]
   );
 
+  const answerRequest = useCallback(
+    (requestId: string, approve: boolean) =>
+      ss.getState().answerRequest(socket, requestId, approve),
+    [socket]
+  );
+
+  const setQueueRule = useCallback(
+    (rule: 'fair' | 'approve', enabled: boolean) =>
+      ss.getState().setQueueRule(socket, rule, enabled),
+    [socket]
+  );
+
   const transferHost = useCallback(
     (userId: number | string) => ss.getState().transferHost(socket, userId),
     [socket]
@@ -752,6 +766,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       playQueueItem,
       shuffleQueue,
       setControlMode,
+      answerRequest,
+      setQueueRule,
       transferHost,
       setCoHost,
       muteMember,
@@ -786,6 +802,8 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       playQueueItem,
       shuffleQueue,
       setControlMode,
+      answerRequest,
+      setQueueRule,
       transferHost,
       setCoHost,
       muteMember,
