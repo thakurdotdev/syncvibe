@@ -44,6 +44,7 @@ interface GroupMusicContextType {
   handlePlayPause: (forceState?: boolean) => Promise<void>;
   handleSeek: (value: number) => Promise<void>;
   createGroup: (groupName: string, seed?: RoomSeed | null) => void;
+  openSavedRoom: (room: { id: number; name: string }) => void;
   joinGroup: (groupId: string) => void;
   leaveGroup: () => void;
   sendMessage: (message: string, messageType?: string, extra?: Record<string, any>) => void;
@@ -627,6 +628,11 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
     [socket]
   );
 
+  const openSavedRoom = useCallback(
+    (room: { id: number; name: string }) => ss.getState().openSavedRoom(socket, user, room),
+    [socket, user]
+  );
+
   const answerRequest = useCallback(
     (requestId: string, approve: boolean) =>
       ss.getState().answerRequest(socket, requestId, approve),
@@ -756,6 +762,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       handlePlayPause,
       handleSeek,
       createGroup,
+      openSavedRoom,
       joinGroup,
       leaveGroup,
       sendMessage,
@@ -792,6 +799,7 @@ export function GroupMusicProvider({ children }: { children: ReactNode }) {
       handlePlayPause,
       handleSeek,
       createGroup,
+      openSavedRoom,
       joinGroup,
       leaveGroup,
       sendMessage,

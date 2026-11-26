@@ -34,7 +34,7 @@ function Reconnecting() {
 
 /** Rooms tab: welcome, reconnecting, or the live room, plus the sheets rooms use. */
 export default function RoomsTab() {
-  const { createGroup, joinGroup, leaveGroup } = useGroupMusic();
+  const { createGroup, joinGroup, leaveGroup, openSavedRoom } = useGroupMusic();
   const { user } = useUser();
   const { colors } = useTheme();
 
@@ -118,6 +118,7 @@ export default function RoomsTab() {
           onStartFromMusic={() => startRoomFromMusic(user?.name)}
           onJoin={() => openModal('join')}
           onScan={() => setScanning(true)}
+          onOpenSavedRoom={openSavedRoom}
         />
       )}
 

@@ -41,6 +41,8 @@ export interface Group {
     realtimeChat?: boolean;
     realtimeSync?: boolean;
   };
+  /** Set when the room is kept between sessions: who usually comes, to invite them. */
+  savedRoom?: SavedRoomLink | null;
   settings?: {
     maxQueueSize: number;
     allowAnyoneToAdd: boolean;
@@ -52,6 +54,11 @@ export interface Group {
     /** Listeners' songs wait for the host or a co-host to let them in. */
     approveSongs?: boolean;
   };
+}
+
+export interface SavedRoomLink {
+  id: number;
+  regulars: { userId: string; userName: string; profilePic?: string }[];
 }
 
 /** A listener's song waiting for a host's OK. */

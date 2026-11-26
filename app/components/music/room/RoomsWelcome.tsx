@@ -18,6 +18,8 @@ import Animated, {
   useReducedMotion,
 } from 'react-native-reanimated';
 import { MyRooms } from './MyRooms';
+import { SavedRooms } from './SavedRooms';
+import type { SavedRoom } from '@/api/rooms';
 
 type Colors = ReturnType<typeof useTheme>['colors'];
 
@@ -185,8 +187,10 @@ export const RoomsWelcome = memo(function RoomsWelcome({
   onStartFromMusic,
   onJoin,
   onScan,
+  onOpenSavedRoom,
 }: {
   myRooms: MyRoom[];
+  onOpenSavedRoom: (room: SavedRoom) => void;
   onJoinRoom: (groupId: string) => void;
   onAskRoom: (groupId: string) => Promise<void>;
   onDismissRoom: (groupId: string) => void;
@@ -215,6 +219,10 @@ export const RoomsWelcome = memo(function RoomsWelcome({
           />
         </Animated.View>
       )}
+
+      <Animated.View layout={REFLOW}>
+        <SavedRooms onOpen={onOpenSavedRoom} />
+      </Animated.View>
 
       <Animated.View layout={REFLOW} style={styles.hero}>
         <RoomPreview colors={colors} />
