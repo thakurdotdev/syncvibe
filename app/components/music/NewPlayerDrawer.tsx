@@ -17,6 +17,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { CachedImage } from '@/components/ui/CachedImage';
 import SwipeableModal from '../SwipeableModal';
 import AddToPlaylist from './AddToPlaylist';
+import { SleepTimerSheet } from './player/SleepTimerSheet';
+import { sleepTimerLabel, useSleepTimer } from '@/stores/sleepTimerStore';
 
 interface PlayerDrawerProps {
   isVisible: boolean;
@@ -59,6 +61,8 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
   useEffect(() => setOpen(isVisible), [isVisible]);
   const close = () => setOpen(false);
   const [playlistModal, setPlaylistModal] = useState(false);
+  const [sleepSheet, setSleepSheet] = useState(false);
+  const sleepLeft = sleepTimerLabel(useSleepTimer());
   const { addToQueue, removeFromQueue } = usePlayerControls();
   const { currentSong } = usePlaybackState();
   const { playlist } = usePlaylistState();
@@ -192,6 +196,15 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
               />
             )}
 
+            {canStartRoom && (
+              <OptionRow
+                icon={<Ionicons name='moon-outline' size={21} color={colors.foreground} />}
+                label={sleepLeft ? `Sleep Timer · ${sleepLeft}` : 'Sleep Timer'}
+                color={colors.foreground}
+                onPress={() => setSleepSheet(true)}
+              />
+            )}
+
             <OptionRow
               icon={<MaterialIcons name='playlist-add' size={22} color={colors.foreground} />}
               label='Add to Playlist'
@@ -241,6 +254,15 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
           </View>
         </View>
       </SwipeableModal>
+      {sleepSheet && (
+        <SleepTimerSheet
+          isVisible={sleepSheet}
+          onClose={() => {
+            setSleepSheet(false);
+            close();
+          }}
+        />
+      )}
       {playlistModal && (
         <AddToPlaylist
           dialogOpen={playlistModal}
