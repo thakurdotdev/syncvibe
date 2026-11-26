@@ -4,3 +4,7 @@ dist
 bun.lock
 bun.lockb
 package-lock.json
+
+# Local secret files (managed by envy)
+.env.*
+!.env.example

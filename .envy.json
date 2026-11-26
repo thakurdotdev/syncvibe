@@ -1,0 +1,14 @@
+{
+  "$schema": "https://envy.dev/schema/v1.json",
+  "projectId": "01a21790-d46f-77eb-a436-3748e48b7799",
+  "defaultEnvironment": "development",
+  "file": ".env",
+  "apps": {
+    "client": {
+      "path": "client"
+    },
+    "server": {
+      "path": "server"
+    }
+  }
+}

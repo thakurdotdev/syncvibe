@@ -1,6 +1,0 @@
-{
-  "$schema": "https://envy.dev/schema/v1.json",
-  "projectId": "01a20382-34c7-75fe-b89a-5b6d4604e39e",
-  "defaultEnvironment": "development",
-  "file": ".env"
-}
