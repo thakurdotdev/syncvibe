@@ -12,3 +12,18 @@ export const undoDislikeSong = async (songId) => {
     withCredentials: true,
   });
 };
+
+/** "Not this artist": their songs leave every suggestion, on every device. */
+export const dislikeArtist = async (artist) => {
+  await axios.post(
+    `${API_URL}/api/music/dislikes-artists`,
+    { artistId: artist.id, name: artist.name },
+    { withCredentials: true }
+  );
+};
+
+export const undoDislikeArtist = async (artistId) => {
+  await axios.delete(`${API_URL}/api/music/dislikes-artists/${encodeURIComponent(artistId)}`, {
+    withCredentials: true,
+  });
+};
