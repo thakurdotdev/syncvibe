@@ -360,3 +360,75 @@ test('a seed with nothing playable leaves the room empty', () => {
   assert.equal(group.current, null);
   assert.equal(group.timeline.playing, false);
 });
+
+test('fair queue: songs take turns between the people adding them', async () => {
+  const { group, cmd } = setup();
+  group.members.push({ userId: 3, userName: 'Third' });
+  await cmd(1, { type: 'add', song: song('playing') });
+  assert.deepEqual(await cmd(1, { type: 'set-fair-queue', enabled: true }), { ok: true });
+  await cmd(1, { type: 'add-many', songs: [song('h1'), song('h2'), song('h3')] });
+  await cmd(2, { type: 'add', song: song('g1') });
+  await cmd(3, { type: 'add', song: song('t1') });
+  await cmd(2, { type: 'add', song: song('g2') });
+  assert.deepEqual(
+    group.upcoming.map((i) => i.song.id),
+    ['h1', 'g1', 't1', 'h2', 'g2', 'h3']
+  );
+  assert.deepEqual(await cmd(2, { type: 'set-fair-queue', enabled: false }), {
+    ok: false,
+    code: 'host-only',
+    error: 'Only the hosts can do that',
+  });
+});
+
+test("approval: a guest's song waits until a host lets it in", async () => {
+  const { group, cmd } = setup();
+  await cmd(1, { type: 'add', song: song('playing') });
+  await cmd(1, { type: 'set-approve-songs', enabled: true });
+
+  assert.deepEqual(await cmd(2, { type: 'add', song: song('wish') }), {
+    ok: true,
+    requestedCount: 1,
+  });
+  assert.equal(group.upcoming.length, 0);
+  assert.equal(group.requests.length, 1);
+  assert.equal((await cmd(2, { type: 'add', song: song('wish') })).ok, false, 'asked once');
+
+  const id = group.requests[0]!.id;
+  assert.equal((await cmd(2, { type: 'approve-request', itemId: id })).ok, false);
+  assert.deepEqual(await cmd(1, { type: 'approve-request', itemId: id }), { ok: true });
+  assert.equal(group.requests.length, 0);
+  assert.equal(group.upcoming[0]!.song.id, 'wish');
+  assert.equal(group.upcoming[0]!.addedBy.userId, 2, 'counts as added by who asked');
+
+  // The host still adds straight away.
+  assert.deepEqual(await cmd(1, { type: 'add', song: song('own') }), { ok: true, addedCount: 1 });
+});
+
+test('approval: asking can be taken back, and turning it off lets the rest in', async () => {
+  const { group, cmd } = setup();
+  await cmd(1, { type: 'add', song: song('playing') });
+  await cmd(1, { type: 'set-approve-songs', enabled: true });
+  await cmd(2, { type: 'add-many', songs: [song('a'), song('b'), song('c')] });
+  assert.equal(group.requests.length, 3);
+
+  const a = group.requests.find((r) => r.song.id === 'a')!;
+  assert.deepEqual(await cmd(2, { type: 'decline-request', itemId: a.id }), { ok: true });
+
+  await cmd(1, { type: 'set-approve-songs', enabled: false });
+  assert.equal(group.requests.length, 0);
+  assert.deepEqual(
+    group.upcoming.map((i) => i.song.id),
+    ['b', 'c']
+  );
+});
+
+test('approval: one person can only have a few songs waiting', async () => {
+  const { group, cmd } = setup();
+  await cmd(1, { type: 'add', song: song('playing') });
+  await cmd(1, { type: 'set-approve-songs', enabled: true });
+  const songs = Array.from({ length: 8 }, (_, i) => song(`s${i}`));
+  assert.deepEqual(await cmd(2, { type: 'add-many', songs }), { ok: true, requestedCount: 5 });
+  assert.equal((await cmd(2, { type: 'add', song: song('more') })).ok, false);
+  assert.equal(group.requests.length, 5);
+});

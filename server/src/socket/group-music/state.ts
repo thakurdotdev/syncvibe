@@ -66,6 +66,20 @@ export interface GroupSettings {
   autoPlayRecommendations: boolean;
   /** Who may play, pause, seek, skip and rearrange. Anyone can still add songs. */
   controlMode: ControlMode;
+  /** Songs take turns between the people adding them, instead of first come first served. */
+  fairQueue: boolean;
+  /** Listeners' songs wait for the host or a co-host to let them in. */
+  approveSongs: boolean;
+}
+
+/** A listener's song waiting to be let into the queue (approveSongs). */
+export interface SongRequest {
+  id: string;
+  song: Record<string, unknown>;
+  requestedBy: GroupMember;
+  requestedAt: number;
+  /** Asked to play next rather than at the end. */
+  next?: boolean;
 }
 
 /**
@@ -88,6 +102,8 @@ export interface MusicGroup {
   /** Invites still waiting, by the invitee's user id. */
   invites: Record<string, PendingInvite>;
   skipVotes: SkipVotes | null;
+  /** Songs waiting for a host's OK, oldest first. */
+  requests: SongRequest[];
   createdAt: number;
   members: GroupMember[];
   current: QueueItem | null;
@@ -164,7 +180,10 @@ export type ActivityType =
   | 'member-removed'
   | 'member-let-in'
   | 'skip-vote'
-  | 'skipped-by-vote';
+  | 'skipped-by-vote'
+  | 'song-requested'
+  | 'fair-queue'
+  | 'approve-songs';
 
 export const emitActivityMessage = (
   io: Server,
@@ -175,6 +194,7 @@ export const emitActivityMessage = (
     songName?: string;
     addedBy?: string;
     hostOnly?: boolean;
+    enabled?: boolean;
     votes?: number;
     needed?: number;
     position?: number;
@@ -193,6 +213,13 @@ export const emitActivityMessage = (
     'user-joined': `${data.userName} joined the session`,
     'user-left': `${data.userName} left the session`,
     'host-changed': `${data.userName} is now the host`,
+    'song-requested': `${data.userName} asked to add "${data.songName}"`,
+    'fair-queue': data.enabled
+      ? 'Songs now take turns between the people adding them'
+      : 'Songs now play in the order they were added',
+    'approve-songs': data.enabled
+      ? 'The hosts now approve songs before they join the queue'
+      : 'Anyone can add songs straight to the queue now',
     'control-mode': data.hostOnly
       ? 'Only the hosts can control playback now'
       : 'Everyone can control playback now',
@@ -319,6 +346,7 @@ export const createGroupState = (data: CreateGroupData): MusicGroup => ({
   formerMembers: {},
   invites: {},
   skipVotes: null,
+  requests: [],
   current: null,
   upcoming: [],
   timeline: { ...STOPPED },
@@ -331,6 +359,8 @@ export const createGroupState = (data: CreateGroupData): MusicGroup => ({
     maxQueueSize: data.planLimits?.realtimeSyncEnabled ? 50 : 3,
     autoPlayRecommendations: true,
     controlMode: 'everyone',
+    fairQueue: false,
+    approveSongs: false,
   },
   maxMembers: data.planLimits?.maxGroupMembers || 2,
   features: {

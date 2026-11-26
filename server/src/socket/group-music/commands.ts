@@ -2,7 +2,9 @@ import type { Server, Socket } from 'socket.io';
 import { revsOf, snapshotOf } from './broadcast';
 import {
   advance,
+  approveRequest,
   clearQueue,
+  declineRequest,
   enqueue,
   moveItem,
   noteRtt,
@@ -10,9 +12,12 @@ import {
   playNow,
   removeItem,
   reportEnded,
+  requestSongs,
   seekTo,
+  setApproveSongs,
   setAutoplay,
   setControlMode,
+  setFairQueue,
   setPlaying,
   shuffle,
 } from './engine';
@@ -45,7 +50,8 @@ export type CommandError =
   | 'unknown-command';
 
 export type CommandResult =
-  | { ok: true; addedCount?: number }
+  /** `requestedCount`: the songs are waiting for a host's OK rather than queued. */
+  | { ok: true; addedCount?: number; requestedCount?: number }
   | { ok: false; code: CommandError; error: string };
 
 const ERROR_TEXT: Record<CommandError, string> = {
@@ -148,6 +154,16 @@ export const runCommand = async (
       if (!group.settings.allowAnyoneToAdd && !manager) return fail('host-only');
       const songs = command.type === 'add-many' ? command.songs : [command.song];
       if (!Array.isArray(songs) || !songs.every(isSong)) return fail('invalid');
+      if (group.settings.approveSongs && !manager) {
+        const { requestedCount, error } = requestSongs(
+          io,
+          group,
+          songs.slice(0, group.settings.maxQueueSize),
+          member,
+          command.type === 'add-next'
+        );
+        return requestedCount > 0 ? { ok: true, requestedCount } : fail(error ?? 'invalid');
+      }
       const { addedCount, error } = enqueue(
         io,
         group,
@@ -188,6 +204,24 @@ export const runCommand = async (
     case 'set-autoplay':
       if (!control) return fail('host-only');
       setAutoplay(io, group, command.enabled);
+      return OK;
+
+    case 'approve-request':
+      if (!manager) return fail('host-only');
+      return done(approveRequest(io, group, String(command.itemId ?? ''), member));
+
+    // The hosts turn a song away; the person who asked can take it back.
+    case 'decline-request':
+      return done(declineRequest(io, group, String(command.itemId ?? ''), member, manager));
+
+    case 'set-fair-queue':
+      if (!host) return fail('host-only');
+      setFairQueue(io, group, command.enabled === true);
+      return OK;
+
+    case 'set-approve-songs':
+      if (!host) return fail('host-only');
+      setApproveSongs(io, group, command.enabled === true, member);
       return OK;
 
     case 'set-control-mode':
