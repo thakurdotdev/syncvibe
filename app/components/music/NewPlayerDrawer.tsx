@@ -1,5 +1,5 @@
 import { usePlayerControls, usePlaybackState, usePlaylistState } from '@/stores/playerStore';
-import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
+import { toastRoomAdd, useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useDislikeSong } from '@/queries/useMusic';
 import { useIsLiked, useToggleLike } from '@/queries/usePersonal';
@@ -146,7 +146,7 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
                   emphasized
                   onPress={() => {
                     addToGroupQueue(song);
-                    toast('Added to Group Queue', { type: 'success' });
+                    toastRoomAdd(user?.userid, 'Added to Group Queue');
                     close();
                   }}
                 />
@@ -159,7 +159,7 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
                   emphasized
                   onPress={() => {
                     playNextInGroup(song);
-                    toast('Playing next in group', { type: 'success' });
+                    toastRoomAdd(user?.userid, 'Playing next in group');
                     close();
                   }}
                 />

@@ -8,6 +8,7 @@ import {
   type QueueItem,
 } from './state';
 import {
+  addRequests,
   addSongs,
   AUTOPLAY_MEMBER,
   clearUpcoming,
@@ -16,9 +17,11 @@ import {
   removeUpcoming,
   shuffleUpcoming,
   songIdOf,
+  takeRequest,
   takeUpcoming,
   type QueueError,
 } from './queue';
+import { touchRoom } from './room-store';
 import { leadFor, msUntilEnd, pausedAt, playFrom, positionAt, STOPPED } from './timeline';
 import { broadcastPlayback, broadcastQueue, type Actor } from './broadcast';
 import { metaChanged } from './host';
@@ -469,4 +472,103 @@ export const setControlMode = (io: Server, group: MusicGroup, mode: ControlMode)
   metaChanged(io, group);
   emitActivityMessage(io, group.id, 'control-mode', { hostOnly: mode === 'host' });
   return true;
+};
+
+// ─── Queue rules: taking turns, and songs that wait for a host's OK ──────────
+
+/** Requests travel with the queue but are kept with the rest of the room. */
+const requestsChanged = (io: Server, group: MusicGroup, by?: GroupMember): void => {
+  touchRoom(group, 'core');
+  queueChanged(io, group, 'requests', by);
+};
+
+export const setFairQueue = (io: Server, group: MusicGroup, enabled: boolean): void => {
+  if (group.settings.fairQueue === enabled) return;
+  group.settings.fairQueue = enabled;
+  metaChanged(io, group);
+  emitActivityMessage(io, group.id, 'fair-queue', { enabled });
+};
+
+/** Asks for songs to be added; the hosts see them waiting. */
+export const requestSongs = (
+  io: Server,
+  group: MusicGroup,
+  songs: Array<Record<string, unknown>>,
+  by: GroupMember,
+  next: boolean
+): { requestedCount: number; error?: QueueError } => {
+  const { added, error } = addRequests(group, songs, by, next);
+  if (added.length === 0) return { requestedCount: 0, error };
+  if (added.length === 1) {
+    emitActivityMessage(io, group.id, 'song-requested', {
+      userName: by.userName,
+      songName: (added[0]!.song.name as string) || 'a song',
+    });
+  }
+  requestsChanged(io, group, by);
+  return { requestedCount: added.length };
+};
+
+/** Lets a waiting song in, as if the person who asked had added it. */
+export const approveRequest = (
+  io: Server,
+  group: MusicGroup,
+  requestId: string,
+  by: GroupMember
+): QueueError | null => {
+  const request = takeRequest(group, requestId);
+  if (!request) return 'not-found';
+  const { addedCount, error } = enqueue(io, group, [request.song], request.requestedBy, {
+    next: request.next,
+    action: request.next ? 'play-next' : 'add',
+  });
+  // Already queued by someone else meanwhile, or the queue is full: either way it's done with.
+  requestsChanged(io, group, by);
+  return addedCount > 0 || error === 'duplicate' ? null : (error ?? 'invalid');
+};
+
+/** Turns a waiting song away; the person who asked may take it back the same way. */
+export const declineRequest = (
+  io: Server,
+  group: MusicGroup,
+  requestId: string,
+  by: GroupMember,
+  isManager: boolean
+): QueueError | null => {
+  const request = group.requests.find((r) => r.id === requestId);
+  if (!request) return 'not-found';
+  if (!isManager && String(request.requestedBy.userId) !== String(by.userId)) return 'forbidden';
+  takeRequest(group, requestId);
+  requestsChanged(io, group, by);
+  return null;
+};
+
+/** Turning approval off lets everything still waiting in, oldest first. */
+export const setApproveSongs = (
+  io: Server,
+  group: MusicGroup,
+  enabled: boolean,
+  by: GroupMember
+): void => {
+  if (group.settings.approveSongs === enabled) return;
+  group.settings.approveSongs = enabled;
+  metaChanged(io, group);
+  emitActivityMessage(io, group.id, 'approve-songs', { enabled });
+  if (enabled || group.requests.length === 0) return;
+  const waiting = group.requests;
+  group.requests = [];
+  for (const request of waiting) {
+    enqueue(io, group, [request.song], request.requestedBy, {
+      next: request.next,
+      action: 'add',
+    });
+  }
+  requestsChanged(io, group, by);
+};
+
+/** Someone who left or was removed has nothing waiting any more. */
+export const dropRequestsOf = (io: Server, group: MusicGroup, userId: string | number): void => {
+  const before = group.requests.length;
+  group.requests = group.requests.filter((r) => String(r.requestedBy.userId) !== String(userId));
+  if (group.requests.length !== before) requestsChanged(io, group);
 };

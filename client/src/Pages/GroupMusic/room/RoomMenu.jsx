@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Copy, LogOut, Minus, MoreHorizontal, Plus, QrCode } from 'lucide-react';
 import { memo, useState } from 'react';
+import { useGroupMusic } from '@/Context/GroupMusicContext';
 
 const OFFSET_STEP_MS = 25;
 
@@ -78,6 +79,7 @@ const RoomMenu = ({
   onSetOutputOffset,
 }) => {
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const { fairQueue, approveSongs, setQueueRule } = useGroupMusic();
 
   return (
     <>
@@ -109,6 +111,24 @@ const RoomMenu = ({
               onSelect={(event) => event.preventDefault()}
             >
               Only hosts control playback
+            </DropdownMenuCheckboxItem>
+          )}
+          {isHost && (
+            <DropdownMenuCheckboxItem
+              checked={approveSongs}
+              onCheckedChange={(checked) => setQueueRule('approve', checked)}
+              onSelect={(event) => event.preventDefault()}
+            >
+              Hosts approve songs
+            </DropdownMenuCheckboxItem>
+          )}
+          {isHost && (
+            <DropdownMenuCheckboxItem
+              checked={fairQueue}
+              onCheckedChange={(checked) => setQueueRule('fair', checked)}
+              onSelect={(event) => event.preventDefault()}
+            >
+              Songs take turns
             </DropdownMenuCheckboxItem>
           )}
           {onSetOutputOffset && (

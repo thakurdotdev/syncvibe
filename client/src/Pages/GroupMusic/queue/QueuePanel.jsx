@@ -13,6 +13,7 @@ import PlaylistBrowser from './PlaylistBrowser';
 import QueueList from './QueueList';
 import QueueSearchField from './QueueSearchField';
 import SearchResults from './SearchResults';
+import SongRequests from './SongRequests';
 import { useQueueRecommendations } from './useQueueRecommendations';
 import { useQueueSearch } from './useQueueSearch';
 
@@ -40,6 +41,9 @@ const QueuePanel = ({ className, bare = false }) => {
     addPlaylistToQueue,
     toggleAutoRecommendations,
     autoPlayRecommendations,
+    songRequests,
+    answerRequest,
+    canManage,
   } = useGroupMusic();
 
   const activeTab = useRoomUi((s) => s.queueTab);
@@ -139,22 +143,30 @@ const QueuePanel = ({ className, bare = false }) => {
         );
       default:
         return (
-          <QueueList
-            queue={queue}
-            currentQueueItem={currentQueueItem}
-            upcomingQueue={upcomingQueue}
-            removeFromQueue={removeFromQueue}
-            reorderQueue={reorderQueue}
-            clearQueue={canControl ? clearQueue : undefined}
-            shuffleQueue={canControl ? shuffleQueue : undefined}
-            onPlayItem={canControl ? playQueueItem : undefined}
-            canReorder={canControl}
-            canRemoveItem={canRemoveItem}
-            autoPlayRecommendations={autoPlayRecommendations}
-            onFetchRecs={handleShowRecsFor}
-            onSaveToPlaylist={setSongToSave}
-            hideNowPlaying
-          />
+          <>
+            <SongRequests
+              requests={songRequests}
+              myId={myId}
+              canManage={canManage}
+              onAnswer={answerRequest}
+            />
+            <QueueList
+              queue={queue}
+              currentQueueItem={currentQueueItem}
+              upcomingQueue={upcomingQueue}
+              removeFromQueue={removeFromQueue}
+              reorderQueue={reorderQueue}
+              clearQueue={canControl ? clearQueue : undefined}
+              shuffleQueue={canControl ? shuffleQueue : undefined}
+              onPlayItem={canControl ? playQueueItem : undefined}
+              canReorder={canControl}
+              canRemoveItem={canRemoveItem}
+              autoPlayRecommendations={autoPlayRecommendations}
+              onFetchRecs={handleShowRecsFor}
+              onSaveToPlaylist={setSongToSave}
+              hideNowPlaying
+            />
+          </>
         );
     }
   };

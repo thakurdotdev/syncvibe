@@ -12,11 +12,12 @@ import {
   queueViewOf,
   ROOM_PROTOCOL,
   sendRoomCommand,
+  type CommandResult,
   type RoomMetaPart,
   type RoomQueuePart,
   type RoomSnapshot,
 } from './roomProtocol';
-import { Group, GroupMember, Message, QueueItem, ActiveSoundEffect } from './types';
+import { Group, GroupMember, Message, QueueItem, ActiveSoundEffect, SongRequest } from './types';
 
 interface GroupSessionState {
   currentGroup: Group | null;
@@ -29,6 +30,8 @@ interface GroupSessionState {
   currentQueueIndex: number;
   currentItem: QueueItem | null;
   upcoming: QueueItem[];
+  /** Listeners' songs waiting for a host's OK, when the room asks for that. */
+  requests: SongRequest[];
   queueRev: number;
   metaRev: number;
   isQueueOpen: boolean;
@@ -96,6 +99,10 @@ interface GroupSessionActions {
   toggleAutoRecommendations: (socket: any, enabled?: boolean) => void;
   /** Who may control playback. Only the host can change it. */
   setControlMode: (socket: any, mode: 'everyone' | 'host') => void;
+  /** Hosts let a waiting song in or turn it away; whoever asked can take theirs back. */
+  answerRequest: (socket: any, requestId: string, approve: boolean) => void;
+  /** Host only: songs take turns ('fair') or wait for a host ('approve'). */
+  setQueueRule: (socket: any, rule: 'fair' | 'approve', enabled: boolean) => void;
   transferHost: (socket: any, userId: number | string) => void;
   /** Only the host makes co-hosts. */
   setCoHost: (socket: any, userId: number | string, enabled: boolean) => void;
@@ -148,8 +155,20 @@ const FRESH_ROOM = {
   currentQueueIndex: -1,
   currentItem: null as QueueItem | null,
   upcoming: [] as QueueItem[],
+  requests: [] as SongRequest[],
   queueRev: 0,
   metaRev: 0,
+};
+
+/** The room took the songs as requests: say so, rather than "added". */
+const noteRequested = (result: CommandResult) => {
+  if (!result.ok || !result.requestedCount) return;
+  toast(
+    result.requestedCount === 1
+      ? 'Sent to the hosts to approve'
+      : `Sent ${result.requestedCount} songs to the hosts to approve`,
+    { type: 'success' }
+  );
 };
 
 /** Sends a request to the room and shows why if it was turned down. */
@@ -336,7 +355,12 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     if (!part || typeof part.rev !== 'number') return false;
     if (!options?.force && part.rev <= get().queueRev) return false;
     const upcoming = part.upcoming || [];
-    set({ upcoming, queueRev: part.rev, ...queueViewOf(get().currentItem, upcoming) });
+    set({
+      upcoming,
+      requests: part.requests || [],
+      queueRev: part.rev,
+      ...queueViewOf(get().currentItem, upcoming),
+    });
     return true;
   },
 
@@ -381,7 +405,9 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
       return;
     }
 
-    void command(socket, currentGroup.id, 'add', { song: ensureHttpsForSongUrls(song) });
+    void command(socket, currentGroup.id, 'add', { song: ensureHttpsForSongUrls(song) }).then(
+      noteRequested
+    );
   },
 
   playNow: (socket, user, song) => {
@@ -399,7 +425,9 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
   playNext: (socket, user, song) => {
     const { currentGroup } = get();
     if (!currentGroup?.id || !user) return;
-    void command(socket, currentGroup.id, 'add-next', { song: ensureHttpsForSongUrls(song) });
+    void command(socket, currentGroup.id, 'add-next', {
+      song: ensureHttpsForSongUrls(song),
+    }).then(noteRequested);
   },
 
   skipSong: (socket) => {
@@ -440,7 +468,7 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     const limit = currentGroup.settings?.maxQueueSize || 50;
     void command(socket, currentGroup.id, 'add-many', {
       songs: songs.slice(0, limit).map(ensureHttpsForSongUrls),
-    });
+    }).then(noteRequested);
   },
 
   clearQueue: (socket, user) => {
@@ -467,6 +495,27 @@ export const useGroupSessionStore = create<GroupSessionStore>()((set, get) => ({
     const { currentGroup } = get();
     if (!currentGroup?.id) return;
     void command(socket, currentGroup.id, 'set-control-mode', { mode });
+  },
+
+  answerRequest: (socket, requestId, approve) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || !requestId) return;
+    void command(socket, currentGroup.id, approve ? 'approve-request' : 'decline-request', {
+      itemId: requestId,
+    });
+  },
+
+  setQueueRule: (socket, rule, enabled) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id) return;
+    void command(
+      socket,
+      currentGroup.id,
+      rule === 'fair' ? 'set-fair-queue' : 'set-approve-songs',
+      {
+        enabled,
+      }
+    );
   },
 
   transferHost: (socket, userId) => {
@@ -625,3 +674,22 @@ export const useGroupSearch = () =>
       clearSearch: s.clearSearch,
     }))
   );
+
+/**
+ * Whether songs you add to the room wait for a host's OK: the room asks for that and you're
+ * neither the host nor a co-host. The server decides; this only picks what to say.
+ */
+export const roomAddsNeedApproval = (userId: number | string | undefined): boolean => {
+  const group = useGroupSessionStore.getState().currentGroup;
+  if (!group?.settings?.approveSongs || userId == null) return false;
+  const me = String(userId);
+  return String(group.createdBy) !== me && !(group.coHosts ?? []).includes(me);
+};
+
+/**
+ * Says a song went into the room, unless it went to the hosts to approve: the room's answer says
+ * that instead.
+ */
+export const toastRoomAdd = (userId: number | string | undefined, message: string) => {
+  if (!roomAddsNeedApproval(userId)) toast(message, { type: 'success' });
+};

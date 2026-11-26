@@ -1,5 +1,5 @@
 import type { Server } from 'socket.io';
-import { advance } from './engine';
+import { advance, dropRequestsOf } from './engine';
 import { metaChanged } from './host';
 import { dropMember } from './presence';
 import {
@@ -76,6 +76,7 @@ export const removeFromRoom = (
   if (!outranks(group, by.userId, target.userId)) return 'not-allowed';
   group.removedIds = toggle(group.removedIds, String(target.userId), true);
   dropMember(io, group, target.userId, { removed: true });
+  dropRequestsOf(io, group, target.userId);
   emitActivityMessage(io, group.id, 'member-removed', { userName: target.userName });
   return null;
 };

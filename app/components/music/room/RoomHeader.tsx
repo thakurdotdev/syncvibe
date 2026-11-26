@@ -169,12 +169,14 @@ export const RoomHeader = memo(function RoomHeader({
   const members = useGroupSessionStore((s) => s.groupMembers);
   const [moreOpen, setMoreOpen] = useState(false);
   const [delayOpen, setDelayOpen] = useState(false);
-  const { setControlMode } = useGroupMusic();
+  const { setControlMode, setQueueRule } = useGroupMusic();
   const { isHost, controlMode } = useRoomControl();
 
   if (!group) return null;
 
   const hostOnly = controlMode === 'host';
+  const approve = Boolean(group.settings?.approveSongs);
+  const fair = Boolean(group.settings?.fairQueue);
   const actions: Action[] = [
     { key: 'qr', label: 'Show QR code', icon: 'grid', onPress: onShowQr },
     { key: 'share', label: 'Share room code', icon: 'share-2', onPress: onShare },
@@ -185,6 +187,18 @@ export const RoomHeader = memo(function RoomHeader({
             label: hostOnly ? 'Let everyone control playback' : 'Only hosts control playback',
             icon: hostOnly ? ('unlock' as const) : ('lock' as const),
             onPress: () => setControlMode(hostOnly ? 'everyone' : 'host'),
+          },
+          {
+            key: 'approve',
+            label: approve ? 'Let anyone add songs directly' : 'Approve songs before they play',
+            icon: approve ? ('user-check' as const) : ('check-square' as const),
+            onPress: () => setQueueRule('approve', !approve),
+          },
+          {
+            key: 'fair',
+            label: fair ? 'Play songs in the order added' : 'Take turns between people',
+            icon: 'repeat' as const,
+            onPress: () => setQueueRule('fair', !fair),
           },
         ]
       : []),

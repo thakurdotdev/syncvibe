@@ -47,7 +47,20 @@ export interface Group {
     autoPlayRecommendations?: boolean;
     /** Who may play, pause, seek, skip and rearrange. Anyone can still add songs. */
     controlMode?: 'everyone' | 'host';
+    /** Songs take turns between the people adding them. */
+    fairQueue?: boolean;
+    /** Listeners' songs wait for the host or a co-host to let them in. */
+    approveSongs?: boolean;
   };
+}
+
+/** A listener's song waiting for a host's OK. */
+export interface SongRequest {
+  id: string;
+  song: Song;
+  requestedBy: { userId: number | string; userName: string; profilePic?: string };
+  requestedAt: number;
+  next?: boolean;
 }
 
 /** Someone a host removed, asking to be let back in. */

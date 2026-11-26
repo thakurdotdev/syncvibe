@@ -35,9 +35,17 @@ const FRESH_ROOM = {
   currentQueueIndex: -1,
   currentItem: null,
   upcoming: [],
+  /** Listeners' songs waiting for a host's OK, when the room asks for that. */
+  requests: [],
   queueRev: 0,
   metaRev: 0,
 };
+
+/** The room took the songs as requests: say so, rather than "added". */
+const toastRequested = (count) =>
+  toast.success(
+    count === 1 ? 'Sent to the hosts to approve' : `Sent ${count} songs to the hosts to approve`
+  );
 
 /** Sends a request to the room and shows why if it was turned down. */
 const command = async (socket, groupId, type, payload) => {
@@ -261,7 +269,12 @@ export const useGroupSessionStore = create((set, get) => ({
     if (!part || typeof part.rev !== 'number') return false;
     if (!force && part.rev <= get().queueRev) return false;
     const upcoming = part.upcoming || [];
-    set({ upcoming, queueRev: part.rev, ...queueViewOf(get().currentItem, upcoming) });
+    set({
+      upcoming,
+      requests: part.requests || [],
+      queueRev: part.rev,
+      ...queueViewOf(get().currentItem, upcoming),
+    });
     return true;
   },
 
@@ -323,7 +336,8 @@ export const useGroupSessionStore = create((set, get) => ({
     const result = await command(socket, currentGroup.id, 'add', {
       song: ensureHttpsForDownloadUrls(song),
     });
-    if (result.ok) toast.success('Added to queue');
+    if (result.requestedCount) toastRequested(result.requestedCount);
+    else if (result.ok) toast.success('Added to queue');
   },
 
   playNow: (socket, user, song) => {
@@ -347,7 +361,8 @@ export const useGroupSessionStore = create((set, get) => ({
     const result = await command(socket, currentGroup.id, 'add-next', {
       song: ensureHttpsForDownloadUrls(song),
     });
-    if (result.ok) toast.success('Playing next');
+    if (result.requestedCount) toastRequested(result.requestedCount);
+    else if (result.ok) toast.success('Playing next');
   },
 
   addPlaylistToQueue: async (socket, user, songs) => {
@@ -369,7 +384,8 @@ export const useGroupSessionStore = create((set, get) => ({
     const result = await command(socket, currentGroup.id, 'add-many', {
       songs: songs.slice(0, maxQueueSize).map(ensureHttpsForDownloadUrls),
     });
-    if (result.ok) {
+    if (result.requestedCount) toastRequested(result.requestedCount);
+    else if (result.ok) {
       const count = result.addedCount ?? songs.length;
       toast.success(`Added ${count} ${count === 1 ? 'song' : 'songs'} to the queue`);
     }
@@ -404,6 +420,24 @@ export const useGroupSessionStore = create((set, get) => ({
     const { currentGroup } = get();
     if (!currentGroup?.id) return;
     command(socket, currentGroup.id, 'set-autoplay', { enabled });
+  },
+
+  /** Hosts let a waiting song in or turn it away; whoever asked can take theirs back. */
+  answerRequest: (socket, requestId, approve) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id || !requestId) return;
+    command(socket, currentGroup.id, approve ? 'approve-request' : 'decline-request', {
+      itemId: requestId,
+    });
+  },
+
+  /** 'fair': songs take turns between people; 'approve': listeners' songs wait for a host. Host only. */
+  setQueueRule: (socket, rule, enabled) => {
+    const { currentGroup } = get();
+    if (!currentGroup?.id) return;
+    command(socket, currentGroup.id, rule === 'fair' ? 'set-fair-queue' : 'set-approve-songs', {
+      enabled,
+    });
   },
 
   /** Who may control playback: 'everyone' or 'host' (the host and co-hosts). Only the host can change it. */

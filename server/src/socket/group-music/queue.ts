@@ -1,11 +1,23 @@
-import { generateQueueItemId, type GroupMember, type MusicGroup, type QueueItem } from './state';
+import {
+  generateQueueItemId,
+  type GroupMember,
+  type MusicGroup,
+  type QueueItem,
+  type SongRequest,
+} from './state';
 
 /*
  * The queue is the song that's on plus what comes after it. These only change the room's record;
  * telling devices about it, and anything to do with time, is the engine's job.
  */
 
-export type QueueError = 'queue-full' | 'duplicate' | 'not-found' | 'forbidden' | 'invalid';
+export type QueueError =
+  | 'queue-full'
+  | 'duplicate'
+  | 'not-found'
+  | 'forbidden'
+  | 'invalid'
+  | 'too-many-requests';
 
 export const QUEUE_ERROR_TEXT: Record<QueueError, string> = {
   'queue-full': 'Queue is full',
@@ -13,6 +25,63 @@ export const QUEUE_ERROR_TEXT: Record<QueueError, string> = {
   'not-found': 'Item not found',
   forbidden: 'Not authorized',
   invalid: 'Invalid request',
+  'too-many-requests': 'You have several songs waiting already. Give the hosts a moment.',
+};
+
+/** Songs one listener may have waiting for approval, and the room in all. */
+export const MAX_REQUESTS_PER_PERSON = 5;
+export const MAX_REQUESTS = 30;
+
+export const isRequested = (group: MusicGroup, songId: string): boolean =>
+  group.requests.some((request) => songIdOf(request.song) === songId);
+
+/**
+ * Asks for songs to be added (approveSongs). Skips ones already queued or asked for, and stops at
+ * the per-person and room limits. Says why if nothing could be asked for.
+ */
+export const addRequests = (
+  group: MusicGroup,
+  songs: Array<Record<string, unknown>>,
+  by: GroupMember,
+  next = false
+): { added: SongRequest[]; error?: QueueError } => {
+  const added: SongRequest[] = [];
+  let error: QueueError | undefined;
+  const mine = () =>
+    group.requests.filter((request) => String(request.requestedBy.userId) === String(by.userId))
+      .length;
+
+  for (const song of songs) {
+    const songId = songIdOf(song);
+    if (!songId) {
+      error ??= 'invalid';
+      continue;
+    }
+    if (mine() >= MAX_REQUESTS_PER_PERSON || group.requests.length >= MAX_REQUESTS) {
+      error ??= 'too-many-requests';
+      break;
+    }
+    if (hasSong(group, songId) || isRequested(group, songId)) {
+      error ??= 'duplicate';
+      continue;
+    }
+    const request: SongRequest = {
+      id: generateQueueItemId(),
+      song,
+      requestedBy: { userId: by.userId, userName: by.userName, profilePic: by.profilePic },
+      requestedAt: Date.now(),
+      ...(next ? { next: true } : {}),
+    };
+    group.requests.push(request);
+    added.push(request);
+  }
+  return added.length > 0 ? { added } : { added, error: error ?? 'invalid' };
+};
+
+export const takeRequest = (group: MusicGroup, requestId: string): SongRequest | null => {
+  const index = group.requests.findIndex((request) => request.id === requestId);
+  if (index === -1) return null;
+  return group.requests.splice(index, 1)[0] ?? null;
 };
 
 export const AUTOPLAY_MEMBER: GroupMember = {
@@ -50,6 +119,30 @@ export const createQueueItem = (
   ...(isAutoRecommended ? { isAutoRecommended: true } : {}),
 });
 
+const isPick = (item: QueueItem) => !item.isAutoRecommended;
+
+/**
+ * Where a song from this person goes when songs take turns (fairQueue). Their nth song waits
+ * until everyone else's nth song has had its turn, and people's picks come before autoplay's.
+ * Songs a host moved by hand count as they now stand.
+ */
+export const fairIndex = (upcoming: QueueItem[], userId: string | number): number => {
+  const who = String(userId);
+  const turn = upcoming.filter(
+    (item) => isPick(item) && String(item.addedBy.userId) === who
+  ).length;
+  const seen = new Map<string, number>();
+  for (let i = 0; i < upcoming.length; i++) {
+    const item = upcoming[i]!;
+    if (!isPick(item)) return i;
+    const by = String(item.addedBy.userId);
+    const itsTurn = seen.get(by) ?? 0;
+    seen.set(by, itsTurn + 1);
+    if (itsTurn > turn) return i;
+  }
+  return upcoming.length;
+};
+
 /**
  * Adds songs after everything else, or right after the current one with `next`. Skips ones
  * already queued and stops at the room's limit. Says why if nothing could be added.
@@ -79,7 +172,9 @@ export const addSongs = (
     }
     const item = createQueueItem(song, addedBy, options.isAutoRecommended);
     if (options.next) group.upcoming.splice(added.length, 0, item);
-    else group.upcoming.push(item);
+    else if (group.settings.fairQueue && !options.isAutoRecommended) {
+      group.upcoming.splice(fairIndex(group.upcoming, addedBy.userId), 0, item);
+    } else group.upcoming.push(item);
     added.push(item);
   }
 

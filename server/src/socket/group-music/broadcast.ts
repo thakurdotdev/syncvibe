@@ -39,6 +39,7 @@ const playbackPart = (group: MusicGroup) => ({
 const queuePart = (group: MusicGroup) => ({
   rev: group.revs.queue,
   upcoming: group.upcoming,
+  requests: group.requests,
 });
 
 const skipVotesPart = (group: MusicGroup) => {

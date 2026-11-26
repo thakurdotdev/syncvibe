@@ -6,7 +6,8 @@ import { usePlayerControls } from '@/stores/playerStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupMusic } from '@/context/GroupMusicContext';
 import { useTheme } from '@/context/ThemeContext';
-import { toast } from '@/context/ToastContext';
+import { toastRoomAdd } from '@/stores/groupMusic/groupSessionStore';
+import { useUser } from '@/context/UserContext';
 import { Song } from '@/types/song';
 import { convertToHttps, ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,6 +54,7 @@ export default function AlbumScreen() {
 
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const { addPlaylistToQueue } = useGroupMusic();
+  const { user } = useUser();
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -121,7 +123,7 @@ export default function AlbumScreen() {
   const handleAddToGroup = () => {
     if (!newSongs?.length) return;
     addPlaylistToQueue(newSongs);
-    toast(`Added ${newSongs.length} songs to group queue`, { type: 'success' });
+    toastRoomAdd(user?.userid, `Added ${newSongs.length} songs to group queue`);
   };
 
   const isDark = theme === 'dark';

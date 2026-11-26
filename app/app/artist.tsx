@@ -4,7 +4,8 @@ import { SONG_LIST_WINDOW } from '@/lib/lists';
 import { AlbumCard, ArtistCard, PlaylistCard, SongCard } from '@/components/music/MusicCards';
 import { Tabs, TabItem } from '@/components/ui/tabs';
 import { useTheme } from '@/context/ThemeContext';
-import { toast } from '@/context/ToastContext';
+import { toastRoomAdd } from '@/stores/groupMusic/groupSessionStore';
+import { useUser } from '@/context/UserContext';
 import { usePlayerControls } from '@/stores/playerStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useGroupMusic } from '@/context/GroupMusicContext';
@@ -69,6 +70,7 @@ export default function ArtistScreen() {
 
   const currentGroup = useGroupSessionStore((s) => s.currentGroup);
   const { addPlaylistToQueue } = useGroupMusic();
+  const { user } = useUser();
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -202,9 +204,9 @@ export default function ArtistScreen() {
   const handleAddToGroup = useCallback(() => {
     if (newSongs.length > 0) {
       addPlaylistToQueue(newSongs);
-      toast(`Added ${newSongs.length} songs to group queue`, { type: 'success' });
+      toastRoomAdd(user?.userid, `Added ${newSongs.length} songs to group queue`);
     }
-  }, [newSongs, addPlaylistToQueue]);
+  }, [newSongs, addPlaylistToQueue, user?.userid]);
 
   const isDark = theme === 'dark';
 
