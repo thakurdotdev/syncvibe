@@ -55,6 +55,15 @@ export const undoDislikeSong = async (api: any, songId: string): Promise<void> =
   await api.delete(`/api/music/dislikes/${encodeURIComponent(songId)}`);
 };
 
+/** "Not this artist": their songs leave every suggestion, on every device. */
+export const dislikeArtist = async (api: any, artist: { id: string; name: string }) => {
+  await api.post('/api/music/dislikes-artists', { artistId: artist.id, name: artist.name });
+};
+
+export const undoDislikeArtist = async (api: any, artistId: string): Promise<void> => {
+  await api.delete(`/api/music/dislikes-artists/${encodeURIComponent(artistId)}`);
+};
+
 export const getMusicHistory = async (
   api: any,
   params: MusicHistoryParams
