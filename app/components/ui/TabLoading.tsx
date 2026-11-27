@@ -7,11 +7,11 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
  * A tab while your profile is still on its way (signed in, nothing saved on this phone yet).
  * Shows the tab's real header, so the page doesn't flash the sign-in screen or jump when it loads.
  */
-export function TabLoading({ title, showSearch }: { title: string; showSearch?: boolean }) {
+export function TabLoading({ title }: { title: string }) {
   const { colors } = useTheme();
   return (
     <TabSafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
-      <TabHeader title={title} showSearch={showSearch} />
+      <TabHeader title={title} />
       <View style={styles.center}>
         <ActivityIndicator color={colors.primary} />
       </View>

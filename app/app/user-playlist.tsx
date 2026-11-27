@@ -11,7 +11,7 @@ import { DisplayTitle, Kicker, MetaLine, Rise, SleeveHero } from '@/components/m
 import { useCollection, useRoomAction } from '@/components/music/detail/useCollection';
 import { PlaylistSongRow } from '@/components/music/playlist/PlaylistSongRow';
 import { SheetLayout } from '@/components/security/SheetLayout';
-import { HEADER_HEIGHT, HeaderIconButton } from '@/components/ui/AppHeader';
+import { HEADER_HEIGHT, HeaderOrb } from '@/components/ui/AppHeader';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
@@ -177,10 +177,9 @@ export default function UserPlaylistDetails() {
       collection={selecting ? undefined : collection}
       headerRight={
         count ? (
-          <HeaderIconButton
+          <HeaderOrb
             icon={selecting ? 'close' : 'checkmark-done'}
             label={selecting ? 'Stop selecting' : 'Select songs'}
-            tone='overlay'
             onPress={selecting ? stopSelecting : () => setSelecting(true)}
           />
         ) : undefined

@@ -1,8 +1,8 @@
-import MessageBanner from '@/components/chat/MessageBanner';
 import AppUpdateModal from '@/components/AppUpdateModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Player from '@/components/music/Player';
 import GlobalBottomDeck from '@/components/shell/GlobalBottomDeck';
+import TopIsland from '@/components/shell/TopIsland';
 import { deckBlurTarget } from '@/components/shell/GlassSurface';
 import { BlurTargetView } from 'expo-blur';
 import PlayerInitializer from '@/components/music/PlayerInitializer';
@@ -365,8 +365,9 @@ function RootLayoutNav() {
       <GlobalBottomDeck />
       <Player />
       <RoomSongSheet />
-      <MessageBanner />
       <AppUpdateModal />
+      {/* Last, so moments show over the player and the bottom bar. */}
+      <TopIsland />
     </>
   );
 }

@@ -1,5 +1,5 @@
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
-import { HeaderIconButton, StackHeader } from '@/components/ui/AppHeader';
+import { HEADER_HEIGHT, HeaderOrb, StackHeader } from '@/components/ui/AppHeader';
 import Button from '@/components/ui/button';
 import { CachedImage } from '@/components/ui/CachedImage';
 import { useTheme } from '@/context/ThemeContext';
@@ -40,8 +40,10 @@ import { DetailContext, type DetailContextValue } from './context';
 import { ROWS_AFTER, STAGGERED_ROWS } from './motion';
 import type { Collection } from './useCollection';
 
-/** StackHeader's height under the status bar: its 38pt buttons and 8pt of padding. */
-const BAR_HEIGHT = 46;
+/** StackHeader's height under the status bar. */
+const BAR_HEIGHT = HEADER_HEIGHT;
+/** The wash under the header reaches a little past it, so content fades out rather than cuts. */
+const WASH_EXTRA = 28;
 const BACKDROP_HEIGHT = 560;
 const ROW_STEP = 35;
 /** How long after the page opens (or a list grows) new rows still animate in. */
@@ -207,7 +209,7 @@ export function DetailScreen<T>({
       accessibilityElementsHidden={!isCondensed}
       importantForAccessibility={isCondensed ? 'auto' : 'no-hide-descendants'}
     >
-      <HeaderIconButton
+      <HeaderOrb
         icon={collection.playing ? 'pause' : 'play'}
         tone='primary'
         label={collection.playing ? 'Pause' : 'Play'}
@@ -254,14 +256,17 @@ export function DetailScreen<T>({
         />
 
         <View style={styles.header} pointerEvents='box-none'>
+          {/* Once the art has gone, the page washes out under the orbs instead of showing through. */}
           <Animated.View
             pointerEvents='none'
-            style={[
-              styles.headerSurface,
-              { backgroundColor: colors.background, borderBottomColor: colors.hairline },
-              surfaceStyle,
-            ]}
-          />
+            style={[styles.headerWash, { height: headerHeight + WASH_EXTRA }, surfaceStyle]}
+          >
+            <LinearGradient
+              colors={[colors.background, colors.background, `${colors.background}00`]}
+              locations={[0, 0.62, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
           <StackHeader
             overlay
             title={headerTitle ?? title}
@@ -354,7 +359,7 @@ const styles = StyleSheet.create({
   backdrop: { position: 'absolute', top: 0, left: 0, right: 0, height: BACKDROP_HEIGHT },
   art: { opacity: 0.6 },
   header: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
-  headerSurface: { ...StyleSheet.absoluteFill, borderBottomWidth: StyleSheet.hairlineWidth },
+  headerWash: { position: 'absolute', top: 0, left: 0, right: 0 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 
   heading: {

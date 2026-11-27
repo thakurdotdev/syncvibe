@@ -5,12 +5,12 @@ import {
   PlaylistsPanel,
   SongsPanel,
 } from '@/components/search/SearchPanels';
-import { HeaderIconButton } from '@/components/ui/AppHeader';
+import { HEADER_HEIGHT, HeaderOrb, ORB, useGlass } from '@/components/ui/AppHeader';
 import { Segmented, type SegmentOption } from '@/components/ui/Segmented';
 import { useTheme } from '@/context/ThemeContext';
 import { SPRING } from '@/lib/motion';
 import { EDGE_GUARD, isSkipSwipe, SWIPE_ACTIVATE } from '@/lib/swipe';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useIsFetching } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
@@ -85,6 +85,7 @@ const goBack = () => (router.canGoBack() ? router.back() : router.navigate('/(ta
  */
 export default function SearchScreen() {
   const { colors, theme } = useTheme();
+  const glass = useGlass();
   const [tab, setTab] = useState<SearchTab>('songs');
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
@@ -204,9 +205,10 @@ export default function SearchScreen() {
       />
 
       <View style={styles.top}>
-        <HeaderIconButton icon='chevron-back' label='Go back' onPress={goBack} />
-        <View style={[styles.field, { backgroundColor: colors.raised }]}>
-          <Feather name='search' size={19} color={colors.mutedForeground} />
+        <HeaderOrb icon='chevron-back' label='Go back' onPress={goBack} />
+        {/* Same place, size and surface as a tab's search pill: tapping that one opens this. */}
+        <View style={[styles.field, glass]}>
+          <Ionicons name='search' size={18} color={colors.mutedForeground} />
           <TextInput
             ref={inputRef}
             style={[styles.input, { color: colors.foreground }]}
@@ -280,18 +282,19 @@ const styles = StyleSheet.create({
   top: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    gap: 8,
+    height: HEADER_HEIGHT,
+    paddingHorizontal: 12,
   },
   field: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    height: 46,
-    borderRadius: 23,
-    paddingHorizontal: 14,
+    height: ORB,
+    borderRadius: ORB / 2,
+    paddingLeft: 16,
+    paddingRight: 14,
   },
   input: { flex: 1, fontSize: 16, paddingVertical: 0 },
   tabs: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },

@@ -16,12 +16,13 @@ import useApi from '@/utils/hooks/useApi';
 import { useUser } from '@/context/UserContext';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
-import ChatSearchBar from '@/components/chat/ChatSearchBar';
 import ChatListItem from '@/components/chat/ChatListItem';
-import { TabHeader } from '@/components/ui/AppHeader';
+import { Aura } from '@/components/shell/Aura';
+import { LargeTitle, TabHeader, useTopBarScroll } from '@/components/ui/AppHeader';
+import Animated from 'react-native-reanimated';
 import { loadThread, openConversationWith, refreshConversations } from '@/lib/chat';
 import { openConversation } from '@/lib/chatScreen';
-import { previewOf, useChatStore, type Conversation } from '@/stores/chatStore';
+import { previewOf, selectUnreadTotal, useChatStore, type Conversation } from '@/stores/chatStore';
 
 interface SearchUser {
   userid: number;
@@ -59,6 +60,8 @@ const ChatListScreen: React.FC = () => {
   const loaded = useChatStore((s) => s.conversationsLoaded);
   const presence = useChatStore((s) => s.presence);
   const typing = useChatStore((s) => s.typing);
+  const unread = useChatStore(selectUnreadTotal);
+  const { scrollY, onScroll, listRef, scrollToTop } = useTopBarScroll<FlatList<Conversation>>();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
@@ -159,51 +162,58 @@ const ChatListScreen: React.FC = () => {
 
   if (!user) {
     // Signed out only for a moment: the auth gate sends you to sign in.
-    return <TabLoading title='Messages' showSearch={false} />;
+    return <TabLoading title='Messages' />;
   }
 
+  const line =
+    loaded && conversations.length ? (unread ? `${unread} unread` : 'All caught up') : undefined;
+
   return (
-    <TabSafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      edges={['top']}
-    >
-      <TabHeader title='Messages' showSearch={false} />
-
-      <ChatSearchBar
-        value={searchQuery}
-        onChangeText={changeQuery}
-        onClear={() => {
-          changeQuery('');
-          Keyboard.dismiss();
-        }}
-        inputRef={inputRef}
-      />
-
-      {term ? (
-        <FlatList
-          data={searching ? [] : searchResults}
-          keyExtractor={(item) => `person-${item.userid}`}
-          renderItem={renderPerson}
-          contentContainerStyle={styles.listContent}
-          keyboardShouldPersistTaps='handled'
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={empty}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Aura scrollY={scrollY} />
+      <TabSafeAreaView style={styles.container} edges={['top']}>
+        <TabHeader
+          title='Messages'
+          scrollY={term ? undefined : scrollY}
+          onTitlePress={scrollToTop}
+          search={{
+            value: searchQuery,
+            onChangeText: changeQuery,
+            placeholder: 'Search people',
+            inputRef,
+          }}
         />
-      ) : (
-        <FlatList
-          data={conversations}
-          keyExtractor={(item) => `conversation-${item.id}`}
-          renderItem={renderConversation}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          ListEmptyComponent={empty}
-          initialNumToRender={12}
-          windowSize={10}
-        />
-      )}
-    </TabSafeAreaView>
+
+        {term ? (
+          <FlatList
+            data={searching ? [] : searchResults}
+            keyExtractor={(item) => `person-${item.userid}`}
+            renderItem={renderPerson}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps='handled'
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={empty}
+          />
+        ) : (
+          <Animated.FlatList
+            ref={listRef}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            ListHeaderComponent={<LargeTitle title='Messages' line={line} />}
+            data={conversations}
+            keyExtractor={(item) => `conversation-${item.id}`}
+            renderItem={renderConversation}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            ListEmptyComponent={empty}
+            initialNumToRender={12}
+            windowSize={10}
+          />
+        )}
+      </TabSafeAreaView>
+    </View>
   );
 };
 

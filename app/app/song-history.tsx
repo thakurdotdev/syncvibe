@@ -21,7 +21,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { HeaderIconButton, StackHeader } from '@/components/ui/AppHeader';
+import { HeaderOrb, StackHeader } from '@/components/ui/AppHeader';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 
 const ITEMS_PER_PAGE = 15;
@@ -223,9 +223,9 @@ const SongHistory = () => {
         <StackHeader
           title='Listening history'
           right={
-            <HeaderIconButton label='Sort listening history' onPress={() => setShowSortModal(true)}>
+            <HeaderOrb label='Sort listening history' onPress={() => setShowSortModal(true)}>
               <Feather name='sliders' size={17} color={colors.foreground} />
-            </HeaderIconButton>
+            </HeaderOrb>
           }
         />
         <Text style={[styles.headerSubtitle, { color: colors.mutedForeground }]}>
