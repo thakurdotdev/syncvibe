@@ -6,7 +6,6 @@ import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
 import { fonts, typography } from '@/theme/typography';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { memo, useCallback, useMemo, useState, type ReactNode, type RefObject } from 'react';
 import {
@@ -348,19 +347,8 @@ export const TabHeader = memo(function TabHeader({
     setFocused(false);
   };
 
-  const edgeStyle = useAnimatedStyle(() => ({ opacity: t.get() }));
-
   return (
     <View style={styles.bar}>
-      {/* Once the page has scrolled, it fades out under the bar instead of being cut off. */}
-      {scrollY ? (
-        <Animated.View pointerEvents='none' style={[styles.edge, edgeStyle]}>
-          <LinearGradient
-            colors={[alpha(colors.background, 1), alpha(colors.background, 0)]}
-            style={StyleSheet.absoluteFill}
-          />
-        </Animated.View>
-      ) : null}
       {avatar === 'trailing' && !searching && (
         <Animated.View entering={ORB_IN} exiting={ORB_OUT}>
           <AvatarOrb />
@@ -595,7 +583,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
 
-  edge: { position: 'absolute', top: HEADER_HEIGHT, left: 0, right: 0, height: 18 },
   bar: {
     height: HEADER_HEIGHT,
     flexDirection: 'row',
