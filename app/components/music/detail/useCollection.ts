@@ -22,6 +22,36 @@ const shuffled = <T>(list: T[]) => {
 const ROOM_PAUSED = 'Your music is paused while the room plays';
 
 /**
+ * Plays `list` from `index`, with the rest queued after it. Tapping the song that's already
+ * playing pauses or resumes it; in a room, says your music is paused instead.
+ */
+export async function playList(list: Song[], index: number) {
+  const player = usePlayerStore.getState();
+  const song = list[index];
+  if (!song) return;
+  if (player.activePlayerMode === 'group') {
+    toast(ROOM_PAUSED);
+    return;
+  }
+  if (player.currentSong?.id === song.id) {
+    player.handlePlayPause();
+    return;
+  }
+  // Songs from some lists come without their audio links. Those play the way Home does, which
+  // fetches the links as it goes; a list that has them all is queued whole.
+  if (list.some((s) => !s?.download_url?.length)) {
+    await playStationFrom(list, index);
+    return;
+  }
+  try {
+    player.setPlaylist(list);
+    player.playSong(await playable(song));
+  } catch {
+    toast(`Couldn't play ${song.name}`, { type: 'error' });
+  }
+}
+
+/**
  * Playing a list from its page: the whole list, shuffled, or from the song you tap, with the
  * rest queued after it. `active` is true while the song playing is one of this list's.
  */
@@ -34,31 +64,7 @@ export function useCollection(songs: Song[]) {
     })
   );
 
-  const start = useCallback(async (list: Song[], index: number) => {
-    const player = usePlayerStore.getState();
-    const song = list[index];
-    if (!song) return;
-    if (player.activePlayerMode === 'group') {
-      toast(ROOM_PAUSED);
-      return;
-    }
-    if (player.currentSong?.id === song.id) {
-      player.handlePlayPause();
-      return;
-    }
-    // Songs from some lists come without their audio links. Those play the way Home does, which
-    // fetches the links as it goes; a list that has them all is queued whole.
-    if (list.some((s) => !s?.download_url?.length)) {
-      await playStationFrom(list, index);
-      return;
-    }
-    try {
-      player.setPlaylist(list);
-      player.playSong(await playable(song));
-    } catch {
-      toast(`Couldn't play ${song.name}`, { type: 'error' });
-    }
-  }, []);
+  const start = playList;
 
   const playAt = useCallback((index: number) => start(songs, index), [start, songs]);
 
