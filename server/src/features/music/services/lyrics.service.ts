@@ -21,6 +21,10 @@ const LRCLIB_URL = 'https://lrclib.net/api';
 // LRCLIB asks clients to name themselves.
 const USER_AGENT = 'SyncVibe (https://syncvibe.thakur.dev)';
 const TIMEOUT_MS = 8_000;
+/** LRCLIB returns at most this many results for a search. */
+const LRCLIB_SEARCH_LIMIT = 20;
+/** Singers searched for when the title alone doesn't find the song. */
+const SINGER_SEARCHES = 2;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** A song with no lyrics is looked up again after this long. */
@@ -104,7 +108,19 @@ const lrclibCandidates = async (
   const search = (await getJson(
     `${LRCLIB_URL}/search?${new URLSearchParams({ track_name: title })}`
   )) as LyricsEntry[] | null;
-  if (Array.isArray(search)) found.push(...search.slice(0, 20));
+  if (Array.isArray(search)) found.push(...search.slice(0, LRCLIB_SEARCH_LIMIT));
+
+  // A common title ("Humsafar") fills a search with other songs of that name, so the right one
+  // may not be among them. Each singer narrows it down.
+  const timed = (entry: LyricsEntry | null) =>
+    Boolean(entry && lyricsOf(entry, song.duration)?.kind === 'synced');
+  for (const singer of song.artists.slice(0, SINGER_SEARCHES)) {
+    if (timed(pickEntry(song, found, rejected))) break;
+    const bySinger = (await getJson(
+      `${LRCLIB_URL}/search?${new URLSearchParams({ track_name: title, artist_name: singer })}`
+    )) as LyricsEntry[] | null;
+    if (Array.isArray(bySinger)) found.push(...bySinger.slice(0, LRCLIB_SEARCH_LIMIT));
+  }
   return found;
 };
 
@@ -147,7 +163,7 @@ export const findLyricsFor = async (
 
   // If LRCLIB is down this throws, so "none" isn't remembered for a song that may have lyrics.
   const entry = pickEntry(facts, await lrclibCandidates(facts, rejected), rejected);
-  const lyrics = entry ? lyricsOf(entry) : null;
+  const lyrics = entry ? lyricsOf(entry, facts.duration) : null;
   if (entry && lyrics?.kind === 'synced') {
     return {
       kind: 'synced',
