@@ -11,12 +11,13 @@ import { useLikedIds } from '@/queries/usePersonal';
 import { router } from 'expo-router';
 import { AlertCircle, Edit3, Trash2, X } from '@/components/ui/icons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Keyboard, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Keyboard, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CachedImage } from '@/components/ui/CachedImage';
 import Animated from 'react-native-reanimated';
 import { TabLoading } from '@/components/ui/TabLoading';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
-import { TabHeader } from '@/components/ui/AppHeader';
+import { Aura } from '@/components/shell/Aura';
+import { LargeTitle, TabHeader, useTopBarScroll } from '@/components/ui/AppHeader';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import PressableScale from '@/components/ui/PressableScale';
 import { BUTTON_PRESS_SCALE, ROW_PRESS_SCALE } from '@/lib/motion';
@@ -54,6 +55,8 @@ const PlaylistScreen = () => {
   const api = useApi();
   const { colors, theme } = useTheme();
   const { user } = useUser();
+  const { scrollY, onScroll, listRef, scrollToTop } = useTopBarScroll<FlatList<any>>();
+  const { data: likedIds } = useLikedIds();
   const { userPlaylist, setUserPlaylist } = usePlaylistState();
   const [loading, setLoading] = useState(false);
   // Until the first answer, an empty list only means "not loaded yet", not "no playlists".
@@ -207,236 +210,249 @@ const PlaylistScreen = () => {
 
   const count = sortedPlaylists.length;
   const countKnown = fetched || count > 0;
+  const liked = likedIds?.length ?? 0;
+  const line = [
+    liked ? `${liked} liked ${liked === 1 ? 'song' : 'songs'}` : '',
+    countKnown ? `${count} ${count === 1 ? 'playlist' : 'playlists'}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const renderPlaylistItem = ({ item }: { item: any }) => (
     <PlaylistRow playlist={item} onMore={handleLongPress} />
   );
 
   return (
-    <TabSafeAreaView
-      edges={['top']}
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      <TabHeader title='Library' />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Aura scrollY={scrollY} />
+      <TabSafeAreaView edges={['top']} style={styles.container}>
+        <TabHeader title='Library' scrollY={scrollY} onTitlePress={scrollToTop} />
 
-      <Animated.FlatList
-        data={sortedPlaylists}
-        renderItem={renderPlaylistItem}
-        keyExtractor={(item) => `playlist-${item.id}`}
-        initialNumToRender={12}
-        windowSize={7}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: DECK_CLEARANCE }}
-        ListHeaderComponent={
-          <>
-            <View style={styles.shortcuts}>
-              <Shortcut icon='add' label='New playlist' onPress={openCreateModal} />
-              <Shortcut icon='time-outline' label='History' onPress={openHistory} />
-            </View>
-            <View style={styles.toolbar}>
-              <Text style={[styles.count, { color: colors.mutedForeground }]}>
-                {countKnown ? `${count} ${count === 1 ? 'playlist' : 'playlists'}` : ''}
+        <Animated.FlatList
+          ref={listRef}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          data={sortedPlaylists}
+          renderItem={renderPlaylistItem}
+          keyExtractor={(item) => `playlist-${item.id}`}
+          initialNumToRender={12}
+          windowSize={7}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: DECK_CLEARANCE }}
+          ListHeaderComponent={
+            <>
+              <LargeTitle title='Library' line={line || undefined} />
+              <View style={styles.shortcuts}>
+                <Shortcut icon='add' label='New playlist' onPress={openCreateModal} />
+                <Shortcut icon='time-outline' label='History' onPress={openHistory} />
+              </View>
+              <View style={styles.toolbar}>
+                <Text style={[styles.count, { color: colors.mutedForeground }]}>
+                  {countKnown ? `${count} ${count === 1 ? 'playlist' : 'playlists'}` : ''}
+                </Text>
+                {count > 1 && (
+                  <PressableScale
+                    onPress={toggleSort}
+                    scaleTo={BUTTON_PRESS_SCALE}
+                    hitSlop={10}
+                    accessibilityRole='button'
+                    accessibilityLabel={`Sorted by ${sort === 'recent' ? 'recently updated' : 'name'}. Change sort`}
+                    style={styles.sort}
+                  >
+                    <Text style={[styles.count, { color: colors.mutedForeground }]}>
+                      {sort === 'recent' ? 'Recent' : 'A–Z'}
+                    </Text>
+                    <Ionicons name='swap-vertical' size={13} color={colors.mutedForeground} />
+                  </PressableScale>
+                )}
+              </View>
+              <LikedRow />
+            </>
+          }
+          ListFooterComponent={
+            countKnown && count === 0 ? (
+              <Text style={[styles.empty, { color: colors.mutedForeground }]}>
+                Playlists you make show up here. Add songs from any track's menu.
               </Text>
-              {count > 1 && (
-                <PressableScale
-                  onPress={toggleSort}
-                  scaleTo={BUTTON_PRESS_SCALE}
-                  hitSlop={10}
-                  accessibilityRole='button'
-                  accessibilityLabel={`Sorted by ${sort === 'recent' ? 'recently updated' : 'name'}. Change sort`}
-                  style={styles.sort}
-                >
-                  <Text style={[styles.count, { color: colors.mutedForeground }]}>
-                    {sort === 'recent' ? 'Recent' : 'A–Z'}
-                  </Text>
-                  <Ionicons name='swap-vertical' size={13} color={colors.mutedForeground} />
-                </PressableScale>
-              )}
-            </View>
-            <LikedRow />
-          </>
-        }
-        ListFooterComponent={
-          countKnown && count === 0 ? (
-            <Text style={[styles.empty, { color: colors.mutedForeground }]}>
-              Playlists you make show up here. Add songs from any track's menu.
-            </Text>
-          ) : null
-        }
-      />
+            ) : null
+          }
+        />
 
-      {/* Actions Modal */}
-      <SwipeableModal
-        isVisible={showActionsModal}
-        onClose={() => setShowActionsModal(false)}
-        maxHeight='35%'
-      >
-        <View style={styles.modalBody}>
-          <View style={styles.modalHeaderRow}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Playlist Options</Text>
-            <PressableScale
-              style={[
-                styles.modalCloseBtn,
-                { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
-              ]}
-              onPress={() => setShowActionsModal(false)}
-            >
-              <X size={18} color={colors.mutedForeground} />
-            </PressableScale>
-          </View>
-
-          <View style={{ gap: 12 }}>
-            <Button
-              variant='secondary'
-              title='Edit Playlist'
-              icon={<Edit3 size={18} color={colors.primary} />}
-              iconPosition='left'
-              onPress={handleUpdateAction}
-            />
-
-            <Button
-              variant='destructive'
-              title='Delete Playlist'
-              icon={<Trash2 size={18} color={colors.destructiveForeground} />}
-              iconPosition='left'
-              onPress={handleDeleteAction}
-            />
-          </View>
-        </View>
-      </SwipeableModal>
-
-      {/* Create / Edit Modal (maxHeight="90%" so it opens fully!) */}
-      <SwipeableModal
-        isVisible={showUpdateModal}
-        onClose={() => setShowUpdateModal(false)}
-        maxHeight={520}
-        scrollable={true}
-        useScrollView={true}
-      >
-        <View style={styles.modalBody}>
-          <View style={styles.modalHeaderRow}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              {selectedPlaylist ? 'Edit Playlist' : 'Create Playlist'}
-            </Text>
-            <PressableScale
-              style={[
-                styles.modalCloseBtn,
-                { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
-              ]}
-              onPress={() => setShowUpdateModal(false)}
-            >
-              <X size={18} color={colors.mutedForeground} />
-            </PressableScale>
-          </View>
-
-          <View style={{ gap: 18, paddingBottom: 20 }}>
-            <View>
-              <Text style={[styles.inputLabel, { color: colors.foreground }]}>Playlist Name</Text>
-              <TextInput
+        {/* Actions Modal */}
+        <SwipeableModal
+          isVisible={showActionsModal}
+          onClose={() => setShowActionsModal(false)}
+          maxHeight='35%'
+        >
+          <View style={styles.modalBody}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+                Playlist Options
+              </Text>
+              <PressableScale
                 style={[
-                  styles.textInput,
-                  {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                    color: colors.foreground,
-                    borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-                  },
+                  styles.modalCloseBtn,
+                  { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
                 ]}
-                value={formData.name}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
-                placeholder='My Awesome Playlist'
-                placeholderTextColor={colors.mutedForeground}
-                selectionColor={colors.primary}
+                onPress={() => setShowActionsModal(false)}
+              >
+                <X size={18} color={colors.mutedForeground} />
+              </PressableScale>
+            </View>
+
+            <View style={{ gap: 12 }}>
+              <Button
+                variant='secondary'
+                title='Edit Playlist'
+                icon={<Edit3 size={18} color={colors.primary} />}
+                iconPosition='left'
+                onPress={handleUpdateAction}
+              />
+
+              <Button
+                variant='destructive'
+                title='Delete Playlist'
+                icon={<Trash2 size={18} color={colors.destructiveForeground} />}
+                iconPosition='left'
+                onPress={handleDeleteAction}
               />
             </View>
+          </View>
+        </SwipeableModal>
 
-            <View>
-              <Text style={[styles.inputLabel, { color: colors.foreground }]}>
-                Description (Optional)
+        {/* Create / Edit Modal (maxHeight="90%" so it opens fully!) */}
+        <SwipeableModal
+          isVisible={showUpdateModal}
+          onClose={() => setShowUpdateModal(false)}
+          maxHeight={520}
+          scrollable={true}
+          useScrollView={true}
+        >
+          <View style={styles.modalBody}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+                {selectedPlaylist ? 'Edit Playlist' : 'Create Playlist'}
               </Text>
-              <TextInput
+              <PressableScale
                 style={[
-                  styles.textInput,
-                  styles.textAreaInput,
-                  {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                    color: colors.foreground,
-                    borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-                  },
+                  styles.modalCloseBtn,
+                  { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
                 ]}
-                value={formData.description}
-                onChangeText={(text) => setFormData((prev) => ({ ...prev, description: text }))}
-                placeholder='Give your playlist a nice description...'
-                placeholderTextColor={colors.mutedForeground}
-                multiline={true}
-                numberOfLines={3}
-                selectionColor={colors.primary}
+                onPress={() => setShowUpdateModal(false)}
+              >
+                <X size={18} color={colors.mutedForeground} />
+              </PressableScale>
+            </View>
+
+            <View style={{ gap: 18, paddingBottom: 20 }}>
+              <View>
+                <Text style={[styles.inputLabel, { color: colors.foreground }]}>Playlist Name</Text>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    {
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                      color: colors.foreground,
+                      borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                    },
+                  ]}
+                  value={formData.name}
+                  onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
+                  placeholder='My Awesome Playlist'
+                  placeholderTextColor={colors.mutedForeground}
+                  selectionColor={colors.primary}
+                />
+              </View>
+
+              <View>
+                <Text style={[styles.inputLabel, { color: colors.foreground }]}>
+                  Description (Optional)
+                </Text>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    styles.textAreaInput,
+                    {
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                      color: colors.foreground,
+                      borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                    },
+                  ]}
+                  value={formData.description}
+                  onChangeText={(text) => setFormData((prev) => ({ ...prev, description: text }))}
+                  placeholder='Give your playlist a nice description...'
+                  placeholderTextColor={colors.mutedForeground}
+                  multiline={true}
+                  numberOfLines={3}
+                  selectionColor={colors.primary}
+                />
+              </View>
+
+              <Button
+                variant='default'
+                size='lg'
+                title={selectedPlaylist ? 'Save Changes' : 'Create Playlist'}
+                disabled={loading}
+                isLoading={loading}
+                onPress={handleSavePlaylist}
               />
             </View>
-
-            <Button
-              variant='default'
-              size='lg'
-              title={selectedPlaylist ? 'Save Changes' : 'Create Playlist'}
-              disabled={loading}
-              isLoading={loading}
-              onPress={handleSavePlaylist}
-            />
           </View>
-        </View>
-      </SwipeableModal>
+        </SwipeableModal>
 
-      {/* Delete Confirmation Modal */}
-      <SwipeableModal
-        isVisible={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        maxHeight='38%'
-      >
-        <View style={styles.modalBody}>
-          <View style={{ alignItems: 'center', marginBottom: 20 }}>
-            <View
-              style={{
-                backgroundColor:
-                  theme === 'dark' ? 'rgba(127, 29, 29, 0.3)' : 'rgba(254, 202, 202, 0.3)',
-                padding: 14,
-                borderRadius: 20,
-                marginBottom: 14,
-              }}
-            >
-              <AlertCircle size={28} color={colors.destructive} />
+        {/* Delete Confirmation Modal */}
+        <SwipeableModal
+          isVisible={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          maxHeight='38%'
+        >
+          <View style={styles.modalBody}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <View
+                style={{
+                  backgroundColor:
+                    theme === 'dark' ? 'rgba(127, 29, 29, 0.3)' : 'rgba(254, 202, 202, 0.3)',
+                  padding: 14,
+                  borderRadius: 20,
+                  marginBottom: 14,
+                }}
+              >
+                <AlertCircle size={28} color={colors.destructive} />
+              </View>
+              <Text style={[styles.modalTitle, { color: colors.foreground, marginBottom: 6 }]}>
+                Delete Playlist
+              </Text>
+              <Text style={[styles.deleteSubText, { color: colors.mutedForeground }]}>
+                Are you sure you want to delete "{selectedPlaylist?.name}"? This action cannot be
+                undone.
+              </Text>
             </View>
-            <Text style={[styles.modalTitle, { color: colors.foreground, marginBottom: 6 }]}>
-              Delete Playlist
-            </Text>
-            <Text style={[styles.deleteSubText, { color: colors.mutedForeground }]}>
-              Are you sure you want to delete "{selectedPlaylist?.name}"? This action cannot be
-              undone.
-            </Text>
-          </View>
 
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Button
-              variant='secondary'
-              title='Cancel'
-              size='default'
-              style={{ flex: 1 }}
-              onPress={() => setShowDeleteModal(false)}
-            />
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <Button
+                variant='secondary'
+                title='Cancel'
+                size='default'
+                style={{ flex: 1 }}
+                onPress={() => setShowDeleteModal(false)}
+              />
 
-            <Button
-              variant='destructive'
-              title='Delete'
-              size='default'
-              isLoading={loading}
-              disabled={loading}
-              icon={<Trash2 size={18} color={colors.destructiveForeground} />}
-              iconPosition='left'
-              style={{ flex: 1 }}
-              onPress={handleDeletePlaylist}
-            />
+              <Button
+                variant='destructive'
+                title='Delete'
+                size='default'
+                isLoading={loading}
+                disabled={loading}
+                icon={<Trash2 size={18} color={colors.destructiveForeground} />}
+                iconPosition='left'
+                style={{ flex: 1 }}
+                onPress={handleDeletePlaylist}
+              />
+            </View>
           </View>
-        </View>
-      </SwipeableModal>
-    </TabSafeAreaView>
+        </SwipeableModal>
+      </TabSafeAreaView>
+    </View>
   );
 };
 
@@ -606,7 +622,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  shortcuts: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 4 },
+  shortcuts: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 14 },
   shortcut: {
     flex: 1,
     height: 42,

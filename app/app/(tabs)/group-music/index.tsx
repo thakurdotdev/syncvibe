@@ -7,7 +7,9 @@ import { QueueSheet } from '@/components/music/group/QueueSheet';
 import { RoomScreen } from '@/components/music/room/RoomScreen';
 import { RoomsWelcome } from '@/components/music/room/RoomsWelcome';
 import { useMyRooms } from '@/components/music/room/useMyRooms';
-import { TabHeader } from '@/components/ui/AppHeader';
+import { Aura } from '@/components/shell/Aura';
+import { LargeTitle, TabHeader, useTopBarScroll } from '@/components/ui/AppHeader';
+import { useFriendsNow } from '@/queries/usePersonal';
 import { TabLoading } from '@/components/ui/TabLoading';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { startRoomFromMusic } from '@/lib/roomSeed';
@@ -19,6 +21,26 @@ import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Share, StyleSheet, Text, View } from 'react-native';
+
+/** "2 friends in rooms now", with the live dot; or what Rooms are for. */
+function RoomsLine() {
+  const { colors } = useTheme();
+  const { data: friends = [] } = useFriendsNow();
+  const live = friends.filter((friend) => friend.room).length;
+  if (!live) {
+    return (
+      <Text style={[styles.line, { color: colors.mutedForeground }]}>Listen together, in sync</Text>
+    );
+  }
+  return (
+    <>
+      <View style={[styles.liveDot, { backgroundColor: colors.live }]} />
+      <Text style={[styles.line, { color: colors.foreground }]}>
+        {live} {live === 1 ? 'friend' : 'friends'} in rooms now
+      </Text>
+    </>
+  );
+}
 
 function Reconnecting() {
   const { colors } = useTheme();
@@ -45,6 +67,7 @@ export default function RoomsTab() {
   const isQueueOpen = useGroupSessionStore((s) => s.isQueueOpen);
   const { socket } = useChat();
   const myRooms = useMyRooms(socket, currentGroup?.id);
+  const topBar = useTopBarScroll();
 
   const [showQr, setShowQr] = useState(false);
   const [modalTab, setModalTab] = useState<'create' | 'join'>('create');
@@ -95,60 +118,67 @@ export default function RoomsTab() {
   }
 
   return (
-    <TabSafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
-      {!currentGroup && <TabHeader title='Rooms' />}
-      <InviteNotification />
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {!currentGroup && <Aura scrollY={topBar.scrollY} />}
+      <TabSafeAreaView edges={['top']} style={styles.root}>
+        {!currentGroup && (
+          <TabHeader title='Rooms' scrollY={topBar.scrollY} onTitlePress={topBar.scrollToTop} />
+        )}
+        <InviteNotification />
 
-      {currentGroup ? (
-        <RoomScreen
-          onInvite={openInvite}
-          onShowQr={openQr}
-          onShare={shareCode}
-          onLeave={confirmLeave}
-        />
-      ) : isRejoining ? (
-        <Reconnecting />
-      ) : (
-        <RoomsWelcome
-          myRooms={myRooms.rooms}
-          onJoinRoom={joinGroup}
-          onAskRoom={myRooms.ask}
-          onDismissRoom={myRooms.dismiss}
-          onStart={() => openModal('create')}
-          onStartFromMusic={() => startRoomFromMusic(user?.name)}
-          onJoin={() => openModal('join')}
-          onScan={() => setScanning(true)}
-          onOpenSavedRoom={openSavedRoom}
-        />
-      )}
+        {currentGroup ? (
+          <RoomScreen
+            onInvite={openInvite}
+            onShowQr={openQr}
+            onShare={shareCode}
+            onLeave={confirmLeave}
+          />
+        ) : isRejoining ? (
+          <Reconnecting />
+        ) : (
+          <RoomsWelcome
+            header={<LargeTitle title='Rooms' line={<RoomsLine />} />}
+            scroll={topBar}
+            myRooms={myRooms.rooms}
+            onJoinRoom={joinGroup}
+            onAskRoom={myRooms.ask}
+            onDismissRoom={myRooms.dismiss}
+            onStart={() => openModal('create')}
+            onStartFromMusic={() => startRoomFromMusic(user?.name)}
+            onJoin={() => openModal('join')}
+            onScan={() => setScanning(true)}
+            onOpenSavedRoom={openSavedRoom}
+          />
+        )}
 
-      {isGroupModalOpen && (
-        <CreateOrJoinModal
-          isOpen
-          initialTab={groupModalName !== null ? 'create' : modalTab}
-          initialName={groupModalName ?? ''}
-          onClose={() =>
-            useGroupSessionStore.setState({ isGroupModalOpen: false, groupModalName: null })
-          }
-          onCreateGroup={createGroup}
-          onJoinGroup={joinGroup}
-          onScanQRCode={() => setScanning(true)}
-        />
-      )}
+        {isGroupModalOpen && (
+          <CreateOrJoinModal
+            isOpen
+            initialTab={groupModalName !== null ? 'create' : modalTab}
+            initialName={groupModalName ?? ''}
+            onClose={() =>
+              useGroupSessionStore.setState({ isGroupModalOpen: false, groupModalName: null })
+            }
+            onCreateGroup={createGroup}
+            onJoinGroup={joinGroup}
+            onScanQRCode={() => setScanning(true)}
+          />
+        )}
 
-      {/* Other screens can still open the full-screen queue (e.g. "add to room"). */}
-      {isQueueOpen && <QueueSheet />}
+        {/* Other screens can still open the full-screen queue (e.g. "add to room"). */}
+        {isQueueOpen && <QueueSheet />}
 
-      {currentGroup?.qrCode && (
-        <QRCodeModal
-          isOpen={showQr}
-          onClose={() => setShowQr(false)}
-          qrCode={currentGroup.qrCode}
-        />
-      )}
+        {currentGroup?.qrCode && (
+          <QRCodeModal
+            isOpen={showQr}
+            onClose={() => setShowQr(false)}
+            qrCode={currentGroup.qrCode}
+          />
+        )}
 
-      <GlobalSoundAnimation currentUserId={user?.userid} />
-    </TabSafeAreaView>
+        <GlobalSoundAnimation currentUserId={user?.userid} />
+      </TabSafeAreaView>
+    </View>
   );
 }
 
@@ -156,4 +186,6 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   centerText: { fontSize: 14 },
+  line: { fontSize: 13.5 },
+  liveDot: { width: 7, height: 7, borderRadius: 4 },
 });

@@ -1,6 +1,6 @@
 import { playStationFrom } from '@/components/music/home/playStation';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
-import { HeaderIconButton, StackHeader } from '@/components/ui/AppHeader';
+import { HeaderOrb, StackHeader } from '@/components/ui/AppHeader';
 import PressableScale from '@/components/ui/PressableScale';
 import Button from '@/components/ui/button';
 import { useTheme } from '@/context/ThemeContext';
@@ -180,9 +180,9 @@ export default function RecapScreen() {
         title='Your week in music'
         right={
           recap?.minutes ? (
-            <HeaderIconButton label='Share your week' onPress={share}>
+            <HeaderOrb label='Share your week' onPress={share}>
               <Ionicons name='share-outline' size={18} color={colors.foreground} />
-            </HeaderIconButton>
+            </HeaderOrb>
           ) : undefined
         }
       />

@@ -11,7 +11,9 @@ import {
 } from '@/components/music/home/HomeFeed';
 import { FriendsStrip } from '@/components/music/home/PersonalHome';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
-import { TabHeader } from '@/components/ui/AppHeader';
+import { Aura } from '@/components/shell/Aura';
+import { NowPlayingLine } from '@/components/shell/NowPlayingLine';
+import { LargeTitle, TabHeader, useTopBarScroll } from '@/components/ui/AppHeader';
 import PressableScale from '@/components/ui/PressableScale';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { useTheme } from '@/context/ThemeContext';
@@ -25,7 +27,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useIsRestoring } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 /** Songs under "Picked for you": enough to choose from, short enough to see the page below. */
 const PICKS = 5;
@@ -41,6 +44,20 @@ const buildPool = (fresh: Song[], recent: Song[], trending: Song[]) => {
     if (recent[i]) mixed.push(recent[i]);
   }
   return uniqueSongs([...mixed, ...trending]);
+};
+
+/** "Friday evening": what the line under the title says when nothing is playing. */
+const dayLine = (date: Date) => {
+  const hour = date.getHours();
+  const part =
+    hour >= 5 && hour < 12
+      ? 'morning'
+      : hour >= 12 && hour < 17
+        ? 'afternoon'
+        : hour >= 17 && hour < 22
+          ? 'evening'
+          : 'night';
+  return `${date.toLocaleDateString(undefined, { weekday: 'long' })} ${part}`;
 };
 
 const greeting = (hour: number) =>
@@ -149,68 +166,79 @@ function HomeScreen() {
   const popular = useMemo(() => trending.slice(0, PICKS), [trending]);
 
   const nothing = !stations.length && !forYou.length && !shelves.length;
-  const hour = new Date().getHours();
+  const now = new Date();
+  const title = greeting(now.getHours());
+  const { scrollY, onScroll, listRef, scrollToTop } = useTopBarScroll();
 
   return (
-    <TabSafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
-      <TabHeader title={greeting(hour)} />
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <Aura scrollY={scrollY} />
+      <TabSafeAreaView edges={['top']} style={styles.root}>
+        <TabHeader title={title} scrollY={scrollY} onTitlePress={scrollToTop} />
 
-      <ScrollView
-        style={styles.root}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-      >
-        {waiting ? (
-          skeletonShown && <HomeFeedSkeleton />
-        ) : nothing ? (
-          <View style={styles.empty}>
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              {isError ? "Couldn't load music. Check your connection." : 'Nothing to play yet.'}
-            </Text>
-            <PressableScale
-              onPress={onRefresh}
-              accessibilityRole='button'
-              style={[styles.retry, { backgroundColor: colors.raised }]}
-            >
-              <Text style={[styles.retryText, { color: colors.foreground }]}>Try again</Text>
-            </PressableScale>
-          </View>
-        ) : (
-          <>
-            <StationChips stations={stations} />
-            {hero ? (
-              <RightNowCard title={hero.title} subtitle={hero.subtitle} songs={hero.songs} />
-            ) : (
-              <RightNowCard
-                title='For you'
-                subtitle={
-                  signedIn ? 'New for you, and songs you keep coming back to' : 'Popular right now'
-                }
-                songs={forYou}
-              />
-            )}
-            {continueAlbum && <ContinueRow shelf={continueAlbum} />}
-            <MixRow shelves={mixes} />
-            {picks.length ? (
-              <PickList title='Picked for you' songs={picks} reasons={recommendations?.reasons} />
-            ) : (
-              <PickList title='Popular right now' songs={popular} />
-            )}
-            <NewReleasesRow shelf={releases} />
-            {signedIn ? <FriendsStrip /> : null}
-            <BrowseRow />
-          </>
-        )}
-      </ScrollView>
-    </TabSafeAreaView>
+        <Animated.ScrollView
+          ref={listRef}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          style={styles.root}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+        >
+          <LargeTitle title={title} line={<NowPlayingLine fallback={dayLine(now)} />} />
+          {waiting ? (
+            skeletonShown && <HomeFeedSkeleton />
+          ) : nothing ? (
+            <View style={styles.empty}>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                {isError ? "Couldn't load music. Check your connection." : 'Nothing to play yet.'}
+              </Text>
+              <PressableScale
+                onPress={onRefresh}
+                accessibilityRole='button'
+                style={[styles.retry, { backgroundColor: colors.raised }]}
+              >
+                <Text style={[styles.retryText, { color: colors.foreground }]}>Try again</Text>
+              </PressableScale>
+            </View>
+          ) : (
+            <>
+              <StationChips stations={stations} />
+              {hero ? (
+                <RightNowCard title={hero.title} subtitle={hero.subtitle} songs={hero.songs} />
+              ) : (
+                <RightNowCard
+                  title='For you'
+                  subtitle={
+                    signedIn
+                      ? 'New for you, and songs you keep coming back to'
+                      : 'Popular right now'
+                  }
+                  songs={forYou}
+                />
+              )}
+              {continueAlbum && <ContinueRow shelf={continueAlbum} />}
+              <MixRow shelves={mixes} />
+              {picks.length ? (
+                <PickList title='Picked for you' songs={picks} reasons={recommendations?.reasons} />
+              ) : (
+                <PickList title='Popular right now' songs={popular} />
+              )}
+              <NewReleasesRow shelf={releases} />
+              {signedIn ? <FriendsStrip /> : null}
+              <BrowseRow />
+            </>
+          )}
+        </Animated.ScrollView>
+      </TabSafeAreaView>
+    </View>
   );
 }
 
