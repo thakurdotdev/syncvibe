@@ -3,32 +3,16 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useProfile } from '@/Context/Context';
 import { useLyrics, usePrefetchLyrics, useReportLyrics } from '@/hooks/useLyrics';
 import { cn } from '@/lib/utils';
+import { lineAt, LEAD_MS } from './lyricsTiming';
 
 /** How often the position is read while the lyrics are on screen. */
 const TICK_MS = 200;
-/** A line lights up this much before its time: it reads as on the beat, not late. */
-const LEAD_MS = 250;
 /** After you scroll the lyrics yourself, they stay where you put them this long. */
 const HOLD_AFTER_SCROLL_MS = 3500;
 /** Where the current line sits, as a share of the view's height from the top. */
 const FOCUS_AT = 0.32;
 
 const SOURCE_NAME = { lrclib: 'LRCLIB', saavn: 'JioSaavn' };
-
-/** The last line whose time has come, by binary search; -1 before the first. */
-export const lineAt = (lines, ms) => {
-  let lo = 0;
-  let hi = lines.length - 1;
-  let found = -1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    if (lines[mid].t <= ms) {
-      found = mid;
-      lo = mid + 1;
-    } else hi = mid - 1;
-  }
-  return found;
-};
 
 const reducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -171,7 +155,7 @@ const LyricsView = ({
   }
 
   const lineClass =
-    size === 'large' ? 'text-2xl sm:text-[1.7rem] leading-snug' : 'text-lg leading-snug';
+    size === 'large' ? 'text-2xl sm:text-[1.7rem] leading-snug' : 'text-[19px] leading-[1.35]';
 
   return (
     <div
@@ -208,8 +192,8 @@ const LyricsView = ({
                       state === 'current'
                         ? 'text-foreground'
                         : state === 'past'
-                          ? 'text-foreground/40'
-                          : 'text-foreground/30'
+                          ? 'text-foreground/25'
+                          : 'text-foreground/35'
                     )}
                   >
                     {text}

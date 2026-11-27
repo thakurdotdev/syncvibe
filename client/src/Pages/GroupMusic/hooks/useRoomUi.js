@@ -3,13 +3,11 @@ import { create } from 'zustand';
 export const MOBILE_TABS = {
   chat: 'chat',
   queue: 'queue',
-  lyrics: 'lyrics',
   people: 'people',
 };
 
 export const SIDEBAR_TABS = {
   chat: 'chat',
-  lyrics: 'lyrics',
   people: 'people',
 };
 

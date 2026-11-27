@@ -116,6 +116,8 @@ export default function Player() {
   /** Where the cover sits in the full player, measured from its layout (not the screen). */
   const coverTop = useSharedValue(-1);
   const coverScale = useSharedValue(1);
+  // Set by the player tab: the cover shrinks to make room for the lyrics under it.
+  const artScale = useSharedValue(1);
   /** Mounted and drawn from the first frame of opening until the last of closing. */
   const shown = useSharedValue(false);
   /**
@@ -433,11 +435,12 @@ export default function Player() {
     redraw.get();
     const p = progress.get();
     const { art } = origin.get() ?? fallback;
-    const size = artworkSize * coverScale.get();
+    const box = artworkSize * artScale.get();
+    const size = box * coverScale.get();
     const top = insets.top + PLAYER_HEADER_HEIGHT + (coverTop.get() >= 0 ? coverTop.get() : 24);
     const target = {
       x: (screenWidth - size) / 2,
-      y: top + (artworkSize - size) / 2 + dragY.get(),
+      y: top + (box - size) / 2 + dragY.get(),
     };
     return {
       opacity: shown.get() && p < 1 ? interpolate(p, [0, LANDED], [0, 1], 'clamp') : 0,
@@ -524,6 +527,7 @@ export default function Player() {
                     onOpenQueue={openQueue}
                     morph={progress}
                     onArtLayout={onArtLayout}
+                    artScale={artScale}
                   />
                 </View>
               </GestureDetector>

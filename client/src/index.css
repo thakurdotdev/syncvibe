@@ -391,6 +391,13 @@
     animation: live-ring 1.6s ease-out infinite;
   }
 
+  /* A break in the lyrics (components/Lyrics/LyricsGlance): its dots breathe. */
+  @keyframes lyrics-breathe {
+    50% {
+      transform: scale(1.08);
+    }
+  }
+
   /* Press feedback for anything tappable. Pair with hover:bg-* utilities freely. */
   .press {
     transition:
