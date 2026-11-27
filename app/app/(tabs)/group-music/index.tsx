@@ -8,8 +8,7 @@ import { RoomScreen } from '@/components/music/room/RoomScreen';
 import { RoomsWelcome } from '@/components/music/room/RoomsWelcome';
 import { useMyRooms } from '@/components/music/room/useMyRooms';
 import { Aura } from '@/components/shell/Aura';
-import { LargeTitle, TabHeader, useTopBarScroll } from '@/components/ui/AppHeader';
-import { useFriendsNow } from '@/queries/usePersonal';
+import { TabHeader, useTopBarScroll } from '@/components/ui/AppHeader';
 import { TabLoading } from '@/components/ui/TabLoading';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { startRoomFromMusic } from '@/lib/roomSeed';
@@ -21,26 +20,6 @@ import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
 import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Share, StyleSheet, Text, View } from 'react-native';
-
-/** "2 friends in rooms now", with the live dot; or what Rooms are for. */
-function RoomsLine() {
-  const { colors } = useTheme();
-  const { data: friends = [] } = useFriendsNow();
-  const live = friends.filter((friend) => friend.room).length;
-  if (!live) {
-    return (
-      <Text style={[styles.line, { color: colors.mutedForeground }]}>Listen together, in sync</Text>
-    );
-  }
-  return (
-    <>
-      <View style={[styles.liveDot, { backgroundColor: colors.live }]} />
-      <Text style={[styles.line, { color: colors.foreground }]}>
-        {live} {live === 1 ? 'friend' : 'friends'} in rooms now
-      </Text>
-    </>
-  );
-}
 
 function Reconnecting() {
   const { colors } = useTheme();
@@ -119,7 +98,7 @@ export default function RoomsTab() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {!currentGroup && <Aura scrollY={topBar.scrollY} />}
+      {!currentGroup && <Aura />}
       <TabSafeAreaView edges={['top']} style={styles.root}>
         {!currentGroup && (
           <TabHeader title='Rooms' scrollY={topBar.scrollY} onTitlePress={topBar.scrollToTop} />
@@ -137,7 +116,6 @@ export default function RoomsTab() {
           <Reconnecting />
         ) : (
           <RoomsWelcome
-            header={<LargeTitle title='Rooms' line={<RoomsLine />} />}
             scroll={topBar}
             myRooms={myRooms.rooms}
             onJoinRoom={joinGroup}
@@ -186,6 +164,4 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   centerText: { fontSize: 14 },
-  line: { fontSize: 13.5 },
-  liveDot: { width: 7, height: 7, borderRadius: 4 },
 });

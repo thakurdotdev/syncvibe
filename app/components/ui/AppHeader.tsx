@@ -198,7 +198,7 @@ type Scrollable = {
 
 /**
  * What a tab's header follows: how far the page has scrolled, the handler for its list, and a
- * way back to the top (tapping the title once it's in the pill).
+ * way back to the top (tapping the tab's name once it's in the pill).
  */
 export function useTopBarScroll<T extends object = Animated.ScrollView>() {
   const scrollY = useSharedValue(0);
@@ -216,7 +216,7 @@ export function useTopBarScroll<T extends object = Animated.ScrollView>() {
   return { scrollY, onScroll, listRef, scrollToTop };
 }
 
-/** 0 while the big title shows, 1 once it has gone under the bar. Flips, then animates. */
+/** 0 at the top of the page, 1 once it has scrolled. Flips, then animates. */
 function useCondensed(scrollY: SharedValue<number> | undefined, at: number) {
   const t = useSharedValue(scrollY ? 0 : 1);
   useAnimatedReaction(
@@ -239,14 +239,14 @@ type InlineSearch = {
 };
 
 /**
- * A tab's header: you, then the pill. The pill is search: tap it, or pull it down. Once the big
- * title (LargeTitle) has scrolled under it, the pill shows the title instead, and tapping it goes
- * back to the top. Applies no safe-area inset itself; place it under one.
+ * A tab's header: you, then the pill. The pill is search: tap it, or pull it down. Once the page
+ * has scrolled, the pill shows the tab's name instead, and tapping the name goes back to the top
+ * (the magnifier still searches). Applies no safe-area inset itself; place it under one.
  */
 export const TabHeader = memo(function TabHeader({
   title,
   scrollY,
-  collapseAt = 44,
+  collapseAt = 24,
   onTitlePress,
   action,
   search = 'link',
@@ -256,7 +256,7 @@ export const TabHeader = memo(function TabHeader({
   title?: string;
   /** The page's scroll. Without it the pill shows the title from the start. */
   scrollY?: SharedValue<number>;
-  /** How far the page scrolls before the title moves into the pill. */
+  /** How far the page scrolls before the name takes the pill. */
   collapseAt?: number;
   onTitlePress?: () => void;
   /** One page action, at the end of the pill. */
@@ -473,42 +473,6 @@ export const TabHeader = memo(function TabHeader({
   );
 });
 
-/**
- * A tab's big title, the first thing in its scroll. The line under it says something true about
- * the page right now (what's playing, who's live, how many unread).
- */
-export const LargeTitle = memo(function LargeTitle({
-  title,
-  line,
-}: {
-  title: string;
-  line?: ReactNode;
-}) {
-  const { colors } = useTheme();
-  return (
-    <View style={styles.large}>
-      <Text
-        style={[styles.largeTitle, { color: colors.foreground }]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.8}
-        accessibilityRole='header'
-      >
-        {title}
-      </Text>
-      {line ? (
-        typeof line === 'string' ? (
-          <Text style={[styles.line, { color: colors.mutedForeground }]} numberOfLines={1}>
-            {line}
-          </Text>
-        ) : (
-          <View style={styles.lineRow}>{line}</View>
-        )
-      ) : null}
-    </View>
-  );
-});
-
 // ─── Stack header ───────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -644,11 +608,6 @@ const styles = StyleSheet.create({
   },
   cancel: { height: ORB, justifyContent: 'center', paddingHorizontal: 4 },
   cancelText: { ...typography.labelLg },
-
-  large: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 4 },
-  largeTitle: { fontFamily: fonts.displayHeavy, fontSize: 34, lineHeight: 38, letterSpacing: -1 },
-  line: { ...typography.bodySm, fontSize: 13.5, marginTop: 3 },
-  lineRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4 },
 
   stackBar: { paddingBottom: 0 },
   stackPill: { justifyContent: 'center', paddingHorizontal: 16, paddingRight: 16 },
