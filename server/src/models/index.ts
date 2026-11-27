@@ -50,6 +50,7 @@ import StoryMusic from './story/story-music.model';
 
 // App Update
 import AppUpdate from './app-update.model';
+import AppCrashReport from './app-crash-report.model';
 
 // ─── Conversation ↔ members, messages, reactions ───────────────────────────
 Conversation.hasMany(ConversationMember, { foreignKey: 'conversationId', as: 'members' });
@@ -175,6 +176,7 @@ export {
   Story,
   StoryMusic,
   AppUpdate,
+  AppCrashReport,
 };
 
 export type { UserAttributes } from './auth/user.model';

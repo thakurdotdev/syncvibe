@@ -249,7 +249,11 @@ export const SleeveHero = memo(function SleeveHero({
       </Animated.View>
 
       <Animated.View
-        style={[styles.sleeve, { width: size, height: size }, sleeveStyle]}
+        style={[
+          styles.sleeve,
+          { width: size, height: size, backgroundColor: colors.raised },
+          sleeveStyle,
+        ]}
         // A shadow on the sleeve, not its clipped content.
       >
         <View style={[styles.sleeveClip, { backgroundColor: colors.raised }]}>
@@ -553,7 +557,8 @@ const styles = StyleSheet.create({
   spindle: { position: 'absolute', width: 7, height: 7, borderRadius: 3.5 },
   sleeve: {
     borderRadius: 6,
-    boxShadow: '0 18px 32px -10px rgba(0,0,0,0.45)',
+    // A system shadow, not a blurred one: this scrolls, and a blurred shadow is redrawn each frame.
+    elevation: 10,
   },
   sleeveClip: { flex: 1, borderRadius: 6, overflow: 'hidden' },
   sleeveEdge: { borderRadius: 6, borderWidth: StyleSheet.hairlineWidth },

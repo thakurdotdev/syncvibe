@@ -17,6 +17,7 @@ import {
   ROW_PRESS_SCALE,
 } from '@/lib/motion';
 import { shortSongName, type Station } from '@/lib/stations';
+import { usePlayerStore } from '@/stores/playerStore';
 import { stationQuery } from '@/queries/useMusic';
 import { fonts, typography } from '@/theme/typography';
 import type { Song } from '@/types/song';
@@ -24,10 +25,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { memo, useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 
 export const SIDE = 16;
 const ARRIVE = FadeIn.duration(220).reduceMotion(ReduceMotion.System);
+const LEAVE = FadeOut.duration(160).reduceMotion(ReduceMotion.System);
 
 const artistOf = (song: Song) =>
   song.artist_map?.primary_artists?.[0]?.name ||
@@ -174,7 +176,11 @@ export const RightNowCard = memo(function RightNowCard({
         ) : null}
         <View
           pointerEvents='none'
-          style={[StyleSheet.absoluteFill, { backgroundColor: `${colors.card}B3` }]}
+          style={[
+            StyleSheet.absoluteFill,
+            styles.heroRound,
+            { backgroundColor: `${colors.card}B3` },
+          ]}
         />
         <View pointerEvents='none' style={[styles.heroSheen, { backgroundColor: colors.sheen }]} />
 
@@ -221,13 +227,19 @@ const FAN = [
 
 // ─── Continue an album ──────────────────────────────────────────────────────────────────────────
 
-/** The album you stopped partway through, and how much of it is left. */
+/**
+ * The album you stopped partway through, and how much of it is left. Only while nothing is
+ * playing: with music on it's beside the point, and once you tap it you're continuing it, so it
+ * steps aside.
+ */
 export const ContinueRow = memo(function ContinueRow({ shelf }: { shelf: Shelf }) {
   const { colors } = useTheme();
   const { playing, toggle } = useCollection(shelf.songs);
+  const busy = usePlayerStore((s) => s.isPlaying);
   const cover = coverOf(shelf.songs[0]?.image, 1);
+  if (busy) return null;
   return (
-    <Animated.View entering={ARRIVE}>
+    <Animated.View entering={ARRIVE} exiting={LEAVE}>
       <PressableScale
         onPress={toggle}
         scaleTo={ROW_PRESS_SCALE}
@@ -245,7 +257,7 @@ export const ContinueRow = memo(function ContinueRow({ shelf }: { shelf: Shelf }
             {shelf.title}
           </Text>
           <Text style={[styles.small, { color: colors.mutedForeground }]} numberOfLines={1}>
-            {songCount(shelf.songs.length)} left
+            Album you didn&apos;t finish · {songCount(shelf.songs.length)} left
           </Text>
         </View>
         <View style={[styles.ring, { borderColor: colors.hairline }]}>
@@ -287,7 +299,19 @@ export const HomeHeading = memo(function HomeHeading({
   );
 });
 
+const HERO_RADIUS = 26;
 const MIX_CARD = 140;
+const MIX_RADIUS = 14;
+/*
+ * Images round their own corners instead of being clipped by a rounded wrapper: Android clips
+ * again on every frame of a scroll, and these cards are what you scroll past.
+ */
+const TILE_CORNERS = [
+  { borderTopLeftRadius: MIX_RADIUS },
+  { borderTopRightRadius: MIX_RADIUS },
+  { borderBottomLeftRadius: MIX_RADIUS },
+  { borderBottomRightRadius: MIX_RADIUS },
+];
 const SONG_CARD = 118;
 
 /** A mix: four of its covers in a square, its name and the people in it. Tap plays it. */
@@ -306,12 +330,19 @@ const MixCard = memo(function MixCard({ shelf }: { shelf: Shelf }) {
       <View style={[styles.mixCover, { backgroundColor: colors.raised }]}>
         {covers.length >= 4 ? (
           <View style={styles.mosaic}>
-            {covers.map((uri) => (
-              <CachedImage key={uri} source={{ uri }} style={styles.mosaicTile} />
+            {covers.slice(0, 4).map((uri, i) => (
+              <CachedImage
+                key={uri}
+                source={{ uri }}
+                style={[styles.mosaicTile, TILE_CORNERS[i]]}
+              />
             ))}
           </View>
         ) : (
-          <CachedImage source={{ uri: covers[0] }} style={StyleSheet.absoluteFill} />
+          <CachedImage
+            source={{ uri: covers[0] }}
+            style={[StyleSheet.absoluteFill, styles.mixRound]}
+          />
         )}
         {active && (
           <View style={styles.coverBars}>
@@ -536,13 +567,13 @@ const styles = StyleSheet.create({
 
   heroWrap: { marginHorizontal: SIDE, marginTop: 18 },
   hero: {
-    borderRadius: 26,
+    borderRadius: HERO_RADIUS,
     borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
     padding: 18,
   },
-  heroArt: { opacity: 0.9 },
-  heroSheen: { position: 'absolute', top: 0, left: 0, right: 0, height: 1 },
+  heroArt: { opacity: 0.9, borderRadius: HERO_RADIUS },
+  heroRound: { borderRadius: HERO_RADIUS },
+  heroSheen: { position: 'absolute', top: 0, left: HERO_RADIUS, right: HERO_RADIUS, height: 1 },
   kicker: { ...typography.labelSm, letterSpacing: 1.4 },
   heroTitle: {
     fontFamily: fonts.displayHeavy,
@@ -566,7 +597,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     marginRight: -24,
-    boxShadow: '0 10px 18px -10px rgba(0,0,0,0.55)',
+    // A system shadow, not a blurred one: this scrolls, and a blurred shadow is redrawn each frame.
+    elevation: 4,
   },
   heroPlay: {
     width: 52,
@@ -613,7 +645,8 @@ const styles = StyleSheet.create({
 
   cardRow: { paddingHorizontal: SIDE, gap: 14 },
   mix: { width: MIX_CARD },
-  mixCover: { width: MIX_CARD, height: MIX_CARD, borderRadius: 14, overflow: 'hidden' },
+  mixCover: { width: MIX_CARD, height: MIX_CARD, borderRadius: MIX_RADIUS },
+  mixRound: { borderRadius: MIX_RADIUS },
   mosaic: { flex: 1, flexDirection: 'row', flexWrap: 'wrap' },
   mosaicTile: { width: '50%', height: '50%' },
   coverBars: {

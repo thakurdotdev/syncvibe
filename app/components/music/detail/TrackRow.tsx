@@ -5,7 +5,6 @@ import { CachedImage } from '@/components/ui/CachedImage';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
-import { usePlayerProgress } from '@/hooks/usePlayerProgress';
 import { BUTTON_PRESS_SCALE, IMAGE_FADE_MS, LIST_PRESS_DELAY, ROW_PRESS_SCALE } from '@/lib/motion';
 import { useSongPlaybackState } from '@/stores/playerStore';
 import { fonts, typography } from '@/theme/typography';
@@ -17,30 +16,6 @@ import Animated from 'react-native-reanimated';
 import { useOptionalDetail } from './context';
 import { artistsLine, clock, coverOf, secondsOf } from './format';
 import { rowRise } from './motion';
-
-// Moves the bar along with each once-a-second reading, so it glides rather than ticks.
-const GLIDE = {
-  transitionProperty: 'transform',
-  transitionDuration: 1000,
-  transitionTimingFunction: 'linear',
-} as const;
-
-/** A hairline under the playing row that fills as the song plays. */
-const RowProgress = memo(function RowProgress({ color, track }: { color: string; track: string }) {
-  const { position, duration } = usePlayerProgress();
-  const fraction = duration > 0 ? Math.min(1, position / duration) : 0;
-  return (
-    <View style={[styles.progress, { backgroundColor: track }]} pointerEvents='none'>
-      <Animated.View
-        style={[
-          styles.progressFill,
-          { backgroundColor: color, transform: [{ scaleX: fraction }] },
-          GLIDE,
-        ]}
-      />
-    </View>
-  );
-});
 
 export interface TrackRowProps {
   song: Song;
@@ -56,8 +31,8 @@ export interface TrackRowProps {
 }
 
 /**
- * A numbered song in a list. The playing one trades its number for moving bars and fills a line
- * underneath as it plays. Tap plays the list from here; long-press or ⋯ opens its options.
+ * A numbered song in a list. The playing one trades its number for moving bars. Tap plays the
+ * list from here; long-press or ⋯ opens its options.
  */
 export const TrackRow = memo(function TrackRow({
   song,
@@ -138,8 +113,6 @@ export const TrackRow = memo(function TrackRow({
         >
           <Ionicons name='ellipsis-horizontal' size={18} color={colors.mutedForeground} />
         </PressableScale>
-
-        {isCurrentSong && <RowProgress color={colors.primary} track={colors.hairline} />}
       </PressableScale>
 
       {options && (
@@ -165,7 +138,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     marginVertical: 1,
     borderRadius: 14,
-    overflow: 'hidden',
   },
   lead: { width: 36, alignItems: 'center', justifyContent: 'center' },
   number: {
@@ -179,14 +151,4 @@ const styles = StyleSheet.create({
   subtitle: { ...typography.bodySm, fontSize: 12.5, marginTop: 1 },
   time: { ...typography.caption, marginLeft: 10, fontVariant: ['tabular-nums'] },
   more: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  progress: {
-    position: 'absolute',
-    left: 40,
-    right: 14,
-    bottom: 3,
-    height: 2,
-    borderRadius: 1,
-    overflow: 'hidden',
-  },
-  progressFill: { flex: 1, borderRadius: 1, transformOrigin: 'left' },
 });
