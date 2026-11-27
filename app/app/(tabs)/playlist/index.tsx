@@ -55,7 +55,7 @@ const PlaylistScreen = () => {
   const api = useApi();
   const { colors, theme } = useTheme();
   const { user } = useUser();
-  const { scrollY, onScroll, listRef } = useTopBarScroll<FlatList<any>>();
+  const { scrollY, onScroll, listRef, scrollToTop } = useTopBarScroll<FlatList<any>>();
   const { userPlaylist, setUserPlaylist } = usePlaylistState();
   const [loading, setLoading] = useState(false);
   // Until the first answer, an empty list only means "not loaded yet", not "no playlists".
@@ -216,9 +216,9 @@ const PlaylistScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Aura scrollY={scrollY} />
+      <Aura />
       <TabSafeAreaView edges={['top']} style={styles.container}>
-        <TabHeader title='Library' />
+        <TabHeader title='Library' scrollY={scrollY} onTitlePress={scrollToTop} />
 
         <Animated.FlatList
           ref={listRef}

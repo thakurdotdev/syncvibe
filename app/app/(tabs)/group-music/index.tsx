@@ -98,9 +98,11 @@ export default function RoomsTab() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {!currentGroup && <Aura scrollY={topBar.scrollY} />}
+      {!currentGroup && <Aura />}
       <TabSafeAreaView edges={['top']} style={styles.root}>
-        {!currentGroup && <TabHeader title='Rooms' />}
+        {!currentGroup && (
+          <TabHeader title='Rooms' scrollY={topBar.scrollY} onTitlePress={topBar.scrollToTop} />
+        )}
         <InviteNotification />
 
         {currentGroup ? (

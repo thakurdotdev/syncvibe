@@ -60,7 +60,7 @@ const ChatListScreen: React.FC = () => {
   const loaded = useChatStore((s) => s.conversationsLoaded);
   const presence = useChatStore((s) => s.presence);
   const typing = useChatStore((s) => s.typing);
-  const { scrollY, onScroll, listRef } = useTopBarScroll<FlatList<Conversation>>();
+  const { scrollY, onScroll, listRef, scrollToTop } = useTopBarScroll<FlatList<Conversation>>();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
@@ -166,10 +166,12 @@ const ChatListScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Aura scrollY={scrollY} />
+      <Aura />
       <TabSafeAreaView style={styles.container} edges={['top']}>
         <TabHeader
           title='Messages'
+          scrollY={term ? undefined : scrollY}
+          onTitlePress={scrollToTop}
           search={{
             value: searchQuery,
             onChangeText: changeQuery,

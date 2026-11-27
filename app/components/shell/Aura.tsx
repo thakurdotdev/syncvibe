@@ -9,8 +9,7 @@ import { usePlayerStore } from '@/stores/playerStore';
 import { convertToHttps } from '@/utils/getHttpsUrls';
 import { LinearGradient } from 'expo-linear-gradient';
 import { memo } from 'react';
-import { StyleSheet } from 'react-native';
-import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /** How far it reaches below the header, fading into the page as it goes. */
@@ -33,23 +32,16 @@ const useHeardCover = () => {
 
 /**
  * The song playing, blurred and washed into the page, behind the header of a tab.
- * Mono has no colour of its own: this is where album art lends it some. It belongs to the top of
- * the page and scrolls away with it, so a short scroll looks like the page moving, not a panel
- * fading. Nothing when nothing has played. Place it first in the tab's root view.
+ * Mono has no colour of its own: this is where album art lends it some. It stays put behind the
+ * header while the page scrolls, and nothing about it animates but the cover dissolving into the
+ * next: Android drops a gradient over the cover while its opacity animates, which showed as a box
+ * with a hard edge. Nothing when nothing has played. Place it first in the tab's root view.
  */
-export const Aura = memo(function Aura({ scrollY }: { scrollY?: SharedValue<number> }) {
+export const Aura = memo(function Aura() {
   const { colors, theme } = useTheme();
   const insets = useSafeAreaInsets();
   const cover = useHeardCover();
   const height = insets.top + HEADER_HEIGHT + BELOW_HEADER;
-
-  // Only ever moved, never faded: Android draws a half-transparent view through an offscreen
-  // layer, and the blurred cover and its fade came out of that as a box with a hard edge. The
-  // cover's own image transition eases it in.
-  const style = useAnimatedStyle(() => ({
-    // Exactly with the page: never down past the top, never faster than the content.
-    transform: [{ translateY: -Math.max(0, scrollY?.get() ?? 0) }],
-  }));
 
   const bg = colors.background;
   // The wash keeps text over it readable on any cover, then fades all the way into the page.
@@ -57,9 +49,9 @@ export const Aura = memo(function Aura({ scrollY }: { scrollY?: SharedValue<numb
 
   if (!cover) return null;
   return (
-    <Animated.View
+    <View
       pointerEvents='none'
-      style={[styles.aura, { height }, style]}
+      style={[styles.aura, { height }]}
       accessibilityElementsHidden
       importantForAccessibility='no-hide-descendants'
     >
@@ -70,7 +62,7 @@ export const Aura = memo(function Aura({ scrollY }: { scrollY?: SharedValue<numb
         locations={[0, 0.35, 1]}
         style={StyleSheet.absoluteFill}
       />
-    </Animated.View>
+    </View>
   );
 });
 

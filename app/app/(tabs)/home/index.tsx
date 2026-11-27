@@ -144,13 +144,13 @@ function HomeScreen() {
   const popular = useMemo(() => trending.slice(0, PICKS), [trending]);
 
   const nothing = !stations.length && !forYou.length && !shelves.length;
-  const { scrollY, onScroll, listRef } = useTopBarScroll();
+  const { scrollY, onScroll, listRef, scrollToTop } = useTopBarScroll();
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <Aura scrollY={scrollY} />
+      <Aura />
       <TabSafeAreaView edges={['top']} style={styles.root}>
-        <TabHeader title='Home' />
+        <TabHeader title='Home' scrollY={scrollY} onTitlePress={scrollToTop} />
 
         <Animated.ScrollView
           ref={listRef}
