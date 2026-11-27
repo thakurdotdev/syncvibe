@@ -110,6 +110,7 @@ export const AppUpdateModal: React.FC = () => {
   const phase = useAppUpdateStore((s) => s.phase);
   const sheetVisible = useAppUpdateStore((s) => s.sheetVisible);
   const waitingForNetwork = useAppUpdateStore((s) => s.waitingForNetwork);
+  const stalled = useAppUpdateStore((s) => s.stalled);
   const errorMessage = useAppUpdateStore((s) => s.errorMessage);
 
   useEffect(() => initAppUpdates(), []);
@@ -125,9 +126,11 @@ export const AppUpdateModal: React.FC = () => {
       title: 'Downloading update',
       subtitle: waitingForNetwork
         ? 'Waiting for a connection…'
-        : critical
-          ? 'This takes a minute or two.'
-          : 'You can keep using SyncVibe.',
+        : stalled
+          ? "Android's downloader hasn't started it. You can get it from the browser instead."
+          : critical
+            ? 'This takes a minute or two.'
+            : 'You can keep using SyncVibe.',
     },
     verifying: { title: 'Checking the download', subtitle: 'This only takes a moment.' },
     ready: { title: 'Ready to install', subtitle: 'Android will ask you to confirm.' },
@@ -214,7 +217,7 @@ export const AppUpdateModal: React.FC = () => {
           )}
         </View>
 
-        {isError && latest.downloadUrl && (
+        {(isError || (phase === 'downloading' && stalled)) && latest.downloadUrl && (
           <Text
             onPress={openUpdateInBrowser}
             accessibilityRole='link'

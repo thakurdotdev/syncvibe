@@ -113,3 +113,21 @@ export const sendCrashReports = async () => {
     sent = false;
   }
 };
+
+/**
+ * Something that went wrong without a crash (an update download that stalls or fails), sent now
+ * to the same place as crash reports. Best effort: nothing waits on it, and a failure is dropped.
+ */
+export const reportProblem = (report: { kind: string; reason: string; description?: string }) => {
+  void (async () => {
+    try {
+      await axios.post(
+        `${API_URL}/api/app/crash-reports`,
+        { version: Constants.expoConfig?.version, reports: [{ ...report, at: Date.now() }] },
+        { headers: await getAuthHeaders(), timeout: 15_000 }
+      );
+    } catch {
+      // Diagnostics only.
+    }
+  })();
+};
