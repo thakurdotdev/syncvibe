@@ -107,6 +107,10 @@ class AppUpdaterModule : Module() {
   private fun apkFile(version: String) = File(updatesDir(), apkName(version))
 
   private fun enqueueDownload(url: String, version: String, title: String): Long {
+    // Every download this app has left with the system goes first: a stuck or forgotten one (from
+    // an earlier try, or an app killed mid-start) can hold a new one in "queued" indefinitely. The
+    // updater is this app's only user of DownloadManager, and a query sees only this app's rows.
+    removeAllDownloads()
     // DownloadManager writes to "name-1.apk" when the name is taken, and installs look for the name.
     updatesDir().listFiles()?.forEach { it.delete() }
     val request = DownloadManager.Request(Uri.parse(url))
@@ -117,6 +121,15 @@ class AppUpdaterModule : Module() {
       .setAllowedOverRoaming(true)
       .setDestinationInExternalFilesDir(context, UPDATES_DIR, apkName(version))
     return downloadManager.enqueue(request)
+  }
+
+  private fun removeAllDownloads() {
+    val ids = mutableListOf<Long>()
+    downloadManager.query(DownloadManager.Query())?.use { cursor ->
+      val column = cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_ID)
+      while (cursor.moveToNext()) ids.add(cursor.getLong(column))
+    }
+    if (ids.isNotEmpty()) downloadManager.remove(*ids.toLongArray())
   }
 
   private fun queryDownload(id: Long): Bundle? {

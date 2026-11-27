@@ -1,3 +1,4 @@
+import { reportProblem } from '@/lib/crashReports';
 import { AppUpdater, type VerifyResult } from '@/modules/app-updater';
 import { api } from '@/utils/hooks/useApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -27,6 +28,8 @@ interface AppUpdateState {
   totalBytes: number;
   /** The download is paused until the device has a usable connection. */
   waitingForNetwork: boolean;
+  /** No progress for a while: the sheet offers the browser instead of waiting forever. */
+  stalled: boolean;
   errorMessage: string | null;
   sheetVisible: boolean;
 }
@@ -40,6 +43,11 @@ const SAVED_DOWNLOAD_KEY = 'app-update-download';
 const LAST_PROMPTED_KEY = 'last-notified-update-version';
 const CHECK_DELAY_MS = 3000;
 const POLL_INTERVAL_MS = 1000;
+/**
+ * No new bytes for this long counts as stalled. Android's downloader can sit in "queued" for good
+ * on some phones, which used to look like a download that never started.
+ */
+const STALL_MS = 20_000;
 
 const DAMAGED_MESSAGE = 'The download was damaged. Please try again.';
 const VERIFY_MESSAGES: Record<Exclude<VerifyResult, 'ok'>, string> = {
@@ -62,6 +70,7 @@ export const useAppUpdateStore = create<AppUpdateState>(() => ({
   bytesDownloaded: 0,
   totalBytes: 0,
   waitingForNetwork: false,
+  stalled: false,
   errorMessage: null,
   sheetVisible: false,
 }));
@@ -72,6 +81,8 @@ const { getState, setState } = useAppUpdateStore;
 let saved: SavedDownload | null = null;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let polling = false;
+// When the download last moved, and whether its stall has been reported.
+let progress = { bytes: -1, at: 0, reported: false };
 
 const isNewerVersion = (current: string, latest: string): boolean => {
   const currentParts = current.split('.').map(Number);
@@ -163,10 +174,29 @@ const pollDownload = async () => {
       stopPolling();
       await verifyDownload(download);
     } else if (info.status === 'failed') {
+      reportProblem({
+        kind: 'update',
+        reason: 'download-failed',
+        description: `${download.version} · reason ${info.reason} · ${info.bytesDownloaded}/${info.totalBytes} bytes`,
+      });
       await discardDownload();
       fail(downloadFailureMessage(info.reason));
     } else {
+      const now = Date.now();
+      if (info.bytesDownloaded !== progress.bytes) {
+        progress = { bytes: info.bytesDownloaded, at: now, reported: progress.reported };
+      }
+      const stalled = now - progress.at > STALL_MS;
+      if (stalled && !progress.reported) {
+        progress.reported = true;
+        reportProblem({
+          kind: 'update',
+          reason: `download-stalled-${info.status}`,
+          description: `${download.version} · reason ${info.reason} · ${info.bytesDownloaded}/${info.totalBytes} bytes`,
+        });
+      }
       setState({
+        stalled,
         phase: 'downloading',
         bytesDownloaded: info.bytesDownloaded,
         totalBytes: info.totalBytes > 0 ? info.totalBytes : fileSizeOf(getState().latest),
@@ -205,8 +235,10 @@ export const startUpdate = async () => {
     bytesDownloaded: 0,
     totalBytes: fileSizeOf(latest),
     waitingForNetwork: false,
+    stalled: false,
     errorMessage: null,
   });
+  progress = { bytes: -1, at: Date.now(), reported: false };
   try {
     await discardDownload();
     const id = await AppUpdater.startDownload(
@@ -230,7 +262,13 @@ export const startUpdate = async () => {
 
 export const cancelUpdate = async () => {
   await discardDownload();
-  setState({ phase: 'idle', bytesDownloaded: 0, waitingForNetwork: false, errorMessage: null });
+  setState({
+    phase: 'idle',
+    bytesDownloaded: 0,
+    waitingForNetwork: false,
+    stalled: false,
+    errorMessage: null,
+  });
 };
 
 export const installUpdate = async () => {
@@ -282,6 +320,7 @@ const checkForUpdate = async () => {
     }
 
     if (saved) {
+      progress = { bytes: -1, at: Date.now(), reported: false };
       setState({ phase: 'downloading', totalBytes: fileSizeOf(latest) });
       startPolling();
     }
