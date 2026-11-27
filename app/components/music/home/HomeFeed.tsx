@@ -105,7 +105,8 @@ const StationChip = memo(function StationChip({ station }: { station: Station })
       {loading ? (
         <ActivityIndicator size='small' color={colors.mutedForeground} style={styles.chipSpinner} />
       ) : active ? (
-        <PlayingBars color={colors.background} active={playing} />
+        // Still: only the playing song's own row moves, so Home isn't a page of bouncing bars.
+        <PlayingBars color={colors.background} active={false} />
       ) : null}
       <Text
         style={[styles.chipText, { color: active ? colors.background : colors.mutedForeground }]}
@@ -314,7 +315,7 @@ const MixCard = memo(function MixCard({ shelf }: { shelf: Shelf }) {
         )}
         {active && (
           <View style={styles.coverBars}>
-            <PlayingBars color='#fff' active={playing} />
+            <PlayingBars color='#fff' active={false} />
           </View>
         )}
       </View>
@@ -360,7 +361,7 @@ const ReleaseCard = memo(function ReleaseCard({
   list: Song[];
 }) {
   const { colors } = useTheme();
-  const { onLongPress, isCurrentSong: isCurrent, isPlaying, options } = useSongPress(song);
+  const { onLongPress, isCurrentSong: isCurrent, options } = useSongPress(song);
   return (
     <>
       <PressableScale
@@ -380,7 +381,7 @@ const ReleaseCard = memo(function ReleaseCard({
           />
           {isCurrent && (
             <View style={styles.coverBars}>
-              <PlayingBars color='#fff' active={isPlaying} />
+              <PlayingBars color='#fff' active={false} />
             </View>
           )}
         </View>

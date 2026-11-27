@@ -19,19 +19,17 @@ export const NowPlayingLine = memo(function NowPlayingLine({ fallback }: { fallb
   const { colors } = useTheme();
   const room = useGroupSessionStore((s) => s.currentGroup?.name);
   const roomSong = useGroupPlaybackStore((s) => s.currentSong?.name);
-  const roomPlaying = useGroupPlaybackStore((s) => Boolean(s.isPlaying));
   const own = usePlayerStore((s) => s.currentSong?.name);
-  const ownPlaying = usePlayerStore((s) => s.isPlaying);
 
   const name = room ? roomSong : own;
-  const playing = room ? roomPlaying : ownPlaying;
   if (!name) {
     return <Text style={[styles.text, { color: colors.mutedForeground }]}>{fallback}</Text>;
   }
   const label = shortSongName(name);
   return (
     <>
-      <PlayingBars color={colors.foreground} active={playing} />
+      {/* Still bars: the song's row and the orb already move; one more is noise. */}
+      <PlayingBars color={colors.foreground} active={false} />
       <Animated.Text
         key={label}
         entering={SWAP}
