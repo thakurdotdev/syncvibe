@@ -2,7 +2,8 @@ import { useProfile } from '@/Context/Context';
 import { useGroupMusic } from '@/Context/GroupMusicContext';
 import { useFeatureAccess } from '@/hooks/useFeatureAccess';
 import { memo, useCallback, useEffect, useMemo } from 'react';
-import LyricsView from '@/components/Lyrics/LyricsView';
+import he from 'he';
+import LyricsUnder from '@/components/Lyrics/LyricsUnder';
 import { roomPosition } from '@/components/Lyrics/positions';
 import ChatPanel from '../chat/ChatPanel';
 import { useUnreadCount } from '../chat/useUnreadCount';
@@ -161,18 +162,18 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
     />
   );
 
-  const lyricsShown = isDesktop
-    ? sidebarTab === SIDEBAR_TABS.lyrics
-    : mobileTab === MOBILE_TABS.lyrics;
+  // The room's song two lines at a time, under its player; everyone's on the same line.
   // Clicking a line moves the room's song, so only for those who can control playback.
   const lyrics = (
-    <LyricsView
+    <LyricsUnder
       songId={currentSong?.id}
       nextSongId={upcomingQueue[0]?.song?.id}
+      songName={currentSong?.name ? he.decode(currentSong.name) : ''}
       getPosition={roomPosition}
-      active={lyricsShown}
       onSeek={canControl ? handleSeek : undefined}
-      size='medium'
+      active
+      size='room'
+      className='px-4 pt-1 pb-1'
     />
   );
 
@@ -233,12 +234,14 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
       {isDesktop ? (
         <div className='grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px] grid-rows-[minmax(0,1fr)] gap-3 @min-[1200px]:grid-cols-[minmax(0,1fr)_400px] @min-[1440px]:grid-cols-[minmax(0,1fr)_440px]'>
           <div className='flex min-h-0 flex-col gap-3'>
-            {player}
+            <div>
+              {player}
+              {lyrics}
+            </div>
             <QueuePanel className='flex-1' />
           </div>
           <RoomSidebar
             chat={chat}
-            lyrics={lyrics}
             people={people}
             unreadCount={unreadCount}
             memberCount={groupMembers.length}
@@ -246,11 +249,13 @@ const RoomView = ({ onInvite, onShowQrCode }) => {
         </div>
       ) : (
         <>
-          {player}
+          <div>
+            {player}
+            {lyrics}
+          </div>
           <MobileRoomTabs
             chat={chat}
             queue={<QueuePanel bare />}
-            lyrics={lyrics}
             people={people}
             unreadCount={unreadCount}
             queueCount={upcomingQueue.length}

@@ -17,10 +17,18 @@ export const useUiStore = create(
 
       playerSheetOpen: false,
       setPlayerSheetOpen: (playerSheetOpen) => set({ playerSheetOpen }),
+
+      /** Two lines of the lyrics under the cover (the mic button in the player). */
+      showLyrics: true,
+      setShowLyrics: (showLyrics) => set({ showLyrics }),
     }),
     {
       name: 'syncvibe-ui',
-      partialize: (s) => ({ sidebarCollapsed: s.sidebarCollapsed, searchScope: s.searchScope }),
+      partialize: (s) => ({
+        sidebarCollapsed: s.sidebarCollapsed,
+        searchScope: s.searchScope,
+        showLyrics: s.showLyrics,
+      }),
     }
   )
 );
