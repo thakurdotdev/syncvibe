@@ -172,6 +172,8 @@ export interface HomePageResponse {
 
 export interface RecentMusicResponse {
   songs: Song[];
+  /** Song id to why it was picked ("Because you liked …"). */
+  reasons?: Record<string, string>;
   recentlyPlayed: Song[];
 }
 
