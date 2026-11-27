@@ -9,6 +9,7 @@ import { paymentRouter, paymentWebhookRouter } from '@/features/payment/payment.
 import { appUpdateRouter, appUpdateWebhookRouter } from '@/features/app-update/app-update.routes';
 import { gifRouter } from '@/features/gif/gif.routes';
 import { roomsRouter } from '@/features/rooms/rooms.routes';
+import { diagnosticsRouter } from '@/features/diagnostics/diagnostics.routes';
 
 export const webhookRouter: Router = Router();
 webhookRouter.use(paymentWebhookRouter);
@@ -25,4 +26,5 @@ export const apiRouters: Router[] = [
   appUpdateRouter,
   gifRouter,
   roomsRouter,
+  diagnosticsRouter,
 ];
