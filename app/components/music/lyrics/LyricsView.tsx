@@ -15,37 +15,22 @@ import {
   View,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   FadeIn,
   ReduceMotion,
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
+import { lineAt, LEAD_MS } from './lyricsTiming';
 
 /** How often the position is read while the lyrics are on screen. */
 const TICK_MS = 200;
-/** A line lights up this much before its time: it reads as on the beat, not late. */
-const LEAD_MS = 250;
 /** After you scroll the lyrics yourself, they stay where you put them this long. */
 const HOLD_AFTER_SCROLL_MS = 3500;
 /** Where the current line sits, as a share of the view's height from the top. */
 const FOCUS_AT = 0.32;
 const FADE_IN = FadeIn.duration(180).reduceMotion(ReduceMotion.System);
-
-/** The last line whose time has come, by binary search; -1 before the first. */
-export const lineAt = (lines: LyricLine[], ms: number): number => {
-  let lo = 0;
-  let hi = lines.length - 1;
-  let found = -1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    if ((lines[mid]?.t ?? Infinity) <= ms) {
-      found = mid;
-      lo = mid + 1;
-    } else hi = mid - 1;
-  }
-  return found;
-};
 
 const SOURCE_NAME: Record<string, string> = { lrclib: 'LRCLIB', saavn: 'JioSaavn' };
 
@@ -62,6 +47,8 @@ interface LyricsViewProps {
   bottomInset?: number;
   /** Bigger type for the full player; the room's panel is smaller. */
   size?: 'large' | 'medium';
+  /** The colour behind the view: the top and bottom edges fade into it. */
+  fadeColor?: string;
 }
 
 const Line = memo(function Line({
@@ -81,7 +68,7 @@ const Line = memo(function Line({
 }) {
   const { colors } = useTheme();
   const style = useAnimatedStyle(() => ({
-    opacity: withTiming(state === 'current' ? 1 : state === 'past' ? 0.42 : 0.3, STATE),
+    opacity: withTiming(state === 'current' ? 1 : state === 'past' ? 0.24 : 0.34, STATE),
   }));
   const text = line.text || '♪';
   const body = (
@@ -187,6 +174,7 @@ export const LyricsView = memo(function LyricsView({
   onSeek,
   bottomInset = 0,
   size = 'large',
+  fadeColor,
 }: LyricsViewProps) {
   const { colors } = useTheme();
   const client = useQueryClient();
@@ -265,7 +253,7 @@ export const LyricsView = memo(function LyricsView({
     return <Empty failed={isError} onRetry={() => void refetch()} />;
   }
 
-  return (
+  const view = (
     <GestureDetector gesture={scrollGesture}>
       <Animated.ScrollView
         ref={scrollRef}
@@ -303,6 +291,24 @@ export const LyricsView = memo(function LyricsView({
       </Animated.ScrollView>
     </GestureDetector>
   );
+  if (!fadeColor) return view;
+  // The same colour, see-through: fading to plain transparent would pass through grey.
+  const clear = /^#[0-9a-f]{6}$/i.test(fadeColor) ? `${fadeColor}00` : 'transparent';
+  return (
+    <View style={styles.fill}>
+      {view}
+      <LinearGradient
+        pointerEvents='none'
+        colors={[fadeColor, clear]}
+        style={[styles.fade, styles.fadeTop]}
+      />
+      <LinearGradient
+        pointerEvents='none'
+        colors={[clear, fadeColor]}
+        style={[styles.fade, styles.fadeBottom, { bottom: bottomInset }]}
+      />
+    </View>
+  );
 });
 
 const styles = StyleSheet.create({
@@ -311,10 +317,13 @@ const styles = StyleSheet.create({
   linePress: { paddingVertical: 6 },
   // System font on purpose: it has every script lyrics come in (Devanagari, Gurmukhi, Tamil…).
   lineLarge: { fontSize: 24, lineHeight: 32, fontWeight: '700', letterSpacing: -0.3 },
-  lineMedium: { fontSize: 18, lineHeight: 25, fontWeight: '700', letterSpacing: -0.2 },
+  lineMedium: { fontSize: 19, lineHeight: 26, fontWeight: '700', letterSpacing: -0.2 },
   plainLarge: { fontSize: 18, lineHeight: 29, fontWeight: '600' },
   plainMedium: { fontSize: 15.5, lineHeight: 25, fontWeight: '500' },
   footer: { marginTop: 28, gap: 6 },
+  fade: { position: 'absolute', left: 0, right: 0, height: 36 },
+  fadeTop: { top: 0 },
+  fadeBottom: { height: 52 },
   footerText: { fontSize: 12, fontWeight: '500' },
   footerLink: { textDecorationLine: 'underline' },
   placeholder: { paddingHorizontal: 24, paddingTop: 18, gap: 14 },
