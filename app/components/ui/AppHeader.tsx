@@ -1,6 +1,6 @@
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
-import { BUTTON_PRESS_SCALE, EASE_OUT, PRESS_IN, rubberband, SPRING_SNAP } from '@/lib/motion';
+import { BUTTON_PRESS_SCALE, PRESS_IN, rubberband, SPRING_SNAP } from '@/lib/motion';
 import { alpha } from '@/lib/color';
 import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
 import { fonts, typography } from '@/theme/typography';
@@ -24,7 +24,6 @@ import Animated, {
   interpolate,
   LinearTransition,
   ReduceMotion,
-  useAnimatedReaction,
   useAnimatedRef,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -32,7 +31,6 @@ import Animated, {
   withSpring,
   withTiming,
   type AnimatedStyle,
-  type SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -55,8 +53,6 @@ const SIDE = 12;
 type IconName = keyof typeof Ionicons.glyphMap;
 
 const system = ReduceMotion.System;
-/** Title and search hint trading places, once the big title has gone under the bar. */
-const CONDENSE = { duration: 240, easing: EASE_OUT, reduceMotion: system } as const;
 const REFLOW = LinearTransition.duration(260).reduceMotion(system);
 const ORB_IN = FadeIn.duration(200).reduceMotion(system);
 const ORB_OUT = FadeOut.duration(140).reduceMotion(system);
@@ -191,15 +187,7 @@ const AvatarOrb = memo(function AvatarOrb() {
 
 // ─── Scroll ─────────────────────────────────────────────────────────────────────────────────────
 
-type Scrollable = {
-  scrollToOffset?: (options: { offset: number; animated?: boolean }) => void;
-  scrollTo?: (options: { y: number; animated?: boolean }) => void;
-};
-
-/**
- * What a tab's header follows: how far the page has scrolled, the handler for its list, and a
- * way back to the top (tapping the title once it's in the pill).
- */
+/** How far a tab has scrolled, for what follows it (the aura), and the handler for its list. */
 export function useTopBarScroll<T extends object = Animated.ScrollView>() {
   const scrollY = useSharedValue(0);
   const listRef = useAnimatedRef<T>();
@@ -208,25 +196,7 @@ export function useTopBarScroll<T extends object = Animated.ScrollView>() {
       scrollY.set(e.contentOffset.y);
     },
   });
-  const scrollToTop = useCallback(() => {
-    const list = listRef.current as unknown as Scrollable | null;
-    if (list?.scrollToOffset) list.scrollToOffset({ offset: 0, animated: true });
-    else list?.scrollTo?.({ y: 0, animated: true });
-  }, [listRef]);
-  return { scrollY, onScroll, listRef, scrollToTop };
-}
-
-/** 0 while the big title shows, 1 once it has gone under the bar. Flips, then animates. */
-function useCondensed(scrollY: SharedValue<number> | undefined, at: number) {
-  const t = useSharedValue(scrollY ? 0 : 1);
-  useAnimatedReaction(
-    () => (scrollY ? scrollY.get() > at : true),
-    (now, before) => {
-      if (now === before) return;
-      t.set(withTiming(now ? 1 : 0, CONDENSE));
-    }
-  );
-  return t;
+  return { scrollY, onScroll, listRef };
 }
 
 // ─── Tab header ─────────────────────────────────────────────────────────────────────────────────
@@ -239,26 +209,19 @@ type InlineSearch = {
 };
 
 /**
- * A tab's header: you, then the pill. The pill is search: tap it, or pull it down. Once the big
- * title (LargeTitle) has scrolled under it, the pill shows the title instead, and tapping it goes
- * back to the top. Applies no safe-area inset itself; place it under one.
+ * A tab's header: you, then the pill. The pill is search: tap it, or pull it down. The tab bar
+ * already says which tab this is, so there's no title to show. Applies no safe-area inset
+ * itself; place it under one.
  */
 export const TabHeader = memo(function TabHeader({
   title,
-  scrollY,
-  collapseAt = 44,
-  onTitlePress,
   action,
   search = 'link',
   searchPlaceholder = 'Search songs, artists, people',
   avatar = 'trailing',
 }: {
+  /** For screen readers; shown in the pill only when it isn't search. */
   title?: string;
-  /** The page's scroll. Without it the pill shows the title from the start. */
-  scrollY?: SharedValue<number>;
-  /** How far the page scrolls before the title moves into the pill. */
-  collapseAt?: number;
-  onTitlePress?: () => void;
   /** One page action, at the end of the pill. */
   action?: { icon: IconName; label: string; onPress: () => void };
   /** `link` opens Search; an object makes the pill a field for this page (Messages). */
@@ -269,20 +232,10 @@ export const TabHeader = memo(function TabHeader({
 }) {
   const { colors } = useTheme();
   const glass = useGlass();
-  const t = useCondensed(scrollY, collapseAt);
   const inline = typeof search === 'object' ? search : null;
   const inputRef = inline?.inputRef;
   const [focused, setFocused] = useState(false);
   const searching = Boolean(inline && (focused || inline.value));
-
-  const hintStyle = useAnimatedStyle(() => ({
-    opacity: 1 - t.get(),
-    transform: [{ translateY: -6 * t.get() }],
-  }));
-  const titleStyle = useAnimatedStyle(() => ({
-    opacity: t.get(),
-    transform: [{ translateY: 6 * (1 - t.get()) }],
-  }));
 
   // Pulling the pill down stretches it a little and, past a point, says it will search.
   const pull = useSharedValue(0);
@@ -304,14 +257,9 @@ export const TabHeader = memo(function TabHeader({
     opacity: interpolate(pull.get(), [0, PULL_TO_SEARCH * 0.6], [1, 0], 'clamp'),
   }));
 
-  const pressPill = useCallback(
-    (x: number) => {
-      // Once the title is showing, the title takes you up and the magnifier still searches.
-      if (onTitlePress && t.get() > 0.5 && x > 44) onTitlePress();
-      else if (search !== false) openSearch();
-    },
-    [onTitlePress, search, t]
-  );
+  const pressPill = useCallback(() => {
+    if (search !== false) openSearch();
+  }, [search]);
 
   const gesture = useMemo(() => {
     const tap = Gesture.Tap()
@@ -322,7 +270,7 @@ export const TabHeader = memo(function TabHeader({
         pressed.set(withTiming(0, PRESS_IN));
       })
       .onEnd((e, success) => {
-        if (success) scheduleOnRN(pressPill, e.x);
+        if (success) scheduleOnRN(pressPill);
       });
     const drag = Gesture.Pan()
       .enabled(search === 'link')
@@ -375,22 +323,13 @@ export const TabHeader = memo(function TabHeader({
                 style={[styles.input, { color: colors.foreground }]}
               />
               {!searching && (
-                <>
-                  <Animated.Text
-                    pointerEvents='none'
-                    numberOfLines={1}
-                    style={[styles.hint, { color: colors.mutedForeground }, hintStyle]}
-                  >
-                    {inline.placeholder}
-                  </Animated.Text>
-                  <Animated.Text
-                    pointerEvents='none'
-                    numberOfLines={1}
-                    style={[styles.pillTitle, { color: colors.foreground }, titleStyle]}
-                  >
-                    {title}
-                  </Animated.Text>
-                </>
+                <Text
+                  pointerEvents='none'
+                  numberOfLines={1}
+                  style={[styles.hint, { color: colors.mutedForeground }]}
+                >
+                  {inline.placeholder}
+                </Text>
               )}
             </View>
           </View>
@@ -405,7 +344,7 @@ export const TabHeader = memo(function TabHeader({
               // The tap is a gesture, not a press: screen readers activate it through this.
               accessibilityActions={ACTIVATE}
               onAccessibilityAction={(e) => {
-                if (e.nativeEvent.actionName === 'activate') pressPill(0);
+                if (e.nativeEvent.actionName === 'activate') pressPill();
               }}
             >
               <Animated.View style={[styles.pillRest, restStyle]}>
@@ -413,24 +352,21 @@ export const TabHeader = memo(function TabHeader({
                   <Ionicons name='search' size={18} color={colors.mutedForeground} />
                 )}
                 <View style={styles.slot}>
-                  {search !== false && (
-                    <Animated.Text
+                  {search === false ? (
+                    <Text
                       numberOfLines={1}
-                      style={[styles.hint, { color: colors.mutedForeground }, hintStyle]}
+                      style={[styles.pillTitle, { color: colors.foreground }]}
+                    >
+                      {title}
+                    </Text>
+                  ) : (
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.hint, { color: colors.mutedForeground }]}
                     >
                       {searchPlaceholder}
-                    </Animated.Text>
+                    </Text>
                   )}
-                  <Animated.Text
-                    numberOfLines={1}
-                    style={[
-                      styles.pillTitle,
-                      { color: colors.foreground },
-                      search === false ? undefined : titleStyle,
-                    ]}
-                  >
-                    {title}
-                  </Animated.Text>
                 </View>
               </Animated.View>
               <Animated.View pointerEvents='none' style={[styles.pullHint, pullHintStyle]}>
@@ -469,42 +405,6 @@ export const TabHeader = memo(function TabHeader({
           </PressableScale>
         </Animated.View>
       )}
-    </View>
-  );
-});
-
-/**
- * A tab's big title, the first thing in its scroll. The line under it says something true about
- * the page right now (what's playing, who's live, how many unread).
- */
-export const LargeTitle = memo(function LargeTitle({
-  title,
-  line,
-}: {
-  title: string;
-  line?: ReactNode;
-}) {
-  const { colors } = useTheme();
-  return (
-    <View style={styles.large}>
-      <Text
-        style={[styles.largeTitle, { color: colors.foreground }]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.8}
-        accessibilityRole='header'
-      >
-        {title}
-      </Text>
-      {line ? (
-        typeof line === 'string' ? (
-          <Text style={[styles.line, { color: colors.mutedForeground }]} numberOfLines={1}>
-            {line}
-          </Text>
-        ) : (
-          <View style={styles.lineRow}>{line}</View>
-        )
-      ) : null}
     </View>
   );
 });
@@ -644,11 +544,6 @@ const styles = StyleSheet.create({
   },
   cancel: { height: ORB, justifyContent: 'center', paddingHorizontal: 4 },
   cancelText: { ...typography.labelLg },
-
-  large: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 4 },
-  largeTitle: { fontFamily: fonts.displayHeavy, fontSize: 34, lineHeight: 38, letterSpacing: -1 },
-  line: { ...typography.bodySm, fontSize: 13.5, marginTop: 3 },
-  lineRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4 },
 
   stackBar: { paddingBottom: 0 },
   stackPill: { justifyContent: 'center', paddingHorizontal: 16, paddingRight: 16 },

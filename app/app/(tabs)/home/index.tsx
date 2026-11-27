@@ -12,8 +12,7 @@ import {
 import { FriendsStrip } from '@/components/music/home/PersonalHome';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import { Aura } from '@/components/shell/Aura';
-import { NowPlayingLine } from '@/components/shell/NowPlayingLine';
-import { LargeTitle, TabHeader, useTopBarScroll } from '@/components/ui/AppHeader';
+import { TabHeader, useTopBarScroll } from '@/components/ui/AppHeader';
 import PressableScale from '@/components/ui/PressableScale';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { useTheme } from '@/context/ThemeContext';
@@ -45,27 +44,6 @@ const buildPool = (fresh: Song[], recent: Song[], trending: Song[]) => {
   }
   return uniqueSongs([...mixed, ...trending]);
 };
-
-/** "Friday evening": what the line under the title says when nothing is playing. */
-const dayLine = (date: Date) => {
-  const hour = date.getHours();
-  const part =
-    hour >= 5 && hour < 12
-      ? 'morning'
-      : hour >= 12 && hour < 17
-        ? 'afternoon'
-        : hour >= 17 && hour < 22
-          ? 'evening'
-          : 'night';
-  return `${date.toLocaleDateString(undefined, { weekday: 'long' })} ${part}`;
-};
-
-const greeting = (hour: number) =>
-  hour >= 5 && hour < 12
-    ? 'Good morning'
-    : hour >= 12 && hour < 17
-      ? 'Good afternoon'
-      : 'Good evening';
 
 /** For you first, then moods, then what the catalogue is featuring. Your shelves have their own places. */
 const chipStations = (stations: Station[]) => {
@@ -166,15 +144,13 @@ function HomeScreen() {
   const popular = useMemo(() => trending.slice(0, PICKS), [trending]);
 
   const nothing = !stations.length && !forYou.length && !shelves.length;
-  const now = new Date();
-  const title = greeting(now.getHours());
-  const { scrollY, onScroll, listRef, scrollToTop } = useTopBarScroll();
+  const { scrollY, onScroll, listRef } = useTopBarScroll();
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <Aura scrollY={scrollY} />
       <TabSafeAreaView edges={['top']} style={styles.root}>
-        <TabHeader title={title} scrollY={scrollY} onTitlePress={scrollToTop} />
+        <TabHeader title='Home' />
 
         <Animated.ScrollView
           ref={listRef}
@@ -192,7 +168,6 @@ function HomeScreen() {
             />
           }
         >
-          <LargeTitle title={title} line={<NowPlayingLine fallback={dayLine(now)} />} />
           {waiting ? (
             skeletonShown && <HomeFeedSkeleton />
           ) : nothing ? (

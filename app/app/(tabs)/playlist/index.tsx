@@ -17,7 +17,7 @@ import Animated from 'react-native-reanimated';
 import { TabLoading } from '@/components/ui/TabLoading';
 import { TabSafeAreaView } from '@/components/ui/TabSafeAreaView';
 import { Aura } from '@/components/shell/Aura';
-import { LargeTitle, TabHeader, useTopBarScroll } from '@/components/ui/AppHeader';
+import { TabHeader, useTopBarScroll } from '@/components/ui/AppHeader';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import PressableScale from '@/components/ui/PressableScale';
 import { BUTTON_PRESS_SCALE, ROW_PRESS_SCALE } from '@/lib/motion';
@@ -55,8 +55,7 @@ const PlaylistScreen = () => {
   const api = useApi();
   const { colors, theme } = useTheme();
   const { user } = useUser();
-  const { scrollY, onScroll, listRef, scrollToTop } = useTopBarScroll<FlatList<any>>();
-  const { data: likedIds } = useLikedIds();
+  const { scrollY, onScroll, listRef } = useTopBarScroll<FlatList<any>>();
   const { userPlaylist, setUserPlaylist } = usePlaylistState();
   const [loading, setLoading] = useState(false);
   // Until the first answer, an empty list only means "not loaded yet", not "no playlists".
@@ -210,13 +209,6 @@ const PlaylistScreen = () => {
 
   const count = sortedPlaylists.length;
   const countKnown = fetched || count > 0;
-  const liked = likedIds?.length ?? 0;
-  const line = [
-    liked ? `${liked} liked ${liked === 1 ? 'song' : 'songs'}` : '',
-    countKnown ? `${count} ${count === 1 ? 'playlist' : 'playlists'}` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
 
   const renderPlaylistItem = ({ item }: { item: any }) => (
     <PlaylistRow playlist={item} onMore={handleLongPress} />
@@ -226,7 +218,7 @@ const PlaylistScreen = () => {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Aura scrollY={scrollY} />
       <TabSafeAreaView edges={['top']} style={styles.container}>
-        <TabHeader title='Library' scrollY={scrollY} onTitlePress={scrollToTop} />
+        <TabHeader title='Library' />
 
         <Animated.FlatList
           ref={listRef}
@@ -241,7 +233,6 @@ const PlaylistScreen = () => {
           contentContainerStyle={{ paddingBottom: DECK_CLEARANCE }}
           ListHeaderComponent={
             <>
-              <LargeTitle title='Library' line={line || undefined} />
               <View style={styles.shortcuts}>
                 <Shortcut icon='add' label='New playlist' onPress={openCreateModal} />
                 <Shortcut icon='time-outline' label='History' onPress={openHistory} />

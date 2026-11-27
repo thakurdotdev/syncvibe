@@ -18,11 +18,11 @@ import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import ChatListItem from '@/components/chat/ChatListItem';
 import { Aura } from '@/components/shell/Aura';
-import { LargeTitle, TabHeader, useTopBarScroll } from '@/components/ui/AppHeader';
+import { TabHeader, useTopBarScroll } from '@/components/ui/AppHeader';
 import Animated from 'react-native-reanimated';
 import { loadThread, openConversationWith, refreshConversations } from '@/lib/chat';
 import { openConversation } from '@/lib/chatScreen';
-import { previewOf, selectUnreadTotal, useChatStore, type Conversation } from '@/stores/chatStore';
+import { previewOf, useChatStore, type Conversation } from '@/stores/chatStore';
 
 interface SearchUser {
   userid: number;
@@ -60,8 +60,7 @@ const ChatListScreen: React.FC = () => {
   const loaded = useChatStore((s) => s.conversationsLoaded);
   const presence = useChatStore((s) => s.presence);
   const typing = useChatStore((s) => s.typing);
-  const unread = useChatStore(selectUnreadTotal);
-  const { scrollY, onScroll, listRef, scrollToTop } = useTopBarScroll<FlatList<Conversation>>();
+  const { scrollY, onScroll, listRef } = useTopBarScroll<FlatList<Conversation>>();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
@@ -165,17 +164,12 @@ const ChatListScreen: React.FC = () => {
     return <TabLoading title='Messages' />;
   }
 
-  const line =
-    loaded && conversations.length ? (unread ? `${unread} unread` : 'All caught up') : undefined;
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Aura scrollY={scrollY} />
       <TabSafeAreaView style={styles.container} edges={['top']}>
         <TabHeader
           title='Messages'
-          scrollY={term ? undefined : scrollY}
-          onTitlePress={scrollToTop}
           search={{
             value: searchQuery,
             onChangeText: changeQuery,
@@ -199,7 +193,6 @@ const ChatListScreen: React.FC = () => {
             ref={listRef}
             onScroll={onScroll}
             scrollEventThrottle={16}
-            ListHeaderComponent={<LargeTitle title='Messages' line={line} />}
             data={conversations}
             keyExtractor={(item) => `conversation-${item.id}`}
             renderItem={renderConversation}

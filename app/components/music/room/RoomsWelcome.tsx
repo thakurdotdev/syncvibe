@@ -9,7 +9,7 @@ import type { MyRoom } from '@/stores/groupMusic/roomProtocol';
 import { fonts } from '@/theme/typography';
 import { Ionicons } from '@expo/vector-icons';
 import type { useTopBarScroll } from '@/components/ui/AppHeader';
-import { memo, type ReactNode } from 'react';
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { CachedImage } from '@/components/ui/CachedImage';
 import Animated, {
@@ -190,11 +190,8 @@ export const RoomsWelcome = memo(function RoomsWelcome({
   onJoin,
   onScan,
   onOpenSavedRoom,
-  header,
   scroll,
 }: {
-  /** The tab's big title, first in the scroll. */
-  header?: ReactNode;
   /** The tab header follows this scroll. */
   scroll?: {
     onScroll: ReturnType<typeof useTopBarScroll>['onScroll'];
@@ -223,7 +220,6 @@ export const RoomsWelcome = memo(function RoomsWelcome({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={[styles.content, { paddingBottom: DECK_CLEARANCE }]}
     >
-      {header ? <View style={styles.header}>{header}</View> : null}
       {myRooms.length > 0 && (
         <Animated.View entering={ROOMS_ENTER} layout={REFLOW}>
           <MyRooms
@@ -293,7 +289,6 @@ export const RoomsWelcome = memo(function RoomsWelcome({
 const styles = StyleSheet.create({
   // The hero takes the free space and centres itself; actions stay at thumb height.
   content: { flexGrow: 1, paddingHorizontal: 20 },
-  header: { marginHorizontal: -20 },
   hero: { flexGrow: 1, justifyContent: 'center', paddingVertical: 20, gap: 22 },
 
   preview: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 14 },
