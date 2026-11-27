@@ -2,6 +2,7 @@ import { CachedImage } from '@/components/ui/CachedImage';
 import { Gloss } from '@/components/ui/Finish';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
+import { alpha } from '@/lib/color';
 import { EASE_OUT, IMAGE_FADE_MS, LIST_PRESS_DELAY } from '@/lib/motion';
 import { usePrefetchDetails } from '@/queries/useMusic';
 import { fonts, typography } from '@/theme/typography';
@@ -341,14 +342,14 @@ export const PortraitHero = memo(function PortraitHero({
       </Animated.View>
       <LinearGradient
         pointerEvents='none'
-        colors={[`${bg}00`, `${bg}00`, `${bg}B8`, bg]}
+        colors={[alpha(bg, 0), alpha(bg, 0), alpha(bg, 0.72), alpha(bg, 1)]}
         locations={[0, 0.4, 0.76, 1]}
         style={StyleSheet.absoluteFill}
       />
       {/* Keeps the status bar and back button readable over a bright photo. */}
       <LinearGradient
         pointerEvents='none'
-        colors={[`${bg}99`, `${bg}00`]}
+        colors={[alpha(bg, 0.6), alpha(bg, 0)]}
         style={[styles.topScrim, { height: insets.top + 72 }]}
       />
       <Animated.View style={[styles.portraitText, textStyle]}>{children}</Animated.View>
