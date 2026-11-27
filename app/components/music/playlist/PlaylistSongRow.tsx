@@ -1,4 +1,4 @@
-import { SongCard } from '@/components/music/MusicCards';
+import { TrackRow } from '@/components/music/detail/TrackRow';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { ROW_PRESS_SCALE, SPRING_PRESS } from '@/lib/motion';
@@ -28,6 +28,9 @@ const REVERSE_VELOCITY = 300;
 
 interface PlaylistSongRowProps {
   song: Song;
+  index: number;
+  /** Plays the playlist from this song. */
+  onPlay: (index: number) => void;
   selecting: boolean;
   selected: boolean;
   onToggle: (songId: string) => void;
@@ -41,6 +44,8 @@ interface PlaylistSongRowProps {
  */
 export const PlaylistSongRow = memo(function PlaylistSongRow({
   song,
+  index,
+  onPlay,
   selecting,
   selected,
   onToggle,
@@ -136,7 +141,12 @@ export const PlaylistSongRow = memo(function PlaylistSongRow({
       </Animated.View>
       <GestureDetector gesture={swipe}>
         <Animated.View style={[{ backgroundColor: colors.background }, rowStyle]}>
-          <SongCard song={song} onRemoveFromPlaylist={() => onRemove(song)} />
+          <TrackRow
+            song={song}
+            index={index}
+            onPlay={onPlay}
+            onRemoveFromPlaylist={() => onRemove(song)}
+          />
         </Animated.View>
       </GestureDetector>
     </View>
@@ -148,21 +158,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 7,
-    paddingHorizontal: 8,
-    marginVertical: 2,
-    borderRadius: 12,
+    minHeight: 60,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginHorizontal: 12,
+    marginVertical: 1,
+    borderRadius: 14,
   },
-  cover: { width: 46, height: 46, borderRadius: 8 },
+  cover: { width: 44, height: 44, borderRadius: 7 },
   text: { flex: 1 },
   title: { fontWeight: '600', fontSize: 14.5, letterSpacing: -0.2 },
   subtitle: { fontSize: 12.5, marginTop: 2 },
   actionWrap: { position: 'absolute', top: 0, bottom: 0, right: 0, width: ACTION_WIDTH },
   action: {
     flex: 1,
-    marginVertical: 2,
+    marginVertical: 1,
     marginLeft: 8,
-    borderRadius: 12,
+    marginRight: 12,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
