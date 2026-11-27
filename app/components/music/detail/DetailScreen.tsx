@@ -4,6 +4,7 @@ import Button from '@/components/ui/button';
 import { CachedImage } from '@/components/ui/CachedImage';
 import { useTheme } from '@/context/ThemeContext';
 import { blurredArt } from '@/lib/artwork';
+import { alpha } from '@/lib/color';
 import { SONG_LIST_WINDOW } from '@/lib/lists';
 import { EASE_OUT, STATE } from '@/lib/motion';
 import { fonts } from '@/theme/typography';
@@ -76,7 +77,7 @@ function Backdrop({ uri, scrollY }: { uri?: string; scrollY: DetailContextValue[
         />
       )}
       <LinearGradient
-        colors={[`${bg}1A`, `${bg}D9`, bg]}
+        colors={[alpha(bg, 0.1), alpha(bg, 0.85), alpha(bg, 1)]}
         locations={[0, 0.62, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -262,7 +263,11 @@ export function DetailScreen<T>({
             style={[styles.headerWash, { height: headerHeight + WASH_EXTRA }, surfaceStyle]}
           >
             <LinearGradient
-              colors={[colors.background, colors.background, `${colors.background}00`]}
+              colors={[
+                alpha(colors.background, 1),
+                alpha(colors.background, 1),
+                alpha(colors.background, 0),
+              ]}
               locations={[0, 0.62, 1]}
               style={StyleSheet.absoluteFill}
             />

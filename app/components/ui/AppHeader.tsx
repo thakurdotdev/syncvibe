@@ -1,10 +1,12 @@
 import { useTheme } from '@/context/ThemeContext';
 import { useUser } from '@/context/UserContext';
 import { BUTTON_PRESS_SCALE, EASE_OUT, PRESS_IN, rubberband, SPRING_SNAP } from '@/lib/motion';
+import { alpha } from '@/lib/color';
 import { useGroupInviteStore } from '@/stores/groupMusic/groupInviteStore';
 import { fonts, typography } from '@/theme/typography';
 import { getProfileCloudinaryUrl } from '@/utils/Cloudinary';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { memo, useCallback, useMemo, useState, type ReactNode, type RefObject } from 'react';
 import {
@@ -63,19 +65,13 @@ const ACTIVATE = [{ name: 'activate' as const }];
 /** Pull the pill down this far and let go to search. */
 const PULL_TO_SEARCH = 34;
 
-/** The header's surface: the card colour, mostly opaque, with a hairline and a soft shadow. */
+/**
+ * The header's surface: the raised fill chips and fields use, a little see-through so the aura
+ * tints it. Flat, with no shadow: the header belongs to the page rather than floating over it.
+ */
 export function useGlass(): ViewStyle {
-  const { colors, theme } = useTheme();
-  return useMemo(
-    () => ({
-      backgroundColor: `${colors.card}${theme === 'dark' ? 'C7' : 'D9'}`,
-      borderColor: colors.hairline,
-      borderWidth: StyleSheet.hairlineWidth,
-      boxShadow:
-        theme === 'dark' ? '0 6px 18px -8px rgba(0,0,0,0.55)' : '0 6px 18px -10px rgba(0,0,0,0.18)',
-    }),
-    [colors.card, colors.hairline, theme]
-  );
+  const { colors } = useTheme();
+  return useMemo(() => ({ backgroundColor: alpha(colors.raised, 0.88) }), [colors.raised]);
 }
 
 /** 38pt round icon button for screens' own toolbars (rooms, sign-in). Headers use HeaderOrb. */
@@ -352,8 +348,19 @@ export const TabHeader = memo(function TabHeader({
     setFocused(false);
   };
 
+  const edgeStyle = useAnimatedStyle(() => ({ opacity: t.get() }));
+
   return (
     <View style={styles.bar}>
+      {/* Once the page has scrolled, it fades out under the bar instead of being cut off. */}
+      {scrollY ? (
+        <Animated.View pointerEvents='none' style={[styles.edge, edgeStyle]}>
+          <LinearGradient
+            colors={[alpha(colors.background, 1), alpha(colors.background, 0)]}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+      ) : null}
       {avatar === 'trailing' && !searching && (
         <Animated.View entering={ORB_IN} exiting={ORB_OUT}>
           <AvatarOrb />
@@ -362,7 +369,7 @@ export const TabHeader = memo(function TabHeader({
 
       <Animated.View layout={REFLOW} style={[styles.pill, glass, pillStyle]}>
         {inline ? (
-          <View style={styles.pillRow}>
+          <View style={styles.inlineRow}>
             <Ionicons name='search' size={18} color={colors.mutedForeground} />
             <View style={styles.slot}>
               <TextInput
@@ -556,7 +563,7 @@ export const StackHeader = memo(function StackHeader({
       ) : (
         <View style={styles.flex} />
       )}
-      <View style={styles.stackRight}>{right ?? <View style={styles.orbSpacer} />}</View>
+      {right ? <View style={styles.stackRight}>{right}</View> : null}
     </View>
   );
 });
@@ -577,8 +584,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  orbSpacer: { width: ORB, height: ORB },
-  avatar: { width: ORB - 10, height: ORB - 10, borderRadius: (ORB - 10) / 2 },
+  avatar: { width: ORB - 4, height: ORB - 4, borderRadius: (ORB - 4) / 2 },
   dot: {
     position: 'absolute',
     top: 1,
@@ -589,6 +595,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
 
+  edge: { position: 'absolute', top: HEADER_HEIGHT, left: 0, right: 0, height: 18 },
   bar: {
     height: HEADER_HEIGHT,
     flexDirection: 'row',
@@ -606,6 +613,15 @@ const styles = StyleSheet.create({
     paddingRight: 5,
   },
   pillRow: { flex: 1, height: '100%', justifyContent: 'center' },
+  inlineRow: {
+    flex: 1,
+    height: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingLeft: 16,
+    paddingRight: 8,
+  },
   pillRest: {
     ...StyleSheet.absoluteFill,
     flexDirection: 'row',

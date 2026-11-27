@@ -1,3 +1,4 @@
+import { useAppActive } from '@/hooks/useAppActive';
 import type { LyricLine, Lyrics } from '@/api/lyrics';
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
@@ -291,8 +292,10 @@ export const LyricsGlance = memo(function LyricsGlance({
     setSlots(handOver([], first, lines.length));
   }
 
+  // Only while you can see it: in the background this would re-render ten times a second.
+  const appActive = useAppActive();
   useEffect(() => {
-    if (!active) return;
+    if (!active || !appActive) return;
     const read = () => {
       const ms = getPosition() * 1000;
       let index = lineAt(lines, ms + LEAD_MS);
@@ -307,7 +310,7 @@ export const LyricsGlance = memo(function LyricsGlance({
     read();
     const timer = setInterval(read, TICK_MS);
     return () => clearInterval(timer);
-  }, [active, getPosition, hasIntro, lines]);
+  }, [active, appActive, getPosition, hasIntro, lines]);
 
   // The line changed: hand over.
   const [shownIndex, setShownIndex] = useState(first);

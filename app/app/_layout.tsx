@@ -15,6 +15,7 @@ import { typography } from '@/theme/typography';
 import { ToastProvider } from '@/context/ToastContext';
 import { UserProvider, useUser } from '@/context/UserContext';
 import { useAuthGate } from '@/hooks/useAuthGate';
+import { captureFatalJsErrors, sendCrashReports } from '@/lib/crashReports';
 import { onboardingCheckAtLaunch } from '@/lib/onboarding';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import TrackPlayer from '@rntp/player';
@@ -35,6 +36,8 @@ import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-rean
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
 import '../global.css';
 
+// First, so a crash anywhere after this leaves its reason for the next launch.
+captureFatalJsErrors();
 SplashScreen.preventAutoHideAsync();
 // Started before the first render, so it is usually done by the time anything asks.
 void onboardingCheckAtLaunch();
@@ -144,7 +147,8 @@ function RootLayoutNav() {
   useAuthGate();
   // Everything the first screen reads from this phone. Waiting for it behind the splash means the
   // first frame is the finished screen: no blank frame, no avatar or saved music popping in.
-  const { restored: userRestored } = useUser();
+  const { restored: userRestored, user } = useUser();
+  const signedIn = Boolean(user?.userid);
   const queriesRestoring = useIsRestoring();
   const [onboardingKnown, setOnboardingKnown] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
@@ -152,6 +156,11 @@ function RootLayoutNav() {
   useEffect(() => {
     void onboardingCheckAtLaunch().then(() => setOnboardingKnown(true));
   }, []);
+
+  // How the app last closed, if it wasn't asked to (lib/crashReports). Sent once, signed in.
+  useEffect(() => {
+    if (signedIn) void sendCrashReports();
+  }, [signedIn]);
 
   const ready = timedOut || (!themeLoading && onboardingKnown && userRestored && !queriesRestoring);
 
