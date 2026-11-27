@@ -136,8 +136,8 @@ const SCRIPT_RANGES: Array<[Script, RegExp]> = [
   ['arabic', /\p{Script=Arabic}/u],
 ];
 
-/** The script most of the letters are in, or null for text with hardly any letters. */
-export const mainScript = (text: string): Script | null => {
+/** How many letters of each script a text has. */
+const scriptCounts = (text: string): { counts: Map<Script, number>; letters: number } => {
   const counts = new Map<Script, number>();
   let letters = 0;
   for (const char of text) {
@@ -149,6 +149,12 @@ export const mainScript = (text: string): Script | null => {
       }
     }
   }
+  return { counts, letters };
+};
+
+/** The script most of the letters are in, or null for text with hardly any letters. */
+export const mainScript = (text: string): Script | null => {
+  const { counts, letters } = scriptCounts(text);
   if (letters < 20) return null;
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 };
@@ -177,11 +183,21 @@ const LANGUAGE_SCRIPTS: Record<string, Script[]> = {
   english: [],
 };
 
+/**
+ * A share of the letters in the language's own script that makes a text this song even when
+ * another script has more: Hindi film songs often have Punjabi verses written in Gurmukhi.
+ * A dub has next to none.
+ */
+const MIN_OWN_SCRIPT_SHARE = 0.2;
+
 export const scriptFits = (language: string | undefined, text: string): boolean => {
   const allowed = language ? LANGUAGE_SCRIPTS[language.toLowerCase()] : undefined;
   if (!allowed) return true;
   const script = mainScript(text);
-  return script === null || script === 'latin' || allowed.includes(script);
+  if (script === null || script === 'latin' || allowed.includes(script)) return true;
+  const { counts, letters } = scriptCounts(text);
+  const own = allowed.reduce((sum, s) => sum + (counts.get(s) ?? 0), 0);
+  return own / letters >= MIN_OWN_SCRIPT_SHARE;
 };
 
 /** Lengths further apart than this are another recording (a remix, a live take, a cover). */
@@ -211,8 +227,9 @@ export const matchScore = (song: SongFacts, entry: LyricsEntry): number | null =
   if (artist) score += 25;
   if (album) score += 10;
   if (gap !== null) score += gap <= 1 ? 15 : gap <= 2 ? 10 : 3;
-  // Timed lyrics are what we're here for.
-  if (entry.syncedLyrics || hasTimestamps(entry.plainLyrics)) score += 8;
+  // Every entry left is this song; timings that follow it are what we're here for, so they
+  // outweigh a matching album or a closer length.
+  if (lyricsOf(entry, song.duration)?.kind === 'synced') score += 30;
   return score;
 };
 
@@ -234,6 +251,14 @@ export const pickEntry = (
   }
   return best;
 };
+
+/** Lines closer than this are noise; half a minute apart, each "line" is a verse. */
+const MIN_MEDIAN_GAP_S = 0.5;
+const MAX_MEDIAN_GAP_S = 15;
+/** Longer than this on average, a "line" is a verse. */
+const MAX_LINE_CHARS = 70;
+/** Timed lines run across most of a song; made-up ones bunch at the start. */
+const MIN_SPAN_SHARE = 0.4;
 
 const TIME_TAG = /\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g;
 const hasTimestamps = (text: string | null | undefined) =>
@@ -297,12 +322,37 @@ export type ResolvedLyrics =
   | { kind: 'synced'; lines: LyricLine[]; plain: string | null }
   | { kind: 'plain'; plain: string };
 
+/**
+ * Whether a timed entry's timings follow the singing. Some entries are timed by hand without
+ * listening: a line a second from 0:00 (over in a fraction of the song), or a whole verse per
+ * time. Lines out of step are worse than lines that aren't timed. `durationS`: 0 when unknown.
+ */
+export const timingLooksReal = (lines: LyricLine[], durationS: number): boolean => {
+  const sung = lines.filter((l) => l.text);
+  if (sung.length < 4) return false;
+  const gaps = sung
+    .slice(1)
+    .map((l, i) => (l.t - (sung[i] as LyricLine).t) / 1000)
+    .sort((a, b) => a - b);
+  const median = gaps[Math.floor(gaps.length / 2)] ?? 0;
+  if (median < MIN_MEDIAN_GAP_S || median > MAX_MEDIAN_GAP_S) return false;
+  const chars = sung.reduce((sum, l) => sum + l.text.length, 0) / sung.length;
+  if (chars > MAX_LINE_CHARS) return false;
+  if (durationS > 0) {
+    const span = ((sung[sung.length - 1] as LyricLine).t - (sung[0] as LyricLine).t) / 1000;
+    if (span < durationS * MIN_SPAN_SHARE) return false;
+  }
+  return true;
+};
+
 /** An entry's lyrics, timed when it can be: some entries keep timings in their plain text. */
-export const lyricsOf = (entry: LyricsEntry): ResolvedLyrics | null => {
+export const lyricsOf = (entry: LyricsEntry, durationS = 0): ResolvedLyrics | null => {
   const lines = parseLrc(entry.syncedLyrics) ?? parseLrc(entry.plainLyrics);
   const plain = hasTimestamps(entry.plainLyrics) ? null : cleanPlain(entry.plainLyrics);
-  if (lines) return { kind: 'synced', lines, plain };
+  if (lines && timingLooksReal(lines, durationS)) return { kind: 'synced', lines, plain };
   if (plain) return { kind: 'plain', plain };
+  // Timings that don't follow the song still carry the words.
+  if (lines) return { kind: 'plain', plain: lines.map((l) => l.text).join('\n') };
   return null;
 };
 

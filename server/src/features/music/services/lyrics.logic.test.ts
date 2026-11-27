@@ -8,6 +8,7 @@ import {
   lyricsOf,
   parseLrc,
   pickEntry,
+  timingLooksReal,
   type LyricsEntry,
   type SongFacts,
 } from './lyrics.logic';
@@ -18,6 +19,17 @@ const LRC = `[ar: Someone]
 [00:06.25]
 [00:07.10] Third line
 [00:09.00] <00:09.00>Fourth <00:09.50>line`;
+
+/** Lines a few seconds apart from 0:20 to 3:40, as a timed entry of a 268 s song has them. */
+const SUNG = Array.from({ length: 40 }, (_, k) => {
+  const s = 20 + k * 5;
+  return `[${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}.40] Line ${k + 1}`;
+}).join('\n');
+/** The same lines a second apart from 0:00: timed without listening. */
+const ONE_A_SECOND = Array.from(
+  { length: 40 },
+  (_, k) => `[00:${String(k).padStart(2, '0')}.00] Line ${k + 1}`
+).join('\n');
 
 const entry = (over: Partial<LyricsEntry>): LyricsEntry => ({
   id: 1,
@@ -160,9 +172,57 @@ describe('pickEntry', () => {
     assert.ok(pickEntry(pushpa, [entry({ trackName: 'Pushpa Pushpa', syncedLyrics: hindi })]));
   });
 
+  it('accepts a Hindi song with Punjabi verses in Gurmukhi', () => {
+    const haaniya: SongFacts = { ...kesariya, title: 'Haaniya Ve', language: 'hindi', album: null };
+    const mixed = [
+      '[00:01.00] कोई अखियों से पूछे तो',
+      '[00:02.00] ਮੈਂ ਨਾ ਰਹਿਣਾ, ਜੀ ਰਹਿਣਾ ਤੇਰੇ ਬਾਅਦ ਵੇ',
+      '[00:03.00] ਛੱਡ ਜਾਣਾ, ਮੈਂ ਜਾਣਾ ਜੱਗ ਸਾਥ ਵੇ',
+      '[00:04.00] ਹਾਨੀਆ ਵੇ, ਹਾਨੀਆ ਵੇ',
+    ].join('\n');
+    assert.ok(pickEntry(haaniya, [entry({ trackName: 'Haaniya Ve', syncedLyrics: mixed })]));
+  });
+
   it('prefers timed lyrics', () => {
-    const picked = pickEntry(kesariya, [entry({ id: 4, syncedLyrics: null }), entry({ id: 5 })]);
+    const picked = pickEntry(kesariya, [
+      entry({ id: 4, syncedLyrics: null }),
+      entry({ id: 5, syncedLyrics: SUNG }),
+    ]);
     assert.equal(picked?.id, 5);
+  });
+
+  it('prefers timings that follow the song over a matching album', () => {
+    const picked = pickEntry(kesariya, [
+      entry({ id: 6, syncedLyrics: ONE_A_SECOND }),
+      entry({ id: 7, albumName: 'Kesariya - Single', syncedLyrics: SUNG }),
+    ]);
+    assert.equal(picked?.id, 7);
+  });
+});
+
+describe('timingLooksReal', () => {
+  it('accepts lines sung across the song', () => {
+    assert.ok(timingLooksReal(parseLrc(SUNG)!, 268));
+  });
+
+  it('rejects a line a second from the start', () => {
+    assert.equal(timingLooksReal(parseLrc(ONE_A_SECOND)!, 268), false);
+  });
+
+  it('rejects a whole verse per time', () => {
+    const verses = Array.from(
+      { length: 8 },
+      (_, k) =>
+        `[0${k}:10.00] Ik din akele the hum tum... Tum mujh mein main tum mein gum... Mere kaanon mein aahista se`
+    ).join('\n');
+    assert.equal(timingLooksReal(parseLrc(verses)!, 540), false);
+  });
+
+  it('keeps an entry with made-up timings as plain words', () => {
+    assert.equal(
+      lyricsOf(entry({ syncedLyrics: ONE_A_SECOND, plainLyrics: null }), 268)?.kind,
+      'plain'
+    );
   });
 });
 
