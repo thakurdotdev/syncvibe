@@ -271,15 +271,14 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
           </View>
         </View>
       </SwipeableModal>
-      {sleepSheet && (
-        <SleepTimerSheet
-          isVisible={sleepSheet}
-          onClose={() => {
-            setSleepSheet(false);
-            close();
-          }}
-        />
-      )}
+      {/* Always rendered (closed, it renders nothing), so a choice lets it slide away. */}
+      <SleepTimerSheet
+        isVisible={sleepSheet}
+        onClose={() => {
+          setSleepSheet(false);
+          close();
+        }}
+      />
       {playlistModal && (
         <AddToPlaylist
           dialogOpen={playlistModal}

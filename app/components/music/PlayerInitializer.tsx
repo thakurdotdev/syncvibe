@@ -118,6 +118,9 @@ export default function PlayerInitializer() {
       TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (event) => {
         dispatchTrackPlayerEvent({ type: Event.PlaybackProgressUpdated, ...event });
       }),
+      TrackPlayer.addEventListener(Event.SleepTimerTriggered, () => {
+        dispatchTrackPlayerEvent({ type: Event.SleepTimerTriggered });
+      }),
       TrackPlayer.addEventListener(Event.RemoteStop, () => {
         dispatchTrackPlayerEvent({ type: Event.RemoteStop });
       }),

@@ -1,5 +1,10 @@
 import { Song } from '@/types/song';
-import { checkSleepTimer, noteSongChangeForSleepTimer } from './sleepTimerStore';
+import {
+  checkSleepTimer,
+  noteSongChangeForSleepTimer,
+  sleepTimerTriggered,
+  syncSleepTimerFromNative,
+} from './sleepTimerStore';
 import { playbackHistory } from '@/utils/playbackHistory';
 import {
   recordPlayEnd,
@@ -920,6 +925,7 @@ const setupAppStateListener = () => {
       // Re-sync store with native state on foreground
       try {
         syncStoreFromNative();
+        syncSleepTimerFromNative();
         if (!restorePending) saveNativeProgress(TrackPlayer.isPlaying());
       } catch (error) {
         console.error('Error resyncing on foreground:', error);
@@ -929,6 +935,12 @@ const setupAppStateListener = () => {
 };
 
 export const dispatchTrackPlayerEvent = async (event: { type: string; [key: string]: unknown }) => {
+  // In the background the library spreads the payload over the event, and this payload's own
+  // `type` ('time') replaces the event's name.
+  if (event.type === Event.SleepTimerTriggered || event.type === 'time') {
+    sleepTimerTriggered();
+    return;
+  }
   if (!initialized) return;
 
   const s = store();
