@@ -2,7 +2,7 @@
   "expo": {
     "name": "SyncVibe",
     "slug": "syncvibe",
-    "version": "1.29.2",
+    "version": "1.29.3",
     "orientation": "portrait",
     "icon": "./assets/syncvibe.png",
     "scheme": "syncvibe",
