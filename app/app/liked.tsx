@@ -1,111 +1,120 @@
-import { SongCard } from '@/components/music/MusicCards';
-import { playStationFrom } from '@/components/music/home/playStation';
-import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
-import { StackHeader } from '@/components/ui/AppHeader';
-import Button from '@/components/ui/button';
+import { ActionBar } from '@/components/music/detail/Actions';
+import {
+  DetailError,
+  DetailScreen,
+  DetailSkeleton,
+  ListHeading,
+} from '@/components/music/detail/DetailScreen';
+import { mosaicOf, runtime, songCount } from '@/components/music/detail/format';
+import { DisplayTitle, Kicker, MetaLine, Rise, SleeveHero } from '@/components/music/detail/Hero';
+import { TrackRow } from '@/components/music/detail/TrackRow';
+import { useCollection, useRoomAction } from '@/components/music/detail/useCollection';
 import { useTheme } from '@/context/ThemeContext';
-import { SONG_LIST_WINDOW } from '@/lib/lists';
 import { useLikedSongs } from '@/queries/usePersonal';
-import { Song } from '@/types/song';
+import { typography } from '@/theme/typography';
+import type { Song } from '@/types/song';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { memo, useCallback } from 'react';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-const renderSong = ({ item }: { item: Song }) => <SongCard song={item} />;
+const keyOf = (song: Song) => song.id;
+
+/** The Liked songs sleeve: drawn in the theme's colour rather than any one song's cover. */
+const HeartArt = memo(function HeartArt({ size }: { size: number }) {
+  const { colors } = useTheme();
+  return (
+    <View style={[StyleSheet.absoluteFill, styles.center]}>
+      <LinearGradient
+        colors={colors.gradients.primary as [string, string, ...string[]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <Ionicons name='heart' size={size} color={colors.primaryForeground} />
+    </View>
+  );
+});
 
 /** Every song you've liked, newest first. */
 export default function LikedSongsScreen() {
   const { colors } = useTheme();
   const { data: songs = [], isLoading, isError, refetch, isRefetching } = useLikedSongs();
+  const collection = useCollection(songs);
+  const room = useRoomAction(songs, 'Liked songs', collection);
+  const { playAt } = collection;
 
-  const shuffle = () =>
-    playStationFrom(
-      [...songs].sort(() => Math.random() - 0.5),
-      0
-    );
+  const renderItem = useCallback(
+    ({ item, index }: { item: Song; index: number }) => (
+      <TrackRow song={item} index={index} onPlay={playAt} />
+    ),
+    [playAt]
+  );
+
+  if (isLoading) return <DetailSkeleton variant='sleeve' />;
+  if (isError && !songs.length) {
+    return <DetailError message="Couldn't load your liked songs" onRetry={() => refetch()} />;
+  }
 
   return (
-    <SafeAreaView
-      edges={['left', 'right']}
-      style={[styles.root, { backgroundColor: colors.background }]}
-    >
-      <StackHeader title='Liked songs' />
-      {isLoading ? (
-        <ActivityIndicator style={styles.center} color={colors.mutedForeground} />
-      ) : isError ? (
-        <View style={styles.empty}>
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-            Couldn&apos;t load your liked songs.
-          </Text>
-          <Button variant='outline' size='sm' title='Try again' onPress={() => refetch()} />
-        </View>
-      ) : songs.length === 0 ? (
-        <View style={styles.empty}>
-          <View style={[styles.emptyIcon, { backgroundColor: colors.raised }]}>
-            <Ionicons name='heart-outline' size={26} color={colors.mutedForeground} />
+    <DetailScreen
+      variant='sleeve'
+      title='Liked songs'
+      backdrop={mosaicOf(songs)[0]}
+      collection={collection}
+      data={songs}
+      renderItem={renderItem}
+      keyExtractor={keyOf}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefetching}
+          onRefresh={refetch}
+          tintColor={colors.primary}
+          colors={[colors.primary]}
+        />
+      }
+      header={
+        <View>
+          <SleeveHero
+            art={<HeartArt size={72} />}
+            label={<HeartArt size={18} />}
+            active={collection.active}
+            playing={collection.playing}
+          />
+          <View style={styles.words}>
+            <Rise order={0}>
+              <Kicker>Your collection</Kicker>
+            </Rise>
+            <Rise order={1}>
+              <DisplayTitle>Liked songs</DisplayTitle>
+            </Rise>
+            <Rise order={2}>
+              <MetaLine parts={[songCount(songs.length), runtime(songs)]} />
+            </Rise>
           </View>
+          <Rise order={3}>
+            <ActionBar collection={collection} count={songs.length} room={room} />
+          </Rise>
+          {songs.length ? <ListHeading>Newest first</ListHeading> : null}
+        </View>
+      }
+      ListEmptyComponent={
+        <View style={styles.empty}>
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No liked songs yet</Text>
           <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
             Tap the heart in the player on songs you love. They land here, and we&apos;ll recommend
             more like them.
           </Text>
         </View>
-      ) : (
-        <FlatList
-          data={songs}
-          keyExtractor={(song) => song.id}
-          renderItem={renderSong}
-          {...SONG_LIST_WINDOW}
-          contentContainerStyle={[styles.list, { paddingBottom: DECK_CLEARANCE }]}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={refetch}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
-            />
-          }
-          ListHeaderComponent={
-            <View style={styles.actions}>
-              <Button
-                title='Play'
-                icon={<Ionicons name='play' size={16} color={colors.primaryForeground} />}
-                onPress={() => playStationFrom(songs, 0)}
-                style={styles.action}
-              />
-              <Button
-                variant='secondary'
-                title='Shuffle'
-                icon={<Ionicons name='shuffle' size={16} color={colors.foreground} />}
-                onPress={shuffle}
-                style={styles.action}
-              />
-              <Text style={[styles.count, { color: colors.mutedForeground }]}>
-                {songs.length} {songs.length === 1 ? 'song' : 'songs'}
-              </Text>
-            </View>
-          }
-        />
-      )}
-    </SafeAreaView>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  center: { marginTop: 48 },
-  list: { paddingHorizontal: 8 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 8, paddingBottom: 12 },
-  action: { borderRadius: 999 },
-  count: { marginLeft: 'auto', fontSize: 13, fontVariant: ['tabular-nums'] },
-  empty: { alignItems: 'center', gap: 10, paddingHorizontal: 32, paddingTop: 72 },
-  emptyIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: { fontSize: 17, fontWeight: '600' },
-  emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  center: { alignItems: 'center', justifyContent: 'center' },
+  words: { paddingHorizontal: 20 },
+  empty: { alignItems: 'center', gap: 8, paddingHorizontal: 32, paddingTop: 32 },
+  emptyTitle: { ...typography.headingSm },
+  emptyText: { ...typography.bodyMd, textAlign: 'center' },
 });

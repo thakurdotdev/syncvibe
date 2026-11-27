@@ -1,634 +1,320 @@
-import PressableScale from '@/components/ui/PressableScale';
-import { blurredArt } from '@/lib/artwork';
-import { SONG_LIST_WINDOW } from '@/lib/lists';
-import { AlbumCard, ArtistCard, PlaylistCard, SongCard } from '@/components/music/MusicCards';
-import { Tabs, TabItem } from '@/components/ui/tabs';
-import { useTheme } from '@/context/ThemeContext';
-import { toastRoomAdd } from '@/stores/groupMusic/groupSessionStore';
-import { useUser } from '@/context/UserContext';
-import { usePlayerControls } from '@/stores/playerStore';
-import { useGroupSessionStore } from '@/stores/groupMusic/groupSessionStore';
-import { useGroupMusic } from '@/context/GroupMusicContext';
-import { Album, Artist, ArtistDetails, Playlist } from '@/types/music';
-import { Song } from '@/types/song';
+import { ActionBar } from '@/components/music/detail/Actions';
+import { useDetail } from '@/components/music/detail/context';
 import {
-  convertToHttps,
-  ensureHttpsForAlbumUrls,
-  ensureHttpsForArtistUrls,
-  ensureHttpsForPlaylistUrls,
-  ensureHttpsForSongUrls,
-} from '@/utils/getHttpsUrls';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams } from 'expo-router';
-import { Disc3, ListMusic, Music2, Users } from '@/components/ui/icons';
-import React, { memo, useCallback, useMemo, useState } from 'react';
+  DetailError,
+  DetailScreen,
+  DetailSkeleton,
+  ListHeading,
+} from '@/components/music/detail/DetailScreen';
+import { cleanText, compactCount, coverOf, longDate } from '@/components/music/detail/format';
+import {
+  DisplayTitle,
+  ExpandableText,
+  Kicker,
+  MetaLine,
+  PortraitHero,
+  Rise,
+} from '@/components/music/detail/Hero';
+import { TrackRow } from '@/components/music/detail/TrackRow';
+import { useCollection, useRoomAction } from '@/components/music/detail/useCollection';
+import { AlbumCard, ArtistCard, PlaylistCard } from '@/components/music/MusicCards';
+import { CardRow } from '@/components/music/MusicLists';
+import { Gloss } from '@/components/ui/Finish';
+import PressableScale from '@/components/ui/PressableScale';
+import { useTheme } from '@/context/ThemeContext';
 import { useArtistDetails } from '@/queries/useMusic';
-import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { CachedImage } from '@/components/ui/CachedImage';
-import Animated, {
-  Extrapolation,
-  interpolate,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue,
-} from 'react-native-reanimated';
-import { StackHeader } from '@/components/ui/AppHeader';
-import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
+import { typography } from '@/theme/typography';
+import type { Album, Artist, ArtistDetails, Playlist } from '@/types/music';
+import type { Song } from '@/types/song';
+import { ensureHttpsForSongUrls } from '@/utils/getHttpsUrls';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
-type ArtistTab = 'songs' | 'albums' | 'playlists' | 'similar';
+/** Popular songs shown before "Show all". */
+const POPULAR = 5;
 
-function formatCount(count: number | string | undefined | null): string {
-  if (count === undefined || count === null || count === '') return 'N/A';
-  const numericCount = typeof count === 'string' ? parseFloat(count) : count;
-  if (Number.isNaN(numericCount)) return count.toString();
+const keyOf = (song: Song) => song.id;
+const albumKey = (album: Album, i: number) => album?.id || album?.album_id || String(i);
+const renderAlbum = (album: Album) => <AlbumCard album={album} />;
+const renderPlaylist = (playlist: Playlist) => <PlaylistCard playlist={playlist} />;
+const renderArtist = (artist: Artist) => <ArtistCard artist={artist} />;
 
-  if (numericCount >= 1_000_000_000) {
-    return (numericCount / 1_000_000_000).toFixed(1) + 'B';
-  }
-  if (numericCount >= 1_000_000) {
-    return (numericCount / 1_000_000).toFixed(1) + 'M';
-  }
-  if (numericCount >= 1_000) {
-    return (numericCount / 1_000).toFixed(1) + 'K';
-  }
-  return numericCount.toString();
-}
+const capitalise = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
-export default function ArtistScreen() {
-  const { colors, theme } = useTheme();
-  const { id } = useLocalSearchParams<{ id?: string }>();
-  const { width } = useWindowDimensions();
-  const { addToPlaylist, playSong } = usePlayerControls();
+const CHEVRON_TURN = {
+  transitionProperty: 'transform',
+  transitionDuration: 220,
+  transitionTimingFunction: 'ease-out',
+} as const;
 
-  // Cached and saved on the phone: an artist you've opened before is there with no spinner.
-  const { data, isPending: loading, refetch } = useArtistDetails(id);
-  const artistData: ArtistDetails | null = data?.id ? data : null;
-  const [activeTab, setActiveTab] = useState<ArtistTab>('songs');
-
-  const scrollY = useSharedValue(0);
-
-  const currentGroup = useGroupSessionStore((s) => s.currentGroup);
-  const { addPlaylistToQueue } = useGroupMusic();
-  const { user } = useUser();
-
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.set(event.contentOffset.y);
-    },
-  });
-
-  const imageSize = useMemo(() => Math.min(width * 0.42, 168), [width]);
-
-  const heroAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.get(), [0, 150], [1, 0], Extrapolation.CLAMP);
-    const scale = interpolate(scrollY.get(), [0, 150], [1, 0.9], Extrapolation.CLAMP);
-    return {
-      opacity,
-      transform: [{ scale }],
-    };
-  });
-
-  const topTitleAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(scrollY.get(), [100, 160], [0, 1], Extrapolation.CLAMP);
-    return { opacity };
-  });
-
-  const bgUrl = useMemo(() => {
-    if (!artistData?.image) return '';
-    if (Array.isArray(artistData.image)) {
-      return (
-        artistData.image[2]?.link || artistData.image[1]?.link || artistData.image[0]?.link || ''
-      );
-    }
-    return artistData.image;
-  }, [artistData?.image]);
-
-  const coverUrl = useMemo(() => convertToHttps(bgUrl || ''), [bgUrl]);
-
-  const metaText = useMemo(() => {
-    const parts: string[] = [];
-    if (artistData?.list_count) parts.push(`${artistData.list_count} songs`);
-    if (artistData?.follower_count) {
-      parts.push(`${formatCount(artistData.follower_count)} followers`);
-    }
-    return parts.join('  •  ');
-  }, [artistData?.list_count, artistData?.follower_count]);
-
-  const newSongs: Song[] = useMemo(() => {
-    if (!artistData?.top_songs) return [];
-    return artistData.top_songs.map(ensureHttpsForSongUrls);
-  }, [artistData?.top_songs]);
-
-  const securedAlbums: Album[] = useMemo(() => {
-    if (!artistData?.top_albums) return [];
-    return artistData.top_albums.map(ensureHttpsForAlbumUrls);
-  }, [artistData?.top_albums]);
-
-  const securedPlaylists: Playlist[] = useMemo(() => {
-    if (!artistData?.dedicated_artist_playlist) return [];
-    return artistData.dedicated_artist_playlist.map(ensureHttpsForPlaylistUrls);
-  }, [artistData?.dedicated_artist_playlist]);
-
-  const securedSimilar: Artist[] = useMemo(() => {
-    if (!artistData?.similar_artists) return [];
-    return artistData.similar_artists.map(ensureHttpsForArtistUrls);
-  }, [artistData?.similar_artists]);
-
-  const availableTabs = useMemo(() => {
-    const tabs: TabItem<ArtistTab>[] = [
-      {
-        id: 'songs',
-        label: 'Songs',
-        count: newSongs.length || undefined,
-        icon: ({ size, color }) => <Music2 size={size} color={color} />,
-      },
-    ];
-
-    if (securedAlbums.length > 0) {
-      tabs.push({
-        id: 'albums',
-        label: 'Albums',
-        count: securedAlbums.length,
-        icon: ({ size, color }) => <Disc3 size={size} color={color} />,
-      });
-    }
-
-    if (securedPlaylists.length > 0) {
-      tabs.push({
-        id: 'playlists',
-        label: 'Playlists',
-        count: securedPlaylists.length,
-        icon: ({ size, color }) => <ListMusic size={size} color={color} />,
-      });
-    }
-
-    if (securedSimilar.length > 0) {
-      tabs.push({
-        id: 'similar',
-        label: 'Similar',
-        count: securedSimilar.length,
-        icon: ({ size, color }) => <Users size={size} color={color} />,
-      });
-    }
-
-    return tabs;
-  }, [newSongs.length, securedAlbums.length, securedPlaylists.length, securedSimilar.length]);
-
-  const handlePlayAll = useCallback(() => {
-    if (newSongs.length > 0) {
-      const songsWithPlaylistInfo = newSongs.map((song) => ({
-        ...song,
-        isPlaylist: true,
-        playlistId: artistData?.id,
-      }));
-      addToPlaylist(songsWithPlaylistInfo);
-      playSong(songsWithPlaylistInfo[0]);
-    }
-  }, [newSongs, artistData?.id, addToPlaylist, playSong]);
-
-  const handleShuffle = useCallback(() => {
-    if (newSongs.length > 0) {
-      const shuffledSongs = [...newSongs]
-        .sort(() => Math.random() - 0.5)
-        .map((song) => ({
-          ...song,
-          isPlaylist: true,
-          playlistId: artistData?.id,
-        }));
-      addToPlaylist(shuffledSongs);
-      playSong(shuffledSongs[0]);
-    }
-  }, [newSongs, artistData?.id, addToPlaylist, playSong]);
-
-  const handleAddToGroup = useCallback(() => {
-    if (newSongs.length > 0) {
-      addPlaylistToQueue(newSongs);
-      toastRoomAdd(user?.userid, `Added ${newSongs.length} songs to group queue`);
-    }
-  }, [newSongs, addPlaylistToQueue, user?.userid]);
-
-  const isDark = theme === 'dark';
-
-  const renderSongsItem = useCallback(
-    ({ item }: { item: Song }) => (
-      <View style={styles.songItemWrapper}>
-        <SongCard song={item} />
-      </View>
-    ),
-    []
-  );
-
-  const renderAlbumItem = useCallback(
-    ({ item }: { item: Album }) => (
-      <View style={styles.gridItem}>
-        <AlbumCard album={item} />
-      </View>
-    ),
-    []
-  );
-
-  const renderPlaylistItem = useCallback(
-    ({ item }: { item: Playlist }) => (
-      <View style={styles.gridItem}>
-        <PlaylistCard playlist={item} />
-      </View>
-    ),
-    []
-  );
-
-  const renderSimilarItem = useCallback(
-    ({ item }: { item: Artist }) => (
-      <View style={styles.gridItem}>
-        <ArtistCard artist={item} />
-      </View>
-    ),
-    []
-  );
-
-  const renderEmptyState = useCallback(
-    () => (
-      <View style={styles.tabEmptyContainer}>
-        <Text style={[styles.tabEmptyText, { color: colors.mutedForeground }]}>
-          {activeTab === 'songs' && 'No songs available'}
-          {activeTab === 'albums' && 'No albums available'}
-          {activeTab === 'playlists' && 'No dedicated playlists available'}
-          {activeTab === 'similar' && 'No similar artists found'}
-        </Text>
-      </View>
-    ),
-    [activeTab, colors.mutedForeground]
-  );
-
-  if (loading) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size='large' color={colors.primary} />
-      </View>
-    );
-  }
-
-  if (!artistData) {
-    return (
-      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
-        <Music2 size={80} color={colors.primary} />
-        <Text style={[styles.emptyText, { color: colors.foreground }]}>
-          No artist data available
-        </Text>
-        <PressableScale
-          onPress={() => refetch()}
-          style={[styles.primaryButton, { backgroundColor: colors.primary, width: 140 }]}
-        >
-          <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Retry</Text>
-        </PressableScale>
-      </View>
-    );
-  }
-
-  const listHeader = (
-    <View style={styles.headerWrapper}>
-      <Animated.View style={[styles.heroContent, heroAnimatedStyle]}>
-        <View style={styles.artistAvatarShadow}>
-          <CachedImage
-            source={{
-              uri:
-                coverUrl ||
-                'https://res.cloudinary.com/dr7lkelwl/image/upload/c_thumb,h_200,w_200/f_auto/v1736541047/posts/sjzxfa31iet8ftznv2mo.webp',
-            }}
-            style={[
-              styles.artistImage,
-              {
-                width: imageSize,
-                height: imageSize,
-                borderRadius: imageSize / 2,
-                borderWidth: 2,
-                borderColor: colors.border + '40',
-              },
-            ]}
-          />
-        </View>
-
-        <Text style={[styles.artistName, { color: colors.foreground }]} numberOfLines={2}>
-          {artistData.name}
-        </Text>
-
-        {artistData.header_desc ? (
-          <Text style={[styles.headerDesc, { color: colors.mutedForeground }]} numberOfLines={2}>
-            {artistData.header_desc}
-          </Text>
-        ) : null}
-
-        {metaText ? (
-          <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{metaText}</Text>
-        ) : null}
+/** "Show all 10" under the popular songs; the chevron turns to say which way it goes. */
+const ShowAll = memo(function ShowAll({
+  open,
+  total,
+  onToggle,
+}: {
+  open: boolean;
+  total: number;
+  onToggle: () => void;
+}) {
+  const { colors } = useTheme();
+  const { revealFrom } = useDetail();
+  return (
+    <PressableScale
+      onPress={() => {
+        if (!open) revealFrom(POPULAR);
+        onToggle();
+      }}
+      accessibilityRole='button'
+      accessibilityState={{ expanded: open }}
+      accessibilityLabel={open ? 'Show fewer songs' : `Show all ${total} songs`}
+      style={[styles.showAll, { borderColor: colors.hairline }]}
+    >
+      <Gloss tone='surface' />
+      <Text style={[styles.showAllText, { color: colors.foreground }]}>
+        {open ? 'Show less' : `Show all ${total}`}
+      </Text>
+      <Animated.View style={[CHEVRON_TURN, { transform: [{ rotate: open ? '180deg' : '0deg' }] }]}>
+        <Ionicons name='chevron-down' size={15} color={colors.mutedForeground} />
       </Animated.View>
-
-      {/* Action Bar */}
-      <View style={styles.actionsContainer}>
-        <PressableScale onPress={handlePlayAll} disabled={!newSongs.length} style={{ flex: 1 }}>
-          <View style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
-            <Ionicons name='play' size={18} color={colors.primaryForeground} />
-            <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>
-              Play All
-            </Text>
-          </View>
-        </PressableScale>
-
-        <PressableScale onPress={handleShuffle} disabled={!newSongs.length} style={{ flex: 1 }}>
-          <View
-            style={[
-              styles.secondaryButton,
-              {
-                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
-                borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-              },
-            ]}
-          >
-            <Ionicons name='shuffle' size={18} color={colors.foreground} />
-            <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>Shuffle</Text>
-          </View>
-        </PressableScale>
-      </View>
-
-      {currentGroup && (
-        <PressableScale
-          onPress={handleAddToGroup}
-          disabled={!newSongs.length}
-          style={{ marginBottom: 12, marginHorizontal: 16 }}
-        >
-          <View
-            style={[
-              styles.groupButton,
-              {
-                backgroundColor: isDark ? 'rgba(127, 127, 127, 0.16)' : 'rgba(127, 127, 127, 0.1)',
-                borderColor: isDark ? 'rgba(127, 127, 127, 0.35)' : 'rgba(127, 127, 127, 0.25)',
-              },
-            ]}
-          >
-            <Ionicons name='people' size={18} color={colors.foreground} />
-            <Text style={[styles.groupButtonText, { color: colors.foreground }]}>
-              Add to Group Queue ({newSongs.length})
-            </Text>
-          </View>
-        </PressableScale>
-      )}
-
-      {/* Reusable Themed Tabs */}
-      <View style={styles.tabsSection}>
-        <Tabs<ArtistTab>
-          tabs={availableTabs}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          variant='pills'
-          size='md'
-        />
-      </View>
-    </View>
+    </PressableScale>
   );
+});
+
+/** Who they are: the bio, cut short until you open it, and a few facts. */
+const About = memo(function About({ artist }: { artist: ArtistDetails }) {
+  const { colors } = useTheme();
+  const bio = useMemo(
+    () =>
+      [...(artist.bio ?? [])]
+        .sort((a, b) => Number(a.sequence ?? 0) - Number(b.sequence ?? 0))
+        .map((part) => cleanText(part.text))
+        .filter(Boolean)
+        .join('\n\n'),
+    [artist.bio]
+  );
+  const born = longDate(artist.dob);
+  const languages = (artist.available_languages ?? []).filter(
+    (l) => l && l !== 'unknown' && l !== 'instrumental'
+  );
+  const facts = [
+    born && { label: 'Born', value: born },
+    languages.length > 0 && {
+      label: 'Sings in',
+      value:
+        languages.slice(0, 4).map(capitalise).join(', ') +
+        (languages.length > 4 ? ` +${languages.length - 4}` : ''),
+    },
+  ].filter(Boolean) as { label: string; value: string }[];
+
+  if (!bio && !facts.length && !artist.wiki) return null;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Edge-to-Edge Ambient Background */}
-      {coverUrl ? (
-        <CachedImage {...blurredArt(coverUrl, 60)} style={styles.heroBackgroundImage} />
-      ) : null}
-      <LinearGradient
-        colors={[
-          'rgba(0,0,0,0.15)',
-          isDark ? 'rgba(11,11,12,0.85)' : 'rgba(245,245,247,0.92)',
-          colors.background,
-        ]}
-        style={styles.backdropGradient}
-      />
-
-      {/* Shared header: same back button and title reveal as every pushed page */}
-      <StackHeader overlay title={artistData.name} titleStyle={topTitleAnimatedStyle} />
-
-      {/* Tab-based Virtualized Content */}
-      {activeTab === 'songs' && (
-        <Animated.FlatList
-          key='songs'
-          data={newSongs}
-          renderItem={renderSongsItem}
-          {...SONG_LIST_WINDOW}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          onScroll={scrollHandler}
-          scrollEventThrottle={16}
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={renderEmptyState}
-        />
-      )}
-
-      {activeTab === 'albums' && (
-        <Animated.FlatList
-          key='albums'
-          data={securedAlbums}
-          renderItem={renderAlbumItem}
-          keyExtractor={(item) => item.album_id || item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.gridRow}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          onScroll={scrollHandler}
-          scrollEventThrottle={16}
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={renderEmptyState}
-        />
-      )}
-
-      {activeTab === 'playlists' && (
-        <Animated.FlatList
-          key='playlists'
-          data={securedPlaylists}
-          renderItem={renderPlaylistItem}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.gridRow}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          onScroll={scrollHandler}
-          scrollEventThrottle={16}
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={renderEmptyState}
-        />
-      )}
-
-      {activeTab === 'similar' && (
-        <Animated.FlatList
-          key='similar'
-          data={securedSimilar}
-          renderItem={renderSimilarItem}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.gridRow}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          onScroll={scrollHandler}
-          scrollEventThrottle={16}
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={renderEmptyState}
-        />
-      )}
+    <View>
+      <ListHeading>About</ListHeading>
+      <View style={[styles.about, { backgroundColor: colors.card, borderColor: colors.hairline }]}>
+        <View pointerEvents='none' style={[styles.aboutSheen, { backgroundColor: colors.sheen }]} />
+        {bio ? <ExpandableText text={bio} lines={4} /> : null}
+        {facts.map((fact) => (
+          <View key={fact.label} style={[styles.fact, { borderTopColor: colors.hairline }]}>
+            <Text style={[styles.factLabel, { color: colors.mutedForeground }]}>{fact.label}</Text>
+            <Text style={[styles.factValue, { color: colors.foreground }]} numberOfLines={2}>
+              {fact.value}
+            </Text>
+          </View>
+        ))}
+        {artist.wiki ? (
+          <PressableScale
+            onPress={() => WebBrowser.openBrowserAsync(artist.wiki!).catch(() => {})}
+            accessibilityRole='link'
+            accessibilityLabel={`Read about ${artist.name} on Wikipedia`}
+            style={[styles.fact, { borderTopColor: colors.hairline }]}
+          >
+            <Text style={[styles.factLabel, { color: colors.mutedForeground }]}>More</Text>
+            <View style={styles.link}>
+              <Text style={[styles.factValue, { color: colors.foreground }]}>Wikipedia</Text>
+              <Ionicons name='open-outline' size={14} color={colors.mutedForeground} />
+            </View>
+          </PressableScale>
+        ) : null}
+      </View>
     </View>
+  );
+});
+
+/**
+ * An artist: their photo across the top, their popular songs, then everything else they've put
+ * out and who else fans listen to, on one page you scroll rather than tabs you switch.
+ */
+export default function ArtistScreen() {
+  const { colors } = useTheme();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  // Cached and saved on the phone: an artist you've opened before is there with no spinner.
+  const { data, isPending, refetch } = useArtistDetails(id);
+  const artist: ArtistDetails | null = data?.id ? data : null;
+  const [showAll, setShowAll] = useState(false);
+
+  const songs = useMemo(
+    () => (artist?.top_songs ?? []).map(ensureHttpsForSongUrls),
+    [artist?.top_songs]
+  );
+  const visible = useMemo(() => (showAll ? songs : songs.slice(0, POPULAR)), [songs, showAll]);
+  const collection = useCollection(songs);
+  const room = useRoomAction(songs, artist?.name, collection);
+  const { playAt } = collection;
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: Song; index: number }) => (
+      <TrackRow song={item} index={index} onPlay={playAt} />
+    ),
+    [playAt]
+  );
+
+  if (isPending) return <DetailSkeleton variant='portrait' />;
+  if (!artist) return <DetailError message="Couldn't load this artist" onRetry={() => refetch()} />;
+
+  const role = artist.dominant_type ? capitalise(artist.dominant_type.replace(/_/g, ' ')) : '';
+  const listeners = compactCount(artist.fan_count);
+  const followers = compactCount(artist.follower_count);
+  const singles = (artist.singles ?? []) as unknown as Album[];
+
+  return (
+    <DetailScreen
+      variant='portrait'
+      title={artist.name}
+      collection={collection}
+      data={visible}
+      renderItem={renderItem}
+      keyExtractor={keyOf}
+      header={
+        <View>
+          <PortraitHero image={coverOf(artist.image)}>
+            <Rise order={0}>
+              <Kicker
+                icon={
+                  artist.is_verified ? (
+                    <Ionicons name='checkmark-circle' size={15} color={colors.primary} />
+                  ) : undefined
+                }
+              >
+                {[artist.is_verified ? 'Verified artist' : 'Artist', role]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </Kicker>
+            </Rise>
+            <Rise order={1}>
+              <DisplayTitle huge>{cleanText(artist.name)}</DisplayTitle>
+            </Rise>
+            <Rise order={2}>
+              <MetaLine
+                parts={[
+                  listeners && `${listeners} listeners`,
+                  followers && `${followers} followers`,
+                ]}
+              />
+            </Rise>
+          </PortraitHero>
+          <Rise order={3}>
+            <ActionBar collection={collection} count={songs.length} room={room} />
+          </Rise>
+          {songs.length > 0 && <ListHeading>Popular</ListHeading>}
+        </View>
+      }
+      ListEmptyComponent={
+        <Text style={[styles.empty, { color: colors.mutedForeground }]}>No songs yet</Text>
+      }
+      ListFooterComponent={
+        <View>
+          {songs.length > POPULAR && (
+            <ShowAll open={showAll} total={songs.length} onToggle={() => setShowAll((v) => !v)} />
+          )}
+          <View style={styles.shelves}>
+            <CardRow
+              title='Latest releases'
+              data={artist.latest_release ?? []}
+              itemWidth={140}
+              renderCard={renderAlbum}
+              keyOf={albumKey}
+            />
+            <CardRow
+              title='Albums'
+              data={artist.top_albums ?? []}
+              itemWidth={140}
+              renderCard={renderAlbum}
+              keyOf={albumKey}
+            />
+            <CardRow
+              title='Singles'
+              data={singles}
+              itemWidth={124}
+              renderCard={renderAlbum}
+              keyOf={albumKey}
+            />
+            <CardRow
+              title='Playlists'
+              data={artist.dedicated_artist_playlist ?? []}
+              itemWidth={140}
+              renderCard={renderPlaylist}
+            />
+            <CardRow
+              title='Featured in'
+              data={artist.featured_artist_playlist ?? []}
+              itemWidth={140}
+              renderCard={renderPlaylist}
+            />
+            <CardRow
+              title='Fans also like'
+              data={artist.similar_artists ?? []}
+              itemWidth={108}
+              renderCard={renderArtist}
+            />
+          </View>
+          <About artist={artist} />
+        </View>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    gap: 16,
-  },
-  emptyText: {
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  headerWrapper: {
-    paddingTop: 8,
-    marginBottom: 8,
-  },
-  heroBackgroundImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 360,
-    opacity: 0.45,
-  },
-  backdropGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 360,
-  },
-  heroContent: {
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 6,
-    paddingBottom: 10,
-  },
-  artistAvatarShadow: {
-    borderRadius: 100,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.24,
-    shadowRadius: 14,
-    marginBottom: 14,
-  },
-  artistImage: {},
-  artistName: {
-    fontSize: 24,
-    fontWeight: '800',
-    textAlign: 'center',
-    letterSpacing: -0.4,
-    marginBottom: 4,
-  },
-  headerDesc: {
-    fontSize: 13,
-    fontWeight: '500',
-    textAlign: 'center',
-    letterSpacing: -0.1,
-    marginBottom: 4,
-    paddingHorizontal: 12,
-  },
-  metaText: {
-    fontSize: 13,
-    fontWeight: '500',
-    textAlign: 'center',
-    letterSpacing: -0.1,
-  },
-  actionsContainer: {
+  empty: { ...typography.bodyMd, textAlign: 'center', paddingVertical: 32 },
+  showAll: {
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginHorizontal: 16,
-    marginVertical: 14,
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 46,
-    borderRadius: 23,
-    gap: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  primaryButtonText: {
-    fontSize: 14.5,
-    fontWeight: '700',
-  },
-  secondaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 46,
-    borderRadius: 23,
-    borderWidth: 1,
-    gap: 8,
-  },
-  secondaryButtonText: {
-    fontSize: 14.5,
-    fontWeight: '600',
-  },
-  tabsSection: {
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  songItemWrapper: {
-    paddingHorizontal: 12,
-  },
-  gridRow: {
-    gap: 16,
+    gap: 6,
+    height: 38,
     paddingHorizontal: 16,
-    marginBottom: 16,
+    marginTop: 12,
+    borderRadius: 19,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
   },
-  gridItem: {
-    flex: 1,
-    maxWidth: '48%',
+  showAllText: { ...typography.labelMd },
+  shelves: { marginTop: 32 },
+  about: {
+    marginHorizontal: 16,
+    padding: 18,
+    paddingBottom: 6,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
   },
-  tabEmptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 24,
-  },
-  tabEmptyText: {
-    fontSize: 14.5,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  groupButton: {
+  aboutSheen: { position: 'absolute', top: 0, left: 0, right: 0, height: 1 },
+  fact: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    gap: 8,
+    justifyContent: 'space-between',
+    gap: 16,
+    minHeight: 46,
+    marginTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  groupButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  listContent: {
-    paddingBottom: DECK_CLEARANCE,
-  },
+  factLabel: { ...typography.bodySm },
+  factValue: { ...typography.labelMd, flexShrink: 1, textAlign: 'right' },
+  link: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 });
