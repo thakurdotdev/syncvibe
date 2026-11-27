@@ -1,3 +1,4 @@
+import { useAppActive } from '@/hooks/useAppActive';
 import PressableScale from '@/components/ui/PressableScale';
 import { Gloss } from '@/components/ui/Finish';
 import { useTheme } from '@/context/ThemeContext';
@@ -59,8 +60,10 @@ export const Scrubber = memo(function Scrubber({
   const thick = useSharedValue(0);
   const lastSecond = useSharedValue(-1);
 
+  // Only while you can see it: in the background this would re-render four times a second.
+  const appActive = useAppActive();
   useEffect(() => {
-    if (!active) return;
+    if (!active || !appActive) return;
     const read = () => {
       if (Date.now() < holdUntil.current || scrubbing.get()) return;
       const { position, duration: native } = remoteProgress() ?? TrackPlayer.getProgress();
@@ -76,7 +79,7 @@ export const Scrubber = memo(function Scrubber({
     read();
     const timer = setInterval(read, TICK_MS);
     return () => clearInterval(timer);
-  }, [active, fallbackDuration, duration, fraction, scrubbing]);
+  }, [active, appActive, fallbackDuration, duration, fraction, scrubbing]);
 
   const commitSeek = useCallback((seconds: number) => {
     holdUntil.current = Date.now() + SEEK_HOLD_MS;

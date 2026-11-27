@@ -1,3 +1,4 @@
+import { useAppActive } from '@/hooks/useAppActive';
 import type { LyricLine, Lyrics } from '@/api/lyrics';
 import PressableScale from '@/components/ui/PressableScale';
 import { MicVocal } from '@/components/ui/icons';
@@ -202,13 +203,15 @@ export const LyricsView = memo(function LyricsView({
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [songId]);
 
+  // Only while you can see it: the app in the background has nothing to draw.
+  const appActive = useAppActive();
   useEffect(() => {
-    if (!active || !lines) return;
+    if (!active || !appActive || !lines) return;
     const read = () => setCurrent(lineAt(lines, getPosition() * 1000 + LEAD_MS));
     read();
     const timer = setInterval(read, TICK_MS);
     return () => clearInterval(timer);
-  }, [active, getPosition, lines]);
+  }, [active, appActive, getPosition, lines]);
 
   const follow = useCallback((index: number, animated: boolean) => {
     if (Date.now() < holdUntil.current) return;
