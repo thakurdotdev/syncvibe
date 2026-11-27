@@ -52,7 +52,7 @@ const PlayPill = memo(function PlayPill({
       accessibilityRole='button'
       accessibilityLabel={label}
       onLayout={(e) => setSize(e.nativeEvent.layout)}
-      style={[styles.play, disabled && styles.disabled]}
+      style={[styles.play, { backgroundColor: colors.primary }, disabled && styles.disabled]}
     >
       <View style={styles.playClip}>
         <Gloss />
@@ -210,7 +210,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    boxShadow: '0 8px 20px -8px rgba(0,0,0,0.35)',
+    // A system shadow, not a blurred one: this scrolls, and a blurred shadow is redrawn each frame.
+    elevation: 3,
   },
   playClip: { ...StyleSheet.absoluteFill, borderRadius: HEIGHT / 2, overflow: 'hidden' },
   playText: { ...typography.labelLg, fontSize: 16 },
