@@ -67,6 +67,8 @@ export interface ChatMessage {
   song?: Song | null;
   /** Forwarded from another conversation. */
   forwarded?: boolean;
+  /** The first link in a text message, as the server read the page. No image, on purpose. */
+  link?: { url: string; title: string | null; description: string | null; siteName: string } | null;
   replyTo: ReplyPreview | null;
   reactions: Reaction[];
   editedAt: string | null;
