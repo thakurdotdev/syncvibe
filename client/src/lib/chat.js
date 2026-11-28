@@ -100,22 +100,55 @@ export const loadThread = async (conversationId) => {
   }
 };
 
-export const loadOlder = async (conversationId) => {
+/** Loading older messages, by conversation: a second caller waits for the one on its way. */
+const olderRequests = new Map();
+
+export const loadOlder = (conversationId, pageSize = PAGE_SIZE) => {
+  const running = olderRequests.get(conversationId);
+  if (running) return running;
   const thread = store().threads[conversationId];
   const oldest = thread?.messages.find((m) => m.id != null);
-  if (!thread || thread.status !== 'ready' || !thread.hasMore || thread.loadingOlder || !oldest) {
-    return;
+  if (!thread || thread.status !== 'ready' || !thread.hasMore || !oldest) {
+    return Promise.resolve();
   }
   store().setThreadStatus(conversationId, { loadingOlder: true });
-  try {
-    const { data } = await http.get(`/conversations/${conversationId}/messages`, {
-      params: { limit: PAGE_SIZE, before: oldest.id },
-    });
-    store().addOlderPage(conversationId, data);
-  } catch (error) {
-    console.error('Loading older messages failed:', error);
-    store().setThreadStatus(conversationId, { loadingOlder: false });
+  const request = http
+    .get(`/conversations/${conversationId}/messages`, {
+      params: { limit: pageSize, before: oldest.id },
+    })
+    .then(({ data }) => store().addOlderPage(conversationId, data))
+    .catch((error) => {
+      console.error('Loading older messages failed:', error);
+      store().setThreadStatus(conversationId, { loadingOlder: false });
+    })
+    .finally(() => olderRequests.delete(conversationId));
+  olderRequests.set(conversationId, request);
+  return request;
+};
+
+/** A jump (to a quoted message, a search result) loads at most this far back. */
+const JUMP_PAGE_SIZE = 100;
+const JUMP_MAX_PAGES = 20;
+
+/**
+ * Loads older messages until `messageId` is in the conversation's thread. False if it isn't
+ * there to find: deleted, or further back than a jump goes.
+ */
+export const loadUntil = async (conversationId, messageId) => {
+  for (let page = 0; page <= JUMP_MAX_PAGES; page++) {
+    const thread = store().threads[conversationId];
+    if (!thread || thread.status !== 'ready') return false;
+    if (thread.messages.some((m) => m.id === messageId)) return true;
+    const oldest = thread.messages.find((m) => m.id != null);
+    // Already past where it would be: it was deleted.
+    if (!thread.hasMore || !oldest || oldest.id < messageId || page === JUMP_MAX_PAGES) {
+      return false;
+    }
+    await loadOlder(conversationId, JUMP_PAGE_SIZE);
+    const after = store().threads[conversationId]?.messages.find((m) => m.id != null);
+    if (after?.id === oldest.id) return false;
   }
+  return false;
 };
 
 // ── Sending ─────────────────────────────────────────────────────────────────
