@@ -518,7 +518,18 @@ export const deleteMessage = async (
   }
   const publicId =
     attachment && !isStoredFile(attachment) ? cloudinaryPublicId(attachment.url) : null;
-  if (publicId) {
+  // A forwarded copy shares the photo: it goes only once no message shows it any more.
+  const stillShown =
+    publicId &&
+    attachment &&
+    !isStoredFile(attachment) &&
+    (await Message.count({
+      where: {
+        deletedAt: null,
+        [Op.and]: [sequelize.where(sequelize.literal("attachment->>'url'"), attachment.url)],
+      },
+    })) > 0;
+  if (publicId && !stillShown) {
     Cloudinary.uploader
       .destroy(publicId, { invalidate: true })
       .catch((error: unknown) => console.error('Removing a deleted chat photo failed:', error));
