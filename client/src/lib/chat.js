@@ -607,6 +607,30 @@ const resendRead = () => {
   }
 };
 
+// ── Muting and blocking ─────────────────────────────────────────────────────
+
+/** No notifications from the conversation, on any of your devices. Shown at once, undone on failure. */
+export const setMuted = async (conversationId, muted) => {
+  const before = store().conversations.find((c) => c.id === conversationId)?.muted ?? false;
+  store().setConversationSettings(conversationId, { muted });
+  try {
+    await http.put(`/conversations/${conversationId}/mute`, { muted });
+  } catch (error) {
+    store().setConversationSettings(conversationId, { muted: before });
+    throw httpError(error, muted ? "Couldn't mute the chat" : "Couldn't unmute the chat");
+  }
+};
+
+/** Blocks or unblocks the other person in the conversation. */
+export const setBlocked = async (conversationId, blocked) => {
+  try {
+    await http.put(`/conversations/${conversationId}/block`, { blocked });
+  } catch (error) {
+    throw httpError(error, blocked ? "Couldn't block them" : "Couldn't unblock them");
+  }
+  store().setConversationSettings(conversationId, { blocked });
+};
+
 const typingSent = new Map();
 
 export const setTyping = (conversationId, typing) => {
@@ -656,6 +680,8 @@ export const bindChatSocket = (nextSocket, { userId, onIncoming }) => {
   const onDeleted = (payload) => payload && store().removeMessage(payload);
   const onReceipt = (receipt) => receipt && store().applyReceipt(receipt);
   const onPresence = (payload) => payload && store().setPresence(payload.userId, payload.online);
+  const onSettings = (payload) =>
+    payload?.conversationId && store().setConversationSettings(payload.conversationId, payload);
 
   const onTyping = ({ conversationId, typing } = {}) => {
     if (!conversationId) return;
@@ -687,6 +713,7 @@ export const bindChatSocket = (nextSocket, { userId, onIncoming }) => {
     'chat:receipt': onReceipt,
     'chat:typing': onTyping,
     'presence:update': onPresence,
+    'chat:settings': onSettings,
   };
   for (const [event, listener] of Object.entries(listeners)) nextSocket.on(event, listener);
 

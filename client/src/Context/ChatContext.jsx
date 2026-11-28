@@ -25,7 +25,10 @@ const notify = (message) => {
   if (document.hasFocus()) return;
 
   const { conversations, meId } = useChatStore.getState();
-  const sender = conversations.find((c) => c.id === message.conversationId)?.peer;
+  const conversation = conversations.find((c) => c.id === message.conversationId);
+  // Muted: the message is there in the chat, and nothing more.
+  if (conversation?.muted) return;
+  const sender = conversation?.peer;
   const notification = new Notification(sender?.name || 'New message', {
     body: previewOf(message, meId),
     tag: `msg-${message.conversationId}`,

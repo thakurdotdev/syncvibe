@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { LucideX, MessageSquarePlus, Search, UserX } from 'lucide-react';
+import { BellOff, LucideX, MessageSquarePlus, Search, UserX } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
@@ -34,7 +34,7 @@ const ListSkeleton = () => (
   </div>
 );
 
-const Row = ({ person, selected, online, onSelect, title, subtitle, time, unread }) => (
+const Row = ({ person, selected, online, onSelect, title, subtitle, time, unread, muted }) => (
   <button
     type='button'
     onClick={onSelect}
@@ -61,10 +61,15 @@ const Row = ({ person, selected, online, onSelect, title, subtitle, time, unread
 
     <div className='ml-3 flex min-w-0 flex-1 flex-col'>
       <div className='flex items-center justify-between gap-1.5'>
-        <span
-          className={cn('truncate text-sm', unread || selected ? 'font-semibold' : 'font-medium')}
-        >
-          {title}
+        <span className='flex min-w-0 items-center gap-1.5'>
+          <span
+            className={cn('truncate text-sm', unread || selected ? 'font-semibold' : 'font-medium')}
+          >
+            {title}
+          </span>
+          {muted && (
+            <BellOff className='h-3.5 w-3.5 shrink-0 text-muted-foreground' aria-label='Muted' />
+          )}
         </span>
         {time && <span className='shrink-0 text-[11px] text-muted-foreground'>{time}</span>}
       </div>
@@ -72,7 +77,7 @@ const Row = ({ person, selected, online, onSelect, title, subtitle, time, unread
         <div className='min-w-0 flex-1 truncate text-xs text-muted-foreground'>{subtitle}</div>
         {unread > 0 && (
           <Badge
-            variant='default'
+            variant={muted ? 'secondary' : 'default'}
             className='h-4 min-w-4 shrink-0 rounded-full px-1.5 text-[10px] font-bold'
           >
             {unread > 99 ? '99+' : unread}
@@ -188,6 +193,7 @@ const ConversationList = () => {
             key={c.id}
             person={c.peer}
             selected={c.id === activeId}
+            muted={c.muted}
             online={Boolean(presence[c.peer.userid])}
             title={c.peer.name}
             subtitle={

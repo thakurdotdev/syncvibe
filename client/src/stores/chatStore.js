@@ -336,6 +336,16 @@ export const useChatStore = create((set, get) => ({
       };
     }),
 
+  /** Muted or blocked, here or on another of your devices. */
+  setConversationSettings: (conversationId, settings) =>
+    set((state) => ({
+      conversations:
+        patchConversation(state, conversationId, {
+          ...(typeof settings.muted === 'boolean' ? { muted: settings.muted } : {}),
+          ...(typeof settings.blocked === 'boolean' ? { blocked: settings.blocked } : {}),
+        }) ?? state.conversations,
+    })),
+
   setTyping: (conversationId, typing) =>
     set((state) => ({ typing: { ...state.typing, [conversationId]: typing } })),
 
