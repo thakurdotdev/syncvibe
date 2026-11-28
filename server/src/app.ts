@@ -6,7 +6,7 @@ import timeout from 'connect-timeout';
 import hpp from 'hpp';
 import type { Request, Response, NextFunction } from 'express';
 import { toNodeHandler } from 'better-auth/node';
-import { security, apiLimiter, speedLimiter, uploadLimiter } from '@/config/index';
+import { security, apiLimiter, uploadLimiter } from '@/config/index';
 import { auth } from '@/features/auth/auth';
 import { apiRouters, webhookRouter } from '@/routes/index';
 
@@ -28,7 +28,7 @@ app.use(
       ) {
         cb(null, true);
       } else {
-        cb(new Error('Blocked by CORS'));
+        cb(Object.assign(new Error('Blocked by CORS'), { statusCode: 403 }));
       }
     },
     credentials: true,
@@ -43,22 +43,10 @@ app.use(hpp());
 app.use('/api', webhookRouter);
 app.all('/api/auth/*', toNodeHandler(auth));
 
-app.use(
-  express.json({
-    limit: '2mb',
-    verify: (_req, res, buf) => {
-      try {
-        JSON.parse(buf.toString());
-      } catch {
-        (res as Response).status(400).json({ message: 'Invalid JSON' });
-      }
-    },
-  })
-);
+app.use(express.json({ limit: '2mb' }));
 
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
-app.use(speedLimiter);
 app.use(apiLimiter);
 
 app.use('/api/upload', uploadLimiter, timeout('60s'));
@@ -71,12 +59,21 @@ app.use('/api', ...apiRouters);
 
 app.use(
   (
-    err: Error & { statusCode?: number },
+    err: Error & { statusCode?: number; type?: string },
     req: Request & { timedout?: boolean },
     res: Response,
-    _next: NextFunction
+    next: NextFunction
   ) => {
+    if (err.type === 'entity.parse.failed') {
+      res.status(400).json({ message: 'Invalid JSON' });
+      return;
+    }
     console.error(err);
+    // Already answered (a handler that finished after the request timed out): just close it.
+    if (res.headersSent) {
+      next(err);
+      return;
+    }
     if (req.timedout) {
       res.status(408).json({ message: 'Request timeout' });
       return;

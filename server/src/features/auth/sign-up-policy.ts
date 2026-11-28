@@ -3,7 +3,13 @@ import { APIError, createAuthMiddleware } from 'better-auth/api';
 const NAME_PATTERN = /^[a-zA-Z\s]{2,50}$/;
 const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
-const validateSignUp = (body: { name?: unknown; password?: unknown }): string | null => {
+const validateSignUp = (body: {
+  name?: unknown;
+  password?: unknown;
+  image?: unknown;
+}): string | null => {
+  // A picture is added once signed in, where it is checked.
+  if (body.image) return 'Add a profile picture after signing up';
   if (typeof body.name !== 'string' || !NAME_PATTERN.test(body.name.trim())) {
     return 'Name must be 2 to 50 characters and contain only letters and spaces';
   }

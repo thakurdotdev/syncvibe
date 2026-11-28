@@ -9,6 +9,8 @@ import { getRedis } from '@/utils/redis';
  */
 
 export const MAX_HISTORY_MESSAGES = 200;
+/** Different emojis one message can collect. */
+const MAX_REACTION_KINDS = 40;
 const HISTORY_TTL_SECONDS = 24 * 60 * 60;
 
 type UserId = string | number;
@@ -127,6 +129,7 @@ export const toggleReaction = async (
 
   const reactions: MessageReactions = { ...room.reactions.get(messageId) };
   const current = reactions[emoji] || [];
+  if (!reactions[emoji] && Object.keys(reactions).length >= MAX_REACTION_KINDS) return null;
   const alreadyReacted = current.some((r) => String(r.userId) === String(reactor.userId));
 
   const next = alreadyReacted

@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { Op, fn, col } from 'sequelize';
 import { Story, User, StoryMusic } from '@/models/index';
+import { boundedInt, isCloudinaryUrl, likeContains } from '@/utils/helpers';
 
 const validateStoryMedia = (mediaUrl: string | undefined, mediaType: string | undefined): void => {
   if (!mediaUrl) {
@@ -10,7 +11,7 @@ const validateStoryMedia = (mediaUrl: string | undefined, mediaType: string | un
       code: 'VALIDATION_ERROR',
     };
   }
-  if (!mediaUrl.includes('cloudinary.com')) {
+  if (!isCloudinaryUrl(mediaUrl)) {
     throw {
       status: 400,
       message: 'Invalid media URL. Must be a Cloudinary URL',
@@ -53,8 +54,9 @@ export const createStory = async (req: Request, res: Response): Promise<void> =>
     console.error('Story creation error:', error);
     const status = (error as { status?: number }).status || 500;
     res.status(status).json({
-      message: (error as Error).message || 'Internal server error',
-      code: (error as { code?: string }).code,
+      // Only our own validation errors are worded for the person.
+      message: status < 500 ? (error as Error).message : 'Internal server error',
+      code: status < 500 ? (error as { code?: string }).code : 'SERVER_ERROR',
     });
   }
 };
@@ -246,14 +248,14 @@ export const markStoriesAsViewed = async (req: Request, res: Response): Promise<
 
 export const getLatestMusic = async (req: Request, res: Response): Promise<void> => {
   try {
-    const limit = parseInt(req.query.limit as string, 10) || 20;
-    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = boundedInt(req.query.limit, 20, 100);
+    const page = boundedInt(req.query.page, 1, 100_000);
     const searchQuery = req.query.searchQuery as string | undefined;
     const offset = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};
     if (searchQuery) {
-      where.title = { [Op.iLike]: `%${searchQuery}%` };
+      where.title = { [Op.iLike]: likeContains(String(searchQuery).slice(0, 100)) };
     }
 
     const music = await StoryMusic.findAndCountAll({
@@ -265,6 +267,7 @@ export const getLatestMusic = async (req: Request, res: Response): Promise<void>
 
     res.status(200).json(music);
   } catch (err) {
-    res.status(500).json(err);
+    console.error('Error fetching story music:', err);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };

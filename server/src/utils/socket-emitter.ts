@@ -22,3 +22,17 @@ export const getUserSockets = (): Map<string, unknown> | null => userSocketsMap;
 export const disconnectSession = (sessionId: string): void => {
   ioInstance?.in(`session:${sessionId}`).disconnectSockets(true);
 };
+
+/**
+ * Rooms show people by the name and picture their connection holds, read when it connected, so a
+ * change to either is passed on to the connections already open.
+ */
+export const updateSocketProfile = (
+  userid: number,
+  profile: { name?: string; picture?: string | null }
+): void => {
+  for (const id of ioInstance?.sockets.adapter.rooms.get(String(userid)) ?? []) {
+    const identity = ioInstance?.sockets.sockets.get(id)?.data.identity;
+    if (identity) Object.assign(identity, profile);
+  }
+};

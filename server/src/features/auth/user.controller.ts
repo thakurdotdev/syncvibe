@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { setGroupedMessagePushes } from '@/socket/notification';
 import * as Yup from 'yup';
 import { AuthError } from './auth.errors';
+import { isAdmin } from '@/middleware/admin.middleware';
 import {
   getUserDetailsService,
   updateProfilePicService,
@@ -144,7 +145,7 @@ export const searchUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
     console.error('Error fetching users:', err);
-    res.status(500).json({ message: (err as Error).message });
+    res.status(500).json({ message: 'Failed to search users' });
   }
 };
 
@@ -215,7 +216,7 @@ export const updatePushToken = async (req: Request, res: Response): Promise<void
       groupedMessages?: boolean;
     };
     const pushToken = expoPushToken || token;
-    if (!pushToken) {
+    if (typeof pushToken !== 'string' || !pushToken || pushToken.length > 500) {
       res.status(400).json({ success: false, message: 'Push token is required' });
       return;
     }
@@ -239,7 +240,7 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
   try {
     const user = await getUserProfileService(req.user!.userid);
     res.status(200).json({
-      user: { ...user, isAdmin: user.email === process.env.ADMIN_EMAIL },
+      user: { ...user, isAdmin: isAdmin(user) },
     });
   } catch (error) {
     if (error instanceof AuthError) {

@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { Op } from 'sequelize';
+import { Op, UniqueConstraintError } from 'sequelize';
 import { User, Follower, OTP } from '@/models/index';
 import { deleteConversationsOf } from '@/features/chat/services/conversation.service';
 import { isOnline } from '@/socket/presence';
@@ -7,8 +7,20 @@ import { otpForDeleteMailSender, accountDeletedMailSender } from '@/utils/resend
 import sequelize from '@/utils/sequelize';
 import { authDatabase } from '../database';
 import { AuthError } from '../auth.errors';
+import { sameUsername } from '../username';
+import { updateSocketProfile } from '@/utils/socket-emitter';
+import { createRateLimiter } from '@/utils/rate-limiter';
+import { isCloudinaryUrl, likeContains } from '@/utils/helpers';
 
 const generateSixDigitOTP = (): number => crypto.randomInt(100000, 999999);
+
+const OTP_WINDOW_MS = 10 * 60 * 1000;
+const allowOtpMail = createRateLimiter({ limit: 5, windowMs: OTP_WINDOW_MS });
+/** Few enough that a six-digit code can't be guessed. */
+const allowOtpAttempt = createRateLimiter({ limit: 5, windowMs: OTP_WINDOW_MS });
+
+const MAX_LENGTHS = { name: 100, username: 50, bio: 500 } as const;
+const MAX_SEARCH_RESULTS = 50;
 
 export const getUserDetailsService = async (userid: number) => {
   const user = await User.findOne({
@@ -28,8 +40,13 @@ export const updateProfilePicService = async (userid: number, profilepic?: strin
     throw new AuthError('User not found', 404);
   }
 
-  user.profilepic = profilepic ?? null;
+  // Everyone who sees this user loads it, so it can only be a picture we host.
+  if (profilepic && profilepic !== user.profilepic && !isCloudinaryUrl(profilepic)) {
+    throw new AuthError('Profile pictures must be uploaded through SyncVibe', 400);
+  }
+  user.profilepic = profilepic || null;
   await user.save();
+  updateSocketProfile(userid, { picture: user.profilepic });
   return user.profilepic;
 };
 
@@ -46,20 +63,41 @@ export const updateUserDetailsService = async (userid: number, data: UpdateUserD
     throw new AuthError('User not found', 404);
   }
 
+  // The address is how an account is recognised (sign-in, linking Google, the admin check), so
+  // it can't be changed by naming a new one: that would need the new address verified.
+  if (data.email && data.email.toLowerCase() !== user.email.toLowerCase()) {
+    throw new AuthError("Your email address can't be changed", 400);
+  }
+  // Only what changes is checked, so an older, longer value doesn't block saving the rest.
+  for (const field of ['name', 'username', 'bio'] as const) {
+    const value = data[field];
+    if (value && value !== user[field] && String(value).length > MAX_LENGTHS[field]) {
+      throw new AuthError(`That ${field} is too long`, 400);
+    }
+  }
+
   if (data.name) user.name = data.name;
   if (data.username) {
     const existingUser = await User.findOne({
-      where: { username: data.username, userid: { [Op.ne]: userid } },
+      where: { [Op.and]: [sameUsername(data.username), { userid: { [Op.ne]: userid } }] },
     });
     if (existingUser) {
       throw new AuthError('Username already exists', 400);
     }
     user.username = data.username;
   }
-  if (data.email) user.email = data.email;
   if (data.bio) user.bio = data.bio;
 
-  await user.save();
+  try {
+    await user.save();
+  } catch (error) {
+    // Someone else took it between the check above and now.
+    if (error instanceof UniqueConstraintError) {
+      throw new AuthError('Username already exists', 400);
+    }
+    throw error;
+  }
+  updateSocketProfile(userid, { name: user.name });
   return user;
 };
 
@@ -67,6 +105,10 @@ export const getOtpForAccountDeleteService = async (userid: number): Promise<voi
   const user = await User.findByPk(userid);
   if (!user) {
     throw new AuthError('User not found', 404);
+  }
+
+  if (!allowOtpMail(userid)) {
+    throw new AuthError('Too many codes requested. Try again later.', 429);
   }
 
   const otp = generateSixDigitOTP();
@@ -87,7 +129,14 @@ export const deleteUserAccountService = async (
     throw new AuthError('User not found', 404);
   }
 
-  const otpEntry = await OTP.findOne({ where: { email: user.email, otp } });
+  if (!allowOtpAttempt(userid)) {
+    throw new AuthError('Too many attempts. Try again later.', 429);
+  }
+  if (!/^\d{6}$/.test(String(otp))) {
+    throw new AuthError('Invalid OTP', 400);
+  }
+
+  const otpEntry = await OTP.findOne({ where: { email: user.email, otp: Number(otp) } });
   if (!otpEntry) {
     throw new AuthError('Invalid OTP', 400);
   }
@@ -110,8 +159,9 @@ export const deleteUserAccountService = async (
 
 export const searchUsersService = async (name: string) => {
   const users = await User.findAll({
-    where: { name: { [Op.iLike]: `%${name}%` }, isDeleted: false },
+    where: { name: { [Op.iLike]: likeContains(name) }, isDeleted: false },
     attributes: ['userid', 'name', 'profilepic', 'username'],
+    limit: MAX_SEARCH_RESULTS,
   });
 
   if (!users.length) {
@@ -195,7 +245,7 @@ export const getInviteListService = async (currentUserId: number, search?: strin
     where: {
       userid: { [Op.ne]: currentUserId },
       isDeleted: false,
-      name: { [Op.iLike]: `%${search.trim()}%` },
+      name: { [Op.iLike]: likeContains(search.trim()) },
     },
     attributes: ['userid', 'name', 'username', 'profilepic'],
     limit: 50,
@@ -217,6 +267,11 @@ export const updatePushTokenService = async (userId: number, token: string): Pro
     throw new AuthError('User not found', 404);
   }
 
+  // A token is one phone. Whoever had it signed in there before must stop getting its pushes.
+  await User.update(
+    { expoPushToken: null },
+    { where: { expoPushToken: token, userid: { [Op.ne]: userId } } }
+  );
   user.expoPushToken = token;
   await user.save();
 };

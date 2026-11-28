@@ -207,6 +207,8 @@ export const deviceHello = async (io: Server, userId: string, hello: Hello) => {
   }
 
   tellDevices(io, userId, session);
+  // Gone again while the session was loading, when there was nothing yet to evict.
+  scheduleEvict(userId);
   return snapshotOf(session);
 };
 

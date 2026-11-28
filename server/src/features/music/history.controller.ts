@@ -1,7 +1,8 @@
 import type { Request, Response } from 'express';
 import { QueryTypes } from 'sequelize';
-import { Song } from '@/models/index';
+import { catalogSong, UnknownSongError } from './services/catalog.service';
 import sequelize from '@/utils/sequelize';
+import { boundedInt } from '@/utils/helpers';
 import {
   getRecommendationsForUser,
   getRecentlyPlayed,
@@ -39,7 +40,7 @@ export const addToHistory = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const song = await Song.getOrCreate(songData);
+    const song = await catalogSong(songData);
 
     const playedTimeInt = Math.max(Math.round(Number(playedTime) || 0), 0);
     // Current clients call this when a song starts and report time through play events, so
@@ -81,6 +82,10 @@ export const addToHistory = async (req: Request, res: Response): Promise<void> =
     queueUserForRecalc(userId);
     res.json({ message: 'History updated successfully' });
   } catch (error) {
+    if (error instanceof UnknownSongError) {
+      res.status(404).json({ error: error.message });
+      return;
+    }
     console.error('Error in addToHistory:', error);
     res.status(500).json({ error: 'Failed to update history' });
   }
@@ -92,7 +97,7 @@ export const getPersonalizedRecommendations = async (
 ): Promise<void> => {
   try {
     const userId = req.user!.userid;
-    const limit = parseInt((req.query.limit as string) || '12', 10);
+    const limit = boundedInt(req.query.limit, 12, 50);
 
     const [madeForYou, recentlyPlayedSongs] = await Promise.all([
       getRecommendationsForUser(userId, limit),
@@ -121,7 +126,10 @@ export const getHistorySongs = async (req: Request, res: Response): Promise<void
     const parsedLimit = Number.parseInt(req.query.limit as string, 10);
     const pageNum = Number.isFinite(parsedPage) ? Math.max(parsedPage, 1) : 1;
     const limitNum = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 50) : 15;
-    const searchQuery = (req.query.searchQuery as string)?.trim() || '';
+    // Each word adds conditions to the query, so both are bounded.
+    const searchQuery = String(req.query.searchQuery ?? '')
+      .trim()
+      .slice(0, 100);
     const requestedSortBy = (req.query.sortBy as string) || 'lastPlayedAt';
     const sortOrder = String(req.query.sortOrder).toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
     const offset = (pageNum - 1) * limitNum;
@@ -134,7 +142,7 @@ export const getHistorySongs = async (req: Request, res: Response): Promise<void
       const searchPrefix = `${q.replace(/[%_\\]/g, '\\$&')}%`;
       const searchLike = `%${q.replace(/[%_\\]/g, '\\$&')}%`;
       const searchRegex = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const words = q.split(/\s+/).filter(Boolean);
+      const words = q.split(/\s+/).filter(Boolean).slice(0, 10);
 
       const wordClauses = words.map(
         (_, i) => `LOWER(CONCAT_WS(' ', s.name, s."artistNames", s."albumName")) LIKE :word_${i}`

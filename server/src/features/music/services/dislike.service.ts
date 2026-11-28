@@ -1,5 +1,6 @@
 import { ArtistDislike, Song, SongDislike } from '@/models/index';
 import { blockedTitlesOf } from './play-next.personal';
+import { catalogSong } from './catalog.service';
 
 type SongData = Record<string, unknown>;
 
@@ -35,7 +36,7 @@ export const getDislikes = async (userId: number | null | undefined): Promise<Di
 };
 
 export const dislikeSong = async (userId: number, songData: SongData): Promise<void> => {
-  const song = await Song.getOrCreate(songData);
+  const song = await catalogSong(songData);
   await SongDislike.findOrCreate({ where: { userId, songRefId: song.id } });
 };
 

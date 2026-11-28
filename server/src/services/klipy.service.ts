@@ -10,6 +10,11 @@ interface MemoryCacheEntry {
   expiry: number;
 }
 
+/** Search terms are anything people type, so the number kept is capped. */
+const MAX_MEMORY_ENTRIES = 200;
+const REQUEST_TIMEOUT_MS = 8_000;
+const MAX_QUERY_LENGTH = 100;
+
 const memoryCache = new Map<string, MemoryCacheEntry>();
 
 const getFromMemoryCache = (key: string): NormalizedGif[] | null => {
@@ -23,6 +28,11 @@ const getFromMemoryCache = (key: string): NormalizedGif[] | null => {
 };
 
 const setInMemoryCache = (key: string, value: NormalizedGif[], ttlSeconds: number): void => {
+  // Oldest first: a Map keeps the order its keys were added in.
+  memoryCache.delete(key);
+  if (memoryCache.size >= MAX_MEMORY_ENTRIES) {
+    memoryCache.delete(memoryCache.keys().next().value!);
+  }
   memoryCache.set(key, {
     value,
     expiry: Date.now() + ttlSeconds * 1000,
@@ -159,7 +169,10 @@ export const getTrendingGifs = async (page = 1, perPage = 30): Promise<Normalize
 
   try {
     const url = `${KLIPY_BASE_URL}/${apiKey}/gifs/trending?page=${page}&per_page=${perPage}`;
-    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+    const response = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
 
     if (!response.ok) {
       console.error(`[KLIPY] Trending API error (${response.status}):`, await response.text());
@@ -194,7 +207,7 @@ export const searchGifs = async (
     return [];
   }
 
-  const cleanQuery = query.trim().toLowerCase();
+  const cleanQuery = query.trim().toLowerCase().slice(0, MAX_QUERY_LENGTH);
   const cacheKey = `${CACHE_PREFIX}:search:${cleanQuery}:${page}:${perPage}`;
 
   const cachedRedis = await cache.get<NormalizedGif[]>(cacheKey);
@@ -209,7 +222,10 @@ export const searchGifs = async (
 
   try {
     const url = `${KLIPY_BASE_URL}/${apiKey}/gifs/search?q=${encodeURIComponent(cleanQuery)}&page=${page}&per_page=${perPage}`;
-    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+    const response = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
 
     if (!response.ok) {
       console.error(`[KLIPY] Search API error (${response.status}):`, await response.text());

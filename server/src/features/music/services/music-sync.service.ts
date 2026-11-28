@@ -120,7 +120,7 @@ async function fetchWithRetry(
       const headers: Record<string, string> = bypassCache
         ? { 'Cache-Control': 'no-cache, no-store', Pragma: 'no-cache' }
         : {};
-      const response = await fetch(finalUrl, { headers });
+      const response = await fetch(finalUrl, { headers, signal: AbortSignal.timeout(30_000) });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return (await response.json()) as Record<string, unknown>;
     } catch (err) {

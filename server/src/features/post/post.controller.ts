@@ -3,6 +3,7 @@ import { Op, literal, QueryTypes } from 'sequelize';
 import { Post, User, Comment, LikeDislike, Follower } from '@/models/index';
 import type { ImageEntry } from '@/models/post/post.model';
 import sequelize from '@/utils/sequelize';
+import { boundedInt, isCloudinaryUrl, likeContains } from '@/utils/helpers';
 
 const validateImageUrls = (images: unknown[]): images is ImageEntry[] => {
   if (!Array.isArray(images)) return false;
@@ -11,8 +12,13 @@ const validateImageUrls = (images: unknown[]): images is ImageEntry[] => {
       img &&
       typeof (img as ImageEntry).url === 'string' &&
       typeof (img as ImageEntry).public_id === 'string' &&
-      (img as ImageEntry).url.includes('cloudinary.com')
+      isCloudinaryUrl((img as ImageEntry).url)
   );
+};
+
+const serverError = (res: Response, error: unknown) => {
+  console.error('Post request failed:', error);
+  res.status(500).json({ message: 'Internal server error' });
 };
 
 export const createPost = async (req: Request, res: Response): Promise<void> => {
@@ -20,6 +26,10 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     const { userid: createdby, name, profilepic } = req.user!;
     const { title, images = [] } = req.body as { title?: string; images?: ImageEntry[] };
 
+    if (!Array.isArray(images)) {
+      res.status(400).json({ message: 'Invalid image format', code: 'VALIDATION_ERROR' });
+      return;
+    }
     const hasImages = images.length > 0;
 
     if (!title && !hasImages) {
@@ -49,19 +59,15 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     res.status(200).json({ message: 'success', post: responsePost });
   } catch (error) {
     console.error('Post creation error:', error);
-    const status = (error as { status?: number }).status || 500;
-    res.status(status).json({
-      message: (error as Error).message || 'Internal server error',
-      code: (error as { code?: string }).code,
-    });
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
 export const getAllPosts = async (req: Request, res: Response): Promise<void> => {
   try {
     const userid = req.user?.userid ?? 0;
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = parseInt(req.query.limit as string, 10) || 10;
+    const page = boundedInt(req.query.page, 1, 100_000);
+    const limit = boundedInt(req.query.limit, 10, 100);
     const offset = (page - 1) * limit;
 
     const [totalPosts, posts] = await Promise.all([
@@ -113,7 +119,8 @@ export const getPostById = async (req: Request, res: Response): Promise<void> =>
       ],
     });
 
-    if (!post) {
+    // A hidden post is for its author alone.
+    if (!post || (!post.showpost && post.createdby !== userid)) {
       res.status(404).json({ message: 'Post not found' });
       return;
     }
@@ -133,7 +140,7 @@ export const getPostById = async (req: Request, res: Response): Promise<void> =>
 
     res.status(200).json({ message: 'success', post: plainPost });
   } catch (err) {
-    res.status(500).json({ message: (err as Error).message });
+    serverError(res, err);
   }
 };
 
@@ -141,8 +148,8 @@ export const getPostByUser = async (req: Request, res: Response): Promise<void> 
   try {
     const userid = parseInt(String(req.params.userid), 10);
     const currentUser = req.user!.userid;
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = parseInt(req.query.limit as string, 10) || 10;
+    const page = boundedInt(req.query.page, 1, 100_000);
+    const limit = boundedInt(req.query.limit, 10, 100);
     const offset = (page - 1) * limit;
 
     const statsQuery = (await sequelize.query(
@@ -234,14 +241,25 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    // Pictures already on the post may stay as they are; new ones are checked like on creation.
+    if (images !== undefined) {
+      const kept = new Set((post.images ?? []).map((image) => JSON.stringify(image)));
+      const added = Array.isArray(images)
+        ? images.filter((image) => !kept.has(JSON.stringify(image)))
+        : null;
+      if (!added || !validateImageUrls(added)) {
+        res.status(400).json({ message: 'Invalid image format', code: 'VALIDATION_ERROR' });
+        return;
+      }
+    }
+
     if (title !== undefined) post.title = title;
     if (images !== undefined) post.images = images;
 
     await post.save();
     res.status(200).json({ message: 'success' });
   } catch (err) {
-    console.error('Error', (err as Error).message);
-    res.status(500).json({ message: (err as Error).message });
+    serverError(res, err);
   }
 };
 
@@ -268,7 +286,7 @@ export const deletePost = async (req: Request, res: Response): Promise<void> => 
 
     res.status(200).json({ message: 'success' });
   } catch (err) {
-    res.status(500).json({ message: (err as Error).message });
+    serverError(res, err);
   }
 };
 
@@ -296,7 +314,7 @@ export const hidePost = async (req: Request, res: Response): Promise<void> => {
     const message = updatedPost.showpost === false ? 'Post Hidden' : 'Post Un-Hidden';
     res.status(200).json({ message });
   } catch (err) {
-    res.status(500).json({ message: (err as Error).message });
+    serverError(res, err);
   }
 };
 
@@ -424,10 +442,10 @@ export const getComments = async (req: Request, res: Response): Promise<void> =>
 
 export const searchPosts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const searchQuery = (req.query.q as string) || '';
+    const searchQuery = String(req.query.q ?? '').slice(0, 100);
 
     const posts = await Post.findAll({
-      where: { showpost: true, title: { [Op.iLike]: `%${searchQuery}%` } },
+      where: { showpost: true, title: { [Op.iLike]: likeContains(searchQuery) } },
       include: [
         {
           model: User,
@@ -437,6 +455,7 @@ export const searchPosts = async (req: Request, res: Response): Promise<void> =>
         },
       ],
       order: [['postedtime', 'DESC']],
+      limit: 100,
     });
 
     res.status(200).json(posts);

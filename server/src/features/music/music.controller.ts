@@ -2,6 +2,17 @@ import type { Request, Response } from 'express';
 import { fn, col, Op, QueryTypes } from 'sequelize';
 import { Playlist, PlaylistSong, Song } from '@/models/index';
 import sequelize from '@/utils/sequelize';
+import { catalogSong, UnknownSongError } from './services/catalog.service';
+
+/** The cause is for the log: database errors describe our tables. */
+const failed = (res: Response, error: unknown) => {
+  if (error instanceof UnknownSongError) {
+    res.status(404).json({ error: error.message });
+    return;
+  }
+  console.error('Playlist request failed:', error);
+  res.status(500).json({ error: 'Something went wrong' });
+};
 
 export const createPlaylist = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -10,7 +21,7 @@ export const createPlaylist = async (req: Request, res: Response): Promise<void>
     const playlist = await Playlist.create({ name, description, userId });
     res.status(200).json({ message: 'Playlist created', data: playlist });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    failed(res, error);
   }
 };
 
@@ -31,7 +42,7 @@ export const updatePlaylist = async (req: Request, res: Response): Promise<void>
     await Playlist.update({ name, description }, { where: { id } });
     res.status(200).json({ message: 'Playlist updated' });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    failed(res, error);
   }
 };
 
@@ -52,17 +63,16 @@ export const deletePlaylist = async (req: Request, res: Response): Promise<void>
 
     res.status(200).json({ message: 'Playlist deleted' });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    failed(res, error);
   }
 };
 
 export const addSongToPlaylist = async (req: Request, res: Response): Promise<void> => {
   try {
-    const {
-      playlistId,
-      songId,
-      songData: rawSongData,
-    } = req.body as { playlistId: number; songId: string; songData: unknown };
+    const { playlistId, songData: rawSongData } = req.body as {
+      playlistId: number;
+      songData: unknown;
+    };
     const userId = req.user!.userid;
 
     const songData =
@@ -76,7 +86,7 @@ export const addSongToPlaylist = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const song = await Song.getOrCreate(songData);
+    const song = await catalogSong(songData);
 
     const alreadyAdded = await PlaylistSong.findOne({ where: { playlistId, songRefId: song.id } });
     if (alreadyAdded) {
@@ -84,10 +94,15 @@ export const addSongToPlaylist = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    await PlaylistSong.create({ playlistId, songRefId: song.id, songId, songData });
+    await PlaylistSong.create({
+      playlistId,
+      songRefId: song.id,
+      songId: song.songId,
+      songData: song.songData,
+    });
     res.status(201).json({ message: 'Song added to playlist' });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    failed(res, error);
   }
 };
 
@@ -123,7 +138,7 @@ export const removeSongFromPlaylist = async (req: Request, res: Response): Promi
     });
     res.status(200).json({ message: 'Removed from playlist', removed });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    failed(res, error);
   }
 };
 
@@ -245,7 +260,7 @@ export const getPlaylists = async (req: Request, res: Response): Promise<void> =
 
     res.status(200).json({ message: 'Playlists fetched', data: updatedPlaylists });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    failed(res, error);
   }
 };
 
@@ -289,6 +304,6 @@ export const getPlaylistSongs = async (req: Request, res: Response): Promise<voi
       data: { ...playlist, image: playlistImage, songs: updatedSongs },
     });
   } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
+    failed(res, error);
   }
 };

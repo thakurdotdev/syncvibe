@@ -12,10 +12,7 @@ import { getIO } from '@/utils/socket-emitter';
  *   presence:update       { userId, online }
  */
 
-/**
- * Only sockets whose session was checked when they connected are in this room (see socket/auth).
- * Chat is never sent to the plain `<userid>` room, which older apps join by just naming a user.
- */
+/** Chat is sent here. A socket is in it only because its session says whose it is (socket/auth). */
 export const userRoom = (userId: number | string) => `user:${userId}`;
 
 /** How long a device has to confirm a message before the recipient gets a push instead. */

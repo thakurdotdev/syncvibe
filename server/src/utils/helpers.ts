@@ -108,3 +108,30 @@ export const parseUserAgent = (req: HeaderSource): [string, string] => {
     (typeof req.get === 'function' ? req.get('User-Agent') : req.headers?.['user-agent']) ?? '';
   return [getBrowser(req, userAgent), getOS(req, userAgent)];
 };
+
+/** A LIKE pattern for text containing `value`, with its `%` and `_` taken literally. */
+export const likeContains = (value: string): string => `%${value.replace(/[\\%_]/g, '\\$&')}%`;
+
+/** A query number kept within bounds; anything else becomes `fallback`. */
+export const boundedInt = (value: unknown, fallback: number, max: number, min = 1): number => {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  return Number.isNaN(parsed) ? fallback : Math.min(Math.max(parsed, min), max);
+};
+
+/** An https address on our Cloudinary account (any account when CLOUD_NAME isn't set). */
+export const isCloudinaryUrl = (
+  value: unknown,
+  cloudName = process.env.CLOUD_NAME
+): value is string => {
+  if (typeof value !== 'string') return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === 'https:' &&
+      url.hostname === 'res.cloudinary.com' &&
+      (!cloudName || url.pathname.startsWith(`/${cloudName}/`))
+    );
+  } catch {
+    return false;
+  }
+};

@@ -49,11 +49,6 @@ export const downloadLatestUpdate = async (_req: Request, res: Response): Promis
 
 export const getPresignedUrl = async (req: Request, res: Response): Promise<void> => {
   try {
-    if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
-      res.status(403).json({ success: false, message: 'Forbidden' });
-      return;
-    }
-
     const version = req.query.version as string | undefined;
     if (!version) {
       res.status(400).json({ success: false, message: 'Version is required' });
@@ -94,11 +89,6 @@ export const getPresignedUrl = async (req: Request, res: Response): Promise<void
 
 export const createUpdate = async (req: Request, res: Response): Promise<void> => {
   try {
-    if (!req.user || req.user.email !== process.env.ADMIN_EMAIL) {
-      res.status(403).json({ success: false, message: 'Forbidden' });
-      return;
-    }
-
     const { version, releaseNotes, downloadUrl, critical, sha256, fileSize } = req.body as {
       version?: string;
       releaseNotes?: string;

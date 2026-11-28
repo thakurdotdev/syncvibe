@@ -19,7 +19,7 @@ export const createRateLimiter = ({ limit, windowMs }: { limit: number; windowMs
   sweep.unref();
 
   /** Records one action and returns whether it is allowed. */
-  return (key: string | number, now = Date.now()): boolean => {
+  const allow = (key: string | number, now = Date.now()): boolean => {
     const id = String(key);
     const window = windows.get(id);
     if (!window || window.resetAt <= now) {
@@ -29,4 +29,12 @@ export const createRateLimiter = ({ limit, windowMs }: { limit: number; windowMs
     window.count += 1;
     return window.count <= limit;
   };
+
+  /** Whether `key` has used its allowance up, without recording anything. */
+  const isSpent = (key: string | number, now = Date.now()): boolean => {
+    const window = windows.get(String(key));
+    return Boolean(window && window.resetAt > now && window.count >= limit);
+  };
+
+  return Object.assign(allow, { isSpent });
 };

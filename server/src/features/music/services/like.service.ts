@@ -1,9 +1,10 @@
 import { Song, SongLike } from '@/models/index';
+import { catalogSong } from './catalog.service';
 
 type SongData = Record<string, unknown>;
 
 export const likeSong = async (userId: number, songData: SongData): Promise<void> => {
-  const song = await Song.getOrCreate(songData);
+  const song = await catalogSong(songData);
   await SongLike.findOrCreate({ where: { userId, songRefId: song.id } });
 };
 
