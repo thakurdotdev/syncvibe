@@ -27,6 +27,7 @@ import {
 } from '@/lib/attachments';
 import { MAX_MESSAGE_LENGTH, setTyping } from '@/lib/chat';
 import MediaPicker from '@/Pages/GroupMusic/chat/MediaPicker';
+import { draftOf, useChatDraftStore } from '@/stores/chatDraftStore';
 import SongPickerDialog from './SongPickerDialog';
 import { canRecordVoice, useVoiceNote } from './useVoiceNote';
 import { Button } from '../ui/button';
@@ -134,7 +135,12 @@ const MessageInput = ({
   onAddFiles,
   onRemoveFile,
 }) => {
-  const [draft, setDraft] = useState('');
+  // What was being written in this chat comes back after switching chats or reloading.
+  const [draft, setDraftText] = useState(() => draftOf(conversationId));
+  const setDraft = (value) => {
+    setDraftText(value);
+    useChatDraftStore.getState().setDraft(conversationId, value);
+  };
   const [editText, setEditText] = useState('');
   const [editingId, setEditingId] = useState(null);
   const inputRef = useRef(null);

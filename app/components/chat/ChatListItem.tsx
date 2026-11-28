@@ -19,6 +19,8 @@ interface ChatListItemProps {
   unreadCount?: number;
   /** Muted: a bell with a line through it, and a quieter badge. */
   muted?: boolean;
+  /** Written in this chat and not sent: shown instead of the last message. */
+  draft?: string;
   isSearchResult?: boolean;
   onPress: () => void;
   /** The moment a finger lands, before the tap is over: a head start on loading. */
@@ -33,6 +35,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
   isTyping,
   unreadCount = 0,
   muted = false,
+  draft,
   isSearchResult,
   onPress,
   onPressIn,
@@ -79,6 +82,11 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
             >
               typing...
             </Text>
+          ) : !isSearchResult && draft ? (
+            <Text style={[styles.subtitle, { color: colors.mutedForeground }]} numberOfLines={1}>
+              <Text style={[styles.draftLabel, { color: colors.foreground }]}>Draft: </Text>
+              {draft.replace(/\s+/g, ' ')}
+            </Text>
           ) : (
             <Text
               style={[
@@ -116,6 +124,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
 };
 
 const styles = StyleSheet.create({
+  draftLabel: { fontWeight: '600' },
   container: {
     flexDirection: 'row',
     alignItems: 'center',

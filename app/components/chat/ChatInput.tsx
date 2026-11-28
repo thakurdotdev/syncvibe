@@ -3,6 +3,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { fileIcon, formatBytes, formatDuration } from '@/lib/attachments';
 import { MAX_MESSAGE_LENGTH, type PickedFile } from '@/lib/chat';
+import { draftOf, useChatDraftStore } from '@/stores/chatDraftStore';
 import { useVoiceNote } from './useVoiceNote';
 import { BUTTON_PRESS_SCALE } from '@/lib/motion';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,6 +13,8 @@ import { CachedImage } from '@/components/ui/CachedImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ChatInputProps {
+  /** Whose unsent text the box shows and keeps. */
+  conversationId: number | null;
   /** Called with what was typed. The box clears itself. */
   onSend: (text: string) => void;
   /** Whether there is text in the box, for the "typing…" the other person sees. */
@@ -93,6 +96,7 @@ const FOCUS_AFTER_SHEET_MS = 240;
  * It keeps its own text: a key press redraws this bar and nothing else on the screen.
  */
 const ChatInput: React.FC<ChatInputProps> = ({
+  conversationId,
   onSend,
   onTyping,
   onAttach,
@@ -106,7 +110,24 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onSaveEdit,
   onCancelEdit,
 }) => {
-  const [draft, setDraft] = useState('');
+  // What was being written in this chat comes back, here or after the app was closed.
+  const [draft, setDraft] = useState(() => draftOf(conversationId));
+  const [draftFor, setDraftFor] = useState(conversationId);
+  if (draftFor !== conversationId) {
+    setDraftFor(conversationId);
+    setDraft(draftOf(conversationId));
+  }
+  // Opened straight after launch, the saved drafts may still be loading from the phone.
+  useEffect(() => {
+    if (useChatDraftStore.persist.hasHydrated()) return undefined;
+    return useChatDraftStore.persist.onFinishHydration(() =>
+      setDraft((current) => current || draftOf(conversationId))
+    );
+  }, [conversationId]);
+  const keepDraft = (value: string) => {
+    setDraft(value);
+    if (conversationId != null) useChatDraftStore.getState().setDraft(conversationId, value);
+  };
   const [editText, setEditText] = useState('');
   const [editingKey, setEditingKey] = useState<string | null>(null);
 
@@ -123,7 +144,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       setEditText(value);
       return;
     }
-    setDraft(value);
+    keepDraft(value);
     onTyping(value.trim().length > 0);
   };
 
@@ -133,7 +154,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
     onSend(draft);
-    setDraft('');
+    keepDraft('');
   };
 
   const { colors } = useTheme();

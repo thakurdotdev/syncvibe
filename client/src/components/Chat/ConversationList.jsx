@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
 import { openConversationWith } from '@/lib/chat';
 import { cn } from '@/lib/utils';
+import { useChatDraftStore } from '@/stores/chatDraftStore';
 import { previewOf, useChatStore } from '@/stores/chatStore';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
@@ -115,6 +116,7 @@ const ConversationList = () => {
   const [people, setPeople] = useState([]);
   const [searching, setSearching] = useState(false);
   const [starredOpen, setStarredOpen] = useState(false);
+  const drafts = useChatDraftStore((s) => s.drafts);
   const term = query.trim();
 
   const changeQuery = (value) => {
@@ -202,6 +204,11 @@ const ConversationList = () => {
             subtitle={
               typing[c.id] ? (
                 <span className='font-medium text-foreground'>typing…</span>
+              ) : drafts[c.id] && c.id !== activeId ? (
+                <>
+                  <span className='font-medium text-foreground'>Draft: </span>
+                  {drafts[c.id].replace(/\s+/g, ' ')}
+                </>
               ) : (
                 previewOf(c.lastMessage, meId) || 'No messages yet'
               )
