@@ -8,7 +8,7 @@ import {
 import sequelize from '@/utils/sequelize';
 import { bigint } from './bigint';
 
-export type MessageType = 'text' | 'image' | 'file' | 'call';
+export type MessageType = 'text' | 'image' | 'file' | 'call' | 'gif';
 
 /** A file in the private chat bucket, as the message keeps it. Links are signed when shown. */
 export interface StoredFile {
@@ -24,7 +24,7 @@ export interface StoredFile {
   durationSec?: number;
 }
 
-/** A photo sent before files moved to R2: a public Cloudinary address. */
+/** A photo sent before files moved to R2 (a public Cloudinary address), or a GIF from Klipy. */
 export interface LegacyPhoto {
   url: string;
   width?: number;

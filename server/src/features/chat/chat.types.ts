@@ -1,4 +1,5 @@
-export type MessageType = 'text' | 'image' | 'file' | 'call';
+/** A 'gif' carries its picture as an image attachment, so app versions before GIFs show it too. */
+export type MessageType = 'text' | 'image' | 'file' | 'call' | 'gif';
 
 export type AttachmentKind = 'image' | 'video' | 'audio' | 'file';
 
