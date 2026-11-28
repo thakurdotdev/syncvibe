@@ -607,6 +607,19 @@ const resendRead = () => {
   }
 };
 
+// ── Searching ───────────────────────────────────────────────────────────────
+
+export const MIN_SEARCH_LENGTH = 2;
+
+/** Messages in the conversation with the words in them, newest first (at most 50). */
+export const searchConversation = async (conversationId, query, signal) => {
+  const { data } = await http.get(`/conversations/${conversationId}/search`, {
+    params: { q: query },
+    signal,
+  });
+  return data.messages;
+};
+
 // ── Forwarding and stars ────────────────────────────────────────────────────
 
 /**

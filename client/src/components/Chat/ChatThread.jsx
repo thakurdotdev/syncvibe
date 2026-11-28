@@ -42,6 +42,7 @@ import MediaViewer from './MediaViewer';
 import MessageInfoModal from './MessageInfoModal';
 import MessageInput from './MessageInput';
 import MessageList from './MessageList';
+import ChatSearchDialog from './ChatSearchDialog';
 import SendToChatDialog from './SendToChatDialog';
 
 const report = (fallback) => (error) => toast.error(error?.message || fallback);
@@ -97,6 +98,7 @@ const OpenThread = ({ conversation }) => {
   const [mediaIndex, setMediaIndex] = useState(null);
   const [previewing, setPreviewing] = useState(null);
   const [forwarding, setForwarding] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [staged, setStaged] = useState([]);
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
@@ -362,6 +364,7 @@ const OpenThread = ({ conversation }) => {
           onOpenProfile={() => navigate(`/u/${peer.username}`, { state: { user: peer } })}
           onCall={inCall || conversation.blocked ? null : () => startCall(conversation.peer)}
           onBlend={() => navigate(paths.blend(peer.userid))}
+          onSearch={() => setSearchOpen(true)}
           muted={Boolean(conversation.muted)}
           blocked={Boolean(conversation.blocked)}
           onMute={(on) => setMuted(conversation.id, on).catch(report("Couldn't change that"))}
@@ -450,6 +453,18 @@ const OpenThread = ({ conversation }) => {
         message={infoFor}
         conversation={conversation}
         onClose={() => setInfoFor(null)}
+      />
+
+      <ChatSearchDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        conversationId={conversation.id}
+        meId={meId}
+        peerName={peer.name}
+        onPick={(message) => {
+          setSearchOpen(false);
+          useChatStore.getState().requestJump(conversation.id, message.id);
+        }}
       />
 
       <SendToChatDialog
