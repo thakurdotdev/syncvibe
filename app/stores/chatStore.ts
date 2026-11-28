@@ -95,6 +95,10 @@ export interface Conversation {
   peerLastReadMessageId: number;
   peerLastReadAt: string | null;
   peerLastDeliveredMessageId: number;
+  /** You muted it: nothing is shown for its messages. Missing from servers before muting. */
+  muted?: boolean;
+  /** You blocked the other person. */
+  blocked?: boolean;
 }
 
 export interface Receipt {
@@ -174,6 +178,11 @@ interface ChatActions {
     lastMessage?: ChatMessage | null;
   }) => void;
   applyReceipt: (receipt: Receipt) => void;
+  /** Muted or blocked, here or on another of your devices. */
+  setConversationSettings: (
+    conversationId: number,
+    settings: { muted?: boolean; blocked?: boolean }
+  ) => void;
   setTyping: (conversationId: number, typing: boolean) => void;
   setPresence: (userId: number, online: boolean) => void;
 }
@@ -526,6 +535,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 ? Math.min(c.unreadCount, unreadIn(thread.messages, state.meId, lastRead))
                 : c.unreadCount,
           };
+        }) ?? state.conversations,
+    })),
+
+  setConversationSettings: (conversationId, settings) =>
+    set((state) => ({
+      conversations:
+        patchConversation(state, conversationId, {
+          ...(typeof settings.muted === 'boolean' ? { muted: settings.muted } : {}),
+          ...(typeof settings.blocked === 'boolean' ? { blocked: settings.blocked } : {}),
         }) ?? state.conversations,
     })),
 

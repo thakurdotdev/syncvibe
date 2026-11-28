@@ -3,6 +3,7 @@ export type ChatErrorCode =
   | 'INVALID'
   | 'NOT_FOUND'
   | 'FORBIDDEN'
+  | 'BLOCKED'
   | 'RATE_LIMITED'
   | 'GONE'
   | 'UNAVAILABLE'
@@ -13,6 +14,8 @@ const STATUS: Record<ChatErrorCode, number> = {
   INVALID: 400,
   NOT_FOUND: 404,
   FORBIDDEN: 403,
+  // One of the two people blocked the other.
+  BLOCKED: 403,
   RATE_LIMITED: 429,
   // An upload that expired or was removed: the device uploads the file again.
   GONE: 410,

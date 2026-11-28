@@ -26,6 +26,7 @@ import {
 import { catalogSong, UnknownSongError } from '@/features/music/services/catalog.service';
 import type { Song } from '@/models/index';
 import { claimAttachment, prepareAttachment, removeAttachmentOf } from './attachment.service';
+import { blockBetween, isMuted, requireNotBlocked } from './block.service';
 import { findDirectConversationId, requireMembers } from './conversation.service';
 import { attachmentLabel, presentMessages } from './message.presenter';
 import { songCover, songText } from '../chat.songs';
@@ -70,6 +71,7 @@ const announceMessage = (message: MessageDto, members: number[]): void => {
         return;
       }
       if (message.type === 'call') return;
+      if (await isMuted(message.conversationId, recipientId)) return;
       const sender = await User.findByPk(message.senderId, { attributes: ['name'] });
       await sendPushNotification(recipientId, {
         senderName: sender?.name,
@@ -193,6 +195,9 @@ export const sendMessage = async (
 
   const members = await requireMembers(conversationId, senderId);
   limit(allowSend(senderId));
+  for (const recipientId of others(members, senderId)) {
+    await requireNotBlocked(senderId, recipientId);
+  }
   const song = sharing ? await sharedSong(input.song) : null;
   const body = song ? songText(song) : typed;
   const attachment: MessageAttachment | null = gif
@@ -577,7 +582,9 @@ export const announceTyping = async (
   const conversationId = parseId(input.conversationId, 'conversationId');
   if (!allowTyping(userId)) return;
   const members = await requireMembers(conversationId, userId);
-  emitToUsers(others(members, userId), 'chat:typing', {
+  const peers = others(members, userId);
+  if (peers.length === 1 && (await blockBetween(userId, peers[0]!))) return;
+  emitToUsers(peers, 'chat:typing', {
     conversationId,
     userId,
     typing: input.typing === true,

@@ -199,7 +199,8 @@ export const startCall = async (
     effects.iceServers(),
   ]);
   if (!caller || !callee || !allowed) {
-    throw new CallError('FORBIDDEN', 'You can only call people you have a conversation with');
+    // Also the answer when either blocked the other, which isn't said.
+    throw new CallError('FORBIDDEN', "You can't call this person");
   }
 
   // Checked again, and from here to the end nothing waits: two calls can't both get through.

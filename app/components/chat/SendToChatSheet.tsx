@@ -62,6 +62,7 @@ const SendToChatSheet: React.FC<SendToChatSheetProps> = ({
     return conversations.filter(
       (c) =>
         c.id !== excludeId &&
+        !c.blocked &&
         (!q || c.peer.name.toLowerCase().includes(q) || c.peer.username?.toLowerCase().includes(q))
     );
   }, [conversations, query, excludeId]);

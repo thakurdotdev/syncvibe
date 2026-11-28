@@ -24,6 +24,8 @@ import {
   markRead,
   retryMessage,
   sendGif,
+  setBlocked,
+  setMuted,
   sendMessage,
   sendSong,
   setTyping,
@@ -70,7 +72,7 @@ import {
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const QUICK_REACTIONS = ['❤️', '😂', '🔥', '👍', '😮', '😢'];
 
@@ -122,6 +124,7 @@ type Row =
 
 const ChatWithUser = () => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const activeId = useChatStore((s) => s.activeId);
   const meId = useChatStore((s) => s.meId);
@@ -142,7 +145,7 @@ const ChatWithUser = () => {
   const [gifsOpen, setGifsOpen] = useState(false);
   const [songsOpen, setSongsOpen] = useState(false);
   const [sheetView, setSheetView] = useState<
-    'options' | 'confirm-delete' | 'info' | 'attach' | 'profile'
+    'options' | 'confirm-delete' | 'info' | 'attach' | 'profile' | 'confirm-block'
   >('options');
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const [playing, setPlaying] = useState<ChatMessage | null>(null);
@@ -644,6 +647,31 @@ const ChatWithUser = () => {
     [conversationId, setChatGallery]
   );
 
+  const muted = Boolean(conversation?.muted);
+  const blocked = Boolean(conversation?.blocked);
+  const firstName = peerName.split(' ')[0] || 'them';
+  const toggleMuted = useCallback(
+    (on: boolean) => {
+      if (conversationId == null) return;
+      setMuted(conversationId, on).catch((error: Error) =>
+        toast(error.message || "Couldn't change that. Try again.", { type: 'error' })
+      );
+    },
+    [conversationId]
+  );
+  const changeBlocked = useCallback(
+    (on: boolean) => {
+      if (conversationId == null) return;
+      setSheetOpen(false);
+      setBlocked(conversationId, on)
+        .then(() => toast(on ? `You blocked ${firstName}` : `You unblocked ${firstName}`))
+        .catch((error: Error) =>
+          toast(error.message || "Couldn't change that. Try again.", { type: 'error' })
+        );
+    },
+    [conversationId, firstName]
+  );
+
   const handleListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     setShowJumpToLatest(e.nativeEvent.contentOffset.y > JUMP_BUTTON_AFTER);
   }, []);
@@ -830,38 +858,60 @@ const ChatWithUser = () => {
           ) : null}
         </View>
 
-        <ChatInput
-          onSend={handleSend}
-          onTyping={handleTyping}
-          onAttach={handleAttachment}
-          onOpenGifs={handleOpenGifs}
-          onSendVoice={handleSendVoice}
-          files={files}
-          onRemoveFile={handleRemoveFile}
-          replyingTo={
-            replyTo
-              ? {
-                  name: replyTo.senderId === meId ? 'yourself' : peerName,
-                  text:
-                    replyTo.body ||
-                    (replyTo.type === 'gif' ? 'GIF' : attachmentLabel(replyTo.attachment)) ||
-                    'Message',
-                }
-              : null
-          }
-          onCancelReply={() => setReplyTo(null)}
-          editing={
-            editing
-              ? {
-                  key: editing.clientId,
-                  body: editing.body || '',
-                  hasAttachment: Boolean(editing.attachment),
-                }
-              : null
-          }
-          onSaveEdit={handleSaveEdit}
-          onCancelEdit={() => setEditing(null)}
-        />
+        {blocked ? (
+          <View
+            style={[
+              styles.blockedBar,
+              { borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 12) },
+            ]}
+          >
+            <Text style={[styles.blockedText, { color: colors.mutedForeground }]}>
+              You blocked {firstName}. Unblock them to send a message.
+            </Text>
+            <PressableScale
+              onPress={() => changeBlocked(false)}
+              scaleTo={BUTTON_PRESS_SCALE}
+              accessibilityRole='button'
+              style={[styles.retry, { borderColor: colors.border }]}
+            >
+              <Text style={[styles.retryText, { color: colors.foreground }]}>Unblock</Text>
+            </PressableScale>
+          </View>
+        ) : null}
+        {blocked ? null : (
+          <ChatInput
+            onSend={handleSend}
+            onTyping={handleTyping}
+            onAttach={handleAttachment}
+            onOpenGifs={handleOpenGifs}
+            onSendVoice={handleSendVoice}
+            files={files}
+            onRemoveFile={handleRemoveFile}
+            replyingTo={
+              replyTo
+                ? {
+                    name: replyTo.senderId === meId ? 'yourself' : peerName,
+                    text:
+                      replyTo.body ||
+                      (replyTo.type === 'gif' ? 'GIF' : attachmentLabel(replyTo.attachment)) ||
+                      'Message',
+                  }
+                : null
+            }
+            onCancelReply={() => setReplyTo(null)}
+            editing={
+              editing
+                ? {
+                    key: editing.clientId,
+                    body: editing.body || '',
+                    hasAttachment: Boolean(editing.attachment),
+                  }
+                : null
+            }
+            onSaveEdit={handleSaveEdit}
+            onCancelEdit={() => setEditing(null)}
+          />
+        )}
 
         <SongPickerSheet
           isVisible={songsOpen}
@@ -925,6 +975,19 @@ const ChatWithUser = () => {
                   />
                 ) : null}
                 <SettingsRow
+                  icon='bell-off'
+                  label='Mute notifications'
+                  detail='Messages still arrive, quietly'
+                  onPress={() => toggleMuted(!muted)}
+                  trailing={
+                    <Toggle
+                      value={muted}
+                      onValueChange={toggleMuted}
+                      accessibilityLabel='Mute notifications'
+                    />
+                  }
+                />
+                <SettingsRow
                   icon='image'
                   label='Save to gallery'
                   detail='New photos and videos from this chat'
@@ -943,6 +1006,39 @@ const ChatWithUser = () => {
                   ? `Photos and videos ${peerName.split(' ')[0] || 'this person'} sends go to the SyncVibe album in your gallery. Videos wait for Wi-Fi.`
                   : 'Photos and videos from this chat stay in SyncVibe. Hold one to save it.'}
               </Text>
+              <View style={styles.bleed}>
+                {blocked ? (
+                  <SettingsRow
+                    icon='user-check'
+                    label={`Unblock ${firstName}`}
+                    onPress={() => changeBlocked(false)}
+                  />
+                ) : (
+                  <SettingsRow
+                    icon='slash'
+                    label={`Block ${firstName}`}
+                    destructive
+                    onPress={() => setSheetView('confirm-block')}
+                  />
+                )}
+              </View>
+            </View>
+          ) : sheetView === 'confirm-block' ? (
+            <View style={styles.sheet}>
+              <Text style={[styles.confirmTitle, { color: colors.foreground }]}>
+                Block {peerName}?
+              </Text>
+              <Text style={[styles.confirmText, { color: colors.mutedForeground }]}>
+                They won't be able to message or call you, and they won't be told. You can't message
+                them either until you unblock them.
+              </Text>
+              <OptionItem
+                icon='ban-outline'
+                text={`Block ${firstName}`}
+                onPress={() => changeBlocked(true)}
+                color={colors.destructive}
+              />
+              <OptionItem icon='close-outline' text='Cancel' onPress={closeSheet} />
             </View>
           ) : sheetView === 'attach' ? (
             <View style={styles.sheet}>
@@ -1141,6 +1237,14 @@ const styles = StyleSheet.create({
   retryText: { fontSize: 14, fontWeight: '600' },
   messageList: { paddingHorizontal: 12, paddingVertical: 12 },
   older: { paddingVertical: 16 },
+  blockedBar: {
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  blockedText: { fontSize: 13, textAlign: 'center' },
   unreadLine: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -23,6 +23,8 @@ import {
   retryMessage,
   sendGif,
   sendMessage,
+  setBlocked,
+  setMuted,
   sendSong,
   toggleReaction,
 } from '@/lib/chat';
@@ -30,6 +32,8 @@ import { selectConversation, selectThread, useChatStore } from '@/stores/chatSto
 import { startCall } from '@/lib/call';
 import { selectBusy, useCallStore } from '@/stores/callStore';
 import { paths } from '@/lib/paths';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
 import ChatHeader from './ChatHeader';
 import FilePreview from './FilePreview';
 import MediaViewer from './MediaViewer';
@@ -338,6 +342,7 @@ const OpenThread = ({ conversation }) => {
   );
 
   const { peer } = conversation;
+  const firstName = peer.name?.split(' ')[0] || 'them';
 
   return (
     <>
@@ -348,8 +353,16 @@ const OpenThread = ({ conversation }) => {
           typing={typing}
           onBack={isMobile ? () => setActive(null) : null}
           onOpenProfile={() => navigate(`/u/${peer.username}`, { state: { user: peer } })}
-          onCall={inCall ? null : () => startCall(conversation.peer)}
+          onCall={inCall || conversation.blocked ? null : () => startCall(conversation.peer)}
           onBlend={() => navigate(paths.blend(peer.userid))}
+          muted={Boolean(conversation.muted)}
+          blocked={Boolean(conversation.blocked)}
+          onMute={(on) => setMuted(conversation.id, on).catch(report("Couldn't change that"))}
+          onBlock={(on) =>
+            setBlocked(conversation.id, on)
+              .then(() => toast(on ? `You blocked ${firstName}` : `You unblocked ${firstName}`))
+              .catch(report("Couldn't change that"))
+          }
         />
 
         <MessageList
@@ -361,23 +374,42 @@ const OpenThread = ({ conversation }) => {
           onRetryLoad={() => loadThread(conversation.id)}
         />
 
-        <MessageInput
-          conversationId={conversation.id}
-          peerName={peer.name}
-          meId={meId}
-          replyTo={replyTo}
-          onCancelReply={() => setReplyTo(null)}
-          editing={editing}
-          onCancelEdit={() => setEditing(null)}
-          onSaveEdit={handleSaveEdit}
-          onSend={handleSend}
-          onSendGif={handleSendGif}
-          onSendSong={handleSendSong}
-          onSendVoice={handleSendVoice}
-          files={staged}
-          onAddFiles={addFiles}
-          onRemoveFile={removeFile}
-        />
+        {conversation.blocked ? (
+          <Card className='mt-auto flex w-full flex-col items-center gap-2 rounded-none border-t p-4 text-center shadow-xs sm:flex-row sm:justify-center sm:gap-4'>
+            <p className='text-sm text-muted-foreground'>
+              You blocked {firstName}. Unblock them to send a message.
+            </p>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() =>
+                setBlocked(conversation.id, false)
+                  .then(() => toast(`You unblocked ${firstName}`))
+                  .catch(report("Couldn't change that"))
+              }
+            >
+              Unblock
+            </Button>
+          </Card>
+        ) : (
+          <MessageInput
+            conversationId={conversation.id}
+            peerName={peer.name}
+            meId={meId}
+            replyTo={replyTo}
+            onCancelReply={() => setReplyTo(null)}
+            editing={editing}
+            onCancelEdit={() => setEditing(null)}
+            onSaveEdit={handleSaveEdit}
+            onSend={handleSend}
+            onSendGif={handleSendGif}
+            onSendSong={handleSendSong}
+            onSendVoice={handleSendVoice}
+            files={staged}
+            onAddFiles={addFiles}
+            onRemoveFile={removeFile}
+          />
+        )}
 
         {dragging && (
           <div className='pointer-events-none absolute inset-2 z-30 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-primary/50 bg-background/85 backdrop-blur-sm animate-in fade-in-0 duration-100'>

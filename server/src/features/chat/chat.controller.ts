@@ -3,6 +3,7 @@ import { ChatError } from './chat.errors';
 import { asObject, parseId } from './chat.validation';
 import { cancelUpload, createUpload, getAttachment } from './services/attachment.service';
 import { listConversations, openDirectConversation } from './services/conversation.service';
+import { setBlocked, setMuted } from './services/block.service';
 import { confirmDelivered, listMessages, markRead, sendMessage } from './services/message.service';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
@@ -82,3 +83,13 @@ export const deleteAttachment = respond(async (req) => {
   await cancelUpload(req.user!.userid, req.params.attachmentId);
   return { ok: true };
 });
+
+/** No notifications from a conversation, on any of your devices: `{ muted }`. */
+export const putMuted = respond((req) =>
+  setMuted(req.user!.userid, req.params.conversationId, asObject(req.body).muted)
+);
+
+/** Blocks or unblocks the other person in a conversation: `{ blocked }`. */
+export const putBlocked = respond((req) =>
+  setBlocked(req.user!.userid, req.params.conversationId, asObject(req.body).blocked)
+);

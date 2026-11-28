@@ -607,6 +607,30 @@ const resendRead = (): void => {
   }
 };
 
+// ── Muting and blocking ─────────────────────────────────────────────────────
+
+/** No notifications from the conversation, on any of your devices. Shown at once, undone on failure. */
+export const setMuted = async (conversationId: number, muted: boolean): Promise<void> => {
+  const before = store().conversations.find((c) => c.id === conversationId)?.muted ?? false;
+  store().setConversationSettings(conversationId, { muted });
+  try {
+    await api.put(`/api/chat/conversations/${conversationId}/mute`, { muted });
+  } catch (error) {
+    store().setConversationSettings(conversationId, { muted: before });
+    throw httpError(error, muted ? "Couldn't mute the chat" : "Couldn't unmute the chat");
+  }
+};
+
+/** Blocks or unblocks the other person in the conversation. */
+export const setBlocked = async (conversationId: number, blocked: boolean): Promise<void> => {
+  try {
+    await api.put(`/api/chat/conversations/${conversationId}/block`, { blocked });
+  } catch (error) {
+    throw httpError(error, blocked ? "Couldn't block them" : "Couldn't unblock them");
+  }
+  store().setConversationSettings(conversationId, { blocked });
+};
+
 const typingSent = new Map<number, number>();
 
 export const setTyping = (conversationId: number, typing: boolean): void => {
@@ -672,6 +696,13 @@ export const bindChatSocket = (
   const onReceipt = (receipt?: Receipt) => {
     if (receipt) store().applyReceipt(receipt);
   };
+  const onSettings = (payload?: {
+    conversationId?: number;
+    muted?: boolean;
+    blocked?: boolean;
+  }) => {
+    if (payload?.conversationId) store().setConversationSettings(payload.conversationId, payload);
+  };
   const onPresence = (payload?: { userId: number; online: boolean }) => {
     if (payload) store().setPresence(payload.userId, payload.online);
   };
@@ -707,6 +738,7 @@ export const bindChatSocket = (
     'chat:receipt': onReceipt,
     'chat:typing': onTyping,
     'presence:update': onPresence,
+    'chat:settings': onSettings,
   };
   for (const [event, listener] of Object.entries(listeners)) nextSocket.on(event, listener);
 

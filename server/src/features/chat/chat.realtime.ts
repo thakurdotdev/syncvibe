@@ -10,6 +10,8 @@ import { getIO } from '@/utils/socket-emitter';
  *   chat:receipt          ReceiptDto                   someone's read / delivered position moved
  *   chat:typing           { conversationId, userId, typing }
  *   presence:update       { userId, online }
+ *   chat:settings         { conversationId, muted?, blocked? }   to your own devices: you muted
+ *                                                                or blocked from another one
  */
 
 /** Chat is sent here. A socket is in it only because its session says whose it is (socket/auth). */

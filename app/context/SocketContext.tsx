@@ -45,7 +45,10 @@ export const useChat = (): ChatContextType => {
 const notify = (message: ChatMessage) => {
   if (Platform.OS === 'web' || message.id == null) return;
   const { conversations, meId } = useChatStore.getState();
-  const sender = conversations.find((c) => c.id === message.conversationId)?.peer;
+  const conversation = conversations.find((c) => c.id === message.conversationId);
+  // Muted: the message is there in the chat, and nothing more.
+  if (conversation?.muted) return;
+  const sender = conversation?.peer;
 
   if (AppState.currentState === 'active') {
     if (conversationOnScreen() === message.conversationId) return;
