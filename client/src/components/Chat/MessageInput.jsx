@@ -5,6 +5,7 @@ import {
   FileAudio,
   FileSpreadsheet,
   FileText,
+  Music2,
   Paperclip,
   Pencil,
   Play,
@@ -23,6 +24,7 @@ import {
 } from '@/lib/attachments';
 import { MAX_MESSAGE_LENGTH, setTyping } from '@/lib/chat';
 import MediaPicker from '@/Pages/GroupMusic/chat/MediaPicker';
+import SongPickerDialog from './SongPickerDialog';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 
@@ -122,6 +124,7 @@ const MessageInput = ({
   onSaveEdit,
   onSend,
   onSendGif,
+  onSendSong,
   files,
   onAddFiles,
   onRemoveFile,
@@ -158,6 +161,12 @@ const MessageInput = ({
   useEffect(() => () => setTyping(conversationId, false), [conversationId]);
 
   const [gifsOpen, setGifsOpen] = useState(false);
+  const [songsOpen, setSongsOpen] = useState(false);
+  const pickSong = (song) => {
+    setSongsOpen(false);
+    onSendSong(song);
+    inputRef.current?.focus();
+  };
   const rowRef = useRef(null);
   const gifButtonRef = useRef(null);
   const closeGifs = useCallback(() => setGifsOpen(false), []);
@@ -275,6 +284,18 @@ const MessageInput = ({
             </span>
           </Button>
         )}
+        {!editing && (
+          <Button
+            variant='ghost'
+            size='icon'
+            className='shrink-0 rounded-full'
+            onClick={() => setSongsOpen(true)}
+            aria-label='Share a song'
+            title='Share a song'
+          >
+            <Music2 className='h-5 w-5 text-muted-foreground' />
+          </Button>
+        )}
         <input
           type='file'
           multiple
@@ -319,6 +340,8 @@ const MessageInput = ({
           {editing ? <Check className='h-5 w-5' /> : <SendHorizontal className='h-5 w-5' />}
         </Button>
       </div>
+
+      <SongPickerDialog open={songsOpen} onOpenChange={setSongsOpen} onPick={pickSong} />
 
       <AnimatePresence>
         {gifsOpen && !editing && (

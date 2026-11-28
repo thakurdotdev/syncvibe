@@ -7,6 +7,7 @@ import {
   ListMusic,
   MoreHorizontal,
   Radio,
+  Send,
   ThumbsDown,
   User,
   UserX,
@@ -24,7 +25,9 @@ import {
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { mainArtistOf, useDislikeArtist, useDislikeSong } from '@/hooks/useDislikeSong';
 import { useStartRoom } from '@/hooks/useStartRoom';
+import { useChatStore } from '@/stores/chatStore';
 import { usePlayerStore } from '@/stores/playerStore';
+import { openSendSong } from '@/stores/sendSongStore';
 import SleepTimerDialog, { useSleepTimerLeft } from '../SleepTimer';
 import DesktopQueuePanel from './DesktopQueuePanel';
 import NowPlayingTab from './NowPlayingTab';
@@ -44,6 +47,7 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
   const dislikeArtist = useDislikeArtist();
   const mainArtist = mainArtistOf(currentSong);
   const startRoom = useStartRoom();
+  const signedIn = useChatStore((s) => s.meId != null);
 
   useEffect(() => {
     if (isOpen) {
@@ -139,6 +143,15 @@ const PlayerSheet = memo(({ isOpen, onClose, currentSong, onOpenModal }) => {
                     <ListMusic className='mr-2 h-4 w-4 text-muted-foreground' />
                     Add to Playlist
                   </DropdownMenuItem>
+                  {signedIn && currentSong?.id && (
+                    <DropdownMenuItem
+                      onClick={() => openSendSong(currentSong)}
+                      className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
+                    >
+                      <Send className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                      Send in a chat
+                    </DropdownMenuItem>
+                  )}
                   {startRoom && (
                     <DropdownMenuItem
                       onClick={startRoom}

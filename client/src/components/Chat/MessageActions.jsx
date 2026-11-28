@@ -22,6 +22,9 @@ import {
 
 export const QUICK_REACTIONS = ['❤️', '😂', '🔥', '👍', '😮', '😢'];
 
+/** GIFs, songs and calls have no text of their own to change. */
+const EDITABLE = ['text', 'image', 'file'];
+
 /** Reply and the "more" menu beside a message: reactions, copy, edit, info and delete. */
 const MessageActions = ({ message, isOwn, meId, open, shown, onOpenChange, actions }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -89,13 +92,13 @@ const MessageActions = ({ message, isOwn, meId, open, shown, onOpenChange, actio
               Download
             </DropdownMenuItem>
           )}
-          {message.body && (
+          {message.body && message.type !== 'song' && (
             <DropdownMenuItem className='cursor-pointer' onSelect={() => actions.copy(message)}>
               <Copy className='mr-2 h-4 w-4' />
               Copy text
             </DropdownMenuItem>
           )}
-          {isOwn && message.type !== 'gif' && (
+          {isOwn && EDITABLE.includes(message.type) && (
             <DropdownMenuItem className='cursor-pointer' onSelect={() => actions.edit(message)}>
               <Pencil className='mr-2 h-4 w-4' />
               {message.body ? 'Edit' : 'Add a caption'}
