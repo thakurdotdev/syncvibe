@@ -9,6 +9,7 @@ import {
   parseEmoji,
   parseGif,
   parseId,
+  parseSearch,
   parsePageSize,
 } from './chat.validation';
 import { createRateLimiter } from '@/utils/rate-limiter';
@@ -120,4 +121,11 @@ test("GIFs are only .gif files on the picker's host", () => {
   ]) {
     rejects(() => parseGif(bad));
   }
+});
+
+test('a search is trimmed text of two to a hundred characters', () => {
+  assert.equal(parseSearch('  see   you  '), 'see you');
+  assert.equal(parseSearch('हम'), 'हम');
+  assert.equal(parseSearch('x'.repeat(150)).length, 100);
+  for (const bad of ['', ' a ', null, 42, ['ab']]) rejects(() => parseSearch(bad));
 });

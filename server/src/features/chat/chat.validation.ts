@@ -136,6 +136,18 @@ export const parseEmoji = (value: unknown): string | null => {
   return value;
 };
 
+export const MIN_SEARCH_LENGTH = 2;
+export const MAX_SEARCH_LENGTH = 100;
+
+/** Words to look for in a conversation: trimmed, at least two characters, at most a hundred. */
+export const parseSearch = (value: unknown): string => {
+  const query = typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+  if ([...query].length < MIN_SEARCH_LENGTH) {
+    throw invalid(`Search for at least ${MIN_SEARCH_LENGTH} characters`);
+  }
+  return [...query].slice(0, MAX_SEARCH_LENGTH).join('');
+};
+
 export const parsePageSize = (value: unknown): number => {
   const size = Number(value);
   if (!Number.isInteger(size) || size <= 0) return DEFAULT_PAGE_SIZE;
