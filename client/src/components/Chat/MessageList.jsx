@@ -1,5 +1,7 @@
 import { ArrowDown, Loader2, MessageSquareDashed } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { loadUntil } from '@/lib/chat';
 import { messageStatus } from '@/stores/chatStore';
 import { Button } from '../ui/button';
 import { Skeleton } from '../ui/skeleton';
@@ -12,6 +14,20 @@ const NEAR_BOTTOM_PX = 80;
 const LOAD_OLDER_WITHIN_PX = 160;
 /** Messages from one person this close together read as one run. */
 const RUN_GAP_MS = 5 * 60 * 1000;
+/** With this many unread, the chat opens at the first of them instead of at the latest. */
+const OPEN_AT_UNREAD_FROM = 6;
+const HIGHLIGHT_MS = 1600;
+
+/** Where the unread messages start: a line across the conversation. */
+const UnreadLine = ({ count, lineRef }) => (
+  <div ref={lineRef} className='my-4 flex items-center gap-3'>
+    <span className='h-px flex-1 bg-border' />
+    <span className='text-xs font-semibold text-muted-foreground'>
+      {count === 1 ? '1 unread message' : `${count} unread messages`}
+    </span>
+    <span className='h-px flex-1 bg-border' />
+  </div>
+);
 
 const ThreadSkeleton = () => (
   <div className='flex-1 space-y-5 overflow-hidden p-4'>
@@ -51,6 +67,19 @@ const MessageList = ({ conversation, thread, meId, actions, onLoadOlder, onRetry
   const [unseen, setUnseen] = useState(0);
   const [openMenuFor, setOpenMenuFor] = useState(null);
   const [selectedFor, setSelectedFor] = useState(null);
+  const unreadLineRef = useRef(null);
+
+  // Where the unread messages started when the chat was opened. Taken once, before the read
+  // receipt moves it, so the line stays put while the chat is open.
+  const [unreadAtOpen, setUnreadAtOpen] = useState(null);
+  if (status === 'ready' && unreadAtOpen === null) {
+    const readUpTo = conversation.myLastReadMessageId;
+    const first = messages.find((m) => m.id != null && m.id > readUpTo && m.senderId !== meId);
+    setUnreadAtOpen({
+      firstId: first?.id ?? null,
+      count: first ? Math.max(conversation.unreadCount, 1) : 0,
+    });
+  }
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
     const el = scrollRef.current;
@@ -80,7 +109,14 @@ const MessageList = ({ conversation, thread, meId, actions, onLoadOlder, onRetry
     const seen = seenRef.current;
 
     if (seen.last == null) {
-      scrollToBottom('instant');
+      // A lot unread: start at the first of them, the line at the top.
+      const line = unreadLineRef.current;
+      if (line && (unreadAtOpen?.count ?? 0) >= OPEN_AT_UNREAD_FROM) {
+        el.scrollTop = line.offsetTop - 8;
+        atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_PX;
+      } else {
+        scrollToBottom('instant');
+      }
     } else if (first !== seen.first && last === seen.last) {
       // Older messages were added above: stay on the message the reader was looking at.
       el.scrollTop = seen.top + (el.scrollHeight - seen.height);
@@ -90,7 +126,7 @@ const MessageList = ({ conversation, thread, meId, actions, onLoadOlder, onRetry
     }
 
     seenRef.current = { first, last, height: el.scrollHeight, top: el.scrollTop };
-  }, [first, last, lastIsOwn, scrollToBottom, status]);
+  }, [first, last, lastIsOwn, scrollToBottom, status, unreadAtOpen]);
 
   // Photos change the height as they load; keep the latest message in view while they do.
   useEffect(() => {
@@ -106,13 +142,23 @@ const MessageList = ({ conversation, thread, meId, actions, onLoadOlder, onRetry
     return () => observer.disconnect();
   }, [status, isEmpty]);
 
-  const jumpTo = useCallback((messageId) => {
-    const target = document.getElementById(`message-${messageId}`);
-    if (!target) return;
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    target.classList.add('bg-primary/10');
-    setTimeout(() => target.classList.remove('bg-primary/10'), 1200);
-  }, []);
+  // Older pages load until the message is there, then it scrolls into view, tinted a moment.
+  const jumpTo = useCallback(
+    async (messageId) => {
+      if (!(await loadUntil(conversation.id, messageId))) {
+        toast("That message isn't in this chat anymore");
+        return;
+      }
+      requestAnimationFrame(() => {
+        const target = document.getElementById(`message-${messageId}`);
+        if (!target) return;
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('bg-primary/10');
+        setTimeout(() => target.classList.remove('bg-primary/10'), HIGHLIGHT_MS);
+      });
+    },
+    [conversation.id]
+  );
 
   const rows = useMemo(() => {
     const sameRun = (a, b) =>
@@ -176,6 +222,9 @@ const MessageList = ({ conversation, thread, meId, actions, onLoadOlder, onRetry
           {rows.map(({ message, newDay, startsRun, endsRun }) => (
             <div key={message.clientId}>
               {newDay && <DateSeparator date={message.createdAt} />}
+              {unreadAtOpen?.firstId != null && message.id === unreadAtOpen.firstId && (
+                <UnreadLine count={unreadAtOpen.count} lineRef={unreadLineRef} />
+              )}
               {message.type === 'call' ? (
                 <CallMessageBubble message={message} isOwnMessage={message.senderId === meId} />
               ) : (
