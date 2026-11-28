@@ -20,6 +20,7 @@ import {
   freshAttachment,
   loadOlder,
   loadThread,
+  loadUntil,
   markRead,
   retryMessage,
   sendGif,
@@ -104,6 +105,10 @@ const SHEET_CLOSE_MS = 260;
 
 /** A gap this long starts a new run of messages, even from the same person. */
 const GROUP_GAP_MS = 5 * 60 * 1000;
+/** With this many unread, the chat opens at the first of them instead of at the latest. */
+const OPEN_AT_UNREAD_FROM = 6;
+const HIGHLIGHT_MS = 1600;
+
 /** Scrolled this far back, a button appears to return to the latest message. */
 const JUMP_BUTTON_AFTER = 400;
 
@@ -112,6 +117,7 @@ const JUMP_EXIT = FadeOut.duration(100).easing(EASE_OUT);
 
 type Row =
   | { type: 'date'; id: string; date: string }
+  | { type: 'unread'; id: string; count: number }
   | { type: 'message'; message: ChatMessage; startsGroup: boolean; endsGroup: boolean };
 
 const ChatWithUser = () => {
@@ -144,6 +150,30 @@ const ChatWithUser = () => {
 
   const listRef = useRef<FlatList<Row>>(null);
   const { messages } = thread;
+
+  // Where the unread messages started when the chat was opened. Taken once, before the read
+  // receipt moves it, so the line stays put while the chat is open.
+  const [unreadAtOpen, setUnreadAtOpen] = useState<{
+    conversationId: number;
+    firstId: number | null;
+    count: number;
+  } | null>(null);
+  if (
+    activeId &&
+    conversation &&
+    thread.status === 'ready' &&
+    unreadAtOpen?.conversationId !== activeId
+  ) {
+    const readUpTo = conversation.myLastReadMessageId;
+    const first = messages.find((m) => m.id != null && m.id > readUpTo && m.senderId !== meId);
+    setUnreadAtOpen({
+      conversationId: activeId,
+      firstId: first?.id ?? null,
+      count: first ? Math.max(conversation.unreadCount, 1) : 0,
+    });
+  }
+  const firstUnreadId = unreadAtOpen?.conversationId === activeId ? unreadAtOpen.firstId : null;
+  const unreadCountAtOpen = unreadAtOpen?.conversationId === activeId ? unreadAtOpen.count : 0;
   const peerName = conversation?.peer.name ?? '';
 
   useEffect(() => {
@@ -308,6 +338,9 @@ const ChatWithUser = () => {
       if (!before || formatDate(before.createdAt) !== date) {
         result.push({ type: 'date', id: `date-${message.clientId}`, date });
       }
+      if (firstUnreadId != null && message.id === firstUnreadId) {
+        result.push({ type: 'unread', id: 'unread', count: unreadCountAtOpen });
+      }
       result.push({
         type: 'message',
         message,
@@ -316,7 +349,71 @@ const ChatWithUser = () => {
       });
     });
     return result.reverse();
-  }, [messages]);
+  }, [messages, firstUnreadId, unreadCountAtOpen]);
+
+  // Going to a message: older pages load until it's there, then the list scrolls to it.
+  const [highlightId, setHighlightId] = useState<number | null>(null);
+  const scrollTarget = useRef<{ index: number; viewPosition: number } | null>(null);
+  const scrollToRow = useCallback((index: number, viewPosition: number, animated = true) => {
+    scrollTarget.current = { index, viewPosition };
+    listRef.current?.scrollToIndex({ index, viewPosition, animated });
+  }, []);
+  // Rows further than what's drawn have no measured place yet: get near, then try again.
+  const handleScrollToIndexFailed = useCallback(
+    ({ index, averageItemLength }: { index: number; averageItemLength: number }) => {
+      listRef.current?.scrollToOffset({ offset: averageItemLength * index, animated: false });
+      setTimeout(() => {
+        const target = scrollTarget.current;
+        if (target?.index === index) {
+          listRef.current?.scrollToIndex({ ...target, animated: true });
+        }
+      }, 120);
+    },
+    []
+  );
+
+  // What the list shows, for code that runs after it is drawn.
+  const rowsRef = useRef(rows);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+  const jumpTo = useCallback(
+    async (messageId: number) => {
+      if (!activeId) return;
+      if (!(await loadUntil(activeId, messageId))) {
+        toast("That message isn't in this chat anymore");
+        return;
+      }
+      // The rows for what just loaded are drawn on the next frame.
+      requestAnimationFrame(() => {
+        const index = rowsRef.current.findIndex(
+          (row) => row.type === 'message' && row.message.id === messageId
+        );
+        if (index === -1) return;
+        scrollToRow(index, 0.5);
+        setHighlightId(messageId);
+      });
+    },
+    [activeId, scrollToRow]
+  );
+  useEffect(() => {
+    if (highlightId == null) return undefined;
+    const timer = setTimeout(() => setHighlightId(null), HIGHLIGHT_MS);
+    return () => clearTimeout(timer);
+  }, [highlightId]);
+
+  // Opening with a lot unread starts at the first of them, the line at the top of the screen.
+  const openedAtUnread = useRef<number | null>(null);
+  useEffect(() => {
+    if (!activeId || firstUnreadId == null || openedAtUnread.current === activeId) return;
+    openedAtUnread.current = activeId;
+    if (unreadCountAtOpen < OPEN_AT_UNREAD_FROM) return;
+    const index = rowsRef.current.findIndex((row) => row.type === 'unread');
+    if (index === -1) return;
+    // The list upside down: a row's far end is the top of the screen.
+    const timer = setTimeout(() => scrollToRow(index, 1, false), 60);
+    return () => clearTimeout(timer);
+  }, [activeId, firstUnreadId, unreadCountAtOpen, scrollToRow]);
 
   const photos = useMemo(
     () =>
@@ -560,6 +657,17 @@ const ChatWithUser = () => {
   const renderItem = useCallback(
     ({ item }: { item: Row }) => {
       if (item.type === 'date') return <DateBubble date={item.date} />;
+      if (item.type === 'unread') {
+        return (
+          <View style={styles.unreadLine} accessibilityRole='header'>
+            <View style={[styles.unreadRule, { backgroundColor: colors.border }]} />
+            <Text style={[styles.unreadText, { color: colors.mutedForeground }]}>
+              {item.count === 1 ? '1 unread message' : `${item.count} unread messages`}
+            </Text>
+            <View style={[styles.unreadRule, { backgroundColor: colors.border }]} />
+          </View>
+        );
+      }
       const isOwn = item.message.senderId === meId;
       return (
         <MessageBubble
@@ -573,13 +681,26 @@ const ChatWithUser = () => {
           onOpenMedia={handleOpenMedia}
           onLongPress={handleLongPress}
           onReply={handleSwipeReply}
+          onJump={jumpTo}
+          highlighted={highlightId != null && item.message.id === highlightId}
           onCancel={discardMessage}
           onReact={handleReact}
           onRetry={retryMessage}
         />
       );
     },
-    [meId, peerName, statusOf, handleOpenMedia, handleLongPress, handleSwipeReply, handleReact]
+    [
+      meId,
+      peerName,
+      statusOf,
+      handleOpenMedia,
+      handleLongPress,
+      handleSwipeReply,
+      jumpTo,
+      highlightId,
+      handleReact,
+      colors,
+    ]
   );
 
   const handleEndReached = useCallback(() => {
@@ -600,7 +721,7 @@ const ChatWithUser = () => {
   );
 
   const keyExtractor = useCallback(
-    (item: Row) => (item.type === 'date' ? item.id : `msg-${item.message.clientId}`),
+    (item: Row) => (item.type === 'message' ? `msg-${item.message.clientId}` : item.id),
     []
   );
 
@@ -676,6 +797,7 @@ const ChatWithUser = () => {
               // The list is upside down, so its end is the oldest message.
               onEndReached={handleEndReached}
               onEndReachedThreshold={0.4}
+              onScrollToIndexFailed={handleScrollToIndexFailed}
               ListFooterComponent={olderSpinner}
             />
           )}
@@ -1008,6 +1130,15 @@ const styles = StyleSheet.create({
   retryText: { fontSize: 14, fontWeight: '600' },
   messageList: { paddingHorizontal: 12, paddingVertical: 12 },
   older: { paddingVertical: 16 },
+  unreadLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 18,
+    marginBottom: 6,
+  },
+  unreadRule: { flex: 1, height: StyleSheet.hairlineWidth },
+  unreadText: { fontSize: 12, fontWeight: '600' },
   jump: { position: 'absolute', right: 12, bottom: 10 },
   jumpButton: {
     width: 40,

@@ -25,6 +25,10 @@ interface MessageBubbleProps {
   onLongPress: (message: ChatMessage) => void;
   /** Swiped right: reply to it. */
   onReply: (message: ChatMessage) => void;
+  /** Its quote was tapped: go to the message it quotes. */
+  onJump: (messageId: number) => void;
+  /** Just jumped to: tinted for a moment so the eye finds it. */
+  highlighted?: boolean;
   /** Stops a file that is still uploading. */
   onCancel: (message: ChatMessage) => void;
   onReact: (message: ChatMessage, emoji: string) => void;
@@ -65,6 +69,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onOpenMedia,
   onLongPress,
   onReply,
+  onJump,
+  highlighted = false,
   onCancel,
   onReact,
   onRetry,
@@ -116,124 +122,139 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
     // Only a message the server has can be quoted.
     <SwipeToReply onReply={() => onReply(message)} enabled={message.id != null}>
       <View
-        style={[
-          styles.container,
-          isOwn ? styles.own : styles.other,
-          { marginTop: startsGroup ? 10 : 2 },
-        ]}
+        style={highlighted ? [styles.highlight, { backgroundColor: `${colors.primary}26` }] : null}
       >
-        {card ? (
-          <SongCard message={message} isOwn={isOwn} corners={corners} onLongPress={openActions} />
-        ) : null}
-        {attachment ? (
-          <AttachmentView
-            message={message}
-            isOwn={isOwn}
-            sending={sending}
-            corners={corners}
-            onOpenMedia={onOpenMedia}
-            onLongPress={openActions}
-            onCancel={onCancel}
-          />
-        ) : null}
+        <View
+          style={[
+            styles.container,
+            isOwn ? styles.own : styles.other,
+            { marginTop: startsGroup ? 10 : 2 },
+          ]}
+        >
+          {card ? (
+            <SongCard message={message} isOwn={isOwn} corners={corners} onLongPress={openActions} />
+          ) : null}
+          {attachment ? (
+            <AttachmentView
+              message={message}
+              isOwn={isOwn}
+              sending={sending}
+              corners={corners}
+              onOpenMedia={onOpenMedia}
+              onLongPress={openActions}
+              onCancel={onCancel}
+            />
+          ) : null}
 
-        {body || reply ? (
-          <PressableScale
-            onLongPress={openActions}
-            delayLongPress={LONG_PRESS_MS}
-            scaleTo={ROW_PRESS_SCALE}
-            accessibilityHint='Hold for options, swipe right to reply'
-            style={[
-              styles.bubble,
-              corners,
-              { backgroundColor: isOwn ? colors.primary : colors.raised },
-              attachment || card ? styles.afterImage : null,
-            ]}
-          >
-            {reply ? (
-              <View style={[styles.reply, { borderLeftColor: textColor }]}>
-                <Text style={[styles.replyAuthor, { color: textColor }]} numberOfLines={1}>
-                  {reply.senderId === meId ? 'You' : peerName}
-                </Text>
-                <Text
-                  style={[
-                    styles.replyText,
-                    { color: textColor },
-                    reply.deleted ? styles.italic : null,
-                  ]}
-                  numberOfLines={2}
-                >
-                  {reply.deleted ? 'Deleted message' : replyLabel(reply)}
-                </Text>
-              </View>
-            ) : null}
-            {body ? <Text style={[styles.text, { color: textColor }]}>{body}</Text> : null}
-          </PressableScale>
-        ) : null}
-
-        {message.reactions.length > 0 ? (
-          <View style={styles.reactions}>
-            {message.reactions.map(({ emoji, userIds }) => {
-              const mine = meId != null && userIds.includes(meId);
-              return (
+          {body || reply ? (
+            <PressableScale
+              onLongPress={openActions}
+              delayLongPress={LONG_PRESS_MS}
+              scaleTo={ROW_PRESS_SCALE}
+              accessibilityHint='Hold for options, swipe right to reply'
+              style={[
+                styles.bubble,
+                corners,
+                { backgroundColor: isOwn ? colors.primary : colors.raised },
+                attachment || card ? styles.afterImage : null,
+              ]}
+            >
+              {reply ? (
                 <PressableScale
-                  key={emoji}
-                  onPress={() => onReact(message, emoji)}
-                  hitSlop={6}
+                  onPress={() => !reply.deleted && onJump(reply.id)}
+                  onLongPress={openActions}
+                  delayLongPress={LONG_PRESS_MS}
+                  scaleTo={ROW_PRESS_SCALE}
+                  disabled={reply.deleted}
                   accessibilityRole='button'
-                  accessibilityLabel={`${emoji} ${userIds.length}${mine ? ', including you' : ''}`}
-                  style={[
-                    styles.reaction,
-                    {
-                      backgroundColor: colors.raised,
-                      borderColor: mine ? colors.foreground : colors.border,
-                    },
-                  ]}
+                  accessibilityLabel={`Reply to ${reply.senderId === meId ? 'you' : peerName}: ${
+                    reply.deleted ? 'deleted message' : replyLabel(reply)
+                  }. Tap to see it`}
+                  style={[styles.reply, { borderLeftColor: textColor }]}
                 >
-                  <Text style={styles.reactionEmoji}>{emoji}</Text>
-                  {userIds.length > 1 ? (
-                    <Text style={[styles.reactionCount, { color: colors.foreground }]}>
-                      {userIds.length}
-                    </Text>
-                  ) : null}
+                  <Text style={[styles.replyAuthor, { color: textColor }]} numberOfLines={1}>
+                    {reply.senderId === meId ? 'You' : peerName}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.replyText,
+                      { color: textColor },
+                      reply.deleted ? styles.italic : null,
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {reply.deleted ? 'Deleted message' : replyLabel(reply)}
+                  </Text>
                 </PressableScale>
-              );
-            })}
-          </View>
-        ) : null}
+              ) : null}
+              {body ? <Text style={[styles.text, { color: textColor }]}>{body}</Text> : null}
+            </PressableScale>
+          ) : null}
 
-        {showMeta ? (
-          <View style={styles.meta}>
-            {message.editedAt ? (
-              <Text style={[styles.time, { color: colors.mutedForeground }]}>Edited ·</Text>
-            ) : null}
-            <Text style={[styles.time, { color: colors.mutedForeground }]}>
-              {formatTime(message.createdAt)}
-            </Text>
-            {isOwn && status ? (
-              <MaterialCommunityIcons
-                name={STATUS_ICON[status].name}
-                size={16}
-                color={status === 'read' ? colors.receipt : colors.mutedForeground}
-                accessibilityLabel={STATUS_ICON[status].label}
-              />
-            ) : null}
-          </View>
-        ) : null}
+          {message.reactions.length > 0 ? (
+            <View style={styles.reactions}>
+              {message.reactions.map(({ emoji, userIds }) => {
+                const mine = meId != null && userIds.includes(meId);
+                return (
+                  <PressableScale
+                    key={emoji}
+                    onPress={() => onReact(message, emoji)}
+                    hitSlop={6}
+                    accessibilityRole='button'
+                    accessibilityLabel={`${emoji} ${userIds.length}${mine ? ', including you' : ''}`}
+                    style={[
+                      styles.reaction,
+                      {
+                        backgroundColor: colors.raised,
+                        borderColor: mine ? colors.foreground : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.reactionEmoji}>{emoji}</Text>
+                    {userIds.length > 1 ? (
+                      <Text style={[styles.reactionCount, { color: colors.foreground }]}>
+                        {userIds.length}
+                      </Text>
+                    ) : null}
+                  </PressableScale>
+                );
+              })}
+            </View>
+          ) : null}
 
-        {failed ? (
-          <PressableScale
-            onPress={() => onRetry(message)}
-            hitSlop={8}
-            accessibilityRole='button'
-            style={styles.meta}
-          >
-            <MaterialCommunityIcons name='alert-circle' size={14} color={colors.destructive} />
-            <Text style={[styles.failed, { color: colors.destructive }]}>
-              {message.error || 'Not sent'}. Tap to retry
-            </Text>
-          </PressableScale>
-        ) : null}
+          {showMeta ? (
+            <View style={styles.meta}>
+              {message.editedAt ? (
+                <Text style={[styles.time, { color: colors.mutedForeground }]}>Edited ·</Text>
+              ) : null}
+              <Text style={[styles.time, { color: colors.mutedForeground }]}>
+                {formatTime(message.createdAt)}
+              </Text>
+              {isOwn && status ? (
+                <MaterialCommunityIcons
+                  name={STATUS_ICON[status].name}
+                  size={16}
+                  color={status === 'read' ? colors.receipt : colors.mutedForeground}
+                  accessibilityLabel={STATUS_ICON[status].label}
+                />
+              ) : null}
+            </View>
+          ) : null}
+
+          {failed ? (
+            <PressableScale
+              onPress={() => onRetry(message)}
+              hitSlop={8}
+              accessibilityRole='button'
+              style={styles.meta}
+            >
+              <MaterialCommunityIcons name='alert-circle' size={14} color={colors.destructive} />
+              <Text style={[styles.failed, { color: colors.destructive }]}>
+                {message.error || 'Not sent'}. Tap to retry
+              </Text>
+            </PressableScale>
+          ) : null}
+        </View>
       </View>
     </SwipeToReply>
   );
@@ -244,6 +265,7 @@ const TUCKED = 6;
 
 const styles = StyleSheet.create({
   container: { maxWidth: '80%' },
+  highlight: { borderRadius: 12 },
   own: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   other: { alignSelf: 'flex-start', alignItems: 'flex-start' },
   bubble: { borderRadius: RADIUS, paddingHorizontal: 13, paddingVertical: 8 },
