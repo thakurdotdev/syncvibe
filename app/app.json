@@ -24,6 +24,7 @@
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "CAMERA",
+        "RECORD_AUDIO",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "REQUEST_INSTALL_PACKAGES",
@@ -43,10 +44,7 @@
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ],
-      "blockedPermissions": [
-        "android.permission.SYSTEM_ALERT_WINDOW",
-        "android.permission.RECORD_AUDIO"
-      ]
+      "blockedPermissions": ["android.permission.SYSTEM_ALERT_WINDOW"]
     },
     "web": {
       "bundler": "metro",
@@ -106,7 +104,8 @@
       [
         "expo-audio",
         {
-          "recordAudioAndroid": false
+          "recordAudioAndroid": true,
+          "microphonePermission": "Allow SyncVibe to use the microphone to record voice messages."
         }
       ],
       [

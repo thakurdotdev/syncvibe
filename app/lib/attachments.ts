@@ -50,6 +50,7 @@ const RULES: Record<string, Rule> = {
   opus: rule('audio', LIMITS.audio, 'audio/ogg'),
   wav: rule('audio', LIMITS.audio, 'audio/wav'),
   flac: rule('audio', LIMITS.audio, 'audio/flac'),
+  weba: rule('audio', LIMITS.audio, 'audio/webm'),
   pdf: rule('file', LIMITS.document, 'application/pdf'),
   txt: rule('file', LIMITS.document, 'text/plain'),
   md: rule('file', LIMITS.document, 'text/markdown'),
@@ -138,6 +139,14 @@ export const checkFile = (
   return { kind: found.kind };
 };
 
+/**
+ * A voice message is an audio file named this way when it's recorded (the web's are .weba). The
+ * server and the web read the same names.
+ */
+export const VOICE_MESSAGE_NAME = 'voice-message.m4a';
+export const isVoiceMessage = (attachment: { name?: string | null } | null | undefined) =>
+  /^voice-message\.(m4a|weba|ogg)$/.test(attachment?.name ?? '');
+
 /** "Photo", "Video", "Audio" or the file's name: for previews and quotes. */
 export const attachmentLabel = (
   attachment: { kind?: AttachmentKind; name?: string | null } | null | undefined
@@ -146,7 +155,7 @@ export const attachmentLabel = (
   const kind = attachment.kind ?? 'image';
   if (kind === 'image') return 'Photo';
   if (kind === 'video') return 'Video';
-  if (kind === 'audio') return 'Audio';
+  if (kind === 'audio') return isVoiceMessage(attachment) ? 'Voice message' : 'Audio';
   return attachment.name || 'File';
 };
 

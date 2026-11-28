@@ -258,6 +258,16 @@ const ChatWithUser = () => {
     [activeId, replyTo]
   );
 
+  const handleSendVoice = useCallback(
+    (file: PickedFile) => {
+      if (!activeId) return;
+      sendMessage(activeId, { files: [file], replyTo });
+      setReplyTo(null);
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    },
+    [activeId, replyTo]
+  );
+
   const handlePickSong = useCallback(() => {
     setSheetOpen(false);
     // The song sheet opens once the attach sheet has gone, so the two don't fight.
@@ -825,6 +835,7 @@ const ChatWithUser = () => {
           onTyping={handleTyping}
           onAttach={handleAttachment}
           onOpenGifs={handleOpenGifs}
+          onSendVoice={handleSendVoice}
           files={files}
           onRemoveFile={handleRemoveFile}
           replyingTo={
