@@ -15,7 +15,14 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { getOptimizedImageUrl } from '@/Utils/Cloudinary';
-import { extensionOf, fileFamily, formatBytes, formatDuration, typeLabel } from '@/lib/attachments';
+import {
+  extensionOf,
+  fileFamily,
+  formatBytes,
+  formatDuration,
+  isVoiceMessage,
+  typeLabel,
+} from '@/lib/attachments';
 import { refreshAttachment } from '@/lib/chat';
 import { cn } from '@/lib/utils';
 import { useChatStore } from '@/stores/chatStore';
@@ -257,7 +264,7 @@ const AudioClip = ({ message, isOwn, pending, sending, onCancel }) => {
       )}
       <div className='min-w-0 flex-1'>
         <p className='truncate text-[13px] font-medium' title={attachment.name}>
-          {attachment.name || 'Audio'}
+          {isVoiceMessage(attachment) ? 'Voice message' : attachment.name || 'Audio'}
         </p>
         <input
           type='range'

@@ -3,6 +3,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { fileIcon, formatBytes, formatDuration } from '@/lib/attachments';
 import { MAX_MESSAGE_LENGTH, type PickedFile } from '@/lib/chat';
+import { useVoiceNote } from './useVoiceNote';
 import { BUTTON_PRESS_SCALE } from '@/lib/motion';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
@@ -17,6 +18,8 @@ interface ChatInputProps {
   onTyping: (hasText: boolean) => void;
   onAttach: () => void;
   onOpenGifs: () => void;
+  /** A voice message was recorded: sent like a picked file. */
+  onSendVoice: (file: PickedFile) => void;
   /** Files picked to send with the next message. */
   files: PickedFile[];
   onRemoveFile: (key: string) => void;
@@ -94,6 +97,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onTyping,
   onAttach,
   onOpenGifs,
+  onSendVoice,
   files,
   onRemoveFile,
   replyingTo,
@@ -148,6 +152,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
     : Boolean(draft.trim() || files.length);
   // A GIF goes on its own, so the button steps aside once there is something else to send.
   const showGif = !editMode && !draft.trim() && files.length === 0;
+  // With nothing written, the send button records a voice message instead.
+  const voice = useVoiceNote(onSendVoice);
+  const showMic = showGif && !voice.recording;
   // The keyboard covers the navigation bar, so only clear the bar when it's showing.
   const bottom = keyboardVisible ? 8 : Math.max(insets.bottom, 8);
 
@@ -207,71 +214,118 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </ScrollView>
       ) : null}
 
-      <View style={styles.row}>
-        {editMode ? null : (
+      {voice.recording ? (
+        <View style={styles.row}>
           <PressableScale
-            onPress={onAttach}
+            onPress={voice.cancel}
             scaleTo={BUTTON_PRESS_SCALE}
             accessibilityRole='button'
-            accessibilityLabel='Attach photos, files or a song'
+            accessibilityLabel='Delete recording'
             style={styles.sideButton}
           >
-            <Ionicons name='add-circle-outline' size={26} color={colors.foreground} />
+            <Ionicons name='trash-outline' size={23} color={colors.destructive} />
           </PressableScale>
-        )}
-
-        <View style={[styles.field, { backgroundColor: colors.raised }]}>
-          <TextInput
-            ref={inputRef}
-            value={text}
-            onChangeText={handleChange}
-            placeholder={files.length && !editMode ? 'Add a message' : 'Message'}
-            placeholderTextColor={colors.mutedForeground}
-            multiline
-            maxLength={MAX_MESSAGE_LENGTH}
-            textAlignVertical='center'
-            style={[
-              styles.input,
-              { color: colors.foreground },
-              showGif ? styles.inputBeforeGif : null,
-            ]}
-          />
-          {showGif ? (
-            <PressableScale
-              onPress={onOpenGifs}
-              scaleTo={BUTTON_PRESS_SCALE}
-              hitSlop={4}
-              accessibilityRole='button'
-              accessibilityLabel='Send a GIF'
-              style={styles.gifButton}
-            >
-              <View style={[styles.gifBadge, { borderColor: colors.mutedForeground }]}>
-                <Text style={[styles.gifLabel, { color: colors.mutedForeground }]}>GIF</Text>
-              </View>
-            </PressableScale>
-          ) : null}
+          <View
+            style={[styles.field, styles.recordingField, { backgroundColor: colors.raised }]}
+            accessibilityLabel='Recording a voice message'
+          >
+            <View style={[styles.recordingDot, { backgroundColor: colors.destructive }]} />
+            <Text style={[styles.recordingTime, { color: colors.foreground }]}>
+              {formatDuration(voice.durationMs / 1000)}
+            </Text>
+            <Text style={[styles.recordingHint, { color: colors.mutedForeground }]}>
+              Recording…
+            </Text>
+          </View>
+          <PressableScale
+            onPress={voice.send}
+            scaleTo={BUTTON_PRESS_SCALE}
+            accessibilityRole='button'
+            accessibilityLabel='Send voice message'
+            style={[styles.sideButton, styles.send, { backgroundColor: colors.primary }]}
+          >
+            <Ionicons name='arrow-up' size={21} color={colors.primaryForeground} />
+          </PressableScale>
         </View>
+      ) : (
+        <View style={styles.row}>
+          {editMode ? null : (
+            <PressableScale
+              onPress={onAttach}
+              scaleTo={BUTTON_PRESS_SCALE}
+              accessibilityRole='button'
+              accessibilityLabel='Attach photos, files or a song'
+              style={styles.sideButton}
+            >
+              <Ionicons name='add-circle-outline' size={26} color={colors.foreground} />
+            </PressableScale>
+          )}
 
-        <PressableScale
-          onPress={handleSubmit}
-          disabled={!canSubmit}
-          scaleTo={BUTTON_PRESS_SCALE}
-          accessibilityRole='button'
-          accessibilityLabel={editMode ? 'Save changes' : 'Send message'}
-          accessibilityState={{ disabled: !canSubmit }}
-          style={[
-            styles.sideButton,
-            styles.send,
-            { backgroundColor: colors.primary, opacity: canSubmit ? 1 : 0.35 },
-          ]}
-        >
-          <Ionicons
-            name={editMode ? 'checkmark' : 'arrow-up'}
-            size={21}
-            color={colors.primaryForeground}
-          />
-        </PressableScale>
-      </View>
+          <View style={[styles.field, { backgroundColor: colors.raised }]}>
+            <TextInput
+              ref={inputRef}
+              value={text}
+              onChangeText={handleChange}
+              placeholder={files.length && !editMode ? 'Add a message' : 'Message'}
+              placeholderTextColor={colors.mutedForeground}
+              multiline
+              maxLength={MAX_MESSAGE_LENGTH}
+              textAlignVertical='center'
+              style={[
+                styles.input,
+                { color: colors.foreground },
+                showGif ? styles.inputBeforeGif : null,
+              ]}
+            />
+            {showGif ? (
+              <PressableScale
+                onPress={onOpenGifs}
+                scaleTo={BUTTON_PRESS_SCALE}
+                hitSlop={4}
+                accessibilityRole='button'
+                accessibilityLabel='Send a GIF'
+                style={styles.gifButton}
+              >
+                <View style={[styles.gifBadge, { borderColor: colors.mutedForeground }]}>
+                  <Text style={[styles.gifLabel, { color: colors.mutedForeground }]}>GIF</Text>
+                </View>
+              </PressableScale>
+            ) : null}
+          </View>
+
+          {showMic ? (
+            <PressableScale
+              onPress={() => void voice.start()}
+              scaleTo={BUTTON_PRESS_SCALE}
+              accessibilityRole='button'
+              accessibilityLabel='Record a voice message'
+              style={[styles.sideButton, styles.send, { backgroundColor: colors.primary }]}
+            >
+              <Ionicons name='mic' size={21} color={colors.primaryForeground} />
+            </PressableScale>
+          ) : (
+            <PressableScale
+              onPress={handleSubmit}
+              disabled={!canSubmit}
+              scaleTo={BUTTON_PRESS_SCALE}
+              accessibilityRole='button'
+              accessibilityLabel={editMode ? 'Save changes' : 'Send message'}
+              accessibilityState={{ disabled: !canSubmit }}
+              style={[
+                styles.sideButton,
+                styles.send,
+                { backgroundColor: colors.primary, opacity: canSubmit ? 1 : 0.35 },
+              ]}
+            >
+              <Ionicons
+                name={editMode ? 'checkmark' : 'arrow-up'}
+                size={21}
+                color={colors.primaryForeground}
+              />
+            </PressableScale>
+          )}
+        </View>
+      )}
     </View>
   );
 };
@@ -306,6 +360,15 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   inputBeforeGif: { paddingRight: 4 },
+  recordingField: {
+    minHeight: CONTROL,
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  recordingDot: { width: 9, height: 9, borderRadius: 5 },
+  recordingTime: { fontSize: 15, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  recordingHint: { fontSize: 14 },
   gifButton: { width: 40, height: CONTROL, alignItems: 'center', justifyContent: 'center' },
   gifBadge: { borderWidth: 1.5, borderRadius: 5, paddingHorizontal: 3, paddingVertical: 1 },
   gifLabel: { fontSize: 9.5, fontWeight: '800', letterSpacing: 0.3 },

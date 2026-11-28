@@ -5,11 +5,13 @@ import {
   FileAudio,
   FileSpreadsheet,
   FileText,
+  Mic,
   Music2,
   Paperclip,
   Pencil,
   Play,
   SendHorizontal,
+  Trash2,
   X,
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
@@ -20,11 +22,13 @@ import {
   fileFamily,
   filesFromClipboard,
   formatBytes,
+  formatDuration,
   replyLabel,
 } from '@/lib/attachments';
 import { MAX_MESSAGE_LENGTH, setTyping } from '@/lib/chat';
 import MediaPicker from '@/Pages/GroupMusic/chat/MediaPicker';
 import SongPickerDialog from './SongPickerDialog';
+import { canRecordVoice, useVoiceNote } from './useVoiceNote';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 
@@ -125,6 +129,7 @@ const MessageInput = ({
   onSend,
   onSendGif,
   onSendSong,
+  onSendVoice,
   files,
   onAddFiles,
   onRemoveFile,
@@ -182,6 +187,10 @@ const MessageInput = ({
   const canSubmit = editing
     ? Boolean(text.trim() || editing.attachment)
     : Boolean(text.trim() || files.length);
+  // With nothing written, the send button records a voice message instead.
+  const voice = useVoiceNote(onSendVoice);
+  const [voiceSupported] = useState(canRecordVoice);
+  const showMic = !editing && !canSubmit && voiceSupported;
 
   const submit = () => {
     if (!canSubmit) return;
@@ -255,91 +264,136 @@ const MessageInput = ({
         </div>
       )}
 
-      <div ref={rowRef} className='flex items-end gap-1'>
-        {!editing && (
+      {voice.recording ? (
+        <div className='flex items-center gap-2'>
           <Button
             variant='ghost'
             size='icon'
-            className='shrink-0 rounded-full'
-            onClick={() => fileInputRef.current?.click()}
-            aria-label='Attach files'
-            title='Attach files. You can also paste or drop them here.'
+            className='shrink-0 rounded-full text-destructive hover:text-destructive'
+            onClick={voice.cancel}
+            aria-label='Delete recording'
           >
-            <Paperclip className='h-5 w-5 text-muted-foreground' />
+            <Trash2 className='h-5 w-5' />
           </Button>
-        )}
-        {!editing && (
-          <Button
-            ref={gifButtonRef}
-            variant='ghost'
-            size='icon'
-            className='shrink-0 rounded-full'
-            onClick={() => setGifsOpen((open) => !open)}
-            aria-label='Send a GIF'
-            aria-expanded={gifsOpen}
-            title='GIFs and stickers'
-          >
-            <span className='rounded-[4px] border-[1.5px] border-current px-[3px] text-[9.5px] font-extrabold leading-[13px] tracking-wide text-muted-foreground'>
-              GIF
+          {/* No live region: a timer read out five times a second drowns everything else. */}
+          <div className='surface-input flex min-h-10 flex-1 items-center gap-2.5 rounded-3xl border px-4 text-sm'>
+            <span
+              className='h-2 w-2 animate-pulse rounded-full bg-destructive'
+              aria-hidden='true'
+            />
+            <span className='font-semibold tabular-nums'>
+              {formatDuration(voice.durationMs / 1000)}
             </span>
-          </Button>
-        )}
-        {!editing && (
+            <span className='text-muted-foreground'>Recording…</span>
+          </div>
           <Button
-            variant='ghost'
             size='icon'
             className='shrink-0 rounded-full'
-            onClick={() => setSongsOpen(true)}
-            aria-label='Share a song'
-            title='Share a song'
+            onClick={voice.send}
+            aria-label='Send voice message'
           >
-            <Music2 className='h-5 w-5 text-muted-foreground' />
+            <SendHorizontal className='h-5 w-5' />
           </Button>
-        )}
-        <input
-          type='file'
-          multiple
-          accept={ACCEPT}
-          className='hidden'
-          ref={fileInputRef}
-          onChange={(e) => {
-            onAddFiles(e.target.files);
-            e.target.value = '';
-          }}
-        />
-
-        <div className='relative min-w-0 flex-1'>
-          <textarea
-            ref={inputRef}
-            value={text}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            onBlur={() => setTyping(conversationId, false)}
-            rows={1}
-            maxLength={MAX_MESSAGE_LENGTH}
-            placeholder={files.length && !editing ? 'Add a message' : 'Message'}
-            aria-label={editing ? 'Edit message' : `Message ${peerName}`}
-            className='surface-input block max-h-[140px] border bg-transparent min-h-10 w-full resize-none rounded-3xl px-4 py-2.5 text-sm leading-5 outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring'
+        </div>
+      ) : (
+        <div ref={rowRef} className='flex items-end gap-1'>
+          {!editing && (
+            <Button
+              variant='ghost'
+              size='icon'
+              className='shrink-0 rounded-full'
+              onClick={() => fileInputRef.current?.click()}
+              aria-label='Attach files'
+              title='Attach files. You can also paste or drop them here.'
+            >
+              <Paperclip className='h-5 w-5 text-muted-foreground' />
+            </Button>
+          )}
+          {!editing && (
+            <Button
+              ref={gifButtonRef}
+              variant='ghost'
+              size='icon'
+              className='shrink-0 rounded-full'
+              onClick={() => setGifsOpen((open) => !open)}
+              aria-label='Send a GIF'
+              aria-expanded={gifsOpen}
+              title='GIFs and stickers'
+            >
+              <span className='rounded-[4px] border-[1.5px] border-current px-[3px] text-[9.5px] font-extrabold leading-[13px] tracking-wide text-muted-foreground'>
+                GIF
+              </span>
+            </Button>
+          )}
+          {!editing && (
+            <Button
+              variant='ghost'
+              size='icon'
+              className='shrink-0 rounded-full'
+              onClick={() => setSongsOpen(true)}
+              aria-label='Share a song'
+              title='Share a song'
+            >
+              <Music2 className='h-5 w-5 text-muted-foreground' />
+            </Button>
+          )}
+          <input
+            type='file'
+            multiple
+            accept={ACCEPT}
+            className='hidden'
+            ref={fileInputRef}
+            onChange={(e) => {
+              onAddFiles(e.target.files);
+              e.target.value = '';
+            }}
           />
-          {remaining <= SHOW_COUNT_WITHIN && (
-            <span className='absolute -top-5 right-2 text-[11px] tabular-nums text-muted-foreground'>
-              {remaining}
-            </span>
+
+          <div className='relative min-w-0 flex-1'>
+            <textarea
+              ref={inputRef}
+              value={text}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              onBlur={() => setTyping(conversationId, false)}
+              rows={1}
+              maxLength={MAX_MESSAGE_LENGTH}
+              placeholder={files.length && !editing ? 'Add a message' : 'Message'}
+              aria-label={editing ? 'Edit message' : `Message ${peerName}`}
+              className='surface-input block max-h-[140px] border bg-transparent min-h-10 w-full resize-none rounded-3xl px-4 py-2.5 text-sm leading-5 outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring'
+            />
+            {remaining <= SHOW_COUNT_WITHIN && (
+              <span className='absolute -top-5 right-2 text-[11px] tabular-nums text-muted-foreground'>
+                {remaining}
+              </span>
+            )}
+          </div>
+
+          {showMic ? (
+            <Button
+              size='icon'
+              className='shrink-0 rounded-full'
+              onClick={() => void voice.start()}
+              aria-label='Record a voice message'
+              title='Record a voice message'
+            >
+              <Mic className='h-5 w-5' />
+            </Button>
+          ) : (
+            <Button
+              variant={canSubmit ? 'default' : 'ghost'}
+              size='icon'
+              className='shrink-0 rounded-full'
+              disabled={!canSubmit}
+              onClick={submit}
+              aria-label={editing ? 'Save changes' : 'Send message'}
+            >
+              {editing ? <Check className='h-5 w-5' /> : <SendHorizontal className='h-5 w-5' />}
+            </Button>
           )}
         </div>
-
-        <Button
-          variant={canSubmit ? 'default' : 'ghost'}
-          size='icon'
-          className='shrink-0 rounded-full'
-          disabled={!canSubmit}
-          onClick={submit}
-          aria-label={editing ? 'Save changes' : 'Send message'}
-        >
-          {editing ? <Check className='h-5 w-5' /> : <SendHorizontal className='h-5 w-5' />}
-        </Button>
-      </div>
+      )}
 
       <SongPickerDialog open={songsOpen} onOpenChange={setSongsOpen} onPick={pickSong} />
 

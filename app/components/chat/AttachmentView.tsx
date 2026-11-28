@@ -1,7 +1,13 @@
 import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
-import { fileIcon, formatBytes, formatDuration, typeLabel } from '@/lib/attachments';
+import {
+  fileIcon,
+  formatBytes,
+  formatDuration,
+  isVoiceMessage,
+  typeLabel,
+} from '@/lib/attachments';
 import { freshAttachment, refreshAttachment } from '@/lib/chat';
 import {
   autoSaveToGallery,
@@ -363,7 +369,7 @@ const AudioClip = ({ message, isOwn, sending, onCancel }: AttachmentViewProps) =
   const attachment = message.attachment!;
   const [active, setActive] = useState(false);
   const uri = message.localUrl || attachment.url;
-  const label = attachment.name || 'Audio';
+  const label = isVoiceMessage(attachment) ? 'Voice message' : attachment.name || 'Audio';
   const tint = isOwn ? colors.primaryForeground : colors.foreground;
 
   if (active && uri) {

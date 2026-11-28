@@ -7,7 +7,13 @@ import {
   type SongMeta,
   type StoredFile,
 } from '@/models/chat/message.model';
-import { FILE_RULES, contentDisposition, extensionOf, servedType } from '../attachment.rules';
+import {
+  FILE_RULES,
+  contentDisposition,
+  extensionOf,
+  isVoiceMessageName,
+  servedType,
+} from '../attachment.rules';
 import type { AttachmentDto, FileAttachmentDto, MessageDto, ReactionDto } from '../chat.types';
 import { attachmentsEnabled, signRead } from './attachment.storage';
 
@@ -48,7 +54,9 @@ export const attachmentLabel = (attachment: MessageAttachment | AttachmentDto | 
   const kind = 'kind' in attachment ? attachment.kind : 'image';
   if (kind === 'image') return 'Photo';
   if (kind === 'video') return 'Video';
-  if (kind === 'audio') return 'Audio';
+  if (kind === 'audio') {
+    return 'name' in attachment && isVoiceMessageName(attachment.name) ? 'Voice message' : 'Audio';
+  }
   return 'name' in attachment && attachment.name ? attachment.name : 'File';
 };
 
