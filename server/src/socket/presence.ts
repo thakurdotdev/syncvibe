@@ -1,7 +1,7 @@
 import type { Server, Socket } from 'socket.io';
 import { Op } from 'sequelize';
 import { emitToUsers, userRoom } from '@/features/chat/chat.realtime';
-import { ConversationMember } from '@/models/index';
+import { ChatBlock, ConversationMember } from '@/models/index';
 import { getIO } from '@/utils/socket-emitter';
 
 /**
@@ -42,7 +42,20 @@ const partnerIdsOf = async (userId: number): Promise<number[]> => {
     },
     attributes: ['userId'],
   });
-  return [...new Set(partners.map((partner) => partner.userId))];
+  const ids = [...new Set(partners.map((partner) => partner.userId))];
+  if (ids.length === 0) return ids;
+  // Blocked either way, they don't see each other come and go.
+  const blocks = await ChatBlock.findAll({
+    where: {
+      [Op.or]: [
+        { blockerId: userId, blockedId: ids },
+        { blockedId: userId, blockerId: ids },
+      ],
+    },
+    attributes: ['blockerId', 'blockedId'],
+  });
+  const hidden = new Set(blocks.map((b) => (b.blockerId === userId ? b.blockedId : b.blockerId)));
+  return ids.filter((id) => !hidden.has(id));
 };
 
 const announce = (userId: number, isOnlineNow: boolean) => {

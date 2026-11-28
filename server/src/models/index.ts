@@ -17,6 +17,7 @@ import ConversationMember from './chat/conversation-member.model';
 import Message from './chat/message.model';
 import MessageReaction from './chat/message-reaction.model';
 import ChatAttachment from './chat/attachment.model';
+import ChatBlock from './chat/block.model';
 
 // Music
 import Song from './music/song.model';
@@ -153,6 +154,7 @@ export {
   Message,
   MessageReaction,
   ChatAttachment,
+  ChatBlock,
   Song,
   HistorySong,
   PlayEvent,

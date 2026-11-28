@@ -3,6 +3,7 @@ import { getIO } from '@/utils/socket-emitter';
 import { userRoom } from '@/features/chat/chat.realtime';
 import { findDirectConversationId } from '@/features/chat/services/conversation.service';
 import { recordCall } from '@/features/chat/services/message.service';
+import { blockBetween } from '@/features/chat/services/block.service';
 import { sendPushNotification } from '@/socket/notification';
 import { effects } from './call.effects';
 import { getIceServers } from './ice-servers';
@@ -35,8 +36,10 @@ effects.ring = (userId, payload) =>
       });
   });
 
+// Only people with a conversation, and not when either blocked the other.
 effects.canCall = async (callerId, calleeId) =>
-  (await findDirectConversationId(callerId, calleeId)) !== null;
+  (await findDirectConversationId(callerId, calleeId)) !== null &&
+  (await blockBetween(callerId, calleeId)) === null;
 
 effects.profileOf = async (userId) => {
   const user = await User.findOne({

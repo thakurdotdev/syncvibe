@@ -96,6 +96,10 @@ export interface ConversationDto {
   peerLastReadMessageId: number;
   peerLastReadAt: string | null;
   peerLastDeliveredMessageId: number;
+  /** You muted it: no notifications from it on your devices. */
+  muted: boolean;
+  /** You blocked the other person. Whether they blocked you isn't said. */
+  blocked: boolean;
 }
 
 export interface ReceiptDto {

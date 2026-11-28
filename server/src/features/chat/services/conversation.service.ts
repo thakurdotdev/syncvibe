@@ -1,6 +1,14 @@
 import { QueryTypes, type Transaction } from 'sequelize';
 import sequelize from '@/utils/sequelize';
-import { ChatAttachment, Conversation, ConversationMember, Message, User } from '@/models/index';
+import { Op } from 'sequelize';
+import {
+  ChatAttachment,
+  ChatBlock,
+  Conversation,
+  ConversationMember,
+  Message,
+  User,
+} from '@/models/index';
 import { isOnline } from '@/socket/presence';
 import { invalid, notFound } from '../chat.errors';
 import type { ConversationDto } from '../chat.types';
@@ -39,6 +47,8 @@ interface ConversationRow {
   created_at: Date;
   last_message_at: Date | null;
   my_last_read: string;
+  muted: boolean;
+  blocked: boolean;
   peer_id: number;
   peer_last_read: string;
   peer_last_read_at: Date | null;
@@ -61,6 +71,9 @@ const conversationQuery = (filter: string) => `
          c.created_at,
          c.last_message_at,
          me.last_read_message_id AS my_last_read,
+         me.muted,
+         EXISTS (SELECT 1 FROM chat_blocks b
+                 WHERE b.blocker_id = me.user_id AND b.blocked_id = peer.user_id) AS blocked,
          peer.user_id AS peer_id,
          peer.last_read_message_id AS peer_last_read,
          peer.last_read_at AS peer_last_read_at,
@@ -107,6 +120,8 @@ const toConversations = async (rows: ConversationRow[]): Promise<ConversationDto
     peerLastReadMessageId: Number(row.peer_last_read),
     peerLastReadAt: row.peer_last_read_at?.toISOString() ?? null,
     peerLastDeliveredMessageId: Number(row.peer_last_delivered),
+    muted: Boolean(row.muted),
+    blocked: Boolean(row.blocked),
   }));
 };
 
@@ -196,6 +211,10 @@ export const deleteConversationsOf = async (
   });
   // Members, messages, reactions and file rows follow through the tables' ON DELETE CASCADE.
   await Conversation.destroy({ where: { id: ids }, transaction });
+  await ChatBlock.destroy({
+    where: { [Op.or]: [{ blockerId: userId }, { blockedId: userId }] },
+    transaction,
+  });
   memberCache.clear();
 
   // The files themselves go once the deletion is certain.

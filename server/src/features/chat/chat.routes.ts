@@ -10,6 +10,8 @@ import {
   postMessage,
   postDelivered,
   postRead,
+  putBlocked,
+  putMuted,
 } from './chat.controller';
 
 /**
@@ -26,6 +28,8 @@ chatRouter.get('/chat/conversations/:conversationId/messages', authMiddleware, g
 chatRouter.post('/chat/conversations/:conversationId/messages', authMiddleware, postMessage);
 chatRouter.post('/chat/conversations/:conversationId/read', authMiddleware, postRead);
 chatRouter.post('/chat/conversations/:conversationId/delivered', authMiddleware, postDelivered);
+chatRouter.put('/chat/conversations/:conversationId/mute', authMiddleware, putMuted);
+chatRouter.put('/chat/conversations/:conversationId/block', authMiddleware, putBlocked);
 chatRouter.post('/chat/conversations/:conversationId/attachments', authMiddleware, postAttachment);
 chatRouter.get('/chat/attachments/:attachmentId', authMiddleware, getAttachmentLinks);
 chatRouter.delete('/chat/attachments/:attachmentId', authMiddleware, deleteAttachment);

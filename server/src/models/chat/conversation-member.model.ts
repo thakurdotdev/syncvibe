@@ -20,6 +20,8 @@ class ConversationMember extends Model<
   /** Everything up to and including this message has reached one of this member's devices. */
   declare lastDeliveredMessageId: CreationOptional<number>;
   declare lastDeliveredAt: CreationOptional<Date | null>;
+  /** No notifications from this conversation, on any of this member's devices. */
+  declare muted: CreationOptional<boolean>;
   declare joinedAt: CreationOptional<Date>;
 }
 
@@ -39,6 +41,7 @@ ConversationMember.init(
       defaultValue: 0,
     },
     lastDeliveredAt: { type: DataTypes.DATE, field: 'last_delivered_at' },
+    muted: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     joinedAt: {
       type: DataTypes.DATE,
       field: 'joined_at',
