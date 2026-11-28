@@ -6,6 +6,7 @@ import DateBubble from '@/components/chat/DateBubble';
 import MessageBubble from '@/components/chat/MessageBubble';
 import Avatar from '@/components/chat/Avatar';
 import MessageHeader from '@/components/chat/MessageHeader';
+import SendToChatSheet from '@/components/chat/SendToChatSheet';
 import SongPickerSheet from '@/components/chat/SongPickerSheet';
 import { SettingsRow } from '@/components/profile/SettingsGroup';
 import Toggle from '@/components/ui/Toggle';
@@ -17,6 +18,7 @@ import {
   deleteMessage,
   discardMessage,
   editMessage,
+  forwardMessage,
   freshAttachment,
   loadOlder,
   loadThread,
@@ -25,6 +27,7 @@ import {
   retryMessage,
   sendGif,
   setBlocked,
+  setMessageStarred,
   setMuted,
   sendMessage,
   sendSong,
@@ -46,6 +49,7 @@ import { putConversationOnScreen, registerConversationScreen } from '@/lib/chatS
 import { BUTTON_PRESS_SCALE, EASE_OUT, ROW_PRESS_SCALE } from '@/lib/motion';
 import {
   messageStatus,
+  previewOf,
   selectConversation,
   selectThread,
   useChatStore,
@@ -134,6 +138,8 @@ const ChatWithUser = () => {
     Boolean(conversation && s.presence[conversation.peer.userid])
   );
   const isTyping = useChatStore((s) => Boolean(activeId && s.typing[activeId]));
+  const starredIds = useChatStore((s) => s.starred);
+  const jump = useChatStore((s) => s.jump);
 
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
@@ -143,6 +149,7 @@ const ChatWithUser = () => {
   // the first one reports "closed" when its animation ends, which shut the one that replaced it.
   const [sheetOpen, setSheetOpen] = useState(false);
   const [gifsOpen, setGifsOpen] = useState(false);
+  const [forwarding, setForwarding] = useState<ChatMessage | null>(null);
   const [songsOpen, setSongsOpen] = useState(false);
   const [sheetView, setSheetView] = useState<
     'options' | 'confirm-delete' | 'info' | 'attach' | 'profile' | 'confirm-block'
@@ -415,6 +422,13 @@ const ChatWithUser = () => {
     return () => clearTimeout(timer);
   }, [highlightId]);
 
+  // Sent here from Starred or a search: go to that message once the chat has loaded.
+  useEffect(() => {
+    if (!jump || jump.conversationId !== activeId || thread.status !== 'ready') return;
+    useChatStore.getState().clearJump();
+    void jumpTo(jump.messageId);
+  }, [jump, activeId, thread.status, jumpTo]);
+
   // Opening with a lot unread starts at the first of them, the line at the top of the screen.
   const openedAtUnread = useRef<number | null>(null);
   useEffect(() => {
@@ -512,6 +526,38 @@ const ChatWithUser = () => {
     setEditing(null);
     setReplyTo(message);
   }, []);
+
+  const handleForward = useCallback(() => {
+    const target = selected;
+    setSheetOpen(false);
+    // The list of chats opens once the options sheet has gone.
+    setTimeout(() => setForwarding(target), SHEET_CLOSE_MS);
+  }, [selected]);
+
+  const handleForwardTo = useCallback(
+    (to: { id: number; peer: { name: string } }) => {
+      const target = forwarding;
+      setForwarding(null);
+      if (!target) return;
+      const name = to.peer.name.split(' ')[0] || to.peer.name;
+      forwardMessage(target, to.id)
+        .then(() => toast(`Forwarded to ${name}`, { type: 'success' }))
+        .catch((error: Error) =>
+          toast(error.message || "Couldn't forward it. Try again.", { type: 'error' })
+        );
+    },
+    [forwarding]
+  );
+
+  const handleToggleStar = useCallback(() => {
+    const target = selected;
+    setSheetOpen(false);
+    if (!target || target.id == null) return;
+    const starred = !useChatStore.getState().starred[target.id];
+    setMessageStarred(target, starred).catch((error: Error) =>
+      toast(error.message || "Couldn't change that. Try again.", { type: 'error' })
+    );
+  }, [selected]);
 
   const handleStartEdit = useCallback(() => {
     if (!selected) return;
@@ -721,6 +767,7 @@ const ChatWithUser = () => {
           onReply={handleSwipeReply}
           onJump={jumpTo}
           highlighted={highlightId != null && item.message.id === highlightId}
+          starred={item.message.id != null && Boolean(starredIds[item.message.id])}
           onCancel={discardMessage}
           onReact={handleReact}
           onRetry={retryMessage}
@@ -736,6 +783,7 @@ const ChatWithUser = () => {
       handleSwipeReply,
       jumpTo,
       highlightId,
+      starredIds,
       handleReact,
       colors,
     ]
@@ -764,8 +812,10 @@ const ChatWithUser = () => {
   );
 
   const selectedIsOwn = selected?.senderId === meId;
-  // GIFs, songs and calls have no text of their own to change.
-  const selectedEditable = ['text', 'image', 'file'].includes(selected?.type ?? '');
+  // GIFs, songs, calls and forwarded messages have no text of their own to change.
+  const selectedEditable =
+    !selected?.forwarded && ['text', 'image', 'file'].includes(selected?.type ?? '');
+  const selectedStarred = selected?.id != null && Boolean(starredIds[selected.id]);
   const selectedOnServer = selected?.id != null;
   const selectedStatus = selected ? messageStatus(selected, conversation) : null;
   const myReaction = selected?.reactions.find(
@@ -912,6 +962,15 @@ const ChatWithUser = () => {
             onCancelEdit={() => setEditing(null)}
           />
         )}
+
+        <SendToChatSheet
+          isVisible={forwarding != null}
+          onClose={() => setForwarding(null)}
+          title='Forward to…'
+          subtitle={forwarding ? previewOf(forwarding, null) : undefined}
+          excludeId={activeId}
+          onPick={handleForwardTo}
+        />
 
         <SongPickerSheet
           isVisible={songsOpen}
@@ -1081,6 +1140,16 @@ const ChatWithUser = () => {
               ) : null}
               {selectedOnServer ? (
                 <OptionItem icon='arrow-undo-outline' text='Reply' onPress={handleReply} />
+              ) : null}
+              {selectedOnServer && selected?.type !== 'call' ? (
+                <OptionItem icon='arrow-redo-outline' text='Forward' onPress={handleForward} />
+              ) : null}
+              {selectedOnServer && selected?.type !== 'call' ? (
+                <OptionItem
+                  icon={selectedStarred ? 'star' : 'star-outline'}
+                  text={selectedStarred ? 'Unstar' : 'Star'}
+                  onPress={handleToggleStar}
+                />
               ) : null}
               {selected?.body && selected.type !== 'song' ? (
                 <OptionItem icon='copy-outline' text='Copy text' onPress={handleCopyText} />

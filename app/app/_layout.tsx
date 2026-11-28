@@ -312,6 +312,12 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen
+            name='starred'
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
             name='music-taste'
             options={{
               headerShown: false,

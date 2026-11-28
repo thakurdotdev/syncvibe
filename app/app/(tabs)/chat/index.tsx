@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { DECK_CLEARANCE } from '@/components/music/UnifiedBottomDeck';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -173,6 +174,11 @@ const ChatListScreen: React.FC = () => {
           title='Messages'
           scrollY={term ? undefined : scrollY}
           onTitlePress={scrollToTop}
+          action={{
+            icon: 'star-outline',
+            label: 'Starred messages',
+            onPress: () => router.push('/starred'),
+          }}
           search={{
             value: searchQuery,
             onChangeText: changeQuery,

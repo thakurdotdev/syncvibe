@@ -65,6 +65,8 @@ export interface ChatMessage {
   call: { outcome: 'missed' | 'completed' | 'rejected'; durationSec?: number } | null;
   /** Missing on messages from servers before shared songs. */
   song?: Song | null;
+  /** Forwarded from another conversation. */
+  forwarded?: boolean;
   replyTo: ReplyPreview | null;
   reactions: Reaction[];
   editedAt: string | null;
@@ -136,6 +138,13 @@ interface ChatData {
   typing: Record<number, boolean>;
   /** clientId → how much of a file being sent has been uploaded, 0 to 1 */
   uploads: Record<string, number>;
+  /** Messages you starred, by id. Only yours, on all your devices. */
+  starred: Record<number, true>;
+  /**
+   * A message to go to once its conversation is on screen: from Starred or a search. The screen
+   * takes it when the conversation has loaded.
+   */
+  jump: { conversationId: number; messageId: number } | null;
 }
 
 interface ChatActions {
@@ -178,6 +187,10 @@ interface ChatActions {
     lastMessage?: ChatMessage | null;
   }) => void;
   applyReceipt: (receipt: Receipt) => void;
+  setStarredIds: (messageIds: number[]) => void;
+  setStarred: (messageId: number, starred: boolean) => void;
+  requestJump: (conversationId: number, messageId: number) => void;
+  clearJump: () => void;
   /** Muted or blocked, here or on another of your devices. */
   setConversationSettings: (
     conversationId: number,
@@ -255,6 +268,8 @@ const initialState: ChatData = {
   presence: {},
   typing: {},
   uploads: {},
+  starred: {},
+  jump: null,
 };
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -537,6 +552,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
           };
         }) ?? state.conversations,
     })),
+
+  setStarredIds: (messageIds) =>
+    set({ starred: Object.fromEntries(messageIds.map((id) => [id, true as const])) }),
+  setStarred: (messageId, starred) =>
+    set((state) => {
+      const next = { ...state.starred };
+      if (starred) next[messageId] = true;
+      else delete next[messageId];
+      return { starred: next };
+    }),
+  requestJump: (conversationId, messageId) => set({ jump: { conversationId, messageId } }),
+  clearJump: () => set({ jump: null }),
 
   setConversationSettings: (conversationId, settings) =>
     set((state) => ({
