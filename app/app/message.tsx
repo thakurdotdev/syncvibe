@@ -6,6 +6,7 @@ import DateBubble from '@/components/chat/DateBubble';
 import MessageBubble from '@/components/chat/MessageBubble';
 import Avatar from '@/components/chat/Avatar';
 import MessageHeader from '@/components/chat/MessageHeader';
+import ChatSearchSheet from '@/components/chat/ChatSearchSheet';
 import SendToChatSheet from '@/components/chat/SendToChatSheet';
 import SongPickerSheet from '@/components/chat/SongPickerSheet';
 import { SettingsRow } from '@/components/profile/SettingsGroup';
@@ -150,6 +151,7 @@ const ChatWithUser = () => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [gifsOpen, setGifsOpen] = useState(false);
   const [forwarding, setForwarding] = useState<ChatMessage | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [songsOpen, setSongsOpen] = useState(false);
   const [sheetView, setSheetView] = useState<
     'options' | 'confirm-delete' | 'info' | 'attach' | 'profile' | 'confirm-block'
@@ -832,6 +834,14 @@ const ChatWithUser = () => {
         <MessageHeader
           onBack={() => router.back()}
           onOpenProfile={conversation ? handleOpenProfile : undefined}
+          onSearch={
+            conversation
+              ? () => {
+                  Keyboard.dismiss();
+                  setSearchOpen(true);
+                }
+              : undefined
+          }
           user={conversation?.peer}
           isOnline={isOnline}
           isTyping={isTyping}
@@ -962,6 +972,18 @@ const ChatWithUser = () => {
             onCancelEdit={() => setEditing(null)}
           />
         )}
+
+        <ChatSearchSheet
+          isVisible={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          conversationId={activeId}
+          meId={meId}
+          peerName={peerName}
+          onPick={(message) => {
+            setSearchOpen(false);
+            if (message.id != null) void jumpTo(message.id);
+          }}
+        />
 
         <SendToChatSheet
           isVisible={forwarding != null}

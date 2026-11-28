@@ -607,6 +607,23 @@ const resendRead = (): void => {
   }
 };
 
+// ── Searching ───────────────────────────────────────────────────────────────
+
+export const MIN_SEARCH_LENGTH = 2;
+
+/** Messages in the conversation with the words in them, newest first (at most 50). */
+export const searchConversation = async (
+  conversationId: number,
+  query: string,
+  signal?: AbortSignal
+): Promise<ChatMessage[]> => {
+  const { data } = await api.get<{ messages: ChatMessage[] }>(
+    `/api/chat/conversations/${conversationId}/search`,
+    { params: { q: query }, signal }
+  );
+  return data.messages;
+};
+
 // ── Forwarding and stars ────────────────────────────────────────────────────
 
 /**
