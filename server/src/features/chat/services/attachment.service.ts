@@ -16,6 +16,7 @@ import type { FileAttachmentDto } from '../chat.types';
 import { parseId } from '../chat.validation';
 import {
   attachmentsEnabled,
+  copyObject,
   inspect,
   readStart,
   removeObject,
@@ -136,6 +137,37 @@ const discard = async (row: ChatAttachment) => {
     console.error('Removing a chat upload failed:', error)
   );
   await row.update({ status: 'deleted' });
+};
+
+/**
+ * A copy of a file already sent, for forwarding it to `conversationId`. It counts towards the
+ * day's allowance like an upload, and waits to be claimed by the forwarded message like one:
+ * if the message never gets stored, the sweep removes it.
+ */
+export const copyAttachment = async (
+  userId: number,
+  source: StoredFile,
+  conversationId: number
+): Promise<StoredFile> => {
+  requireEnabled();
+  await checkAllowance(userId, source.size);
+  const id = randomUUID();
+  const storageKey = `chat/${conversationId}/${id}`;
+  await copyObject(source.key, storageKey);
+  const row = await ChatAttachment.create({
+    id,
+    conversationId,
+    uploaderId: userId,
+    storageKey,
+    kind: source.kind,
+    name: source.name,
+    mime: source.mime,
+    size: source.size,
+    width: source.width ?? null,
+    height: source.height ?? null,
+    durationSec: source.durationSec ?? null,
+  });
+  return stored(row);
 };
 
 /**

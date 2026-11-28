@@ -607,6 +607,44 @@ const resendRead = (): void => {
   }
 };
 
+// ── Forwarding and stars ────────────────────────────────────────────────────
+
+/**
+ * Sends a copy of the message to another conversation, marked forwarded. Nothing shows in the
+ * other conversation until the server has it: the user isn't looking at that one.
+ */
+export const forwardMessage = async (
+  message: ChatMessage,
+  conversationId: number
+): Promise<void> => {
+  if (message.id == null) return;
+  const { message: copy } = await command<{ message: ChatMessage }>('chat:forward', {
+    messageId: message.id,
+    conversationId,
+    clientId: Crypto.randomUUID(),
+  });
+  store().receiveMessage(copy);
+};
+
+/** Your starred messages, latest starred first; also brings the stars on messages up to date. */
+export const loadStarred = async (): Promise<ChatMessage[]> => {
+  const { data } = await api.get<{ messages: ChatMessage[] }>('/api/chat/starred');
+  store().setStarredIds(data.messages.map((m) => m.id!).filter(Boolean));
+  return data.messages;
+};
+
+/** Stars or unstars a message. Shown at once, undone on failure. */
+export const setMessageStarred = async (message: ChatMessage, starred: boolean): Promise<void> => {
+  if (message.id == null) return;
+  store().setStarred(message.id, starred);
+  try {
+    await api.put(`/api/chat/messages/${message.id}/star`, { starred });
+  } catch (error) {
+    store().setStarred(message.id, !starred);
+    throw httpError(error, starred ? "Couldn't star the message" : "Couldn't unstar the message");
+  }
+};
+
 // ── Muting and blocking ─────────────────────────────────────────────────────
 
 /** No notifications from the conversation, on any of your devices. Shown at once, undone on failure. */
@@ -696,6 +734,9 @@ export const bindChatSocket = (
   const onReceipt = (receipt?: Receipt) => {
     if (receipt) store().applyReceipt(receipt);
   };
+  const onStarred = (payload?: { messageId?: number; starred?: boolean }) => {
+    if (payload?.messageId) store().setStarred(payload.messageId, Boolean(payload.starred));
+  };
   const onSettings = (payload?: {
     conversationId?: number;
     muted?: boolean;
@@ -739,11 +780,13 @@ export const bindChatSocket = (
     'chat:typing': onTyping,
     'presence:update': onPresence,
     'chat:settings': onSettings,
+    'chat:starred': onStarred,
   };
   for (const [event, listener] of Object.entries(listeners)) nextSocket.on(event, listener);
 
   // The list shouldn't wait for the socket, which may be slow to connect or blocked.
   void refreshConversations();
+  loadStarred().catch(() => {});
   if (nextSocket.connected) onConnect();
 
   return () => {

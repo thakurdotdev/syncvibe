@@ -41,12 +41,13 @@ export interface CallMeta {
   durationSec?: number;
 }
 
-/** A shared song, by its id in the catalog (`songs.song_id`). */
-export interface SongMeta {
-  songId: string;
+/** About a message's content: a shared song (its `songs.song_id`), and whether it was forwarded. */
+export interface ContentMeta {
+  songId?: string;
+  forwarded?: boolean;
 }
 
-export type MessageMeta = CallMeta | SongMeta;
+export type MessageMeta = CallMeta | ContentMeta;
 
 class Message extends Model<InferAttributes<Message>, InferCreationAttributes<Message>> {
   declare id: CreationOptional<number>;

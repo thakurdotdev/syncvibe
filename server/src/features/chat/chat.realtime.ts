@@ -12,6 +12,7 @@ import { getIO } from '@/utils/socket-emitter';
  *   presence:update       { userId, online }
  *   chat:settings         { conversationId, muted?, blocked? }   to your own devices: you muted
  *                                                                or blocked from another one
+ *   chat:starred          { conversationId, messageId, starred } to your own devices
  */
 
 /** Chat is sent here. A socket is in it only because its session says whose it is (socket/auth). */

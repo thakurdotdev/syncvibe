@@ -1,4 +1,4 @@
-import { AlertCircle, Check, CheckCheck, Clock } from 'lucide-react';
+import { AlertCircle, Check, CheckCheck, Clock, Forward, Star } from 'lucide-react';
 import { memo } from 'react';
 import { replyLabel } from '@/lib/attachments';
 import { cn } from '@/lib/utils';
@@ -81,6 +81,7 @@ const MessageBubble = ({
   onMenuOpenChange,
   actions,
   onJump,
+  starred,
 }) => {
   const pending = message.id == null;
   const failed = status === 'failed';
@@ -121,6 +122,17 @@ const MessageBubble = ({
               failed && 'opacity-70'
             )}
           >
+            {message.forwarded && (
+              <div
+                className={cn(
+                  'mb-1 flex items-center gap-1 text-[11px] italic opacity-75',
+                  mediaOnly && 'px-1 pt-1 text-muted-foreground'
+                )}
+              >
+                <Forward className='h-3 w-3' aria-hidden='true' />
+                Forwarded
+              </div>
+            )}
             {message.replyTo && (
               <ReplyQuote
                 replyTo={message.replyTo}
@@ -157,6 +169,7 @@ const MessageBubble = ({
               shown={selected}
               onOpenChange={onMenuOpenChange}
               actions={actions}
+              starred={starred}
             />
           )}
         </div>
@@ -188,8 +201,14 @@ const MessageBubble = ({
             </button>
           </div>
         ) : (
-          (endsRun || message.editedAt || pending) && (
+          (endsRun || message.editedAt || pending || starred) && (
             <div className='mt-1 flex items-center gap-1 px-1 text-[11px] text-muted-foreground'>
+              {starred && (
+                <>
+                  <Star className='h-3 w-3 fill-current' aria-hidden='true' />
+                  <span className='sr-only'>Starred</span>
+                </>
+              )}
               {message.editedAt && <span>Edited ·</span>}
               <span className='tabular-nums'>{formatTime(message.createdAt)}</span>
               {isOwn && status && (

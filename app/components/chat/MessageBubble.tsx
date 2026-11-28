@@ -4,7 +4,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { ROW_PRESS_SCALE } from '@/lib/motion';
 import { replyLabel } from '@/lib/attachments';
 import type { ChatMessage, MessageStatus } from '@/stores/chatStore';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import AttachmentView from './AttachmentView';
@@ -29,6 +29,8 @@ interface MessageBubbleProps {
   onJump: (messageId: number) => void;
   /** Just jumped to: tinted for a moment so the eye finds it. */
   highlighted?: boolean;
+  /** You starred it: a small star beside the time. */
+  starred?: boolean;
   /** Stops a file that is still uploading. */
   onCancel: (message: ChatMessage) => void;
   onReact: (message: ChatMessage, emoji: string) => void;
@@ -71,6 +73,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onReply,
   onJump,
   highlighted = false,
+  starred = false,
   onCancel,
   onReact,
   onRetry,
@@ -116,7 +119,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   const openActions = () => onLongPress(message);
   const textColor = isOwn ? colors.primaryForeground : colors.foreground;
-  const showMeta = (endsGroup || Boolean(message.editedAt) || sending) && !failed;
+  const showMeta = (endsGroup || Boolean(message.editedAt) || sending || starred) && !failed;
 
   return (
     // Only a message the server has can be quoted.
@@ -131,6 +134,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             { marginTop: startsGroup ? 10 : 2 },
           ]}
         >
+          {message.forwarded ? (
+            <View style={styles.forwarded} accessibilityLabel='Forwarded'>
+              <Ionicons name='arrow-redo' size={12} color={colors.mutedForeground} />
+              <Text style={[styles.forwardedText, { color: colors.mutedForeground }]}>
+                Forwarded
+              </Text>
+            </View>
+          ) : null}
           {card ? (
             <SongCard message={message} isOwn={isOwn} corners={corners} onLongPress={openActions} />
           ) : null}
@@ -224,6 +235,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
           {showMeta ? (
             <View style={styles.meta}>
+              {starred ? (
+                <Ionicons
+                  name='star'
+                  size={11}
+                  color={colors.mutedForeground}
+                  accessibilityLabel='Starred'
+                />
+              ) : null}
               {message.editedAt ? (
                 <Text style={[styles.time, { color: colors.mutedForeground }]}>Edited ·</Text>
               ) : null}
@@ -266,6 +285,14 @@ const TUCKED = 6;
 const styles = StyleSheet.create({
   container: { maxWidth: '80%' },
   highlight: { borderRadius: 12 },
+  forwarded: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 3,
+    paddingHorizontal: 4,
+  },
+  forwardedText: { fontSize: 12, fontStyle: 'italic' },
   own: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   other: { alignSelf: 'flex-start', alignItems: 'flex-start' },
   bubble: { borderRadius: RADIUS, paddingHorizontal: 13, paddingVertical: 8 },

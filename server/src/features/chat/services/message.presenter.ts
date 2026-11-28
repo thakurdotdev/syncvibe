@@ -4,7 +4,7 @@ import {
   isStoredFile,
   type CallMeta,
   type MessageAttachment,
-  type SongMeta,
+  type ContentMeta,
   type StoredFile,
 } from '@/models/chat/message.model';
 import {
@@ -72,8 +72,8 @@ export const presentMessages = async (
   const songIds = [
     ...new Set(
       messages
-        .filter((message) => message.type === 'song' && message.meta)
-        .map((message) => (message.meta as SongMeta).songId)
+        .map((message) => (message.type === 'song' ? (message.meta as ContentMeta)?.songId : null))
+        .filter((songId): songId is string => Boolean(songId))
     ),
   ];
 
@@ -125,9 +125,11 @@ export const presentMessages = async (
       attachment: attachments[index] ?? null,
       call: message.type === 'call' ? (message.meta as CallMeta | null) : null,
       song:
-        message.type === 'song' && message.meta
-          ? (songs.get((message.meta as SongMeta).songId) ?? null)
+        message.type === 'song'
+          ? (songs.get((message.meta as ContentMeta | null)?.songId ?? '') ?? null)
           : null,
+      forwarded:
+        message.type !== 'call' && Boolean((message.meta as ContentMeta | null)?.forwarded),
       replyTo: reply
         ? {
             id: reply.id,
