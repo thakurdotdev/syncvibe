@@ -17,6 +17,7 @@ import {
   deleteMessage,
   discardMessage,
   editMessage,
+  freshAttachment,
   loadOlder,
   loadThread,
   markRead,
@@ -347,7 +348,10 @@ const ChatWithUser = () => {
   const handleOpenMedia = useCallback(
     (message: ChatMessage) => {
       if (message.attachment?.kind === 'video') {
-        if (message.attachment.url) setPlaying(message);
+        // Its links may have run out (a chat kept on the phone): renewed before it plays.
+        freshAttachment(message)
+          .then((attachment) => attachment?.url && setPlaying({ ...message, attachment }))
+          .catch(() => toast("Couldn't open the video. Try again.", { type: 'error' }));
         return;
       }
       const index = photos.findIndex((item) => item.id === message.id);
