@@ -68,6 +68,10 @@ export const LIMITS = {
   pending: 20,
 } as const;
 
+/** A voice message is an audio file the apps name this way when they record it. */
+export const isVoiceMessageName = (name: string): boolean =>
+  /^voice-message\.(m4a|weba|ogg)$/.test(name);
+
 export const FILE_RULES: Readonly<Record<string, FileRule>> = {
   // Photos
   jpg: rule('image/jpeg', 'image', LIMITS.image, 'jpeg'),
@@ -97,6 +101,8 @@ export const FILE_RULES: Readonly<Record<string, FileRule>> = {
   opus: rule('audio/ogg', 'audio', LIMITS.audio, 'ogg'),
   wav: rule('audio/wav', 'audio', LIMITS.audio, 'wav'),
   flac: rule('audio/flac', 'audio', LIMITS.audio, 'flac'),
+  // A voice message recorded in a browser.
+  weba: rule('audio/webm', 'audio', LIMITS.audio, 'ebml'),
 
   // Documents
   pdf: rule('application/pdf', 'file', LIMITS.document, 'pdf', true),

@@ -6,6 +6,7 @@ import {
   LIMITS,
   cleanFileName,
   contentDisposition,
+  isVoiceMessageName,
   looksLike,
   parseUploadRequest,
   servedType,
@@ -80,6 +81,7 @@ test('uploads must start the way their kind of file starts', () => {
   ok('heic', bytes([0, 0, 0, 0x18], 'ftypheic'));
   ok('avif', bytes([0, 0, 0, 0x18], 'ftypavif'));
   ok('webm', bytes([0x1a, 0x45, 0xdf, 0xa3]));
+  ok('weba', bytes([0x1a, 0x45, 0xdf, 0xa3]));
   ok('mp3', bytes('ID3'));
   ok('mp3', bytes([0xff, 0xfb, 0x90]));
   ok('ogg', bytes('OggS'));
@@ -130,4 +132,19 @@ test('text is always served as plain text', () => {
   assert.equal(servedType(FILE_RULES.md!), 'text/plain; charset=utf-8');
   assert.equal(servedType(FILE_RULES.json!), 'text/plain; charset=utf-8');
   assert.equal(servedType(FILE_RULES.pdf!), 'application/pdf');
+});
+
+test('voice messages are audio files the apps name voice-message', () => {
+  assert.equal(FILE_RULES.weba?.kind, 'audio');
+  for (const name of ['voice-message.m4a', 'voice-message.weba', 'voice-message.ogg']) {
+    assert.equal(isVoiceMessageName(name), true, name);
+  }
+  for (const name of [
+    'voice-message.mp4',
+    'my voice-message.m4a',
+    'voice-message.m4a.pdf',
+    'song.m4a',
+  ]) {
+    assert.equal(isVoiceMessageName(name), false, name);
+  }
 });
