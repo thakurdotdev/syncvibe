@@ -1,5 +1,5 @@
 import { AlertCircle, Check, CheckCheck, Clock, Forward, Star } from 'lucide-react';
-import { memo } from 'react';
+import { memo, useRef } from 'react';
 import { replyLabel } from '@/lib/attachments';
 import { splitLinks } from '@/lib/links';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,10 @@ import AttachmentView from './AttachmentView';
 import { formatTime } from './ChatDateUtils';
 import MessageActions from './MessageActions';
 import SongMessage from './SongMessage';
+
+/** Two taps this close together on a touch screen are a double tap: the message gets a ❤️. */
+const DOUBLE_TAP_MS = 300;
+const HEART = '❤️';
 
 const STATUS_LABEL = { sending: 'Sending', sent: 'Sent', delivered: 'Delivered', read: 'Read' };
 
@@ -86,6 +90,22 @@ const MessageBubble = ({
 }) => {
   const pending = message.id == null;
   const failed = status === 'failed';
+  const lastTap = useRef(0);
+  // On touch, a tap shows the message's actions and a double tap hearts it. A mouse
+  // double-click selects a word, as it does everywhere else, so it's left alone.
+  const handleTouchTap = () => {
+    const now = Date.now();
+    if (now - lastTap.current > DOUBLE_TAP_MS) {
+      lastTap.current = now;
+      onSelect();
+      return;
+    }
+    lastTap.current = 0;
+    onSelect();
+    if (pending) return;
+    const mine = message.reactions.find((r) => r.userIds.includes(meId))?.emoji;
+    if (mine !== HEART) actions.react(message, HEART);
+  };
   const attachment = message.attachment;
   // A shared song's text is only for app versions without the card.
   const song = message.type === 'song' && message.song ? message.song : null;
@@ -110,7 +130,7 @@ const MessageBubble = ({
       >
         <div className={cn('relative flex items-center gap-1', isOwn && 'flex-row-reverse')}>
           <div
-            onPointerUp={(e) => e.pointerType === 'touch' && onSelect()}
+            onPointerUp={(e) => e.pointerType === 'touch' && handleTouchTap()}
             className={cn(
               'min-w-0 overflow-hidden rounded-2xl',
               !mediaOnly && 'px-3 py-2',
