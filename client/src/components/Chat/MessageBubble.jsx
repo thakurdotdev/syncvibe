@@ -1,6 +1,7 @@
 import { AlertCircle, Check, CheckCheck, Clock, Forward, Star } from 'lucide-react';
 import { memo } from 'react';
 import { replyLabel } from '@/lib/attachments';
+import { splitLinks } from '@/lib/links';
 import { cn } from '@/lib/utils';
 import AttachmentView from './AttachmentView';
 import { formatTime } from './ChatDateUtils';
@@ -157,7 +158,52 @@ const MessageBubble = ({
               </div>
             )}
 
-            {body && <div className='whitespace-pre-wrap text-sm wrap-anywhere'>{body}</div>}
+            {body && (
+              <div className='whitespace-pre-wrap text-sm wrap-anywhere'>
+                {splitLinks(body).map((part, i) =>
+                  part.url ? (
+                    <a
+                      key={i}
+                      href={part.url}
+                      target='_blank'
+                      rel='noopener noreferrer nofollow'
+                      className='underline underline-offset-2'
+                    >
+                      {part.text}
+                    </a>
+                  ) : (
+                    part.text
+                  )
+                )}
+              </div>
+            )}
+            {message.link && (
+              <a
+                href={message.link.url}
+                target='_blank'
+                rel='noopener noreferrer nofollow'
+                className={cn(
+                  'mt-2 block max-w-72 rounded-md border-l-2 px-2 py-1 text-left transition-colors',
+                  isOwn
+                    ? 'border-primary-foreground/60 bg-primary-foreground/10 hover:bg-primary-foreground/15'
+                    : 'border-foreground/40 bg-foreground/[0.05] hover:bg-foreground/[0.08]'
+                )}
+              >
+                <span className='block truncate text-[11px] font-semibold opacity-75'>
+                  {message.link.siteName}
+                </span>
+                {message.link.title && (
+                  <span className='line-clamp-2 text-[13px] font-semibold'>
+                    {message.link.title}
+                  </span>
+                )}
+                {message.link.description && (
+                  <span className='line-clamp-2 text-xs opacity-80'>
+                    {message.link.description}
+                  </span>
+                )}
+              </a>
+            )}
           </div>
 
           {!pending && (
