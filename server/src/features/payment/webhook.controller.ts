@@ -5,6 +5,15 @@ import { markPaymentPaid, markPaymentFailed } from './services/payment.service';
 import { createProEntitlement, getUserEntitlement } from '@/services/entitlement.service';
 import { emitToUser } from '@/utils/socket-emitter';
 
+const announcePaid = async (userid: number): Promise<void> => {
+  const entitlement = await getUserEntitlement(userid);
+  const plan = (entitlement as unknown as { plan?: { code: string; name: string } })?.plan;
+  emitToUser(userid, 'payment-success', {
+    status: 'PAID',
+    plan: plan ?? { code: 'PRO', name: 'Pro' },
+  });
+};
+
 const handlePaymentCaptured = async (
   razorpayOrderId: string,
   razorpayPaymentId: string,
@@ -25,14 +34,10 @@ const handlePaymentCaptured = async (
 
     await transaction.commit();
 
-    if (payment) {
-      const entitlement = await getUserEntitlement(payment.userid);
-      const plan = (entitlement as unknown as { plan?: { code: string; name: string } })?.plan;
-      emitToUser(payment.userid, 'payment-success', {
-        status: 'PAID',
-        plan: plan ?? { code: 'PRO', name: 'Pro' },
-      });
-    }
+    // The payment is recorded; failing to tell the browser doesn't undo that.
+    await announcePaid(payment.userid).catch((error) =>
+      console.error('Webhook: announcing a payment failed:', error)
+    );
 
     res.status(200).json({ message: updated ? 'Payment captured' : 'Already processed' });
   } catch (error) {

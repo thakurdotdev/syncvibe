@@ -154,7 +154,10 @@ export const auth = betterAuth({
   ],
 
   // Email OTP is used only to verify addresses. Its sign-in, reset and email-change flows stay off.
+  // Profiles are edited through /api/update-profile and /api/update-profilepic, which check what
+  // is saved; Better Auth's own route would take any name or picture.
   disabledPaths: [
+    '/update-user',
     '/sign-in/email-otp',
     '/email-otp/request-password-reset',
     '/forget-password/email-otp',

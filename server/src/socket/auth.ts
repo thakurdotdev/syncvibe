@@ -6,6 +6,9 @@ import { describeDevice } from '@/features/auth/sessions';
 export interface SocketIdentity {
   userId: number;
   sessionId: string;
+  /** The account's name and picture: how rooms show this person. */
+  name: string;
+  picture: string | null;
   /** How this device is named to your other devices, the same as on the Security page. */
   device: { name: string; mobile: boolean };
 }
@@ -23,8 +26,8 @@ const isOurOrigin = (origin: string) =>
  * uses. Browsers send the session cookie with the handshake; the app has no cookie jar, so it
  * passes the cookie in the handshake's `auth`.
  *
- * Returns null when there is no valid session. Such a socket can still use music rooms the old
- * way (apps up to 1.6.x connect like that), but nothing that reads or writes messages.
+ * Returns null when there is no valid session, and such a connection is refused. Throws when the
+ * session couldn't be checked.
  */
 export const identifySocket = async (socket: Socket): Promise<SocketIdentity | null> => {
   const { headers, auth: handshakeAuth } = socket.handshake;
@@ -44,5 +47,11 @@ export const identifySocket = async (socket: Socket): Promise<SocketIdentity | n
   if (!Number.isSafeInteger(userId)) return null;
   // The app names itself in its session's User-Agent; its socket's is the HTTP library's.
   const { name, mobile } = describeDevice(session.session.userAgent ?? headers['user-agent']);
-  return { userId, sessionId: String(session.session.id), device: { name, mobile } };
+  return {
+    userId,
+    sessionId: String(session.session.id),
+    name: session.user.name,
+    picture: session.user.image ?? null,
+    device: { name, mobile },
+  };
 };

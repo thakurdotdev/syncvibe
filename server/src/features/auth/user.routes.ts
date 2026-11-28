@@ -37,7 +37,7 @@ userRouter.post('/user/delete/account', authMiddleware, deleteUser);
 
 // Static Discovery Endpoints (Must be before parameterized /user/profile/:userid)
 userRouter.get('/user/invite-list', authMiddleware, getInviteList);
-userRouter.get('/user/search', searchUser);
+userRouter.get('/user/search', authMiddleware, searchUser);
 
 // Follow System
 userRouter.get('/user/followlist/:userid', authMiddleware, getFollowLists);

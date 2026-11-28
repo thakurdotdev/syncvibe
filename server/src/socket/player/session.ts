@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { pausedAt, playFrom, positionAt, STOPPED, type Timeline } from '../group-music/timeline';
+import { fitsSongLimit } from '@/utils/song-size';
 
 /*
  * Your own listening, shared by every device you're signed in on. Like a room, the server owns
@@ -94,7 +95,11 @@ export const songIdOf = (song: unknown): string => {
 };
 
 export const isSong = (song: unknown): song is Song =>
-  typeof song === 'object' && song !== null && !Array.isArray(song) && songIdOf(song) !== '';
+  typeof song === 'object' &&
+  song !== null &&
+  !Array.isArray(song) &&
+  songIdOf(song) !== '' &&
+  fitsSongLimit(song);
 
 const itemOf = (song: Song, autoplay?: boolean): PlayerItem => ({
   id: uuidv4(),

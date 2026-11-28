@@ -27,6 +27,9 @@ import { seedRoom, startSeededRoom, type RoomSeed } from './engine';
 import { effects } from './effects';
 import { applySavedSettings } from './saved-room';
 import { sendPushNotification } from '../notification';
+import type { SocketIdentity } from '../auth';
+import { createRateLimiter } from '@/utils/rate-limiter';
+import { fitsSongLimit } from '@/utils/song-size';
 
 interface CreateGroupSocketData {
   deviceId?: string;
@@ -67,7 +70,18 @@ interface AcceptInviteSocketData extends JoinGroupSocketData {
 const MAX_SEED_SONGS = 50;
 
 const isSongObject = (song: unknown): song is Record<string, unknown> =>
-  typeof song === 'object' && song !== null && !Array.isArray(song);
+  typeof song === 'object' && song !== null && !Array.isArray(song) && fitsSongLimit(song);
+
+const MAX_ROOM_NAME_LENGTH = 100;
+
+const roomNameOf = (value: unknown): string =>
+  (typeof value === 'string' && value.slice(0, MAX_ROOM_NAME_LENGTH)) || 'Music room';
+
+const allowCreate = createRateLimiter({ limit: 10, windowMs: 10 * 60 * 1000 });
+/** Each invite is a push notification on someone's phone. */
+const allowInvite = createRateLimiter({ limit: 20, windowMs: 60 * 1000 });
+/** Room codes are six digits, so only so many wrong ones are answered before it looks like a search. */
+const roomMisses = createRateLimiter({ limit: 30, windowMs: 5 * 60 * 1000 });
 
 const seedOf = (value: unknown): RoomSeed | null => {
   const data = value as Partial<RoomSeed> | null | undefined;
@@ -78,6 +92,21 @@ const seedOf = (value: unknown): RoomSeed | null => {
 };
 
 export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string | number): void => {
+  /** How a room shows the caller: from their account, not from what the device says. */
+  const myProfile = () => {
+    const { name, picture } = socket.data.identity as SocketIdentity;
+    return { userName: name, profilePic: picture ?? undefined };
+  };
+
+  /** The room with this code, if there is one and this caller isn't guessing codes. */
+  const findRoom = (groupId: unknown) => {
+    const key = String(userId);
+    if (roomMisses.isSpent(key)) return undefined;
+    const group = typeof groupId === 'string' ? musicGroups.get(groupId) : undefined;
+    if (!group) roomMisses(key);
+    return group;
+  };
+
   /** Who is asking comes from the connection. A request naming someone else is ignored. */
   const isSelf = (claimed: string | number | undefined) =>
     userId != null && claimed != null && String(claimed) === String(userId);
@@ -125,7 +154,10 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       return;
     }
 
-    const groupId = generateGroupId();
+    if (!allowCreate(String(userId))) {
+      socket.emit('error', { message: "You're starting rooms too often. Wait a few minutes." });
+      return;
+    }
 
     let planLimits = null;
     try {
@@ -134,12 +166,13 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       console.error('Failed to fetch plan limits:', err);
     }
 
+    // Chosen after the waiting above, so two rooms opening together can't take the same code.
+    const groupId = generateGroupId();
     const group = createGroupState({
       id: groupId,
-      name: saved?.name ?? data.name,
+      name: saved?.name ?? roomNameOf(data.name),
       createdBy: data.createdBy,
-      userName: data.userName,
-      profilePic: data.profilePic,
+      ...myProfile(),
       planLimits,
     });
 
@@ -192,7 +225,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
   /** Joining on purpose: by code, QR or invite. Takes the room over from your other devices. */
   const join = (data: JoinGroupSocketData): boolean => {
     if (!isSelf(data?.userId)) return false;
-    const group = musicGroups.get(data.groupId);
+    const group = findRoom(data.groupId);
     if (!group) {
       socket.emit('group-not-found');
       return false;
@@ -213,11 +246,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
     enterRoom(socket, data.groupId, data.protocol);
 
     if (!existingMember) {
-      group.members.push({
-        userId: data.userId,
-        userName: data.userName,
-        profilePic: data.profilePic,
-      });
+      group.members.push({ userId: data.userId, ...myProfile() });
       forgetFormer(group, data.userId);
       // Rejoining a room everyone had left: its host is gone, so the first one back takes it.
       if (!findMember(group, group.createdBy)) transferHost(io, group, data.userId);
@@ -236,8 +265,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
     if (!existingMember) {
       socket.to(roomOf(data.groupId)).emit('member-joined', {
         userId: data.userId,
-        userName: data.userName,
-        profilePic: data.profilePic,
+        ...myProfile(),
       });
     }
     return true;
@@ -249,7 +277,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
 
   socket.on('rejoin-music-group', async (data: JoinGroupSocketData) => {
     if (!isSelf(data?.userId)) return;
-    const group = musicGroups.get(data.groupId);
+    const group = findRoom(data.groupId);
 
     if (group) {
       if (wasRemoved(group.removedIds, data.groupId)) return;
@@ -272,17 +300,12 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
           });
           return;
         }
-        group.members.push({
-          userId: data.userId,
-          userName: data.userName,
-          profilePic: data.profilePic,
-        });
+        group.members.push({ userId: data.userId, ...myProfile() });
         forgetFormer(group, data.userId);
 
         socket.to(roomOf(data.groupId)).emit('member-joined', {
           userId: data.userId,
-          userName: data.userName,
-          profilePic: data.profilePic,
+          ...myProfile(),
         });
       }
 
@@ -349,7 +372,7 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
   });
 
   socket.on('send-group-invite', async (data: SendInviteSocketData) => {
-    const { groupId, inviteeUserId, inviterName, inviterPic } = data;
+    const { groupId, inviteeUserId } = data ?? {};
     const group = musicGroups.get(groupId);
 
     if (!group) {
@@ -374,10 +397,15 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
       return;
     }
 
-    // Name and picture come from the account, not from whoever sent the invite.
-    const invitee = await User.findByPk(Number(inviteeUserId), {
-      attributes: ['userid', 'name', 'profilepic'],
-    }).catch(() => null);
+    if (!allowInvite(String(userId))) {
+      socket.emit('invite-error', { error: "You're inviting too fast. Wait a moment." });
+      return;
+    }
+
+    // Names and pictures come from the accounts, not from whoever sent the invite.
+    const account = (id: unknown) =>
+      User.findByPk(Number(id), { attributes: ['userid', 'name', 'profilepic'] }).catch(() => null);
+    const [invitee, sender] = await Promise.all([account(inviteeUserId), account(userId)]);
     if (!invitee) {
       socket.emit('invite-error', { error: 'User not found' });
       return;
@@ -397,6 +425,8 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
     }
 
     const inviter = findMember(group, userId);
+    const inviterName = sender?.name ?? inviter?.userName;
+    const inviterPic = sender?.profilepic ?? undefined;
     const invite = noteInvite(
       group,
       { userId: invitee.userid, userName: invitee.name, profilePic: invitee.profilepic },
@@ -440,10 +470,11 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
   });
 
   socket.on('accept-group-invite', (data: AcceptInviteSocketData) => {
-    const { groupId, userId: inviteeId, userName, inviterId } = data;
     if (!join(data)) return;
+    const { groupId, userId: inviteeId, inviterId } = data;
 
     if (inviterId) {
+      const { userName } = myProfile();
       io.to(String(inviterId)).emit('invite-accepted', { userId: inviteeId, userName });
     }
 
@@ -453,7 +484,8 @@ export const setupInviteHandlers = (io: Server, socket: Socket, userId?: string 
   });
 
   socket.on('decline-group-invite', (data: { groupId: string; inviterId?: string | number }) => {
-    const { groupId, inviterId } = data;
+    const { groupId, inviterId } = data ?? {};
+    if (typeof groupId !== 'string') return;
     endInvite(groupId, userId);
 
     if (inviterId) {

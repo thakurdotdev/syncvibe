@@ -8,6 +8,7 @@ import {
   undoDislike,
 } from '@/features/music/services/dislike.service';
 import { invalidateCache } from '@/features/music/services/recommendation.service';
+import { UnknownSongError } from '@/features/music/services/catalog.service';
 
 export const addDislike = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -22,6 +23,10 @@ export const addDislike = async (req: Request, res: Response): Promise<void> => 
     await invalidateCache(userId);
     res.json({ success: true });
   } catch (error) {
+    if (error instanceof UnknownSongError) {
+      res.status(404).json({ success: false, error: error.message });
+      return;
+    }
     console.error('Error in addDislike:', error);
     res.status(500).json({ success: false, error: 'Failed to save' });
   }

@@ -1,6 +1,5 @@
 import { v2 as Cloudinary } from 'cloudinary';
 import rateLimit from 'express-rate-limit';
-import slowDown from 'express-slow-down';
 import helmet from 'helmet';
 import type { Request } from 'express';
 import { configDotenv } from 'dotenv';
@@ -28,17 +27,6 @@ Cloudinary.config({
   api_key: process.env.CLOUDINARY_KEY,
   api_secret: process.env.CLOUDINARY_SECRET,
   secure: true,
-});
-
-export const speedLimiter = slowDown({
-  windowMs: 15 * 60 * 1000,
-  delayAfter: 200,
-  delayMs: (used, req) =>
-    Math.min(
-      (used - (req as unknown as { slowDown: { limit: number } }).slowDown.limit) * 500,
-      10000
-    ),
-  keyGenerator: (req: Request) => req.ip || '',
 });
 
 export const apiLimiter = rateLimit({

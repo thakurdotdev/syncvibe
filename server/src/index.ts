@@ -50,17 +50,26 @@ sequelize
     process.exit(1);
   });
 
+/** Open sockets keep `server.close` waiting, so shutting down doesn't wait for it for long. */
+const SHUTDOWN_GRACE_MS = 5000;
+
+let shuttingDown = false;
+const shutDown = async () => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  // Rooms and players are saved a moment after each change; don't lose the last one.
+  await Promise.allSettled([flushRooms(), sessionStore.flush()]);
+  await sequelize.close().catch(console.error);
+  process.exit(0);
+};
+
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully...');
-  // Rooms are saved a moment after each change; don't lose the last one.
+  // Saved straight away too, in case the process is killed before the grace period ends.
   void flushRooms();
-  // Players too; Postgres is written only every little while, so this one is waited for.
-  const playersSaved = sessionStore.flush();
-  server.close(async () => {
-    await playersSaved;
-    await sequelize.close();
-    process.exit(0);
-  });
+  void sessionStore.flush();
+  server.close(() => void shutDown());
+  setTimeout(() => void shutDown(), SHUTDOWN_GRACE_MS).unref();
 });
 
 process.on('uncaughtException', (err) => {

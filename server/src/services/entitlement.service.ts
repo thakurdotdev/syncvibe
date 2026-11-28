@@ -27,7 +27,9 @@ export const createProEntitlement = async (
   paymentid: number,
   transaction: Transaction | null = null
 ) => {
-  const plan = await Plan.findOne({ where: { code: 'PRO' } });
+  // In the caller's transaction: it already holds a connection, and waiting for a second one
+  // from a small pool can stall every payment being processed.
+  const plan = await Plan.findOne({ where: { code: 'PRO' }, transaction });
   if (!plan) {
     throw new Error('PRO plan not found');
   }

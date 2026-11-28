@@ -1,5 +1,6 @@
 import { GroupSessionHistory, Playlist, PlaylistSong, Song } from '@/models/index';
 import { musicGroups } from '@/socket/group-music/state';
+import { catalogSong } from '@/features/music/services/catalog.service';
 import { SavedRoomError } from './saved-rooms.service';
 
 /** A playlist holds at most this many songs from one session. */
@@ -34,7 +35,7 @@ export const saveSessionAsPlaylist = async (userId: number, groupId: string, nam
   // What's on now counts too: it may not have finished yet.
   const current = group.current?.song;
   if (current?.id && !songs.some((s) => s.songId === String(current.id))) {
-    const song = await Song.getOrCreate(current).catch(() => null);
+    const song = await catalogSong(current).catch(() => null);
     if (song && !seen.has(song.id)) songs.push(song);
   }
   if (songs.length === 0) throw new SavedRoomError('Nothing has played in this room yet', 400);

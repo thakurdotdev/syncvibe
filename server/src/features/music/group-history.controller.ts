@@ -4,9 +4,10 @@ import { GroupSessionHistory, Song, User, GroupInvite } from '@/models/index';
 
 export const getLastSessionSongs = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = parseInt(req.query.userId as string, 10);
-    if (!userId) {
-      res.status(400).json({ success: false, error: 'userId is required' });
+    const { userid: userId } = req.user!;
+    // Clients name themselves; nobody else's sessions can be asked for.
+    if (req.query.userId !== undefined && Number(req.query.userId) !== userId) {
+      res.status(403).json({ success: false, error: 'Forbidden' });
       return;
     }
 
@@ -80,6 +81,6 @@ export const getLastSessionSongs = async (req: Request, res: Response): Promise<
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('[GroupHistory] Error:', (error as Error).message);
-    res.status(500).json({ success: false, error: (error as Error).message });
+    res.status(500).json({ success: false, error: 'Failed to load' });
   }
 };

@@ -1,6 +1,7 @@
 import type { Server, Socket } from 'socket.io';
 import { appendMessage, getHistory, toggleReaction } from './chat-history';
-import { generateMessageId, isMuted, musicGroups, type MusicGroup } from './state';
+import { findMember, generateMessageId, isMuted, musicGroups, type MusicGroup } from './state';
+import { createRateLimiter } from '@/utils/rate-limiter';
 
 /**
  * Real-time room chat: messages, replies, message reactions, song reactions and typing.
@@ -13,6 +14,18 @@ import { generateMessageId, isMuted, musicGroups, type MusicGroup } from './stat
 
 const MAX_REPLY_PREVIEW_LENGTH = 140;
 const MAX_EMOJI_LENGTH = 16;
+/** Messages and their reactions are kept in memory for as long as the room is. */
+const MAX_MESSAGE_LENGTH = 4000;
+const MAX_URL_LENGTH = 2000;
+const MAX_NAME_LENGTH = 200;
+const MAX_SONG_REACTION_LENGTH = 2000;
+
+// Per person. Far above what a person does by hand.
+const allowMessage = createRateLimiter({ limit: 20, windowMs: 10_000 });
+const allowReaction = createRateLimiter({ limit: 60, windowMs: 10_000 });
+
+const clip = (value: unknown, max: number): string | undefined =>
+  typeof value === 'string' ? value.slice(0, max) : undefined;
 
 type UserId = string | number;
 
@@ -59,20 +72,18 @@ const isValidEmoji = (emoji: unknown): emoji is string =>
   typeof emoji === 'string' && emoji.length > 0 && emoji.length <= MAX_EMOJI_LENGTH;
 
 const isMember = (group: MusicGroup, userId: UserId | undefined) =>
-  userId != null && group.members.some((m) => String(m.userId) === String(userId));
+  findMember(group, userId) !== undefined;
 
 /** Keeps only the fields needed to render a reply preview, with bounded size. */
 const sanitizeReply = (replyTo: ChatMessageSocketData['replyTo']): ReplyReference | null => {
   if (!replyTo || typeof replyTo.id !== 'string' || !replyTo.id) return null;
+  const { senderId } = replyTo;
   return {
-    id: replyTo.id,
-    senderId: replyTo.senderId,
-    userName: typeof replyTo.userName === 'string' ? replyTo.userName : undefined,
-    message:
-      typeof replyTo.message === 'string'
-        ? replyTo.message.slice(0, MAX_REPLY_PREVIEW_LENGTH)
-        : undefined,
-    messageType: typeof replyTo.messageType === 'string' ? replyTo.messageType : 'text',
+    id: replyTo.id.slice(0, MAX_NAME_LENGTH),
+    senderId: typeof senderId === 'number' ? senderId : clip(senderId, MAX_NAME_LENGTH),
+    userName: clip(replyTo.userName, MAX_NAME_LENGTH),
+    message: clip(replyTo.message, MAX_REPLY_PREVIEW_LENGTH),
+    messageType: clip(replyTo.messageType, MAX_NAME_LENGTH) ?? 'text',
   };
 };
 
@@ -99,31 +110,44 @@ export const setupChatHandlers = (io: Server, socket: Socket, userId?: UserId): 
     return true;
   };
 
+  /** The caller's place in a room. Only people in it may speak in it, and only as themselves. */
+  const memberOf = (groupId: unknown) => {
+    const group = typeof groupId === 'string' ? musicGroups.get(groupId) : undefined;
+    return group ? findMember(group, userId) : undefined;
+  };
+
+  /** What the device sent if it names the caller (its type is what devices compare), else ours. */
+  const ownId = (claimed: UserId | undefined, mine: UserId): UserId =>
+    claimed != null && String(claimed) === String(mine) ? claimed : mine;
+
   socket.on('chat-message', (data: ChatMessageSocketData) => {
-    const { groupId, messageType, gifUrl } = data;
-    // Unknown groups keep the previous behaviour (message still relayed to the room).
-    if (musicGroups.has(groupId) && !getChatGroup(socket, groupId)) return;
-    if (mutedIn(groupId)) return;
+    const groupId = data?.groupId;
+    const member = memberOf(groupId);
+    if (!member || !getChatGroup(socket, groupId)) return;
+    if (mutedIn(groupId) || !allowMessage(String(userId))) return;
 
     const replyTo = sanitizeReply(data.replyTo);
 
     const message = {
       id: generateMessageId(),
       groupId,
-      senderId: data.senderId,
-      profilePic: data.profilePic,
-      userName: data.userName,
-      message: data.message,
-      messageType: messageType || 'text',
-      gifUrl: gifUrl || null,
-      soundUrl: data.soundUrl || null,
-      soundName: data.soundName || null,
-      soundId: data.soundId || null,
+      senderId: ownId(data.senderId, member.userId),
+      profilePic: member.profilePic,
+      userName: member.userName,
+      message: clip(data.message, MAX_MESSAGE_LENGTH),
+      messageType: clip(data.messageType, MAX_NAME_LENGTH) || 'text',
+      gifUrl: clip(data.gifUrl, MAX_URL_LENGTH) || null,
+      soundUrl: clip(data.soundUrl, MAX_URL_LENGTH) || null,
+      soundName: clip(data.soundName, MAX_NAME_LENGTH) || null,
+      soundId:
+        typeof data.soundId === 'number'
+          ? data.soundId
+          : clip(data.soundId, MAX_NAME_LENGTH) || null,
       ...(replyTo ? { replyTo } : {}),
       timestamp: Date.now(),
     };
 
-    if (musicGroups.has(groupId)) appendMessage(groupId, message);
+    appendMessage(groupId, message);
     io.to(roomOf(groupId)).emit('new-message', message);
   });
 
@@ -141,7 +165,7 @@ export const setupChatHandlers = (io: Server, socket: Socket, userId?: UserId): 
   socket.on('message-reaction', async (data: MessageReactionSocketData) => {
     const { groupId, messageId, emoji } = data || ({} as MessageReactionSocketData);
     if (!groupId || typeof messageId !== 'string' || !isValidEmoji(emoji)) return;
-    if (mutedIn(groupId)) return;
+    if (mutedIn(groupId) || !allowReaction(String(userId))) return;
 
     const group = getChatGroup(socket, groupId);
     const reactorId = userId ?? data.userId;
@@ -169,20 +193,25 @@ export const setupChatHandlers = (io: Server, socket: Socket, userId?: UserId): 
   // Song reactions (floating emoji). Payload shape unchanged; previously this event
   // was registered twice, which delivered every reaction twice.
   socket.on('song-reaction', (data: Record<string, unknown> & { groupId: string }) => {
-    if (!data?.groupId || !musicGroups.has(data.groupId) || !isValidEmoji(data.emoji)) return;
-    if (mutedIn(data.groupId)) return;
+    const member = memberOf(data?.groupId);
+    if (!member || !isValidEmoji(data.emoji)) return;
+    if (JSON.stringify(data).length > MAX_SONG_REACTION_LENGTH) return;
+    if (mutedIn(data.groupId) || !allowReaction(String(userId))) return;
     socket.to(roomOf(data.groupId)).emit('song-reaction', {
       ...data,
+      userId: ownId(data.userId as UserId | undefined, member.userId),
+      userName: member.userName,
       id: generateMessageId(),
       timestamp: Date.now(),
     });
   });
 
   const relayTyping = (data: TypingSocketData, isTyping: boolean) => {
-    if (!data?.groupId) return;
+    const member = memberOf(data?.groupId);
+    if (!member) return;
     socket.to(roomOf(data.groupId)).emit('user-typing', {
-      userId: data.userId ?? userId,
-      userName: data.userName,
+      userId: ownId(data.userId, member.userId),
+      userName: member.userName,
       isTyping,
     });
   };

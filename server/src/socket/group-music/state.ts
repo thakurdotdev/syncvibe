@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
 import type { Server } from 'socket.io';
 import type { PlanLimits } from '@/services/entitlement.service';
@@ -157,9 +158,12 @@ export const allRoomsOf = (groupId: string) => [
   legacyRoomOf(groupId),
 ];
 
+/** A room code nobody is using: a repeat would replace the room that has it. */
 export const generateGroupId = (): string => {
-  const id = Math.floor(100000 + Math.random() * 900000).toString();
-  return `syncvibe_${id}`;
+  let groupId: string;
+  do groupId = `syncvibe_${randomInt(100000, 1000000)}`;
+  while (musicGroups.has(groupId));
+  return groupId;
 };
 
 export const generateQueueItemId = (): string => uuidv4();

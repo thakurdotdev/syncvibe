@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { authMiddleware, optionalAuthMiddleware } from '@/middleware/auth.middleware';
+import { requireAdmin } from '@/middleware/admin.middleware';
 import {
   createPlaylist,
   updatePlaylist,
@@ -60,6 +61,9 @@ import {
 import { getPlayNextSongs, rebuildAllPlayNext } from './services/play-next.service';
 
 export const musicRouter: Router = Router();
+
+// Filling and rebuilding the catalog is heavy and writes to what everyone hears: the owner only.
+musicRouter.use(['/sync', '/play-next/rebuild'], authMiddleware, requireAdmin);
 
 // Playlists
 musicRouter.post('/playlist/create', authMiddleware, createPlaylist);
@@ -320,7 +324,10 @@ musicRouter.get(
       console.error('[PlayNext] Error:', (error as Error).message);
       if (res.headersSent) return;
       const status = (error as Error).message.includes('not found') ? 404 : 500;
-      res.status(status).json({ success: false, error: (error as Error).message });
+      res.status(status).json({
+        success: false,
+        error: status === 404 ? 'Song not found' : 'Failed to load songs',
+      });
     }
   }
 );

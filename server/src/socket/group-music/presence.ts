@@ -89,11 +89,11 @@ export const enterRoom = (socket: Socket, groupId: string, protocol: unknown): v
 export const releaseSocket = (
   io: Server,
   userSockets: Map<string, Socket>,
-  userId: string,
-  socket: Socket
+  userId: string
 ): boolean => {
   const stillConnected = hasLiveConnection(io, userId);
-  if (userSockets.get(userId) === socket && !stillConnected) userSockets.delete(userId);
+  // Whichever socket the map holds: if an older one outlived it, the entry is a dead one.
+  if (!stillConnected) userSockets.delete(userId);
   return stillConnected;
 };
 

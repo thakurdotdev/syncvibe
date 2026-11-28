@@ -1,4 +1,5 @@
-import { Song, GroupSessionHistory, SavedRoom } from '@/models/index';
+import { GroupSessionHistory, SavedRoom } from '@/models/index';
+import { catalogSong } from '@/features/music/services/catalog.service';
 import { getPlayNextForRoom } from '@/features/music/services/play-next.service';
 import { effects } from './effects';
 import { savedSnapshotOf } from './saved-room';
@@ -8,8 +9,7 @@ effects.recommend = (options) => getPlayNextForRoom(options);
 effects.recordPlayed = async (group, queueItem) => {
   if (!queueItem?.song?.id) return;
   try {
-    const songRecord = await Song.getOrCreate(queueItem.song);
-    if (!songRecord) return;
+    const songRecord = await catalogSong(queueItem.song);
     await GroupSessionHistory.create({
       sessionId: group.id,
       groupId: group.id,

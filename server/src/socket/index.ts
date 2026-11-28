@@ -4,89 +4,59 @@ import { setupGroupMusicHandlers, handleUserDisconnect, releaseSocket } from './
 import { setSocketIO } from '@/utils/socket-emitter';
 import { userRoom } from '@/features/chat/chat.realtime';
 import { markAllDelivered } from '@/features/chat/services/message.service';
-import { identifySocket, sessionRoom } from './auth';
+import { identifySocket, sessionRoom, type SocketIdentity } from './auth';
 import { setupChatHandlers } from './chat';
 import { presenceActive, presenceConnected, presenceDisconnected } from './presence';
 import { setupCallHandlers } from './call';
 import { setupPlayerHandlers } from './player/handlers';
-
-/** Set once no app older than 1.7 is in use: sockets without a valid session are then refused. */
-const REQUIRE_SESSION = process.env.SOCKET_REQUIRE_SESSION === 'true';
+import { containListenerErrors } from './guard';
 
 export const socketManager = (io: Server): void => {
   const userSockets = new Map<string, Socket>();
 
   setSocketIO(io, userSockets);
 
+  // Every connection is someone signed in; there is no other way to say who you are.
   io.use((socket, next) => {
-    identifySocket(socket)
-      .catch((error) => {
-        console.error('Socket session check failed:', error);
-        return null;
-      })
-      .then((identity) => {
-        if (!identity && REQUIRE_SESSION) {
+    identifySocket(socket).then(
+      (identity) => {
+        if (!identity) {
           next(new Error('UNAUTHENTICATED'));
           return;
         }
-        socket.data.identity = identity ?? undefined;
+        socket.data.identity = identity;
         next();
-      });
+      },
+      (error) => {
+        console.error('Socket session check failed:', error);
+        // Not knowing isn't a refusal. Devices retry a connection that drops but give up on one
+        // that is refused, so this one is dropped and they come back once the check works again.
+        socket.conn.close();
+        next(new Error('UNAVAILABLE'));
+      }
+    );
   });
 
-  /** Makes the socket this user's: their rooms, and the music handlers that act as them. */
-  const adopt = (socket: AuthenticatedSocket, userId: string) => {
-    socket.userId = userId;
-    socket.join(userId);
-    userSockets.set(userId, socket);
-
-    if (!socket.musicHandlersSetup) {
-      setupGroupMusicHandlers(io, socket, userId, userSockets);
-      socket.musicHandlersSetup = true;
-    }
-  };
-
   io.on('connection', (socket: AuthenticatedSocket) => {
-    const identity = socket.data.identity;
+    // First, so that every listener below is covered.
+    containListenerErrors(socket);
 
-    if (identity) {
-      adopt(socket, String(identity.userId));
-      socket.join([userRoom(identity.userId), sessionRoom(identity.sessionId)]);
-      presenceConnected(identity.userId);
-      // Whatever was sent while this user had no device online has now reached one.
-      markAllDelivered(identity.userId).catch((error) =>
-        console.error('Marking messages delivered failed:', error)
-      );
-    }
+    const identity: SocketIdentity = socket.data.identity;
+    const userId = String(identity.userId);
 
-    socket.on('setup', (userData?: { userid?: string | number }) => {
-      try {
-        // A signed-in socket already is who its session says, whatever it sends here.
-        if (identity) {
-          socket.emit('setup-complete');
-          return;
-        }
+    socket.userId = userId;
+    userSockets.set(userId, socket);
+    socket.join([userId, userRoom(identity.userId), sessionRoom(identity.sessionId)]);
+    setupGroupMusicHandlers(io, socket, userId, userSockets);
+    presenceConnected(identity.userId);
+    // Whatever was sent while this user had no device online has now reached one.
+    markAllDelivered(identity.userId).catch((error) =>
+      console.error('Marking messages delivered failed:', error)
+    );
 
-        if (!userData?.userid) {
-          socket.emit('socket-error', {
-            message: 'Invalid setup data',
-            code: 'SETUP_FAILED',
-          });
-          return;
-        }
-
-        // Apps up to 1.6.x connect without a session and name their user here. That is enough for
-        // music rooms as it always was, and for nothing else.
-        adopt(socket, String(userData.userid));
-        socket.emit('setup-complete');
-      } catch (error) {
-        console.error('Setup error:', error);
-        socket.emit('socket-error', {
-          message: 'Setup failed',
-          code: 'SETUP_FAILED',
-        });
-      }
-    });
+    // Devices still announce themselves and wait for this answer before joining a music room.
+    // Who they are comes from the session, whatever they send.
+    socket.on('setup', () => socket.emit('setup-complete'));
 
     setupChatHandlers(socket);
     setupCallHandlers(socket);
@@ -94,16 +64,12 @@ export const socketManager = (io: Server): void => {
 
     // Apps from 1.7.2 say when they go to the background, so "online" means the app is open.
     socket.on('presence:active', (payload?: { active?: unknown }) => {
-      if (identity) presenceActive(io, socket, identity.userId, payload?.active !== false);
+      presenceActive(io, socket, identity.userId, payload?.active !== false);
     });
 
     socket.on('disconnect', (reason) => {
-      if (identity) presenceDisconnected(io, socket, identity.userId, reason);
-
-      const userId = socket.userId;
-      if (!userId) return;
-
-      releaseSocket(io, userSockets, userId, socket);
+      presenceDisconnected(io, socket, identity.userId, reason);
+      releaseSocket(io, userSockets, userId);
       handleUserDisconnect(io, userId);
     });
   });

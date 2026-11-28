@@ -2,8 +2,39 @@ import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import { Song } from '@/models/index';
 import sequelize from '@/utils/sequelize';
+import { boundedInt } from '@/utils/helpers';
 
 const SONG_API_URL = process.env.SONG_API_URL || 'https://song.thakur.dev';
+
+const EXTERNAL_TIMEOUT_MS = 8_000;
+const MAX_QUERY_LENGTH = 100;
+/** How alike a song's name, artists or album must be to the query. */
+const MIN_SIMILARITY = 0.15;
+
+/**
+ * `%` is `similarity() >= pg_trgm.similarity_threshold`, and unlike calling `similarity()` it can
+ * use the trigram indexes instead of reading the whole catalog. The threshold is set for this
+ * transaction only.
+ */
+const searchCatalog = (q: string, limit: number, offset: number) =>
+  sequelize.transaction(async (transaction) => {
+    await sequelize.query(`SET LOCAL pg_trgm.similarity_threshold = ${MIN_SIMILARITY}`, {
+      transaction,
+    });
+    const term = sequelize.escape(q);
+    const columns = ['"Song"."name"', '"Song"."artistNames"', '"Song"."albumName"'];
+    const score = sequelize.literal(
+      `GREATEST(${columns.map((column) => `similarity(${column}, ${term})`).join(', ')})`
+    );
+    return Song.findAll({
+      where: { [Op.or]: columns.map((column) => sequelize.literal(`${column} % ${term}`)) },
+      order: [[score, 'DESC']],
+      limit,
+      offset,
+      attributes: { include: [[score, 'similarityScore']] },
+      transaction,
+    });
+  });
 
 async function fetchExternalSearch(
   query: string,
@@ -11,7 +42,8 @@ async function fetchExternalSearch(
 ): Promise<Array<Record<string, unknown>>> {
   try {
     const url = `${SONG_API_URL}/search/songs?q=${encodeURIComponent(query)}&limit=${limit}`;
-    const response = await fetch(url);
+    // Results from our own catalog shouldn't wait long on a slow song API.
+    const response = await fetch(url, { signal: AbortSignal.timeout(EXTERNAL_TIMEOUT_MS) });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = (await response.json()) as Record<string, unknown>;
     return (
@@ -59,49 +91,21 @@ function computeRelevanceScore(song: Record<string, unknown>, query: string): nu
 
 export const searchSongs = async (req: Request, res: Response): Promise<void> => {
   try {
-    const query = req.query.q as string | undefined;
-    const limit = parseInt((req.query.limit as string) || '20', 10);
-    const page = parseInt((req.query.page as string) || '1', 10);
+    const raw = typeof req.query.q === 'string' ? req.query.q.slice(0, MAX_QUERY_LENGTH) : '';
+    const searchLimit = boundedInt(req.query.limit, 20, 50);
+    const page = boundedInt(req.query.page, 1, 100);
 
-    if (!query?.trim()) {
+    if (!raw.trim()) {
       res.status(400).json({ error: 'Search query is required' });
       return;
     }
 
-    const searchLimit = limit;
+    const query = raw;
     const offset = (page - 1) * searchLimit;
     const q = query.toLowerCase().trim();
 
     const [dbResults, externalResults] = await Promise.all([
-      Song.findAll({
-        where: {
-          [Op.or]: [
-            sequelize.literal(`similarity("Song"."name", ${sequelize.escape(q)}) > 0.15`),
-            sequelize.literal(`similarity("Song"."artistNames", ${sequelize.escape(q)}) > 0.15`),
-            sequelize.literal(`similarity("Song"."albumName", ${sequelize.escape(q)}) > 0.15`),
-          ],
-        },
-        order: [
-          [
-            sequelize.literal(
-              `GREATEST(similarity("Song"."name", ${sequelize.escape(q)}), similarity("Song"."artistNames", ${sequelize.escape(q)}), similarity("Song"."albumName", ${sequelize.escape(q)}))`
-            ),
-            'DESC',
-          ],
-        ],
-        limit: searchLimit,
-        offset,
-        attributes: {
-          include: [
-            [
-              sequelize.literal(
-                `GREATEST(similarity("Song"."name", ${sequelize.escape(q)}), similarity("Song"."artistNames", ${sequelize.escape(q)}), similarity("Song"."albumName", ${sequelize.escape(q)}))`
-              ),
-              'similarityScore',
-            ],
-          ],
-        },
-      }),
+      searchCatalog(q, searchLimit, offset),
       fetchExternalSearch(query, searchLimit),
     ]);
 

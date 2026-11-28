@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 import { S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
@@ -23,6 +24,9 @@ const s3Client = new S3Client({
 });
 
 const MAX_UPLOAD_ATTEMPTS = 3;
+
+/** An APK is under 200 MB; a download taking longer than this has stalled. */
+const DOWNLOAD_TIMEOUT_MS = 10 * 60 * 1000;
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -82,19 +86,19 @@ const processUpdateInBackground = async (
       return;
     }
 
-    const response = await fetch(artifacts.buildUrl);
+    const response = await fetch(artifacts.buildUrl, {
+      signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+    });
     if (!response.ok || !response.body)
       throw new Error(`Failed to fetch artifact: ${response.statusText}`);
 
     tempFilePath = path.join(import.meta.dirname, `temp-${version}.apk`);
-    const fileStream = fs.createWriteStream(tempFilePath);
-
-    await new Promise<void>((resolve, reject) => {
-      Readable.fromWeb(response.body as unknown as WebReadableStream)
-        .pipe(fileStream)
-        .on('finish', resolve)
-        .on('error', reject);
-    });
+    // `pipeline` fails on an error at either end and closes both; `pipe` would leave a broken
+    // download unhandled, which ends the process.
+    await pipeline(
+      Readable.fromWeb(response.body as unknown as WebReadableStream),
+      fs.createWriteStream(tempFilePath)
+    );
 
     console.log(`Downloaded app update v${version} to temp file: ${tempFilePath}`);
 
@@ -217,7 +221,7 @@ export const handleEasWebhook = async (req: Request, res: Response): Promise<voi
     res.status(200).json({ success: true, message: 'Webhook received (no action taken)' });
   } catch (error) {
     console.error('EAS Webhook processing failed:', error);
-    res.status(500).json({ success: false, message: (error as Error).message });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 

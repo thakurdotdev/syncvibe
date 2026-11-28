@@ -34,6 +34,7 @@ import {
   type GroupMember,
   type MusicGroup,
 } from './state';
+import { fitsSongLimit } from '@/utils/song-size';
 
 /*
  * What a device may ask of a room. Every request is answered, so the device knows whether it
@@ -103,7 +104,7 @@ const mayControl = (group: MusicGroup, member: GroupMember) =>
   group.settings.controlMode !== 'host' || canManage(group, member.userId);
 
 const isSong = (song: unknown): song is Record<string, unknown> =>
-  typeof song === 'object' && song !== null && !Array.isArray(song);
+  typeof song === 'object' && song !== null && !Array.isArray(song) && fitsSongLimit(song);
 
 /** Carries out one request on a room. Shared by the current protocol and the older events. */
 export const runCommand = async (
@@ -152,33 +153,30 @@ export const runCommand = async (
     case 'add-next':
     case 'add-many': {
       if (!group.settings.allowAnyoneToAdd && !manager) return fail('host-only');
-      const songs = command.type === 'add-many' ? command.songs : [command.song];
-      if (!Array.isArray(songs) || !songs.every(isSong)) return fail('invalid');
+      const sent = command.type === 'add-many' ? command.songs : [command.song];
+      if (!Array.isArray(sent)) return fail('invalid');
+      // Nothing past the room's limit is used, so it isn't looked at either.
+      const songs = sent.slice(0, group.settings.maxQueueSize);
+      if (!songs.every(isSong)) return fail('invalid');
       if (group.settings.approveSongs && !manager) {
         const { requestedCount, error } = requestSongs(
           io,
           group,
-          songs.slice(0, group.settings.maxQueueSize),
+          songs,
           member,
           command.type === 'add-next'
         );
         return requestedCount > 0 ? { ok: true, requestedCount } : fail(error ?? 'invalid');
       }
-      const { addedCount, error } = enqueue(
-        io,
-        group,
-        songs.slice(0, group.settings.maxQueueSize),
-        member,
-        {
-          next: command.type === 'add-next',
-          action:
-            command.type === 'add'
-              ? 'add'
-              : command.type === 'add-next'
-                ? 'play-next'
-                : 'playlist-added',
-        }
-      );
+      const { addedCount, error } = enqueue(io, group, songs, member, {
+        next: command.type === 'add-next',
+        action:
+          command.type === 'add'
+            ? 'add'
+            : command.type === 'add-next'
+              ? 'play-next'
+              : 'playlist-added',
+      });
       return addedCount > 0 ? { ok: true, addedCount } : fail(error ?? 'invalid');
     }
 

@@ -22,7 +22,7 @@ const goingOffline = new Map<number, NodeJS.Timeout>();
 
 export const isOnline = (userId: number): boolean => online.has(userId);
 
-/** Whether any device of the user is connected, signed in or not. */
+/** Whether any device of the user is connected. */
 export const hasLiveConnection = (userId: number | string): boolean => {
   const rooms = getIO()?.sockets.adapter.rooms;
   return Boolean(rooms?.get(userRoom(userId))?.size || rooms?.get(String(userId))?.size);

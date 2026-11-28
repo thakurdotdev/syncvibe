@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { BlendError, getBlend } from './services/blend.service';
+import { UnknownSongError } from './services/catalog.service';
 import { friendsListeningNow } from './services/friend-activity.service';
 import { likedSongIds, likeSong, listLikedSongs, unlikeSong } from './services/like.service';
 import { loadProfile } from './services/listener.service';
@@ -17,6 +18,10 @@ const tzOffsetOf = (req: Request): number => {
 };
 
 const fail = (res: Response, where: string, error: unknown, message = 'Failed to load') => {
+  if (error instanceof UnknownSongError) {
+    res.status(404).json({ success: false, error: error.message });
+    return;
+  }
   console.error(`Error in ${where}:`, error);
   if (!res.headersSent) res.status(500).json({ success: false, error: message });
 };

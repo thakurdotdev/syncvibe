@@ -60,7 +60,6 @@ afterEach(() => {
 
 test('a new connection survives its old one timing out afterwards', () => {
   const { io, connect, drop, events, memberIds } = setup(['a', 'b']);
-  const oldSocket = { id: 'old' } as Socket;
   const newSocket = { id: 'new' } as Socket;
   const userSockets = new Map<string, Socket>([['a', newSocket]]);
   connect('old', 'a');
@@ -68,7 +67,7 @@ test('a new connection survives its old one timing out afterwards', () => {
   connect('b1', 'b');
 
   drop('old');
-  assert.equal(releaseSocket(io, userSockets, 'a', oldSocket), true);
+  assert.equal(releaseSocket(io, userSockets, 'a'), true);
   handleUserDisconnect(io, 'a');
   mock.timers.tick(TIME_TO_REJOIN + 1);
 
