@@ -202,6 +202,7 @@ const deliver = async (conversationId, clientId) => {
       conversationId,
       clientId,
       body: draft.body,
+      gif: draft.gif,
       attachmentId: draft.file ? draft.uploadId : undefined,
       replyToId: draft.replyToId,
     });
@@ -253,13 +254,13 @@ const quoteOf = (replyTo) =>
       }
     : null;
 
-const addPending = (conversationId, clientId, { body, attachment, localUrl, replyTo }) =>
+const addPending = (conversationId, clientId, { type, body, attachment, localUrl, replyTo }) =>
   store().addPending({
     id: null,
     clientId,
     conversationId,
     senderId: store().meId,
-    type: !attachment ? 'text' : attachment.kind === 'image' ? 'image' : 'file',
+    type: type ?? (!attachment ? 'text' : attachment.kind === 'image' ? 'image' : 'file'),
     body,
     attachment,
     localUrl,
@@ -270,6 +271,26 @@ const addPending = (conversationId, clientId, { body, attachment, localUrl, repl
     createdAt: new Date().toISOString(),
     status: 'sending',
   });
+
+/** A GIF from the picker (`{ url, width?, height? }`) goes on its own, as its own message. */
+export const sendGif = (conversationId, gif, replyTo) => {
+  setTyping(conversationId, false);
+  const clientId = newClientId();
+  drafts.set(clientId, { body: null, gif, replyToId: replyTo?.id ?? null });
+  addPending(conversationId, clientId, {
+    type: 'gif',
+    body: null,
+    attachment: {
+      kind: 'image',
+      width: gif.width,
+      height: gif.height,
+      url: gif.url,
+      downloadUrl: null,
+    },
+    replyTo,
+  });
+  void deliver(conversationId, clientId);
+};
 
 /**
  * Sends text, files or both. Each file becomes its own message; the text goes with the first.
