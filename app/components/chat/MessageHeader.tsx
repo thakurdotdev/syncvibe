@@ -10,6 +10,8 @@ interface MessageHeaderProps {
   onBack: () => void;
   /** Opens the chat's profile: who it is, and settings for this chat. */
   onOpenProfile?: () => void;
+  /** Searches this chat's messages. */
+  onSearch?: () => void;
   user:
     | {
         name?: string;
@@ -24,6 +26,7 @@ interface MessageHeaderProps {
 const MessageHeader: React.FC<MessageHeaderProps> = ({
   onBack,
   onOpenProfile,
+  onSearch,
   user,
   isOnline,
   isTyping,
@@ -68,6 +71,18 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
           ) : null}
         </View>
       </PressableScale>
+
+      {onSearch ? (
+        <PressableScale
+          onPress={onSearch}
+          scaleTo={BUTTON_PRESS_SCALE}
+          accessibilityRole='button'
+          accessibilityLabel='Search in this chat'
+          style={styles.backButton}
+        >
+          <Ionicons name='search' size={21} color={colors.foreground} />
+        </PressableScale>
+      ) : null}
     </View>
   );
 };

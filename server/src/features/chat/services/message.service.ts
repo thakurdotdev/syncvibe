@@ -15,6 +15,7 @@ import { clearMessageNotification, sendPushNotification } from '@/socket/notific
 import { ChatError, invalid, notFound } from '../chat.errors';
 import { emitToUsers, emitWithConfirmation } from '../chat.realtime';
 import type { CallDto, MessageDto, ReceiptDto } from '../chat.types';
+import { likeContains } from '@/utils/helpers';
 import {
   parseAttachment,
   parseBody,
@@ -24,6 +25,7 @@ import {
   parseId,
   parseOptionalId,
   parsePageSize,
+  parseSearch,
 } from '../chat.validation';
 import {
   isStoredFile,
@@ -393,6 +395,38 @@ export const listMessages = async (
   const hasMore = found.length > pageSize;
   const messages = await presentMessages(found.slice(0, pageSize).reverse());
   return { messages, hasMore };
+};
+
+const SEARCH_LIMIT = 50;
+
+/**
+ * Messages in a conversation whose text, or file name, has the words in it: the latest 50,
+ * newest first. A plain substring match, so it finds parts of words and any script.
+ */
+export const searchMessages = async (
+  userId: number,
+  conversationIdInput: unknown,
+  queryInput: unknown
+): Promise<{ messages: MessageDto[] }> => {
+  const conversationId = parseId(conversationIdInput, 'conversationId');
+  const query = parseSearch(queryInput);
+  await requireMembers(conversationId, userId);
+  const pattern = likeContains(query);
+
+  const found = await Message.findAll({
+    where: {
+      conversationId,
+      deletedAt: null,
+      type: ['text', 'image', 'file', 'song'],
+      [Op.or]: [
+        { body: { [Op.iLike]: pattern } },
+        sequelize.where(sequelize.literal("attachment->>'name'"), { [Op.iLike]: pattern }),
+      ],
+    },
+    order: [['id', 'DESC']],
+    limit: SEARCH_LIMIT,
+  });
+  return { messages: await presentMessages(found) };
 };
 
 // ── Changing a message ──────────────────────────────────────────────────────

@@ -1,4 +1,14 @@
-import { ArrowLeft, Ban, Bell, BellOff, Blend, MoreVertical, UserCheck, Video } from 'lucide-react';
+import {
+  ArrowLeft,
+  Ban,
+  Bell,
+  BellOff,
+  Blend,
+  MoreVertical,
+  Search,
+  UserCheck,
+  Video,
+} from 'lucide-react';
 import { useState } from 'react';
 import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
 import {
@@ -40,6 +50,7 @@ const ChatHeader = ({
   blocked,
   onMute,
   onBlock,
+  onSearch,
 }) => {
   const [confirmBlock, setConfirmBlock] = useState(false);
   const firstName = peer?.name?.split(' ')[0] || 'them';
@@ -84,6 +95,20 @@ const ChatHeader = ({
       </button>
 
       <div className='ml-auto flex items-center gap-1'>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant='ghost'
+              size='icon'
+              className='h-11 w-11 rounded-full'
+              aria-label='Search this chat'
+              onClick={onSearch}
+            >
+              <Search size={20} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Search this chat</TooltipContent>
+        </Tooltip>
         {onBlend && (
           <Tooltip>
             <TooltipTrigger asChild>

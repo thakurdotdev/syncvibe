@@ -10,6 +10,7 @@ import {
   postMessage,
   postDelivered,
   postRead,
+  getSearch,
   getStarred,
   putBlocked,
   putMuted,
@@ -27,6 +28,7 @@ export const chatRouter: Router = Router();
 chatRouter.get('/chat/conversations', authMiddleware, getConversations);
 chatRouter.post('/chat/conversations', authMiddleware, openConversation);
 chatRouter.get('/chat/conversations/:conversationId/messages', authMiddleware, getMessages);
+chatRouter.get('/chat/conversations/:conversationId/search', authMiddleware, getSearch);
 chatRouter.post('/chat/conversations/:conversationId/messages', authMiddleware, postMessage);
 chatRouter.post('/chat/conversations/:conversationId/read', authMiddleware, postRead);
 chatRouter.post('/chat/conversations/:conversationId/delivered', authMiddleware, postDelivered);
