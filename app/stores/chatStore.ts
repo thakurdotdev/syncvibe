@@ -11,7 +11,8 @@ import { attachmentLabel, type AttachmentKind } from '@/lib/attachments';
  * that is what lists use as a key.
  */
 
-export type MessageType = 'text' | 'image' | 'file' | 'call';
+/** A 'gif' carries its picture as an image attachment on Klipy's file host. */
+export type MessageType = 'text' | 'image' | 'file' | 'call' | 'gif';
 
 /**
  * A file in a message. Files sent since they moved to private storage have an `id`, a name and
@@ -538,6 +539,7 @@ export const previewOf = (message: ChatMessage | null, meId: number | null): str
     if (outcome === 'rejected') return 'Declined call';
     return 'Video call';
   }
-  const text = message.body || attachmentLabel(message.attachment);
+  const text =
+    message.body || (message.type === 'gif' ? 'GIF' : attachmentLabel(message.attachment));
   return message.senderId === meId ? `You: ${text}` : text;
 };

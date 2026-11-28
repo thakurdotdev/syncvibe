@@ -135,9 +135,17 @@ export interface PickedFile {
   durationSec?: number;
 }
 
+/** A GIF from the picker. Its size is known once the picker has shown it. */
+export interface PickedGif {
+  url: string;
+  width?: number;
+  height?: number;
+}
+
 interface Draft {
   body: string | null;
   file?: PickedFile;
+  gif?: PickedGif;
   replyToId: number | null;
   abort?: AbortController;
   uploadId?: string | null;
@@ -227,6 +235,7 @@ const deliver = async (conversationId: number, clientId: string): Promise<void> 
       conversationId,
       clientId,
       body: draft.body,
+      gif: draft.gif,
       attachmentId: draft.file ? draft.uploadId : undefined,
       replyToId: draft.replyToId,
     });
@@ -331,6 +340,42 @@ export const sendMessage = (
     });
     void deliver(conversationId, clientId);
   });
+};
+
+/** A GIF goes on its own, as its own message. */
+export const sendGif = (
+  conversationId: number,
+  gif: PickedGif,
+  replyTo?: ChatMessage | null
+): void => {
+  const meId = store().meId;
+  if (meId == null) return;
+  setTyping(conversationId, false);
+
+  const clientId = Crypto.randomUUID();
+  drafts.set(clientId, { body: null, gif, replyToId: replyTo?.id ?? null });
+  store().addPending({
+    id: null,
+    clientId,
+    conversationId,
+    senderId: meId,
+    type: 'gif',
+    body: null,
+    attachment: {
+      kind: 'image',
+      width: gif.width,
+      height: gif.height,
+      url: gif.url,
+      downloadUrl: null,
+    },
+    call: null,
+    replyTo: quoteOf(replyTo),
+    reactions: [],
+    editedAt: null,
+    createdAt: new Date().toISOString(),
+    status: 'sending',
+  });
+  void deliver(conversationId, clientId);
 };
 
 export const retryMessage = (message: ChatMessage) =>

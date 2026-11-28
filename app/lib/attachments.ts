@@ -152,12 +152,14 @@ export const attachmentLabel = (
 
 /** What a quote says about the message it quotes. */
 export const replyLabel = (reply: {
+  type?: string;
   body: string | null;
   hasAttachment: boolean;
   attachmentKind?: AttachmentKind | null;
   attachmentName?: string | null;
 }): string =>
   reply.body ||
+  (reply.type === 'gif' ? 'GIF' : null) ||
   (reply.hasAttachment
     ? attachmentLabel({ kind: reply.attachmentKind ?? 'image', name: reply.attachmentName })
     : 'Message');

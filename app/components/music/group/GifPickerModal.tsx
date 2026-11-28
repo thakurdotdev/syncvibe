@@ -4,6 +4,7 @@ import SwipeableModal from '@/components/SwipeableModal';
 import { Tabs, type TabItem } from '@/components/ui/tabs';
 import { useTheme } from '@/context/ThemeContext';
 import { Feather } from '@expo/vector-icons';
+import type { ImageLoadEventData } from 'expo-image';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -43,10 +44,18 @@ const TAB_PLACEHOLDERS: Record<MediaType, string> = {
   stickers: 'Search stickers...',
 };
 
+/** The picture's size, once its thumbnail has loaded: the API doesn't say. */
+export interface MediaSize {
+  width: number;
+  height: number;
+}
+
+type OnSelect = (mediaUrl: string, size?: MediaSize) => void;
+
 interface GifPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (mediaUrl: string) => void;
+  onSelect: OnSelect;
 }
 
 const MediaThumbnail = React.memo(
@@ -60,18 +69,22 @@ const MediaThumbnail = React.memo(
     item: KlipyMediaItem;
     type: MediaType;
     itemWidth: number;
-    onSelect: (url: string) => void;
+    onSelect: OnSelect;
     colors: any;
   }) => {
     const isSticker = type === 'stickers';
     const isClip = type === 'clips';
     const mediaUrl = item.gif || item.mp4 || item.preview;
     const displayImage = item.gif || item.preview;
+    const size = useRef<MediaSize | undefined>(undefined);
+    const onLoad = (e: ImageLoadEventData) => {
+      size.current = { width: e.source.width, height: e.source.height };
+    };
 
     if (isSticker) {
       return (
         <PressableScale
-          onPress={() => onSelect(mediaUrl)}
+          onPress={() => onSelect(mediaUrl, size.current)}
           style={[
             thumbnailStyles.stickerCard,
             {
@@ -85,6 +98,7 @@ const MediaThumbnail = React.memo(
             source={{ uri: displayImage }}
             style={thumbnailStyles.stickerImage}
             contentFit='contain'
+            onLoad={onLoad}
           />
         </PressableScale>
       );
@@ -92,7 +106,7 @@ const MediaThumbnail = React.memo(
 
     return (
       <PressableScale
-        onPress={() => onSelect(mediaUrl)}
+        onPress={() => onSelect(mediaUrl, size.current)}
         style={[
           thumbnailStyles.mediaCard,
           {
@@ -105,6 +119,7 @@ const MediaThumbnail = React.memo(
         <CachedImage
           source={{ uri: displayImage }}
           style={[thumbnailStyles.mediaImage, { width: itemWidth }]}
+          onLoad={onLoad}
         />
 
         {/* Subtle Clip Badge */}
@@ -284,8 +299,8 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
 
   // Item select handler
   const handleSelect = useCallback(
-    (mediaUrl: string) => {
-      onSelect(mediaUrl);
+    (mediaUrl: string, size?: MediaSize) => {
+      onSelect(mediaUrl, size);
       onClose();
       setQuery('');
     },
