@@ -2,7 +2,7 @@ import PressableScale from '@/components/ui/PressableScale';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from '@/context/ToastContext';
 import { fileIcon, formatBytes, formatDuration, typeLabel } from '@/lib/attachments';
-import { refreshAttachment } from '@/lib/chat';
+import { freshAttachment, refreshAttachment } from '@/lib/chat';
 import {
   autoSaveToGallery,
   downloadToCache,
@@ -395,7 +395,19 @@ const AudioClip = ({ message, isOwn, sending, onCancel }: AttachmentViewProps) =
             </ProgressRing>
           </PressableScale>
         ) : (
-          <PlayButton isOwn={isOwn} playing={false} onPress={() => setActive(true)} label={label} />
+          <PlayButton
+            isOwn={isOwn}
+            playing={false}
+            // A clip kept on the phone from days ago has run-out links: new ones come first.
+            onPress={() => {
+              if (message.localUrl) setActive(true);
+              else
+                void freshAttachment(message)
+                  .catch(() => null)
+                  .finally(() => setActive(true));
+            }}
+            label={label}
+          />
         )
       }
       label={label}

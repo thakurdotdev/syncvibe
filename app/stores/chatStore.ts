@@ -139,6 +139,14 @@ interface ChatActions {
   setMe: (meId: number | null) => void;
   setActive: (activeId: number | null) => void;
   setConversations: (list: Conversation[]) => void;
+  /**
+   * What the phone kept from last time (lib/chatCache). Only fills what the server hasn't
+   * answered yet: its list and messages always win.
+   */
+  hydrate: (
+    conversations: Conversation[],
+    threads: Record<number, { messages: ChatMessage[]; hasMore: boolean }>
+  ) => void;
   upsertConversation: (conversation: Conversation) => void;
   setThreadStatus: (conversationId: number, patch: Partial<Thread>) => void;
   setLatestPage: (conversationId: number, page: MessagePage) => void;
@@ -246,6 +254,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
   reset: () => set(initialState),
   setMe: (meId) => set({ meId }),
   setActive: (activeId) => set({ activeId }),
+
+  hydrate: (conversations, threads) =>
+    set((state) => {
+      const restored: Record<number, Thread> = {};
+      for (const [id, cached] of Object.entries(threads)) {
+        restored[Number(id)] = {
+          messages: cached.messages,
+          hasMore: cached.hasMore,
+          status: 'ready',
+          loadingOlder: false,
+        };
+      }
+      return {
+        conversations: state.conversationsLoaded ? state.conversations : conversations,
+        conversationsLoaded: state.conversationsLoaded || conversations.length > 0,
+        // A thread already loading or loaded from the server is left as it is.
+        threads: { ...restored, ...state.threads },
+      };
+    }),
 
   setConversations: (list) =>
     set((state) => {

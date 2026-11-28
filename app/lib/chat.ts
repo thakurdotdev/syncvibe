@@ -3,6 +3,7 @@ import { File, UploadType } from 'expo-file-system';
 import { AppState } from 'react-native';
 import type { Socket } from 'socket.io-client';
 import type { AttachmentKind } from '@/lib/attachments';
+import { restoreChatCache, startChatCache } from '@/lib/chatCache';
 import { conversationOnScreen } from '@/lib/chatScreen';
 import {
   useChatStore,
@@ -602,6 +603,8 @@ export const bindChatSocket = (
   const { userId, onIncoming } = options;
   socket = nextSocket;
   store().setMe(userId);
+  void restoreChatCache(userId);
+  const stopCache = startChatCache(userId);
 
   const typingTimers = new Map<number, ReturnType<typeof setTimeout>>();
   const clearTypingTimer = (conversationId: number) => {
@@ -681,6 +684,7 @@ export const bindChatSocket = (
 
   return () => {
     for (const [event, listener] of Object.entries(listeners)) nextSocket.off(event, listener);
+    stopCache();
     typingTimers.forEach(clearTimeout);
     if (socket === nextSocket) socket = null;
   };
