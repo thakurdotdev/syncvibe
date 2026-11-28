@@ -171,14 +171,16 @@ const ChatWithUser = () => {
     return null;
   }, [messages]);
 
+  // Opened from a notification on a cold start, the messages can arrive before the list does.
+  const known = Boolean(conversation);
   useEffect(() => {
-    if (!activeId || !focused || thread.status !== 'ready') return;
+    if (!activeId || !known || !focused || thread.status !== 'ready') return;
     if (AppState.currentState === 'active') markRead(activeId);
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') markRead(activeId);
     });
     return () => subscription.remove();
-  }, [activeId, focused, thread.status, lastId]);
+  }, [activeId, known, focused, thread.status, lastId]);
 
   const handleTyping = useCallback(
     (hasText: boolean) => {

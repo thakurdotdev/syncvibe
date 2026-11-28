@@ -1,7 +1,9 @@
 import * as Crypto from 'expo-crypto';
 import { File, UploadType } from 'expo-file-system';
+import { AppState } from 'react-native';
 import type { Socket } from 'socket.io-client';
 import type { AttachmentKind } from '@/lib/attachments';
+import { conversationOnScreen } from '@/lib/chatScreen';
 import {
   useChatStore,
   type Attachment,
@@ -417,6 +419,12 @@ export const toggleReaction = async (message: ChatMessage, emoji: string): Promi
 
 // ── Read receipts and typing ────────────────────────────────────────────────
 
+/**
+ * A conversation read while the socket was down, or whose receipt got no answer. Opening the app
+ * from a notification usually lands here: the screen is up before the socket has reconnected.
+ */
+let unsentRead: number | null = null;
+
 /** Tells the server the user has seen the conversation up to its last message from the other person. */
 export const markRead = (conversationId: number): void => {
   const state = store();
@@ -431,6 +439,12 @@ export const markRead = (conversationId: number): void => {
   }
   if (!lastSeen?.id || lastSeen.id <= conversation.myLastReadMessageId) return;
 
+  // Marked read here only once it can be sent; otherwise the check above would stop the retry.
+  if (!socket?.connected) {
+    unsentRead = conversationId;
+    return;
+  }
+  if (unsentRead === conversationId) unsentRead = null;
   state.applyReceipt({
     conversationId,
     userId: state.meId,
@@ -438,8 +452,23 @@ export const markRead = (conversationId: number): void => {
     lastReadAt: new Date().toISOString(),
     lastDeliveredMessageId: lastSeen.id,
   });
-  // If this is lost, the next message or the next time the conversation opens sends it again.
-  command('chat:read', { conversationId, messageId: lastSeen.id }).catch(() => {});
+  command('chat:read', { conversationId, messageId: lastSeen.id }).catch(() => {
+    unsentRead = conversationId;
+  });
+};
+
+/** After a reconnect, once the list has the server's read positions again. */
+const resendRead = (): void => {
+  const conversationId = unsentRead;
+  unsentRead = null;
+  // Only if the user is still looking at it: they may have left while it was offline.
+  if (
+    conversationId != null &&
+    conversationOnScreen() === conversationId &&
+    AppState.currentState === 'active'
+  ) {
+    markRead(conversationId);
+  }
 };
 
 const typingSent = new Map<number, number>();
@@ -525,9 +554,10 @@ export const bindChatSocket = (
   // On every connection, the first included: events may have been missed while it was down.
   const onConnect = () => {
     typingSent.clear();
-    void refreshConversations();
     const { activeId } = store();
-    if (activeId) void loadThread(activeId);
+    void Promise.all([refreshConversations(), activeId ? loadThread(activeId) : null]).then(
+      resendRead
+    );
     flushOutbox();
   };
 
@@ -560,5 +590,6 @@ export const resetChat = (): void => {
   refreshing.clear();
   inFlight.clear();
   typingSent.clear();
+  unsentRead = null;
   store().reset();
 };
