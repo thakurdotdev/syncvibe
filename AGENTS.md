@@ -275,13 +275,27 @@ The server stores every message and owns the order; devices send commands and fo
   `/api/chat`. All of it goes through `features/chat/services/`, which is where rules belong.
 - **Sent once:** the device gives each message a `clientId`; `(sender_id, client_id)` is unique, so
   sending again after a lost reply returns the stored message. Keep any new way of sending on
-  `sendMessage`.
+  `sendMessage` (`chat:forward` shares its storing and announcing).
+- **Kinds of message:** a `gif` is a Klipy `.gif` (only `static.klipy.com`) carried as an image
+  attachment; a `song` names a catalog song (`meta.songId`, through `catalogSong`) and has its name
+  as text; both look like a photo or text to older app versions. A voice message is an audio file
+  named `voice-message.m4a|.weba|.ogg`. Forwarded messages have `meta.forwarded` and can't be edited.
+- **Link previews** (`link-preview.*`): the server reads the page, never the devices, and keeps no
+  image. Every fetch **MUST** go through `link-preview.fetch.ts`, which checks each resolved
+  address as it connects and on every redirect, so a message can't make the server fetch its own
+  network.
+- **Mute, block, stars:** `chat_members.muted` stops pushes; `chat_blocks` refuses messages both
+  ways, calls, typing and presence (the blocked person isn't told); `chat_stars` is per person.
+  Changes reach your other devices as `chat:settings` and `chat:starred`.
 - **Read / delivered** are positions (`last_read_message_id`), not flags on messages, and only move
   forward. A recipient's device confirms each `chat:message`; with no confirmation the server sends
   a push instead.
 - **Presence** (`socket/presence.ts`) is told only to people you have a conversation with.
 - **Clients:** state lives in `stores/chatStore` and the network code in `lib/chat`, in both
-  `client/` and `app/` with the same logic. **MUST** change them together.
+  `client/` and `app/` with the same logic. **MUST** change them together. The app also keeps the
+  list and recent messages on the phone (`lib/chatCache.ts`, marked with whose they are); the web
+  keeps nothing in the browser but unsent drafts for the tab. Drafts are cleared on sign-out, not
+  in `resetChat`, which also runs at start-up.
 - Models are used for everything except the conversation list and the bulk "mark delivered", which
   need one SQL statement each. Don't add more raw SQL without the same kind of reason.
 
