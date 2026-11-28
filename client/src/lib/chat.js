@@ -374,7 +374,8 @@ export const sendSong = async (conversationId, song, replyTo) => {
 
 /**
  * Sends text, files or both. Each file becomes its own message; the text goes with the first.
- * `files` are `{ file, kind }` that passed `checkFile`.
+ * `files` are `{ file, kind, durationSec? }` that passed `checkFile`; `durationSec` is for a
+ * recording whose file doesn't say how long it is.
  */
 export const sendMessage = async (conversationId, { body, files = [], replyTo }) => {
   let text = body?.trim() || null;
@@ -390,7 +391,7 @@ export const sendMessage = async (conversationId, { body, files = [], replyTo })
   }
 
   // Shown at once, in order; measuring and shrinking happen while they're already on screen.
-  const pending = files.map(({ file, kind }, index) => {
+  const pending = files.map(({ file, kind, durationSec }, index) => {
     const clientId = newClientId();
     const localUrl =
       kind === 'image' || kind === 'video' || kind === 'audio'
@@ -410,13 +411,22 @@ export const sendMessage = async (conversationId, { body, files = [], replyTo })
       localUrl,
       replyTo: index === 0 ? replyTo : null,
     });
-    return { clientId, file, kind, caption, replyToId: index === 0 ? (replyTo?.id ?? null) : null };
+    return {
+      clientId,
+      file,
+      kind,
+      durationSec,
+      caption,
+      replyToId: index === 0 ? (replyTo?.id ?? null) : null,
+    };
   });
   text = null;
 
   for (const item of pending) {
     const prepared = await prepareFile(item.file, item.kind);
     const { file, ...meta } = prepared;
+    // A recording made in the browser has no length in its file; the recorder knows it.
+    if (!meta.durationSec && item.durationSec) meta.durationSec = item.durationSec;
     drafts.set(item.clientId, {
       body: item.caption,
       file,

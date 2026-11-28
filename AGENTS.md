@@ -103,7 +103,8 @@ and browser audit scripts.
 - **Demo data:** the hero, auth showcase and screenshots show one room, from
   `LandingPage/demoSong.js` and `public/landing/`. Blur other people's details in screenshot files.
 - **Permissions:** public pages **MUST NOT** request permissions. The notification prompt lives only in
-  `shell/AppShell.jsx`. Camera and microphone are requested only for calls.
+  `shell/AppShell.jsx`. Camera and microphone are requested only for calls, and the microphone also
+  when someone taps record for a voice message (`Chat/useVoiceNote.js`).
 - **Auth:** full flows get their own route in `AuthLayout`, not a dialog, like `/forgot-password`. Add
   such routes to `noHeaderFooterRoutes` in `Routes.jsx`.
 - **Motion:** **MUST NOT** animate `height: 'auto'` with Framer Motion on these pages. It calls

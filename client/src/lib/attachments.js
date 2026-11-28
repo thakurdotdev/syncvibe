@@ -46,6 +46,7 @@ const RULES = {
   opus: AUDIO,
   wav: AUDIO,
   flac: AUDIO,
+  weba: AUDIO,
   pdf: DOCUMENT,
   txt: DOCUMENT,
   md: DOCUMENT,
@@ -109,13 +110,20 @@ export const checkFile = (file) => {
   return { kind: rule.kind };
 };
 
+/**
+ * A voice message is an audio file named this way when it's recorded (the app's are .m4a). The
+ * server and the app read the same names.
+ */
+export const isVoiceMessage = (attachment) =>
+  /^voice-message\.(m4a|weba|ogg)$/.test(attachment?.name ?? '');
+
 /** "Photo", "Video", "Audio" or the file's name: for previews and quotes. */
 export const attachmentLabel = (attachment) => {
   if (!attachment) return '';
   const kind = attachment.kind ?? 'image';
   if (kind === 'image') return 'Photo';
   if (kind === 'video') return 'Video';
-  if (kind === 'audio') return 'Audio';
+  if (kind === 'audio') return isVoiceMessage(attachment) ? 'Voice message' : 'Audio';
   return attachment.name || 'File';
 };
 

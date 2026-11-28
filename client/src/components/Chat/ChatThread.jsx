@@ -243,6 +243,14 @@ const OpenThread = ({ conversation }) => {
     [activeId, replyTo]
   );
 
+  const handleSendVoice = useCallback(
+    (file) => {
+      void sendMessage(activeId, { files: [file], replyTo });
+      setReplyTo(null);
+    },
+    [activeId, replyTo]
+  );
+
   const handleSendSong = useCallback(
     (song) => {
       void sendSong(activeId, song, replyTo);
@@ -365,6 +373,7 @@ const OpenThread = ({ conversation }) => {
           onSend={handleSend}
           onSendGif={handleSendGif}
           onSendSong={handleSendSong}
+          onSendVoice={handleSendVoice}
           files={staged}
           onAddFiles={addFiles}
           onRemoveFile={removeFile}
