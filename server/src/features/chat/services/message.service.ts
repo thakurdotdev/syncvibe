@@ -40,6 +40,7 @@ import {
   removeAttachmentOf,
 } from './attachment.service';
 import { blockBetween, isMuted, requireNotBlocked } from './block.service';
+import { queueLinkPreview } from './link-preview.service';
 import { findDirectConversationId, requireMembers } from './conversation.service';
 import { attachmentLabel, presentMessages } from './message.presenter';
 import { songCover, songText } from '../chat.songs';
@@ -228,7 +229,7 @@ export const sendMessage = async (
           ? 'file'
           : 'image';
 
-  return storeAndAnnounce(
+  const message = await storeAndAnnounce(
     {
       conversationId,
       senderId,
@@ -242,6 +243,8 @@ export const sendMessage = async (
     members,
     read
   );
+  if (message.type === 'text') queueLinkPreview(message.id, senderId);
+  return message;
 };
 
 /** Stores a new message once and tells everyone in the conversation, the sender's devices too. */
@@ -303,7 +306,10 @@ export const forwardMessage = async (
     !existing && isStoredFile(source.attachment)
       ? await copyAttachment(userId, source.attachment, conversationId)
       : source.attachment;
-  const songId = source.type === 'song' ? (source.meta as ContentMeta | null)?.songId : undefined;
+  // Not a call, which was refused above: its meta is about the content.
+  const sourceMeta = source.meta as ContentMeta | null;
+  const songId = source.type === 'song' ? sourceMeta?.songId : undefined;
+  const link = source.type === 'text' ? sourceMeta?.link : undefined;
 
   return storeAndAnnounce(
     {
@@ -313,7 +319,7 @@ export const forwardMessage = async (
       type: source.type,
       body: source.body,
       attachment,
-      meta: { forwarded: true, ...(songId ? { songId } : {}) },
+      meta: { forwarded: true, ...(songId ? { songId } : {}), ...(link ? { link } : {}) },
       replyToId: null,
     },
     members,
@@ -427,6 +433,8 @@ export const editMessage = async (
   if (body === message.body) return present(message);
 
   await message.update({ body, editedAt: new Date() });
+  // The link may have changed: the preview follows the new text a moment later.
+  if (message.type === 'text') queueLinkPreview(message.id, userId);
 
   const updated = await present(message);
   emitToUsers(members, 'chat:message:updated', { message: updated });

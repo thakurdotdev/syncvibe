@@ -72,6 +72,11 @@ export interface MessageDto {
   song: Record<string, unknown> | null;
   /** Forwarded from another conversation: shown as such, and can't be edited. */
   forwarded: boolean;
+  /**
+   * The first link in a text message, as the server read the page: added a moment after the
+   * message arrives (chat:message:updated). No image, so devices never load the sender's choice.
+   */
+  link: { url: string; title: string | null; description: string | null; siteName: string } | null;
   replyTo: ReplyPreviewDto | null;
   reactions: ReactionDto[];
   editedAt: string | null;

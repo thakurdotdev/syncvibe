@@ -41,10 +41,22 @@ export interface CallMeta {
   durationSec?: number;
 }
 
-/** About a message's content: a shared song (its `songs.song_id`), and whether it was forwarded. */
+/** What a link in a text message points at, as the server read it from the page. */
+export interface LinkMeta {
+  url: string;
+  title: string | null;
+  description: string | null;
+  siteName: string;
+}
+
+/**
+ * About a message's content: a shared song (its `songs.song_id`), whether it was forwarded, and
+ * a preview of the first link in its text.
+ */
 export interface ContentMeta {
   songId?: string;
   forwarded?: boolean;
+  link?: LinkMeta;
 }
 
 export type MessageMeta = CallMeta | ContentMeta;

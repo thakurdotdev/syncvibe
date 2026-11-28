@@ -9,6 +9,8 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import AttachmentView from './AttachmentView';
 import SongCard from './SongCard';
+import { splitLinks } from '@/lib/links';
+import * as WebBrowser from 'expo-web-browser';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -44,6 +46,11 @@ const formatDuration = (seconds = 0) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
 const LONG_PRESS_MS = 300;
+
+/** Links open in the in-app browser, so the chat is one swipe back. */
+const openLink = (url: string) => {
+  WebBrowser.openBrowserAsync(url).catch(() => {});
+};
 
 const STATUS_ICON: Record<MessageStatus, { name: any; label: string }> = {
   sending: { name: 'clock-outline', label: 'Sending' },
@@ -198,7 +205,50 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                   </Text>
                 </PressableScale>
               ) : null}
-              {body ? <Text style={[styles.text, { color: textColor }]}>{body}</Text> : null}
+              {body ? (
+                <Text style={[styles.text, { color: textColor }]}>
+                  {splitLinks(body).map((part, i) =>
+                    part.url ? (
+                      <Text
+                        key={i}
+                        onPress={() => openLink(part.url!)}
+                        onLongPress={openActions}
+                        accessibilityRole='link'
+                        style={styles.link}
+                      >
+                        {part.text}
+                      </Text>
+                    ) : (
+                      part.text
+                    )
+                  )}
+                </Text>
+              ) : null}
+              {message.link ? (
+                <PressableScale
+                  onPress={() => openLink(message.link!.url)}
+                  onLongPress={openActions}
+                  delayLongPress={LONG_PRESS_MS}
+                  scaleTo={ROW_PRESS_SCALE}
+                  accessibilityRole='link'
+                  accessibilityLabel={`${message.link.title ?? message.link.siteName}, on ${message.link.siteName}`}
+                  style={[styles.preview, { borderLeftColor: textColor }]}
+                >
+                  <Text style={[styles.previewSite, { color: textColor }]} numberOfLines={1}>
+                    {message.link.siteName}
+                  </Text>
+                  {message.link.title ? (
+                    <Text style={[styles.previewTitle, { color: textColor }]} numberOfLines={2}>
+                      {message.link.title}
+                    </Text>
+                  ) : null}
+                  {message.link.description ? (
+                    <Text style={[styles.previewText, { color: textColor }]} numberOfLines={2}>
+                      {message.link.description}
+                    </Text>
+                  ) : null}
+                </PressableScale>
+              ) : null}
             </PressableScale>
           ) : null}
 
@@ -293,6 +343,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   forwardedText: { fontSize: 12, fontStyle: 'italic' },
+  link: { textDecorationLine: 'underline' },
+  preview: { borderLeftWidth: 2, paddingLeft: 8, marginTop: 6, opacity: 0.9, maxWidth: 260 },
+  previewSite: { fontSize: 11, fontWeight: '700', opacity: 0.75 },
+  previewTitle: { fontSize: 14, fontWeight: '600', marginTop: 1 },
+  previewText: { fontSize: 13, lineHeight: 17, marginTop: 1, opacity: 0.85 },
   own: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   other: { alignSelf: 'flex-start', alignItems: 'flex-start' },
   bubble: { borderRadius: RADIUS, paddingHorizontal: 13, paddingVertical: 8 },
