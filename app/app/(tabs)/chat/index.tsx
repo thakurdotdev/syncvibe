@@ -23,6 +23,7 @@ import { TabHeader, useTopBarScroll } from '@/components/ui/AppHeader';
 import Animated from 'react-native-reanimated';
 import { loadThread, openConversationWith, refreshConversations } from '@/lib/chat';
 import { openConversation } from '@/lib/chatScreen';
+import { useChatDraftStore } from '@/stores/chatDraftStore';
 import { previewOf, useChatStore, type Conversation } from '@/stores/chatStore';
 
 interface SearchUser {
@@ -61,6 +62,7 @@ const ChatListScreen: React.FC = () => {
   const loaded = useChatStore((s) => s.conversationsLoaded);
   const presence = useChatStore((s) => s.presence);
   const typing = useChatStore((s) => s.typing);
+  const drafts = useChatDraftStore((s) => s.drafts);
   const { scrollY, onScroll, listRef, scrollToTop } = useTopBarScroll<FlatList<Conversation>>();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -125,12 +127,13 @@ const ChatListScreen: React.FC = () => {
         isTyping={Boolean(typing[item.id])}
         unreadCount={item.unreadCount}
         muted={item.muted}
+        draft={drafts[item.id]}
         onPress={() => openConversation(item.id)}
         // Starts loading the messages while the finger is still down.
         onPressIn={() => void loadThread(item.id)}
       />
     ),
-    [meId, presence, typing]
+    [meId, presence, typing, drafts]
   );
 
   const renderPerson = useCallback(

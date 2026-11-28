@@ -940,6 +940,7 @@ const ChatWithUser = () => {
         ) : null}
         {blocked ? null : (
           <ChatInput
+            conversationId={activeId}
             onSend={handleSend}
             onTyping={handleTyping}
             onAttach={handleAttachment}

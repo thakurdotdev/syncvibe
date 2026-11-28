@@ -11,6 +11,7 @@ import { bridgeStopSong } from '@/stores/trackPlayerBridge';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useState } from 'react';
+import { useChatDraftStore } from '@/stores/chatDraftStore';
 
 interface UserContextType {
   user: User | null;
@@ -146,6 +147,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // messages and presence go when `user` does (ChatProvider). Stopping is local only: your
     // music on another device keeps playing.
     useGroupSessionStore.getState().resetSession(() => useGroupPlaybackStore.getState().reset());
+    // Unsent messages are the leaving account's; resetChat also runs at start-up, so not there.
+    useChatDraftStore.getState().reset();
     void bridgeStopSong();
     usePlayerStore.setState({
       currentSong: null,

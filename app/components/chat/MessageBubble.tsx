@@ -5,7 +5,7 @@ import { ROW_PRESS_SCALE } from '@/lib/motion';
 import { replyLabel } from '@/lib/attachments';
 import type { ChatMessage, MessageStatus } from '@/stores/chatStore';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import AttachmentView from './AttachmentView';
 import SongCard from './SongCard';
@@ -46,6 +46,9 @@ const formatDuration = (seconds = 0) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
 const LONG_PRESS_MS = 300;
+/** Two taps this close together on a message are a double tap: it gets a ❤️. */
+const DOUBLE_TAP_MS = 300;
+const HEART = '❤️';
 
 /** Links open in the in-app browser, so the chat is one swipe back. */
 const openLink = (url: string) => {
@@ -86,6 +89,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onRetry,
 }) => {
   const { colors } = useTheme();
+  // Before any early return: a hook must run on every render.
+  const lastTap = useRef(0);
   const failed = status === 'failed';
   const sending = status === 'sending';
   const attachment = message.attachment;
@@ -125,6 +130,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       };
 
   const openActions = () => onLongPress(message);
+  // A second tap soon after the first hearts it; a heart already there from you stays.
+  const handleTap = () => {
+    const now = Date.now();
+    if (now - lastTap.current > DOUBLE_TAP_MS) {
+      lastTap.current = now;
+      return;
+    }
+    lastTap.current = 0;
+    if (message.id == null || meId == null) return;
+    const mine = message.reactions.find((r) => r.userIds.includes(meId))?.emoji;
+    if (mine !== HEART) onReact(message, HEART);
+  };
   const textColor = isOwn ? colors.primaryForeground : colors.foreground;
   const showMeta = (endsGroup || Boolean(message.editedAt) || sending || starred) && !failed;
 
@@ -166,6 +183,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 
           {body || reply ? (
             <PressableScale
+              onPress={handleTap}
               onLongPress={openActions}
               delayLongPress={LONG_PRESS_MS}
               scaleTo={ROW_PRESS_SCALE}
