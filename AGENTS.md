@@ -25,6 +25,10 @@ pnpm workspace (`pnpm@12.3.4`, `node-linker=hoisted`). Install from the root: `p
 - `src/features/auth/`: Better Auth config (`auth.ts`, `auth.config.ts`), its plugins and session routes.
   Sign-in, sign-up, 2FA, passkeys and sessions are Better Auth's, under `/api/auth`.
 - `src/middleware/auth.middleware.ts`: `authMiddleware` sets `req.user` and `req.sessionId`.
+  `admin.middleware.ts`: `requireAdmin` (the verified `ADMIN_EMAIL` account) after it.
+- Songs a device sends go into the shared catalog only through `catalogSong`
+  (`features/music/services/catalog.service.ts`), which stores the song API's copy. **MUST NOT**
+  pass client data to `Song.getOrCreate`.
 - `src/models/`: Sequelize models. `src/socket/`: Socket.IO handlers. `src/utils/helpers.ts`: IP,
   Cloudflare location and user-agent helpers.
 - `src/migrations/NNN_*.ts`: schema changes, applied on deploy (see Database). `sql/`: older
@@ -200,9 +204,9 @@ The server owns what a room is playing; devices only ask for changes and follow.
   (`removedIds`, lifted by a host's invite); only the host can do that to a co-host. Anyone may
   `vote-skip`; votes lapse with the song. Rules are in `state.ts` (`canManage`, `outranks`) and
   `moderation.ts`.
-- **Older installs:** `legacy-handlers.ts` and the legacy half of `broadcast.ts` keep app versions up
-  to 1.6.x (and stale browser tabs) working in the same rooms. Don't remove them while such versions
-  are in use, and keep the fields they read in `joinPayloadOf`.
+- **Older installs:** `legacy-handlers.ts` and the legacy half of `broadcast.ts` keep older app
+  versions and stale browser tabs, which speak the earlier events, working in the same rooms. Don't
+  remove them while such versions are in use, and keep the fields they read in `joinPayloadOf`.
 - **Persistence:** `room-store.ts` copies each room to Redis (`gm:room:<id>`, 12 h TTL) shortly after
   every change, and `restoreRooms` loads them before the server starts listening, so a deploy doesn't
   end rooms. Memory stays the source of truth; without `REDIS_URL` rooms just don't survive a restart.
@@ -262,9 +266,9 @@ The server stores every message and owns the order; devices send commands and fo
   position), `chat_messages`, `chat_reactions`. The old `chats` / `chatmessage` tables are no longer
   read or written.
 - **Sockets know who they are.** `socket/auth.ts` reads the Better Auth session when a socket
-  connects (browser cookie, or `auth.cookie` from the app) and only then puts it in the `user:<id>`
-  room. Messages go to that room and nowhere else. A socket without a session still gets music rooms
-  the old way, for apps up to 1.6.x; set `SOCKET_REQUIRE_SESSION=true` once none are left.
+  connects (browser cookie, or `auth.cookie` from the app) and refuses one without a valid session,
+  so apps up to 1.6.x can't connect. Messages go to the `user:<id>` room and nowhere else. If the
+  session can't be checked, the connection is dropped rather than refused, so the device retries.
 - **Protocol:** commands and events are listed at the top of `socket/chat.ts` and
   `features/chat/chat.realtime.ts`. Every command is answered. Reading (lists, history) is HTTP under
   `/api/chat`. All of it goes through `features/chat/services/`, which is where rules belong.
