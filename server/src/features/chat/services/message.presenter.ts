@@ -130,6 +130,7 @@ export const presentMessages = async (
           : null,
       forwarded:
         message.type !== 'call' && Boolean((message.meta as ContentMeta | null)?.forwarded),
+      link: message.type === 'text' ? ((message.meta as ContentMeta | null)?.link ?? null) : null,
       replyTo: reply
         ? {
             id: reply.id,
