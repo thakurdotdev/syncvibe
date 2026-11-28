@@ -213,7 +213,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             onPress={onAttach}
             scaleTo={BUTTON_PRESS_SCALE}
             accessibilityRole='button'
-            accessibilityLabel='Attach photos, videos or files'
+            accessibilityLabel='Attach photos, files or a song'
             style={styles.sideButton}
           >
             <Ionicons name='add-circle-outline' size={26} color={colors.foreground} />

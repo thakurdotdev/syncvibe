@@ -12,6 +12,7 @@ import {
   type MessagePage,
   type Receipt,
 } from '@/stores/chatStore';
+import type { Song } from '@/types/song';
 import { api } from '@/utils/hooks/useApi';
 
 /**
@@ -146,6 +147,8 @@ interface Draft {
   body: string | null;
   file?: PickedFile;
   gif?: PickedGif;
+  /** A shared song goes by its id; the server sends its own copy back. */
+  song?: { id: string };
   replyToId: number | null;
   abort?: AbortController;
   uploadId?: string | null;
@@ -223,9 +226,12 @@ const uploadFile = async (conversationId: number, clientId: string, draft: Draft
   draft.uploaded = true;
 };
 
-const deliver = async (conversationId: number, clientId: string): Promise<void> => {
+/** How a send ended: stored, waiting for the connection, or refused / failed. */
+export type Delivery = 'sent' | 'queued' | 'failed';
+
+const deliver = async (conversationId: number, clientId: string): Promise<Delivery> => {
   const draft = drafts.get(clientId);
-  if (!draft || inFlight.has(clientId)) return;
+  if (!draft || inFlight.has(clientId)) return 'queued';
   inFlight.add(clientId);
   store().setPendingStatus(conversationId, clientId, 'sending');
 
@@ -236,6 +242,7 @@ const deliver = async (conversationId: number, clientId: string): Promise<void> 
       clientId,
       body: draft.body,
       gif: draft.gif,
+      song: draft.song,
       attachmentId: draft.file ? draft.uploadId : undefined,
       replyToId: draft.replyToId,
     });
@@ -255,10 +262,11 @@ const deliver = async (conversationId: number, clientId: string): Promise<void> 
     drafts.delete(clientId);
     store().setUploadProgress(clientId, null);
     store().receiveMessage(reply.message);
+    return 'sent';
   } catch (error) {
     store().setUploadProgress(clientId, null);
     const code = error instanceof ChatError ? error.code : 'UPLOAD';
-    if (code === 'CANCELLED') return;
+    if (code === 'CANCELLED') return 'failed';
     // Offline: it stays "sending" and goes out by itself when the connection is back. The server
     // stores a clientId once, so sending it again can't make a second copy.
     if (code !== 'OFFLINE') {
@@ -269,7 +277,9 @@ const deliver = async (conversationId: number, clientId: string): Promise<void> 
         'failed',
         refused ? (error as ChatError).message : null
       );
+      return 'failed';
     }
+    return 'queued';
   } finally {
     inFlight.delete(clientId);
   }
@@ -376,6 +386,54 @@ export const sendGif = (
     status: 'sending',
   });
   void deliver(conversationId, clientId);
+};
+
+/** The line older app versions show for a song; the server writes the same. */
+const songLine = (song: Song) => {
+  const artists = song.artist_map?.artists
+    ?.map((artist) => artist.name)
+    .slice(0, 4)
+    .join(', ');
+  return `🎵 ${song.name || 'A song'}${artists ? ` · ${artists}` : ''}`;
+};
+
+/**
+ * Shares a song. It can be sent from anywhere in the app, so the conversation's messages are
+ * loaded first if they aren't: a send waiting for the connection is kept in its thread.
+ */
+export const sendSong = async (
+  conversationId: number,
+  song: Song,
+  replyTo?: ChatMessage | null
+): Promise<Delivery> => {
+  const meId = store().meId;
+  if (meId == null || !song?.id) return 'failed';
+  if (!store().threads[conversationId]) await loadThread(conversationId);
+  setTyping(conversationId, false);
+
+  const clientId = Crypto.randomUUID();
+  drafts.set(clientId, {
+    body: null,
+    song: { id: String(song.id) },
+    replyToId: replyTo?.id ?? null,
+  });
+  store().addPending({
+    id: null,
+    clientId,
+    conversationId,
+    senderId: meId,
+    type: 'song',
+    body: songLine(song),
+    attachment: null,
+    call: null,
+    song,
+    replyTo: quoteOf(replyTo),
+    reactions: [],
+    editedAt: null,
+    createdAt: new Date().toISOString(),
+    status: 'sending',
+  });
+  return deliver(conversationId, clientId);
 };
 
 export const retryMessage = (message: ChatMessage) =>

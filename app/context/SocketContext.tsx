@@ -4,6 +4,7 @@ import { bindChatSocket, resetChat } from '@/lib/chat';
 import { conversationOnScreen } from '@/lib/chatScreen';
 import { bindPlayerSocket } from '@/lib/player';
 import { showMessageBanner } from '@/components/chat/MessageBanner';
+import { songCoverOf } from '@/lib/chatSongs';
 import { clearMessageNotification, showMessageNotification } from '@/lib/messageNotifications';
 import { previewOf, useChatStore, type ChatMessage, type Receipt } from '@/stores/chatStore';
 import {
@@ -62,7 +63,7 @@ const notify = (message: ChatMessage) => {
     messageId: message.id,
     senderName: sender?.name,
     preview: previewOf(message, meId),
-    imageUrl: message.attachment?.url,
+    imageUrl: message.attachment?.url ?? (message.song ? songCoverOf(message.song) : undefined),
   }).catch(() => {});
 };
 
