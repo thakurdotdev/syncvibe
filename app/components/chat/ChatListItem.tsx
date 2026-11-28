@@ -1,4 +1,5 @@
 import PressableScale from '@/components/ui/PressableScale';
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
@@ -16,6 +17,8 @@ interface ChatListItemProps {
   isOnline?: boolean;
   isTyping?: boolean;
   unreadCount?: number;
+  /** Muted: a bell with a line through it, and a quieter badge. */
+  muted?: boolean;
   isSearchResult?: boolean;
   onPress: () => void;
   /** The moment a finger lands, before the tap is over: a head start on loading. */
@@ -29,6 +32,7 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
   isOnline,
   isTyping,
   unreadCount = 0,
+  muted = false,
   isSearchResult,
   onPress,
   onPressIn,
@@ -46,9 +50,19 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
 
       <View style={styles.content}>
         <View style={styles.topRow}>
-          <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={1}>
-            {user.name}
-          </Text>
+          <View style={styles.nameRow}>
+            <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={1}>
+              {user.name}
+            </Text>
+            {muted ? (
+              <Ionicons
+                name='notifications-off-outline'
+                size={14}
+                color={colors.mutedForeground}
+                accessibilityLabel='Muted'
+              />
+            ) : null}
+          </View>
 
           {!isSearchResult && updatedAt ? (
             <Text style={[styles.time, { color: colors.mutedForeground }]}>
@@ -79,10 +93,18 @@ const ChatListItem: React.FC<ChatListItemProps> = ({
           )}
           {unreadCount > 0 ? (
             <View
-              style={[styles.badge, { backgroundColor: colors.primary }]}
+              style={[
+                styles.badge,
+                { backgroundColor: muted ? colors.mutedForeground : colors.primary },
+              ]}
               accessibilityLabel={`${unreadCount} unread`}
             >
-              <Text style={[styles.badgeText, { color: colors.primaryForeground }]}>
+              <Text
+                style={[
+                  styles.badgeText,
+                  { color: muted ? colors.background : colors.primaryForeground },
+                ]}
+              >
                 {unreadCount > 99 ? '99+' : unreadCount}
               </Text>
             </View>
@@ -111,11 +133,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 3,
   },
+  nameRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginRight: 8,
+  },
   name: {
     fontSize: 16,
     fontWeight: '600',
-    flex: 1,
-    marginRight: 8,
+    flexShrink: 1,
   },
   time: {
     fontSize: 12,

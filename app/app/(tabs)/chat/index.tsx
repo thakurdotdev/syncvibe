@@ -123,6 +123,7 @@ const ChatListScreen: React.FC = () => {
         isOnline={Boolean(presence[item.peer.userid])}
         isTyping={Boolean(typing[item.id])}
         unreadCount={item.unreadCount}
+        muted={item.muted}
         onPress={() => openConversation(item.id)}
         // Starts loading the messages while the finger is still down.
         onPressIn={() => void loadThread(item.id)}
