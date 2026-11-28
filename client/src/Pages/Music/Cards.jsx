@@ -30,6 +30,8 @@ import { useDislikeSong } from '@/hooks/useDislikeSong';
 import { useIsLiked, useToggleLike } from '@/hooks/useLikes';
 import { usePlayerStore } from '@/stores/playerStore';
 import AddToPlaylist from './AddToPlaylist';
+import { useChatStore } from '@/stores/chatStore';
+import { openSendSong } from '@/stores/sendSongStore';
 import { ensureHttpsForDownloadUrls } from './Common';
 import './music.css';
 
@@ -132,6 +134,8 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const dislike = useDislikeSong();
+  // Chat is there once signed in: the socket has said who this is.
+  const signedIn = useChatStore((s) => s.meId != null);
 
   if (!song?.id || !song?.image?.[2]) return null;
 
@@ -320,6 +324,17 @@ export const SongCard = memo(({ song, onRemoveFromPlaylist }) => {
                 >
                   Add to playlist
                 </DropdownMenuItem>
+                {signedIn && (
+                  <DropdownMenuItem
+                    className='rounded-lg cursor-pointer'
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openSendSong(song);
+                    }}
+                  >
+                    Send in a chat
+                  </DropdownMenuItem>
+                )}
                 {(!song.type || song.type === 'song') && (
                   <DropdownMenuItem
                     className='rounded-lg cursor-pointer'
@@ -377,6 +392,8 @@ export const NewSongCard = memo(({ song, reason, onPlay }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const dislike = useDislikeSong();
+  // Chat is there once signed in: the socket has said who this is.
+  const signedIn = useChatStore((s) => s.meId != null);
   const liked = useIsLiked(song?.id);
   const toggleLike = useToggleLike();
 
@@ -572,6 +589,16 @@ export const NewSongCard = memo(({ song, reason, onPlay }) => {
                   >
                     Add to playlist
                   </DropdownMenuItem>
+                  {signedIn && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openSendSong(song);
+                      }}
+                    >
+                      Send in a chat
+                    </DropdownMenuItem>
+                  )}
                   {(!song.type || song.type === 'song') && (
                     <DropdownMenuItem
                       onClick={(e) => {

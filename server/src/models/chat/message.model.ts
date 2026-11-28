@@ -8,7 +8,7 @@ import {
 import sequelize from '@/utils/sequelize';
 import { bigint } from './bigint';
 
-export type MessageType = 'text' | 'image' | 'file' | 'call' | 'gif';
+export type MessageType = 'text' | 'image' | 'file' | 'call' | 'gif' | 'song';
 
 /** A file in the private chat bucket, as the message keeps it. Links are signed when shown. */
 export interface StoredFile {
@@ -41,6 +41,13 @@ export interface CallMeta {
   durationSec?: number;
 }
 
+/** A shared song, by its id in the catalog (`songs.song_id`). */
+export interface SongMeta {
+  songId: string;
+}
+
+export type MessageMeta = CallMeta | SongMeta;
+
 class Message extends Model<InferAttributes<Message>, InferCreationAttributes<Message>> {
   declare id: CreationOptional<number>;
   declare conversationId: number;
@@ -50,7 +57,7 @@ class Message extends Model<InferAttributes<Message>, InferCreationAttributes<Me
   declare type: CreationOptional<MessageType>;
   declare body: CreationOptional<string | null>;
   declare attachment: CreationOptional<MessageAttachment | null>;
-  declare meta: CreationOptional<CallMeta | null>;
+  declare meta: CreationOptional<MessageMeta | null>;
   declare replyToId: CreationOptional<number | null>;
   declare editedAt: CreationOptional<Date | null>;
   /** A deleted message keeps its row (replies still point at it) but loses its content. */

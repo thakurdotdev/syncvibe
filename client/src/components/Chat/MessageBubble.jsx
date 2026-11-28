@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import AttachmentView from './AttachmentView';
 import { formatTime } from './ChatDateUtils';
 import MessageActions from './MessageActions';
+import SongMessage from './SongMessage';
 
 const STATUS_LABEL = { sending: 'Sending', sent: 'Sent', delivered: 'Delivered', read: 'Read' };
 
@@ -84,8 +85,11 @@ const MessageBubble = ({
   const pending = message.id == null;
   const failed = status === 'failed';
   const attachment = message.attachment;
+  // A shared song's text is only for app versions without the card.
+  const song = message.type === 'song' && message.song ? message.song : null;
+  const body = song ? null : message.body;
   const visual = attachment && ['image', 'video'].includes(attachment.kind ?? 'image');
-  const mediaOnly = visual && !message.body && !message.replyTo;
+  const mediaOnly = (visual || song) && !body && !message.replyTo;
 
   return (
     <div
@@ -126,8 +130,11 @@ const MessageBubble = ({
               />
             )}
 
+            {song && (
+              <SongMessage song={song} isOwn={isOwn} rounded={mediaOnly ? '' : 'rounded-xl'} />
+            )}
             {attachment && (
-              <div className={cn(!mediaOnly && message.body && 'mb-2')}>
+              <div className={cn(!mediaOnly && body && 'mb-2')}>
                 <AttachmentView
                   message={message}
                   isOwn={isOwn}
@@ -138,9 +145,7 @@ const MessageBubble = ({
               </div>
             )}
 
-            {message.body && (
-              <div className='whitespace-pre-wrap text-sm wrap-anywhere'>{message.body}</div>
-            )}
+            {body && <div className='whitespace-pre-wrap text-sm wrap-anywhere'>{body}</div>}
           </div>
 
           {!pending && (

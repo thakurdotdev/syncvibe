@@ -4,6 +4,7 @@ import {
   ListMusic,
   MoreHorizontal,
   Radio,
+  Send,
   ThumbsDown,
   User,
   UserX,
@@ -20,7 +21,9 @@ import {
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { mainArtistOf, useDislikeArtist, useDislikeSong } from '@/hooks/useDislikeSong';
 import { useStartRoom } from '@/hooks/useStartRoom';
+import { useChatStore } from '@/stores/chatStore';
 import { usePlayerStore } from '@/stores/playerStore';
+import { openSendSong } from '@/stores/sendSongStore';
 import QueueActions from './QueueActions';
 import QueueTab from './QueueTab';
 
@@ -39,6 +42,7 @@ const DesktopQueuePanel = memo(
     const dislikeArtist = useDislikeArtist();
     const mainArtist = mainArtistOf(currentSong);
     const startRoom = useStartRoom();
+    const signedIn = useChatStore((s) => s.meId != null);
 
     return (
       <TooltipProvider delayDuration={300}>
@@ -83,6 +87,15 @@ const DesktopQueuePanel = memo(
                     <ListMusic className='mr-2 h-4 w-4 text-muted-foreground' />
                     Add to Playlist
                   </DropdownMenuItem>
+                  {signedIn && currentSong?.id && (
+                    <DropdownMenuItem
+                      onClick={() => openSendSong(currentSong)}
+                      className='cursor-pointer text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors'
+                    >
+                      <Send className='w-3.5 h-3.5 mr-2 text-muted-foreground' />
+                      Send in a chat
+                    </DropdownMenuItem>
+                  )}
                   {startRoom && (
                     <DropdownMenuItem
                       onClick={startRoom}

@@ -23,6 +23,7 @@ import {
   retryMessage,
   sendGif,
   sendMessage,
+  sendSong,
   toggleReaction,
 } from '@/lib/chat';
 import { selectConversation, selectThread, useChatStore } from '@/stores/chatStore';
@@ -242,6 +243,14 @@ const OpenThread = ({ conversation }) => {
     [activeId, replyTo]
   );
 
+  const handleSendSong = useCallback(
+    (song) => {
+      void sendSong(activeId, song, replyTo);
+      setReplyTo(null);
+    },
+    [activeId, replyTo]
+  );
+
   const dropHandlers = {
     onDragEnter: (e) => {
       if (!dragHasFiles(e) || editing) return;
@@ -355,6 +364,7 @@ const OpenThread = ({ conversation }) => {
           onSaveEdit={handleSaveEdit}
           onSend={handleSend}
           onSendGif={handleSendGif}
+          onSendSong={handleSendSong}
           files={staged}
           onAddFiles={addFiles}
           onRemoveFile={removeFile}

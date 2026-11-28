@@ -1,5 +1,8 @@
-/** A 'gif' carries its picture as an image attachment, so app versions before GIFs show it too. */
-export type MessageType = 'text' | 'image' | 'file' | 'call' | 'gif';
+/**
+ * A 'gif' carries its picture as an image attachment, and a 'song' has its name and artists as
+ * its text, so app versions from before them still show something.
+ */
+export type MessageType = 'text' | 'image' | 'file' | 'call' | 'gif' | 'song';
 
 export type AttachmentKind = 'image' | 'video' | 'audio' | 'file';
 
@@ -65,6 +68,8 @@ export interface MessageDto {
   body: string | null;
   attachment: AttachmentDto | null;
   call: CallDto | null;
+  /** A shared song: the catalog's copy, which devices play as it is. */
+  song: Record<string, unknown> | null;
   replyTo: ReplyPreviewDto | null;
   reactions: ReactionDto[];
   editedAt: string | null;

@@ -17,6 +17,9 @@ import { StyleSheet, Text, View } from 'react-native';
 import { CachedImage } from '@/components/ui/CachedImage';
 import SwipeableModal from '../SwipeableModal';
 import AddToPlaylist from './AddToPlaylist';
+import SendToChatSheet from '@/components/chat/SendToChatSheet';
+import { sendSong } from '@/lib/chat';
+import type { Conversation } from '@/stores/chatStore';
 import { SleepTimerSheet } from './player/SleepTimerSheet';
 import { sleepTimerLabel, useSleepTimer } from '@/stores/sleepTimerStore';
 
@@ -65,6 +68,7 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
   const close = () => setOpen(false);
   const [playlistModal, setPlaylistModal] = useState(false);
   const [sleepSheet, setSleepSheet] = useState(false);
+  const [sendSheet, setSendSheet] = useState(false);
   const sleepLeft = sleepTimerLabel(useSleepTimer());
   const { addToQueue, removeFromQueue } = usePlayerControls();
   const { currentSong } = usePlaybackState();
@@ -107,6 +111,19 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
       toast('Added to Queue');
     }
     close();
+  };
+
+  const handleSendTo = (conversation: Conversation) => {
+    setSendSheet(false);
+    close();
+    const name = conversation.peer.name.split(' ')[0] || conversation.peer.name;
+    sendSong(conversation.id, song)
+      .then((result) => {
+        if (result === 'sent') toast(`Sent to ${name}`, { type: 'success' });
+        else if (result === 'queued') toast(`Sending to ${name} when you're back online`);
+        else toast(`Couldn't send it to ${name}. Try again from the chat.`, { type: 'error' });
+      })
+      .catch(() => toast("Couldn't send the song. Try again.", { type: 'error' }));
   };
 
   return (
@@ -217,6 +234,15 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
               onPress={() => setPlaylistModal(true)}
             />
 
+            {user?.userid && (
+              <OptionRow
+                icon={<Feather name='send' size={19} color={colors.foreground} />}
+                label='Send in a Chat'
+                color={colors.foreground}
+                onPress={() => setSendSheet(true)}
+              />
+            )}
+
             {artistName?.[0].id && (
               <OptionRow
                 icon={<Ionicons name='person-outline' size={20} color={colors.foreground} />}
@@ -278,6 +304,16 @@ const NewPlayerDrawer: React.FC<PlayerDrawerProps> = ({
           setSleepSheet(false);
           close();
         }}
+      />
+      <SendToChatSheet
+        isVisible={sendSheet}
+        onClose={() => {
+          setSendSheet(false);
+          close();
+        }}
+        title='Send to…'
+        subtitle={song.name}
+        onPick={handleSendTo}
       />
       {playlistModal && (
         <AddToPlaylist

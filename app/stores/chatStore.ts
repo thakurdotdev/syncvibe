@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { attachmentLabel, type AttachmentKind } from '@/lib/attachments';
+import type { Song } from '@/types/song';
 
 /**
  * Everything the app knows about direct messages. Only this file changes that state; lib/chat
@@ -11,8 +12,11 @@ import { attachmentLabel, type AttachmentKind } from '@/lib/attachments';
  * that is what lists use as a key.
  */
 
-/** A 'gif' carries its picture as an image attachment on Klipy's file host. */
-export type MessageType = 'text' | 'image' | 'file' | 'call' | 'gif';
+/**
+ * A 'gif' carries its picture as an image attachment on Klipy's file host. A 'song' carries the
+ * catalog's copy of the song, and its name and artists as text for older app versions.
+ */
+export type MessageType = 'text' | 'image' | 'file' | 'call' | 'gif' | 'song';
 
 /**
  * A file in a message. Files sent since they moved to private storage have an `id`, a name and
@@ -59,6 +63,8 @@ export interface ChatMessage {
   body: string | null;
   attachment: Attachment | null;
   call: { outcome: 'missed' | 'completed' | 'rejected'; durationSec?: number } | null;
+  /** Missing on messages from servers before shared songs. */
+  song?: Song | null;
   replyTo: ReplyPreview | null;
   reactions: Reaction[];
   editedAt: string | null;

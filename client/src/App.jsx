@@ -4,6 +4,7 @@ import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
 import { Toaster } from './components/ui/sonner';
 import { ChatProvider } from './Context/ChatContext';
+import SendSongToChat from './components/Chat/SendSongToChat';
 import { ContextProvider } from './Context/Context';
 import { GroupMusicProvider } from './Context/GroupMusicContext';
 import { PlayerProvider } from './Context/PlayerContext';
@@ -44,6 +45,7 @@ function App() {
                   <GroupMusicProvider>
                     <Toaster position='bottom-right' />
                     <AppRoutes />
+                    <SendSongToChat />
                   </GroupMusicProvider>
                 </ChatProvider>
               </PlayerProvider>

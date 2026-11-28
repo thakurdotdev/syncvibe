@@ -1,6 +1,12 @@
 import type { Transaction } from 'sequelize';
-import { Message, MessageReaction } from '@/models/index';
-import { isStoredFile, type MessageAttachment, type StoredFile } from '@/models/chat/message.model';
+import { Message, MessageReaction, Song } from '@/models/index';
+import {
+  isStoredFile,
+  type CallMeta,
+  type MessageAttachment,
+  type SongMeta,
+  type StoredFile,
+} from '@/models/chat/message.model';
 import { FILE_RULES, contentDisposition, extensionOf, servedType } from '../attachment.rules';
 import type { AttachmentDto, FileAttachmentDto, MessageDto, ReactionDto } from '../chat.types';
 import { attachmentsEnabled, signRead } from './attachment.storage';
@@ -55,8 +61,15 @@ export const presentMessages = async (
 
   const ids = messages.map((message) => message.id);
   const replyIds = [...new Set(messages.map((message) => message.replyToId).filter(Boolean))];
+  const songIds = [
+    ...new Set(
+      messages
+        .filter((message) => message.type === 'song' && message.meta)
+        .map((message) => (message.meta as SongMeta).songId)
+    ),
+  ];
 
-  const [reactionRows, replyTargets] = await Promise.all([
+  const [reactionRows, replyTargets, songRows] = await Promise.all([
     MessageReaction.findAll({
       where: { messageId: ids },
       order: [['createdAt', 'ASC']],
@@ -69,7 +82,15 @@ export const presentMessages = async (
           attributes: ['id', 'senderId', 'type', 'body', 'attachment', 'deletedAt'],
           transaction,
         }),
+    songIds.length === 0
+      ? Promise.resolve([] as Song[])
+      : Song.findAll({
+          where: { songId: songIds },
+          attributes: ['songId', 'songData'],
+          transaction,
+        }),
   ]);
+  const songs = new Map(songRows.map((row) => [row.songId, row.songData]));
 
   const reactions = new Map<number, ReactionDto[]>();
   for (const row of reactionRows) {
@@ -94,7 +115,11 @@ export const presentMessages = async (
       type: message.type,
       body: message.body,
       attachment: attachments[index] ?? null,
-      call: message.type === 'call' ? message.meta : null,
+      call: message.type === 'call' ? (message.meta as CallMeta | null) : null,
+      song:
+        message.type === 'song' && message.meta
+          ? (songs.get((message.meta as SongMeta).songId) ?? null)
+          : null,
       replyTo: reply
         ? {
             id: reply.id,

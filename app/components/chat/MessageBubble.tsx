@@ -8,6 +8,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import AttachmentView from './AttachmentView';
+import SongCard from './SongCard';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -73,6 +74,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const sending = status === 'sending';
   const attachment = message.attachment;
   const reply = message.replyTo;
+  // A shared song's text is only for app versions without the card.
+  const card = message.type === 'song' && message.song ? message.song : null;
+  const body = card ? null : message.body;
 
   if (message.type === 'call') {
     const missed = message.call?.outcome !== 'completed';
@@ -118,6 +122,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           { marginTop: startsGroup ? 10 : 2 },
         ]}
       >
+        {card ? (
+          <SongCard message={message} isOwn={isOwn} corners={corners} onLongPress={openActions} />
+        ) : null}
         {attachment ? (
           <AttachmentView
             message={message}
@@ -130,7 +137,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           />
         ) : null}
 
-        {message.body || reply ? (
+        {body || reply ? (
           <PressableScale
             onLongPress={openActions}
             delayLongPress={LONG_PRESS_MS}
@@ -140,7 +147,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               styles.bubble,
               corners,
               { backgroundColor: isOwn ? colors.primary : colors.raised },
-              attachment ? styles.afterImage : null,
+              attachment || card ? styles.afterImage : null,
             ]}
           >
             {reply ? (
@@ -160,9 +167,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 </Text>
               </View>
             ) : null}
-            {message.body ? (
-              <Text style={[styles.text, { color: textColor }]}>{message.body}</Text>
-            ) : null}
+            {body ? <Text style={[styles.text, { color: textColor }]}>{body}</Text> : null}
           </PressableScale>
         ) : null}
 

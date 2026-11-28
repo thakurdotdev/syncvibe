@@ -18,10 +18,17 @@ import {
   parseOptionalId,
   parsePageSize,
 } from '../chat.validation';
-import { isStoredFile, type MessageAttachment } from '@/models/chat/message.model';
+import {
+  isStoredFile,
+  type MessageAttachment,
+  type MessageMeta,
+} from '@/models/chat/message.model';
+import { catalogSong, UnknownSongError } from '@/features/music/services/catalog.service';
+import type { Song } from '@/models/index';
 import { claimAttachment, prepareAttachment, removeAttachmentOf } from './attachment.service';
 import { findDirectConversationId, requireMembers } from './conversation.service';
 import { attachmentLabel, presentMessages } from './message.presenter';
+import { songCover, songText } from '../chat.songs';
 
 // Per person, across all their devices. Far above what typing by hand reaches.
 const allowSend = createRateLimiter({ limit: 30, windowMs: 10_000 });
@@ -42,7 +49,11 @@ const pushPreview = (message: MessageDto) =>
 
 /** A photo shows in the notification itself; the link lasts long enough for that. */
 const pushImage = (message: MessageDto) =>
-  message.attachment?.kind === 'image' ? message.attachment.url : null;
+  message.attachment?.kind === 'image'
+    ? message.attachment.url
+    : message.song
+      ? songCover(message.song)
+      : null;
 
 /**
  * Sends a new message to everyone's devices. If none of the recipient's devices confirms it, they
@@ -80,7 +91,7 @@ interface NewMessage {
   type: MessageDto['type'];
   body: string | null;
   attachment: MessageAttachment | null;
-  meta: CallDto | null;
+  meta: MessageMeta | null;
   replyToId: number | null;
 }
 
@@ -145,6 +156,16 @@ const storeMessage = async (
   return { message, created, receipt: moved[0] ? toReceipt(moved[0]) : null };
 };
 
+/** The catalog's copy of a song a device shared; refused if the song API doesn't know it. */
+const sharedSong = async (named: unknown): Promise<Song> => {
+  try {
+    return await catalogSong(named);
+  } catch (error) {
+    if (error instanceof UnknownSongError) throw invalid("That song isn't available");
+    throw error;
+  }
+};
+
 export interface SendOptions {
   /** False for a reply from a notification, which doesn't mean the conversation was read. */
   read?: boolean;
@@ -158,28 +179,36 @@ export const sendMessage = async (
   const conversationId = parseId(input.conversationId, 'conversationId');
   const clientId = parseClientId(input.clientId);
   const replyToId = parseOptionalId(input.replyToId, 'replyToId');
-  // A GIF is a message of its own: no text and no file with it.
-  const gif = input.gif == null ? null : parseGif(input.gif);
-  const body = gif ? null : parseBody(input.body);
+  // A GIF or a song is a message of its own: no text and no file with it.
+  const sharing = input.song != null;
+  const gif = sharing || input.gif == null ? null : parseGif(input.gif);
+  const alone = sharing || Boolean(gif);
+  const typed = alone ? null : parseBody(input.body);
   // A file uploaded to the chat bucket; or, from app versions before that, a Cloudinary photo.
-  const hasFile = !gif && input.attachmentId != null;
-  const legacyPhoto = gif || hasFile ? null : parseAttachment(input.attachment);
-  if (!body && !hasFile && !legacyPhoto && !gif) throw invalid('A message needs text or a file');
+  const hasFile = !alone && input.attachmentId != null;
+  const legacyPhoto = alone || hasFile ? null : parseAttachment(input.attachment);
+  if (!typed && !hasFile && !legacyPhoto && !alone) {
+    throw invalid('A message needs text or a file');
+  }
 
   const members = await requireMembers(conversationId, senderId);
   limit(allowSend(senderId));
+  const song = sharing ? await sharedSong(input.song) : null;
+  const body = song ? songText(song) : typed;
   const attachment: MessageAttachment | null = gif
     ? gif
     : hasFile
       ? await prepareAttachment(senderId, conversationId, input.attachmentId)
       : legacyPhoto;
-  const type = gif
-    ? 'gif'
-    : !attachment
-      ? 'text'
-      : isStoredFile(attachment) && attachment.kind !== 'image'
-        ? 'file'
-        : 'image';
+  const type = song
+    ? 'song'
+    : gif
+      ? 'gif'
+      : !attachment
+        ? 'text'
+        : isStoredFile(attachment) && attachment.kind !== 'image'
+          ? 'file'
+          : 'image';
 
   const { message, created, receipt } = await sequelize.transaction(async (transaction) => {
     if (replyToId) {
@@ -199,7 +228,7 @@ export const sendMessage = async (
         type,
         body,
         attachment,
-        meta: null,
+        meta: song ? { songId: song.songId } : null,
         replyToId,
       },
       transaction,
@@ -310,7 +339,7 @@ export const editMessage = async (
   limit(allowChange(userId));
 
   const { message, members } = await loadForMember(messageId, userId);
-  if (message.senderId !== userId || message.type === 'call' || message.type === 'gif') {
+  if (message.senderId !== userId || !['text', 'image', 'file'].includes(message.type)) {
     throw new ChatError('FORBIDDEN', "You can't edit this message");
   }
   // A file can lose its caption; a text message can't become empty.

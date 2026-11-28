@@ -6,6 +6,7 @@ import DateBubble from '@/components/chat/DateBubble';
 import MessageBubble from '@/components/chat/MessageBubble';
 import Avatar from '@/components/chat/Avatar';
 import MessageHeader from '@/components/chat/MessageHeader';
+import SongPickerSheet from '@/components/chat/SongPickerSheet';
 import { SettingsRow } from '@/components/profile/SettingsGroup';
 import Toggle from '@/components/ui/Toggle';
 import VideoViewer from '@/components/chat/VideoViewer';
@@ -22,6 +23,7 @@ import {
   retryMessage,
   sendGif,
   sendMessage,
+  sendSong,
   setTyping,
   toggleReaction,
   type PickedFile,
@@ -46,6 +48,7 @@ import {
   type ChatMessage,
 } from '@/stores/chatStore';
 import { useMediaStore } from '@/stores/mediaStore';
+import type { Song } from '@/types/song';
 import { getOptimizedImageUrl } from '@/utils/Cloudinary';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -130,6 +133,7 @@ const ChatWithUser = () => {
   // the first one reports "closed" when its animation ends, which shut the one that replaced it.
   const [sheetOpen, setSheetOpen] = useState(false);
   const [gifsOpen, setGifsOpen] = useState(false);
+  const [songsOpen, setSongsOpen] = useState(false);
   const [sheetView, setSheetView] = useState<
     'options' | 'confirm-delete' | 'info' | 'attach' | 'profile'
   >('options');
@@ -217,6 +221,23 @@ const ChatWithUser = () => {
         return;
       }
       sendGif(activeId, { url, ...size }, replyTo);
+      setReplyTo(null);
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    },
+    [activeId, replyTo]
+  );
+
+  const handlePickSong = useCallback(() => {
+    setSheetOpen(false);
+    // The song sheet opens once the attach sheet has gone, so the two don't fight.
+    setTimeout(() => setSongsOpen(true), SHEET_CLOSE_MS);
+  }, []);
+
+  const handleSendSong = useCallback(
+    (song: Song) => {
+      setSongsOpen(false);
+      if (!activeId) return;
+      void sendSong(activeId, song, replyTo);
       setReplyTo(null);
       listRef.current?.scrollToOffset({ offset: 0, animated: true });
     },
@@ -580,6 +601,8 @@ const ChatWithUser = () => {
   );
 
   const selectedIsOwn = selected?.senderId === meId;
+  // GIFs, songs and calls have no text of their own to change.
+  const selectedEditable = ['text', 'image', 'file'].includes(selected?.type ?? '');
   const selectedOnServer = selected?.id != null;
   const selectedStatus = selected ? messageStatus(selected, conversation) : null;
   const myReaction = selected?.reactions.find(
@@ -703,6 +726,12 @@ const ChatWithUser = () => {
           onCancelEdit={() => setEditing(null)}
         />
 
+        <SongPickerSheet
+          isVisible={songsOpen}
+          onClose={() => setSongsOpen(false)}
+          onPick={handleSendSong}
+        />
+
         {gifsOpen ? (
           <GifPickerModal isOpen onClose={() => setGifsOpen(false)} onSelect={handleSendGif} />
         ) : null}
@@ -786,6 +815,7 @@ const ChatWithUser = () => {
                 onPress={handlePickMedia}
               />
               <OptionItem icon='document-outline' text='Files' onPress={handlePickDocuments} />
+              <OptionItem icon='musical-notes-outline' text='Song' onPress={handlePickSong} />
               <Text style={[styles.sheetNote, { color: colors.mutedForeground }]}>
                 Photos up to 25 MB, videos and archives up to 100 MB, documents and audio up to 50
                 MB. Only the people in this chat can open them.
@@ -819,7 +849,7 @@ const ChatWithUser = () => {
               {selectedOnServer ? (
                 <OptionItem icon='arrow-undo-outline' text='Reply' onPress={handleReply} />
               ) : null}
-              {selected?.body ? (
+              {selected?.body && selected.type !== 'song' ? (
                 <OptionItem icon='copy-outline' text='Copy text' onPress={handleCopyText} />
               ) : null}
               {selected?.attachment && selectedOnServer && selected.attachment.kind === 'file' ? (
@@ -837,7 +867,7 @@ const ChatWithUser = () => {
                   onPress={handleSaveFile}
                 />
               ) : null}
-              {selectedIsOwn && selectedOnServer && selected?.type !== 'gif' ? (
+              {selectedIsOwn && selectedOnServer && selectedEditable ? (
                 <OptionItem
                   icon='pencil-outline'
                   text={selected?.body ? 'Edit' : 'Add a caption'}
