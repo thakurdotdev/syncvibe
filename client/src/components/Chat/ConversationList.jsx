@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { BellOff, LucideX, MessageSquarePlus, Search, UserX } from 'lucide-react';
+import { BellOff, LucideX, MessageSquarePlus, Search, Star, UserX } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { getProfileCloudinaryUrl } from '@/Utils/Cloudinary';
@@ -13,7 +13,9 @@ import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { ScrollArea, ScrollBar } from '../ui/scroll-area';
 import { Skeleton } from '../ui/skeleton';
+import { Button } from '../ui/button';
 import { formatListTime } from './ChatDateUtils';
+import StarredDialog from './StarredDialog';
 
 const SEARCH_DELAY_MS = 400;
 
@@ -112,6 +114,7 @@ const ConversationList = () => {
   const [query, setQuery] = useState('');
   const [people, setPeople] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [starredOpen, setStarredOpen] = useState(false);
   const term = query.trim();
 
   const changeQuery = (value) => {
@@ -214,26 +217,39 @@ const ConversationList = () => {
 
   return (
     <Card className='flex h-full flex-col gap-2.5 rounded-none border-r border-border bg-card p-2 shadow-none'>
-      <div className='relative flex items-center px-1 pt-1'>
-        <Search className='pointer-events-none absolute left-3.5 h-3.5 w-3.5 text-muted-foreground' />
-        <Input
-          placeholder='Search people...'
-          aria-label='Search people'
-          value={query}
-          onChange={(e) => changeQuery(e.target.value)}
-          className='w-full rounded-md bg-muted/40 py-1.5 pl-8 pr-8 text-xs transition-colors hover:bg-muted/60 focus-visible:bg-background'
-        />
-        {query && (
-          <button
-            type='button'
-            onClick={() => changeQuery('')}
-            aria-label='Clear search'
-            className='absolute right-2.5 rounded p-1 text-muted-foreground transition-colors hover:text-foreground'
-          >
-            <LucideX className='h-3.5 w-3.5' />
-          </button>
-        )}
+      <div className='flex items-center gap-1 px-1 pt-1'>
+        <div className='relative flex flex-1 items-center'>
+          <Search className='pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-muted-foreground' />
+          <Input
+            placeholder='Search people...'
+            aria-label='Search people'
+            value={query}
+            onChange={(e) => changeQuery(e.target.value)}
+            className='w-full rounded-md bg-muted/40 py-1.5 pl-8 pr-8 text-xs transition-colors hover:bg-muted/60 focus-visible:bg-background'
+          />
+          {query && (
+            <button
+              type='button'
+              onClick={() => changeQuery('')}
+              aria-label='Clear search'
+              className='absolute right-2.5 rounded p-1 text-muted-foreground transition-colors hover:text-foreground'
+            >
+              <LucideX className='h-3.5 w-3.5' />
+            </button>
+          )}
+        </div>
+        <Button
+          variant='ghost'
+          size='icon'
+          className='h-8 w-8 shrink-0 rounded-md text-muted-foreground'
+          onClick={() => setStarredOpen(true)}
+          aria-label='Starred messages'
+          title='Starred messages'
+        >
+          <Star className='h-4 w-4' />
+        </Button>
       </div>
+      <StarredDialog open={starredOpen} onOpenChange={setStarredOpen} />
 
       <ScrollArea className='w-full flex-1'>
         {renderBody()}

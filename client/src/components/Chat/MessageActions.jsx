@@ -1,4 +1,15 @@
-import { Copy, CornerUpLeft, Download, Info, MoreHorizontal, Pencil, Trash } from 'lucide-react';
+import {
+  Copy,
+  CornerUpLeft,
+  Download,
+  Forward,
+  Info,
+  MoreHorizontal,
+  Pencil,
+  Star,
+  StarOff,
+  Trash,
+} from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
@@ -22,11 +33,11 @@ import {
 
 export const QUICK_REACTIONS = ['❤️', '😂', '🔥', '👍', '😮', '😢'];
 
-/** GIFs, songs and calls have no text of their own to change. */
+/** GIFs, songs, calls and forwarded messages have no text of their own to change. */
 const EDITABLE = ['text', 'image', 'file'];
 
 /** Reply and the "more" menu beside a message: reactions, copy, edit, info and delete. */
-const MessageActions = ({ message, isOwn, meId, open, shown, onOpenChange, actions }) => {
+const MessageActions = ({ message, isOwn, meId, open, shown, onOpenChange, actions, starred }) => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const myReaction = message.reactions.find((r) => r.userIds.includes(meId))?.emoji;
 
@@ -86,6 +97,17 @@ const MessageActions = ({ message, isOwn, meId, open, shown, onOpenChange, actio
           </div>
           <DropdownMenuSeparator />
 
+          <DropdownMenuItem className='cursor-pointer' onSelect={() => actions.forward(message)}>
+            <Forward className='mr-2 h-4 w-4' />
+            Forward
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className='cursor-pointer'
+            onSelect={() => actions.star(message, !starred)}
+          >
+            {starred ? <StarOff className='mr-2 h-4 w-4' /> : <Star className='mr-2 h-4 w-4' />}
+            {starred ? 'Unstar' : 'Star'}
+          </DropdownMenuItem>
           {message.attachment?.downloadUrl && (
             <DropdownMenuItem className='cursor-pointer' onSelect={() => actions.download(message)}>
               <Download className='mr-2 h-4 w-4' />
@@ -98,7 +120,7 @@ const MessageActions = ({ message, isOwn, meId, open, shown, onOpenChange, actio
               Copy text
             </DropdownMenuItem>
           )}
-          {isOwn && EDITABLE.includes(message.type) && (
+          {isOwn && !message.forwarded && EDITABLE.includes(message.type) && (
             <DropdownMenuItem className='cursor-pointer' onSelect={() => actions.edit(message)}>
               <Pencil className='mr-2 h-4 w-4' />
               {message.body ? 'Edit' : 'Add a caption'}

@@ -15,6 +15,7 @@ import {
   discardMessage,
   downloadAttachment,
   editMessage,
+  forwardMessage,
   freshAttachment,
   loadOlder,
   loadThread,
@@ -24,11 +25,12 @@ import {
   sendGif,
   sendMessage,
   setBlocked,
+  setMessageStarred,
   setMuted,
   sendSong,
   toggleReaction,
 } from '@/lib/chat';
-import { selectConversation, selectThread, useChatStore } from '@/stores/chatStore';
+import { previewOf, selectConversation, selectThread, useChatStore } from '@/stores/chatStore';
 import { startCall } from '@/lib/call';
 import { selectBusy, useCallStore } from '@/stores/callStore';
 import { paths } from '@/lib/paths';
@@ -40,6 +42,7 @@ import MediaViewer from './MediaViewer';
 import MessageInfoModal from './MessageInfoModal';
 import MessageInput from './MessageInput';
 import MessageList from './MessageList';
+import SendToChatDialog from './SendToChatDialog';
 
 const report = (fallback) => (error) => toast.error(error?.message || fallback);
 
@@ -93,6 +96,7 @@ const OpenThread = ({ conversation }) => {
   const [infoFor, setInfoFor] = useState(null);
   const [mediaIndex, setMediaIndex] = useState(null);
   const [previewing, setPreviewing] = useState(null);
+  const [forwarding, setForwarding] = useState(null);
   const [staged, setStaged] = useState([]);
   const [dragging, setDragging] = useState(false);
   const dragDepth = useRef(0);
@@ -203,6 +207,9 @@ const OpenThread = ({ conversation }) => {
       react: (message, emoji) =>
         toggleReaction(message, emoji).catch(report("Couldn't add your reaction")),
       remove: (message) => deleteMessage(message).catch(report("Couldn't delete the message")),
+      forward: (message) => setForwarding(message),
+      star: (message, starred) =>
+        setMessageStarred(message, starred).catch(report("Couldn't change that")),
       retry: retryMessage,
       discard: discardMessage,
       info: setInfoFor,
@@ -443,6 +450,22 @@ const OpenThread = ({ conversation }) => {
         message={infoFor}
         conversation={conversation}
         onClose={() => setInfoFor(null)}
+      />
+
+      <SendToChatDialog
+        open={forwarding != null}
+        onOpenChange={(open) => !open && setForwarding(null)}
+        title='Forward to…'
+        subtitle={forwarding ? previewOf(forwarding, null) : undefined}
+        excludeId={conversation.id}
+        onPick={(to) => {
+          const target = forwarding;
+          setForwarding(null);
+          const name = to.peer.name?.split(' ')[0] || to.peer.name;
+          forwardMessage(target, to.id)
+            .then(() => toast.success(`Forwarded to ${name}`))
+            .catch(report("Couldn't forward it"));
+        }}
       />
     </>
   );

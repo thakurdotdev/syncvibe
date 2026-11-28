@@ -2,7 +2,7 @@ import { ArrowDown, Loader2, MessageSquareDashed } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { loadUntil } from '@/lib/chat';
-import { messageStatus } from '@/stores/chatStore';
+import { messageStatus, useChatStore } from '@/stores/chatStore';
 import { Button } from '../ui/button';
 import { Skeleton } from '../ui/skeleton';
 import CallMessageBubble from './CallMessageBubble';
@@ -58,6 +58,8 @@ const Notice = ({ title, children }) => (
 
 const MessageList = ({ conversation, thread, meId, actions, onLoadOlder, onRetryLoad }) => {
   const { messages, status, hasMore, loadingOlder } = thread;
+  const starred = useChatStore((s) => s.starred);
+  const jump = useChatStore((s) => s.jump);
 
   const scrollRef = useRef(null);
   const contentRef = useRef(null);
@@ -160,6 +162,13 @@ const MessageList = ({ conversation, thread, meId, actions, onLoadOlder, onRetry
     [conversation.id]
   );
 
+  // Sent here from Starred or a search: go to that message once the chat has loaded.
+  useEffect(() => {
+    if (!jump || jump.conversationId !== conversation.id || status !== 'ready') return;
+    useChatStore.getState().clearJump();
+    void jumpTo(jump.messageId);
+  }, [jump, conversation.id, status, jumpTo]);
+
   const rows = useMemo(() => {
     const sameRun = (a, b) =>
       Boolean(a && b) &&
@@ -246,6 +255,7 @@ const MessageList = ({ conversation, thread, meId, actions, onLoadOlder, onRetry
                   onMenuOpenChange={(open) => setOpenMenuFor(open ? message.clientId : null)}
                   actions={actions}
                   onJump={jumpTo}
+                  starred={message.id != null && Boolean(starred[message.id])}
                 />
               )}
             </div>

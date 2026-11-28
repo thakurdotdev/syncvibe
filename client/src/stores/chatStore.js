@@ -75,6 +75,13 @@ const initialState = {
   typing: {},
   /** clientId → how much of a file being sent has been uploaded, 0 to 1 */
   uploads: {},
+  /** messageId → true: messages you starred. Only yours, on all your devices. */
+  starred: {},
+  /**
+   * A message to go to once its conversation is on screen: from Starred or a search. The
+   * conversation takes it when it has loaded.
+   */
+  jump: null,
 };
 
 export const useChatStore = create((set, get) => ({
@@ -335,6 +342,18 @@ export const useChatStore = create((set, get) => ({
           state.conversations,
       };
     }),
+
+  setStarredIds: (messageIds) =>
+    set({ starred: Object.fromEntries(messageIds.map((id) => [id, true])) }),
+  setStarred: (messageId, starred) =>
+    set((state) => {
+      const next = { ...state.starred };
+      if (starred) next[messageId] = true;
+      else delete next[messageId];
+      return { starred: next };
+    }),
+  requestJump: (conversationId, messageId) => set({ jump: { conversationId, messageId } }),
+  clearJump: () => set({ jump: null }),
 
   /** Muted or blocked, here or on another of your devices. */
   setConversationSettings: (conversationId, settings) =>
