@@ -19,6 +19,13 @@ const MEDIA_TABS = [
 const MediaCard = memo(({ item, type, onSelect }) => {
   const [hovered, setHovered] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // The API doesn't give sizes; the preview has the same shape as the GIF.
+  const size = useRef(undefined);
+  const handleLoad = (e) => {
+    setLoaded(true);
+    const { naturalWidth: width, naturalHeight: height } = e.currentTarget;
+    if (width && height) size.current = { width, height };
+  };
 
   const isSticker = type === 'stickers';
   const isClip = type === 'clips';
@@ -31,7 +38,7 @@ const MediaCard = memo(({ item, type, onSelect }) => {
     return (
       <button
         type='button'
-        onClick={() => onSelect(item)}
+        onClick={() => onSelect(item, size.current)}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         title={item.title || 'Send sticker'}
@@ -41,7 +48,7 @@ const MediaCard = memo(({ item, type, onSelect }) => {
           src={hovered ? animatedSrc : staticSrc}
           alt={item.title || 'Sticker'}
           loading='lazy'
-          onLoad={() => setLoaded(true)}
+          onLoad={handleLoad}
           className='w-full h-full object-contain transition-all duration-200 group-hover:scale-105'
           style={{ opacity: loaded ? 1 : 0 }}
         />
@@ -61,7 +68,7 @@ const MediaCard = memo(({ item, type, onSelect }) => {
   return (
     <button
       type='button'
-      onClick={() => onSelect(item)}
+      onClick={() => onSelect(item, size.current)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       title={item.title || 'Send media'}
@@ -72,7 +79,7 @@ const MediaCard = memo(({ item, type, onSelect }) => {
         src={hovered ? animatedSrc : staticSrc}
         alt={item.title || 'Media preview'}
         loading='lazy'
-        onLoad={() => setLoaded(true)}
+        onLoad={handleLoad}
         className='w-full h-full object-cover rounded-xl block transition-all duration-300 group-hover:scale-[1.02]'
         style={{ opacity: loaded ? 1 : 0 }}
       />
@@ -320,9 +327,9 @@ const MediaPicker = ({ anchorRef, toggleRef, onSelect, onClose }) => {
 
   // Item selection handler
   const handleSelectMedia = useCallback(
-    (item) => {
+    (item, size) => {
       const mediaUrl = item.gif || item.mp4 || item.preview;
-      onSelect(mediaUrl, item);
+      onSelect(mediaUrl, item, size);
     },
     [onSelect]
   );

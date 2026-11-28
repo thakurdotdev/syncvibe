@@ -86,6 +86,39 @@ export const parseAttachment = (
   };
 };
 
+/** Where the GIF picker's files are. Other addresses are refused for the reason given above. */
+const GIF_HOST = 'static.klipy.com';
+
+/** A GIF picked from Klipy: only an animated .gif on its file host, with the size if known. */
+export const parseGif = (value: unknown): LegacyPhoto => {
+  const raw = value as { url?: unknown; width?: unknown; height?: unknown } | null;
+  if (!raw || typeof raw !== 'object' || typeof raw.url !== 'string' || raw.url.length > 500) {
+    throw invalid('Invalid GIF');
+  }
+
+  let url: URL;
+  try {
+    url = new URL(raw.url);
+  } catch {
+    throw invalid('Invalid GIF');
+  }
+  const ours =
+    url.protocol === 'https:' &&
+    url.hostname === GIF_HOST &&
+    !url.username &&
+    !url.password &&
+    !url.port &&
+    /^\/[A-Za-z0-9/_-]+\.gif$/.test(url.pathname);
+  if (!ours) throw invalid('GIFs must come from the GIF picker');
+
+  const width = parseSide(raw.width);
+  const height = parseSide(raw.height);
+  return {
+    url: `${url.origin}${url.pathname}`,
+    ...(width && height ? { width, height } : {}),
+  };
+};
+
 const EMOJI_PARTS = /^(?:\p{Extended_Pictographic}|\p{Emoji_Component})+$/u;
 const EMOJI_CORE = /\p{Extended_Pictographic}|\p{Regional_Indicator}|⃣/u;
 

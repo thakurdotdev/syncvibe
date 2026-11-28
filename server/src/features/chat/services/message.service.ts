@@ -13,6 +13,7 @@ import {
   parseBody,
   parseClientId,
   parseEmoji,
+  parseGif,
   parseId,
   parseOptionalId,
   parsePageSize,
@@ -35,7 +36,9 @@ const others = (members: number[], userId: number) => members.filter((id) => id 
 // ── Sending ─────────────────────────────────────────────────────────────────
 
 const pushPreview = (message: MessageDto) =>
-  message.body || attachmentLabel(message.attachment) || 'New message';
+  message.body ||
+  (message.type === 'gif' ? 'GIF' : attachmentLabel(message.attachment)) ||
+  'New message';
 
 /** A photo shows in the notification itself; the link lasts long enough for that. */
 const pushImage = (message: MessageDto) =>
@@ -154,23 +157,29 @@ export const sendMessage = async (
 ): Promise<MessageDto> => {
   const conversationId = parseId(input.conversationId, 'conversationId');
   const clientId = parseClientId(input.clientId);
-  const body = parseBody(input.body);
   const replyToId = parseOptionalId(input.replyToId, 'replyToId');
+  // A GIF is a message of its own: no text and no file with it.
+  const gif = input.gif == null ? null : parseGif(input.gif);
+  const body = gif ? null : parseBody(input.body);
   // A file uploaded to the chat bucket; or, from app versions before that, a Cloudinary photo.
-  const hasFile = input.attachmentId != null;
-  const legacyPhoto = hasFile ? null : parseAttachment(input.attachment);
-  if (!body && !hasFile && !legacyPhoto) throw invalid('A message needs text or a file');
+  const hasFile = !gif && input.attachmentId != null;
+  const legacyPhoto = gif || hasFile ? null : parseAttachment(input.attachment);
+  if (!body && !hasFile && !legacyPhoto && !gif) throw invalid('A message needs text or a file');
 
   const members = await requireMembers(conversationId, senderId);
   limit(allowSend(senderId));
-  const attachment: MessageAttachment | null = hasFile
-    ? await prepareAttachment(senderId, conversationId, input.attachmentId)
-    : legacyPhoto;
-  const type = !attachment
-    ? 'text'
-    : isStoredFile(attachment) && attachment.kind !== 'image'
-      ? 'file'
-      : 'image';
+  const attachment: MessageAttachment | null = gif
+    ? gif
+    : hasFile
+      ? await prepareAttachment(senderId, conversationId, input.attachmentId)
+      : legacyPhoto;
+  const type = gif
+    ? 'gif'
+    : !attachment
+      ? 'text'
+      : isStoredFile(attachment) && attachment.kind !== 'image'
+        ? 'file'
+        : 'image';
 
   const { message, created, receipt } = await sequelize.transaction(async (transaction) => {
     if (replyToId) {
@@ -301,7 +310,7 @@ export const editMessage = async (
   limit(allowChange(userId));
 
   const { message, members } = await loadForMember(messageId, userId);
-  if (message.senderId !== userId || message.type === 'call') {
+  if (message.senderId !== userId || message.type === 'call' || message.type === 'gif') {
     throw new ChatError('FORBIDDEN', "You can't edit this message");
   }
   // A file can lose its caption; a text message can't become empty.

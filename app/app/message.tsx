@@ -1,4 +1,5 @@
 import ImageGallery, { type GalleryPhoto } from '@/components/ImageGallery';
+import { GifPickerModal, type MediaSize } from '@/components/music/group/GifPickerModal';
 import SwipeableModal from '@/components/SwipeableModal';
 import ChatInput from '@/components/chat/ChatInput';
 import DateBubble from '@/components/chat/DateBubble';
@@ -19,6 +20,7 @@ import {
   loadThread,
   markRead,
   retryMessage,
+  sendGif,
   sendMessage,
   setTyping,
   toggleReaction,
@@ -127,6 +129,7 @@ const ChatWithUser = () => {
   // One sheet whose contents change. Opening a second sheet while the first closes doesn't work:
   // the first one reports "closed" when its animation ends, which shut the one that replaced it.
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [gifsOpen, setGifsOpen] = useState(false);
   const [sheetView, setSheetView] = useState<
     'options' | 'confirm-delete' | 'info' | 'attach' | 'profile'
   >('options');
@@ -198,6 +201,26 @@ const ChatWithUser = () => {
       listRef.current?.scrollToOffset({ offset: 0, animated: true });
     },
     [activeId, files, replyTo]
+  );
+
+  const handleOpenGifs = useCallback(() => {
+    Keyboard.dismiss();
+    setGifsOpen(true);
+  }, []);
+
+  const handleSendGif = useCallback(
+    (url: string, size?: MediaSize) => {
+      if (!activeId) return;
+      // Clips and stickers have a .gif too; anything else wouldn't be accepted.
+      if (!/\.gif$/i.test(url)) {
+        toast("This one can't be sent here. Pick another.", { type: 'error' });
+        return;
+      }
+      sendGif(activeId, { url, ...size }, replyTo);
+      setReplyTo(null);
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    },
+    [activeId, replyTo]
   );
 
   const handleAttachment = useCallback(() => {
@@ -277,7 +300,11 @@ const ChatWithUser = () => {
     () =>
       messages
         .filter(
-          (m) => m.attachment?.url && m.id != null && (m.attachment.kind ?? 'image') === 'image'
+          (m) =>
+            m.attachment?.url &&
+            m.id != null &&
+            m.type !== 'gif' &&
+            (m.attachment.kind ?? 'image') === 'image'
         )
         .map((m): GalleryPhoto & { id: number | null } => ({
           id: m.id,
@@ -344,6 +371,12 @@ const ChatWithUser = () => {
     setEditing(null);
     setReplyTo(selected);
   }, [selected]);
+
+  const handleSwipeReply = useCallback((message: ChatMessage) => {
+    if (message.id == null || message.type === 'call') return;
+    setEditing(null);
+    setReplyTo(message);
+  }, []);
 
   const handleStartEdit = useCallback(() => {
     if (!selected) return;
@@ -514,13 +547,14 @@ const ChatWithUser = () => {
           endsGroup={item.endsGroup}
           onOpenMedia={handleOpenMedia}
           onLongPress={handleLongPress}
+          onReply={handleSwipeReply}
           onCancel={discardMessage}
           onReact={handleReact}
           onRetry={retryMessage}
         />
       );
     },
-    [meId, peerName, statusOf, handleOpenMedia, handleLongPress, handleReact]
+    [meId, peerName, statusOf, handleOpenMedia, handleLongPress, handleSwipeReply, handleReact]
   );
 
   const handleEndReached = useCallback(() => {
@@ -641,13 +675,17 @@ const ChatWithUser = () => {
           onSend={handleSend}
           onTyping={handleTyping}
           onAttach={handleAttachment}
+          onOpenGifs={handleOpenGifs}
           files={files}
           onRemoveFile={handleRemoveFile}
           replyingTo={
             replyTo
               ? {
                   name: replyTo.senderId === meId ? 'yourself' : peerName,
-                  text: replyTo.body || attachmentLabel(replyTo.attachment) || 'Message',
+                  text:
+                    replyTo.body ||
+                    (replyTo.type === 'gif' ? 'GIF' : attachmentLabel(replyTo.attachment)) ||
+                    'Message',
                 }
               : null
           }
@@ -664,6 +702,10 @@ const ChatWithUser = () => {
           onSaveEdit={handleSaveEdit}
           onCancelEdit={() => setEditing(null)}
         />
+
+        {gifsOpen ? (
+          <GifPickerModal isOpen onClose={() => setGifsOpen(false)} onSelect={handleSendGif} />
+        ) : null}
 
         {galleryIndex != null && photos.length > 0 ? (
           <ImageGallery
@@ -783,7 +825,7 @@ const ChatWithUser = () => {
               {selected?.attachment && selectedOnServer && selected.attachment.kind === 'file' ? (
                 <OptionItem icon='open-outline' text='Open with…' onPress={handleOpenFile} />
               ) : null}
-              {selected?.attachment && selectedOnServer ? (
+              {selected?.attachment && selectedOnServer && selected.type !== 'gif' ? (
                 <OptionItem
                   icon='download-outline'
                   text={
@@ -795,7 +837,7 @@ const ChatWithUser = () => {
                   onPress={handleSaveFile}
                 />
               ) : null}
-              {selectedIsOwn && selectedOnServer ? (
+              {selectedIsOwn && selectedOnServer && selected?.type !== 'gif' ? (
                 <OptionItem
                   icon='pencil-outline'
                   text={selected?.body ? 'Edit' : 'Add a caption'}

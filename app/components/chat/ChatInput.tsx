@@ -16,6 +16,7 @@ interface ChatInputProps {
   /** Whether there is text in the box, for the "typing…" the other person sees. */
   onTyping: (hasText: boolean) => void;
   onAttach: () => void;
+  onOpenGifs: () => void;
   /** Files picked to send with the next message. */
   files: PickedFile[];
   onRemoveFile: (key: string) => void;
@@ -92,6 +93,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   onTyping,
   onAttach,
+  onOpenGifs,
   files,
   onRemoveFile,
   replyingTo,
@@ -144,6 +146,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const canSubmit = editMode
     ? Boolean(editText.trim() || editing?.hasAttachment)
     : Boolean(draft.trim() || files.length);
+  // A GIF goes on its own, so the button steps aside once there is something else to send.
+  const showGif = !editMode && !draft.trim() && files.length === 0;
   // The keyboard covers the navigation bar, so only clear the bar when it's showing.
   const bottom = keyboardVisible ? 8 : Math.max(insets.bottom, 8);
 
@@ -216,17 +220,37 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </PressableScale>
         )}
 
-        <TextInput
-          ref={inputRef}
-          value={text}
-          onChangeText={handleChange}
-          placeholder={files.length && !editMode ? 'Add a message' : 'Message'}
-          placeholderTextColor={colors.mutedForeground}
-          multiline
-          maxLength={MAX_MESSAGE_LENGTH}
-          textAlignVertical='center'
-          style={[styles.input, { color: colors.foreground, backgroundColor: colors.raised }]}
-        />
+        <View style={[styles.field, { backgroundColor: colors.raised }]}>
+          <TextInput
+            ref={inputRef}
+            value={text}
+            onChangeText={handleChange}
+            placeholder={files.length && !editMode ? 'Add a message' : 'Message'}
+            placeholderTextColor={colors.mutedForeground}
+            multiline
+            maxLength={MAX_MESSAGE_LENGTH}
+            textAlignVertical='center'
+            style={[
+              styles.input,
+              { color: colors.foreground },
+              showGif ? styles.inputBeforeGif : null,
+            ]}
+          />
+          {showGif ? (
+            <PressableScale
+              onPress={onOpenGifs}
+              scaleTo={BUTTON_PRESS_SCALE}
+              hitSlop={4}
+              accessibilityRole='button'
+              accessibilityLabel='Send a GIF'
+              style={styles.gifButton}
+            >
+              <View style={[styles.gifBadge, { borderColor: colors.mutedForeground }]}>
+                <Text style={[styles.gifLabel, { color: colors.mutedForeground }]}>GIF</Text>
+              </View>
+            </PressableScale>
+          ) : null}
+        </View>
 
         <PressableScale
           onPress={handleSubmit}
@@ -264,11 +288,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   send: { borderRadius: CONTROL / 2 },
+  field: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    borderRadius: CONTROL / 2,
+  },
   input: {
     flex: 1,
     minHeight: CONTROL,
     maxHeight: 120,
-    borderRadius: CONTROL / 2,
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 10,
@@ -276,6 +305,10 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     includeFontPadding: false,
   },
+  inputBeforeGif: { paddingRight: 4 },
+  gifButton: { width: 40, height: CONTROL, alignItems: 'center', justifyContent: 'center' },
+  gifBadge: { borderWidth: 1.5, borderRadius: 5, paddingHorizontal: 3, paddingVertical: 1 },
+  gifLabel: { fontSize: 9.5, fontWeight: '800', letterSpacing: 0.3 },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',

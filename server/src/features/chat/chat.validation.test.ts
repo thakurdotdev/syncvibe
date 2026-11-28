@@ -7,6 +7,7 @@ import {
   parseBody,
   parseClientId,
   parseEmoji,
+  parseGif,
   parseId,
   parsePageSize,
 } from './chat.validation';
@@ -92,4 +93,31 @@ test('the rate limiter allows a burst, then refuses until the window ends', () =
   assert.equal(allow('a', 20), false);
   assert.equal(allow('b', 20), true);
   assert.equal(allow('a', 1001), true);
+});
+
+test("GIFs are only .gif files on the picker's host", () => {
+  const url = 'https://static.klipy.com/ii/925f17378dd1893b674a723c07535afe/f7/f9/eacpvEiQ.gif';
+  assert.deepEqual(parseGif({ url }), { url });
+  assert.deepEqual(parseGif({ url: `${url}?track=1#x`, width: 220, height: 160 }), {
+    url,
+    width: 220,
+    height: 160,
+  });
+  // A size is kept only when both sides are sensible.
+  assert.deepEqual(parseGif({ url, width: 220 }), { url });
+  assert.deepEqual(parseGif({ url, width: -1, height: 160 }), { url });
+
+  for (const bad of [
+    null,
+    url,
+    { url: 'http://static.klipy.com/ii/a/b.gif' },
+    { url: 'https://static.klipy.com.evil.test/ii/a/b.gif' },
+    { url: 'https://evil.test/static.klipy.com/b.gif' },
+    { url: 'https://user@static.klipy.com/ii/a/b.gif' },
+    { url: 'https://static.klipy.com:8443/ii/a/b.gif' },
+    { url: 'https://static.klipy.com/ii/a/b.mp4' },
+    { url: `https://static.klipy.com/${'a'.repeat(500)}.gif` },
+  ]) {
+    rejects(() => parseGif(bad));
+  }
 });

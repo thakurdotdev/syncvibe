@@ -95,7 +95,7 @@ const MessageActions = ({ message, isOwn, meId, open, shown, onOpenChange, actio
               Copy text
             </DropdownMenuItem>
           )}
-          {isOwn && (
+          {isOwn && message.type !== 'gif' && (
             <DropdownMenuItem className='cursor-pointer' onSelect={() => actions.edit(message)}>
               <Pencil className='mr-2 h-4 w-4' />
               {message.body ? 'Edit' : 'Add a caption'}

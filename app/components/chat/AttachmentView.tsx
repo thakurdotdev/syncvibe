@@ -179,6 +179,35 @@ const MediaTile = ({
   );
 };
 
+const GIF_WIDTH = 200;
+
+/** A GIF plays where it is; there is nothing more to open. */
+const GifTile = ({ message, corners, onLongPress }: AttachmentViewProps) => {
+  const { colors } = useTheme();
+  const { url, width, height } = message.attachment!;
+  const tall =
+    width && height ? Math.min(300, Math.max(100, (GIF_WIDTH * height) / width)) : GIF_WIDTH * 0.75;
+  return (
+    <PressableScale
+      onLongPress={() => onLongPress(message)}
+      delayLongPress={LONG_PRESS_MS}
+      scaleTo={ROW_PRESS_SCALE}
+      accessibilityRole='image'
+      accessibilityLabel='GIF. Hold for options'
+    >
+      <View
+        style={[
+          styles.media,
+          corners,
+          { width: GIF_WIDTH, height: tall, backgroundColor: colors.raised },
+        ]}
+      >
+        {url ? <CachedImage source={{ uri: url }} style={StyleSheet.absoluteFill} /> : null}
+      </View>
+    </PressableScale>
+  );
+};
+
 /** Only one clip plays at a time. */
 let playingClip: AudioPlayer | null = null;
 
@@ -463,6 +492,7 @@ const FileCard = ({ message, isOwn, sending, onLongPress, onCancel }: Attachment
 const AttachmentView = (props: AttachmentViewProps) => {
   const { colors } = useTheme();
   const kind = props.message.attachment?.kind ?? 'image';
+  if (props.message.type === 'gif') return <GifTile {...props} />;
   if (kind === 'image' || kind === 'video') return <MediaTile {...props} />;
 
   return (

@@ -168,6 +168,31 @@ const MediaTile = ({ message, pending, sending, onOpen, onCancel, rounded }) => 
   );
 };
 
+const GIF_WIDTH = 220;
+
+/** A GIF plays where it is; there is nothing more to open. */
+const GifTile = ({ message, rounded }) => {
+  const { url, width, height } = message.attachment;
+  return (
+    <div
+      className={cn('overflow-hidden bg-foreground/[0.06]', rounded)}
+      style={{
+        width: GIF_WIDTH,
+        aspectRatio: width && height ? Math.max(0.6, width / height) : undefined,
+      }}
+    >
+      <img
+        src={url}
+        alt='GIF'
+        loading='lazy'
+        decoding='async'
+        referrerPolicy='no-referrer'
+        className='block h-full w-full object-cover'
+      />
+    </div>
+  );
+};
+
 /** Only one clip plays at a time. */
 let playingAudio = null;
 
@@ -340,6 +365,7 @@ const FileCard = ({ message, isOwn, pending, sending, onOpen, onDownload, onCanc
 const AttachmentView = ({ message, isOwn, sending, mediaRounded, actions }) => {
   const kind = message.attachment?.kind ?? 'image';
   const pending = message.id == null;
+  if (message.type === 'gif') return <GifTile message={message} rounded={mediaRounded} />;
   if (kind === 'image' || kind === 'video') {
     return (
       <MediaTile

@@ -11,7 +11,8 @@ import {
   SendHorizontal,
   X,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ACCEPT,
   attachmentLabel,
@@ -21,6 +22,7 @@ import {
   replyLabel,
 } from '@/lib/attachments';
 import { MAX_MESSAGE_LENGTH, setTyping } from '@/lib/chat';
+import MediaPicker from '@/Pages/GroupMusic/chat/MediaPicker';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 
@@ -119,6 +121,7 @@ const MessageInput = ({
   onCancelEdit,
   onSaveEdit,
   onSend,
+  onSendGif,
   files,
   onAddFiles,
   onRemoveFile,
@@ -153,6 +156,19 @@ const MessageInput = ({
   }, [text]);
 
   useEffect(() => () => setTyping(conversationId, false), [conversationId]);
+
+  const [gifsOpen, setGifsOpen] = useState(false);
+  const rowRef = useRef(null);
+  const gifButtonRef = useRef(null);
+  const closeGifs = useCallback(() => setGifsOpen(false), []);
+  const pickGif = useCallback(
+    (url, _item, size) => {
+      setGifsOpen(false);
+      onSendGif({ url, ...size });
+      inputRef.current?.focus();
+    },
+    [onSendGif]
+  );
 
   const canSubmit = editing
     ? Boolean(text.trim() || editing.attachment)
@@ -211,6 +227,7 @@ const MessageInput = ({
           icon={CornerUpLeft}
           title={`Replying to ${replyTo.senderId === meId ? 'yourself' : peerName}`}
           text={replyLabel({
+            type: replyTo.type,
             body: replyTo.body,
             hasAttachment: Boolean(replyTo.attachment),
             attachmentKind: replyTo.attachment?.kind,
@@ -229,7 +246,7 @@ const MessageInput = ({
         </div>
       )}
 
-      <div className='flex items-end gap-2'>
+      <div ref={rowRef} className='flex items-end gap-1'>
         {!editing && (
           <Button
             variant='ghost'
@@ -240,6 +257,22 @@ const MessageInput = ({
             title='Attach files. You can also paste or drop them here.'
           >
             <Paperclip className='h-5 w-5 text-muted-foreground' />
+          </Button>
+        )}
+        {!editing && (
+          <Button
+            ref={gifButtonRef}
+            variant='ghost'
+            size='icon'
+            className='shrink-0 rounded-full'
+            onClick={() => setGifsOpen((open) => !open)}
+            aria-label='Send a GIF'
+            aria-expanded={gifsOpen}
+            title='GIFs and stickers'
+          >
+            <span className='rounded-[4px] border-[1.5px] border-current px-[3px] text-[9.5px] font-extrabold leading-[13px] tracking-wide text-muted-foreground'>
+              GIF
+            </span>
           </Button>
         )}
         <input
@@ -286,6 +319,17 @@ const MessageInput = ({
           {editing ? <Check className='h-5 w-5' /> : <SendHorizontal className='h-5 w-5' />}
         </Button>
       </div>
+
+      <AnimatePresence>
+        {gifsOpen && !editing && (
+          <MediaPicker
+            anchorRef={rowRef}
+            toggleRef={gifButtonRef}
+            onSelect={pickGif}
+            onClose={closeGifs}
+          />
+        )}
+      </AnimatePresence>
     </Card>
   );
 };

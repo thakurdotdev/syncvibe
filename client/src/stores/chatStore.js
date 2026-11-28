@@ -372,6 +372,7 @@ export const previewOf = (message, meId) => {
     if (outcome === 'rejected') return 'Declined call';
     return 'Video call';
   }
-  const text = message.body || attachmentLabel(message.attachment);
+  const text =
+    message.body || (message.type === 'gif' ? 'GIF' : attachmentLabel(message.attachment));
   return message.senderId === meId ? `You: ${text}` : text;
 };

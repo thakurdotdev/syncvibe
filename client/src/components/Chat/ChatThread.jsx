@@ -21,6 +21,7 @@ import {
   markRead,
   newClientId,
   retryMessage,
+  sendGif,
   sendMessage,
   toggleReaction,
 } from '@/lib/chat';
@@ -115,6 +116,7 @@ const OpenThread = ({ conversation }) => {
           (m) =>
             m.id != null &&
             m.attachment?.url &&
+            m.type !== 'gif' &&
             ['image', 'video'].includes(m.attachment.kind ?? 'image')
         )
         .map((m) => ({
@@ -225,6 +227,19 @@ const OpenThread = ({ conversation }) => {
       setReplyTo(null);
     },
     [activeId, replyTo, staged]
+  );
+
+  const handleSendGif = useCallback(
+    (gif) => {
+      // Clips and stickers have a .gif too; anything else wouldn't be accepted.
+      if (!/\.gif$/i.test(gif.url)) {
+        toast.error("This one can't be sent here. Pick another.");
+        return;
+      }
+      sendGif(activeId, gif, replyTo);
+      setReplyTo(null);
+    },
+    [activeId, replyTo]
   );
 
   const dropHandlers = {
@@ -339,6 +354,7 @@ const OpenThread = ({ conversation }) => {
           onCancelEdit={() => setEditing(null)}
           onSaveEdit={handleSaveEdit}
           onSend={handleSend}
+          onSendGif={handleSendGif}
           files={staged}
           onAddFiles={addFiles}
           onRemoveFile={removeFile}
