@@ -2,7 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { v2 as Cloudinary } from 'cloudinary';
 import { Op, QueryTypes, type Transaction } from 'sequelize';
 import sequelize from '@/utils/sequelize';
-import { Conversation, ConversationMember, Message, MessageReaction, User } from '@/models/index';
+import {
+  ChatStar,
+  Conversation,
+  ConversationMember,
+  Message,
+  MessageReaction,
+  User,
+} from '@/models/index';
 import { createRateLimiter } from '@/utils/rate-limiter';
 import { clearMessageNotification, sendPushNotification } from '@/socket/notification';
 import { ChatError, invalid, notFound } from '../chat.errors';
@@ -20,12 +27,18 @@ import {
 } from '../chat.validation';
 import {
   isStoredFile,
+  type ContentMeta,
   type MessageAttachment,
   type MessageMeta,
 } from '@/models/chat/message.model';
 import { catalogSong, UnknownSongError } from '@/features/music/services/catalog.service';
 import type { Song } from '@/models/index';
-import { claimAttachment, prepareAttachment, removeAttachmentOf } from './attachment.service';
+import {
+  claimAttachment,
+  copyAttachment,
+  prepareAttachment,
+  removeAttachmentOf,
+} from './attachment.service';
 import { blockBetween, isMuted, requireNotBlocked } from './block.service';
 import { findDirectConversationId, requireMembers } from './conversation.service';
 import { attachmentLabel, presentMessages } from './message.presenter';
@@ -215,30 +228,39 @@ export const sendMessage = async (
           ? 'file'
           : 'image';
 
+  return storeAndAnnounce(
+    {
+      conversationId,
+      senderId,
+      clientId,
+      type,
+      body,
+      attachment,
+      meta: song ? { songId: song.songId } : null,
+      replyToId,
+    },
+    members,
+    read
+  );
+};
+
+/** Stores a new message once and tells everyone in the conversation, the sender's devices too. */
+const storeAndAnnounce = async (
+  input: NewMessage,
+  members: number[],
+  read: boolean
+): Promise<MessageDto> => {
   const { message, created, receipt } = await sequelize.transaction(async (transaction) => {
-    if (replyToId) {
+    if (input.replyToId) {
       const target = await Message.findOne({
-        where: { id: replyToId, conversationId, deletedAt: null },
+        where: { id: input.replyToId, conversationId: input.conversationId, deletedAt: null },
         attributes: ['id'],
         transaction,
       });
       if (!target) throw invalid('The message you replied to is no longer there');
     }
 
-    const stored = await storeMessage(
-      {
-        conversationId,
-        senderId,
-        clientId,
-        type,
-        body,
-        attachment,
-        meta: song ? { songId: song.songId } : null,
-        replyToId,
-      },
-      transaction,
-      read
-    );
+    const stored = await storeMessage(input, transaction, read);
     const [presented] = await presentMessages([stored.message], transaction);
     return { message: presented!, created: stored.created, receipt: stored.receipt };
   });
@@ -249,6 +271,54 @@ export const sendMessage = async (
     if (receipt) emitToUsers(members, 'chat:receipt', receipt);
   }
   return message;
+};
+
+/**
+ * Sends a copy of a message you can see to another of your conversations, marked forwarded. A
+ * file is copied too: each file belongs to one message, and goes when that message is deleted.
+ * Like sending, the device's clientId makes a second try return the copy already made.
+ */
+export const forwardMessage = async (
+  userId: number,
+  input: Record<string, unknown>
+): Promise<MessageDto> => {
+  const messageId = parseId(input.messageId, 'messageId');
+  const conversationId = parseId(input.conversationId, 'conversationId');
+  const clientId = parseClientId(input.clientId);
+
+  const { message: source } = await loadForMember(messageId, userId);
+  if (source.type === 'call') throw new ChatError('FORBIDDEN', "Calls can't be forwarded");
+  const members = await requireMembers(conversationId, userId);
+  limit(allowSend(userId));
+  for (const recipientId of others(members, userId)) {
+    await requireNotBlocked(userId, recipientId);
+  }
+
+  // Sent again after a lost reply: the copy is already there, so no second file is made.
+  const existing = await Message.findOne({
+    where: { senderId: userId, clientId },
+    attributes: ['id'],
+  });
+  const attachment =
+    !existing && isStoredFile(source.attachment)
+      ? await copyAttachment(userId, source.attachment, conversationId)
+      : source.attachment;
+  const songId = source.type === 'song' ? (source.meta as ContentMeta | null)?.songId : undefined;
+
+  return storeAndAnnounce(
+    {
+      conversationId,
+      senderId: userId,
+      clientId,
+      type: source.type,
+      body: source.body,
+      attachment,
+      meta: { forwarded: true, ...(songId ? { songId } : {}) },
+      replyToId: null,
+    },
+    members,
+    true
+  );
 };
 
 /**
@@ -344,7 +414,12 @@ export const editMessage = async (
   limit(allowChange(userId));
 
   const { message, members } = await loadForMember(messageId, userId);
-  if (message.senderId !== userId || !['text', 'image', 'file'].includes(message.type)) {
+  const forwarded = message.type !== 'call' && (message.meta as ContentMeta | null)?.forwarded;
+  if (
+    message.senderId !== userId ||
+    forwarded ||
+    !['text', 'image', 'file'].includes(message.type)
+  ) {
     throw new ChatError('FORBIDDEN', "You can't edit this message");
   }
   // A file can lose its caption; a text message can't become empty.
@@ -385,6 +460,7 @@ export const deleteMessage = async (
       { transaction }
     );
     await MessageReaction.destroy({ where: { messageId }, transaction });
+    await ChatStar.destroy({ where: { messageId }, transaction });
     const latest = await Message.findOne({
       where: { conversationId, deletedAt: null },
       order: [['id', 'DESC']],

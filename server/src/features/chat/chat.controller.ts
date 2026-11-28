@@ -4,6 +4,7 @@ import { asObject, parseId } from './chat.validation';
 import { cancelUpload, createUpload, getAttachment } from './services/attachment.service';
 import { listConversations, openDirectConversation } from './services/conversation.service';
 import { setBlocked, setMuted } from './services/block.service';
+import { listStarred, setStarred } from './services/star.service';
 import { confirmDelivered, listMessages, markRead, sendMessage } from './services/message.service';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
@@ -92,4 +93,12 @@ export const putMuted = respond((req) =>
 /** Blocks or unblocks the other person in a conversation: `{ blocked }`. */
 export const putBlocked = respond((req) =>
   setBlocked(req.user!.userid, req.params.conversationId, asObject(req.body).blocked)
+);
+
+/** Your starred messages, the latest starred first. */
+export const getStarred = respond((req) => listStarred(req.user!.userid));
+
+/** Stars or unstars a message: `{ starred }`. */
+export const putStarred = respond((req) =>
+  setStarred(req.user!.userid, req.params.messageId, asObject(req.body).starred)
 );

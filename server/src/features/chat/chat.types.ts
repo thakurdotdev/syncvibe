@@ -70,6 +70,8 @@ export interface MessageDto {
   call: CallDto | null;
   /** A shared song: the catalog's copy, which devices play as it is. */
   song: Record<string, unknown> | null;
+  /** Forwarded from another conversation: shown as such, and can't be edited. */
+  forwarded: boolean;
   replyTo: ReplyPreviewDto | null;
   reactions: ReactionDto[];
   editedAt: string | null;

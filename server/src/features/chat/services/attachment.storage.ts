@@ -1,4 +1,5 @@
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -125,4 +126,11 @@ export const readStart = async (key: string, length: number): Promise<Uint8Array
 
 export const removeObject = async (key: string): Promise<void> => {
   await s3().send(new DeleteObjectCommand({ Bucket: bucket(), Key: key }));
+};
+
+/** A second copy of a stored file, for a forwarded message: each file belongs to one message. */
+export const copyObject = async (fromKey: string, toKey: string): Promise<void> => {
+  await s3().send(
+    new CopyObjectCommand({ Bucket: bucket(), CopySource: `${bucket()}/${fromKey}`, Key: toKey })
+  );
 };

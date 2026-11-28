@@ -18,6 +18,7 @@ import Message from './chat/message.model';
 import MessageReaction from './chat/message-reaction.model';
 import ChatAttachment from './chat/attachment.model';
 import ChatBlock from './chat/block.model';
+import ChatStar from './chat/star.model';
 
 // Music
 import Song from './music/song.model';
@@ -63,6 +64,7 @@ Message.belongsTo(Message, { foreignKey: 'replyToId', as: 'replyTo' });
 Message.hasMany(MessageReaction, { foreignKey: 'messageId', as: 'reactions' });
 MessageReaction.belongsTo(Message, { foreignKey: 'messageId', as: 'message' });
 ChatAttachment.belongsTo(Conversation, { foreignKey: 'conversationId', as: 'conversation' });
+ChatStar.belongsTo(Message, { foreignKey: 'messageId', as: 'message' });
 
 // ─── User ↔ Comment ────────────────────────────────────────────────────────
 User.hasMany(Comment, { foreignKey: 'createdby', as: 'comments' });
@@ -155,6 +157,7 @@ export {
   MessageReaction,
   ChatAttachment,
   ChatBlock,
+  ChatStar,
   Song,
   HistorySong,
   PlayEvent,

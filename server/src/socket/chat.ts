@@ -6,6 +6,7 @@ import {
   announceTyping,
   deleteMessage,
   editMessage,
+  forwardMessage,
   markRead,
   sendMessage,
   setReaction,
@@ -17,7 +18,9 @@ import {
  * socket's session, never from the payload.
  *
  *   chat:send    { conversationId, clientId, body?, attachmentId?, replyToId? } → { message }
- *                (attachmentId: from POST /api/chat/conversations/:id/attachments, once uploaded)
+ *                (attachmentId: from POST /api/chat/conversations/:id/attachments, once uploaded;
+ *                or, instead of body and file, gif: { url, width?, height? } or song: { id })
+ *   chat:forward { messageId, conversationId, clientId }                     → { message }
  *   chat:edit    { messageId, body }                                         → { message }
  *   chat:delete  { messageId }                                               → { conversationId, messageId }
  *   chat:react   { messageId, emoji | null }                                 → { message }
@@ -32,6 +35,9 @@ type Command = (userId: number, payload: Record<string, unknown>) => Promise<obj
 const COMMANDS: Record<string, Command> = {
   'chat:send': async (userId, payload) => ({ message: await sendMessage(userId, payload) }),
   'chat:edit': async (userId, payload) => ({ message: await editMessage(userId, payload) }),
+  'chat:forward': async (userId, payload) => ({
+    message: await forwardMessage(userId, payload),
+  }),
   'chat:delete': (userId, payload) => deleteMessage(userId, payload),
   'chat:react': async (userId, payload) => ({ message: await setReaction(userId, payload) }),
   'chat:read': async (userId, payload) => ({ receipt: await markRead(userId, payload) }),
